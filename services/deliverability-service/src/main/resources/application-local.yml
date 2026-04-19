@@ -1,0 +1,16 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/legent_deliverability
+    username: legent
+    password: legent
+
+  kafka:
+    bootstrap-servers: localhost:9092
+
+legent:
+  deliverability:
+    mock-dns: true # Enable mocking external DNS lookups for local dev

@@ -1,0 +1,938 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+{"time":"2026-04-14 07:23:54,259","level":"INFO","logger":"com.legent.foundation.FoundationApplication","correlationId":"","tenantId":"","msg":"Starting FoundationApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)"}
+{"time":"2026-04-14 07:23:54,277","level":"DEBUG","logger":"com.legent.foundation.FoundationApplication","correlationId":"","tenantId":"","msg":"Running with Spring Boot v3.2.5, Spring v6.1.6"}
+{"time":"2026-04-14 07:23:54,290","level":"INFO","logger":"com.legent.foundation.FoundationApplication","correlationId":"","tenantId":"","msg":"The following 1 profile is active: "prod""}
+{"time":"2026-04-14 07:24:16,598","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+{"time":"2026-04-14 07:24:16,621","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data JPA repositories in DEFAULT mode."}
+{"time":"2026-04-14 07:24:18,169","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 1484 ms. Found 3 JPA repository interfaces."}
+{"time":"2026-04-14 07:24:18,394","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+{"time":"2026-04-14 07:24:18,411","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data Redis repositories in DEFAULT mode."}
+{"time":"2026-04-14 07:24:18,583","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.ConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:18,585","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.FeatureFlagRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:18,586","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.TenantRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:18,593","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 61 ms. Found 0 Redis repository interfaces."}
+{"time":"2026-04-14 07:24:29,912","level":"INFO","logger":"org.springframework.boot.web.embedded.tomcat.TomcatWebServer","correlationId":"","tenantId":"","msg":"Tomcat initialized with port 8081 (http)"}
+{"time":"2026-04-14 07:24:30,087","level":"INFO","logger":"org.apache.catalina.core.StandardService","correlationId":"","tenantId":"","msg":"Starting service [Tomcat]"}
+{"time":"2026-04-14 07:24:30,094","level":"INFO","logger":"org.apache.catalina.core.StandardEngine","correlationId":"","tenantId":"","msg":"Starting Servlet engine: [Apache Tomcat/10.1.20]"}
+{"time":"2026-04-14 07:24:30,332","level":"INFO","logger":"org.apache.catalina.core.ContainerBase.[Tomcat].[localhost].[/]","correlationId":"","tenantId":"","msg":"Initializing Spring embedded WebApplicationContext"}
+{"time":"2026-04-14 07:24:30,336","level":"INFO","logger":"org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext","correlationId":"","tenantId":"","msg":"Root WebApplicationContext: initialization completed in 35065 ms"}
+{"time":"2026-04-14 07:24:32,274","level":"DEBUG","logger":"com.legent.common.config.CorrelationIdFilter","correlationId":"","tenantId":"","msg":"Filter 'correlationIdFilter' configured for use"}
+{"time":"2026-04-14 07:24:32,311","level":"DEBUG","logger":"com.legent.security.TenantFilter","correlationId":"","tenantId":"","msg":"Filter 'tenantFilter' configured for use"}
+{"time":"2026-04-14 07:24:33,361","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Starting..."}
+{"time":"2026-04-14 07:24:34,689","level":"INFO","logger":"com.zaxxer.hikari.pool.HikariPool","correlationId":"","tenantId":"","msg":"HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2976ca51"}
+{"time":"2026-04-14 07:24:34,704","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Start completed."}
+{"time":"2026-04-14 07:24:36,270","level":"INFO","logger":"org.flywaydb.core.internal.license.VersionPrinter","correlationId":"","tenantId":"","msg":"Flyway Community Edition 9.22.3 by Redgate"}
+{"time":"2026-04-14 07:24:36,271","level":"INFO","logger":"org.flywaydb.core.internal.license.VersionPrinter","correlationId":"","tenantId":"","msg":"See release notes here: https://rd.gt/416ObMi"}
+{"time":"2026-04-14 07:24:36,274","level":"INFO","logger":"org.flywaydb.core.internal.license.VersionPrinter","correlationId":"","tenantId":"","msg":""}
+{"time":"2026-04-14 07:24:36,416","level":"INFO","logger":"org.flywaydb.core.FlywayExecutor","correlationId":"","tenantId":"","msg":"Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)"}
+{"time":"2026-04-14 07:24:36,971","level":"WARN","logger":"org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext","correlationId":"","tenantId":"","msg":"Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -1983868480
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE"}
+{"time":"2026-04-14 07:24:36,973","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Shutdown initiated..."}
+{"time":"2026-04-14 07:24:36,997","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Shutdown completed."}
+{"time":"2026-04-14 07:24:37,036","level":"INFO","logger":"org.apache.catalina.core.StandardService","correlationId":"","tenantId":"","msg":"Stopping service [Tomcat]"}
+{"time":"2026-04-14 07:24:37,367","level":"INFO","logger":"org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger","correlationId":"","tenantId":"","msg":"
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled."}
+{"time":"2026-04-14 07:24:37,573","level":"ERROR","logger":"org.springframework.boot.SpringApplication","correlationId":"","tenantId":"","msg":"Application run failed"}
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -1983868480
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+	at com.legent.foundation.FoundationApplication.main(FoundationApplication.java:18)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: org.flywaydb.core.api.exception.FlywayValidateException: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -1983868480
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.flywaydb.core.Flyway.lambda$migrate$0(Flyway.java:146)
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:213)
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:140)
+	at org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:66)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782)
+	... 23 common frames omitted
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14T07:23:57.719Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : Starting IdentityApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14T07:23:57.783Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : The following 1 profile is active: "prod"
+2026-04-14T07:24:19.057Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14T07:24:19.090Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14T07:24:22.037Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2684 ms. Found 1 JPA repository interface.
+2026-04-14T07:24:22.694Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14T07:24:22.700Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-14T07:24:23.154Z  INFO 1 --- [identity-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.identity.repository.UserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:23.200Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 242 ms. Found 0 Redis repository interfaces.
+2026-04-14T07:24:33.479Z  INFO 1 --- [identity-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8089 (http)
+2026-04-14T07:24:33.763Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-14T07:24:33.769Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14T07:24:34.594Z  INFO 1 --- [identity-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-14T07:24:34.607Z  INFO 1 --- [identity-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 35491 ms
+2026-04-14T07:24:37.350Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-14T07:24:39.236Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@b768a65
+2026-04-14T07:24:39.250Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-14T07:24:40.193Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-14T07:24:40.199Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-14T07:24:40.205Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-14T07:24:40.393Z  INFO 1 --- [identity-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)
+2026-04-14T07:24:41.065Z  WARN 1 --- [identity-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -90401568
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+2026-04-14T07:24:41.066Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-14T07:24:41.107Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-14T07:24:41.162Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-14T07:24:41.277Z  INFO 1 --- [identity-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14T07:24:41.554Z ERROR 1 --- [identity-service] [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -90401568
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at com.legent.identity.IdentityApplication.main(IdentityApplication.java:13) ~[!/:1.0.0-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+Caused by: org.flywaydb.core.api.exception.FlywayValidateException: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -90401568
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.flywaydb.core.Flyway.lambda$migrate$0(Flyway.java:146) ~[flyway-core-9.22.3.jar!/:na]
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:213) ~[flyway-core-9.22.3.jar!/:na]
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:140) ~[flyway-core-9.22.3.jar!/:na]
+	at org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:66) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 23 common frames omitted
+
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14T07:23:45.591Z  INFO 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : Starting DeliverabilityApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14T07:23:45.596Z DEBUG 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-14T07:23:45.607Z  INFO 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : The following 1 profile is active: "prod"
+2026-04-14T07:24:07.942Z  INFO 1 --- [deliverability-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14T07:24:08.572Z  INFO 1 --- [deliverability-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 540 ms. Found 3 JPA repository interfaces.
+2026-04-14T07:24:19.309Z  INFO 1 --- [deliverability-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8087 (http)
+2026-04-14T07:24:19.595Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-14T07:24:19.609Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14T07:24:19.957Z  INFO 1 --- [deliverability-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-14T07:24:19.965Z  INFO 1 --- [deliverability-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 33258 ms
+2026-04-14T07:24:22.547Z DEBUG 1 --- [deliverability-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-14T07:24:22.574Z DEBUG 1 --- [deliverability-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-14T07:24:23.650Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-14T07:24:24.831Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2a7ebe07
+2026-04-14T07:24:24.867Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-14T07:24:26.217Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-14T07:24:26.218Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-14T07:24:26.218Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-14T07:24:26.314Z  INFO 1 --- [deliverability-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)
+2026-04-14T07:24:26.803Z  INFO 1 --- [deliverability-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "public"."flyway_schema_history" does not exist yet
+2026-04-14T07:24:26.882Z  INFO 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 1 migration (execution time 00:00.237s)
+2026-04-14T07:24:30.417Z  INFO 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 1
+2026-04-14T07:24:30.456Z  INFO 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-04-14T07:24:31.716Z  INFO 1 --- [deliverability-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-14T07:24:32.861Z  INFO 1 --- [deliverability-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-14T07:24:33.321Z  INFO 1 --- [deliverability-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-14T07:24:37.015Z  INFO 1 --- [deliverability-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-14T07:24:45.272Z  INFO 1 --- [deliverability-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-14T07:24:45.658Z ERROR 1 --- [deliverability-service] [           main] j.LocalContainerEntityManagerFactoryBean : Failed to initialize JPA EntityManagerFactory: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [domain_reputations]
+2026-04-14T07:24:45.659Z  WARN 1 --- [deliverability-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [domain_reputations]
+2026-04-14T07:24:45.660Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-14T07:24:45.678Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-14T07:24:45.701Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-14T07:24:45.824Z  INFO 1 --- [deliverability-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14T07:24:46.004Z ERROR 1 --- [deliverability-service] [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [domain_reputations]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at com.legent.deliverability.DeliverabilityApplication.main(DeliverabilityApplication.java:12) ~[!/:1.0.0-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+Caused by: jakarta.persistence.PersistenceException: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [domain_reputations]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:421) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:396) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:366) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 21 common frames omitted
+Caused by: org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [domain_reputations]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.validateTable(AbstractSchemaValidator.java:134) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.GroupedSchemaValidatorImpl.validateTables(GroupedSchemaValidatorImpl.java:46) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.performValidation(AbstractSchemaValidator.java:97) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.doValidation(AbstractSchemaValidator.java:75) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.performDatabaseAction(SchemaManagementToolCoordinator.java:295) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.lambda$process$5(SchemaManagementToolCoordinator.java:145) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at java.base/java.util.HashMap.forEach(Unknown Source) ~[na:na]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.process(SchemaManagementToolCoordinator.java:142) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.boot.internal.SessionFactoryObserverForSchemaExport.sessionFactoryCreated(SessionFactoryObserverForSchemaExport.java:37) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.internal.SessionFactoryObserverChain.sessionFactoryCreated(SessionFactoryObserverChain.java:35) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.internal.SessionFactoryImpl.<init>(SessionFactoryImpl.java:315) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.boot.internal.SessionFactoryBuilderImpl.build(SessionFactoryBuilderImpl.java:450) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1507) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:75) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:390) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:409) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	... 25 common frames omitted
+
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14T07:25:10.430Z  INFO 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : Starting DeliverabilityApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14T07:25:10.432Z DEBUG 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-14T07:25:10.435Z  INFO 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : The following 1 profile is active: "prod"
+2026-04-14T07:25:12.939Z  INFO 1 --- [deliverability-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14T07:25:13.047Z  INFO 1 --- [deliverability-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 91 ms. Found 3 JPA repository interfaces.
+2026-04-14T07:25:15.105Z  INFO 1 --- [deliverability-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8087 (http)
+2026-04-14T07:25:15.130Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-14T07:25:15.131Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14T07:25:15.203Z  INFO 1 --- [deliverability-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-14T07:25:15.207Z  INFO 1 --- [deliverability-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 4581 ms
+2026-04-14T07:25:15.680Z DEBUG 1 --- [deliverability-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-14T07:25:15.685Z DEBUG 1 --- [deliverability-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-14T07:25:15.892Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-14T07:25:16.374Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@4e7bc939
+2026-04-14T07:25:16.386Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-14T07:25:16.838Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-14T07:25:16.839Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-14T07:25:16.839Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-14T07:25:16.922Z  INFO 1 --- [deliverability-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)
+2026-04-14T07:25:17.126Z  WARN 1 --- [deliverability-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : 1594902309
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+2026-04-14T07:25:17.127Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-14T07:25:17.137Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-14T07:25:17.145Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-14T07:25:17.193Z  INFO 1 --- [deliverability-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14T07:25:17.271Z ERROR 1 --- [deliverability-service] [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : 1594902309
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at com.legent.deliverability.DeliverabilityApplication.main(DeliverabilityApplication.java:12) ~[!/:1.0.0-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+Caused by: org.flywaydb.core.api.exception.FlywayValidateException: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : 1594902309
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.flywaydb.core.Flyway.lambda$migrate$0(Flyway.java:146) ~[flyway-core-9.22.3.jar!/:na]
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:213) ~[flyway-core-9.22.3.jar!/:na]
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:140) ~[flyway-core-9.22.3.jar!/:na]
+	at org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:66) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 23 common frames omitted
+
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+{"time":"2026-04-14 07:23:45,641","level":"INFO","logger":"com.legent.audience.AudienceApplication","correlationId":"","tenantId":"","msg":"Starting AudienceApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)"}
+{"time":"2026-04-14 07:23:45,671","level":"DEBUG","logger":"com.legent.audience.AudienceApplication","correlationId":"","tenantId":"","msg":"Running with Spring Boot v3.2.5, Spring v6.1.6"}
+{"time":"2026-04-14 07:23:45,683","level":"INFO","logger":"com.legent.audience.AudienceApplication","correlationId":"","tenantId":"","msg":"The following 1 profile is active: "prod""}
+{"time":"2026-04-14 07:24:08,903","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+{"time":"2026-04-14 07:24:08,915","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data JPA repositories in DEFAULT mode."}
+{"time":"2026-04-14 07:24:10,760","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 1774 ms. Found 10 JPA repository interfaces."}
+{"time":"2026-04-14 07:24:11,043","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+{"time":"2026-04-14 07:24:11,076","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data Redis repositories in DEFAULT mode."}
+{"time":"2026-04-14 07:24:11,283","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.DataExtensionFieldRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,292","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.DataExtensionRecordRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,295","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.DataExtensionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,296","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.ImportJobRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,301","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.ListMembershipRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,305","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SegmentMembershipRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,308","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SegmentRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,312","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SubscriberListRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,314","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SubscriberRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,320","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SuppressionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+{"time":"2026-04-14 07:24:11,322","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 131 ms. Found 0 Redis repository interfaces."}
+{"time":"2026-04-14 07:24:21,237","level":"INFO","logger":"org.springframework.boot.web.embedded.tomcat.TomcatWebServer","correlationId":"","tenantId":"","msg":"Tomcat initialized with port 8082 (http)"}
+{"time":"2026-04-14 07:24:21,410","level":"INFO","logger":"org.apache.catalina.core.StandardService","correlationId":"","tenantId":"","msg":"Starting service [Tomcat]"}
+{"time":"2026-04-14 07:24:21,416","level":"INFO","logger":"org.apache.catalina.core.StandardEngine","correlationId":"","tenantId":"","msg":"Starting Servlet engine: [Apache Tomcat/10.1.20]"}
+{"time":"2026-04-14 07:24:21,789","level":"INFO","logger":"org.apache.catalina.core.ContainerBase.[Tomcat].[localhost].[/]","correlationId":"","tenantId":"","msg":"Initializing Spring embedded WebApplicationContext"}
+{"time":"2026-04-14 07:24:21,793","level":"INFO","logger":"org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext","correlationId":"","tenantId":"","msg":"Root WebApplicationContext: initialization completed in 35132 ms"}
+{"time":"2026-04-14 07:24:24,630","level":"DEBUG","logger":"com.legent.common.config.CorrelationIdFilter","correlationId":"","tenantId":"","msg":"Filter 'correlationIdFilter' configured for use"}
+{"time":"2026-04-14 07:24:24,726","level":"DEBUG","logger":"com.legent.security.TenantFilter","correlationId":"","tenantId":"","msg":"Filter 'tenantFilter' configured for use"}
+{"time":"2026-04-14 07:24:25,871","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Starting..."}
+{"time":"2026-04-14 07:24:26,793","level":"INFO","logger":"com.zaxxer.hikari.pool.HikariPool","correlationId":"","tenantId":"","msg":"HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@73385d3f"}
+{"time":"2026-04-14 07:24:26,805","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Start completed."}
+{"time":"2026-04-14 07:24:28,108","level":"INFO","logger":"org.flywaydb.core.internal.license.VersionPrinter","correlationId":"","tenantId":"","msg":"Flyway Community Edition 9.22.3 by Redgate"}
+{"time":"2026-04-14 07:24:28,112","level":"INFO","logger":"org.flywaydb.core.internal.license.VersionPrinter","correlationId":"","tenantId":"","msg":"See release notes here: https://rd.gt/416ObMi"}
+{"time":"2026-04-14 07:24:28,112","level":"INFO","logger":"org.flywaydb.core.internal.license.VersionPrinter","correlationId":"","tenantId":"","msg":""}
+{"time":"2026-04-14 07:24:28,255","level":"INFO","logger":"org.flywaydb.core.FlywayExecutor","correlationId":"","tenantId":"","msg":"Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)"}
+{"time":"2026-04-14 07:24:28,616","level":"INFO","logger":"org.flywaydb.core.internal.command.DbValidate","correlationId":"","tenantId":"","msg":"Successfully validated 1 migration (execution time 00:00.222s)"}
+{"time":"2026-04-14 07:24:29,803","level":"INFO","logger":"org.flywaydb.core.internal.command.DbMigrate","correlationId":"","tenantId":"","msg":"Current version of schema "public": 1"}
+{"time":"2026-04-14 07:24:29,819","level":"INFO","logger":"org.flywaydb.core.internal.command.DbMigrate","correlationId":"","tenantId":"","msg":"Schema "public" is up to date. No migration necessary."}
+{"time":"2026-04-14 07:24:30,717","level":"INFO","logger":"org.hibernate.jpa.internal.util.LogHelper","correlationId":"","tenantId":"","msg":"HHH000204: Processing PersistenceUnitInfo [name: default]"}
+{"time":"2026-04-14 07:24:31,982","level":"INFO","logger":"org.hibernate.Version","correlationId":"","tenantId":"","msg":"HHH000412: Hibernate ORM core version 6.4.4.Final"}
+{"time":"2026-04-14 07:24:32,574","level":"INFO","logger":"org.hibernate.cache.internal.RegionFactoryInitiator","correlationId":"","tenantId":"","msg":"HHH000026: Second-level cache disabled"}
+{"time":"2026-04-14 07:24:36,113","level":"INFO","logger":"org.springframework.orm.jpa.persistenceunit.SpringPersistenceUnitInfo","correlationId":"","tenantId":"","msg":"No LoadTimeWeaver setup: ignoring JPA class transformer"}
+{"time":"2026-04-14 07:24:37,025","level":"WARN","logger":"org.hibernate.orm.deprecation","correlationId":"","tenantId":"","msg":"HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)"}
+{"time":"2026-04-14 07:24:48,369","level":"INFO","logger":"org.hibernate.engine.transaction.jta.platform.internal.JtaPlatformInitiator","correlationId":"","tenantId":"","msg":"HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)"}
+{"time":"2026-04-14 07:24:48,498","level":"ERROR","logger":"org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean","correlationId":"","tenantId":"","msg":"Failed to initialize JPA EntityManagerFactory: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [data_extension_fields]"}
+{"time":"2026-04-14 07:24:48,499","level":"WARN","logger":"org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext","correlationId":"","tenantId":"","msg":"Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [data_extension_fields]"}
+{"time":"2026-04-14 07:24:48,500","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Shutdown initiated..."}
+{"time":"2026-04-14 07:24:48,513","level":"INFO","logger":"com.zaxxer.hikari.HikariDataSource","correlationId":"","tenantId":"","msg":"HikariPool-1 - Shutdown completed."}
+{"time":"2026-04-14 07:24:48,523","level":"INFO","logger":"org.apache.catalina.core.StandardService","correlationId":"","tenantId":"","msg":"Stopping service [Tomcat]"}
+{"time":"2026-04-14 07:24:48,581","level":"INFO","logger":"org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger","correlationId":"","tenantId":"","msg":"
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled."}
+{"time":"2026-04-14 07:24:48,647","level":"ERROR","logger":"org.springframework.boot.SpringApplication","correlationId":"","tenantId":"","msg":"Application run failed"}
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [data_extension_fields]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+	at com.legent.audience.AudienceApplication.main(AudienceApplication.java:22)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: jakarta.persistence.PersistenceException: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [data_extension_fields]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:421)
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:396)
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:366)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782)
+	... 21 common frames omitted
+Caused by: org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [data_extension_fields]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.validateTable(AbstractSchemaValidator.java:134)
+	at org.hibernate.tool.schema.internal.GroupedSchemaValidatorImpl.validateTables(GroupedSchemaValidatorImpl.java:46)
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.performValidation(AbstractSchemaValidator.java:97)
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.doValidation(AbstractSchemaValidator.java:75)
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.performDatabaseAction(SchemaManagementToolCoordinator.java:295)
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.lambda$process$5(SchemaManagementToolCoordinator.java:145)
+	at java.base/java.util.HashMap.forEach(Unknown Source)
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.process(SchemaManagementToolCoordinator.java:142)
+	at org.hibernate.boot.internal.SessionFactoryObserverForSchemaExport.sessionFactoryCreated(SessionFactoryObserverForSchemaExport.java:37)
+	at org.hibernate.internal.SessionFactoryObserverChain.sessionFactoryCreated(SessionFactoryObserverChain.java:35)
+	at org.hibernate.internal.SessionFactoryImpl.<init>(SessionFactoryImpl.java:315)
+	at org.hibernate.boot.internal.SessionFactoryBuilderImpl.build(SessionFactoryBuilderImpl.java:450)
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1507)
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:75)
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:390)
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:409)
+	... 25 common frames omitted
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14T07:23:46.133Z  INFO 1 --- [tracking-service] [           main] c.legent.tracking.TrackingApplication    : Starting TrackingApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14T07:23:46.191Z DEBUG 1 --- [tracking-service] [           main] c.legent.tracking.TrackingApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-14T07:23:46.220Z  INFO 1 --- [tracking-service] [           main] c.legent.tracking.TrackingApplication    : The following 1 profile is active: "prod"
+2026-04-14T07:24:07.596Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14T07:24:07.610Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14T07:24:09.215Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 1538 ms. Found 3 JPA repository interfaces.
+2026-04-14T07:24:09.400Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14T07:24:09.406Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-14T07:24:09.771Z  INFO 1 --- [tracking-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.tracking.repository.CampaignSummaryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:09.774Z  INFO 1 --- [tracking-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.tracking.repository.RawEventRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:09.804Z  INFO 1 --- [tracking-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.tracking.repository.SubscriberSummaryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:09.805Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 186 ms. Found 0 Redis repository interfaces.
+2026-04-14T07:24:19.314Z  INFO 1 --- [tracking-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8085 (http)
+2026-04-14T07:24:19.469Z  INFO 1 --- [tracking-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-14T07:24:19.473Z  INFO 1 --- [tracking-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14T07:24:19.792Z  INFO 1 --- [tracking-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-14T07:24:19.798Z  INFO 1 --- [tracking-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 32291 ms
+2026-04-14T07:24:21.839Z DEBUG 1 --- [tracking-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-14T07:24:21.856Z DEBUG 1 --- [tracking-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-14T07:24:22.723Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-14T07:24:24.377Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@d76099a
+2026-04-14T07:24:24.390Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-14T07:24:26.105Z  INFO 1 --- [tracking-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-14T07:24:26.105Z  INFO 1 --- [tracking-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-14T07:24:26.105Z  INFO 1 --- [tracking-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-14T07:24:26.241Z  INFO 1 --- [tracking-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)
+2026-04-14T07:24:26.728Z  INFO 1 --- [tracking-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "public"."flyway_schema_history" does not exist yet
+2026-04-14T07:24:26.774Z  INFO 1 --- [tracking-service] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 1 migration (execution time 00:00.410s)
+2026-04-14T07:24:30.010Z  INFO 1 --- [tracking-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 1
+2026-04-14T07:24:30.081Z  INFO 1 --- [tracking-service] [           main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-04-14T07:24:32.038Z  INFO 1 --- [tracking-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-14T07:24:33.158Z  INFO 1 --- [tracking-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-14T07:24:33.856Z  INFO 1 --- [tracking-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-14T07:24:38.551Z  INFO 1 --- [tracking-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-14T07:24:47.115Z  INFO 1 --- [tracking-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-14T07:24:47.300Z ERROR 1 --- [tracking-service] [           main] j.LocalContainerEntityManagerFactoryBean : Failed to initialize JPA EntityManagerFactory: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_summaries]
+2026-04-14T07:24:47.310Z  WARN 1 --- [tracking-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_summaries]
+2026-04-14T07:24:47.310Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-14T07:24:47.330Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-14T07:24:47.349Z  INFO 1 --- [tracking-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-14T07:24:47.415Z  INFO 1 --- [tracking-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14T07:24:47.552Z ERROR 1 --- [tracking-service] [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_summaries]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at com.legent.tracking.TrackingApplication.main(TrackingApplication.java:12) ~[!/:1.0.0-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+Caused by: jakarta.persistence.PersistenceException: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_summaries]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:421) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:396) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:366) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 21 common frames omitted
+Caused by: org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_summaries]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.validateTable(AbstractSchemaValidator.java:134) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.GroupedSchemaValidatorImpl.validateTables(GroupedSchemaValidatorImpl.java:46) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.performValidation(AbstractSchemaValidator.java:97) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.doValidation(AbstractSchemaValidator.java:75) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.performDatabaseAction(SchemaManagementToolCoordinator.java:295) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.lambda$process$5(SchemaManagementToolCoordinator.java:145) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at java.base/java.util.HashMap.forEach(Unknown Source) ~[na:na]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.process(SchemaManagementToolCoordinator.java:142) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.boot.internal.SessionFactoryObserverForSchemaExport.sessionFactoryCreated(SessionFactoryObserverForSchemaExport.java:37) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.internal.SessionFactoryObserverChain.sessionFactoryCreated(SessionFactoryObserverChain.java:35) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.internal.SessionFactoryImpl.<init>(SessionFactoryImpl.java:315) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.boot.internal.SessionFactoryBuilderImpl.build(SessionFactoryBuilderImpl.java:450) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1507) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:75) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:390) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:409) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	... 25 common frames omitted
+
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14T07:23:45.835Z  INFO 1 --- [automation-service] [           main] c.l.automation.AutomationApplication     : Starting AutomationApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14T07:23:45.849Z DEBUG 1 --- [automation-service] [           main] c.l.automation.AutomationApplication     : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-14T07:23:45.855Z  INFO 1 --- [automation-service] [           main] c.l.automation.AutomationApplication     : The following 1 profile is active: "prod"
+2026-04-14T07:24:07.862Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14T07:24:07.881Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14T07:24:09.709Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 1740 ms. Found 4 JPA repository interfaces.
+2026-04-14T07:24:10.015Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14T07:24:10.032Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-14T07:24:10.338Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.InstanceHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:10.357Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.WorkflowDefinitionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:10.374Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.WorkflowInstanceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:10.388Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.WorkflowRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14T07:24:10.390Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 229 ms. Found 0 Redis repository interfaces.
+2026-04-14T07:24:20.257Z  INFO 1 --- [automation-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8086 (http)
+2026-04-14T07:24:20.575Z  INFO 1 --- [automation-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-14T07:24:20.579Z  INFO 1 --- [automation-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14T07:24:21.278Z  INFO 1 --- [automation-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-14T07:24:21.287Z  INFO 1 --- [automation-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 34403 ms
+2026-04-14T07:24:23.550Z DEBUG 1 --- [automation-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-14T07:24:23.573Z DEBUG 1 --- [automation-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-14T07:24:24.780Z ERROR 1 --- [automation-service] [           main] com.zaxxer.hikari.HikariConfig           : HikariPool-1 - dataSource or dataSourceClassName or jdbcUrl is required.
+2026-04-14T07:24:24.810Z  WARN 1 --- [automation-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flyway' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to instantiate [org.flywaydb.core.Flyway]: Factory method 'flyway' threw exception with message: dataSource or dataSourceClassName or jdbcUrl is required.
+2026-04-14T07:24:24.868Z  INFO 1 --- [automation-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-14T07:24:25.199Z  INFO 1 --- [automation-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14T07:24:25.383Z ERROR 1 --- [automation-service] [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flyway' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Failed to instantiate [org.flywaydb.core.Flyway]: Factory method 'flyway' threw exception with message: dataSource or dataSourceClassName or jdbcUrl is required.
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:648) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:636) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at com.legent.automation.AutomationApplication.main(AutomationApplication.java:12) ~[!/:1.0.0-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [org.flywaydb.core.Flyway]: Factory method 'flyway' threw exception with message: dataSource or dataSourceClassName or jdbcUrl is required.
+	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:177) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:644) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 26 common frames omitted
+Caused by: java.lang.IllegalArgumentException: dataSource or dataSourceClassName or jdbcUrl is required.
+	at com.zaxxer.hikari.HikariConfig.validate(HikariConfig.java:1026) ~[HikariCP-5.0.1.jar!/:na]
+	at com.zaxxer.hikari.HikariDataSource.getConnection(HikariDataSource.java:109) ~[HikariCP-5.0.1.jar!/:na]
+	at org.flywaydb.core.api.configuration.ClassicConfiguration.setDataSource(ClassicConfiguration.java:1094) ~[flyway-core-9.22.3.jar!/:na]
+	at org.flywaydb.core.api.configuration.FluentConfiguration.dataSource(FluentConfiguration.java:624) ~[flyway-core-9.22.3.jar!/:na]
+	at org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration$FlywayConfiguration.configureDataSource(FlywayAutoConfiguration.java:185) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration$FlywayConfiguration.flyway(FlywayAutoConfiguration.java:172) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:140) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 27 common frames omitted
+
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14 07:23:45.658 [main] INFO  c.l.campaign.CampaignApplication - [Tenant:, Req:] - Starting CampaignApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14 07:23:45.683 [main] DEBUG c.l.campaign.CampaignApplication - [Tenant:, Req:] - Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-14 07:23:45.695 [main] INFO  c.l.campaign.CampaignApplication - [Tenant:, Req:] - The following 1 profile is active: "prod"
+2026-04-14 07:24:09.139 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14 07:24:09.149 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14 07:24:11.201 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Finished Spring Data repository scanning in 1976 ms. Found 4 JPA repository interfaces.
+2026-04-14 07:24:11.408 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-14 07:24:11.414 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-14 07:24:11.602 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.CampaignRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14 07:24:11.609 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.SendBatchRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14 07:24:11.611 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.SendJobRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14 07:24:11.621 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.ThrottlingRuleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-14 07:24:11.622 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Finished Spring Data repository scanning in 87 ms. Found 0 Redis repository interfaces.
+2026-04-14 07:24:21.344 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - [Tenant:, Req:] - Tomcat initialized with port 8083 (http)
+2026-04-14 07:24:21.562 [main] INFO  o.a.catalina.core.StandardService - [Tenant:, Req:] - Starting service [Tomcat]
+2026-04-14 07:24:21.567 [main] INFO  o.a.catalina.core.StandardEngine - [Tenant:, Req:] - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14 07:24:21.935 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - [Tenant:, Req:] - Initializing Spring embedded WebApplicationContext
+2026-04-14 07:24:21.943 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - [Tenant:, Req:] - Root WebApplicationContext: initialization completed in 35395 ms
+2026-04-14 07:24:24.181 [main] DEBUG c.l.c.config.CorrelationIdFilter - [Tenant:, Req:] - Filter 'correlationIdFilter' configured for use
+2026-04-14 07:24:24.191 [main] DEBUG com.legent.security.TenantFilter - [Tenant:, Req:] - Filter 'tenantFilter' configured for use
+2026-04-14 07:24:24.937 [main] INFO  com.zaxxer.hikari.HikariDataSource - [Tenant:, Req:] - HikariPool-1 - Starting...
+2026-04-14 07:24:26.261 [main] INFO  com.zaxxer.hikari.pool.HikariPool - [Tenant:, Req:] - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@3a70575
+2026-04-14 07:24:26.276 [main] INFO  com.zaxxer.hikari.HikariDataSource - [Tenant:, Req:] - HikariPool-1 - Start completed.
+2026-04-14 07:24:28.227 [main] INFO  o.f.c.i.license.VersionPrinter - [Tenant:, Req:] - Flyway Community Edition 9.22.3 by Redgate
+2026-04-14 07:24:28.232 [main] INFO  o.f.c.i.license.VersionPrinter - [Tenant:, Req:] - See release notes here: https://rd.gt/416ObMi
+2026-04-14 07:24:28.233 [main] INFO  o.f.c.i.license.VersionPrinter - [Tenant:, Req:] - 
+2026-04-14 07:24:28.402 [main] INFO  org.flywaydb.core.FlywayExecutor - [Tenant:, Req:] - Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)
+2026-04-14 07:24:28.882 [main] INFO  o.f.core.internal.command.DbValidate - [Tenant:, Req:] - Successfully validated 1 migration (execution time 00:00.362s)
+2026-04-14 07:24:30.133 [main] INFO  o.f.core.internal.command.DbMigrate - [Tenant:, Req:] - Current version of schema "public": 1
+2026-04-14 07:24:30.152 [main] INFO  o.f.core.internal.command.DbMigrate - [Tenant:, Req:] - Schema "public" is up to date. No migration necessary.
+2026-04-14 07:24:31.730 [main] INFO  o.h.jpa.internal.util.LogHelper - [Tenant:, Req:] - HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-14 07:24:32.693 [main] INFO  org.hibernate.Version - [Tenant:, Req:] - HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-14 07:24:33.486 [main] INFO  o.h.c.i.RegionFactoryInitiator - [Tenant:, Req:] - HHH000026: Second-level cache disabled
+2026-04-14 07:24:36.899 [main] INFO  o.s.o.j.p.SpringPersistenceUnitInfo - [Tenant:, Req:] - No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-14 07:24:48.154 [main] INFO  o.h.e.t.j.p.i.JtaPlatformInitiator - [Tenant:, Req:] - HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-14 07:24:48.280 [main] ERROR o.s.o.j.LocalContainerEntityManagerFactoryBean - [Tenant:, Req:] - Failed to initialize JPA EntityManagerFactory: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_audiences]
+2026-04-14 07:24:48.285 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - [Tenant:, Req:] - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_audiences]
+2026-04-14 07:24:48.287 [main] INFO  com.zaxxer.hikari.HikariDataSource - [Tenant:, Req:] - HikariPool-1 - Shutdown initiated...
+2026-04-14 07:24:48.306 [main] INFO  com.zaxxer.hikari.HikariDataSource - [Tenant:, Req:] - HikariPool-1 - Shutdown completed.
+2026-04-14 07:24:48.321 [main] INFO  o.a.catalina.core.StandardService - [Tenant:, Req:] - Stopping service [Tomcat]
+2026-04-14 07:24:48.379 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - [Tenant:, Req:] - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14 07:24:48.438 [main] ERROR o.s.boot.SpringApplication - [Tenant:, Req:] - Application run failed
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_audiences]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234)
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952)
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624)
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+	at com.legent.campaign.CampaignApplication.main(CampaignApplication.java:14)
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+Caused by: jakarta.persistence.PersistenceException: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_audiences]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:421)
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:396)
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:366)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833)
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782)
+	... 21 common frames omitted
+Caused by: org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing table [campaign_audiences]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.validateTable(AbstractSchemaValidator.java:134)
+	at org.hibernate.tool.schema.internal.GroupedSchemaValidatorImpl.validateTables(GroupedSchemaValidatorImpl.java:46)
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.performValidation(AbstractSchemaValidator.java:97)
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.doValidation(AbstractSchemaValidator.java:75)
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.performDatabaseAction(SchemaManagementToolCoordinator.java:295)
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.lambda$process$5(SchemaManagementToolCoordinator.java:145)
+	at java.base/java.util.HashMap.forEach(Unknown Source)
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.process(SchemaManagementToolCoordinator.java:142)
+	at org.hibernate.boot.internal.SessionFactoryObserverForSchemaExport.sessionFactoryCreated(SessionFactoryObserverForSchemaExport.java:37)
+	at org.hibernate.internal.SessionFactoryObserverChain.sessionFactoryCreated(SessionFactoryObserverChain.java:35)
+	at org.hibernate.internal.SessionFactoryImpl.<init>(SessionFactoryImpl.java:315)
+	at org.hibernate.boot.internal.SessionFactoryBuilderImpl.build(SessionFactoryBuilderImpl.java:450)
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1507)
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:75)
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:390)
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:409)
+	... 25 common frames omitted
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14T07:23:45.895Z  INFO 1 --- [platform-service] [           main] c.legent.platform.PlatformApplication    : Starting PlatformApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14T07:23:45.899Z DEBUG 1 --- [platform-service] [           main] c.legent.platform.PlatformApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-14T07:23:45.903Z  INFO 1 --- [platform-service] [           main] c.legent.platform.PlatformApplication    : The following 1 profile is active: "prod"
+2026-04-14T07:24:08.236Z  INFO 1 --- [platform-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14T07:24:10.410Z  INFO 1 --- [platform-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2016 ms. Found 5 JPA repository interfaces.
+2026-04-14T07:24:19.216Z  INFO 1 --- [platform-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8088 (http)
+2026-04-14T07:24:19.364Z  INFO 1 --- [platform-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-14T07:24:19.369Z  INFO 1 --- [platform-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14T07:24:19.786Z  INFO 1 --- [platform-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-14T07:24:19.805Z  INFO 1 --- [platform-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 32909 ms
+2026-04-14T07:24:22.543Z DEBUG 1 --- [platform-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-14T07:24:22.550Z DEBUG 1 --- [platform-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-14T07:24:23.009Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-14T07:24:24.691Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@2830315f
+2026-04-14T07:24:24.748Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-14T07:24:25.771Z  INFO 1 --- [platform-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-14T07:24:25.772Z  INFO 1 --- [platform-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-14T07:24:25.773Z  INFO 1 --- [platform-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-14T07:24:26.014Z  INFO 1 --- [platform-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)
+2026-04-14T07:24:26.372Z  INFO 1 --- [platform-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Schema history table "public"."flyway_schema_history" does not exist yet
+2026-04-14T07:24:26.422Z  INFO 1 --- [platform-service] [           main] o.f.core.internal.command.DbValidate     : Successfully validated 1 migration (execution time 00:00.215s)
+2026-04-14T07:24:26.571Z  INFO 1 --- [platform-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-04-14T07:24:27.788Z  INFO 1 --- [platform-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-04-14T07:24:28.008Z  INFO 1 --- [platform-service] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - platform schema"
+2026-04-14T07:24:29.425Z  INFO 1 --- [platform-service] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v1 (execution time 00:01.355s)
+2026-04-14T07:24:30.467Z  INFO 1 --- [platform-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-14T07:24:31.238Z  INFO 1 --- [platform-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-14T07:24:31.490Z  INFO 1 --- [platform-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-14T07:24:35.673Z  INFO 1 --- [platform-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-14T07:24:45.453Z  INFO 1 --- [platform-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-14T07:24:45.871Z ERROR 1 --- [platform-service] [           main] j.LocalContainerEntityManagerFactoryBean : Failed to initialize JPA EntityManagerFactory: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing column [deleted_at] in table [webhooks]
+2026-04-14T07:24:45.886Z  WARN 1 --- [platform-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing column [deleted_at] in table [webhooks]
+2026-04-14T07:24:45.887Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-14T07:24:45.937Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-14T07:24:45.957Z  INFO 1 --- [platform-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-14T07:24:46.163Z  INFO 1 --- [platform-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14T07:24:46.344Z ERROR 1 --- [platform-service] [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'entityManagerFactory' defined in class path resource [org/springframework/boot/autoconfigure/orm/jpa/HibernateJpaConfiguration.class]: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing column [deleted_at] in table [webhooks]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at com.legent.platform.PlatformApplication.main(PlatformApplication.java:12) ~[!/:1.0.0-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+Caused by: jakarta.persistence.PersistenceException: [PersistenceUnit: default] Unable to build Hibernate SessionFactory; nested exception is org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing column [deleted_at] in table [webhooks]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:421) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.afterPropertiesSet(AbstractEntityManagerFactoryBean.java:396) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.afterPropertiesSet(LocalContainerEntityManagerFactoryBean.java:366) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 21 common frames omitted
+Caused by: org.hibernate.tool.schema.spi.SchemaManagementException: Schema-validation: missing column [deleted_at] in table [webhooks]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.validateTable(AbstractSchemaValidator.java:145) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.GroupedSchemaValidatorImpl.validateTables(GroupedSchemaValidatorImpl.java:46) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.performValidation(AbstractSchemaValidator.java:97) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.internal.AbstractSchemaValidator.doValidation(AbstractSchemaValidator.java:75) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.performDatabaseAction(SchemaManagementToolCoordinator.java:295) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.lambda$process$5(SchemaManagementToolCoordinator.java:145) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at java.base/java.util.HashMap.forEach(Unknown Source) ~[na:na]
+	at org.hibernate.tool.schema.spi.SchemaManagementToolCoordinator.process(SchemaManagementToolCoordinator.java:142) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.boot.internal.SessionFactoryObserverForSchemaExport.sessionFactoryCreated(SessionFactoryObserverForSchemaExport.java:37) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.internal.SessionFactoryObserverChain.sessionFactoryCreated(SessionFactoryObserverChain.java:35) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.internal.SessionFactoryImpl.<init>(SessionFactoryImpl.java:315) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.boot.internal.SessionFactoryBuilderImpl.build(SessionFactoryBuilderImpl.java:450) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl.build(EntityManagerFactoryBuilderImpl.java:1507) ~[hibernate-core-6.4.4.Final.jar!/:6.4.4.Final]
+	at org.springframework.orm.jpa.vendor.SpringHibernateJpaPersistenceProvider.createContainerEntityManagerFactory(SpringHibernateJpaPersistenceProvider.java:75) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean.createNativeEntityManagerFactory(LocalContainerEntityManagerFactoryBean.java:390) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	at org.springframework.orm.jpa.AbstractEntityManagerFactoryBean.buildNativeEntityManagerFactory(AbstractEntityManagerFactoryBean.java:409) ~[spring-orm-6.1.6.jar!/:6.1.6]
+	... 25 common frames omitted
+
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-14T07:23:46.077Z  INFO 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : Starting DeliveryApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-14T07:23:46.096Z DEBUG 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-14T07:23:46.097Z  INFO 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : The following 1 profile is active: "prod"
+2026-04-14T07:24:12.826Z  INFO 1 --- [delivery-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-14T07:24:13.566Z  INFO 1 --- [delivery-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 642 ms. Found 3 JPA repository interfaces.
+2026-04-14T07:24:27.790Z  INFO 1 --- [delivery-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8084 (http)
+2026-04-14T07:24:27.980Z  INFO 1 --- [delivery-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-14T07:24:27.986Z  INFO 1 --- [delivery-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-14T07:24:28.637Z  INFO 1 --- [delivery-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-14T07:24:28.659Z  INFO 1 --- [delivery-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 41560 ms
+2026-04-14T07:24:30.727Z DEBUG 1 --- [delivery-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-14T07:24:30.735Z DEBUG 1 --- [delivery-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-14T07:24:31.701Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-14T07:24:33.161Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@75e0a54c
+2026-04-14T07:24:33.195Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-14T07:24:34.086Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-14T07:24:34.090Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-14T07:24:34.091Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-14T07:24:34.383Z  INFO 1 --- [delivery-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 13.23)
+2026-04-14T07:24:34.851Z  WARN 1 --- [delivery-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -646475634
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+2026-04-14T07:24:34.855Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-14T07:24:34.900Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+2026-04-14T07:24:34.939Z  INFO 1 --- [delivery-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+2026-04-14T07:24:35.187Z  INFO 1 --- [delivery-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-04-14T07:24:35.528Z ERROR 1 --- [delivery-service] [           main] o.s.boot.SpringApplication               : Application run failed
+
+org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'flywayInitializer' defined in class path resource [org/springframework/boot/autoconfigure/flyway/FlywayAutoConfiguration$FlywayConfiguration.class]: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -646475634
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1786) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:600) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+	at com.legent.delivery.DeliveryApplication.main(DeliveryApplication.java:12) ~[!/:1.0.0-SNAPSHOT]
+	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+Caused by: org.flywaydb.core.api.exception.FlywayValidateException: Validate failed: Migrations have failed validation
+Migration checksum mismatch for migration version 1
+-> Applied to database : -631008246
+-> Resolved locally    : -646475634
+Either revert the changes to the migration, or run repair to update the schema history.
+Need more flexibility with validation rules? Learn more: https://rd.gt/3AbJUZE
+	at org.flywaydb.core.Flyway.lambda$migrate$0(Flyway.java:146) ~[flyway-core-9.22.3.jar!/:na]
+	at org.flywaydb.core.FlywayExecutor.execute(FlywayExecutor.java:213) ~[flyway-core-9.22.3.jar!/:na]
+	at org.flywaydb.core.Flyway.migrate(Flyway.java:140) ~[flyway-core-9.22.3.jar!/:na]
+	at org.springframework.boot.autoconfigure.flyway.FlywayMigrationInitializer.afterPropertiesSet(FlywayMigrationInitializer.java:66) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.invokeInitMethods(AbstractAutowireCapableBeanFactory.java:1833) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.initializeBean(AbstractAutowireCapableBeanFactory.java:1782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+	... 23 common frames omitted
+

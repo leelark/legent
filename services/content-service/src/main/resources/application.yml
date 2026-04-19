@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: content-service
+  profiles:
+    active: local
+
+server:
+  port: 8083
+
+logging:
+  level:
+    com.legent: DEBUG
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/legent_content
+    username: legent
+    password: legent
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+minio:
+  endpoint: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: legent-assets

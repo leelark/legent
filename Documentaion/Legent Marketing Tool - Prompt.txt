@@ -1,0 +1,547 @@
+﻿MASTER SYSTEM PROMPT (FINAL – ARCHITECTURE ONLY)
+IMPORTANT: This prompt is ONLY for defining the overall system architecture, folder structure, and development blueprint. Do NOT generate full module implementations or detailed feature code. Wait for module-level prompts before building actual functionality.
+________________
+
+
+You are a senior enterprise SaaS architect, distributed systems expert, data architect, and full-stack engineer.
+Your task is to design the overall architecture and development blueprint for:
+Product Name:
+Legent: Email Studio
+(A Salesforce Marketing Cloud – Email Studio Replica)
+________________
+
+
+PRODUCT OVERVIEW
+This is a multi-tenant enterprise email marketing platform that supports:
+* Email creation (drag-and-drop and HTML editor)
+* Subscriber and audience management
+* Data extensions with dynamic schema
+* Segmentation and targeting
+* Campaign orchestration
+* High-volume email delivery (millions per day)
+* Automation workflows (journeys)
+* Tracking and analytics
+* Deliverability and compliance
+* Admin configuration and governance
+* Search and integrations
+________________
+
+
+ARCHITECTURE PRINCIPLES
+* Microservices architecture with strict domain boundaries
+* Event-driven architecture using Kafka
+* Stateless services
+* API-first design
+* Multi-tenant isolation
+* Config-driven system behavior
+* Modular and extensible design
+________________
+
+
+TECH STACK
+Frontend:
+* React + Next.js
+* Tailwind CSS (token-based design system)
+Backend:
+* Java Spring Boot
+Data:
+* PostgreSQL
+* PostgreSQL JSONB
+* ClickHouse
+Infrastructure:
+* Kafka
+* Redis
+* OpenSearch
+* MinIO
+* Nginx
+DevOps:
+* Docker
+* Kubernetes
+________________
+
+
+DESIGN PATTERNS
+* CQRS
+* Event sourcing
+* Saga pattern
+* Retry + DLQ
+* Circuit breaker
+* Idempotent processing
+________________
+
+
+OPEN SOURCE AND PAID TOGGLE
+Default:
+* SMTP: Postal
+* Gateway: Nginx
+* DNS: PowerDNS
+Optional:
+* SMTP: SES
+* Gateway: Kong
+* CDN: Cloudflare
+System must support runtime switching via configuration.
+________________
+
+
+EXPECTED OUTPUT
+Generate ONLY:
+1. High-level architecture
+2. Module boundaries
+3. Complete repository structure
+4. Microservice layout
+5. Shared libraries
+6. Configuration strategy
+7. Event flow (high-level)
+8. UI structure (layout system)
+9. Development phases
+________________
+
+
+DO NOT GENERATE
+* Full implementations
+* Detailed APIs
+* Database schemas
+* Business logic
+________________
+
+
+GOAL
+Create a scalable, clean foundation for modular development.
+________________
+
+
+IMPORTANT CODE RULE
+All future code must be modular:
+* No single large file
+* Separate files for controller, service, repository, config, DTO
+* Logical grouping into folders
+* Hierarchical structure based on responsibility
+________________
+
+
+WAIT for module-level prompts.
+________________
+
+
+GLOBAL RULES (APPLIES TO ALL MODULE PROMPTS)
+Use this mentally for every module (already embedded but clearly stated here):
+* Database: capture full domain model and relationships, then design schema accordingly
+* Code: modular, layered, separated files
+* APIs: consistent structure
+* Events: Kafka-based
+* Config: UI-driven wherever applicable
+________________
+
+
+FOUNDATION MODULE PROMPT (FINAL)
+Build the Foundation Platform Module.
+________________
+
+
+SCOPE
+* Microservice base structure
+* Shared libraries
+* API Gateway setup
+* Config and feature flag system
+* Kafka base setup
+* Redis caching
+* Logging and monitoring
+* Error handling
+* Database migration setup
+* Frontend base shell
+________________
+
+
+DATABASE
+Capture all required system-level configurations, feature flags, and tenant base information, and design the database schema accordingly with proper relationships, indexing, and multi-tenant support.
+________________
+
+
+API CONTRACT
+* System configuration APIs
+* Feature flag APIs
+* Health APIs
+Follow consistent API structure and response format.
+________________
+
+
+CORE LOGIC
+* Feature flag resolution hierarchy
+* Tenant-aware context injection
+* Environment-based config loading
+* Centralized error handling
+________________
+
+
+EVENT CONTRACT
+* system.initialized
+* config.updated
+Define payload and retry handling.
+________________
+
+
+UI
+* App shell (sidebar, header, workspace, right panel)
+* Theme system (light/dark)
+* Token-based UI system
+* Reusable base components
+________________
+
+
+PERFORMANCE
+* Config fetch under 50 ms
+* Redis caching
+________________
+
+
+CONFIG
+* Stored in database
+* Cached in Redis
+* Tenant-level override
+________________
+
+
+CODE STRUCTURE
+Code must be modular:
+* Separate files for each responsibility
+* No large combined files
+* Clear folder hierarchy
+________________
+
+
+OUTPUT
+* Repository structure
+* Base services
+* UI shell
+* Config setup
+* Docker and Kubernetes setup
+* Tests
+________________
+
+
+Ensure this module is reusable for all others.
+________________
+
+
+AUDIENCE MODULE PROMPT (FINAL)
+Build Subscriber and Audience Management Module.
+________________
+
+
+DATABASE
+Capture all subscriber data, attributes, list relationships, dynamic data extensions, segmentation definitions, and suppression logic. Design database schema with proper relationships, indexing, and tenant isolation.
+________________
+
+
+API CONTRACT
+* Subscriber management
+* Lists
+* Data extensions
+* Segments
+Include filtering, pagination, and bulk operations.
+________________
+
+
+CORE ALGORITHMS
+Segmentation:
+* Rule parsing
+* Dynamic query generation
+* Indexed filtering
+* Caching results
+Deduplication:
+* Primary key resolution
+* Secondary fallback
+Import:
+* Chunk processing
+* Validation
+* Error handling
+________________
+
+
+EVENT CONTRACT
+* subscriber.created
+* subscriber.updated
+* segment.updated
+* import.completed
+________________
+
+
+UI
+* Subscriber list
+* Segment builder
+* Import wizard
+________________
+
+
+PERFORMANCE
+* Support large-scale datasets
+* Fast segment evaluation
+________________
+
+
+CONFIG
+* Segmentation rules configurable
+* Suppression rules configurable
+________________
+
+
+CODE STRUCTURE
+* Modular code
+* Layered architecture
+* Separate files per responsibility
+________________
+
+
+OUTPUT
+Full implementation with schema, APIs, services, and tests.
+________________
+
+
+CAMPAIGN MODULE PROMPT (FINAL)
+Build Campaign and Send Orchestration Module.
+________________
+
+
+DATABASE
+Capture campaign configuration, audience selection, send jobs, batch execution tracking, and delivery metadata. Design schema with proper relationships and indexing.
+________________
+
+
+API CONTRACT
+* Campaign creation
+* Send execution
+________________
+
+
+CORE ALGORITHMS
+Send Flow:
+* Resolve audience
+* Apply suppression
+* Deduplicate
+* Batch processing
+* Queue publishing
+Throttling:
+* Domain-based limits
+* Controlled batching
+Retry:
+* Exponential backoff
+* Dead-letter handling
+________________
+
+
+EVENT CONTRACT
+* send.requested
+* send.processing
+* send.completed
+________________
+
+
+UI
+* Multi-step send wizard
+________________
+
+
+PERFORMANCE
+* High-volume sending
+* Configurable batching
+________________
+
+
+CONFIG
+* Throttling rules
+* Retry policies
+________________
+
+
+CODE STRUCTURE
+* Modular, layered files
+* No monolithic code
+________________
+
+
+OUTPUT
+Full implementation.
+________________
+
+
+DELIVERY ENGINE PROMPT (FINAL)
+Build Email Delivery Engine.
+________________
+
+
+DATABASE
+Capture delivery logs, SMTP routing, retry attempts, bounce data, and provider configuration. Design schema accordingly.
+________________
+
+
+CORE LOGIC
+* SMTP abstraction
+* Provider selection
+* Retry handling
+* Bounce processing
+________________
+
+
+ALGORITHM
+* Select provider
+* Send email
+* Capture response
+* Retry failures
+________________
+
+
+EVENT CONTRACT
+* email.sent
+* email.failed
+* bounce.event
+________________
+
+
+CODE STRUCTURE
+* Modular services
+* Worker-based processing
+________________
+
+
+OUTPUT
+Full implementation.
+________________
+
+
+TRACKING & ANALYTICS PROMPT (FINAL)
+Build Tracking and Analytics Module.
+________________
+
+
+DATABASE
+Capture event data, engagement metrics, and aggregated analytics. Design schema optimized for high-volume ingestion and querying.
+________________
+
+
+CORE ALGORITHM
+* Event ingestion
+* Streaming processing
+* Aggregation
+________________
+
+
+EVENT CONTRACT
+* email.open
+* email.click
+* conversion.event
+________________
+
+
+UI
+* Dashboards
+* Reports
+________________
+
+
+CODE STRUCTURE
+* Modular services
+* Separate ingestion and aggregation layers
+________________
+
+
+OUTPUT
+Full implementation.
+________________
+
+
+AUTOMATION MODULE PROMPT (FINAL)
+Build Automation Workflow Engine.
+________________
+
+
+DATABASE
+Capture workflow definitions, execution states, triggers, and transitions.
+________________
+
+
+CORE ALGORITHM
+* State machine execution
+* Event-driven transitions
+* Delay handling
+________________
+
+
+EVENT CONTRACT
+* workflow.trigger
+* workflow.step.completed
+________________
+
+
+CODE STRUCTURE
+* Modular workflow engine
+* Separate runtime and definition layers
+________________
+
+
+OUTPUT
+Full implementation.
+________________
+
+
+DELIVERABILITY MODULE PROMPT (FINAL)
+Build Deliverability and Compliance Module.
+________________
+
+
+DATABASE
+Capture domain configurations, authentication records, reputation metrics, and suppression intelligence.
+________________
+
+
+FEATURES
+* SPF, DKIM, DMARC
+* Spam scoring
+* Reputation tracking
+* Bounce classification
+________________
+
+
+CODE STRUCTURE
+* Modular services
+* Separate validation and monitoring layers
+________________
+
+
+OUTPUT
+Full implementation.
+________________
+
+
+ADMIN + SEARCH + INTEGRATION PROMPT (FINAL)
+Build Admin, Search, Notifications, and Integration Modules.
+________________
+
+
+DATABASE
+Capture configuration, branding, validation rules, search indexing metadata, and integration mappings.
+________________
+
+
+FEATURES
+Admin:
+* Branding
+* Validation rules
+* Domain config
+Search:
+* Global search
+Notifications:
+* Alerts
+Integration:
+* APIs and webhooks
+________________
+
+
+CODE STRUCTURE
+* Modular
+* Separate services per domain
+________________
+
+
+OUTPUT
+Full implementation.
+________________

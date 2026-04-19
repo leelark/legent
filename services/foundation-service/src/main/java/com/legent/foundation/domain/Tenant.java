@@ -1,0 +1,49 @@
+package com.legent.foundation.domain;
+
+import java.util.Map;
+
+import com.legent.common.model.BaseEntity;
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+
+/**
+ * Tenant entity — top-level multi-tenancy unit.
+ * Global entity (no tenant_id on itself).
+ */
+@Entity
+@Table(name = "tenants")
+@Getter
+@Setter
+@NoArgsConstructor
+public class Tenant extends BaseEntity {
+
+    @Column(name = "name", nullable = false, length = 255)
+    private String name;
+
+    @Column(name = "slug", nullable = false, unique = true, length = 128)
+    private String slug;
+
+    @Column(name = "status", nullable = false, length = 20)
+    @Enumerated(EnumType.STRING)
+    private TenantStatus status = TenantStatus.ACTIVE;
+
+    @Column(name = "plan", nullable = false, length = 50)
+    private String plan = "STARTER";
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "settings", columnDefinition = "jsonb")
+    private Map<String, Object> settings;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "branding", columnDefinition = "jsonb")
+    private Map<String, Object> branding;
+
+    public enum TenantStatus {
+        ACTIVE, SUSPENDED, PROVISIONING, DEACTIVATED
+    }
+}

@@ -1,0 +1,12 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/legent_platform
+    username: legent
+    password: legent
+
+  kafka:
+    bootstrap-servers: localhost:9092

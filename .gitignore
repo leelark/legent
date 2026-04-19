@@ -1,0 +1,25 @@
+# Maven / Java
+target/
+*.jar
+*.war
+*.ear
+*.class
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+build/
+.env*.local
+npm-debug.log*
+
+# Docker
+.dockerignore
+# (Optional: ignore local data volumes if any)
+docker_data/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

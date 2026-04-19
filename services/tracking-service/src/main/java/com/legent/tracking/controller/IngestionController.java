@@ -1,0 +1,86 @@
+package com.legent.tracking.controller;
+
+import com.legent.common.dto.ApiResponse;
+import com.legent.tracking.dto.TrackingDto;
+import com.legent.tracking.service.TrackingIngestionService;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.net.URI;
+
+@RestController
+@RequestMapping("/api/v1/tracking")
+@RequiredArgsConstructor
+@SuppressWarnings("null")
+public class IngestionController {
+
+    private final TrackingIngestionService ingestionService;
+
+    // A transparent 1x1 GIF byte array
+    private static final byte[] PIXEL_BYTES = new byte[]{
+            0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00,
+            (byte) 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) 0xff, (byte) 0xff, (byte) 0xff, 0x21,
+            (byte) 0xf9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00,
+            0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44,
+            0x01, 0x00, 0x3b
+    };
+
+    @GetMapping("/o.gif")
+    public ResponseEntity<byte[]> trackOpen(
+            @RequestParam String t, // tenantId
+            @RequestParam String c, // campaignId
+            @RequestParam String s, // subscriberId
+            @RequestParam String m, // messageId
+            HttpServletRequest request) {
+        
+        ingestionService.processOpen(t, c, s, m, request.getHeader("User-Agent"), getClientIp(request));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.IMAGE_GIF);
+        headers.setCacheControl("no-cache, no-store, must-revalidate");
+        headers.setPragma("no-cache");
+        headers.setExpires(0);
+
+        return new ResponseEntity<>(PIXEL_BYTES, headers, HttpStatus.OK);
+    }
+
+    @GetMapping("/c")
+    public ResponseEntity<Void> trackClick(
+            @RequestParam String url,
+            @RequestParam String t, // tenantId
+            @RequestParam String c, // campaignId
+            @RequestParam String s, // subscriberId
+            @RequestParam String m, // messageId
+            HttpServletRequest request) {
+
+        ingestionService.processClick(t, c, s, m, url, request.getHeader("User-Agent"), getClientIp(request));
+
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create(url))
+                .build();
+    }
+
+    @PostMapping("/events")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    public ApiResponse<Void> trackConversion(
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestBody TrackingDto.ConversionRequest requestPayload,
+            HttpServletRequest request) {
+        
+        ingestionService.processConversion(tenantId, requestPayload, request.getHeader("User-Agent"), getClientIp(request));
+        return ApiResponse.ok(null);
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader == null) {
+            return request.getRemoteAddr();
+        }
+        return xfHeader.split(",")[0];
+    }
+}

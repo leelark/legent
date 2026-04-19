@@ -1,0 +1,96 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: audience-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:legent_audience}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:legent}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:legent}}
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 10
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  jpa:
+    hibernate:
+      ddl-auto: ${SPRING_JPA_HIBERNATE_DDL_AUTO:update}
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+        order_updates: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:true}
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
+    out-of-order: ${SPRING_FLYWAY_OUT_OF_ORDER:true}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      group-id: audience-service
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: audience-service
+
+legent:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:legent-default-secret-key-change-in-production-please}
+      expiration-ms: 86400000
+    cors:
+      allowed-origins: http://localhost:3000
+
+  audience:
+    import:
+      chunk-size: 5000
+      max-errors: 1000
+    segment:
+      recompute-cron: "0 */15 * * * *"
+      max-concurrent-evaluations: 5
+
+logging:
+  level:
+    root: INFO
+    com.legent: DEBUG
+  pattern:
+    console: '{"time":"%d{ISO8601}","level":"%p","logger":"%c","correlationId":"%X{correlationId}","tenantId":"%X{tenantId}","msg":"%m"}%n'

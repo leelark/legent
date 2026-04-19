@@ -1,0 +1,23 @@
+package com.legent.campaign.repository;
+
+import java.util.Optional;
+
+import java.util.List;
+
+import com.legent.campaign.domain.SendJob;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+
+@Repository
+public interface SendJobRepository extends JpaRepository<SendJob, String> {
+    Optional<SendJob> findByTenantIdAndIdAndDeletedAtIsNull(String tenantId, String id);
+
+    Page<SendJob> findByTenantIdAndCampaignIdAndDeletedAtIsNull(String tenantId, String campaignId, Pageable pageable);
+
+    List<SendJob> findByTenantIdAndStatusInAndDeletedAtIsNull(String tenantId, List<SendJob.JobStatus> statuses);
+
+    Optional<SendJob> findFirstByTenantIdAndCampaignIdAndDeletedAtIsNullOrderByCreatedAtDesc(String tenantId, String campaignId);
+}

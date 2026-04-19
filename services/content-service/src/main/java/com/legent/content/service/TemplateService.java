@@ -1,0 +1,126 @@
+package com.legent.content.service;
+
+import com.legent.content.domain.EmailTemplate;
+import com.legent.content.dto.TemplateDto;
+import com.legent.content.repository.EmailTemplateRepository;
+import com.legent.common.exception.NotFoundException;
+import com.legent.common.exception.ConflictException;
+import com.legent.security.TenantContext;
+import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import org.thymeleaf.TemplateEngine;
+import org.thymeleaf.context.Context;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class TemplateService {
+
+    private final EmailTemplateRepository templateRepository;
+
+    @Autowired(required = false)
+    private TemplateEngine templateEngine;
+
+    @Transactional
+    public EmailTemplate createTemplate(TemplateDto.Create request) {
+        String tenantId = TenantContext.requireTenantId();
+
+        if (templateRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+            throw new ConflictException("Template with name '" + request.getName() + "' already exists");
+        }
+
+        EmailTemplate template = new EmailTemplate();
+        template.setTenantId(tenantId);
+        template.setName(request.getName());
+        template.setSubject(request.getSubject());
+        template.setHtmlContent(request.getHtmlContent());
+        template.setTextContent(request.getTextContent());
+        template.setCategory(request.getCategory());
+        template.setTags(request.getTags());
+        template.setMetadata(request.getMetadata());
+
+        return templateRepository.save(template);
+    }
+
+    @Cacheable(value = "templates", key = "#tenantId + ':' + #id")
+    public EmailTemplate getTemplate(String tenantId, String id) {
+        return templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("Template not found"));
+    }
+
+    @Transactional
+    @CacheEvict(value = "templates", key = "#tenantId + ':' + #id")
+    public EmailTemplate updateTemplate(String tenantId, String id, TemplateDto.Update request) {
+        EmailTemplate template = getTemplate(tenantId, id);
+
+        if (request.getName() != null && !request.getName().equals(template.getName())) {
+            if (templateRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+                throw new ConflictException("Template with name '" + request.getName() + "' already exists");
+            }
+            template.setName(request.getName());
+        }
+
+        if (request.getSubject() != null) {
+            template.setSubject(request.getSubject());
+        }
+        if (request.getHtmlContent() != null) {
+            template.setHtmlContent(request.getHtmlContent());
+        }
+        if (request.getTextContent() != null) {
+            template.setTextContent(request.getTextContent());
+        }
+        if (request.getCategory() != null) {
+            template.setCategory(request.getCategory());
+        }
+        if (request.getTags() != null) {
+            template.setTags(request.getTags());
+        }
+        if (request.getMetadata() != null) {
+            template.setMetadata(request.getMetadata());
+        }
+
+        return templateRepository.save(template);
+    }
+
+    @Transactional
+    @CacheEvict(value = "templates", key = "#tenantId + ':' + #id")
+    public void deleteTemplate(String tenantId, String id) {
+        EmailTemplate template = getTemplate(tenantId, id);
+        template.setDeletedAt(java.time.Instant.now());
+        templateRepository.save(template);
+    }
+
+    public Page<EmailTemplate> listTemplates(String tenantId, Pageable pageable) {
+        return templateRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
+    }
+
+    public List<EmailTemplate> searchTemplates(String tenantId, String query) {
+        return templateRepository.searchByName(tenantId, query);
+    }
+
+    /**
+     * Render template HTML with personalization tokens.
+     * @param template the EmailTemplate
+     * @param variables personalization variables
+     * @return rendered HTML
+     */
+    public String renderTemplate(EmailTemplate template, java.util.Map<String, Object> variables) {
+        if (templateEngine == null) {
+            throw new IllegalStateException("TemplateEngine not configured");
+        }
+        Context context = new Context();
+        if (variables != null) {
+            context.setVariables(variables);
+        }
+        // Use htmlContent as the template string
+        return templateEngine.process(template.getHtmlContent(), context);
+    }
+}
