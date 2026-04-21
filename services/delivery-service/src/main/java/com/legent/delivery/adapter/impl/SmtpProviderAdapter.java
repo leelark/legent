@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicLong;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@SuppressWarnings("null")
 public class SmtpProviderAdapter implements ProviderAdapter {
 
     // Note: In a true multi-tenant dynamic system, we wouldn't use standard auto-configured JavaMailSender
@@ -39,7 +38,12 @@ public class SmtpProviderAdapter implements ProviderAdapter {
     }
 
     @Override
-    public void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata, SmtpProvider config) throws ProviderDispatchException {
+    public void sendEmail(
+            @org.springframework.lang.NonNull String to,
+            @org.springframework.lang.NonNull String subject,
+            @org.springframework.lang.NonNull String htmlBody,
+            Map<String, String> metadata,
+            SmtpProvider config) throws ProviderDispatchException {
         // Throttling: use maxSendRate from config
         int maxSendRate = config.getMaxSendRate() != null ? config.getMaxSendRate() : 0;
         String throttleKey = config.getId();

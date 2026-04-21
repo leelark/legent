@@ -40,7 +40,6 @@ import java.time.Duration;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@SuppressWarnings("null")
 public class SegmentEvaluationService {
 
     private final SegmentRepository segmentRepository;
@@ -89,8 +88,8 @@ public class SegmentEvaluationService {
 
     @Async("segmentExecutor")
     @Transactional
-    public void recompute(String segmentId) {
-        String tenantId = TenantContext.getTenantId();
+    public void recompute(@org.springframework.lang.NonNull String segmentId) {
+        String tenantId = TenantContext.requireTenantId();
         Segment segment = segmentRepository.findById(segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 

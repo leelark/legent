@@ -22,7 +22,7 @@ public class MockProviderAdapter implements ProviderAdapter {
     }
 
     @Override
-    public void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata, SmtpProvider config) throws ProviderDispatchException {
+    public void sendEmail(@org.springframework.lang.NonNull String to, @org.springframework.lang.NonNull String subject, @org.springframework.lang.NonNull String htmlBody, Map<String, String> metadata, SmtpProvider config) throws ProviderDispatchException {
         // Simulate network latency (20ms)
         try {
             Thread.sleep(20);

@@ -58,7 +58,7 @@ public class SegmentController {
 
     @PostMapping("/{id}/recompute")
     @ResponseStatus(HttpStatus.ACCEPTED)
-    public ApiResponse<String> recompute(@PathVariable String id) {
+    public ApiResponse<String> recompute(@PathVariable @org.springframework.lang.NonNull String id) {
         evaluationService.recompute(id);
         return ApiResponse.ok("Segment recomputation started");
     }

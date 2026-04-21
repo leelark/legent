@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -10,10 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { useApi } from '@/hooks/useApi';
 import { useDebounce } from '@/hooks/useDebounce';
 import { post, put, del } from '@/lib/api-client';
-import {
-  MagnifyingGlass, Plus, FunnelSimple,
-  DotsThreeVertical, Trash, UsersThree, PencilSimple
-} from '@phosphor-icons/react';
+import { MagnifyingGlass, Plus, Trash, PencilSimple } from '@phosphor-icons/react';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   ACTIVE: 'success',
@@ -207,7 +204,7 @@ export default function SubscribersPage() {
         </div>
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? 'Edit Subscriber' : 'Add Subscriber'}>
+      <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? 'Edit Subscriber' : 'Add Subscriber'}>
         <div className="space-y-4 pt-4">
           <Input label="Email *" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
           <Input label="Subscriber Key *" value={formData.subscriberKey} onChange={e => setFormData({...formData, subscriberKey: e.target.value})} />

@@ -76,9 +76,8 @@ public class ContentBlockService {
             block.setIsGlobal(request.getIsGlobal());
         }
 
-        @SuppressWarnings("null")
-        ContentBlock savedBlock = blockRepository.save(block);
-        return savedBlock;
+        final ContentBlock savedBlock = blockRepository.save(block);
+        return java.util.Objects.requireNonNull(savedBlock, "Saved block cannot be null");
     }
 
     @Transactional

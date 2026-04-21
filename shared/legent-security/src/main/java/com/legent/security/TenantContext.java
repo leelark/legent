@@ -1,6 +1,8 @@
 package com.legent.security;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.lang.NonNull;
+import org.springframework.lang.Nullable;
 
 /**
  * Thread-local holder for the current tenant context.
@@ -24,10 +26,12 @@ public final class TenantContext {
         CURRENT_TENANT.set(tenantId);
     }
 
+    @Nullable
     public static String getTenantId() {
         return CURRENT_TENANT.get();
     }
 
+    @NonNull
     public static String requireTenantId() {
         String tenantId = CURRENT_TENANT.get();
         if (tenantId == null || tenantId.isBlank()) {
@@ -40,6 +44,7 @@ public final class TenantContext {
         CURRENT_USER.set(userId);
     }
 
+    @Nullable
     public static String getUserId() {
         return CURRENT_USER.get();
     }

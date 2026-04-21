@@ -117,7 +117,7 @@ public class DeliveryOrchestrationService {
             String processedHtml = contentProcessingService.processContent(htmlBody, normalizedTenantId, campaignId, subscriberId, messageId);
 
             // Dispatch
-            adapter.sendEmail(email, subject, processedHtml, metadata, strategyResult.dbRecord());
+            adapter.sendEmail(java.util.Objects.requireNonNull(email), java.util.Objects.requireNonNull(subject), java.util.Objects.requireNonNull(processedHtml), metadata, strategyResult.dbRecord());
 
             // Success
             logEntry.setStatus(MessageLog.DeliveryStatus.SENT.name());

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dialog, DialogTitle, DialogContent, DialogActions } from '@/components/ui/Dialog';
+import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { JourneyNode } from './JourneyBuilder';
@@ -18,16 +18,21 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({ open, node, on
   if (!node) return null;
 
   return (
-    <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogTitle>Edit Node</DialogTitle>
-      <DialogContent>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Edit Node"
+      footer={
+        <>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onSave({ ...node, label })}>Save</Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
         <Input value={label} onChange={e => setLabel(e.target.value)} label="Label" />
         {/* Add more config fields based on node.type here */}
-      </DialogContent>
-      <DialogActions>
-        <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={() => onSave({ ...node, label })}>Save</Button>
-      </DialogActions>
-    </Dialog>
+      </div>
+    </Modal>
   );
 };

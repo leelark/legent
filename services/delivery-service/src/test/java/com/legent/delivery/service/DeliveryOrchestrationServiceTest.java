@@ -45,9 +45,9 @@ class DeliveryOrchestrationServiceTest {
         ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
         
         when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
-        when(messageLogRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
-        when(contentProcessingService.processContent(anyString(), anyString(), anyString(), anyString(), anyString())).thenReturn("Processed HTML");
+        when(contentProcessingService.processContent(any(), any(), any(), any(), any())).thenReturn("Processed HTML");
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
@@ -70,9 +70,9 @@ class DeliveryOrchestrationServiceTest {
         ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
         
         when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
-        when(messageLogRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
-        when(contentProcessingService.processContent(anyString(), anyString(), anyString(), anyString(), anyString())).thenReturn("Processed HTML");
+        when(contentProcessingService.processContent(any(), any(), any(), any(), any())).thenReturn("Processed HTML");
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
@@ -95,9 +95,9 @@ class DeliveryOrchestrationServiceTest {
         ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
         
         when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
-        when(messageLogRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
-        when(contentProcessingService.processContent(anyString(), anyString(), anyString(), anyString(), anyString())).thenReturn("Processed HTML");
+        when(contentProcessingService.processContent(any(), any(), any(), any(), any())).thenReturn("Processed HTML");
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
@@ -111,7 +111,7 @@ class DeliveryOrchestrationServiceTest {
         );
 
         when(messageLogRepository.findByTenantIdAndMessageId("tenant-1", "evt-123")).thenReturn(Optional.empty());
-        when(messageLogRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 

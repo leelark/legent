@@ -52,9 +52,7 @@ public class AuthService {
                 user.getTenantId(),
                 Map.of(
                         "roles", Collections.singletonList(user.getRole()),
-                        "email", user.getEmail()
-                )
-        );
+                        "email", user.getEmail()));
     }
 
     @Transactional
@@ -78,19 +76,18 @@ public class AuthService {
                 .isActive(true)
                 .build();
 
-        user = java.util.Objects.requireNonNull(userRepository.save(user));
+        final User savedUser = userRepository.save(java.util.Objects.requireNonNull(user));
+        java.util.Objects.requireNonNull(savedUser, "Saved user cannot be null");
 
-        eventPublisher.publishSignup(tenantId, user.getId(), user.getEmail(), request.getCompanyName(), slug);
+        eventPublisher.publishSignup(tenantId, savedUser.getId(), savedUser.getEmail(), request.getCompanyName(), slug);
 
-        log.info("User signed up: email={}, tenantId={}", user.getEmail(), tenantId);
+        log.info("User signed up: email={}, tenantId={}", savedUser.getEmail(), tenantId);
 
         return tokenProvider.generateToken(
-                user.getId(),
-                user.getTenantId(),
+                savedUser.getId(),
+                savedUser.getTenantId(),
                 Map.of(
-                        "roles", Collections.singletonList(user.getRole()),
-                        "email", user.getEmail()
-                )
-        );
+                        "roles", Collections.singletonList(savedUser.getRole()),
+                        "email", savedUser.getEmail()));
     }
 }

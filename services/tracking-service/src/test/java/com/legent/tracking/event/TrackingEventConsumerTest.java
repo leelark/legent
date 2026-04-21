@@ -1,6 +1,8 @@
 package com.legent.tracking.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.kafka.model.EventEnvelope;
+import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.ClickHouseWriter;
 import com.legent.tracking.service.AggregationService;
 import org.junit.jupiter.api.Test;
@@ -15,7 +17,6 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@SuppressWarnings("null")
 class TrackingEventConsumerTest {
 
     @Mock private ClickHouseWriter clickHouseWriter;
@@ -29,12 +30,23 @@ class TrackingEventConsumerTest {
     void handleIngestedEvents_Success() throws Exception {
         String msg = "{\"payload\":{\"eventType\":\"OPEN\"}}";
         List<String> messages = List.of(msg);
+
+        TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
+                .tenantId("tenant-1")
+                .campaignId("campaign-1")
+                .subscriberId("subscriber-1")
+                .eventType("OPEN")
+                .timestamp(java.time.Instant.now())
+                .build();
+        EventEnvelope<TrackingDto.RawEventPayload> envelope = new EventEnvelope<>();
+        envelope.setPayload(payload);
         
         when(objectMapper.readValue(eq(msg), any(com.fasterxml.jackson.core.type.TypeReference.class)))
-                .thenReturn(new com.legent.kafka.model.EventEnvelope<>());
+                .thenReturn(envelope);
 
         consumer.handleIngestedEvents(messages);
 
+        verify(aggregationService).aggregateEvent(any());
         verify(clickHouseWriter).writeBatch(anyList());
     }
 }

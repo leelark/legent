@@ -23,11 +23,12 @@ export default function EditSegmentPage() {
     const fetchSegment = async () => {
       setLoading(true);
       try {
-        const res = await get(`/api/v1/segments/${segmentId}`);
+        const res = await get<{ data?: { name?: string; description?: string; rules?: any } }>(`/segments/${segmentId}`);
+        const segment = res.data || {};
         setForm({
-          name: res.data.name || "",
-          description: res.data.description || "",
-          rules: res.data.rules || undefined,
+          name: segment.name || "",
+          description: segment.description || "",
+          rules: segment.rules || undefined,
         });
       } catch (e) {
         alert("Failed to load segment");
@@ -36,12 +37,12 @@ export default function EditSegmentPage() {
       setLoading(false);
     };
     if (segmentId) fetchSegment();
-  }, [segmentId]);
+  }, [segmentId, router]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      await put(`/api/v1/segments/${segmentId}`, {
+      await put(`/segments/${segmentId}`, {
         name: form.name,
         description: form.description,
         rules: form.rules,

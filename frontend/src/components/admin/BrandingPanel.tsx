@@ -1,6 +1,4 @@
 "use client";
-// ...existing code...
-"use client";
 import React, { useEffect, useState } from 'react';
 import { getBranding, saveBranding } from '@/lib/admin-api';
 import { Card } from '@/components/ui/Card';
@@ -28,6 +26,7 @@ export const BrandingPanel: React.FC = () => {
         </div>
       ) : (
         <div className="flex items-center gap-4 mb-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           {branding.logoUrl && <img src={branding.logoUrl} alt="logo" className="h-8" />}
           <span className="font-bold text-lg">{branding.name}</span>
           <span className="rounded px-2" style={{ background: branding.primaryColor }}>{branding.primaryColor}</span>

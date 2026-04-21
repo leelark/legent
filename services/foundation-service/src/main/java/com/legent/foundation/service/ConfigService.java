@@ -28,13 +28,13 @@ import java.time.Duration;
 /**
  * Service for managing system configurations.
  * Implements the config resolution hierarchy:
- *   Tenant override → Global default
+ * Tenant override → Global default
  * with Redis caching for sub-50ms reads.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class ConfigService {
 
     private final ConfigRepository configRepository;
@@ -139,8 +139,7 @@ public class ConfigService {
                 AppConstants.TOPIC_CONFIG_UPDATED,
                 tenantId,
                 "foundation-service",
-                Map.of("configKey", configKey, "action", action)
-        );
+                Map.of("configKey", configKey, "action", action));
         eventPublisher.publish(AppConstants.TOPIC_CONFIG_UPDATED, envelope);
     }
 }

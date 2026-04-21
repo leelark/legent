@@ -18,6 +18,9 @@ interface TableProps<T> {
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
   rowKey?: (row: T) => string;
+  selectable?: boolean;
+  selectedRowKeys?: string[];
+  onSelectionChange?: (keys: string[]) => void;
 }
 
 export function Table<T>({
@@ -27,6 +30,9 @@ export function Table<T>({
   emptyMessage = 'No data found',
   onRowClick,
   rowKey,
+  selectable = false,
+  selectedRowKeys = [],
+  onSelectionChange,
   children,
   className,
 }: TableProps<T> & { children?: React.ReactNode; className?: string }) {
@@ -52,11 +58,50 @@ export function Table<T>({
     return <EmptyState type="empty" title={emptyMessage} />;
   }
 
+  const resolveRowKey = (row: T) => {
+    if (rowKey) {
+      return rowKey(row);
+    }
+    const fallback = (row as any)?.id;
+    return typeof fallback === 'string' ? fallback : String(fallback ?? '');
+  };
+
+  const allRowKeys = (data || []).map(resolveRowKey).filter(Boolean);
+  const allSelected = selectable && allRowKeys.length > 0 && allRowKeys.every((key) => selectedRowKeys.includes(key));
+
+  const toggleAll = (checked: boolean) => {
+    if (!onSelectionChange) {
+      return;
+    }
+    onSelectionChange(checked ? allRowKeys : []);
+  };
+
+  const toggleOne = (rowId: string, checked: boolean) => {
+    if (!onSelectionChange) {
+      return;
+    }
+    if (checked) {
+      onSelectionChange(Array.from(new Set([...selectedRowKeys, rowId])));
+      return;
+    }
+    onSelectionChange(selectedRowKeys.filter((key) => key !== rowId));
+  };
+
   return (
     <div className="overflow-x-auto rounded-lg border border-border-default">
       <table className={clsx('w-full text-sm', className)}>
         <thead>
           <tr className="border-b border-border-default bg-surface-secondary">
+            {selectable && (
+              <th className="w-10 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-secondary">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => toggleAll(e.target.checked)}
+                  aria-label="Select all rows"
+                />
+              </th>
+            )}
             {columns?.map((col: any) => (
               <th
                 key={col.key}
@@ -70,27 +115,43 @@ export function Table<T>({
         </thead>
         <tbody className="divide-y divide-border-default">
           {data?.map((row: any) => (
-            <tr
-              key={rowKey!(row)}
-              className={clsx(
-                'transition-colors',
-                onRowClick
-                  ? 'cursor-pointer hover:bg-surface-secondary'
-                  : ''
-              )}
-              onClick={() => onRowClick?.(row)}
-            >
-              {columns?.map((col: any) => (
-                <td
-                  key={col.key}
-                  className="px-4 py-3 text-content-primary"
+            (() => {
+              const currentRowKey = resolveRowKey(row);
+              return (
+                <tr
+                  key={currentRowKey}
+                  className={clsx(
+                    'transition-colors',
+                    onRowClick
+                      ? 'cursor-pointer hover:bg-surface-secondary'
+                      : ''
+                  )}
+                  onClick={() => onRowClick?.(row)}
                 >
-                  {col.render
-                    ? col.render(row)
-                    : String((row as any)[col.key] ?? '')}
-                </td>
-              ))}
-            </tr>
+                  {selectable && (
+                    <td className="px-4 py-3 text-content-primary">
+                      <input
+                        type="checkbox"
+                        checked={selectedRowKeys.includes(currentRowKey)}
+                        onChange={(e) => toggleOne(currentRowKey, e.target.checked)}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label="Select row"
+                      />
+                    </td>
+                  )}
+                  {columns?.map((col: any) => (
+                    <td
+                      key={col.key}
+                      className="px-4 py-3 text-content-primary"
+                    >
+                      {col.render
+                        ? col.render(row)
+                        : String((row as any)[col.key] ?? '')}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })()
           ))}
         </tbody>
       </table>

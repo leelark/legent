@@ -42,7 +42,7 @@ public class UserService {
     @Transactional
     public UserDto.Response createUser(UserDto.Request request) {
         String tenantId = TenantContext.requireTenantId();
-        
+
         if (userRepository.existsByTenantIdAndEmailIgnoreCase(tenantId, request.getEmail())) {
             throw new ConflictException("User", "email", request.getEmail());
         }
@@ -57,7 +57,7 @@ public class UserService {
                 .isActive(request.isActive())
                 .build();
 
-        user = java.util.Objects.requireNonNull(userRepository.save(user));
+        user = userRepository.save(java.util.Objects.requireNonNull(user));
         log.info("User created: id={}, email={}, tenant={}", user.getId(), user.getEmail(), tenantId);
         return toResponse(user);
     }
@@ -77,7 +77,7 @@ public class UserService {
             user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         }
 
-        user = java.util.Objects.requireNonNull(userRepository.save(user));
+        user = userRepository.save(user);
         log.info("User updated: id={}", id);
         return toResponse(user);
     }
@@ -87,7 +87,7 @@ public class UserService {
         String tenantId = TenantContext.requireTenantId();
         User user = userRepository.findByTenantIdAndId(tenantId, id)
                 .orElseThrow(() -> new NotFoundException("User", id));
-        
+
         userRepository.delete(java.util.Objects.requireNonNull(user));
         log.info("User deleted: id={}", id);
     }

@@ -2,6 +2,7 @@
 import React from 'react';
 
 export const TrackingPixel: React.FC<{ mid: string }> = ({ mid }) => (
+  // eslint-disable-next-line @next/next/no-img-element
   <img
     src={`/api/v1/track/open.gif?mid=${encodeURIComponent(mid)}`}
     alt=""

@@ -99,7 +99,7 @@ export default function PlatformSettings() {
           <CardHeader>
             <CardTitle>Branding & Visuals</CardTitle>
             <CardDescription>
-              Customize the look and feel of the Legent Studio for your tenant's users.
+              Customize the look and feel of the Legent Studio for your tenant&apos;s users.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

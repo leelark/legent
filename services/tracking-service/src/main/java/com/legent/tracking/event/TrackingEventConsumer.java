@@ -26,6 +26,11 @@ public class TrackingEventConsumer {
 
     @KafkaListener(topics = "ingested_events", groupId = "tracking-clickhouse-group")
     public void handleIngestedEvents(List<String> messages) {
+        if (messages == null || messages.isEmpty()) {
+            log.info("Received empty tracking event batch");
+            return;
+        }
+
         log.info("Received batch of {} tracking events", messages.size());
         List<TrackingDto.RawEventPayload> batch = new ArrayList<>();
 
@@ -33,7 +38,12 @@ public class TrackingEventConsumer {
             try {
                 EventEnvelope<TrackingDto.RawEventPayload> envelope = objectMapper.readValue(message, 
                         new TypeReference<EventEnvelope<TrackingDto.RawEventPayload>>() {});
-                
+
+                if (envelope == null || envelope.getPayload() == null) {
+                    log.warn("Skipping tracking event with missing payload: {}", message);
+                    continue;
+                }
+
                 TrackingDto.RawEventPayload payload = envelope.getPayload();
                 batch.add(payload);
 

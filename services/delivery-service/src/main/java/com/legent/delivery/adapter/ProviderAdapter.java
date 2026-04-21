@@ -19,5 +19,5 @@ public interface ProviderAdapter {
      * @param config provider configuration (host, credentials, etc)
      * @throws ProviderDispatchException if dispatch fails (transient or permanent)
      */
-    void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata, SmtpProvider config) throws ProviderDispatchException;
+    void sendEmail(@org.springframework.lang.NonNull String to, @org.springframework.lang.NonNull String subject, @org.springframework.lang.NonNull String htmlBody, Map<String, String> metadata, SmtpProvider config) throws ProviderDispatchException;
 }

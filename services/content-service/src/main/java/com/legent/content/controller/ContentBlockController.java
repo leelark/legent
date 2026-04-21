@@ -31,27 +31,25 @@ public class ContentBlockController {
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<ContentBlockDto.Response> getBlock(@PathVariable String id) {
-        @SuppressWarnings("null")
+    public ApiResponse<ContentBlockDto.Response> getBlock(@PathVariable @org.springframework.lang.NonNull String id) {
+
         final String tenantId = TenantContext.requireTenantId();
-        @SuppressWarnings("null")
+
         ContentBlock block = blockService.getBlock(tenantId, id);
         return ApiResponse.ok(mapToResponse(block));
     }
 
     @PutMapping("/{id}")
-    public ApiResponse<ContentBlockDto.Response> updateBlock(@PathVariable String id, @Valid @RequestBody ContentBlockDto.Create request) {
-        @SuppressWarnings("null")
+    public ApiResponse<ContentBlockDto.Response> updateBlock(@PathVariable @org.springframework.lang.NonNull String id,
+            @Valid @RequestBody ContentBlockDto.Create request) {
         final String tenantId = TenantContext.requireTenantId();
-        @SuppressWarnings("null")
         ContentBlock updatedBlock = blockService.updateBlock(tenantId, id, request);
         return ApiResponse.ok(mapToResponse(updatedBlock));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @SuppressWarnings("null")
-    public void deleteBlock(@PathVariable String id) {
+    public void deleteBlock(@PathVariable @org.springframework.lang.NonNull String id) {
         final String tenantId = TenantContext.requireTenantId();
         blockService.deleteBlock(tenantId, id);
     }
@@ -61,14 +59,14 @@ public class ContentBlockController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.requireTenantId();
-        Page<ContentBlock> blocks = blockService.listBlocks(tenantId, PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
+        Page<ContentBlock> blocks = blockService.listBlocks(tenantId,
+                PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
         return PagedResponse.of(
                 blocks.getContent().stream().map(this::mapToResponse).toList(),
                 page,
                 size,
                 blocks.getTotalElements(),
-                blocks.getTotalPages()
-        );
+                blocks.getTotalPages());
     }
 
     @GetMapping("/global")

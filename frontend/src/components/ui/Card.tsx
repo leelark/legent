@@ -1,16 +1,15 @@
 'use client';
 
 import { clsx } from 'clsx';
-import type { ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 
-interface CardProps {
+interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   className?: string;
   hover?: boolean;
-  onClick?: () => void;
 }
 
-export function Card({ children, className, hover = false, onClick }: CardProps) {
+export function Card({ children, className, hover = false, onClick, ...props }: CardProps) {
   return (
     <div
       className={clsx(
@@ -22,6 +21,7 @@ export function Card({ children, className, hover = false, onClick }: CardProps)
       onClick={onClick}
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
+      {...props}
     >
       {children}
     </div>
