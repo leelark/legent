@@ -13,11 +13,11 @@ import static org.junit.jupiter.api.Assertions.*;
 class TemplateServiceTest {
     @Test
     void testRenderTemplateWithPersonalization() {
-        TemplateService service = new TemplateService(null);
         TemplateEngine engine = new TemplateEngine();
         StringTemplateResolver resolver = new StringTemplateResolver();
         engine.setTemplateResolver(resolver);
-        service.templateEngine = engine;
+        
+        TemplateService service = new TemplateService(null, engine, null);
 
         EmailTemplate template = new EmailTemplate();
         template.setHtmlContent("Hello, [[${name}]]!");

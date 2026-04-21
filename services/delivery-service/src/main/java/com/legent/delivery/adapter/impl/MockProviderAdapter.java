@@ -4,6 +4,7 @@ import java.util.Map;
 
 import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.adapter.ProviderDispatchException;
+import com.legent.delivery.domain.SmtpProvider;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -21,7 +22,7 @@ public class MockProviderAdapter implements ProviderAdapter {
     }
 
     @Override
-    public void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata) throws ProviderDispatchException {
+    public void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata, SmtpProvider config) throws ProviderDispatchException {
         // Simulate network latency (20ms)
         try {
             Thread.sleep(20);

@@ -17,6 +17,7 @@ import com.legent.automation.repository.InstanceHistoryRepository;
 import com.legent.automation.repository.WorkflowDefinitionRepository;
 import com.legent.automation.repository.WorkflowInstanceRepository;
 import com.legent.automation.service.node.DelayNodeHandler;
+import com.legent.automation.event.WorkflowEventPublisher;
 import com.legent.automation.service.node.NodeHandler;
 import com.legent.automation.service.node.SendEmailNodeHandler;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,7 @@ class WorkflowEngineTest {
     @Mock private SendEmailNodeHandler sendEmailHandler;
     @Mock private DelayNodeHandler delayHandler;
     @Mock private CacheService cacheService;
+    @Mock private WorkflowEventPublisher eventPublisher;
 
     private WorkflowEngine workflowEngine;
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -52,7 +54,7 @@ class WorkflowEngineTest {
         when(delayHandler.getType()).thenReturn("DELAY");
         
         List<NodeHandler> handlers = List.of(sendEmailHandler, delayHandler);
-        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, historyRepository, objectMapper, handlers, cacheService);
+        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher);
     }
 
     @Test

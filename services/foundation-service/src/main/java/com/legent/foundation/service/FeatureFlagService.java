@@ -23,13 +23,13 @@ import java.time.Duration;
 
 /**
  * Service for managing feature flags with resolution hierarchy:
- *   TENANT override → GLOBAL default
+ * TENANT override → GLOBAL default
  * Cached in Redis with 1-minute TTL for fast evaluation.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class FeatureFlagService {
 
     private final FeatureFlagRepository featureFlagRepository;

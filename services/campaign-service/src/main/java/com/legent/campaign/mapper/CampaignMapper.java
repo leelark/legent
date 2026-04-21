@@ -3,11 +3,12 @@ package com.legent.campaign.mapper;
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.CampaignAudience;
 import com.legent.campaign.dto.CampaignDto;
+import org.mapstruct.ReportingPolicy;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface CampaignMapper {
 
     CampaignDto.Response toResponse(Campaign entity);

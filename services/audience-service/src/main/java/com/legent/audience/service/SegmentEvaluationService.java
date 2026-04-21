@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import java.util.Map;
 
@@ -22,6 +23,7 @@ import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -46,6 +48,7 @@ public class SegmentEvaluationService {
     private final CacheService cacheService;
     private final SegmentEventPublisher eventPublisher;
     private final EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
 
     private static final Duration COUNT_CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_SEGMENT_COUNT_TTL_SECONDS);
 
@@ -77,6 +80,13 @@ public class SegmentEvaluationService {
     /**
      * Full recomputation — materializes segment membership.
      */
+    @Transactional(readOnly = true)
+    public List<String> getSegmentMembers(String segmentId) {
+        return membershipRepository.findBySegmentId(segmentId).stream()
+                .map(SegmentMembership::getSubscriberId)
+                .collect(Collectors.toList());
+    }
+
     @Async("segmentExecutor")
     @Transactional
     public void recompute(String segmentId) {
@@ -93,14 +103,23 @@ public class SegmentEvaluationService {
             // Clear existing memberships
             membershipRepository.deleteAllBySegmentId(segmentId);
 
-            // Execute query and materialize
+            // Execute query and materialize using batch insert
             List<String> subscriberIds = executeQuery(tenantId, segment.getRules());
-            for (String subId : subscriberIds) {
-                SegmentMembership m = new SegmentMembership();
-                m.setTenantId(tenantId);
-                m.setSegmentId(segmentId);
-                m.setSubscriberId(subId);
-                membershipRepository.save(m);
+            if (!subscriberIds.isEmpty()) {
+                String sqlInsert = "INSERT INTO segment_memberships (id, tenant_id, segment_id, subscriber_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)";
+                List<Object[]> batchArgs = new ArrayList<>();
+                Instant now = Instant.now();
+                for (String subId : subscriberIds) {
+                    batchArgs.add(new Object[]{
+                            com.legent.common.util.IdGenerator.newId(),
+                            tenantId,
+                            segmentId,
+                            subId,
+                            now,
+                            now
+                    });
+                }
+                jdbcTemplate.batchUpdate(sqlInsert, batchArgs);
             }
 
             long durationMs = System.currentTimeMillis() - startMs;
@@ -282,7 +301,12 @@ public class SegmentEvaluationService {
             case "last_activity_at", "lastactivityat" -> "s.last_activity_at";
             case "list_membership" -> null; // handled specially in buildCondition
             // Fallback: Assume it's a dynamic custom attribute stored in the JSONB column
-            default -> "s.custom_fields->>'" + field + "'";
+            default -> {
+                if (field == null || !field.matches("^[a-zA-Z0-9_]+$")) {
+                    throw new IllegalArgumentException("Invalid field name: " + field);
+                }
+                yield "s.custom_fields->>'" + field + "'";
+            }
         };
     }
 }

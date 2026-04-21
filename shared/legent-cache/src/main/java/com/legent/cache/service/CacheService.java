@@ -3,11 +3,13 @@ package com.legent.cache.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Optional;
 import java.util.Set;
+import java.util.List;
 
 /**
  * Generic cache service wrapping RedisTemplate.
@@ -76,6 +78,13 @@ public class CacheService {
             log.debug("Cache DELETE pattern: {} ({} keys)", pattern, keys.size());
             redisTemplate.delete(keys);
         }
+    }
+
+    /**
+     * Executes a Redis Lua script.
+     */
+    public <T> T executeScript(RedisScript<T> script, List<String> keys, Object... args) {
+        return redisTemplate.execute(script, keys, args);
     }
 
     /**

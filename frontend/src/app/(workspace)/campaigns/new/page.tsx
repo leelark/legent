@@ -5,14 +5,46 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import {
-  ArrowRight, ArrowLeft, CheckCircle, Megaphone, Users, PaperPlaneTilt, RocketLaunch
+  ArrowRight, ArrowLeft, CheckCircle, Megaphone, Users, PaperPlaneTilt, RocketLaunch, CircleNotch
 } from '@phosphor-icons/react';
 import Link from 'next/link';
+import { post } from '@/lib/api-client';
+import { useRouter } from 'next/navigation';
 
 const STEPS = ['Properties', 'Audience', 'Delivery', 'Review'];
 
 export default function CampaignWizardPage() {
+  const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [campaign, setCampaign] = useState({
+    name: '',
+    subject: '',
+    preheader: '',
+    contentId: '',
+    audienceIds: [] as string[]
+  });
+
+  const handleCreateAndSend = async () => {
+    setLoading(true);
+    try {
+        // 1. Create Campaign
+        const created = await post<any>('/campaigns', {
+            name: campaign.name,
+            subject: campaign.subject,
+            contentId: campaign.contentId || 'default-template'
+        });
+
+        // 2. Trigger Send
+        await post<any>(`/campaigns/${created.id}/send`, {});
+
+        router.push('/campaigns');
+    } catch (error) {
+        console.error("Failed to send campaign", error);
+    } finally {
+        setLoading(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -50,15 +82,30 @@ export default function CampaignWizardPage() {
             <div className="space-y-4">
                <div>
                   <label className="mb-1 block text-sm font-medium text-content-primary">Campaign Name</label>
-                  <Input placeholder="e.g., Spring Sale 2026" fullWidth />
+                  <Input 
+                    placeholder="e.g., Spring Sale 2026" 
+                    fullWidth 
+                    value={campaign.name}
+                    onChange={(e) => setCampaign({...campaign, name: e.target.value})}
+                  />
                </div>
                <div>
                   <label className="mb-1 block text-sm font-medium text-content-primary">Email Subject</label>
-                  <Input placeholder="Don't miss our biggest sale!" fullWidth />
+                  <Input 
+                    placeholder="Don't miss our biggest sale!" 
+                    fullWidth 
+                    value={campaign.subject}
+                    onChange={(e) => setCampaign({...campaign, subject: e.target.value})}
+                  />
                </div>
                <div>
-                  <label className="mb-1 block text-sm font-medium text-content-primary">Preheader Text</label>
-                  <Input placeholder="Up to 50% off everything inside..." fullWidth />
+                  <label className="mb-1 block text-sm font-medium text-content-primary">Content Template ID</label>
+                  <Input 
+                    placeholder="UUID of the content" 
+                    fullWidth 
+                    value={campaign.contentId}
+                    onChange={(e) => setCampaign({...campaign, contentId: e.target.value})}
+                  />
                </div>
             </div>
           </div>
@@ -76,27 +123,8 @@ export default function CampaignWizardPage() {
                 <Button variant="ghost" size="sm" icon={<Users size={16} />}>Add Inclusion</Button>
               </div>
               <div className="rounded border border-dashed border-border-default p-4 text-center text-sm text-content-muted">
-                No audience selected. Click "Add Inclusion" to proceed.
+                {campaign.audienceIds.length > 0 ? `${campaign.audienceIds.length} Selected` : "No audience selected."}
               </div>
-            </div>
-
-            <div className="rounded-xl border border-border-default p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-content-primary">Excluded Segments & Lists</h3>
-                  <p className="text-sm text-content-muted">Subscribers who should NOT receive this email</p>
-                </div>
-                <Button variant="ghost" size="sm" icon={<Users size={16} />}>Add Exclusion</Button>
-              </div>
-              <div className="rounded border border-dashed border-border-default p-4 text-center text-sm text-content-muted">
-                No exclusions configured.
-              </div>
-            </div>
-            
-            <div className="bg-surface-secondary/50 p-4 rounded-xl text-center">
-                <span className="text-sm font-medium text-content-primary">Estimated Target: </span>
-                <span className="text-lg font-bold text-brand-600">--</span>
-                <Button variant="ghost" size="sm" className="ml-2">Calculate</Button>
             </div>
           </div>
         )}
@@ -125,20 +153,16 @@ export default function CampaignWizardPage() {
             <div className="space-y-4 divide-y divide-border-default text-sm">
                <div className="flex justify-between py-2">
                    <span className="text-content-secondary">Campaign Name</span>
-                   <span className="font-medium text-content-primary">Spring Sale 2026</span>
+                   <span className="font-medium text-content-primary">{campaign.name || 'Untitled'}</span>
                </div>
                <div className="flex justify-between py-2">
-                   <span className="text-content-secondary">Audience Targets</span>
-                   <span className="font-medium text-content-primary">0 Lists, 0 Segments</span>
+                   <span className="text-content-secondary">Subject</span>
+                   <span className="font-medium text-content-primary">{campaign.subject || 'No Subject'}</span>
                </div>
                <div className="flex justify-between py-2">
                    <span className="text-content-secondary">Delivery</span>
                    <span className="font-medium text-content-primary">Immediate</span>
                </div>
-            </div>
-            
-            <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl text-center">
-                <p className="text-sm text-danger font-medium">Please select at least one inclusion audience before sending.</p>
             </div>
           </div>
         )}
@@ -149,7 +173,7 @@ export default function CampaignWizardPage() {
         <Button
           variant="secondary"
           onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-          disabled={currentStep === 0}
+          disabled={currentStep === 0 || loading}
           icon={<ArrowLeft size={16} />}
         >
           Back
@@ -163,10 +187,11 @@ export default function CampaignWizardPage() {
             </Button>
         ) : (
             <Button
-              disabled={true} // Enabled when review passes validation
-              icon={<PaperPlaneTilt size={16} />}
+              onClick={handleCreateAndSend}
+              disabled={loading || !campaign.name}
+              icon={loading ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneTilt size={16} />}
             >
-              Confirm Send
+              {loading ? 'Processing...' : 'Confirm & Launch'}
             </Button>
         )}
       </div>

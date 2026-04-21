@@ -63,6 +63,7 @@ public final class AppConstants {
     public static final String TOPIC_EMAIL_RETRY_SCHEDULED = "email.retry.scheduled";
     public static final String TOPIC_EMAIL_BOUNCED = "email.bounced";
     public static final String TOPIC_EMAIL_COMPLAINT = "email.complaint";
+    public static final String TOPIC_EMAIL_UNSUBSCRIBED = "email.unsubscribed";
 
     // Tracking Topics
     public static final String TOPIC_EMAIL_OPEN = "email.open";

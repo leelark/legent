@@ -1,9 +1,7 @@
 package com.legent.campaign.service;
 
-import java.util.Optional;
 
 import com.legent.common.constant.AppConstants;
-import java.util.List;
 
 import java.util.Map;
 
@@ -14,8 +12,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.data.redis.core.script.RedisScript;
+import java.util.Arrays;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -58,23 +59,39 @@ public class ThrottlingService {
         ThrottlingRule rule = ruleOpt.get();
         String counterKey = AppConstants.CACHE_THROTTLE_DOMAIN_PREFIX + tenantId + ":" + domain;
         
-        // Simple fixed-window rate limiting using Redis atomic increment
-        // In a real prod environment with Redis, we would use a Lua script for sliding window or token bucket
-        // Since we are using standard CacheService abstraction here:
-        
-        long currentCount = Optional.ofNullable(cacheService.get(counterKey, Long.class).orElse(0L)).orElse(0L);
-        if (currentCount >= rule.getMaxEmails()) {
-            return 0; // Throttled
-        }
+        // Lua script for sliding window rate limiting
+        // ARGS: [limit, windowSeconds, requestedAmount]
+        String script = """
+            local key = KEYS[1]
+            local limit = tonumber(ARGV[1])
+            local window = tonumber(ARGV[2])
+            local amount = tonumber(ARGV[3])
+            
+            local current = redis.call('GET', key)
+            if current and tonumber(current) >= limit then
+                return 0
+            end
+            
+            local available = limit - (current and tonumber(current) or 0)
+            local acquired = math.min(amount, available)
+            
+            if current then
+                redis.call('INCRBY', key, acquired)
+            else
+                redis.call('SET', key, acquired)
+                redis.call('EXPIRE', key, window)
+            end
+            
+            return acquired
+        """;
 
-        long availablePermits = rule.getMaxEmails() - currentCount;
-        int acquired = (int) Math.min(requestedPermits, availablePermits);
-        
-        // Simulate redis INCRBY and EXPIRE
-        // For actual implementation, use StringRedisTemplate directly
-        Long newCount = currentCount + acquired;
-        cacheService.set(counterKey, newCount, Duration.ofSeconds(rule.getTimeWindowSeconds()));
-        
-        return acquired;
+        RedisScript<Long> redisScript = new DefaultRedisScript<>(script, Long.class);
+        Long acquired = cacheService.executeScript(redisScript, 
+                Arrays.asList(counterKey), 
+                String.valueOf(rule.getMaxEmails()), 
+                String.valueOf(rule.getTimeWindowSeconds()), 
+                String.valueOf(requestedPermits));
+
+        return acquired != null ? acquired.intValue() : 0;
     }
 }

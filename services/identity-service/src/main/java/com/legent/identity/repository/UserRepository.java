@@ -9,4 +9,10 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByTenantIdAndEmailIgnoreCase(String tenantId, String email);
+    
+    java.util.List<User> findByTenantId(String tenantId);
+    
+    Optional<User> findByTenantIdAndId(String tenantId, String id);
+    
+    boolean existsByTenantIdAndEmailIgnoreCase(String tenantId, String email);
 }

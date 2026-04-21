@@ -1,6 +1,7 @@
 package com.legent.identity.controller;
 
 import com.legent.common.dto.ApiResponse;
+import com.legent.identity.dto.SignupRequest;
 import com.legent.identity.dto.LoginRequest;
 import com.legent.identity.dto.LoginResponse;
 import com.legent.identity.service.AuthService;
@@ -21,6 +22,12 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request) {
         
         String token = authService.login(request.getEmail(), request.getPassword(), tenantId);
+        return ApiResponse.ok(new LoginResponse(token));
+    }
+
+    @PostMapping("/signup")
+    public ApiResponse<LoginResponse> signup(@Valid @RequestBody SignupRequest request) {
+        String token = authService.signup(request);
         return ApiResponse.ok(new LoginResponse(token));
     }
 }

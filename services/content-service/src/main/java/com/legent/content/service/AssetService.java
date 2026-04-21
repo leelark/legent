@@ -18,12 +18,14 @@ import org.springframework.transaction.annotation.Transactional;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
-import io.minio.errors.MinioException;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.time.Instant;
 import java.util.Map;
+
+import jakarta.annotation.PostConstruct;
+import org.springframework.lang.NonNull;
 
 @Service
 @RequiredArgsConstructor
@@ -44,7 +46,7 @@ public class AssetService {
     @Value("${minio.secret-key}")
     private String minioSecretKey;
 
-    @javax.annotation.PostConstruct
+    @PostConstruct
     public void initMinio() {
         this.minioClient = MinioClient.builder()
                 .endpoint(minioEndpoint)
@@ -111,7 +113,7 @@ public class AssetService {
         return assetRepository.save(asset);
     }
 
-    public Asset getAsset(String tenantId, String id) {
+    public Asset getAsset(@NonNull String tenantId, @NonNull String id) {
         return assetRepository.findById(id)
                 .filter(asset -> tenantId.equals(asset.getTenantId()) && asset.getDeletedAt() == null)
                 .orElseThrow(() -> new NotFoundException("Asset not found"));
@@ -122,7 +124,7 @@ public class AssetService {
     }
 
     @Transactional
-    public void deleteAsset(String tenantId, String id) {
+    public void deleteAsset(@NonNull String tenantId, @NonNull String id) {
         Asset asset = getAsset(tenantId, id);
         asset.setDeletedAt(Instant.now());
         assetRepository.save(asset);
@@ -139,7 +141,7 @@ public class AssetService {
         }
     }
 
-    private String extractFileName(String url, String defaultName) {
+    public String extractFileName(String url, String defaultName) {
         try {
             URI uri = URI.create(url);
             String path = uri.getPath();

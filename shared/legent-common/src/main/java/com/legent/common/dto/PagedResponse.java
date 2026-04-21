@@ -40,6 +40,16 @@ public class PagedResponse<T> {
     /**
      * Creates a paged response from a Spring Data Page.
      */
+    public static <T> PagedResponse<T> from(org.springframework.data.domain.Page<T> page) {
+        return of(
+                page.getContent(),
+                page.getNumber(),
+                page.getSize(),
+                page.getTotalElements(),
+                page.getTotalPages()
+        );
+    }
+
     public static <T> PagedResponse<T> of(
             List<T> content,
             int page,

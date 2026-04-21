@@ -10,6 +10,7 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import java.util.List;
 
 
 @Component
@@ -31,10 +32,14 @@ public class CampaignEventPublisher {
         eventPublisher.publish(AppConstants.TOPIC_SEND_REQUESTED, envelope);
     }
 
-    public void publishAudienceResolutionRequested(String tenantId, String campaignId, String jobId) {
-        EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
+    public void publishAudienceResolutionRequested(String tenantId, String campaignId, String jobId, List<Map<String, String>> audiences) {
+        EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, tenantId, SOURCE,
-                Map.of("campaignId", campaignId, "jobId", jobId)
+                Map.of(
+                        "campaignId", campaignId,
+                        "jobId", jobId,
+                        "audiences", audiences
+                )
         );
         eventPublisher.publish(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, envelope);
     }

@@ -3,8 +3,9 @@ package com.legent.audience.mapper;
 import com.legent.audience.domain.Subscriber;
 import com.legent.audience.dto.SubscriberDto;
 import org.mapstruct.*;
+import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface SubscriberMapper {
 
     @Mapping(target = "id", ignore = true)

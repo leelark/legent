@@ -27,6 +27,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,7 +81,7 @@ class OrchestrationServiceTest {
         assertThat(response.getStatus()).isEqualTo(SendJob.JobStatus.RESOLVING);
         verify(campaignRepository).save(campaign);
         assertThat(campaign.getStatus()).isEqualTo(Campaign.CampaignStatus.SENDING);
-        verify(eventPublisher).publishAudienceResolutionRequested(TENANT_ID, campId, "job-1");
+        verify(eventPublisher).publishAudienceResolutionRequested(eq(TENANT_ID), eq(campId), eq("job-1"), anyList());
     }
 
     @Test

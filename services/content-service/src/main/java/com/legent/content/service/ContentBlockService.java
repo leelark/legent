@@ -9,11 +9,13 @@ import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -38,17 +40,18 @@ public class ContentBlockService {
         block.setSettings(request.getSettings());
         block.setIsGlobal(request.getIsGlobal() != null && request.getIsGlobal());
 
-        return blockRepository.save(block);
+        ContentBlock savedBlock = blockRepository.save(block);
+        return Objects.requireNonNull(savedBlock, "Saved block cannot be null");
     }
 
-    public ContentBlock getBlock(String tenantId, String id) {
+    public ContentBlock getBlock(@NonNull String tenantId, @NonNull String id) {
         return blockRepository.findById(id)
                 .filter(block -> tenantId.equals(block.getTenantId()) && block.getDeletedAt() == null)
                 .orElseThrow(() -> new NotFoundException("Content block not found"));
     }
 
     @Transactional
-    public ContentBlock updateBlock(String tenantId, String id, ContentBlockDto.Create request) {
+    public ContentBlock updateBlock(@NonNull String tenantId, @NonNull String id, ContentBlockDto.Create request) {
         ContentBlock block = getBlock(tenantId, id);
 
         if (request.getName() != null && !request.getName().equals(block.getName())) {
@@ -73,11 +76,13 @@ public class ContentBlockService {
             block.setIsGlobal(request.getIsGlobal());
         }
 
-        return blockRepository.save(block);
+        @SuppressWarnings("null")
+        ContentBlock savedBlock = blockRepository.save(block);
+        return savedBlock;
     }
 
     @Transactional
-    public void deleteBlock(String tenantId, String id) {
+    public void deleteBlock(@NonNull String tenantId, @NonNull String id) {
         ContentBlock block = getBlock(tenantId, id);
         block.setDeletedAt(Instant.now());
         blockRepository.save(block);

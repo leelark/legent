@@ -30,6 +30,10 @@
             <groupId>com.legent</groupId>
             <artifactId>legent-cache</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.legent</groupId>
+            <artifactId>legent-kafka</artifactId>
+        </dependency>
 
         <!-- Spring Boot Starters -->
         <dependency>

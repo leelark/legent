@@ -17,6 +17,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 @Slf4j
@@ -57,7 +60,11 @@ public class OrchestrationService {
         campaignRepository.save(campaign);
 
         if (job.getStatus() == SendJob.JobStatus.RESOLVING) {
-            eventPublisher.publishAudienceResolutionRequested(tenantId, campaignId, job.getId());
+            List<Map<String, String>> audienceList = campaign.getAudiences().stream()
+                    .map(a -> Map.of("type", a.getAudienceType().name(), "id", a.getAudienceId()))
+                    .collect(Collectors.toList());
+            
+            eventPublisher.publishAudienceResolutionRequested(tenantId, campaignId, job.getId(), audienceList);
             log.info("Triggered immediate send for job: {}", job.getId());
         } else {
             eventPublisher.publishSendRequested(tenantId, campaignId, job.getId(), job.getScheduledAt());

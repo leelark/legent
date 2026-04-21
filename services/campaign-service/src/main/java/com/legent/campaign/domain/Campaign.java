@@ -30,8 +30,11 @@ public class Campaign extends TenantAwareEntity {
     private String subject;
     private String preheader;
     
-    @Column(name = "sender_profile_id")
-    private String senderProfileId;
+    @Column(name = "content_id")
+    private String contentId;
+
+    @Column(name = "scheduled_at")
+    private java.time.Instant scheduledAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -43,4 +46,14 @@ public class Campaign extends TenantAwareEntity {
 
     @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CampaignAudience> audiences = new ArrayList<>();
+
+    public void addAudience(String type, String sourceId) {
+        CampaignAudience ca = new CampaignAudience();
+        ca.setCampaign(this);
+        ca.setAudienceType(CampaignAudience.AudienceType.valueOf(type.toUpperCase()));
+        ca.setAudienceId(sourceId);
+        ca.setAction(CampaignAudience.AudienceAction.INCLUDE);
+        ca.setTenantId(this.getTenantId());
+        this.audiences.add(ca);
+    }
 }

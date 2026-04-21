@@ -10,23 +10,29 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class AnalyticsService {
-    private final JdbcTemplate jdbcTemplate;
+    @org.springframework.beans.factory.annotation.Qualifier("clickHouseDataSource")
+    private final javax.sql.DataSource dataSource;
 
-    public List<Map<String, Object>> getEventCounts() {
-        return jdbcTemplate.queryForList("""
-            SELECT event_type, count(*) AS count
-            FROM tracking_events
-            GROUP BY event_type
-        """);
+    private JdbcTemplate getClickHouseTemplate() {
+        return new JdbcTemplate(java.util.Objects.requireNonNull(dataSource));
     }
 
-    public List<Map<String, Object>> getEventTimeline(String eventType) {
-        return jdbcTemplate.queryForList("""
-            SELECT date_trunc('hour', created_at) AS hour, count(*) AS count
-            FROM tracking_events
-            WHERE event_type = ?
+    public List<Map<String, Object>> getEventCounts(String tenantId) {
+        return getClickHouseTemplate().queryForList("""
+            SELECT event_type, count(*) AS count
+            FROM raw_events
+            WHERE tenant_id = ?
+            GROUP BY event_type
+        """, tenantId);
+    }
+
+    public List<Map<String, Object>> getEventTimeline(String tenantId, String eventType) {
+        return getClickHouseTemplate().queryForList("""
+            SELECT toStartOfHour(timestamp) AS hour, count(*) AS count
+            FROM raw_events
+            WHERE tenant_id = ? AND event_type = ?
             GROUP BY hour
             ORDER BY hour
-        """, eventType);
+        """, tenantId, eventType);
     }
 }

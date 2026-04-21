@@ -4,6 +4,7 @@ import java.util.Map;
 
 import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.adapter.ProviderDispatchException;
+import com.legent.delivery.domain.SmtpProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -38,15 +39,10 @@ public class SmtpProviderAdapter implements ProviderAdapter {
     }
 
     @Override
-    public void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata) throws ProviderDispatchException {
-        // Throttling: extract max_send_rate from metadata if present
-        int maxSendRate = 0;
-        if (metadata != null && metadata.containsKey("max_send_rate")) {
-            try {
-                maxSendRate = Integer.parseInt(metadata.get("max_send_rate"));
-            } catch (NumberFormatException ignored) {}
-        }
-        String throttleKey = metadata != null && metadata.containsKey("provider_id") ? metadata.get("provider_id") : "default";
+    public void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata, SmtpProvider config) throws ProviderDispatchException {
+        // Throttling: use maxSendRate from config
+        int maxSendRate = config.getMaxSendRate() != null ? config.getMaxSendRate() : 0;
+        String throttleKey = config.getId();
         if (maxSendRate > 0) {
             long now = System.currentTimeMillis();
             windowStartMap.putIfAbsent(throttleKey, new AtomicLong(now));
@@ -62,6 +58,9 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             sentCountMap.get(throttleKey).incrementAndGet();
         }
         try {
+            // In a real implementation, we would create a new JavaMailSender with config details
+            // For now, we continue using the default one but we could easily switch here.
+            
             MimeMessage message = javaMailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(to);

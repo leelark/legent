@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 public interface SegmentMembershipRepository extends JpaRepository<SegmentMembership, String> {
 
     Page<SegmentMembership> findBySegmentId(String segmentId, Pageable pageable);
+    java.util.List<SegmentMembership> findBySegmentId(String segmentId);
 
     @Query("SELECT COUNT(m) FROM SegmentMembership m WHERE m.segmentId = :segId")
     long countBySegment(@Param("segId") String segmentId);

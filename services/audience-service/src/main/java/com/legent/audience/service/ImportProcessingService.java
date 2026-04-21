@@ -23,7 +23,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionCallbackWithoutResult;
+import org.springframework.transaction.support.TransactionTemplate;
+import java.util.HashMap;
 
 import java.util.regex.Pattern;
 
@@ -40,28 +44,36 @@ public class ImportProcessingService {
     private final ImportJobRepository importJobRepository;
     private final SubscriberRepository subscriberRepository;
     private final ImportEventPublisher eventPublisher;
+    private final PlatformTransactionManager transactionManager;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     @Async("importExecutor")
-    @Transactional
     public void processImport(String jobId) {
         ImportJob job = importJobRepository.findById(jobId).orElse(null);
         if (job == null) return;
 
         String tenantId = job.getTenantId();
         TenantContext.setTenantId(tenantId);
+        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         try {
-            job.setStatus(ImportJob.ImportStatus.PROCESSING);
-            job.setStartedAt(Instant.now());
-            importJobRepository.save(job);
+            transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+                @Override
+                protected void doInTransactionWithoutResult(TransactionStatus status) {
+                    ImportJob j = importJobRepository.findById(jobId).get();
+                    j.setStatus(ImportJob.ImportStatus.PROCESSING);
+                    j.setStartedAt(Instant.now());
+                    importJobRepository.save(j);
+                }
+            });
 
             long successCount = 0;
             long errorCount = 0;
             List<Map<String, Object>> errors = new ArrayList<>();
             int chunkSize = AppConstants.IMPORT_CHUNK_SIZE;
             int currentRow = 0;
+            List<Map<String, String>> currentChunk = new ArrayList<>();
 
             try (Reader reader = new FileReader(job.getFileName(), StandardCharsets.UTF_8)) {
                 Iterable<CSVRecord> records = CSVFormat.DEFAULT.builder()
@@ -73,105 +85,183 @@ public class ImportProcessingService {
 
                 for (CSVRecord record : records) {
                     currentRow++;
-                    
-                    if (currentRow % chunkSize == 0) {
-                        ImportJob current = importJobRepository.findById(jobId).orElse(null);
-                        if (current == null || current.getStatus() == ImportJob.ImportStatus.CANCELLED) {
+                    currentChunk.add(record.toMap());
+
+                    if (currentChunk.size() >= chunkSize) {
+                        ChunkResult result = processChunk(tenantId, currentChunk, job.getFieldMapping());
+                        successCount += result.successCount;
+                        errorCount += result.errorCount;
+                        errors.addAll(result.errors);
+                        
+                        updateJobProgress(jobId, currentRow, successCount, errorCount);
+                        currentChunk.clear();
+
+                        if (isCancelled(jobId)) {
                             log.info("Import cancelled: id={}", jobId);
                             return;
                         }
-                        job.setProcessedRows(currentRow);
-                        job.setSuccessRows(successCount);
-                        job.setErrorRows(errorCount);
-                        importJobRepository.save(job);
                     }
+                }
 
-                    try {
-                        Map<String, String> rowMap = record.toMap();
-                        processRow(tenantId, rowMap, job.getFieldMapping());
-                        successCount++;
-                    } catch (Exception e) {
-                        errorCount++;
-                        if (errors.size() < AppConstants.IMPORT_MAX_ERRORS) {
-                            errors.add(Map.of(
-                                    "rowNumber", currentRow,
-                                    "message", e.getMessage()
-                            ));
-                        }
-                    }
+                if (!currentChunk.isEmpty()) {
+                    ChunkResult result = processChunk(tenantId, currentChunk, job.getFieldMapping());
+                    successCount += result.successCount;
+                    errorCount += result.errorCount;
+                    errors.addAll(result.errors);
                 }
             }
 
-            job.setTotalRows(currentRow);
-            job.setProcessedRows(currentRow);
-            job.setSuccessRows(successCount);
-            job.setErrorRows(errorCount);
+            final long finalSuccess = successCount;
+            final long finalError = errorCount;
+            final List<Map<String, Object>> finalErrors = errors.stream().limit(AppConstants.IMPORT_MAX_ERRORS).toList();
+            final int finalTotal = currentRow;
 
-            // Complete
-            job.setStatus(errorCount > 0 ? ImportJob.ImportStatus.COMPLETED_WITH_ERRORS : ImportJob.ImportStatus.COMPLETED);
-            job.setCompletedAt(Instant.now());
-            job.setErrors(errors);
-            importJobRepository.save(job);
+            transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+                @Override
+                protected void doInTransactionWithoutResult(TransactionStatus status) {
+                    ImportJob j = importJobRepository.findById(jobId).get();
+                    j.setTotalRows(finalTotal);
+                    j.setProcessedRows(finalTotal);
+                    j.setSuccessRows(finalSuccess);
+                    j.setErrorRows(finalError);
+                    j.setStatus(finalError > 0 ? ImportJob.ImportStatus.COMPLETED_WITH_ERRORS : ImportJob.ImportStatus.COMPLETED);
+                    j.setCompletedAt(Instant.now());
+                    j.setErrors(finalErrors);
+                    importJobRepository.save(j);
+                    eventPublisher.publishCompleted(j);
+                }
+            });
 
-            eventPublisher.publishCompleted(job);
             log.info("Import completed: id={}, success={}, errors={}", jobId, successCount, errorCount);
 
         } catch (Exception e) {
-            job.setStatus(ImportJob.ImportStatus.FAILED);
-            job.setCompletedAt(Instant.now());
-            importJobRepository.save(job);
-            eventPublisher.publishFailed(job, e.getMessage());
             log.error("Import failed: id={}", jobId, e);
+            transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+                @Override
+                protected void doInTransactionWithoutResult(TransactionStatus status) {
+                    ImportJob j = importJobRepository.findById(jobId).get();
+                    j.setStatus(ImportJob.ImportStatus.FAILED);
+                    j.setCompletedAt(Instant.now());
+                    importJobRepository.save(j);
+                    eventPublisher.publishFailed(j, e.getMessage());
+                }
+            });
         } finally {
             TenantContext.clear();
         }
     }
 
-    private void processRow(String tenantId, Map<String, String> row, Map<String, String> fieldMapping) {
-        String email = getMappedField(row, fieldMapping, "email");
-        String subscriberKey = getMappedField(row, fieldMapping, "subscriberKey");
+    private void updateJobProgress(String jobId, int processed, long success, long error) {
+        new TransactionTemplate(transactionManager).execute(new TransactionCallbackWithoutResult() {
+            @Override
+            protected void doInTransactionWithoutResult(TransactionStatus status) {
+                importJobRepository.findById(jobId).ifPresent(j -> {
+                    j.setProcessedRows(processed);
+                    j.setSuccessRows(success);
+                    j.setErrorRows(error);
+                    importJobRepository.save(j);
+                });
+            }
+        });
+    }
 
-        if (subscriberKey == null || subscriberKey.isBlank()) {
-            subscriberKey = email; // fallback to email as key
+    private boolean isCancelled(String jobId) {
+        return importJobRepository.findById(jobId)
+                .map(j -> j.getStatus() == ImportJob.ImportStatus.CANCELLED)
+                .orElse(true);
+    }
+
+    private static class ChunkResult {
+        long successCount = 0;
+        long errorCount = 0;
+        List<Map<String, Object>> errors = new ArrayList<>();
+    }
+
+    private ChunkResult processChunk(String tenantId, List<Map<String, String>> chunk, Map<String, String> mapping) {
+        ChunkResult result = new ChunkResult();
+        List<Subscriber> toSave = new ArrayList<>();
+
+        for (Map<String, String> row : chunk) {
+            try {
+                String email = getMappedField(row, mapping, "email");
+                String subKeyRaw = getMappedField(row, mapping, "subscriberKey");
+                final String subKey = (subKeyRaw == null || subKeyRaw.isBlank()) ? email : subKeyRaw;
+                
+                if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {
+                    throw new IllegalArgumentException("Invalid email: " + email);
+                }
+
+                // Check for existing in this chunk or DB
+                // For simplicity and to avoid complex state, we still check DB
+                // But we could optimize further by pre-fetching all subKeys in the chunk
+                Optional<Subscriber> existing = subscriberRepository
+                        .findByTenantIdAndSubscriberKeyAndDeletedAtIsNull(tenantId, subKey);
+
+                Subscriber sub = existing.orElseGet(() -> {
+                    Subscriber s = new Subscriber();
+                    s.setTenantId(tenantId);
+                    s.setSubscriberKey(subKey);
+                    s.setEmail(email.toLowerCase().trim());
+                    s.setSubscribedAt(Instant.now());
+                    return s;
+                });
+
+                applyMappedFields(sub, row, mapping);
+                toSave.add(sub);
+                result.successCount++;
+            } catch (Exception e) {
+                result.errorCount++;
+                result.errors.add(Map.of("message", e.getMessage()));
+            }
         }
 
-        if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {
-            throw new IllegalArgumentException("Invalid email: " + email);
+        if (!toSave.isEmpty()) {
+            new TransactionTemplate(transactionManager).execute(new TransactionCallbackWithoutResult() {
+                @Override
+                protected void doInTransactionWithoutResult(TransactionStatus status) {
+                    subscriberRepository.saveAll(toSave);
+                }
+            });
         }
-
-        // Deduplication — check if exists
-        Optional<Subscriber> existing = subscriberRepository
-                .findByTenantIdAndSubscriberKeyAndDeletedAtIsNull(tenantId, subscriberKey);
-
-        if (existing.isPresent()) {
-            Subscriber sub = existing.get();
-            applyMappedFields(sub, row, fieldMapping);
-            subscriberRepository.save(sub);
-        } else {
-            Subscriber sub = new Subscriber();
-            sub.setTenantId(tenantId);
-            sub.setSubscriberKey(subscriberKey);
-            sub.setEmail(email.toLowerCase().trim());
-            sub.setSubscribedAt(Instant.now());
-            applyMappedFields(sub, row, fieldMapping);
-            subscriberRepository.save(sub);
-        }
+        return result;
     }
 
     private void applyMappedFields(Subscriber sub, Map<String, String> row, Map<String, String> fieldMapping) {
         String firstName = getMappedField(row, fieldMapping, "firstName");
         String lastName = getMappedField(row, fieldMapping, "lastName");
         String phone = getMappedField(row, fieldMapping, "phone");
+        String locale = getMappedField(row, fieldMapping, "locale");
+        String timezone = getMappedField(row, fieldMapping, "timezone");
 
         if (firstName != null) sub.setFirstName(firstName);
         if (lastName != null) sub.setLastName(lastName);
         if (phone != null) sub.setPhone(phone);
+        if (locale != null) sub.setLocale(locale);
+        if (timezone != null) sub.setTimezone(timezone);
+
+        // Map other fields to customFields
+        Map<String, Object> customFields = sub.getCustomFields();
+        if (customFields == null) customFields = new HashMap<>();
+
+        for (Map.Entry<String, String> entry : fieldMapping.entrySet()) {
+            String target = entry.getKey();
+            if (isStandardField(target)) continue;
+
+            String value = getMappedField(row, fieldMapping, target);
+            if (value != null) {
+                customFields.put(target, value);
+            }
+        }
+        sub.setCustomFields(customFields);
+    }
+
+    private boolean isStandardField(String field) {
+        return List.of("email", "subscriberKey", "firstName", "lastName", "phone", "locale", "timezone").contains(field);
     }
 
     private String getMappedField(Map<String, String> row, Map<String, String> mapping, String targetField) {
         String sourceField = mapping.get(targetField);
         if (sourceField == null) return null;
-        Object value = row.get(sourceField);
-        return value != null ? value.toString() : null;
+        return row.get(sourceField);
     }
 }

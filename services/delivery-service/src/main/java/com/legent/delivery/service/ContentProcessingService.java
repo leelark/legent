@@ -1,0 +1,67 @@
+package com.legent.delivery.service;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ContentProcessingService {
+
+    @Value("${legent.tracking.base-url:http://localhost:8085}")
+    private String trackingBaseUrl;
+
+    private static final Pattern LINK_PATTERN = Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1", Pattern.CASE_INSENSITIVE);
+
+    public String processContent(String htmlContent, String tenantId, String campaignId, String subscriberId, String messageId) {
+        if (htmlContent == null) return null;
+
+        String processed = injectTrackingPixel(htmlContent, tenantId, campaignId, subscriberId, messageId);
+        processed = rewriteLinks(processed, tenantId, campaignId, subscriberId, messageId);
+
+        return processed;
+    }
+
+    private String injectTrackingPixel(String html, String t, String c, String s, String m) {
+        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s", 
+                trackingBaseUrl, t, c, s, m);
+        String pixelTag = String.format("<img src=\"%s\" width=\"1\" height=\"1\" border=\"0\" style=\"display:none;\" />", pixelUrl);
+
+        if (html.toLowerCase().contains("</body>")) {
+            return html.replaceFirst("(?i)</body>", pixelTag + "</body>");
+        } else {
+            return html + pixelTag;
+        }
+    }
+
+    private String rewriteLinks(String html, String t, String c, String s, String m) {
+        StringBuilder sb = new StringBuilder();
+        Matcher matcher = LINK_PATTERN.matcher(html);
+        int lastEnd = 0;
+
+        while (matcher.find()) {
+            sb.append(html, lastEnd, matcher.start());
+            String originalUrl = matcher.group(2);
+            
+            // Skip anchor links and tracking links already processed
+            if (originalUrl.startsWith("#") || originalUrl.contains("/api/v1/tracking/c")) {
+                sb.append(matcher.group(0));
+            } else {
+                String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s",
+                        trackingBaseUrl, java.net.URLEncoder.encode(originalUrl, java.nio.charset.StandardCharsets.UTF_8),
+                        t, c, s, m);
+                
+                String fullTag = matcher.group(0).replace(originalUrl, trackedUrl);
+                sb.append(fullTag);
+            }
+            lastEnd = matcher.end();
+        }
+        sb.append(html.substring(lastEnd));
+        return sb.toString();
+    }
+}

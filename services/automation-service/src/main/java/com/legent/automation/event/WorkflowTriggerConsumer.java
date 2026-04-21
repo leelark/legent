@@ -7,7 +7,6 @@ import com.legent.common.constant.AppConstants;
 import java.util.Map;
 
 import com.legent.kafka.model.EventEnvelope;
-import com.legent.security.TenantContext;
 import com.legent.automation.service.WorkflowEngine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,7 @@ public class WorkflowTriggerConsumer {
     @KafkaListener(topics = AppConstants.TOPIC_WORKFLOW_TRIGGER, groupId = AppConstants.GROUP_AUTOMATION)
     public void consumeTrigger(EventEnvelope<String> event) {
         try {
-            TenantContext.setTenantId(event.getTenantId());
+            com.legent.security.TenantContext.setTenantId(event.getTenantId());
             
             // Expected JSON payload format: 
             // { "workflowId": "uuid", "version": 1, "subscriberId": "uuid", "context": {} }
@@ -43,7 +42,7 @@ public class WorkflowTriggerConsumer {
         } catch (Exception e) {
             log.error("Failed to parse or trigger workflow execution", e);
         } finally {
-            TenantContext.clear();
+            com.legent.security.TenantContext.clear();
         }
     }
 }

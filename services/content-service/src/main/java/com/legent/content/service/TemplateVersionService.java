@@ -1,7 +1,6 @@
 package com.legent.content.service;
 
 import com.legent.common.exception.NotFoundException;
-import com.legent.common.exception.ConflictException;
 import com.legent.content.domain.EmailTemplate;
 import com.legent.content.domain.TemplateVersion;
 import com.legent.content.dto.TemplateVersionDto;

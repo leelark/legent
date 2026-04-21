@@ -2,6 +2,7 @@ package com.legent.content.service;
 
 import com.legent.content.domain.EmailTemplate;
 import com.legent.content.dto.TemplateDto;
+import com.legent.content.dto.TemplateVersionDto;
 import com.legent.content.repository.EmailTemplateRepository;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ConflictException;
@@ -15,8 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import org.thymeleaf.TemplateEngine;
+import java.util.Objects;
 import org.thymeleaf.context.Context;
-import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.List;
 
@@ -25,9 +26,8 @@ import java.util.List;
 public class TemplateService {
 
     private final EmailTemplateRepository templateRepository;
-
-    @Autowired(required = false)
-    private TemplateEngine templateEngine;
+    private final TemplateEngine stringTemplateEngine;
+    private final TemplateVersionService versionService;
 
     @Transactional
     public EmailTemplate createTemplate(TemplateDto.Create request) {
@@ -47,7 +47,8 @@ public class TemplateService {
         template.setTags(request.getTags());
         template.setMetadata(request.getMetadata());
 
-        return templateRepository.save(template);
+        EmailTemplate savedTemplate = templateRepository.save(template);
+        return Objects.requireNonNull(savedTemplate, "Saved template cannot be null");
     }
 
     @Cacheable(value = "templates", key = "#tenantId + ':' + #id")
@@ -87,7 +88,22 @@ public class TemplateService {
             template.setMetadata(request.getMetadata());
         }
 
-        return templateRepository.save(template);
+        boolean contentChanged = request.getHtmlContent() != null || request.getSubject() != null;
+        
+        @SuppressWarnings("null")
+        EmailTemplate savedTemplate = templateRepository.save(template);
+
+        if (contentChanged) {
+            TemplateVersionDto.Create versionRequest = new TemplateVersionDto.Create();
+            versionRequest.setSubject(savedTemplate.getSubject());
+            versionRequest.setHtmlContent(savedTemplate.getHtmlContent());
+            versionRequest.setTextContent(savedTemplate.getTextContent());
+            versionRequest.setChanges("Automatic update");
+            versionRequest.setPublish(true);
+            versionService.createVersion(savedTemplate.getId(), versionRequest);
+        }
+
+        return savedTemplate;
     }
 
     @Transactional
@@ -113,14 +129,10 @@ public class TemplateService {
      * @return rendered HTML
      */
     public String renderTemplate(EmailTemplate template, java.util.Map<String, Object> variables) {
-        if (templateEngine == null) {
-            throw new IllegalStateException("TemplateEngine not configured");
-        }
         Context context = new Context();
         if (variables != null) {
             context.setVariables(variables);
         }
-        // Use htmlContent as the template string
-        return templateEngine.process(template.getHtmlContent(), context);
+        return stringTemplateEngine.process(template.getHtmlContent(), context);
     }
 }

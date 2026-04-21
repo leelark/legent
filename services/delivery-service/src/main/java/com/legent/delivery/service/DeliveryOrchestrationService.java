@@ -28,6 +28,7 @@ public class DeliveryOrchestrationService {
     private final ProviderSelectionStrategy providerStrategy;
     private final MessageLogRepository messageLogRepository;
     private final DeliveryEventPublisher eventPublisher;
+    private final ContentProcessingService contentProcessingService;
 
     private static final int MAX_RETRIES = 3;
 
@@ -112,8 +113,11 @@ public class DeliveryOrchestrationService {
                 "Tenant-Id", normalizedTenantId
             );
 
+            // Process content for tracking
+            String processedHtml = contentProcessingService.processContent(htmlBody, normalizedTenantId, campaignId, subscriberId, messageId);
+
             // Dispatch
-            adapter.sendEmail(email, subject, htmlBody, metadata);
+            adapter.sendEmail(email, subject, processedHtml, metadata, strategyResult.dbRecord());
 
             // Success
             logEntry.setStatus(MessageLog.DeliveryStatus.SENT.name());

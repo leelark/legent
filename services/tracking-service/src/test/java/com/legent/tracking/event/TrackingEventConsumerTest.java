@@ -1,31 +1,40 @@
 package com.legent.tracking.event;
 
-import com.legent.tracking.repository.TrackingEventRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.tracking.service.ClickHouseWriter;
+import com.legent.tracking.service.AggregationService;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
+
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.Mockito.*;
+
+@ExtendWith(MockitoExtension.class)
+@SuppressWarnings("null")
 class TrackingEventConsumerTest {
-    @Test
-    void consumeOpen_savesOpen() {
-        var repo = Mockito.mock(TrackingEventRepository.class);
-        var consumer = new TrackingEventConsumer(repo);
-        consumer.consumeOpen("mid123");
-        Mockito.verify(repo).saveOpen("mid123");
-    }
+
+    @Mock private ClickHouseWriter clickHouseWriter;
+    @Mock private AggregationService aggregationService;
+    @Mock private ObjectMapper objectMapper;
+
+    @InjectMocks private TrackingEventConsumer consumer;
 
     @Test
-    void consumeClick_savesClick() {
-        var repo = Mockito.mock(TrackingEventRepository.class);
-        var consumer = new TrackingEventConsumer(repo);
-        consumer.consumeClick("mid123|https://example.com");
-        Mockito.verify(repo).saveClick("mid123", "https://example.com");
-    }
+    @SuppressWarnings("unchecked")
+    void handleIngestedEvents_Success() throws Exception {
+        String msg = "{\"payload\":{\"eventType\":\"OPEN\"}}";
+        List<String> messages = List.of(msg);
+        
+        when(objectMapper.readValue(eq(msg), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+                .thenReturn(new com.legent.kafka.model.EventEnvelope<>());
 
-    @Test
-    void consumeConversion_savesConversion() {
-        var repo = Mockito.mock(TrackingEventRepository.class);
-        var consumer = new TrackingEventConsumer(repo);
-        consumer.consumeConversion("mid123|{\"amount\":100}");
-        Mockito.verify(repo).saveConversion("mid123", "{\"amount\":100}");
+        consumer.handleIngestedEvents(messages);
+
+        verify(clickHouseWriter).writeBatch(anyList());
     }
 }

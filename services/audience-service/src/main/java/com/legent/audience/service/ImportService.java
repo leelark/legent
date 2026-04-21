@@ -27,12 +27,14 @@ public class ImportService {
     @Transactional
     public ImportDto.StatusResponse uploadAndStartImport(org.springframework.web.multipart.MultipartFile file, ImportDto.StartRequest request) {
         try {
-            java.io.File tempFile = java.io.File.createTempFile("import_", ".csv");
+            java.io.File tempFile = java.util.Objects.requireNonNull(java.io.File.createTempFile("import_", ".csv"));
             file.transferTo(tempFile);
+            
             request.setFileName(tempFile.getAbsolutePath());
             request.setFileSize(file.getSize());
             return startImport(request);
         } catch (java.io.IOException e) {
+            log.error("Failed to save imported file", e);
             throw new RuntimeException("Failed to save imported file", e);
         }
     }

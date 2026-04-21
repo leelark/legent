@@ -32,22 +32,27 @@ public class ContentBlockController {
 
     @GetMapping("/{id}")
     public ApiResponse<ContentBlockDto.Response> getBlock(@PathVariable String id) {
-        String tenantId = TenantContext.requireTenantId();
+        @SuppressWarnings("null")
+        final String tenantId = TenantContext.requireTenantId();
+        @SuppressWarnings("null")
         ContentBlock block = blockService.getBlock(tenantId, id);
         return ApiResponse.ok(mapToResponse(block));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<ContentBlockDto.Response> updateBlock(@PathVariable String id, @Valid @RequestBody ContentBlockDto.Create request) {
-        String tenantId = TenantContext.requireTenantId();
-        ContentBlock block = blockService.updateBlock(tenantId, id, request);
-        return ApiResponse.ok(mapToResponse(block));
+        @SuppressWarnings("null")
+        final String tenantId = TenantContext.requireTenantId();
+        @SuppressWarnings("null")
+        ContentBlock updatedBlock = blockService.updateBlock(tenantId, id, request);
+        return ApiResponse.ok(mapToResponse(updatedBlock));
     }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @SuppressWarnings("null")
     public void deleteBlock(@PathVariable String id) {
-        String tenantId = TenantContext.requireTenantId();
+        final String tenantId = TenantContext.requireTenantId();
         blockService.deleteBlock(tenantId, id);
     }
 

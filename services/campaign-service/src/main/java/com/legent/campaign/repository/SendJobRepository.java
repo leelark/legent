@@ -20,4 +20,6 @@ public interface SendJobRepository extends JpaRepository<SendJob, String> {
     List<SendJob> findByTenantIdAndStatusInAndDeletedAtIsNull(String tenantId, List<SendJob.JobStatus> statuses);
 
     Optional<SendJob> findFirstByTenantIdAndCampaignIdAndDeletedAtIsNullOrderByCreatedAtDesc(String tenantId, String campaignId);
+
+    List<SendJob> findByStatusAndScheduledAtBefore(SendJob.JobStatus status, java.time.Instant now);
 }

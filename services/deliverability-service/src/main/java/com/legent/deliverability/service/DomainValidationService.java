@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +22,6 @@ public class DomainValidationService {
         config.setDmarcStatus("PASS");
         config.setLastChecked(Instant.now());
         config.setStatus("VERIFIED");
-        return domainRepo.save(config);
+        return Objects.requireNonNull(domainRepo.save(config));
     }
 }

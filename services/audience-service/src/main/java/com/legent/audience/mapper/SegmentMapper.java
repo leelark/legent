@@ -3,8 +3,9 @@ package com.legent.audience.mapper;
 import com.legent.audience.domain.Segment;
 import com.legent.audience.dto.SegmentDto;
 import org.mapstruct.*;
+import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface SegmentMapper {
 
     @Mapping(target = "id", ignore = true)
