@@ -1,9 +1,7 @@
 package com.legent.campaign.controller;
 
 import com.legent.campaign.dto.CampaignDto;
-import com.legent.campaign.dto.SendJobDto;
 import com.legent.campaign.service.CampaignService;
-import com.legent.campaign.service.OrchestrationService;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import jakarta.validation.Valid;
@@ -19,7 +17,6 @@ import org.springframework.web.bind.annotation.*;
 public class CampaignController {
 
     private final CampaignService campaignService;
-    private final OrchestrationService orchestrationService;
 
     @GetMapping
     public PagedResponse<CampaignDto.Response> list(
@@ -53,9 +50,4 @@ public class CampaignController {
         campaignService.delete(id);
     }
 
-    @PostMapping("/{id}/send")
-    public ApiResponse<SendJobDto.Response> send(@PathVariable String id,
-                                                 @Valid @RequestBody SendJobDto.TriggerRequest request) {
-        return ApiResponse.ok(orchestrationService.triggerSend(id, request));
-    }
 }

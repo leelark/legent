@@ -1,0 +1,1062 @@
+﻿
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-22T05:35:12.213Z  INFO 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : Starting DeliveryApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T05:35:12.234Z DEBUG 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-22T05:35:12.236Z  INFO 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : The following 1 profile is active: "prod"
+2026-04-22T05:35:31.114Z  INFO 1 --- [delivery-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T05:35:31.729Z  INFO 1 --- [delivery-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 561 ms. Found 3 JPA repository interfaces.
+2026-04-22T05:35:40.003Z  INFO 1 --- [delivery-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8084 (http)
+2026-04-22T05:35:40.093Z  INFO 1 --- [delivery-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T05:35:40.094Z  INFO 1 --- [delivery-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T05:35:40.407Z  INFO 1 --- [delivery-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T05:35:40.421Z  INFO 1 --- [delivery-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 27079 ms
+2026-04-22T05:35:42.487Z DEBUG 1 --- [delivery-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-22T05:35:42.493Z DEBUG 1 --- [delivery-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-22T05:35:43.237Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-22T05:35:44.617Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@50df37eb
+2026-04-22T05:35:44.624Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-22T05:35:45.705Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-22T05:35:45.706Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-22T05:35:45.706Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-22T05:35:45.774Z  INFO 1 --- [delivery-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_delivery (PostgreSQL 15.17)
+2026-04-22T05:35:46.126Z  INFO 1 --- [delivery-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-04-22T05:35:46.595Z  INFO 1 --- [delivery-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-04-22T05:35:46.596Z  WARN 1 --- [delivery-service] [           main] o.f.core.internal.command.DbMigrate      : outOfOrder mode is active. Migration of schema "public" may not be reproducible.
+2026-04-22T05:35:46.798Z  INFO 1 --- [delivery-service] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - delivery schema"
+2026-04-22T05:35:47.933Z  INFO 1 --- [delivery-service] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v1 (execution time 00:01.030s)
+2026-04-22T05:35:48.800Z  INFO 1 --- [delivery-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-22T05:35:49.790Z  INFO 1 --- [delivery-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-22T05:35:50.373Z  INFO 1 --- [delivery-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-22T05:35:53.041Z  INFO 1 --- [delivery-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-22T05:36:03.696Z  INFO 1 --- [delivery-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-22T05:36:05.061Z  INFO 1 --- [delivery-service] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-22T05:36:10.151Z  INFO 1 --- [delivery-service] [           main] o.s.d.j.r.query.QueryEnhancerFactory     : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-04-22T05:36:15.890Z  WARN 1 --- [delivery-service] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 65fbf647-bdc8-4eae-85ea-a9349e915304
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-04-22T05:36:20.805Z  INFO 1 --- [delivery-service] [           main] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoint(s) beneath base path '/actuator'
+2026-04-22T05:36:21.303Z  INFO 1 --- [delivery-service] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@15beb40b, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@1bc41170, org.springframework.security.web.context.SecurityContextHolderFilter@26cd77cc, org.springframework.security.web.header.HeaderWriterFilter@6b29771f, org.springframework.web.filter.CorsFilter@2d95c3ef, org.springframework.security.web.authentication.logout.LogoutFilter@6a275836, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@6d03404e, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@69cd4267, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@35e55afa, org.springframework.security.web.session.SessionManagementFilter@4f7bb581, org.springframework.security.web.access.ExceptionTranslationFilter@731660c1, org.springframework.security.web.access.intercept.AuthorizationFilter@6b36ab82]
+2026-04-22T05:36:27.143Z  INFO 1 --- [delivery-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8084 (http) with context path ''
+2026-04-22T05:36:28.691Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-1
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:29.083Z  INFO 1 --- [delivery-service] [nio-8084-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-22T05:36:29.084Z  INFO 1 --- [delivery-service] [nio-8084-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-04-22T05:36:29.092Z  INFO 1 --- [delivery-service] [nio-8084-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 4 ms
+2026-04-22T05:36:30.824Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:30.824Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:30.825Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836190814
+2026-04-22T05:36:30.874Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Subscribed to topic(s): email.send.requested
+2026-04-22T05:36:30.950Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-2
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:31.098Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:31.098Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:31.098Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836191098
+2026-04-22T05:36:31.141Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Subscribed to topic(s): email.send.requested
+2026-04-22T05:36:31.167Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-3
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:31.244Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:31.244Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:31.244Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836191244
+2026-04-22T05:36:31.245Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Subscribed to topic(s): email.send.requested
+2026-04-22T05:36:31.295Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-4
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:31.347Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:31.350Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:31.352Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836191346
+2026-04-22T05:36:31.356Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Subscribed to topic(s): email.send.requested
+2026-04-22T05:36:31.383Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-5
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:31.548Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:31.565Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:31.565Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836191548
+2026-04-22T05:36:31.566Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Subscribed to topic(s): email.send.requested
+2026-04-22T05:36:31.597Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-failed-6
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service-failed
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:31.648Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:31.663Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:31.666Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836191648
+2026-04-22T05:36:31.668Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Subscribed to topic(s): email.failed
+2026-04-22T05:36:31.675Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-failed-7
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service-failed
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:31.707Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:31.712Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:31.715Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836191707
+2026-04-22T05:36:31.716Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Subscribed to topic(s): email.failed
+2026-04-22T05:36:31.734Z  INFO 1 --- [delivery-service] [           main] o.a.k.clients.consumer.ConsumerConfig    : ConsumerConfig values: 
+	allow.auto.create.topics = true
+	auto.commit.interval.ms = 5000
+	auto.include.jmx.reporter = true
+	auto.offset.reset = earliest
+	bootstrap.servers = [kafka:9092]
+	check.crcs = true
+	client.dns.lookup = use_all_dns_ips
+	client.id = consumer-delivery-service-failed-8
+	client.rack = 
+	connections.max.idle.ms = 540000
+	default.api.timeout.ms = 60000
+	enable.auto.commit = false
+	exclude.internal.topics = true
+	fetch.max.bytes = 52428800
+	fetch.max.wait.ms = 500
+	fetch.min.bytes = 1
+	group.id = delivery-service-failed
+	group.instance.id = null
+	heartbeat.interval.ms = 3000
+	interceptor.classes = []
+	internal.leave.group.on.close = true
+	internal.throw.on.fetch.stable.offset.unsupported = false
+	isolation.level = read_uncommitted
+	key.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+	max.partition.fetch.bytes = 1048576
+	max.poll.interval.ms = 300000
+	max.poll.records = 500
+	metadata.max.age.ms = 300000
+	metric.reporters = []
+	metrics.num.samples = 2
+	metrics.recording.level = INFO
+	metrics.sample.window.ms = 30000
+	partition.assignment.strategy = [class org.apache.kafka.clients.consumer.RangeAssignor, class org.apache.kafka.clients.consumer.CooperativeStickyAssignor]
+	receive.buffer.bytes = 65536
+	reconnect.backoff.max.ms = 1000
+	reconnect.backoff.ms = 50
+	request.timeout.ms = 30000
+	retry.backoff.ms = 100
+	sasl.client.callback.handler.class = null
+	sasl.jaas.config = null
+	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+	sasl.kerberos.min.time.before.relogin = 60000
+	sasl.kerberos.service.name = null
+	sasl.kerberos.ticket.renew.jitter = 0.05
+	sasl.kerberos.ticket.renew.window.factor = 0.8
+	sasl.login.callback.handler.class = null
+	sasl.login.class = null
+	sasl.login.connect.timeout.ms = null
+	sasl.login.read.timeout.ms = null
+	sasl.login.refresh.buffer.seconds = 300
+	sasl.login.refresh.min.period.seconds = 60
+	sasl.login.refresh.window.factor = 0.8
+	sasl.login.refresh.window.jitter = 0.05
+	sasl.login.retry.backoff.max.ms = 10000
+	sasl.login.retry.backoff.ms = 100
+	sasl.mechanism = GSSAPI
+	sasl.oauthbearer.clock.skew.seconds = 30
+	sasl.oauthbearer.expected.audience = null
+	sasl.oauthbearer.expected.issuer = null
+	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+	sasl.oauthbearer.jwks.endpoint.url = null
+	sasl.oauthbearer.scope.claim.name = scope
+	sasl.oauthbearer.sub.claim.name = sub
+	sasl.oauthbearer.token.endpoint.url = null
+	security.protocol = PLAINTEXT
+	security.providers = null
+	send.buffer.bytes = 131072
+	session.timeout.ms = 45000
+	socket.connection.setup.timeout.max.ms = 30000
+	socket.connection.setup.timeout.ms = 10000
+	ssl.cipher.suites = null
+	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+	ssl.endpoint.identification.algorithm = https
+	ssl.engine.factory.class = null
+	ssl.key.password = null
+	ssl.keymanager.algorithm = SunX509
+	ssl.keystore.certificate.chain = null
+	ssl.keystore.key = null
+	ssl.keystore.location = null
+	ssl.keystore.password = null
+	ssl.keystore.type = JKS
+	ssl.protocol = TLSv1.3
+	ssl.provider = null
+	ssl.secure.random.implementation = null
+	ssl.trustmanager.algorithm = PKIX
+	ssl.truststore.certificates = null
+	ssl.truststore.location = null
+	ssl.truststore.password = null
+	ssl.truststore.type = JKS
+	value.deserializer = class org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+
+2026-04-22T05:36:31.795Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka version: 3.6.2
+2026-04-22T05:36:31.802Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka commitId: c4deed513057c94e
+2026-04-22T05:36:31.803Z  INFO 1 --- [delivery-service] [           main] o.a.kafka.common.utils.AppInfoParser     : Kafka startTimeMs: 1776836191795
+2026-04-22T05:36:31.808Z  INFO 1 --- [delivery-service] [           main] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Subscribed to topic(s): email.failed
+2026-04-22T05:36:31.987Z  INFO 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : Started DeliveryApplication in 86.623 seconds (process running for 97.177)
+2026-04-22T05:36:34.784Z  WARN 1 --- [delivery-service] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Error while fetching metadata with correlation id 2 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:34.785Z  WARN 1 --- [delivery-service] [ntainer#0-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Error while fetching metadata with correlation id 2 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:34.791Z  WARN 1 --- [delivery-service] [ntainer#0-4-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Error while fetching metadata with correlation id 2 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:34.786Z  WARN 1 --- [delivery-service] [ntainer#0-3-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Error while fetching metadata with correlation id 2 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:34.786Z  WARN 1 --- [delivery-service] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Error while fetching metadata with correlation id 2 : {email.failed=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:34.786Z  WARN 1 --- [delivery-service] [ntainer#1-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Error while fetching metadata with correlation id 2 : {email.failed=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:34.797Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.799Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.810Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.800Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.814Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.823Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.802Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.826Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.805Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.828Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.805Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.834Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:34.834Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.817Z  WARN 1 --- [delivery-service] [ntainer#1-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Error while fetching metadata with correlation id 2 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:34.842Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.848Z  WARN 1 --- [delivery-service] [ntainer#0-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Error while fetching metadata with correlation id 2 : {email.send.requested=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:34.849Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] org.apache.kafka.clients.Metadata        : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Cluster ID: cqXnYBqNT1a77_6DbODyMw
+2026-04-22T05:36:34.850Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.853Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:34.858Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] (Re-)joining group
+2026-04-22T05:36:34.889Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:34.897Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Discovered group coordinator kafka:9092 (id: 2147483646 rack: null)
+2026-04-22T05:36:34.898Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:34.921Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:34.937Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] (Re-)joining group
+2026-04-22T05:36:34.944Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] (Re-)joining group
+2026-04-22T05:36:35.038Z  WARN 1 --- [delivery-service] [ntainer#0-4-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Error while fetching metadata with correlation id 6 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.041Z  WARN 1 --- [delivery-service] [ntainer#0-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Error while fetching metadata with correlation id 6 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.038Z  WARN 1 --- [delivery-service] [ntainer#1-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Error while fetching metadata with correlation id 6 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.058Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-4-3606e3ce-37fb-40d7-afc1-32bfdba2386b
+2026-04-22T05:36:35.063Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.063Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:35.065Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-failed-8-820b0f98-a80b-4194-aa17-426ace7fd8f0
+2026-04-22T05:36:35.076Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.081Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] (Re-)joining group
+2026-04-22T05:36:35.066Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-5-cab5db32-fdcc-4de5-bff3-e302771f6b28
+2026-04-22T05:36:35.082Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.070Z  WARN 1 --- [delivery-service] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Error while fetching metadata with correlation id 6 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.075Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-2-7ddadcc3-d6eb-46c2-919b-c8b79226429f
+2026-04-22T05:36:35.085Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:35.086Z  WARN 1 --- [delivery-service] [ntainer#1-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Error while fetching metadata with correlation id 6 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.109Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-failed-7-c81b5d74-ca62-4900-af26-e8419f763be6
+2026-04-22T05:36:35.111Z  WARN 1 --- [delivery-service] [ntainer#0-3-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Error while fetching metadata with correlation id 6 : {email.send.requested=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.111Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.111Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] (Re-)joining group
+2026-04-22T05:36:35.086Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.115Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:35.119Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-1-59538875-827d-4dbe-8f2c-3c6709e8149c
+2026-04-22T05:36:35.123Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.138Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:35.159Z  WARN 1 --- [delivery-service] [ntainer#0-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Error while fetching metadata with correlation id 8 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.160Z  WARN 1 --- [delivery-service] [ntainer#0-4-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Error while fetching metadata with correlation id 8 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.169Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-failed-6-7528f579-5fed-497a-811b-4161be16073c
+2026-04-22T05:36:35.170Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.170Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] (Re-)joining group
+2026-04-22T05:36:35.194Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Request joining group due to: need to re-join with the given member-id: consumer-delivery-service-3-e23fb894-540e-418e-8ca1-140c3fa2d856
+2026-04-22T05:36:35.199Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Request joining group due to: rebalance failed due to 'The group member needs to have a valid member id before actually entering a consumer group.' (MemberIdRequiredException)
+2026-04-22T05:36:35.203Z  WARN 1 --- [delivery-service] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Error while fetching metadata with correlation id 6 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.205Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] (Re-)joining group
+2026-04-22T05:36:35.208Z  WARN 1 --- [delivery-service] [ntainer#0-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Error while fetching metadata with correlation id 6 : {email.send.requested=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.240Z  WARN 1 --- [delivery-service] [ntainer#1-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Error while fetching metadata with correlation id 8 : {email.failed=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.269Z  WARN 1 --- [delivery-service] [ntainer#0-3-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Error while fetching metadata with correlation id 8 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.285Z  WARN 1 --- [delivery-service] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Error while fetching metadata with correlation id 8 : {email.send.requested=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.287Z  WARN 1 --- [delivery-service] [ntainer#0-4-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Error while fetching metadata with correlation id 9 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.296Z  WARN 1 --- [delivery-service] [ntainer#0-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Error while fetching metadata with correlation id 9 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.292Z  WARN 1 --- [delivery-service] [ntainer#1-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Error while fetching metadata with correlation id 8 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.359Z  WARN 1 --- [delivery-service] [ntainer#0-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Error while fetching metadata with correlation id 8 : {email.send.requested=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.371Z  WARN 1 --- [delivery-service] [ntainer#1-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Error while fetching metadata with correlation id 9 : {email.failed=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.381Z  WARN 1 --- [delivery-service] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Error while fetching metadata with correlation id 8 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.417Z  WARN 1 --- [delivery-service] [ntainer#0-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Error while fetching metadata with correlation id 10 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.424Z  WARN 1 --- [delivery-service] [ntainer#0-4-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Error while fetching metadata with correlation id 10 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.431Z  WARN 1 --- [delivery-service] [ntainer#0-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Error while fetching metadata with correlation id 9 : {email.send.requested=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:35.458Z  WARN 1 --- [delivery-service] [ntainer#1-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Error while fetching metadata with correlation id 9 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.461Z  WARN 1 --- [delivery-service] [ntainer#0-3-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Error while fetching metadata with correlation id 9 : {email.send.requested=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.507Z  WARN 1 --- [delivery-service] [ntainer#0-2-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Error while fetching metadata with correlation id 9 : {email.send.requested=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.515Z  WARN 1 --- [delivery-service] [ntainer#1-1-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Error while fetching metadata with correlation id 10 : {email.failed=LEADER_NOT_AVAILABLE}
+2026-04-22T05:36:35.522Z  WARN 1 --- [delivery-service] [ntainer#1-0-C-1] org.apache.kafka.clients.NetworkClient   : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Error while fetching metadata with correlation id 9 : {email.failed=UNKNOWN_TOPIC_OR_PARTITION}
+2026-04-22T05:36:41.106Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-5-cab5db32-fdcc-4de5-bff3-e302771f6b28', protocol='range'}
+2026-04-22T05:36:41.106Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-2-7ddadcc3-d6eb-46c2-919b-c8b79226429f', protocol='range'}
+2026-04-22T05:36:41.107Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-1-59538875-827d-4dbe-8f2c-3c6709e8149c', protocol='range'}
+2026-04-22T05:36:41.109Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-4-3606e3ce-37fb-40d7-afc1-32bfdba2386b', protocol='range'}
+2026-04-22T05:36:41.115Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-failed-8-820b0f98-a80b-4194-aa17-426ace7fd8f0', protocol='range'}
+2026-04-22T05:36:41.116Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-3-e23fb894-540e-418e-8ca1-140c3fa2d856', protocol='range'}
+2026-04-22T05:36:41.122Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-failed-6-7528f579-5fed-497a-811b-4161be16073c', protocol='range'}
+2026-04-22T05:36:41.123Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Successfully joined group with generation Generation{generationId=1, memberId='consumer-delivery-service-failed-7-c81b5d74-ca62-4900-af26-e8419f763be6', protocol='range'}
+2026-04-22T05:36:41.140Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Finished assignment for group at generation 1: {consumer-delivery-service-failed-7-c81b5d74-ca62-4900-af26-e8419f763be6=Assignment(partitions=[]), consumer-delivery-service-failed-8-820b0f98-a80b-4194-aa17-426ace7fd8f0=Assignment(partitions=[]), consumer-delivery-service-failed-6-7528f579-5fed-497a-811b-4161be16073c=Assignment(partitions=[email.failed-0])}
+2026-04-22T05:36:41.142Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Finished assignment for group at generation 1: {consumer-delivery-service-4-3606e3ce-37fb-40d7-afc1-32bfdba2386b=Assignment(partitions=[]), consumer-delivery-service-2-7ddadcc3-d6eb-46c2-919b-c8b79226429f=Assignment(partitions=[]), consumer-delivery-service-5-cab5db32-fdcc-4de5-bff3-e302771f6b28=Assignment(partitions=[]), consumer-delivery-service-1-59538875-827d-4dbe-8f2c-3c6709e8149c=Assignment(partitions=[email.send.requested-0]), consumer-delivery-service-3-e23fb894-540e-418e-8ca1-140c3fa2d856=Assignment(partitions=[])}
+2026-04-22T05:36:41.158Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-failed-7-c81b5d74-ca62-4900-af26-e8419f763be6', protocol='range'}
+2026-04-22T05:36:41.158Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Notifying assignor about the new Assignment(partitions=[])
+2026-04-22T05:36:41.159Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Adding newly assigned partitions: 
+2026-04-22T05:36:41.159Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-failed-6-7528f579-5fed-497a-811b-4161be16073c', protocol='range'}
+2026-04-22T05:36:41.160Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Notifying assignor about the new Assignment(partitions=[email.failed-0])
+2026-04-22T05:36:41.160Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service-failed: partitions assigned: []
+2026-04-22T05:36:41.166Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-failed-8-820b0f98-a80b-4194-aa17-426ace7fd8f0', protocol='range'}
+2026-04-22T05:36:41.167Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Notifying assignor about the new Assignment(partitions=[])
+2026-04-22T05:36:41.168Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Adding newly assigned partitions: 
+2026-04-22T05:36:41.169Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service-failed: partitions assigned: []
+2026-04-22T05:36:41.171Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Adding newly assigned partitions: email.failed-0
+2026-04-22T05:36:41.168Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-2-7ddadcc3-d6eb-46c2-919b-c8b79226429f', protocol='range'}
+2026-04-22T05:36:41.173Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Notifying assignor about the new Assignment(partitions=[])
+2026-04-22T05:36:41.174Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-5-cab5db32-fdcc-4de5-bff3-e302771f6b28', protocol='range'}
+2026-04-22T05:36:41.174Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Adding newly assigned partitions: 
+2026-04-22T05:36:41.178Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-3-e23fb894-540e-418e-8ca1-140c3fa2d856', protocol='range'}
+2026-04-22T05:36:41.181Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Notifying assignor about the new Assignment(partitions=[])
+2026-04-22T05:36:41.182Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Adding newly assigned partitions: 
+2026-04-22T05:36:41.182Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: partitions assigned: []
+2026-04-22T05:36:41.179Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-1-59538875-827d-4dbe-8f2c-3c6709e8149c', protocol='range'}
+2026-04-22T05:36:41.183Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: partitions assigned: []
+2026-04-22T05:36:41.179Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Successfully synced group in generation Generation{generationId=1, memberId='consumer-delivery-service-4-3606e3ce-37fb-40d7-afc1-32bfdba2386b', protocol='range'}
+2026-04-22T05:36:41.186Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Notifying assignor about the new Assignment(partitions=[])
+2026-04-22T05:36:41.187Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Adding newly assigned partitions: 
+2026-04-22T05:36:41.187Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: partitions assigned: []
+2026-04-22T05:36:41.185Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Notifying assignor about the new Assignment(partitions=[email.send.requested-0])
+2026-04-22T05:36:41.188Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Adding newly assigned partitions: email.send.requested-0
+2026-04-22T05:36:41.185Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Notifying assignor about the new Assignment(partitions=[])
+2026-04-22T05:36:41.190Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Adding newly assigned partitions: 
+2026-04-22T05:36:41.191Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: partitions assigned: []
+2026-04-22T05:36:41.196Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Found no committed offset for partition email.send.requested-0
+2026-04-22T05:36:41.197Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Found no committed offset for partition email.failed-0
+2026-04-22T05:36:41.208Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.SubscriptionState    : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Resetting offset for partition email.failed-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[kafka:9092 (id: 1 rack: null)], epoch=0}}.
+2026-04-22T05:36:41.209Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.SubscriptionState    : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Resetting offset for partition email.send.requested-0 to position FetchPosition{offset=0, offsetEpoch=Optional.empty, currentLeader=LeaderAndEpoch{leader=Optional[kafka:9092 (id: 1 rack: null)], epoch=0}}.
+2026-04-22T05:36:41.211Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service-failed: partitions assigned: [email.failed-0]
+2026-04-22T05:36:41.212Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: partitions assigned: [email.send.requested-0]
+2026-04-22T05:36:53.000Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Member consumer-delivery-service-failed-7-c81b5d74-ca62-4900-af26-e8419f763be6 sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.003Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Member consumer-delivery-service-5-cab5db32-fdcc-4de5-bff3-e302771f6b28 sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.003Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Revoke previously assigned partitions email.failed-0
+2026-04-22T05:36:53.003Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Member consumer-delivery-service-3-e23fb894-540e-418e-8ca1-140c3fa2d856 sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.006Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.006Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service-failed: partitions revoked: [email.failed-0]
+2026-04-22T05:36:53.009Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Revoke previously assigned partitions email.send.requested-0
+2026-04-22T05:36:53.009Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: partitions revoked: [email.send.requested-0]
+2026-04-22T05:36:53.010Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.006Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.015Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.015Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.015Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.016Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Member consumer-delivery-service-1-59538875-827d-4dbe-8f2c-3c6709e8149c sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.018Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.021Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.023Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.033Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Member consumer-delivery-service-failed-6-7528f579-5fed-497a-811b-4161be16073c sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.034Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.035Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-1, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.038Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.041Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.041Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.043Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.043Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.044Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-3, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.021Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Member consumer-delivery-service-4-3606e3ce-37fb-40d7-afc1-32bfdba2386b sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.056Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.057Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.057Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.058Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.058Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.091Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Member consumer-delivery-service-2-7ddadcc3-d6eb-46c2-919b-c8b79226429f sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.094Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.094Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.095Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.095Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.095Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-5, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.120Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.126Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-7, groupId=delivery-service-failed] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.127Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.023Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Member consumer-delivery-service-failed-8-820b0f98-a80b-4194-aa17-426ace7fd8f0 sending LeaveGroup request to coordinator kafka:9092 (id: 2147483646 rack: null) due to the consumer unsubscribed from all topics
+2026-04-22T05:36:53.130Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-6, groupId=delivery-service-failed] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.131Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.134Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.134Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] fkaConsumerFactory$ExtendedKafkaConsumer : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Unsubscribed all topics or patterns and assigned partitions
+2026-04-22T05:36:53.135Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.136Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-failed-8, groupId=delivery-service-failed] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.141Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.142Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-4, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.148Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.149Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.149Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.151Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Resetting generation and member id due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.151Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.k.c.c.internals.ConsumerCoordinator  : [Consumer clientId=consumer-delivery-service-2, groupId=delivery-service] Request joining group due to: consumer pro-actively leaving the group
+2026-04-22T05:36:53.177Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.178Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.178Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.211Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-5 unregistered
+2026-04-22T05:36:53.212Z  INFO 1 --- [delivery-service] [ntainer#0-4-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: Consumer stopped
+2026-04-22T05:36:53.241Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-3 unregistered
+2026-04-22T05:36:53.241Z  INFO 1 --- [delivery-service] [ntainer#0-2-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: Consumer stopped
+2026-04-22T05:36:53.250Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.251Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.251Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.259Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.263Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.305Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-4 unregistered
+2026-04-22T05:36:53.305Z  INFO 1 --- [delivery-service] [ntainer#0-3-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: Consumer stopped
+2026-04-22T05:36:53.315Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.316Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.316Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.329Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.330Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.330Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.392Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-failed-7 unregistered
+2026-04-22T05:36:53.404Z  INFO 1 --- [delivery-service] [ntainer#1-1-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service-failed: Consumer stopped
+2026-04-22T05:36:53.406Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.454Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-failed-8 unregistered
+2026-04-22T05:36:53.463Z  INFO 1 --- [delivery-service] [ntainer#1-2-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service-failed: Consumer stopped
+2026-04-22T05:36:53.481Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-2 unregistered
+2026-04-22T05:36:53.508Z  INFO 1 --- [delivery-service] [ntainer#0-1-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: Consumer stopped
+2026-04-22T05:36:53.483Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.510Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.510Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.488Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics scheduler closed
+2026-04-22T05:36:53.515Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Closing reporter org.apache.kafka.common.metrics.JmxReporter
+2026-04-22T05:36:53.516Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.apache.kafka.common.metrics.Metrics    : Metrics reporters closed
+2026-04-22T05:36:53.541Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-1 unregistered
+2026-04-22T05:36:53.542Z  INFO 1 --- [delivery-service] [ntainer#0-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service: Consumer stopped
+2026-04-22T05:36:53.544Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.a.kafka.common.utils.AppInfoParser     : App info kafka.consumer for consumer-delivery-service-failed-6 unregistered
+2026-04-22T05:36:53.546Z  INFO 1 --- [delivery-service] [ntainer#1-0-C-1] o.s.k.l.KafkaMessageListenerContainer    : delivery-service-failed: Consumer stopped
+2026-04-22T05:36:53.702Z  INFO 1 --- [delivery-service] [ionShutdownHook] j.LocalContainerEntityManagerFactoryBean : Closing JPA EntityManagerFactory for persistence unit 'default'
+2026-04-22T05:36:53.718Z  INFO 1 --- [delivery-service] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown initiated...
+2026-04-22T05:36:53.764Z  INFO 1 --- [delivery-service] [ionShutdownHook] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Shutdown completed.
+

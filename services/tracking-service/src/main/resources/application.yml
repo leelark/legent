@@ -9,6 +9,11 @@ spring:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:legent_tracking}}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:legent}}
     password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:legent}}
+    clickhouse:
+      url: ${SPRING_DATASOURCE_CLICKHOUSE_URL:${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:legent_tracking}}}
+      username: ${SPRING_DATASOURCE_CLICKHOUSE_USERNAME:${SPRING_DATASOURCE_USERNAME:${DB_USER:legent}}}
+      password: ${SPRING_DATASOURCE_CLICKHOUSE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:legent}}}
+      driver-class-name: ${SPRING_DATASOURCE_CLICKHOUSE_DRIVER_CLASS_NAME:org.postgresql.Driver}
     hikari:
       maximum-pool-size: 50 # High ingest requires large DB pool if we aren't batching
       minimum-idle: 10

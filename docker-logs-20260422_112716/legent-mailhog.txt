@@ -1,0 +1,57 @@
+﻿docker : 2026/04/21 21:02:01 Using in-memory storage
+At C:\Users\leelark.saxena\Desktop\Legent - v1.0.2\collect-docker-logs.ps1:21 char:18
++     $logOutput = docker logs $container 2>&1 | Out-String
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026/04/21 21:0...-memory storage:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026/04/21 21:02:01 [SMTP] Binding to address: 0.0.0.0:1025
+2026/04/21 21:02:01 Serving under http://0.0.0.0:8025/
+2026/04/22 05:19:24 Using in-memory storage
+2026/04/22 05:19:24 [SMTP] Binding to address: 0.0.0.0:1025
+2026/04/22 05:19:24 Serving under http://0.0.0.0:8025/
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Starting session
+[HTTP] Binding to address: 0.0.0.0:8025
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: INVALID] Started session, switching to ESTABLISH state
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Sent 35 bytes: '220 mailhog.example ESMTP MailHog\r\n'
+Creating API v1 with WebPath: 
+Creating API v2 with WebPath: 
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[HTTP] Binding to address: 0.0.0.0:8025
+Creating API v1 with WebPath: 
+Creating API v2 with WebPath: 
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+[APIv1] KEEPALIVE /api/v1/events
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Received 19 bytes: 'EHLO 961a16c85e1d\r\n'
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: ESTABLISH] Processing line: EHLO 961a16c85e1d
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: ESTABLISH] In state 1, got command 'EHLO', args '961a16c85e1d'
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: ESTABLISH] In ESTABLISH state
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: ESTABLISH] Got EHLO command, switching to MAIL state
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Sent 24 bytes: '250-Hello 961a16c85e1d\r\n'
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Sent 16 bytes: '250-PIPELINING\r\n'
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Sent 16 bytes: '250 AUTH PLAIN\r\n'
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Received 6 bytes: 'QUIT\r\n'
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: MAIL] Processing line: QUIT
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: MAIL] In state 6, got command 'QUIT', args ''
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] [PROTO: MAIL] Got QUIT verb, staying in MAIL state
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Sent 9 bytes: '221 Bye\r\n'
+2026/04/22 05:36:31 [SMTP 172.18.0.16:59630] Session ended
+

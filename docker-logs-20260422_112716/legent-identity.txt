@@ -1,0 +1,101 @@
+﻿
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-21T21:02:14.694Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : Starting IdentityApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-21T21:02:14.699Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : The following 1 profile is active: "prod"
+2026-04-21T21:02:18.353Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-21T21:02:18.355Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-21T21:02:18.650Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 282 ms. Found 1 JPA repository interface.
+2026-04-21T21:02:18.726Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-21T21:02:18.728Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-21T21:02:18.760Z  INFO 1 --- [identity-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.identity.repository.UserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-21T21:02:18.761Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 10 ms. Found 0 Redis repository interfaces.
+2026-04-21T21:02:20.544Z  INFO 1 --- [identity-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8089 (http)
+2026-04-21T21:02:20.627Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-21T21:02:20.627Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-21T21:02:20.684Z  INFO 1 --- [identity-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-21T21:02:20.685Z  INFO 1 --- [identity-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 5695 ms
+2026-04-21T21:02:21.076Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-21T21:02:21.549Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@4bc9ca97
+2026-04-21T21:02:21.551Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-21T21:02:21.772Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-21T21:02:21.772Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-21T21:02:21.772Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-21T21:02:21.793Z  INFO 1 --- [identity-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_identity (PostgreSQL 15.17)
+2026-04-21T21:02:21.841Z  INFO 1 --- [identity-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-04-21T21:02:22.083Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-04-21T21:02:22.083Z  WARN 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : outOfOrder mode is active. Migration of schema "public" may not be reproducible.
+2026-04-21T21:02:22.098Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - identity schema"
+2026-04-21T21:02:22.556Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v1 (execution time 00:00.277s)
+2026-04-21T21:02:22.852Z  INFO 1 --- [identity-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-21T21:02:23.003Z  INFO 1 --- [identity-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-21T21:02:23.076Z  INFO 1 --- [identity-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-21T21:02:23.542Z  INFO 1 --- [identity-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-21T21:02:25.689Z  INFO 1 --- [identity-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-21T21:02:25.848Z  INFO 1 --- [identity-service] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-21T21:02:27.446Z  WARN 1 --- [identity-service] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-21T21:02:28.395Z  WARN 1 --- [identity-service] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: f1823e47-bef9-4fb9-92f1-2b85c0bd2c95
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-04-21T21:02:28.648Z  INFO 1 --- [identity-service] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@619dc070, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@22ab3e3b, org.springframework.security.web.context.SecurityContextHolderFilter@3debeb5e, org.springframework.security.web.header.HeaderWriterFilter@5037f491, org.springframework.web.filter.CorsFilter@311819e8, org.springframework.security.web.csrf.CsrfFilter@31aec04a, org.springframework.security.web.authentication.logout.LogoutFilter@17524c36, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@1f7653ae, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@1f15d346, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@1639ec7a, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@108a7fff, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@7fcc8d9f, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@7315264e, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@1928208d, org.springframework.security.web.access.ExceptionTranslationFilter@1e0bae92, org.springframework.security.web.access.intercept.AuthorizationFilter@83b39c3]
+2026-04-21T21:02:28.758Z  INFO 1 --- [identity-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8089 (http) with context path ''
+2026-04-21T21:02:28.769Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : Started IdentityApplication in 15.514 seconds (process running for 17.412)
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.5)
+
+2026-04-22T05:19:33.871Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : Starting IdentityApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T05:19:33.882Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : The following 1 profile is active: "prod"
+2026-04-22T05:19:36.897Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T05:19:36.901Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T05:19:37.205Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 276 ms. Found 1 JPA repository interface.
+2026-04-22T05:19:37.239Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T05:19:37.240Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-22T05:19:37.286Z  INFO 1 --- [identity-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.identity.repository.UserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T05:19:37.286Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 13 ms. Found 0 Redis repository interfaces.
+2026-04-22T05:19:40.807Z  INFO 1 --- [identity-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8089 (http)
+2026-04-22T05:19:40.831Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T05:19:40.831Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T05:19:40.880Z  INFO 1 --- [identity-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T05:19:40.882Z  INFO 1 --- [identity-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 6702 ms
+2026-04-22T05:19:41.575Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-22T05:19:42.910Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@147cc940
+2026-04-22T05:19:42.915Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-22T05:19:43.350Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-22T05:19:43.351Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-22T05:19:43.351Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-22T05:19:43.419Z  INFO 1 --- [identity-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_identity (PostgreSQL 15.17)
+2026-04-22T05:19:43.568Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": 1
+2026-04-22T05:19:43.569Z  WARN 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : outOfOrder mode is active. Migration of schema "public" may not be reproducible.
+2026-04-22T05:19:43.610Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Schema "public" is up to date. No migration necessary.
+2026-04-22T05:19:44.130Z  INFO 1 --- [identity-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-22T05:19:44.467Z  INFO 1 --- [identity-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-22T05:19:44.533Z  INFO 1 --- [identity-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-22T05:19:45.004Z  INFO 1 --- [identity-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-22T05:19:47.897Z  INFO 1 --- [identity-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-22T05:19:47.973Z  INFO 1 --- [identity-service] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-22T05:19:49.851Z  WARN 1 --- [identity-service] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-22T05:19:51.017Z  WARN 1 --- [identity-service] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: f9414447-3dce-476c-bed8-6cf67a14b424
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-04-22T05:19:51.476Z  INFO 1 --- [identity-service] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@7c144349, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@93cc5eb, org.springframework.security.web.context.SecurityContextHolderFilter@1d82e396, org.springframework.security.web.header.HeaderWriterFilter@67cc5a38, org.springframework.web.filter.CorsFilter@3ef7064b, org.springframework.security.web.csrf.CsrfFilter@58f27c37, org.springframework.security.web.authentication.logout.LogoutFilter@4ca6f587, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@466c39de, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@57bc7f67, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@23bf19c9, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@227ae4e4, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@a589070, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@747216b6, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@7def08fc, org.springframework.security.web.access.ExceptionTranslationFilter@472d7f34, org.springframework.security.web.access.intercept.AuthorizationFilter@5c6fae3c]
+2026-04-22T05:19:51.586Z  INFO 1 --- [identity-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8089 (http) with context path ''
+2026-04-22T05:19:51.598Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : Started IdentityApplication in 19.099 seconds (process running for 20.775)
+

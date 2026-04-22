@@ -1,0 +1,14 @@
+﻿CREATE DATABASE
+CREATE DATABASE
+CREATE DATABASE
+CREATE DATABASE
+CREATE DATABASE
+CREATE DATABASE
+CREATE DATABASE
+CREATE DATABASE
+CREATE DATABASE
+All databases created successfully
+All databases created successfully
+All databases created successfully
+All databases created successfully
+

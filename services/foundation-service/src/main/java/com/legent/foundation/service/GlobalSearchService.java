@@ -4,9 +4,11 @@ import lombok.RequiredArgsConstructor;
 import org.opensearch.client.opensearch.OpenSearchClient;
 import org.opensearch.client.opensearch.core.SearchRequest;
 import org.opensearch.client.opensearch.core.SearchResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 @Service
+@ConditionalOnProperty(name = "foundation.search.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class GlobalSearchService {
     private final OpenSearchClient openSearchClient;

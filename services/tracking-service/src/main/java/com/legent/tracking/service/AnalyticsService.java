@@ -28,7 +28,7 @@ public class AnalyticsService {
 
     public List<Map<String, Object>> getEventTimeline(String tenantId, String eventType) {
         return getClickHouseTemplate().queryForList("""
-            SELECT toStartOfHour(timestamp) AS hour, count(*) AS count
+            SELECT date_trunc('hour', timestamp) AS hour, count(*) AS count
             FROM raw_events
             WHERE tenant_id = ? AND event_type = ?
             GROUP BY hour

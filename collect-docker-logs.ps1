@@ -1,42 +1,28 @@
 # ================================
-
 # Docker Logs Collector Script
-
 # ================================
 
 Write-Host "Starting Docker Logs Collection..." -ForegroundColor Green
-
-# Create logs directory with timestamp
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $baseFolder = "docker-logs-$timestamp"
 New-Item -ItemType Directory -Path $baseFolder | Out-Null
 
-# File for combined logs
-
-$combinedLogFile = "$baseFolder\all-logs.txt"
-
-# Get all containers
-
+$combinedLogFile = Join-Path $baseFolder "all-logs.txt"
 $containers = docker ps -a --format "{{.Names}}"
 
 foreach ($container in $containers) {
-Write-Host "Collecting logs for $container ..." -ForegroundColor Yellow
+    Write-Host "Collecting logs for $container ..." -ForegroundColor Yellow
 
-```
-# Individual container log file
-$containerLogFile = "$baseFolder\$container.txt"
+    $containerLogFile = Join-Path $baseFolder "$container.txt"
+    "===== $container =====" | Out-File -Append -Encoding utf8 $combinedLogFile
 
-# Write header in combined file
-"===== $container =====" | Out-File -Append $combinedLogFile
+    # Capture both stdout and stderr without PowerShell terminating behavior.
+    $logOutput = docker logs $container 2>&1 | Out-String
+    $logOutput | Out-File -Encoding utf8 $containerLogFile
+    $logOutput | Out-File -Append -Encoding utf8 $combinedLogFile
 
-# Get logs (stdout + stderr)
-docker logs $container 2>&1 | Tee-Object -FilePath $containerLogFile | Out-File -Append $combinedLogFile
-
-# Add spacing
-"`n" | Out-File -Append $combinedLogFile
-```
-
+    "`n" | Out-File -Append -Encoding utf8 $combinedLogFile
 }
 
 Write-Host "Logs collected successfully in folder: $baseFolder" -ForegroundColor Green
