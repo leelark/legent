@@ -44,10 +44,11 @@ public class ContentBlockService {
         return Objects.requireNonNull(savedBlock, "Saved block cannot be null");
     }
 
+    @NonNull
     public ContentBlock getBlock(@NonNull String tenantId, @NonNull String id) {
-        return blockRepository.findById(id)
+        return java.util.Objects.requireNonNull(blockRepository.findById(id)
                 .filter(block -> tenantId.equals(block.getTenantId()) && block.getDeletedAt() == null)
-                .orElseThrow(() -> new NotFoundException("Content block not found"));
+                .orElseThrow(() -> new NotFoundException("Content block not found")));
     }
 
     @Transactional
@@ -76,8 +77,8 @@ public class ContentBlockService {
             block.setIsGlobal(request.getIsGlobal());
         }
 
-        final ContentBlock savedBlock = blockRepository.save(block);
-        return java.util.Objects.requireNonNull(savedBlock, "Saved block cannot be null");
+        blockRepository.save(block);
+        return block;
     }
 
     @Transactional

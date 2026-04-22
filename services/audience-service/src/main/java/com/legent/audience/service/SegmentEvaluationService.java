@@ -155,7 +155,8 @@ public class SegmentEvaluationService {
         for (Segment seg : segments) {
             try {
                 TenantContext.setTenantId(seg.getTenantId());
-                recompute(seg.getId());
+                String segmentId = java.util.Objects.requireNonNull(seg.getId(), "Segment ID cannot be null");
+                recompute(segmentId);
             } catch (Exception e) {
                 log.error("Failed to recompute segment {}: {}", seg.getId(), e.getMessage());
             } finally {

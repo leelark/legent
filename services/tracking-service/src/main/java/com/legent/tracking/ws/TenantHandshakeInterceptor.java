@@ -38,7 +38,7 @@ public class TenantHandshakeInterceptor implements HandshakeInterceptor {
             @NonNull ServerHttpRequest request,
             @NonNull ServerHttpResponse response,
             @NonNull WebSocketHandler wsHandler,
-            Exception exception) {
+            @org.springframework.lang.Nullable Exception exception) {
         // No action needed
     }
 }
