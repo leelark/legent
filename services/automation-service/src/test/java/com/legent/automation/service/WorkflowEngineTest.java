@@ -16,6 +16,7 @@ import com.legent.automation.dto.WorkflowGraphDto;
 import com.legent.automation.repository.InstanceHistoryRepository;
 import com.legent.automation.repository.WorkflowDefinitionRepository;
 import com.legent.automation.repository.WorkflowInstanceRepository;
+import com.legent.automation.repository.WorkflowRepository;
 import com.legent.automation.service.node.DelayNodeHandler;
 import com.legent.automation.event.WorkflowEventPublisher;
 import com.legent.automation.service.node.NodeHandler;
@@ -39,6 +40,7 @@ class WorkflowEngineTest {
 
     @Mock private WorkflowInstanceRepository instanceRepository;
     @Mock private WorkflowDefinitionRepository definitionRepository;
+    @Mock private WorkflowRepository workflowRepository;
     @Mock private InstanceHistoryRepository historyRepository;
     @Mock private SendEmailNodeHandler sendEmailHandler;
     @Mock private DelayNodeHandler delayHandler;
@@ -54,7 +56,7 @@ class WorkflowEngineTest {
         when(delayHandler.getType()).thenReturn("DELAY");
         
         List<NodeHandler> handlers = List.of(sendEmailHandler, delayHandler);
-        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher);
+        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, workflowRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher);
     }
 
     @Test
@@ -77,6 +79,10 @@ class WorkflowEngineTest {
 
         WorkflowDefinition def = new WorkflowDefinition();
         def.setDefinition(objectMapper.writeValueAsString(graph));
+
+        com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
+        workflow.setStatus("ACTIVE");
+        when(workflowRepository.findById("flow-1")).thenReturn(Optional.of(workflow));
 
         when(definitionRepository.findByWorkflowIdAndVersionAndTenantId("flow-1", 1, "tenant-1"))
                 .thenReturn(Optional.of(def));
@@ -113,6 +119,10 @@ class WorkflowEngineTest {
 
         WorkflowDefinition def = new WorkflowDefinition();
         def.setDefinition(objectMapper.writeValueAsString(graph));
+
+        com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
+        workflow.setStatus("ACTIVE");
+        when(workflowRepository.findById("flow-1")).thenReturn(Optional.of(workflow));
 
         when(definitionRepository.findByWorkflowIdAndVersionAndTenantId("flow-1", 1, "tenant-1"))
                 .thenReturn(Optional.of(def));

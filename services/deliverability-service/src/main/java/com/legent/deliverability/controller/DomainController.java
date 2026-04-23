@@ -34,8 +34,16 @@ public class DomainController {
 
     @PostMapping("/{domainId}/verify")
     public ApiResponse<SenderDomain> verifyDomain(
-            @RequestHeader("X-Tenant-Id") String tenantId, // Verification usually involves tenant validation internally
+            @RequestHeader("X-Tenant-Id") String tenantId,
             @PathVariable String domainId) {
+        
+        SenderDomain domain = domainRepository.findById(domainId)
+                .orElseThrow(() -> new com.legent.common.exception.NotFoundException("Domain", domainId));
+        
+        if (!tenantId.equals(domain.getTenantId())) {
+            throw new org.springframework.security.access.AccessDeniedException("You do not have permission to verify this domain");
+        }
+
         return ApiResponse.ok(domainVerificationService.verifyDomain(domainId));
     }
 }

@@ -16,8 +16,16 @@ import lombok.Setter;
 @Setter
 public class SenderDomain extends BaseEntity {
 
+    public enum VerificationStatus {
+        PENDING, VERIFIED, FAILED
+    }
+
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
+    
+    @Column(name = "status", nullable = false)
+    @jakarta.persistence.Enumerated(jakarta.persistence.EnumType.STRING)
+    private VerificationStatus status = VerificationStatus.PENDING;
 
     @Column(name = "domain_name", nullable = false)
     private String domainName;

@@ -24,7 +24,7 @@ public class JwtTokenProvider {
     private final long expirationMs;
 
     public JwtTokenProvider(
-            @Value("${legent.security.jwt.secret:legent-default-secret-key-change-in-production-please}") String secret,
+            @Value("${legent.security.jwt.secret}") String secret,
             @Value("${legent.security.jwt.expiration-ms:86400000}") long expirationMs) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;

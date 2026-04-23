@@ -8,8 +8,10 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.util.Optional;
-import java.util.Set;
 import java.util.List;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 
 /**
  * Generic cache service wrapping RedisTemplate.
@@ -73,11 +75,15 @@ public class CacheService {
      * Deletes all keys matching a pattern.
      */
     public void deleteByPattern(String pattern) {
-        Set<String> keys = redisTemplate.keys(pattern);
-        if (keys != null && !keys.isEmpty()) {
-            log.debug("Cache DELETE pattern: {} ({} keys)", pattern, keys.size());
-            redisTemplate.delete(keys);
-        }
+        log.debug("Cache DELETE pattern: {}", pattern);
+        redisTemplate.execute((RedisCallback<Void>) connection -> {
+            try (Cursor<byte[]> cursor = connection.keyCommands().scan(ScanOptions.scanOptions().match(pattern).count(1000).build())) {
+                while (cursor.hasNext()) {
+                    connection.keyCommands().del(cursor.next());
+                }
+            }
+            return null;
+        });
     }
 
     /**

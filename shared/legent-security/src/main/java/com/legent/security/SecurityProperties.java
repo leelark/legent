@@ -20,16 +20,25 @@ public class SecurityProperties {
 
     @Data
     public static class Jwt {
-        private String secret = "legent-default-secret-key-change-in-production-please";
+        private String secret;
         private long expirationMs = 86400000; // 24 hours
     }
 
     @Data
     public static class Cors {
-        private List<String> allowedOrigins = List.of("http://localhost:3000");
+        private List<String> allowedOrigins;
         private List<String> allowedMethods = List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
         private List<String> allowedHeaders = List.of("*");
         private boolean allowCredentials = true;
         private long maxAge = 3600;
+    }
+    @jakarta.annotation.PostConstruct
+    public void validate() {
+        if (jwt.getSecret() == null || jwt.getSecret().contains("default")) {
+            throw new IllegalStateException("JWT secret must be explicitly configured and must not use the default value.");
+        }
+        if (cors.getAllowedOrigins() == null || cors.getAllowedOrigins().isEmpty()) {
+            throw new IllegalStateException("CORS allowed origins must be explicitly configured.");
+        }
     }
 }

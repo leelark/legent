@@ -15,6 +15,7 @@ import com.legent.automation.dto.WorkflowGraphDto;
 import com.legent.automation.repository.InstanceHistoryRepository;
 import com.legent.automation.repository.WorkflowDefinitionRepository;
 import com.legent.automation.repository.WorkflowInstanceRepository;
+import com.legent.automation.repository.WorkflowRepository;
 import com.legent.automation.service.node.NodeHandler;
 import com.legent.automation.event.WorkflowEventPublisher;
 import lombok.extern.slf4j.Slf4j;
@@ -33,6 +34,7 @@ public class WorkflowEngine {
 
     private final WorkflowInstanceRepository instanceRepository;
     private final WorkflowDefinitionRepository definitionRepository;
+    private final WorkflowRepository workflowRepository;
     private final InstanceHistoryRepository historyRepository;
     private final ObjectMapper objectMapper;
     private final Map<String, NodeHandler> nodeHandlers;
@@ -42,6 +44,7 @@ public class WorkflowEngine {
 
         public WorkflowEngine(WorkflowInstanceRepository instanceRepository,
                   WorkflowDefinitionRepository definitionRepository,
+                  WorkflowRepository workflowRepository,
                   InstanceHistoryRepository historyRepository,
                   ObjectMapper objectMapper,
                   List<NodeHandler> handlerList,
@@ -49,6 +52,7 @@ public class WorkflowEngine {
                   WorkflowEventPublisher eventPublisher) {
         this.instanceRepository = instanceRepository;
         this.definitionRepository = definitionRepository;
+        this.workflowRepository = workflowRepository;
         this.historyRepository = historyRepository;
         this.objectMapper = objectMapper;
         this.cacheService = cacheService;
@@ -61,6 +65,13 @@ public class WorkflowEngine {
     @Transactional
     public void startWorkflow(String tenantId, String workflowId, Integer version, String subscriberId, Map<String, Object> initialContext) {
         
+        com.legent.automation.domain.Workflow workflow = workflowRepository.findById(workflowId)
+                .orElseThrow(() -> new IllegalArgumentException("Workflow not found"));
+
+        if (!"ACTIVE".equals(workflow.getStatus())) {
+            throw new IllegalStateException("Cannot start workflow. Current status: " + workflow.getStatus());
+        }
+
         WorkflowDefinition def = definitionRepository.findByWorkflowIdAndVersionAndTenantId(workflowId, version, tenantId)
                 .orElseThrow(() -> new IllegalArgumentException("Definition not found"));
 

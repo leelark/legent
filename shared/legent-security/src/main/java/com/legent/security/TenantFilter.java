@@ -51,10 +51,15 @@ public class TenantFilter extends OncePerRequestFilter {
             log.warn("Missing X-Tenant-Id header for path: {}", path);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType("application/json");
-            response.getWriter().write(
-                    "{\"success\":false,\"error\":{\"errorCode\":\"MISSING_TENANT\","
-                  + "\"message\":\"X-Tenant-Id header is required\"}}"
+            
+            com.legent.common.dto.ApiResponse<Void> apiResponse = com.legent.common.dto.ApiResponse.error(
+                "MISSING_TENANT", 
+                "X-Tenant-Id header is required", 
+                "Path: " + path
             );
+            
+            new com.fasterxml.jackson.databind.ObjectMapper()
+                .writeValue(response.getWriter(), apiResponse);
             return;
         }
 

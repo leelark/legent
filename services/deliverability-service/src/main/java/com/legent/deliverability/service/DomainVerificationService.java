@@ -35,6 +35,7 @@ public class DomainVerificationService {
             domain.setSpfVerified(true);
             domain.setDkimVerified(true);
             domain.setDmarcVerified(true);
+            domain.setStatus(SenderDomain.VerificationStatus.VERIFIED);
             domain.setIsActive(true);
             domain.setLastVerifiedAt(Instant.now());
             return domainRepository.save(domain);
@@ -50,6 +51,7 @@ public class DomainVerificationService {
             domain.setSpfVerified(hasSpf);
             domain.setDmarcVerified(hasDmarc);
             domain.setDkimVerified(hasDkim);
+            domain.setStatus((hasSpf && hasDkim) ? SenderDomain.VerificationStatus.VERIFIED : SenderDomain.VerificationStatus.FAILED);
             domain.setIsActive(hasSpf && hasDkim); // Basic requirement
             domain.setLastVerifiedAt(Instant.now());
 

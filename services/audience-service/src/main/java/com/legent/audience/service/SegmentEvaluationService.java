@@ -18,7 +18,6 @@ import com.legent.audience.event.SegmentEventPublisher;
 import com.legent.audience.repository.SegmentMembershipRepository;
 import com.legent.audience.repository.SegmentRepository;
 import com.legent.cache.service.CacheService;
-import com.legent.cache.service.TenantCacheKeyGenerator;
 import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
