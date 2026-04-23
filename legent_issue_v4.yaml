@@ -1,0 +1,278 @@
+audit:
+  module: "FullSystem"
+  generated_at: "2026-04-24T00:00:00+05:30"
+  analysis_depth: "NTH_LEVEL_FULL_PASS"
+  total_files_analyzed: 568
+  total_issues: 8
+
+  issues:
+    - id: "ISSUE-0001"
+      fix_order: 1
+      priority: "Critical"
+      layer: "Config"
+      module: "AuthBootstrap"
+      files:
+        - "docker-compose.yml"
+        - "services/audience-service/src/main/resources/application.yml"
+        - "services/deliverability-service/src/main/resources/application.yml"
+        - "services/foundation-service/src/main/resources/application.yml"
+        - "services/identity-service/src/main/resources/application.yml"
+      issue_type: "Startup Misconfiguration"
+      title: "JWT secret environment variable mismatch across services"
+      description: |
+        Multiple services expect JWT_SECRET while docker-compose provides LEGENT_SECURITY_JWT_SECRET.
+        This leads to inconsistent or missing JWT configuration at runtime.
+      technical_details: |
+        - Services bind: legent.security.jwt.secret = ${JWT_SECRET}
+        - docker-compose defines: LEGENT_SECURITY_JWT_SECRET
+        - No fallback or mapping present
+        - Results in null/invalid JWT secret during initialization
+      impacted_flow: |
+        Service startup → Security initialization → JWT validation → All protected APIs
+      root_cause: |
+        Inconsistent environment variable naming between configuration and deployment layers.
+      fix_recommendation: |
+        Standardize to a single variable (LEGENT_SECURITY_JWT_SECRET) across all services and configs.
+      dependency_impact: |
+        Breaks authentication across identity, audience, deliverability, and foundation services.
+      risk_if_not_fixed: |
+        Services may fail to start or produce invalid tokens causing auth failures.
+      validation_steps: |
+        - Start full stack via docker-compose
+        - Verify JWT generation and validation across services
+        - Test authenticated endpoints end-to-end
+
+    - id: "ISSUE-0002"
+      fix_order: 2
+      priority: "Critical"
+      layer: "Security"
+      module: "TenantGate"
+      files:
+        - "shared/legent-security/src/main/java/com/legent/security/TenantFilter.java"
+        - "services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java"
+        - "services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java"
+        - "services/tracking-service/src/main/java/com/legent/tracking/controller/IngestionController.java"
+        - "frontend/src/lib/auth-api.ts"
+        - "frontend/src/components/tracking/TrackingPixel.tsx"
+        - "frontend/src/components/tracking/ClickLink.tsx"
+      issue_type: "Broken Public Flow"
+      title: "Tenant filter blocks public endpoints"
+      description: |
+        TenantFilter enforces X-Tenant-Id header globally, blocking signup and tracking endpoints
+        that are intended to be publicly accessible.
+      technical_details: |
+        - Filter excludes only health/actuator
+        - Signup API does not include tenant header
+        - Tracking endpoints accessed by external users cannot include tenant header
+        - Requests fail before reaching controller
+      impacted_flow: |
+        Signup → AuthController
+        Email open/click → TrackingController
+      root_cause: |
+        Missing exemption rules for public routes in TenantFilter.
+      fix_recommendation: |
+        Add whitelist paths for auth and tracking OR derive tenant from signed tokens/query params.
+      dependency_impact: |
+        Blocks onboarding and analytics ingestion.
+      risk_if_not_fixed: |
+        Signup fails and tracking metrics drop to zero.
+      validation_steps: |
+        - Test signup without tenant header
+        - Load tracking pixel externally
+        - Confirm successful request processing
+
+    - id: "ISSUE-0003"
+      fix_order: 3
+      priority: "Critical"
+      layer: "Config"
+      module: "IdentityService"
+      files:
+        - "services/identity-service/src/main/java/com/legent/identity/config/SecurityConfig.java"
+        - "services/identity-service/src/main/resources/application.yml"
+        - "shared/legent-security/src/main/java/com/legent/security/SecurityProperties.java"
+      issue_type: "Startup Failure"
+      title: "Missing required CORS configuration"
+      description: |
+        Required property legent.security.cors.allowed-origins is missing,
+        causing application startup failure.
+      technical_details: |
+        - SecurityProperties.validate() enforces non-empty value
+        - Property not defined in identity-service config
+        - Bean initialization fails
+      impacted_flow: |
+        Application startup → Security config initialization
+      root_cause: |
+        Mandatory config validation without corresponding configuration.
+      fix_recommendation: |
+        Add allowed-origins or relax validation conditionally.
+      dependency_impact: |
+        Identity service fails → auth system unavailable.
+      risk_if_not_fixed: |
+        Service cannot start in production.
+      validation_steps: |
+        - Start identity-service standalone
+        - Ensure no config validation errors
+
+    - id: "ISSUE-0004"
+      fix_order: 4
+      priority: "High"
+      layer: "Frontend"
+      module: "NextApp"
+      files:
+        - "frontend/src/components/admin/WebhookPanel.tsx"
+        - "frontend/src/components/automation/NodeEditorModal.tsx"
+        - "frontend/src/components/content/PersonalizationTester.tsx"
+        - "frontend/src/components/deliverability/DmarcDashboard.tsx"
+        - "frontend/src/components/deliverability/DomainManager.tsx"
+        - "frontend/src/components/deliverability/ReputationDashboard.tsx"
+        - "frontend/src/components/tracking/AnalyticsDashboard.tsx"
+        - "frontend/src/components/tracking/FunnelDashboard.tsx"
+        - "frontend/src/components/tracking/SegmentDashboard.tsx"
+      issue_type: "Build Failure"
+      title: "Missing 'use client' in hook-based components"
+      description: |
+        React components using hooks are not marked as client components,
+        causing Next.js build failures.
+      technical_details: |
+        - useState/useEffect used
+        - No 'use client' directive
+        - Next.js app router enforces server/client separation
+      impacted_flow: |
+        Frontend build → page rendering
+      root_cause: |
+        Incorrect component classification in Next.js architecture.
+      fix_recommendation: |
+        Add 'use client' directive or refactor components.
+      dependency_impact: |
+        Breaks dashboards and UI modules.
+      risk_if_not_fixed: |
+        Build fails or runtime crashes occur.
+      validation_steps: |
+        - Run next build
+        - Verify UI renders correctly
+
+    - id: "ISSUE-0005"
+      fix_order: 5
+      priority: "High"
+      layer: "Frontend/Backend"
+      module: "Analytics"
+      files:
+        - "frontend/src/components/tracking/AnalyticsDashboard.tsx"
+        - "frontend/src/lib/analytics-ws.ts"
+        - "services/tracking-service/src/main/java/com/legent/tracking/config/WebSocketConfig.java"
+        - "services/tracking-service/src/main/java/com/legent/tracking/ws/TenantHandshakeInterceptor.java"
+        - "services/tracking-service/src/main/java/com/legent/tracking/ws/AnalyticsWebSocketHandler.java"
+      issue_type: "Incomplete Feature"
+      title: "WebSocket analytics implementation is non-functional"
+      description: |
+        Backend sends placeholder heartbeat messages while frontend expects real analytics data.
+      technical_details: |
+        - WebSocket emits heartbeat only
+        - Frontend parses as analytics data
+        - ws:// hardcoded → fails on HTTPS
+        - Tenant resolution incompatible with browser
+      impacted_flow: |
+        Dashboard → WebSocket → Analytics rendering
+      root_cause: |
+        Misaligned contract between backend and frontend.
+      fix_recommendation: |
+        Implement real DTO, fix protocol, adjust tenant handling.
+      dependency_impact: |
+        Breaks realtime analytics.
+      risk_if_not_fixed: |
+        Dashboard shows incorrect or no data.
+      validation_steps: |
+        - Connect via browser
+        - Validate real-time data updates
+
+    - id: "ISSUE-0006"
+      fix_order: 6
+      priority: "High"
+      layer: "Backend/Frontend"
+      module: "GlobalSearch"
+      files:
+        - "services/foundation-service/src/main/java/com/legent/foundation/controller/SearchController.java"
+        - "services/foundation-service/src/main/java/com/legent/foundation/service/GlobalSearchService.java"
+        - "services/foundation-service/src/main/resources/application.yml"
+        - "frontend/src/components/admin/SearchPanel.tsx"
+      issue_type: "Feature Toggle Misconfiguration"
+      title: "Search feature disabled but UI exposed"
+      description: |
+        Backend search is feature-flagged but disabled, while frontend still exposes UI.
+      technical_details: |
+        - Conditional beans require property
+        - Property not enabled anywhere
+        - UI calls endpoint unconditionally
+      impacted_flow: |
+        Admin search → API call → failure
+      root_cause: |
+        Missing synchronization between feature flag and UI.
+      fix_recommendation: |
+        Enable feature or hide UI conditionally.
+      dependency_impact: |
+        Affects admin workflows.
+      risk_if_not_fixed: |
+        Broken user experience.
+      validation_steps: |
+        - Toggle feature flag
+        - Validate UI behavior
+
+    - id: "ISSUE-0007"
+      fix_order: 7
+      priority: "Medium"
+      layer: "Storage"
+      module: "ContentAssets"
+      files:
+        - "services/content-service/src/main/java/com/legent/content/service/AssetService.java"
+        - "services/content-service/src/main/java/com/legent/content/controller/AssetController.java"
+      issue_type: "Storage Leak"
+      title: "Deleted assets remain in object storage"
+      description: |
+        Database record is soft-deleted but file remains in MinIO.
+      technical_details: |
+        - deleteAsset() does not call deleteFromMinio()
+        - Orphaned files accumulate
+      impacted_flow: |
+        Upload → Delete → Storage cleanup
+      root_cause: |
+        Missing integration between DB delete and storage cleanup.
+      fix_recommendation: |
+        Invoke MinIO delete during asset deletion.
+      dependency_impact: |
+        Storage cost and data consistency.
+      risk_if_not_fixed: |
+        Unbounded storage growth.
+      validation_steps: |
+        - Upload/delete asset
+        - Verify object removal
+
+    - id: "ISSUE-0008"
+      fix_order: 8
+      priority: "Medium"
+      layer: "Data/Ingestion"
+      module: "AudienceImport"
+      files:
+        - "services/audience-service/src/main/java/com/legent/audience/service/ImportService.java"
+        - "services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java"
+        - "frontend/src/app/(workspace)/audience/imports/new/page.tsx"
+      issue_type: "Non-Durable Processing"
+      title: "Import relies on temporary local files"
+      description: |
+        Import jobs store local file paths which are lost on restart or scaling.
+      technical_details: |
+        - Temp file path persisted
+        - No durable storage
+        - No cleanup mechanism
+      impacted_flow: |
+        Upload → Async processing → Retry
+      root_cause: |
+        Use of ephemeral filesystem for distributed workflow.
+      fix_recommendation: |
+        Store files in MinIO or durable storage.
+      dependency_impact: |
+        Breaks scalability and reliability.
+      risk_if_not_fixed: |
+        Import failures in production.
+      validation_steps: |
+        - Restart service mid-import
+        - Verify job completes successfully

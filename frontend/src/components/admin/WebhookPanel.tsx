@@ -1,3 +1,4 @@
+'use client';
 import React, { useEffect, useState } from 'react';
 import { getWebhooks, saveWebhook } from '@/lib/admin-api';
 import { Card } from '@/components/ui/Card';

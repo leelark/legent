@@ -23,19 +23,42 @@ public class ImportService {
     private final ImportJobRepository importJobRepository;
     private final ImportProcessingService processingService;
     private final ImportEventPublisher eventPublisher;
+    private final io.minio.MinioClient minioClient;
+
+    @org.springframework.beans.factory.annotation.Value("${minio.bucket}")
+    private String bucket;
+
+    @jakarta.annotation.PostConstruct
+    public void init() {
+        try {
+            boolean found = minioClient.bucketExists(io.minio.BucketExistsArgs.builder().bucket(bucket).build());
+            if (!found) {
+                minioClient.makeBucket(io.minio.MakeBucketArgs.builder().bucket(bucket).build());
+            }
+        } catch (Exception e) {
+            log.error("Failed to initialize MinIO bucket", e);
+        }
+    }
 
     @Transactional
     public ImportDto.StatusResponse uploadAndStartImport(org.springframework.web.multipart.MultipartFile file, ImportDto.StartRequest request) {
         try {
-            java.io.File tempFile = java.util.Objects.requireNonNull(java.io.File.createTempFile("import_", ".csv"));
-            file.transferTo(tempFile);
+            String objectName = "import_" + java.util.UUID.randomUUID() + ".csv";
+            minioClient.putObject(
+                io.minio.PutObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectName)
+                    .stream(file.getInputStream(), file.getSize(), -1)
+                    .contentType(file.getContentType())
+                    .build()
+            );
             
-            request.setFileName(tempFile.getAbsolutePath());
+            request.setFileName(objectName);
             request.setFileSize(file.getSize());
             return startImport(request);
-        } catch (java.io.IOException e) {
-            log.error("Failed to save imported file", e);
-            throw new RuntimeException("Failed to save imported file", e);
+        } catch (Exception e) {
+            log.error("Failed to upload import file to MinIO", e);
+            throw new RuntimeException("Failed to upload import file to MinIO", e);
         }
     }
 

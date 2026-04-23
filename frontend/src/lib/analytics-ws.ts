@@ -1,5 +1,7 @@
-export function subscribeAnalytics(onData: (data: any) => void) {
-  const ws = new WebSocket(`ws://${window.location.host}/ws/analytics`);
+export function subscribeAnalytics(tenantId: string, onData: (data: any) => void) {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const host = window.location.host;
+  const ws = new WebSocket(`${protocol}//${host}/ws/analytics?t=${encodeURIComponent(tenantId)}`);
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);

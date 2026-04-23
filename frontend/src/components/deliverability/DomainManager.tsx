@@ -1,3 +1,4 @@
+'use client';
 import React, { useEffect, useState } from 'react';
 import { listDomains, addDomain, validateDomain } from '@/lib/deliverability-api';
 import { Card } from '@/components/ui/Card';

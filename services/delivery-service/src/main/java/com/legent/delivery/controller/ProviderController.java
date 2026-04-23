@@ -7,7 +7,7 @@ import com.legent.common.dto.ApiResponse;
 import com.legent.delivery.domain.SmtpProvider;
 import com.legent.delivery.dto.SmtpProviderDto;
 import com.legent.delivery.repository.SmtpProviderRepository;
-import com.legent.security.context.TenantContext;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;

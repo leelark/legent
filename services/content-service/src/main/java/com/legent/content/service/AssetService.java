@@ -141,6 +141,9 @@ public class AssetService {
         Asset asset = getAsset(tenantId, id);
         asset.setDeletedAt(Instant.now());
         assetRepository.save(asset);
+        
+        // Ensure physical file is also removed from storage
+        deleteFromMinio(asset.getFileName());
     }
 
     private String serializeMetadata(Map<String, String> metadata) {

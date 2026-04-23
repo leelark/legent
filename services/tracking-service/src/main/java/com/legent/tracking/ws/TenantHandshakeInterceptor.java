@@ -26,8 +26,22 @@ public class TenantHandshakeInterceptor implements HandshakeInterceptor {
             @NonNull Map<String, Object> attributes) {
 
         List<String> tenantIds = request.getHeaders().get(AppConstants.HEADER_TENANT_ID);
-        if (tenantIds != null && !tenantIds.isEmpty()) {
-            attributes.put(AppConstants.HEADER_TENANT_ID, tenantIds.get(0));
+        String tenantId = (tenantIds != null && !tenantIds.isEmpty()) ? tenantIds.get(0) : null;
+        
+        if (tenantId == null) {
+            String query = request.getURI().getQuery();
+            if (query != null && query.contains("t=")) {
+                for (String param : query.split("&")) {
+                    if (param.startsWith("t=")) {
+                        tenantId = param.substring(2);
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (tenantId != null) {
+            attributes.put(AppConstants.HEADER_TENANT_ID, tenantId);
         }
 
         return true;

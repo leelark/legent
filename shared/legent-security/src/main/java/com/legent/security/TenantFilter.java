@@ -29,7 +29,10 @@ public class TenantFilter extends OncePerRequestFilter {
             "/api/v1/health",
             "/api/v1/health/ready",
             "/api/v1/health/live",
-            "/actuator"
+            "/actuator",
+            "/api/v1/auth/signup",
+            "/api/v1/track",
+            "/api/v1/tracking"
     );
 
     @Override
@@ -39,45 +42,41 @@ public class TenantFilter extends OncePerRequestFilter {
             @org.springframework.lang.NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String path = request.getRequestURI();
-
-        if (isTenantFreePath(path)) {
-            filterChain.doFilter(request, response);
-            return;
+        String tenantId = request.getHeader(AppConstants.HEADER_TENANT_ID);
+        if (tenantId == null || tenantId.isBlank()) {
+            tenantId = request.getParameter("t");
         }
 
-        String tenantId = request.getHeader(AppConstants.HEADER_TENANT_ID);
         String currentTenantId = TenantContext.getTenantId();
 
-        if (tenantId == null || tenantId.isBlank()) {
-            if (currentTenantId != null && !currentTenantId.isBlank()) {
-                // Already set by JwtAuthenticationFilter, proceed
+        // If tenant is missing and path is NOT tenant-free, fail
+        if ((tenantId == null || tenantId.isBlank()) && (currentTenantId == null || currentTenantId.isBlank())) {
+            if (isTenantFreePath(path)) {
                 filterChain.doFilter(request, response);
                 return;
             }
-            log.warn("Missing X-Tenant-Id header for path: {}", path);
+            
+            log.warn("Missing tenant ID for path: {}", path);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType("application/json");
-            
             com.legent.common.dto.ApiResponse<Void> apiResponse = com.legent.common.dto.ApiResponse.error(
                 "MISSING_TENANT", 
-                "X-Tenant-Id header is required", 
+                "Tenant ID is required (via X-Tenant-Id header or 't' parameter)", 
                 "Path: " + path
             );
-            
-            new com.fasterxml.jackson.databind.ObjectMapper()
-                .writeValue(response.getWriter(), apiResponse);
+            new com.fasterxml.jackson.databind.ObjectMapper().writeValue(response.getWriter(), apiResponse);
             return;
         }
 
-        // If tenantId in header differs from currentTenantId (from JWT), it's a conflict
-        if (currentTenantId != null && !currentTenantId.isBlank() && !currentTenantId.equals(tenantId)) {
-            log.error("Tenant ID conflict: JWT={}, Header={}", currentTenantId, tenantId);
+        // If tenantId provided (header/param) and differs from currentTenantId (from JWT), it's a conflict
+        if (tenantId != null && !tenantId.isBlank() && currentTenantId != null && !currentTenantId.isBlank() && !currentTenantId.equals(tenantId)) {
+            log.error("Tenant ID conflict: JWT={}, Provided={}", currentTenantId, tenantId);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
 
         try {
-            if (currentTenantId == null) {
+            if (currentTenantId == null && tenantId != null) {
                 TenantContext.setTenantId(tenantId);
             }
             filterChain.doFilter(request, response);

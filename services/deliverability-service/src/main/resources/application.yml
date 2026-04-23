@@ -62,6 +62,6 @@ legent:
     mock-dns: ${LEGENT_DELIVERABILITY_MOCK_DNS:false}
   security:
     jwt:
-      secret: ${JWT_SECRET}
+      secret: ${LEGENT_SECURITY_JWT_SECRET}
     cors:
       allowed-origins: http://localhost:3000

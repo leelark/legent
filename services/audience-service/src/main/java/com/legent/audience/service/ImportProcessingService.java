@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.Map;
 import java.time.Instant;
 import java.io.Reader;
-import java.io.FileReader;
 import java.nio.charset.StandardCharsets;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
@@ -45,6 +44,10 @@ public class ImportProcessingService {
     private final SubscriberRepository subscriberRepository;
     private final ImportEventPublisher eventPublisher;
     private final PlatformTransactionManager transactionManager;
+    private final io.minio.MinioClient minioClient;
+
+    @org.springframework.beans.factory.annotation.Value("${minio.bucket}")
+    private String bucket;
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
@@ -75,7 +78,12 @@ public class ImportProcessingService {
             int currentRow = 0;
             List<Map<String, String>> currentChunk = new ArrayList<>();
 
-            try (Reader reader = new FileReader(job.getFileName(), StandardCharsets.UTF_8)) {
+            try (java.io.InputStream is = minioClient.getObject(
+                    io.minio.GetObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(job.getFileName())
+                            .build());
+                 Reader reader = new java.io.InputStreamReader(is, StandardCharsets.UTF_8)) {
                 Iterable<CSVRecord> records = CSVFormat.DEFAULT.builder()
                         .setHeader()
                         .setSkipHeaderRecord(true)

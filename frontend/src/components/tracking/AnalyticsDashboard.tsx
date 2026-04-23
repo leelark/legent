@@ -1,19 +1,24 @@
+'use client';
 import React, { useEffect, useState } from 'react';
 import { getEventCounts, getEventTimeline } from '@/lib/tracking-api';
 import { Card } from '@/components/ui/Card';
 import { Line } from 'react-chartjs-2';
 import { subscribeAnalytics } from '@/lib/analytics-ws';
+import { useTenantStore } from '@/stores/tenantStore';
 
 export const AnalyticsDashboard: React.FC = () => {
   const [counts, setCounts] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
   const [selectedType, setSelectedType] = useState('open');
+  const currentTenant = useTenantStore((state) => state.currentTenant);
 
   useEffect(() => {
     getEventCounts().then(setCounts);
-    const unsub = subscribeAnalytics((data) => setCounts(data));
-    return unsub;
-  }, []);
+    if (currentTenant?.id) {
+      const unsub = subscribeAnalytics(currentTenant.id, (data) => setCounts(data));
+      return unsub;
+    }
+  }, [currentTenant?.id]);
 
   useEffect(() => {
     getEventTimeline(selectedType).then(setTimeline);

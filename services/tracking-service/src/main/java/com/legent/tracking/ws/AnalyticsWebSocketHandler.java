@@ -8,18 +8,18 @@ import org.springframework.scheduling.annotation.Scheduled;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import com.legent.common.constant.AppConstants;
+import com.legent.tracking.service.AnalyticsService;
 import java.io.IOException;
 
-
 import java.util.List;
-
-import java.util.concurrent.CopyOnWriteArrayList;
 
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class AnalyticsWebSocketHandler extends TextWebSocketHandler {
-    private final List<WebSocketSession> sessions = new CopyOnWriteArrayList<>();
+    private final List<WebSocketSession> sessions = new java.util.concurrent.CopyOnWriteArrayList<>();
+    private final AnalyticsService analyticsService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
 
     @Override
     public void afterConnectionEstablished(@NonNull WebSocketSession session) {
@@ -38,9 +38,8 @@ public class AnalyticsWebSocketHandler extends TextWebSocketHandler {
                 String tenantId = (String) session.getAttributes().get(AppConstants.HEADER_TENANT_ID);
                 if (tenantId != null) {
                     try {
-                        // For now, we broadcast a heartbeat/placeholder message. 
-                        // In a real scenario, this would fetch real-time stats for the tenant.
-                        session.sendMessage(new TextMessage("{\"type\":\"HEARTBEAT\",\"tenantId\":\"" + tenantId + "\",\"timestamp\":" + System.currentTimeMillis() + "}"));
+                        List<java.util.Map<String, Object>> counts = analyticsService.getEventCounts(tenantId);
+                        session.sendMessage(new TextMessage(objectMapper.writeValueAsString(counts)));
                     } catch (IOException e) {
                         log.error("Failed to send analytics message to session {}", session.getId(), e);
                     }
