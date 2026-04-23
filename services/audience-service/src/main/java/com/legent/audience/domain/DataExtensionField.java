@@ -16,7 +16,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class DataExtensionField extends BaseEntity {
 
-    @Column(name = "data_extension_id", nullable = false, length = 26)
+    @Column(name = "data_extension_id", nullable = false, length = 36)
     private String dataExtensionId;
 
     @Column(name = "field_name", nullable = false, length = 128)

@@ -19,13 +19,13 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ListMembership extends BaseEntity {
 
-    @Column(name = "tenant_id", nullable = false, length = 26)
+    @Column(name = "tenant_id", nullable = false, length = 36)
     private String tenantId;
 
-    @Column(name = "list_id", nullable = false, length = 26)
+    @Column(name = "list_id", nullable = false, length = 36)
     private String listId;
 
-    @Column(name = "subscriber_id", nullable = false, length = 26)
+    @Column(name = "subscriber_id", nullable = false, length = 36)
     private String subscriberId;
 
     @Column(name = "status", nullable = false, length = 20)

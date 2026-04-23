@@ -21,10 +21,10 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 public class DataExtensionRecord extends BaseEntity {
 
-    @Column(name = "tenant_id", nullable = false, length = 26)
+    @Column(name = "tenant_id", nullable = false, length = 36)
     private String tenantId;
 
-    @Column(name = "data_extension_id", nullable = false, length = 26)
+    @Column(name = "data_extension_id", nullable = false, length = 36)
     private String dataExtensionId;
 
     @JdbcTypeCode(SqlTypes.JSON)

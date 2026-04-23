@@ -11,7 +11,7 @@
         <version>1.0.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent> 
-
+ 
     <artifactId>legent-common</artifactId>
     <name>Legent Common Library</name>
     <description>Shared base entities, DTOs, exceptions, and utilities</description>
@@ -21,6 +21,12 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Security (required for security-related exception handling) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
         <!-- Spring Data JPA (for base entity annotations) -->

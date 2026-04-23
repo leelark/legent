@@ -6,7 +6,7 @@
 
 -- ── Tenants ──
 CREATE TABLE IF NOT EXISTS tenants (
-    id              VARCHAR(26) PRIMARY KEY,
+    id              VARCHAR(36) PRIMARY KEY,
     name            VARCHAR(255) NOT NULL,
     slug            VARCHAR(128) NOT NULL UNIQUE,
     status          VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS tenants (
     branding        JSONB DEFAULT '{}',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     deleted_at      TIMESTAMPTZ,
     version         BIGINT NOT NULL DEFAULT 0
 );
@@ -25,8 +25,8 @@ CREATE INDEX idx_tenants_status ON tenants(status) WHERE deleted_at IS NULL;
 
 -- ── System Configuration ──
 CREATE TABLE IF NOT EXISTS system_configs (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26) REFERENCES tenants(id),
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) REFERENCES tenants(id),
     config_key      VARCHAR(128) NOT NULL,
     config_value    TEXT NOT NULL,
     value_type      VARCHAR(20) NOT NULL DEFAULT 'STRING',
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS system_configs (
     is_system       BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     deleted_at      TIMESTAMPTZ,
     version         BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_config_tenant_key UNIQUE (tenant_id, config_key)
@@ -48,8 +48,8 @@ CREATE INDEX idx_sys_config_key ON system_configs(config_key) WHERE deleted_at I
 
 -- ── Feature Flags ──
 CREATE TABLE IF NOT EXISTS feature_flags (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26) REFERENCES tenants(id),
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) REFERENCES tenants(id),
     flag_key        VARCHAR(128) NOT NULL,
     enabled         BOOLEAN NOT NULL DEFAULT FALSE,
     description     VARCHAR(500),
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS feature_flags (
     metadata        JSONB DEFAULT '{}',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     deleted_at      TIMESTAMPTZ,
     version         BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_flag_tenant_key UNIQUE (tenant_id, flag_key)
@@ -70,14 +70,14 @@ CREATE INDEX idx_feature_flags_scope ON feature_flags(scope) WHERE deleted_at IS
 
 -- ── Environment Settings ──
 CREATE TABLE IF NOT EXISTS environment_settings (
-    id              VARCHAR(26) PRIMARY KEY,
+    id              VARCHAR(36) PRIMARY KEY,
     environment     VARCHAR(20) NOT NULL,
     setting_key     VARCHAR(128) NOT NULL,
     setting_value   TEXT NOT NULL,
     description     VARCHAR(500),
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     version         BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_env_setting UNIQUE (environment, setting_key)
 );
@@ -86,8 +86,8 @@ CREATE INDEX idx_env_settings_env ON environment_settings(environment);
 
 -- ── Provider Configuration (SMTP/Gateway/DNS toggle) ──
 CREATE TABLE IF NOT EXISTS provider_configs (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26) REFERENCES tenants(id),
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) REFERENCES tenants(id),
     provider_type   VARCHAR(30) NOT NULL,
     provider_name   VARCHAR(50) NOT NULL,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
@@ -95,7 +95,7 @@ CREATE TABLE IF NOT EXISTS provider_configs (
     priority        INT NOT NULL DEFAULT 1,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     deleted_at      TIMESTAMPTZ,
     version         BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_provider_tenant_type UNIQUE (tenant_id, provider_type, provider_name)
@@ -106,8 +106,8 @@ CREATE INDEX idx_provider_type ON provider_configs(provider_type) WHERE deleted_
 
 -- ── System Metadata / Audit Log ──
 CREATE TABLE IF NOT EXISTS system_events (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26),
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36),
     event_type      VARCHAR(64) NOT NULL,
     event_source    VARCHAR(64) NOT NULL,
     payload         JSONB NOT NULL DEFAULT '{}',

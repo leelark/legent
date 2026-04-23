@@ -17,7 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SystemConfig extends BaseEntity {
 
-    @Column(name = "tenant_id", length = 26)
+    @Column(name = "tenant_id", length = 36)
     private String tenantId;
 
     @Column(name = "config_key", nullable = false, length = 128)

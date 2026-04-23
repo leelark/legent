@@ -17,10 +17,10 @@ import java.util.Map;
 @NoArgsConstructor
 public class AuditLog extends BaseEntity {
 
-    @Column(name = "tenant_id", length = 26)
+    @Column(name = "tenant_id", length = 36)
     private String tenantId;
 
-    @Column(name = "user_id", length = 26)
+    @Column(name = "user_id", length = 36)
     private String userId;
 
     @Column(name = "action", nullable = false, length = 100)

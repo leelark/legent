@@ -6,8 +6,8 @@
 
 -- ── Email Templates ──
 CREATE TABLE IF NOT EXISTS email_templates (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26) NOT NULL,
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) NOT NULL,
     name            VARCHAR(255) NOT NULL,
     subject         VARCHAR(500),
     html_content    TEXT,
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
     metadata        JSONB DEFAULT '{}',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     deleted_at      TIMESTAMPTZ,
     version         BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_template_tenant_name UNIQUE (tenant_id, name)
@@ -32,15 +32,15 @@ CREATE INDEX idx_templates_category ON email_templates(tenant_id, category) WHER
 CREATE INDEX idx_templates_tags ON email_templates USING GIN (tags) WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS template_tags (
-    template_id VARCHAR(26) NOT NULL REFERENCES email_templates(id) ON DELETE CASCADE,
+    template_id VARCHAR(36) NOT NULL REFERENCES email_templates(id) ON DELETE CASCADE,
     tag VARCHAR(255) NOT NULL,
     PRIMARY KEY (template_id, tag)
 );
 
 -- ── Content Blocks ──
 CREATE TABLE IF NOT EXISTS content_blocks (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26) NOT NULL,
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) NOT NULL,
     name            VARCHAR(255) NOT NULL,
     block_type      VARCHAR(50) NOT NULL,
     content         TEXT NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS content_blocks (
     is_global       BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     deleted_at      TIMESTAMPTZ,
     version         BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_block_tenant_name UNIQUE (tenant_id, name)
@@ -61,8 +61,8 @@ CREATE INDEX idx_blocks_global ON content_blocks(is_global) WHERE deleted_at IS 
 
 -- ── Assets ──
 CREATE TABLE IF NOT EXISTS assets (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26) NOT NULL,
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) NOT NULL,
     name            VARCHAR(255) NOT NULL,
     file_name       VARCHAR(255) NOT NULL,
     content_type    VARCHAR(100) NOT NULL,
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS assets (
     metadata        JSONB DEFAULT '{}',
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     deleted_at      TIMESTAMPTZ,
     version         BIGINT NOT NULL DEFAULT 0
 );
@@ -84,16 +84,16 @@ CREATE INDEX idx_assets_content_type ON assets(tenant_id, content_type) WHERE de
 CREATE INDEX idx_assets_tags ON assets USING GIN (tags) WHERE deleted_at IS NULL;
 
 CREATE TABLE IF NOT EXISTS asset_tags (
-    asset_id VARCHAR(26) NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
+    asset_id VARCHAR(36) NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
     tag VARCHAR(255) NOT NULL,
     PRIMARY KEY (asset_id, tag)
 );
 
 -- ── Template Versions ──
 CREATE TABLE IF NOT EXISTS template_versions (
-    id              VARCHAR(26) PRIMARY KEY,
-    tenant_id       VARCHAR(26) NOT NULL,
-    template_id     VARCHAR(26) NOT NULL REFERENCES email_templates(id),
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) NOT NULL,
+    template_id     VARCHAR(36) NOT NULL REFERENCES email_templates(id),
     version_number  INT NOT NULL,
     subject         VARCHAR(500),
     html_content    TEXT,
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS template_versions (
     changes         TEXT,
     is_published    BOOLEAN NOT NULL DEFAULT FALSE,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by      VARCHAR(26),
+    created_by      VARCHAR(36),
     CONSTRAINT uq_template_version UNIQUE (template_id, version_number)
 );
 

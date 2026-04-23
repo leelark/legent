@@ -7,8 +7,8 @@
 
 -- ── Subscribers ──
 CREATE TABLE IF NOT EXISTS subscribers (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
     subscriber_key      VARCHAR(255) NOT NULL,
     email               VARCHAR(320) NOT NULL,
     first_name          VARCHAR(128),
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS subscribers (
     bounced_at          TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by          VARCHAR(26),
+    created_by          VARCHAR(36),
     deleted_at          TIMESTAMPTZ,
     version             BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_subscriber_tenant_key UNIQUE (tenant_id, subscriber_key)
@@ -43,9 +43,9 @@ CREATE INDEX idx_sub_custom_fields ON subscribers USING GIN (custom_fields) WHER
 
 -- ── Subscriber Attributes (EAV) ──
 CREATE TABLE IF NOT EXISTS subscriber_attributes (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
-    subscriber_id       VARCHAR(26) NOT NULL REFERENCES subscribers(id),
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
+    subscriber_id       VARCHAR(36) NOT NULL REFERENCES subscribers(id),
     attribute_key       VARCHAR(128) NOT NULL,
     attribute_value     TEXT,
     attribute_type      VARCHAR(20) NOT NULL DEFAULT 'STRING',
@@ -59,9 +59,9 @@ CREATE INDEX idx_sub_attr_key_value ON subscriber_attributes(tenant_id, attribut
 
 -- ── Subscriber Preferences ──
 CREATE TABLE IF NOT EXISTS subscriber_preferences (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
-    subscriber_id       VARCHAR(26) NOT NULL REFERENCES subscribers(id),
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
+    subscriber_id       VARCHAR(36) NOT NULL REFERENCES subscribers(id),
     email_opt_in        BOOLEAN NOT NULL DEFAULT TRUE,
     sms_opt_in          BOOLEAN NOT NULL DEFAULT FALSE,
     push_opt_in         BOOLEAN NOT NULL DEFAULT FALSE,
@@ -77,8 +77,8 @@ CREATE INDEX idx_sub_pref_subscriber ON subscriber_preferences(subscriber_id);
 
 -- ── Subscriber Lists ──
 CREATE TABLE IF NOT EXISTS subscriber_lists (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
     name                VARCHAR(255) NOT NULL,
     description         VARCHAR(2000),
     list_type           VARCHAR(20) NOT NULL DEFAULT 'PUBLICATION',
@@ -87,7 +87,7 @@ CREATE TABLE IF NOT EXISTS subscriber_lists (
     metadata            JSONB DEFAULT '{}',
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by          VARCHAR(26),
+    created_by          VARCHAR(36),
     deleted_at          TIMESTAMPTZ,
     version             BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_list_tenant_name UNIQUE (tenant_id, name)
@@ -98,10 +98,10 @@ CREATE INDEX idx_list_type ON subscriber_lists(tenant_id, list_type) WHERE delet
 
 -- ── List Memberships ──
 CREATE TABLE IF NOT EXISTS list_memberships (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
-    list_id             VARCHAR(26) NOT NULL REFERENCES subscriber_lists(id),
-    subscriber_id       VARCHAR(26) NOT NULL REFERENCES subscribers(id),
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
+    list_id             VARCHAR(36) NOT NULL REFERENCES subscriber_lists(id),
+    subscriber_id       VARCHAR(36) NOT NULL REFERENCES subscribers(id),
     status              VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     added_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     removed_at          TIMESTAMPTZ,
@@ -114,8 +114,8 @@ CREATE INDEX idx_lm_tenant ON list_memberships(tenant_id);
 
 -- ── Data Extensions ──
 CREATE TABLE IF NOT EXISTS data_extensions (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
     name                VARCHAR(255) NOT NULL,
     description         VARCHAR(2000),
     is_sendable         BOOLEAN NOT NULL DEFAULT FALSE,
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS data_extensions (
     record_count        BIGINT NOT NULL DEFAULT 0,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by          VARCHAR(26),
+    created_by          VARCHAR(36),
     deleted_at          TIMESTAMPTZ,
     version             BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_de_tenant_name UNIQUE (tenant_id, name)
@@ -134,8 +134,8 @@ CREATE INDEX idx_de_tenant ON data_extensions(tenant_id) WHERE deleted_at IS NUL
 
 -- ── Data Extension Fields ──
 CREATE TABLE IF NOT EXISTS data_extension_fields (
-    id                  VARCHAR(26) PRIMARY KEY,
-    data_extension_id   VARCHAR(26) NOT NULL REFERENCES data_extensions(id),
+    id                  VARCHAR(36) PRIMARY KEY,
+    data_extension_id   VARCHAR(36) NOT NULL REFERENCES data_extensions(id),
     field_name          VARCHAR(128) NOT NULL,
     field_type          VARCHAR(20) NOT NULL DEFAULT 'TEXT',
     is_required         BOOLEAN NOT NULL DEFAULT FALSE,
@@ -151,9 +151,9 @@ CREATE INDEX idx_def_de ON data_extension_fields(data_extension_id);
 
 -- ── Data Extension Records ──
 CREATE TABLE IF NOT EXISTS data_extension_records (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
-    data_extension_id   VARCHAR(26) NOT NULL REFERENCES data_extensions(id),
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
+    data_extension_id   VARCHAR(36) NOT NULL REFERENCES data_extensions(id),
     record_data         JSONB NOT NULL DEFAULT '{}',
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -165,8 +165,8 @@ CREATE INDEX idx_der_data ON data_extension_records USING GIN (record_data);
 
 -- ── Segments ──
 CREATE TABLE IF NOT EXISTS segments (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
     name                VARCHAR(255) NOT NULL,
     description         VARCHAR(2000),
     status              VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
@@ -178,7 +178,7 @@ CREATE TABLE IF NOT EXISTS segments (
     schedule_enabled    BOOLEAN NOT NULL DEFAULT FALSE,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by          VARCHAR(26),
+    created_by          VARCHAR(36),
     deleted_at          TIMESTAMPTZ,
     version             BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_seg_tenant_name UNIQUE (tenant_id, name)
@@ -190,10 +190,10 @@ CREATE INDEX idx_seg_schedule ON segments(schedule_enabled) WHERE deleted_at IS 
 
 -- ── Segment Memberships ──
 CREATE TABLE IF NOT EXISTS segment_memberships (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
-    segment_id          VARCHAR(26) NOT NULL REFERENCES segments(id),
-    subscriber_id       VARCHAR(26) NOT NULL REFERENCES subscribers(id),
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
+    segment_id          VARCHAR(36) NOT NULL REFERENCES segments(id),
+    subscriber_id       VARCHAR(36) NOT NULL REFERENCES subscribers(id),
     added_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_seg_member UNIQUE (segment_id, subscriber_id)
 );
@@ -204,8 +204,8 @@ CREATE INDEX idx_sm_tenant ON segment_memberships(tenant_id);
 
 -- ── Suppressions ──
 CREATE TABLE IF NOT EXISTS suppressions (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
     email               VARCHAR(320) NOT NULL,
     suppression_type    VARCHAR(30) NOT NULL,
     reason              VARCHAR(500),
@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS suppressions (
     suppressed_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     expires_at          TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by          VARCHAR(26),
+    created_by          VARCHAR(36),
     deleted_at          TIMESTAMPTZ,
     CONSTRAINT uq_suppression UNIQUE (tenant_id, email, suppression_type)
 );
@@ -224,13 +224,13 @@ CREATE INDEX idx_sup_expires ON suppressions(expires_at) WHERE expires_at IS NOT
 
 -- ── Import Jobs ──
 CREATE TABLE IF NOT EXISTS import_jobs (
-    id                  VARCHAR(26) PRIMARY KEY,
-    tenant_id           VARCHAR(26) NOT NULL,
+    id                  VARCHAR(36) PRIMARY KEY,
+    tenant_id           VARCHAR(36) NOT NULL,
     file_name           VARCHAR(255) NOT NULL,
     file_size           BIGINT,
     status              VARCHAR(20) NOT NULL DEFAULT 'PENDING',
     target_type         VARCHAR(30) NOT NULL DEFAULT 'SUBSCRIBER',
-    target_id           VARCHAR(26),
+    target_id           VARCHAR(36),
     field_mapping       JSONB NOT NULL DEFAULT '{}',
     total_rows          BIGINT NOT NULL DEFAULT 0,
     processed_rows      BIGINT NOT NULL DEFAULT 0,
@@ -241,7 +241,7 @@ CREATE TABLE IF NOT EXISTS import_jobs (
     completed_at        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    created_by          VARCHAR(26),
+    created_by          VARCHAR(36),
     version             BIGINT NOT NULL DEFAULT 0
 );
 

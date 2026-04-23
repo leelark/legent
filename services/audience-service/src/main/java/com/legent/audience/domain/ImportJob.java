@@ -26,7 +26,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 public class ImportJob extends BaseEntity {
 
-    @Column(name = "tenant_id", nullable = false, length = 26)
+    @Column(name = "tenant_id", nullable = false, length = 36)
     private String tenantId;
 
     @Column(name = "file_name", nullable = false, length = 255)
@@ -42,7 +42,7 @@ public class ImportJob extends BaseEntity {
     @Column(name = "target_type", nullable = false, length = 30)
     private String targetType = "SUBSCRIBER";
 
-    @Column(name = "target_id", length = 26)
+    @Column(name = "target_id", length = 36)
     private String targetId;
 
     @JdbcTypeCode(SqlTypes.JSON)

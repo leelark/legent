@@ -25,7 +25,7 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 public class FeatureFlag extends BaseEntity {
 
-    @Column(name = "tenant_id", length = 26)
+    @Column(name = "tenant_id", length = 36)
     private String tenantId;
 
     @Column(name = "flag_key", nullable = false, length = 128)

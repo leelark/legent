@@ -1,61 +1,80 @@
 @echo off
 SETLOCAL ENABLEDELAYEDEXPANSION
 
+:START
+cls
 echo =====================================
 echo   LEGENT CLEAN BUILD + RUN SCRIPT
 echo =====================================
 
-:: 📂 Move to project directory
 cd /d "C:\Users\leelark.saxena\Desktop\Legent - v1.0.2"
 
-echo.
-echo [1/7] Running Maven clean...
-call mvn clean
-IF %ERRORLEVEL% NEQ 0 (
-    echo ❌ Maven clean failed
-    exit /b %ERRORLEVEL%
-)
+:: Speed optimizations
+set DOCKER_BUILDKIT=1
+set COMPOSE_DOCKER_CLI_BUILD=1
 
 echo.
-echo [2/7] Running Maven build (skip tests)...
-call mvn clean install -U -DskipTests
+echo [1/5] Maven clean + build (parallel, skip tests)...
+call mvn -T 1C clean install -U -DskipTests
 IF %ERRORLEVEL% NEQ 0 (
     echo ❌ Maven build failed
-    exit /b %ERRORLEVEL%
+    goto ERROR
 )
 
 echo.
-echo [3/7] Stopping Docker containers...
-docker compose down -v
+echo [2/5] Stop containers + clean project volumes...
+docker compose down --volumes --remove-orphans --timeout 5
+
+IF %ERRORLEVEL% NEQ 0 (
+    echo ⚠️ Graceful shutdown failed, forcing stop...
+    docker compose kill
+    docker compose down --volumes --remove-orphans
+)
+
+echo ✅ Cleanup complete.
 
 echo.
-echo [4/7] Cleaning Docker system...
-docker system prune -a -f
-
-echo.
-echo [5/7] Cleaning Docker volumes...
-docker volume prune -f
-
-echo.
-echo [6/7] Building Docker images (no cache)...
-docker compose build --no-cache
+echo [3/5] Rebuild Docker images (fresh)...
+docker compose build --no-cache --parallel --progress=plain
 IF %ERRORLEVEL% NEQ 0 (
     echo ❌ Docker build failed
-    exit /b %ERRORLEVEL%
+    goto ERROR
 )
 
 echo.
-echo [7/7] Starting containers...
-docker compose up -d
+echo [4/5] Start containers...
+docker compose up -d --remove-orphans
 IF %ERRORLEVEL% NEQ 0 (
     echo ❌ Docker up failed
-    exit /b %ERRORLEVEL%
+    goto ERROR
 )
 
 echo.
+echo [5/5] System status:
+docker compose ps
+
+echo.
 echo =====================================
-echo ✅ ALL DONE SUCCESSFULLY
+echo ✅ CLEAN BUILD & RUN COMPLETE
 echo =====================================
 
-pause
+echo.
+echo 🔄 Watching logs (press Ctrl+C to stop logs only)...
+docker compose logs -f
+
+echo.
+echo Script is still running. Press Ctrl+C again or close window to exit.
+goto WAIT
+
+:ERROR
+echo.
+echo ❌ ERROR OCCURRED. Script will NOT exit.
+echo Fix the issue and press any key to retry...
+pause >nul
+goto START
+
+:WAIT
+timeout /t 999999 >nul
+goto WAIT
+
 ENDLOCAL
