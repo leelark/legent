@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@SuppressWarnings("null")
+
 class FeedbackLoopConsumerTest {
 
     @Mock private SuppressionListRepository suppressionRepository;

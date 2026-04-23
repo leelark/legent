@@ -1,0 +1,308 @@
+content-service        | 2026-04-23 11:16:58.365 | Picked up JAVA_TOOL_OPTIONS: -Xmx256m -Xms256m
+content-service        | 2026-04-23 11:17:08.350 | 
+content-service        | 2026-04-23 11:17:08.351 |   .   ____          _            __ _ _
+content-service        | 2026-04-23 11:17:08.351 |  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+content-service        | 2026-04-23 11:17:08.351 | ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+content-service        | 2026-04-23 11:17:08.352 |  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+content-service        | 2026-04-23 11:17:08.352 |   '  |____| .__|_| |_|_| |_\__, | / / / /
+content-service        | 2026-04-23 11:17:08.352 |  =========|_|==============|___/=/_/_/_/
+content-service        | 2026-04-23 11:17:08.578 |  :: Spring Boot ::                (v3.2.5)
+content-service        | 2026-04-23 11:17:08.578 | 
+content-service        | 2026-04-23 11:17:10.676 | 2026-04-23T05:47:10.625Z  INFO 1 --- [content-service] [           main] com.legent.content.ContentApplication    : Starting ContentApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+content-service        | 2026-04-23 11:17:10.677 | 2026-04-23T05:47:10.676Z DEBUG 1 --- [content-service] [           main] com.legent.content.ContentApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+content-service        | 2026-04-23 11:17:10.771 | 2026-04-23T05:47:10.761Z  INFO 1 --- [content-service] [           main] com.legent.content.ContentApplication    : The following 1 profile is active: "prod"
+content-service        | 2026-04-23 11:17:37.776 | 2026-04-23T05:47:37.775Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+content-service        | 2026-04-23 11:17:37.845 | 2026-04-23T05:47:37.845Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+content-service        | 2026-04-23 11:17:41.154 | 2026-04-23T05:47:41.152Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 3191 ms. Found 4 JPA repository interfaces.
+content-service        | 2026-04-23 11:17:41.977 | 2026-04-23T05:47:41.954Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+content-service        | 2026-04-23 11:17:41.987 | 2026-04-23T05:47:41.986Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+content-service        | 2026-04-23 11:17:42.547 | 2026-04-23T05:47:42.544Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.AssetRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:17:42.547 | 2026-04-23T05:47:42.546Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.ContentBlockRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:17:42.568 | 2026-04-23T05:47:42.567Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.EmailTemplateRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:17:42.573 | 2026-04-23T05:47:42.572Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.TemplateVersionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:17:42.581 | 2026-04-23T05:47:42.580Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 189 ms. Found 0 Redis repository interfaces.
+content-service        | 2026-04-23 11:18:01.972 | 2026-04-23T05:48:01.971Z  INFO 1 --- [content-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8083 (http)
+content-service        | 2026-04-23 11:18:02.435 | 2026-04-23T05:48:02.434Z  INFO 1 --- [content-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+content-service        | 2026-04-23 11:18:02.438 | 2026-04-23T05:48:02.436Z  INFO 1 --- [content-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+content-service        | 2026-04-23 11:18:03.205 | 2026-04-23T05:48:03.204Z  INFO 1 --- [content-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+content-service        | 2026-04-23 11:18:03.230 | 2026-04-23T05:48:03.229Z  INFO 1 --- [content-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 49412 ms
+content-service        | 2026-04-23 11:18:14.197 | java.lang.ClassNotFoundException: org.postgresql.Driver
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/java.net.URLClassLoader.findClass(Unknown Source)
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/java.lang.ClassLoader.loadClass(Unknown Source)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.boot.loader.net.protocol.jar.JarUrlClassLoader.loadClass(JarUrlClassLoader.java:104)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.boot.loader.launch.LaunchedClassLoader.loadClass(LaunchedClassLoader.java:91)
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/java.lang.ClassLoader.loadClass(Unknown Source)
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/java.lang.Class.forName0(Native Method)
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/java.lang.Class.forName(Unknown Source)
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/java.lang.Class.forName(Unknown Source)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.util.ClassUtils.forName(ClassUtils.java:304)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceProperties.driverClassIsLoadable(DataSourceProperties.java:194)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceProperties.determineDriverClassName(DataSourceProperties.java:175)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.boot.autoconfigure.jdbc.PropertiesJdbcConnectionDetails.getDriverClassName(PropertiesJdbcConnectionDetails.java:49)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration.createDataSource(DataSourceConfiguration.java:55)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration$Hikari.dataSource(DataSourceConfiguration.java:117)
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+content-service        | 2026-04-23 11:18:14.197 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:140)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:644)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:636)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+content-service        | 2026-04-23 11:18:14.197 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+content-service        | 2026-04-23 11:18:14.199 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1443)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1353)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:904)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:782)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:542)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313)
+content-service        | 2026-04-23 11:18:14.200 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+content-service        | 2026-04-23 11:18:14.209 | 	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234)
+content-service        | 2026-04-23 11:18:14.210 | 	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952)
+content-service        | 2026-04-23 11:18:14.210 | 	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624)
+content-service        | 2026-04-23 11:18:14.216 | 	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+content-service        | 2026-04-23 11:18:14.216 | 	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+content-service        | 2026-04-23 11:18:14.217 | 	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+content-service        | 2026-04-23 11:18:14.217 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+content-service        | 2026-04-23 11:18:14.218 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+content-service        | 2026-04-23 11:18:14.218 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+content-service        | 2026-04-23 11:18:14.219 | 	at com.legent.content.ContentApplication.main(ContentApplication.java:14)
+content-service        | 2026-04-23 11:18:14.219 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+content-service        | 2026-04-23 11:18:14.219 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+content-service        | 2026-04-23 11:18:14.219 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+content-service        | 2026-04-23 11:18:14.220 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+content-service        | 2026-04-23 11:18:14.220 | 	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+content-service        | 2026-04-23 11:18:14.223 | 2026-04-23T05:48:14.223Z  WARN 1 --- [content-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'dataSourceScriptDatabaseInitializer' defined in class path resource [org/springframework/boot/autoconfigure/sql/init/DataSourceInitializationConfiguration.class]: Unsatisfied dependency expressed through method 'dataSourceScriptDatabaseInitializer' parameter 0: Error creating bean with name 'dataSource' defined in class path resource [org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Hikari.class]: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:18:14.712 | 2026-04-23T05:48:14.708Z  INFO 1 --- [content-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+content-service        | 2026-04-23 11:18:15.096 | 2026-04-23T05:48:15.096Z  INFO 1 --- [content-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+content-service        | 2026-04-23 11:18:15.096 | 
+content-service        | 2026-04-23 11:18:15.096 | Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+content-service        | 2026-04-23 11:18:15.668 | 2026-04-23T05:48:15.553Z ERROR 1 --- [content-service] [           main] o.s.boot.SpringApplication               : Application run failed
+content-service        | 2026-04-23 11:18:15.668 | 
+content-service        | 2026-04-23 11:18:15.668 | org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'dataSourceScriptDatabaseInitializer' defined in class path resource [org/springframework/boot/autoconfigure/sql/init/DataSourceInitializationConfiguration.class]: Unsatisfied dependency expressed through method 'dataSourceScriptDatabaseInitializer' parameter 0: Error creating bean with name 'dataSource' defined in class path resource [org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Hikari.class]: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:795) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:542) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.668 | 	at com.legent.content.ContentApplication.main(ContentApplication.java:14) ~[!/:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:18:15.668 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:18:15.668 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:18:15.668 | Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'dataSource' defined in class path resource [org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Hikari.class]: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:648) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:636) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.668 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1443) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1353) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:904) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	... 26 common frames omitted
+content-service        | 2026-04-23 11:18:15.669 | Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:177) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:644) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	... 40 common frames omitted
+content-service        | 2026-04-23 11:18:15.669 | Caused by: java.lang.IllegalStateException: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.util.Assert.state(Assert.java:97) ~[spring-core-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceProperties.determineDriverClassName(DataSourceProperties.java:175) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.boot.autoconfigure.jdbc.PropertiesJdbcConnectionDetails.getDriverClassName(PropertiesJdbcConnectionDetails.java:49) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration.createDataSource(DataSourceConfiguration.java:55) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration$Hikari.dataSource(DataSourceConfiguration.java:117) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:18:15.669 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:18:15.669 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:18:15.669 | 	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:140) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:18:15.669 | 	... 41 common frames omitted
+content-service        | 2026-04-23 11:18:15.669 | 
+content-service        | 2026-04-23 11:22:07.310 | Picked up JAVA_TOOL_OPTIONS: -Xmx256m -Xms256m
+content-service        | 2026-04-23 11:22:15.104 | 
+content-service        | 2026-04-23 11:22:15.104 |   .   ____          _            __ _ _
+content-service        | 2026-04-23 11:22:15.104 |  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+content-service        | 2026-04-23 11:22:15.104 | ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+content-service        | 2026-04-23 11:22:15.104 |  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+content-service        | 2026-04-23 11:22:15.104 |   '  |____| .__|_| |_|_| |_\__, | / / / /
+content-service        | 2026-04-23 11:22:15.104 |  =========|_|==============|___/=/_/_/_/
+content-service        | 2026-04-23 11:22:15.154 |  :: Spring Boot ::                (v3.2.5)
+content-service        | 2026-04-23 11:22:15.154 | 
+content-service        | 2026-04-23 11:22:16.740 | 2026-04-23T05:52:16.733Z  INFO 1 --- [content-service] [           main] com.legent.content.ContentApplication    : Starting ContentApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+content-service        | 2026-04-23 11:22:16.742 | 2026-04-23T05:52:16.741Z DEBUG 1 --- [content-service] [           main] com.legent.content.ContentApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+content-service        | 2026-04-23 11:22:16.744 | 2026-04-23T05:52:16.743Z  INFO 1 --- [content-service] [           main] com.legent.content.ContentApplication    : The following 1 profile is active: "prod"
+content-service        | 2026-04-23 11:22:24.264 | 2026-04-23T05:52:24.263Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+content-service        | 2026-04-23 11:22:24.274 | 2026-04-23T05:52:24.273Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+content-service        | 2026-04-23 11:22:25.294 | 2026-04-23T05:52:25.293Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 992 ms. Found 4 JPA repository interfaces.
+content-service        | 2026-04-23 11:22:25.394 | 2026-04-23T05:52:25.394Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+content-service        | 2026-04-23 11:22:25.402 | 2026-04-23T05:52:25.400Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+content-service        | 2026-04-23 11:22:25.476 | 2026-04-23T05:52:25.475Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.AssetRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:22:25.479 | 2026-04-23T05:52:25.477Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.ContentBlockRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:22:25.480 | 2026-04-23T05:52:25.479Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.EmailTemplateRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:22:25.484 | 2026-04-23T05:52:25.481Z  INFO 1 --- [content-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.content.repository.TemplateVersionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+content-service        | 2026-04-23 11:22:25.484 | 2026-04-23T05:52:25.483Z  INFO 1 --- [content-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 38 ms. Found 0 Redis repository interfaces.
+content-service        | 2026-04-23 11:22:31.992 | 2026-04-23T05:52:31.989Z  INFO 1 --- [content-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8083 (http)
+content-service        | 2026-04-23 11:22:32.075 | 2026-04-23T05:52:32.074Z  INFO 1 --- [content-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+content-service        | 2026-04-23 11:22:32.076 | 2026-04-23T05:52:32.075Z  INFO 1 --- [content-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+content-service        | 2026-04-23 11:22:32.301 | 2026-04-23T05:52:32.299Z  INFO 1 --- [content-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+content-service        | 2026-04-23 11:22:32.333 | 2026-04-23T05:52:32.303Z  INFO 1 --- [content-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 14796 ms
+content-service        | 2026-04-23 11:22:35.467 | java.lang.ClassNotFoundException: org.postgresql.Driver
+content-service        | 2026-04-23 11:22:35.467 | 	at java.base/java.net.URLClassLoader.findClass(Unknown Source)
+content-service        | 2026-04-23 11:22:35.467 | 	at java.base/java.lang.ClassLoader.loadClass(Unknown Source)
+content-service        | 2026-04-23 11:22:35.467 | 	at org.springframework.boot.loader.net.protocol.jar.JarUrlClassLoader.loadClass(JarUrlClassLoader.java:104)
+content-service        | 2026-04-23 11:22:35.467 | 	at org.springframework.boot.loader.launch.LaunchedClassLoader.loadClass(LaunchedClassLoader.java:91)
+content-service        | 2026-04-23 11:22:35.467 | 	at java.base/java.lang.ClassLoader.loadClass(Unknown Source)
+content-service        | 2026-04-23 11:22:35.468 | 	at java.base/java.lang.Class.forName0(Native Method)
+content-service        | 2026-04-23 11:22:35.474 | 	at java.base/java.lang.Class.forName(Unknown Source)
+content-service        | 2026-04-23 11:22:35.475 | 	at java.base/java.lang.Class.forName(Unknown Source)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.util.ClassUtils.forName(ClassUtils.java:304)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceProperties.driverClassIsLoadable(DataSourceProperties.java:194)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceProperties.determineDriverClassName(DataSourceProperties.java:175)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.boot.autoconfigure.jdbc.PropertiesJdbcConnectionDetails.getDriverClassName(PropertiesJdbcConnectionDetails.java:49)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration.createDataSource(DataSourceConfiguration.java:55)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration$Hikari.dataSource(DataSourceConfiguration.java:117)
+content-service        | 2026-04-23 11:22:35.475 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+content-service        | 2026-04-23 11:22:35.475 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:140)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:644)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:636)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254)
+content-service        | 2026-04-23 11:22:35.475 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1443)
+content-service        | 2026-04-23 11:22:35.479 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1353)
+content-service        | 2026-04-23 11:22:35.479 | 	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:904)
+content-service        | 2026-04-23 11:22:35.479 | 	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:782)
+content-service        | 2026-04-23 11:22:35.479 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:542)
+content-service        | 2026-04-23 11:22:35.480 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335)
+content-service        | 2026-04-23 11:22:35.480 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165)
+content-service        | 2026-04-23 11:22:35.480 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562)
+content-service        | 2026-04-23 11:22:35.480 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522)
+content-service        | 2026-04-23 11:22:35.480 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343)
+content-service        | 2026-04-23 11:22:35.487 | 	at com.legent.content.ContentApplication.main(ContentApplication.java:14)
+content-service        | 2026-04-23 11:22:35.487 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source)
+content-service        | 2026-04-23 11:22:35.487 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53)
+content-service        | 2026-04-23 11:22:35.487 | 	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58)
+content-service        | 2026-04-23 11:22:35.487 | 2026-04-23T05:52:35.485Z  WARN 1 --- [content-service] [           main] ConfigServletWebServerApplicationContext : Exception encountered during context initialization - cancelling refresh attempt: org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'dataSourceScriptDatabaseInitializer' defined in class path resource [org/springframework/boot/autoconfigure/sql/init/DataSourceInitializationConfiguration.class]: Unsatisfied dependency expressed through method 'dataSourceScriptDatabaseInitializer' parameter 0: Error creating bean with name 'dataSource' defined in class path resource [org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Hikari.class]: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:22:35.593 | 2026-04-23T05:52:35.592Z  INFO 1 --- [content-service] [           main] o.apache.catalina.core.StandardService   : Stopping service [Tomcat]
+content-service        | 2026-04-23 11:22:35.816 | 2026-04-23T05:52:35.815Z  INFO 1 --- [content-service] [           main] .s.b.a.l.ConditionEvaluationReportLogger : 
+content-service        | 2026-04-23 11:22:35.816 | 
+content-service        | 2026-04-23 11:22:35.816 | Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+content-service        | 2026-04-23 11:22:35.977 | 2026-04-23T05:52:35.954Z ERROR 1 --- [content-service] [           main] o.s.boot.SpringApplication               : Application run failed
+content-service        | 2026-04-23 11:22:35.977 | 
+content-service        | 2026-04-23 11:22:35.977 | org.springframework.beans.factory.UnsatisfiedDependencyException: Error creating bean with name 'dataSourceScriptDatabaseInitializer' defined in class path resource [org/springframework/boot/autoconfigure/sql/init/DataSourceInitializationConfiguration.class]: Unsatisfied dependency expressed through method 'dataSourceScriptDatabaseInitializer' parameter 0: Error creating bean with name 'dataSource' defined in class path resource [org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Hikari.class]: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:795) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:542) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:313) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.context.support.AbstractApplicationContext.getBean(AbstractApplicationContext.java:1234) ~[spring-context-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.context.support.AbstractApplicationContext.finishBeanFactoryInitialization(AbstractApplicationContext.java:952) ~[spring-context-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.context.support.AbstractApplicationContext.refresh(AbstractApplicationContext.java:624) ~[spring-context-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext.refresh(ServletWebServerApplicationContext.java:146) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.boot.SpringApplication.refresh(SpringApplication.java:754) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.boot.SpringApplication.refreshContext(SpringApplication.java:456) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:334) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1354) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.boot.SpringApplication.run(SpringApplication.java:1343) ~[spring-boot-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.977 | 	at com.legent.content.ContentApplication.main(ContentApplication.java:14) ~[!/:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:22:35.977 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:22:35.977 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:22:35.977 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:91) ~[app.jar:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.boot.loader.launch.Launcher.launch(Launcher.java:53) ~[app.jar:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.boot.loader.launch.JarLauncher.main(JarLauncher.java:58) ~[app.jar:1.0.0-SNAPSHOT]
+content-service        | 2026-04-23 11:22:35.978 | Caused by: org.springframework.beans.factory.BeanCreationException: Error creating bean with name 'dataSource' defined in class path resource [org/springframework/boot/autoconfigure/jdbc/DataSourceConfiguration$Hikari.class]: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:648) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiateUsingFactoryMethod(ConstructorResolver.java:636) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.instantiateUsingFactoryMethod(AbstractAutowireCapableBeanFactory.java:1335) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBeanInstance(AbstractAutowireCapableBeanFactory.java:1165) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.doCreateBean(AbstractAutowireCapableBeanFactory.java:562) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.AbstractAutowireCapableBeanFactory.createBean(AbstractAutowireCapableBeanFactory.java:522) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.lambda$doGetBean$0(AbstractBeanFactory.java:326) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.DefaultSingletonBeanRegistry.getSingleton(DefaultSingletonBeanRegistry.java:234) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.doGetBean(AbstractBeanFactory.java:324) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.AbstractBeanFactory.getBean(AbstractBeanFactory.java:200) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.config.DependencyDescriptor.resolveCandidate(DependencyDescriptor.java:254) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.doResolveDependency(DefaultListableBeanFactory.java:1443) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.DefaultListableBeanFactory.resolveDependency(DefaultListableBeanFactory.java:1353) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.ConstructorResolver.resolveAutowiredArgument(ConstructorResolver.java:904) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.ConstructorResolver.createArgumentArray(ConstructorResolver.java:782) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	... 26 common frames omitted
+content-service        | 2026-04-23 11:22:35.978 | Caused by: org.springframework.beans.BeanInstantiationException: Failed to instantiate [com.zaxxer.hikari.HikariDataSource]: Factory method 'dataSource' threw exception with message: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:177) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.ConstructorResolver.instantiate(ConstructorResolver.java:644) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	... 40 common frames omitted
+content-service        | 2026-04-23 11:22:35.978 | Caused by: java.lang.IllegalStateException: Cannot load driver class: org.postgresql.Driver
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.util.Assert.state(Assert.java:97) ~[spring-core-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceProperties.determineDriverClassName(DataSourceProperties.java:175) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.boot.autoconfigure.jdbc.PropertiesJdbcConnectionDetails.getDriverClassName(PropertiesJdbcConnectionDetails.java:49) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration.createDataSource(DataSourceConfiguration.java:55) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.boot.autoconfigure.jdbc.DataSourceConfiguration$Hikari.dataSource(DataSourceConfiguration.java:117) ~[spring-boot-autoconfigure-3.2.5.jar!/:3.2.5]
+content-service        | 2026-04-23 11:22:35.978 | 	at java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:22:35.978 | 	at java.base/java.lang.reflect.Method.invoke(Unknown Source) ~[na:na]
+content-service        | 2026-04-23 11:22:35.978 | 	at org.springframework.beans.factory.support.SimpleInstantiationStrategy.instantiate(SimpleInstantiationStrategy.java:140) ~[spring-beans-6.1.6.jar!/:6.1.6]
+content-service        | 2026-04-23 11:22:35.978 | 	... 41 common frames omitted
+content-service        | 2026-04-23 11:22:35.978 | 

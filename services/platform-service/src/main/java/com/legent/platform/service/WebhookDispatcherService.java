@@ -36,7 +36,7 @@ public class WebhookDispatcherService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    @SuppressWarnings("null")
+    
     @Async("webhookExecutor")
     public void dispatch(String tenantId, String eventType, Object payload) {
         

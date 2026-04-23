@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class SubscriberListService {
 
     private final SubscriberListRepository listRepository;

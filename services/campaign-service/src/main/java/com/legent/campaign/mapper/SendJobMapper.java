@@ -4,11 +4,12 @@ import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.dto.SendJobDto;
 import org.mapstruct.Mapper;
+import org.mapstruct.ReportingPolicy;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface SendJobMapper {
 
-    SendJobDto.Response toResponse(SendJob entity);
+    SendJobDto.Response toJobResponse(SendJob entity);
 
-    SendJobDto.BatchResponse toResponse(SendBatch entity);
+    SendJobDto.BatchResponse toBatchResponse(SendBatch entity);
 }

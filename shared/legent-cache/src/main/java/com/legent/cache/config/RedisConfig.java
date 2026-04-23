@@ -19,7 +19,7 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
  * Uses JSON serialization for values and String for keys.
  */
 @Configuration
-@SuppressWarnings("null")
+
 public class RedisConfig {
 
     @Value("${spring.data.redis.host:localhost}")

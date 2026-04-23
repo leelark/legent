@@ -32,7 +32,7 @@ import java.time.Duration;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class SubscriberService {
 
     private final SubscriberRepository subscriberRepository;

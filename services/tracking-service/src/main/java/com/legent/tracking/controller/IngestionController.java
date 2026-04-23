@@ -16,7 +16,7 @@ import java.net.URI;
 @RestController
 @RequestMapping("/api/v1/tracking")
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class IngestionController {
 
     private final TrackingIngestionService ingestionService;

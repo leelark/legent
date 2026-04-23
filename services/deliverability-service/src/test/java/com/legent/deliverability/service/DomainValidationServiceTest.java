@@ -14,8 +14,7 @@ class DomainValidationServiceTest {
         var config = new DomainConfig();
         config.setDomain("example.com");
         Mockito.when(repo.findByDomain("example.com")).thenReturn(config);
-        @SuppressWarnings({"null", "unused"})
-        var mockAnswer = Mockito.when(repo.save(Mockito.any())).thenAnswer(i -> (DomainConfig) i.getArgument(0));
+        Mockito.when(repo.save(Mockito.any())).thenAnswer(i -> (DomainConfig) i.getArgument(0));
         var service = new DomainValidationService(repo);
         var result = service.validateDomain("example.com");
         assertEquals("PASS", result.getSpfStatus());

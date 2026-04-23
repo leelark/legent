@@ -14,7 +14,7 @@ import org.springframework.web.servlet.HandlerInterceptor;
  */
 @Slf4j
 @Component
-@SuppressWarnings("null")
+
 public class TenantInterceptor implements HandlerInterceptor {
 
     @Override

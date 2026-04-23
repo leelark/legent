@@ -33,7 +33,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("OrchestrationService Unit Tests")
-@SuppressWarnings("null")
+
 class OrchestrationServiceTest {
 
     @Mock private CampaignRepository campaignRepository;
@@ -74,7 +74,7 @@ class OrchestrationServiceTest {
 
         when(campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(TENANT_ID, campId)).thenReturn(Optional.of(campaign));
         when(sendJobRepository.save(any(SendJob.class))).thenReturn(savedJob);
-        when(sendJobMapper.toResponse(savedJob)).thenReturn(expectedResponse);
+        when(sendJobMapper.toJobResponse(savedJob)).thenReturn(expectedResponse);
 
         SendJobDto.Response response = orchestrationService.triggerSend(campId, request);
 
@@ -103,7 +103,7 @@ class OrchestrationServiceTest {
 
         when(campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(TENANT_ID, campId)).thenReturn(Optional.of(campaign));
         when(sendJobRepository.save(any(SendJob.class))).thenReturn(savedJob);
-        when(sendJobMapper.toResponse(savedJob)).thenReturn(expectedResponse);
+        when(sendJobMapper.toJobResponse(savedJob)).thenReturn(expectedResponse);
 
         orchestrationService.triggerSend(campId, request);
 

@@ -160,10 +160,18 @@ services:
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
       - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
+      - SPRING_FLYWAY_VALIDATE_ON_MIGRATE=false
       - SPRING_FLYWAY_OUT_OF_ORDER=true
+      - KAFKA_BOOTSTRAP=kafka:9092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
       postgres-init:
         condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   content-service:
     build: ./services/content-service

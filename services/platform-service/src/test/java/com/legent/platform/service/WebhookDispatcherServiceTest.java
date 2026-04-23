@@ -22,7 +22,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-@SuppressWarnings({"null", "unchecked", "rawtypes"})
+@SuppressWarnings({"unchecked", "rawtypes"})
 class WebhookDispatcherServiceTest {
 
     @Mock private WebhookConfigRepository configRepository;

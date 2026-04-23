@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/platform/config")
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class PlatformConfigController {
 
     private final TenantConfigRepository configRepository;

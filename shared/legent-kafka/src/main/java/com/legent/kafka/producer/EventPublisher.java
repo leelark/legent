@@ -5,9 +5,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.CompletableFuture;
+
 
 /**
  * Generic event publisher for sending domain events to Kafka.
@@ -16,7 +18,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class EventPublisher {
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
@@ -26,10 +28,12 @@ public class EventPublisher {
      * Uses the event's tenantId as the partition key for ordering.
      */
     public <T> CompletableFuture<SendResult<String, Object>> publish(
-            String topic,
-            EventEnvelope<T> envelope) {
+            @NonNull String topic,
+            @NonNull EventEnvelope<T> envelope) {
 
-        String key = envelope.getTenantId() != null ? envelope.getTenantId() : envelope.getEventId();
+        String tenantId = envelope.getTenantId();
+        String eventId = envelope.getEventId();
+        String key = (tenantId != null) ? tenantId : (eventId != null ? eventId : "SYSTEM");
 
         log.info("Publishing event [{}] to topic [{}] with key [{}]",
                 envelope.getEventType(), topic, key);
@@ -53,14 +57,15 @@ public class EventPublisher {
      * Publishes with a custom partition key.
      */
     public <T> CompletableFuture<SendResult<String, Object>> publish(
-            String topic,
-            String partitionKey,
-            EventEnvelope<T> envelope) {
+            @NonNull String topic,
+            @NonNull String partitionKey,
+            @NonNull EventEnvelope<T> envelope) {
 
         log.info("Publishing event [{}] to topic [{}] with custom key [{}]",
                 envelope.getEventType(), topic, partitionKey);
 
-        return kafkaTemplate.send(topic, partitionKey, envelope)
+        String key = (partitionKey != null) ? partitionKey : "SYSTEM";
+        return kafkaTemplate.send(topic, key, envelope)
                 .whenComplete((result, ex) -> {
                     if (ex != null) {
                         log.error("Failed to publish event [{}] to [{}]: {}",

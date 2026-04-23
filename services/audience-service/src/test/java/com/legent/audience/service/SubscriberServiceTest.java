@@ -23,7 +23,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SubscriberService Unit Tests")
-@SuppressWarnings("null")
+
 class SubscriberServiceTest {
 
     @Mock private SubscriberRepository subscriberRepository;

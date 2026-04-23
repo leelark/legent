@@ -18,7 +18,7 @@ import org.xbill.DNS.Type;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class DomainVerificationService {
 
     private final SenderDomainRepository domainRepository;

@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @RestControllerAdvice
-@SuppressWarnings("null")
+
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(LegentException.class)
@@ -75,7 +75,7 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiResponse<Void>> buildResponse(
             String code, String message, String details, HttpStatus status) {
         ApiResponse<Void> body = ApiResponse.error(code, message, details);
-        return ResponseEntity.status(status).body(body);
+        return ResponseEntity.status(status != null ? status : HttpStatus.INTERNAL_SERVER_ERROR).body(body);
     }
 
     private String formatFieldError(FieldError error) {

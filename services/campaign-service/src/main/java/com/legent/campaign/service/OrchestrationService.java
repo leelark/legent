@@ -71,19 +71,19 @@ public class OrchestrationService {
             log.info("Scheduled send for job: {} at {}", job.getId(), job.getScheduledAt());
         }
 
-        return sendJobMapper.toResponse(job);
+        return sendJobMapper.toJobResponse(job);
     }
     
     @Transactional(readOnly = true)
     public Page<SendJobDto.Response> getJobsForCampaign(String campaignId, Pageable pageable) {
         return sendJobRepository.findByTenantIdAndCampaignIdAndDeletedAtIsNull(TenantContext.getTenantId(), campaignId, pageable)
-                .map(sendJobMapper::toResponse);
+                .map(sendJobMapper::toJobResponse);
     }
 
     @Transactional(readOnly = true)
     public SendJobDto.Response getJobStatus(String jobId) {
         return sendJobRepository.findByTenantIdAndIdAndDeletedAtIsNull(TenantContext.getTenantId(), jobId)
-                .map(sendJobMapper::toResponse)
+                .map(sendJobMapper::toJobResponse)
                 .orElseThrow(() -> new NotFoundException("SendJob", jobId));
     }
 }

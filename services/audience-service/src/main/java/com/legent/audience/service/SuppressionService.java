@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class SuppressionService {
 
     private final SuppressionRepository suppressionRepository;

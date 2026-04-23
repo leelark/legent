@@ -34,7 +34,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("WorkflowEngine Unit Tests")
-@SuppressWarnings("null")
+
 class WorkflowEngineTest {
 
     @Mock private WorkflowInstanceRepository instanceRepository;

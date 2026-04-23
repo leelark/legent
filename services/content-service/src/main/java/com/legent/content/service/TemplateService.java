@@ -90,7 +90,7 @@ public class TemplateService {
 
         boolean contentChanged = request.getHtmlContent() != null || request.getSubject() != null;
         
-        @SuppressWarnings("null")
+        
         EmailTemplate savedTemplate = templateRepository.save(template);
 
         if (contentChanged) {

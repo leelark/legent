@@ -28,7 +28,7 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("BatchingService Unit Tests")
-@SuppressWarnings("null")
+
 class BatchingServiceTest {
 
     @Mock private SendBatchRepository batchRepository;

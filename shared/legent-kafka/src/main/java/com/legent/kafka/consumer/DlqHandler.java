@@ -4,6 +4,7 @@ import com.legent.kafka.model.EventEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
 /**
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-@SuppressWarnings("null")
+
 public class DlqHandler {
 
     private static final String DLQ_SUFFIX = ".dlq";
@@ -27,7 +28,7 @@ public class DlqHandler {
      * @param envelope      the failed event envelope
      * @param error         the exception that caused the failure
      */
-    public <T> void sendToDlq(String originalTopic, EventEnvelope<T> envelope, Throwable error) {
+    public <T> void sendToDlq(@NonNull String originalTopic, @NonNull EventEnvelope<T> envelope, @NonNull Throwable error) {
         String dlqTopic = originalTopic + DLQ_SUFFIX;
 
         log.error("Routing event [{}] from [{}] to DLQ [{}] after {} retries. Error: {}",
@@ -38,7 +39,9 @@ public class DlqHandler {
                 error.getMessage());
 
         try {
-            kafkaTemplate.send(dlqTopic, envelope.getTenantId(), envelope);
+            String tenantId = envelope.getTenantId();
+            String key = (tenantId != null) ? tenantId : "SYSTEM";
+            kafkaTemplate.send(dlqTopic, key, envelope);
         } catch (Exception ex) {
             log.error("CRITICAL: Failed to send to DLQ [{}]: {}", dlqTopic, ex.getMessage(), ex);
             // At this point the event is lost — this should trigger an alert
