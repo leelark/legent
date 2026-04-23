@@ -59,7 +59,7 @@ public class SegmentController {
     @PostMapping("/{id}/recompute")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public ApiResponse<String> recompute(@PathVariable @org.springframework.lang.NonNull String id) {
-        evaluationService.recompute(id);
+        evaluationService.recompute(id, com.legent.security.TenantContext.requireTenantId());
         return ApiResponse.ok("Segment recomputation started");
     }
 }

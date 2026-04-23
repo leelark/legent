@@ -49,6 +49,9 @@ public class SegmentEvaluationService {
     private final EntityManager entityManager;
     private final JdbcTemplate jdbcTemplate;
 
+    @org.springframework.context.annotation.Lazy
+    private final SegmentEvaluationService self;
+
     private static final Duration COUNT_CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_SEGMENT_COUNT_TTL_SECONDS);
 
     /**
@@ -60,7 +63,7 @@ public class SegmentEvaluationService {
         Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 
-        String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_SEGMENT_COUNT_PREFIX, segmentId);
+        String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
         Optional<SegmentDto.CountPreview> cached = cacheService.get(cacheKey, SegmentDto.CountPreview.class);
         if (cached.isPresent()) return cached.get();
 
@@ -88,8 +91,7 @@ public class SegmentEvaluationService {
 
     @Async("segmentExecutor")
     @Transactional
-    public void recompute(@org.springframework.lang.NonNull String segmentId) {
-        String tenantId = TenantContext.requireTenantId();
+    public void recompute(@org.springframework.lang.NonNull String segmentId, String tenantId) {
         Segment segment = segmentRepository.findById(segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 
@@ -129,7 +131,7 @@ public class SegmentEvaluationService {
             segmentRepository.save(segment);
 
             // Invalidate count cache
-            String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_SEGMENT_COUNT_PREFIX, segmentId);
+            String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
             cacheService.delete(cacheKey);
 
             eventPublisher.publishRecomputed(segment);
@@ -156,7 +158,7 @@ public class SegmentEvaluationService {
             try {
                 TenantContext.setTenantId(seg.getTenantId());
                 String segmentId = java.util.Objects.requireNonNull(seg.getId(), "Segment ID cannot be null");
-                recompute(segmentId);
+                self.recompute(segmentId, seg.getTenantId());
             } catch (Exception e) {
                 log.error("Failed to recompute segment {}: {}", seg.getId(), e.getMessage());
             } finally {

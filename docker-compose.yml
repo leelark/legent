@@ -4,14 +4,14 @@ services:
     container_name: legent-postgres
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: legent_user
-      POSTGRES_PASSWORD: legent_password
+      POSTGRES_USER: legent
+      POSTGRES_PASSWORD: legent
     ports:
       - "5432:5432"
     volumes:
       - legent_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U legent_user -d postgres" ]
+      test: [ "CMD-SHELL", "pg_isready -U legent -d postgres" ]
       interval: 5s
       timeout: 5s
       retries: 15
@@ -23,22 +23,22 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      PGPASSWORD: legent_password
+      PGPASSWORD: legent
     command:
       - sh
       - -c
       - |
         set -e
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_foundation'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_foundation"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_identity'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_identity"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_audience'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_audience"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_content'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_content"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_campaign'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_campaign"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_delivery'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_delivery"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_tracking'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_tracking"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_automation'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_automation"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_deliverability'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_deliverability"
-        psql -h postgres -U legent_user -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_platform'" | grep -q 1 || psql -h postgres -U legent_user -d postgres -c "CREATE DATABASE legent_platform"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_foundation'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_foundation"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_identity'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_identity"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_audience'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_audience"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_content'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_content"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_campaign'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_campaign"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_delivery'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_delivery"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_tracking'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_tracking"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_automation'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_automation"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_deliverability'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_deliverability"
+        psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='legent_platform'" | grep -q 1 || psql -h postgres -U legent -d postgres -c "CREATE DATABASE legent_platform"
         echo "All databases created successfully"
 
   redis:
@@ -141,6 +141,63 @@ services:
       timeout: 20s
       retries: 3
 
+  opensearch:
+    image: opensearchproject/opensearch:2.11.0
+    container_name: legent-opensearch
+    environment:
+      - cluster.name=legent-cluster
+      - node.name=legent-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.8-alpine
+    container_name: legent-clickhouse
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: legent-kafka-ui
+    ports:
+      - "8091:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    depends_on:
+      kafka:
+        condition: service_healthy
+
+
   foundation-service:
     build: ./services/foundation-service
     container_name: legent-foundation
@@ -150,8 +207,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_foundation
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -183,8 +240,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_identity
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -211,13 +268,13 @@ services:
     build: ./services/content-service
     container_name: legent-content
     ports:
-      - "8090:8083"
+      - "8090:8090"
     environment:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_content
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -239,7 +296,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1" ]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8090/actuator/health || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -255,8 +312,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_audience
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -288,8 +345,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_campaign
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -321,8 +378,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_delivery
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -356,8 +413,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_tracking
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -389,8 +446,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_automation
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -422,8 +479,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_deliverability
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true
@@ -455,8 +512,8 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - JAVA_TOOL_OPTIONS=-Xmx512m -Xms512m
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/legent_platform
-      - SPRING_DATASOURCE_USERNAME=legent_user
-      - SPRING_DATASOURCE_PASSWORD=legent_password
+      - SPRING_DATASOURCE_USERNAME=legent
+      - SPRING_DATASOURCE_PASSWORD=legent
       - SPRING_JPA_HIBERNATE_DDL_AUTO=update
       - SPRING_FLYWAY_ENABLED=true
       - SPRING_FLYWAY_BASELINE_ON_MIGRATE=true

@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: 8090
 
 logging:
   level:
@@ -17,8 +17,8 @@ spring:
   # ── Database ──
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/legent_content}
-    username: ${SPRING_DATASOURCE_USERNAME:legent_user}
-    password: ${SPRING_DATASOURCE_PASSWORD:legent_password}
+    username: ${SPRING_DATASOURCE_USERNAME:legent}
+    password: ${SPRING_DATASOURCE_PASSWORD:legent}
     driver-class-name: org.postgresql.Driver
   jpa:
     open-in-view: false

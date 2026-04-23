@@ -19,13 +19,14 @@ data:
   # Service URLs (internal DNS)
   FOUNDATION_SERVICE_URL: "http://foundation-service:8081"
   AUDIENCE_SERVICE_URL: "http://audience-service:8082"
-  CONTENT_SERVICE_URL: "http://content-service:8083"
-  CAMPAIGN_SERVICE_URL: "http://campaign-service:8084"
-  DELIVERY_SERVICE_URL: "http://delivery-service:8085"
-  TRACKING_SERVICE_URL: "http://tracking-service:8086"
-  AUTOMATION_SERVICE_URL: "http://automation-service:8087"
-  DELIVERABILITY_SERVICE_URL: "http://deliverability-service:8088"
-  ADMIN_SERVICE_URL: "http://admin-service:8089"
+  CONTENT_SERVICE_URL: "http://content-service:8090"
+  CAMPAIGN_SERVICE_URL: "http://campaign-service:8083"
+  DELIVERY_SERVICE_URL: "http://delivery-service:8084"
+  TRACKING_SERVICE_URL: "http://tracking-service:8085"
+  AUTOMATION_SERVICE_URL: "http://automation-service:8086"
+  DELIVERABILITY_SERVICE_URL: "http://deliverability-service:8087"
+  PLATFORM_SERVICE_URL: "http://platform-service:8088"
+  IDENTITY_SERVICE_URL: "http://identity-service:8089"
 
   # General
   SPRING_PROFILES_ACTIVE: "prod"

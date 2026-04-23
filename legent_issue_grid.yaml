@@ -1,0 +1,1015 @@
+- Fix Order: 1
+  Priority: P0
+  Layer: Infra
+  Module: DB bootstrap
+  File(s): docker-compose.yml; infrastructure/docker/local/postgres-init/init-databases.sql
+  Issue Type: DB / bootstrap
+  Short Description: Database list differs between local SQL and Docker init logic
+  Detailed Description: The Docker init path creates one set of databases, while the
+    standalone SQL bootstrap creates a different set and omits some service databases
+    while adding an unused one.
+  Root Cause: The older SQL script predates later services and was never synchronized.
+  Fix Direction: Keep one source of truth for database creation and align all bootstraps
+    to it.
+  Impact / Risk: Some environments will boot with missing databases.
+- Fix Order: 2
+  Priority: P0
+  Layer: Infra
+  Module: DB users & local profiles
+  File(s): docker-compose.yml; services/*/src/main/resources/application.yml; services/audience-service/src/main/resources/application-local.yml;
+    infrastructure/kubernetes/base/configmap.yml; infrastructure/docker/local/postgres-init/init-databases.sql
+  Issue Type: DB / config
+  Short Description: DB user naming is inconsistent across Docker, K8s, and local
+    profiles
+  Detailed Description: Docker uses one Postgres principal while service defaults,
+    local profiles, K8s config, and init scripts refer to a different one. Fresh local
+    runs and cluster deployments therefore depend on different DB usernames and passwords.
+  Root Cause: DB bootstrap evolved in stages and each layer hard-coded its own principal.
+  Fix Direction: Choose one canonical DB user and propagate it to Docker, local profiles,
+    K8s, and all init scripts.
+  Impact / Risk: Authentication failures and confusing environment-specific behavior.
+- Fix Order: 3
+  Priority: P0
+  Layer: Infra
+  Module: Kubernetes
+  File(s): infrastructure/kubernetes/base/configmap.yml; infrastructure/kubernetes/ingress/ingress.yml;
+    services/*/src/main/resources/application.yml
+  Issue Type: Port mismatch
+  Short Description: Cluster service ports do not match application ports
+  Detailed Description: Several Kubernetes service URLs/ingress targets are offset
+    from the real Spring Boot ports. Campaign, tracking, automation, and deliverability
+    are all mapped to wrong numbers in cluster manifests.
+  Root Cause: Hardcoded infrastructure ports drifted away from actual service configs.
+  Fix Direction: Align every manifest with the real application port, and ideally
+    derive them from one source of truth.
+  Impact / Risk: Services will be unreachable or routed to the wrong backend in Kubernetes.
+- Fix Order: 4
+  Priority: P0
+  Layer: Infra
+  Module: identity-service
+  File(s): services/identity-service/src/main/resources/db/migration/V2__initial_data.sql
+  Issue Type: Data / bootstrap
+  Short Description: Default admin password hash is invalid
+  Detailed Description: The seeded admin user contains a hard-coded placeholder password
+    hash rather than a real bcrypt value for the documented admin credentials. First-time
+    admin login therefore fails consistently.
+  Root Cause: The seed script used a dummy hash and was never corrected.
+  Fix Direction: Generate a real bcrypt hash, update the migration/data seed, and
+    document the effective default credentials clearly.
+  Impact / Risk: Initial platform access is blocked.
+- Fix Order: 5
+  Priority: P0
+  Layer: Infra
+  Module: tracking-service
+  File(s): services/tracking-service/src/main/resources/application.yml
+  Issue Type: Misconfiguration
+  Short Description: ClickHouse datasource is wired to PostgreSQL settings
+  Detailed Description: The ClickHouse section reuses the PostgreSQL JDBC URL and
+    driver, so analytics data is not pointed to a real ClickHouse store. Any ClickHouse-specific
+    read/write path will behave like Postgres or fail at runtime.
+  Root Cause: Copied datasource defaults were left in place; no separate ClickHouse
+    connection properties were implemented.
+  Fix Direction: Define a real ClickHouse datasource or remove the ClickHouse abstraction
+    until it is implemented end-to-end.
+  Impact / Risk: Analytics ingestion/query paths can silently hit the wrong database
+    or fail completely.
+- Fix Order: 6
+  Priority: P0
+  Layer: Kubernetes
+  Module: ingress
+  File(s): infrastructure/kubernetes/ingress/ingress.yml
+  Issue Type: Routing coverage
+  Short Description: Important APIs are not exposed via ingress
+  Detailed Description: The ingress covers only a subset of public APIs and omits
+    auth, providers, deliverability, platform, and admin routes used by the platform
+    and UI flows.
+  Root Cause: Ingress paths were drafted early and not updated as services were added.
+  Fix Direction: Add the missing routes and make sure each path maps to the right
+    service and port.
+  Impact / Risk: Clients in Kubernetes cannot reach major platform capabilities.
+- Fix Order: 7
+  Priority: P0
+  Layer: Kubernetes
+  Module: microservices coverage
+  File(s): infrastructure/kubernetes/base/services/foundation-service.yml; infrastructure/kubernetes/ingress/ingress.yml
+  Issue Type: Deployment coverage
+  Short Description: Only foundation-service has a K8s Deployment/Service
+  Detailed Description: The base manifests define runtime coverage only for foundation-service,
+    but the ingress expects many more in-cluster services. As written, most public
+    routes will point at services that do not exist in the cluster.
+  Root Cause: Only the first service was scaffolded for Kubernetes.
+  Fix Direction: Create Deployment and Service manifests for all microservices and
+    shared infra, then align ingress/service names and ports.
+  Impact / Risk: Most APIs are unreachable in Kubernetes.
+- Fix Order: 8
+  Priority: P0
+  Layer: Backend
+  Module: audience-service
+  File(s): services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java
+  Issue Type: Execution issue
+  Short Description: Scheduled recompute calls @Async/@Transactional method through
+    self-invocation
+  Detailed Description: The scheduled recompute method calls recompute() inside the
+    same bean. Spring proxy advice is bypassed, so the annotated async/transaction
+    behavior is not guaranteed to execute as intended.
+  Root Cause: Internal method call bypasses the Spring proxy.
+  Fix Direction: Move recompute() into another bean or inject the proxied self reference
+    explicitly.
+  Impact / Risk: Recompute may run synchronously inside the scheduler thread and transactional
+    semantics become unreliable.
+- Fix Order: 9
+  Priority: P0
+  Layer: Backend
+  Module: audience-service
+  File(s): services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java
+  Issue Type: Logic / caching
+  Short Description: Segment count cache key is not tenant-scoped
+  Detailed Description: The segment preview cache key is built from the segment ID
+    only. In a multi-tenant system this can return the wrong count when segment IDs
+    collide or when tenant context changes.
+  Root Cause: Cache key generation omitted tenantId even though the query is tenant-specific.
+  Fix Direction: Include tenantId in the cache key and invalidate by tenant + segment.
+  Impact / Risk: Cross-tenant cache bleed, stale counts, and incorrect audience previews.
+- Fix Order: 10
+  Priority: P0
+  Layer: Backend
+  Module: tracking-service
+  File(s): services/tracking-service/src/main/java/com/legent/tracking/TrackingApplication.java;
+    services/tracking-service/src/main/java/com/legent/tracking/ws/AnalyticsWebSocketHandler.java
+  Issue Type: Runtime wiring
+  Short Description: '@Scheduled method cannot run because scheduling is never enabled'
+  Detailed Description: The WebSocket handler contains a scheduled broadcaster, but
+    the application class only enables async execution. Without scheduling enabled,
+    the heartbeat / analytics push method never fires.
+  Root Cause: Missing @EnableScheduling on the tracking application bootstrap.
+  Fix Direction: Add @EnableScheduling or move the scheduler to a configuration class
+    that enables scheduled tasks.
+  Impact / Risk: Real-time analytics feed never starts, so the UI only receives stale
+    or no updates.
+- Fix Order: 11
+  Priority: P1
+  Layer: Infra
+  Module: MinIO
+  File(s): docker-compose.yml; infrastructure/kubernetes/base/secrets.yml; services/content-service/src/main/resources/application.yml
+  Issue Type: Config / secrets
+  Short Description: MinIO credentials differ between Docker and Kubernetes
+  Detailed Description: Docker and K8s use different access/secret pairs, while the
+    content service falls back to its own defaults. This makes object storage authentication
+    environment-dependent instead of centrally configured.
+  Root Cause: Credentials were changed for one environment without aligning the others.
+  Fix Direction: Use a single secret source and remove hard-coded fallback credentials.
+  Impact / Risk: Content upload flows can fail in one environment but not another.
+- Fix Order: 12
+  Priority: P1
+  Layer: Docs / Infra
+  Module: README.md; docker-compose.yml; project layout
+  File(s): README.md; docker-compose.yml; root folder structure
+  Issue Type: Documentation drift
+  Short Description: README describes services and tools that are not present
+  Detailed Description: The README claims OpenSearch, ClickHouse, Kafka UI, and an
+    admin service are started, but the compose file and repository layout do not match
+    that claim. The project structure also references a docs folder that is misspelled
+    in the repo.
+  Root Cause: Docs were not updated after the implementation changed.
+  Fix Direction: Rewrite the quick-start and architecture sections to match the actual
+    repo and compose file.
+  Impact / Risk: Onboarding and deployment guidance becomes misleading and causes
+    setup failures.
+- Fix Order: 13
+  Priority: P1
+  Layer: Infra
+  Module: docker-compose / platform stack
+  File(s): docker-compose.yml
+  Issue Type: Infra / coverage
+  Short Description: Target platform services are missing from the default compose
+    stack
+  Detailed Description: The default Docker stack starts the core services but omits
+    OpenSearch, ClickHouse, and Kafka UI even though the architecture/README expect
+    them. Search visibility, analytics storage, and ops debugging are therefore incomplete
+    in the standard developer environment.
+  Root Cause: The compose file was not kept in sync with the intended platform blueprint.
+  Fix Direction: Add the missing containers, health checks, and env wiring, or remove
+    them from the documented baseline if they are intentionally out of scope.
+  Impact / Risk: Developers cannot exercise search/analytics features, and operational
+    visibility is reduced.
+- Fix Order: 14
+  Priority: P1
+  Layer: Infra / DB bootstrap
+  Module: postgres init
+  File(s): infrastructure/docker/local/postgres-init/init-databases.sql; docker-compose.yml
+  Issue Type: DB / config
+  Short Description: DB init contract and database list diverge between local SQL
+    and Docker bootstrap
+  Detailed Description: The SQL bootstrap and the Docker-based init logic do not create
+    the same database set, and the SQL script grants privileges to a user name that
+    differs from the Docker Postgres principal. Local bootstrap behavior is therefore
+    inconsistent and can fail depending on which path is used.
+  Root Cause: Two bootstrap paths were written independently and never normalized.
+  Fix Direction: Use one canonical DB bootstrap source and keep the role/database
+    names identical everywhere.
+  Impact / Risk: Fresh local runs can fail or produce a different schema topology
+    from container runs.
+- Fix Order: 15
+  Priority: P1
+  Layer: Infra
+  Module: root
+  File(s): docker
+  Issue Type: Repository layout
+  Short Description: Root docker path is a file, not a docker directory
+  Detailed Description: The repo contains a zero-byte top-level item named docker.
+    If any script or documentation expects a docker folder, path resolution will fail
+    or behave unexpectedly.
+  Root Cause: Accidental file artifact or misnamed placeholder.
+  Fix Direction: Remove, rename, or replace it with the intended directory structure.
+  Impact / Risk: Build scripts and human operators may target a path that does not
+    exist.
+- Fix Order: 16
+  Priority: P1
+  Layer: Shared security
+  Module: error handling
+  File(s): shared/legent-security/src/main/java/com/legent/security/TenantFilter.java;
+    shared/legent-common/src/main/java/com/legent/common/dto/ApiResponse.java; shared/legent-common/src/main/java/com/legent/common/exception/GlobalExceptionHandler.java
+  Issue Type: Contract / error shape
+  Short Description: Missing tenant header returns ad-hoc JSON instead of the standard
+    envelope
+  Detailed Description: The tenant filter emits a custom JSON body when X-Tenant-Id
+    is missing, bypassing the shared ApiResponse contract and the global exception
+    handler. That creates a second error shape for a common failure condition.
+  Root Cause: The filter was implemented independently of the shared error envelope.
+  Fix Direction: Refactor the filter to use ApiResponse or throw a custom exception
+    handled by the global handler.
+  Impact / Risk: Clients may fail to parse tenant-related errors consistently.
+- Fix Order: 17
+  Priority: P1
+  Layer: Shared security
+  Module: security library
+  File(s): shared/legent-security/src/main/java/com/legent/security/SecurityProperties.java;
+    shared/legent-security/src/main/java/com/legent/security/JwtTokenProvider.java
+  Issue Type: Security / config
+  Short Description: JWT secret fallback is predictable
+  Detailed Description: The shared security properties expose default JWT and CORS
+    values, and the token provider can operate with that predictable fallback. If
+    the intended environment variables are missing, authentication can silently degrade
+    to a weak default.
+  Root Cause: Safe-by-default behavior was not enforced in the shared security library.
+  Fix Direction: Require secrets and allowed origins from environment/secret storage
+    and fail fast when they are missing.
+  Impact / Risk: Auth can be weakened by configuration drift or accidental defaults.
+- Fix Order: 18
+  Priority: P1
+  Layer: Shared security
+  Module: tenant context
+  File(s): shared/legent-security/src/main/java/com/legent/security/TenantContext.java
+  Issue Type: Runtime / concurrency
+  Short Description: Tenant context is ThreadLocal only
+  Detailed Description: Tenant/user state is stored in ThreadLocal without a clear
+    async propagation strategy. Scheduled jobs, async execution, and listeners can
+    therefore lose tenant identity outside the request thread.
+  Root Cause: Context propagation was not designed end-to-end.
+  Fix Direction: Propagate tenant context through async executors, listeners, and
+    scheduled flows, and add tests that cover those paths.
+  Impact / Risk: Cross-thread operations can execute under the wrong tenant or with
+    no tenant at all.
+- Fix Order: 19
+  Priority: P1
+  Layer: Shared common
+  Module: tenant-aware entity
+  File(s): shared/legent-common/src/main/java/com/legent/common/model/TenantAwareEntity.java
+  Issue Type: Data / tenant isolation
+  Short Description: Tenant id is not auto-populated on persist
+  Detailed Description: The base entity enforces that tenant id exists, but it does
+    not populate tenant id from the current request context. Every caller must remember
+    to set it manually, which is brittle and easy to miss.
+  Root Cause: The base entity contract is incomplete.
+  Fix Direction: Add an entity listener or lifecycle hook that populates tenant id
+    from the tenant context on persist.
+  Impact / Risk: Tenant isolation depends on caller discipline and can fail silently.
+- Fix Order: 20
+  Priority: P1
+  Layer: Foundation
+  Module: config service
+  File(s): services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java
+  Issue Type: Config / cache
+  Short Description: Config cache invalidation is asymmetric
+  Detailed Description: Resolve and invalidate paths do not obviously use the same
+    key generation logic, so updates can leave stale tenant/global variants behind
+    or evict the wrong value.
+  Root Cause: Read and write cache paths were implemented independently.
+  Fix Direction: Centralize key generation and invalidation and test tenant/global
+    overrides explicitly.
+  Impact / Risk: Users can see stale configuration after updates.
+- Fix Order: 21
+  Priority: P1
+  Layer: Foundation
+  Module: webhooks
+  File(s): services/foundation-service/src/main/java/com/legent/foundation/service/WebhookService.java
+  Issue Type: Integration / multi-tenant
+  Short Description: Foundation webhooks are global and non-durable
+  Detailed Description: The service loops over all webhooks and posts without strong
+    tenant scoping, retries, or a delivery log. It behaves like a simple broadcast
+    helper rather than a production webhook dispatcher.
+  Root Cause: Simple integration path was left in place instead of durable dispatch.
+  Fix Direction: Scope by tenant, add retry/outbox/DLQ handling, and persist delivery
+    lifecycle state.
+  Impact / Risk: Missed deliveries and cross-tenant webhook noise.
+- Fix Order: 22
+  Priority: P1
+  Layer: Tracking
+  Module: tracking-service
+  File(s): services/tracking-service/src/main/java/com/legent/tracking/event/TrackingEventPublisher.java
+  Issue Type: Event / data integrity
+  Short Description: Tracking events lose tenant context and build JSON by hand
+  Detailed Description: Open/click/conversion events are published without tenant
+    id, and click payloads are assembled via string concatenation rather than a serializer.
+    That hurts attribution and can break JSON escaping.
+  Root Cause: The event model was not completed.
+  Fix Direction: Include tenant id in every event and serialize payloads through DTO/object
+    mapping.
+  Impact / Risk: Analytics attribution is unreliable and malformed JSON is possible.
+- Fix Order: 23
+  Priority: P1
+  Layer: Frontend
+  Module: automation builder
+  File(s): frontend/src/app/(workspace)/automations/builder/page.tsx
+  Issue Type: Demo mashup
+  Short Description: Builder page mixes unrelated dashboards and hardcoded demo data
+  Detailed Description: The page embeds deliverability, tracking, and analytics widgets
+    directly inside the workflow editor. It also seeds the builder with demo workflow
+    and domain values, which makes the page look like a demo shell rather than production
+    UI.
+  Root Cause: Prototype content was left in the production route.
+  Fix Direction: Split the page into a real builder surface and optional analytics
+    panels fed by actual IDs.
+  Impact / Risk: User experience is confusing and the page does not represent live
+    data correctly.
+- Fix Order: 24
+  Priority: P1
+  Layer: Frontend
+  Module: automation nodes
+  File(s): frontend/src/components/automation/NodeEditorModal.tsx
+  Issue Type: Incomplete editor
+  Short Description: Node editor can only rename a node
+  Detailed Description: The modal renders only a label field and returns null when
+    node is absent. It cannot open in create mode and does not expose node-type configuration,
+    branch settings, or payload fields.
+  Root Cause: Editor UI was scaffolded but not completed.
+  Fix Direction: Support create/edit modes and render type-specific configuration
+    forms.
+  Impact / Risk: Workflow nodes cannot be configured beyond a label, so the builder
+    is effectively incomplete.
+- Fix Order: 25
+  Priority: P1
+  Layer: Frontend
+  Module: campaigns
+  File(s): frontend/src/app/(workspace)/campaigns/page.tsx
+  Issue Type: Placeholder UI
+  Short Description: Campaign list page is hardcoded to an empty data set
+  Detailed Description: The table renders with data={[]} and a comment saying to connect
+    the API later. This means the page cannot list, search, or manage real campaigns.
+  Root Cause: List API was not wired yet.
+  Fix Direction: Fetch campaign data from the backend and bind search/filter state
+    to it.
+  Impact / Risk: Users cannot view their campaigns, so the page is not operational.
+- Fix Order: 26
+  Priority: P1
+  Layer: Frontend
+  Module: campaigns
+  File(s): frontend/src/app/(workspace)/campaigns/new/page.tsx
+  Issue Type: Functional gap
+  Short Description: Wizard skips audience, scheduling, and draft persistence
+  Detailed Description: The wizard collects properties but does not persist audience
+    selection or delivery schedule. It always shows Immediate in review and then auto-sends
+    the campaign after create, using a fallback template id if none is entered.
+  Root Cause: Wizard steps are visual only; no real state model was completed.
+  Fix Direction: Persist draft state, validate content and audience, and separate
+    create from send.
+  Impact / Risk: Users cannot create a proper scheduled campaign flow.
+- Fix Order: 27
+  Priority: P1
+  Layer: Frontend
+  Module: gateway wiring
+  File(s): frontend/next.config.js; frontend/src/lib/api-client.ts
+  Issue Type: Integration / routing
+  Short Description: API base URL handling is tightly coupled to the gateway
+  Detailed Description: The frontend assumes a specific gateway origin and rewrite
+    behavior. In deployments where the proxy topology differs, the client can double-proxy
+    requests or call the wrong origin unless the environment is configured exactly
+    right.
+  Root Cause: The API client and rewrite logic were optimized for the local Docker
+    topology.
+  Fix Direction: Make the API base URL an explicit production requirement and simplify
+    the routing model around one source of truth.
+  Impact / Risk: Frontend requests can break outside the default local topology.
+- Fix Order: 28
+  Priority: P1
+  Layer: Security / auth
+  Module: identity + foundation
+  File(s): services/identity-service/src/main/java/com/legent/identity/config/SecurityConfig.java;
+    services/foundation-service/src/main/java/com/legent/foundation/config/SecurityConfig.java
+  Issue Type: Security
+  Short Description: Auth is only partially implemented platform-wide
+  Detailed Description: The platform still relies on permissive defaults and does
+    not enforce a consistent tenant-aware authorization model across every module.
+    Some services are tighter than others, but the end-to-end auth story is still
+    incomplete.
+  Root Cause: Auth rollout is uneven across services.
+  Fix Direction: Standardize JWT and tenant enforcement across all services and remove
+    permissive defaults from shared config.
+  Impact / Risk: Users can encounter inconsistent access control between modules.
+- Fix Order: 29
+  Priority: P1
+  Layer: Config
+  Module: all services
+  File(s): services/**/src/main/resources/application*.yml
+  Issue Type: Config / security
+  Short Description: Development defaults are hardcoded across service configs
+  Detailed Description: Several service configuration files still contain localhost
+    endpoints, plaintext passwords, and fallback secrets. That is acceptable only
+    for isolated local development; if reused in a non-local profile, the platform
+    can authenticate against the wrong dependencies or expose weak defaults.
+  Root Cause: Development defaults were left in production-facing configuration files.
+  Fix Direction: Move secrets to env/secret manager, remove risky fallbacks, and validate
+    mandatory settings during startup.
+  Impact / Risk: Misconfiguration can leak into shared environments and create security
+    or runtime failures.
+- Fix Order: 30
+  Priority: P1
+  Layer: Backend
+  Module: audience-service
+  File(s): services/audience-service/src/main/java/com/legent/audience/event/DeliveryEventConsumer.java
+  Issue Type: Event / logic bug
+  Short Description: Bounced/unsubscribed events may never match
+  Detailed Description: The consumer listens on lowercase topic names but compares
+    eventType values in a different casing/convention. That mismatch can prevent the
+    intended branch from executing.
+  Root Cause: Event naming conventions were not normalized across producers and consumers.
+  Fix Direction: Standardize topic and event type naming across the pipeline.
+  Impact / Risk: Important unsubscribe/bounce events can be ignored.
+- Fix Order: 31
+  Priority: P1
+  Layer: Backend
+  Module: audience-service
+  File(s): services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java
+  Issue Type: Environment / file handling
+  Short Description: CSV import reads from a local file path stored in the job
+  Detailed Description: The import service opens job.getFileName() as a filesystem
+    path. In containers or distributed deployments that path may not exist, so imports
+    will fail unless the file happens to be mounted locally.
+  Root Cause: Local-disk assumption was baked into job processing.
+  Fix Direction: Persist uploads in object storage or a shared volume and stream them
+    from there.
+  Impact / Risk: Imports fail in Kubernetes or any environment without the same local
+    filesystem.
+- Fix Order: 32
+  Priority: P1
+  Layer: Backend
+  Module: audience-service
+  File(s): services/audience-service/src/main/java/com/legent/audience/controller/ImportController.java
+  Issue Type: API / placeholder
+  Short Description: Mock import endpoint is exposed in the live API
+  Detailed Description: The controller exposes a mock /mock route inside the production-facing
+    API surface. That suggests a test stub or demonstration path was never removed
+    or profile-gated.
+  Root Cause: Test stub was left in the live controller.
+  Fix Direction: Remove the mock route or guard it behind a non-production profile.
+  Impact / Risk: Users and integrations may hit a non-real import path.
+- Fix Order: 33
+  Priority: P1
+  Layer: Backend
+  Module: audience-service
+  File(s): services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java
+  Issue Type: Algorithm / DB
+  Short Description: Segment engine is brittle and partially hand-built
+  Detailed Description: The rule engine dynamically builds SQL/rules and still has
+    partial branches. It works as a prototype, but the validation, parsing, and execution
+    layers are not clearly separated.
+  Root Cause: Rule parser, validator, and executor are not fully separated.
+  Fix Direction: Split parsing, validation, and query execution into distinct layers
+    and add rule-schema tests.
+  Impact / Risk: Complex segments can behave unpredictably and are harder to validate
+    safely.
+- Fix Order: 34
+  Priority: P1
+  Layer: Backend
+  Module: campaign-service
+  File(s): services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java
+  Issue Type: Algorithm / delivery metrics
+  Short Description: Success count actually means queued, not sent
+  Detailed Description: The batch counts acquired permits as success before the delivery
+    engine confirms the send. That makes the success metric represent queue admission
+    instead of actual delivery outcome.
+  Root Cause: Queue handoff was treated as delivery success.
+  Fix Direction: Separate queue admission from confirmed delivery success and move
+    waiting/retry into durable orchestration.
+  Impact / Risk: Operational metrics overstate delivery success.
+- Fix Order: 35
+  Priority: P1
+  Layer: Backend
+  Module: content-service
+  File(s): services/content-service/src/main/java/com/legent/content/service/AssetService.java
+  Issue Type: Storage / feature completeness
+  Short Description: Asset create path is not a real upload flow
+  Detailed Description: createAsset() stores the request URL as storagePath, leaves
+    tags null, and does not upload binary content to MinIO. The metadata flow exists,
+    but the actual asset ingestion flow is incomplete.
+  Root Cause: Metadata and file upload flows were split too early.
+  Fix Direction: Combine upload and metadata persistence into one flow and store real
+    object metadata.
+  Impact / Risk: Assets can be registered without ever being stored.
+- Fix Order: 36
+  Priority: P1
+  Layer: Backend
+  Module: deliverability-service
+  File(s): services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainVerificationService.java
+  Issue Type: Incorrect assumption
+  Short Description: DKIM lookup uses a hardcoded selector
+  Detailed Description: The verification logic assumes selector 'legent' for every
+    domain. Real senders usually vary the DKIM selector, so many valid domains will
+    fail verification or be marked inactive.
+  Root Cause: Selector value was hardcoded as a temporary example.
+  Fix Direction: Store selector per domain/provider or discover it from the domain
+    configuration.
+  Impact / Risk: Valid domains can be incorrectly rejected or left inactive.
+- Fix Order: 37
+  Priority: P1
+  Layer: Backend
+  Module: deliverability-service
+  File(s): services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainVerificationService.java
+  Issue Type: Feature / correctness
+  Short Description: DNS verification is only partially real
+  Detailed Description: The service supports a mockDns toggle, hardcodes the DKIM
+    selector, and uses a simplified activation rule. It is closer to a staged demo
+    than a fully configurable verification engine.
+  Root Cause: Real verification and local mock mode were blended together.
+  Fix Direction: Separate mock/dev and prod paths, make selectors configurable, and
+    define explicit activation criteria.
+  Impact / Risk: Domain state can be reported as healthy without a real DNS check.
+- Fix Order: 38
+  Priority: P1
+  Layer: Backend
+  Module: deliverability-service
+  File(s): services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainValidationService.java
+  Issue Type: Placeholder logic
+  Short Description: Domain validation is simulated, not real
+  Detailed Description: The service marks SPF, DKIM, and DMARC as PASS without actually
+    checking DNS. It returns VERIFIED even when no real validation occurred, which
+    makes the feature functionally incorrect.
+  Root Cause: Stub implementation left in production service code.
+  Fix Direction: Implement real DNS validation or gate this path behind an explicit
+    mock/test mode.
+  Impact / Risk: False verification status breaks deliverability workflows and user
+    trust.
+- Fix Order: 39
+  Priority: P1
+  Layer: Backend
+  Module: delivery-service
+  File(s): services/delivery-service/src/main/java/com/legent/delivery/service/ProviderSelectionStrategy.java
+  Issue Type: Runtime / config
+  Short Description: MOCK adapter fallback can hide real misconfiguration
+  Detailed Description: If no adapter matches the configured provider type, the selector
+    falls back to a MOCK adapter when one is available. That can make a broken production
+    config look healthy during testing.
+  Root Cause: A development fallback remained in production logic.
+  Fix Direction: Remove the fallback in production paths or make it explicitly dev-only.
+  Impact / Risk: Provider misconfiguration can be masked instead of failing fast.
+- Fix Order: 40
+  Priority: P1
+  Layer: Backend
+  Module: delivery-service
+  File(s): services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java
+  Issue Type: Scalability issue
+  Short Description: Rate limiting uses static in-memory counters
+  Detailed Description: The throttle window is tracked in JVM memory only. It resets
+    on restart and does not coordinate across pods, so the send rate is neither durable
+    nor cluster-safe.
+  Root Cause: Local-process limiter used as a placeholder for distributed throttling.
+  Fix Direction: Move rate limiting to Redis or another shared store.
+  Impact / Risk: Multi-pod deployments can exceed send limits or throttle inconsistently.
+- Fix Order: 41
+  Priority: P1
+  Layer: Backend
+  Module: delivery-service
+  File(s): services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+  Issue Type: Runtime / transactions
+  Short Description: Retry path bypasses the transactional proxy
+  Detailed Description: The retry method calls the transactional send method directly
+    inside the same bean, so the proxy advice on the target method is bypassed by
+    self-invocation.
+  Root Cause: Transactional retry logic was implemented inside one class without proxy-aware
+    delegation.
+  Fix Direction: Move retry execution to another bean or inject the proxied self reference.
+  Impact / Risk: Retries may not execute with the intended transaction semantics.
+- Fix Order: 42
+  Priority: P1
+  Layer: Backend
+  Module: delivery-service
+  File(s): services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java
+  Issue Type: Feature gap
+  Short Description: SMTP adapter ignores tenant/provider-specific mail settings
+  Detailed Description: The adapter explicitly uses one auto-configured JavaMailSender
+    instead of building a sender from the SmtpProvider record. That means tenant-specific
+    SMTP host, credentials, and from-domain behavior are not actually enforced.
+  Root Cause: Production multi-tenant mail sender was left as a simplification.
+  Fix Direction: Create per-provider JavaMailSender instances from stored configuration.
+  Impact / Risk: Emails may go out with the wrong credentials, host, or sender identity.
+- Fix Order: 43
+  Priority: P1
+  Layer: Backend
+  Module: delivery-service
+  File(s): services/delivery-service/src/main/java/com/legent/delivery/service/ContentProcessingService.java
+  Issue Type: Config / execution
+  Short Description: Tracking base URL is hardcoded to localhost
+  Detailed Description: Generated tracking links default to http://localhost:8085,
+    which works only in local development. Any non-local deployment must override
+    it correctly or links will point to the wrong origin.
+  Root Cause: Environment config was left incomplete.
+  Fix Direction: Make the tracking base URL profile/env-specific and validate it at
+    startup.
+  Impact / Risk: Tracked links and open pixels can break outside local dev.
+- Fix Order: 44
+  Priority: P1
+  Layer: Backend
+  Module: foundation-service
+  File(s): services/foundation-service/src/main/java/com/legent/foundation/controller/AdminConfigController.java;
+    services/foundation-service/src/main/java/com/legent/foundation/controller/BrandingController.java;
+    services/foundation-service/src/main/java/com/legent/foundation/controller/WebhookController.java
+  Issue Type: Security / API design
+  Short Description: Admin endpoints expose raw entities without DTO or access control
+  Detailed Description: These controllers return repository entities directly and
+    accept raw bodies with no visible validation or authorization guard. That couples
+    the API to persistence and risks over-posting or unauthorized config changes.
+  Root Cause: Controller layer was left in a simplistic CRUD form.
+  Fix Direction: Add auth checks, DTOs, validation, and tenant scoping before exposing
+    these endpoints.
+  Impact / Risk: Configuration data may be changed or leaked too broadly.
+- Fix Order: 45
+  Priority: P1
+  Layer: Backend
+  Module: identity-service
+  File(s): services/identity-service/src/main/java/com/legent/identity/config/SecurityConfig.java;
+    services/foundation-service/src/main/java/com/legent/foundation/config/SecurityConfig.java
+  Issue Type: Security
+  Short Description: Auth enforcement is still partial platform-wide
+  Detailed Description: These security configs are better than the fully open services,
+    but the platform still depends on permissive defaults and does not enforce a consistent
+    tenant-aware authorization model across all modules.
+  Root Cause: Auth rollout is uneven across services and shared config still carries
+    dev-friendly defaults.
+  Fix Direction: Standardize JWT and tenant enforcement everywhere and remove permissive
+    defaults from shared config.
+  Impact / Risk: Users can encounter inconsistent access control between modules.
+- Fix Order: 46
+  Priority: P1
+  Layer: Backend
+  Module: identity-service
+  File(s): services/identity-service/src/main/java/com/legent/identity/service/AuthService.java
+  Issue Type: Onboarding logic
+  Short Description: Signup generates a local tenant id but does not provision the
+    tenant
+  Detailed Description: The signup flow invents a tenant id inside identity-service
+    and only publishes an event. There is no hard guarantee that Foundation or the
+    rest of the platform has created the tenant, and slug uniqueness is not enforced
+    here.
+  Root Cause: Tenant provisioning was split across services without a completed orchestration
+    path.
+  Fix Direction: Add a real onboarding workflow that creates or validates the tenant
+    before issuing the token.
+  Impact / Risk: Signup can produce orphaned users, duplicate slugs, or inconsistent
+    tenant state.
+- Fix Order: 47
+  Priority: P2
+  Layer: Infra
+  Module: ConfigMap
+  File(s): infrastructure/kubernetes/base/configmap.yml
+  Issue Type: Config / dead reference
+  Short Description: ConfigMap references ADMIN_SERVICE_URL for a non-existent admin
+    service
+  Detailed Description: The ConfigMap exposes an admin-service URL even though there
+    is no separate admin-service module or deployment. That creates a phantom dependency
+    and can mislead future wiring work.
+  Root Cause: The config was copied from an earlier architecture draft.
+  Fix Direction: Remove the dead config or repoint it to the actual service that owns
+    admin behavior.
+  Impact / Risk: Configuration consumers can point to a service that does not exist.
+- Fix Order: 48
+  Priority: P2
+  Layer: Infra
+  Module: edge routing
+  File(s): config/nginx/nginx.conf; infrastructure/kubernetes/ingress/ingress.yml
+  Issue Type: Routing drift
+  Short Description: Docker Nginx routing and Kubernetes ingress do not expose the
+    same APIs
+  Detailed Description: The Docker gateway and the K8s ingress do not publish the
+    same route set, so behavior differs depending on the deployment target. Something
+    that works through the Nginx gateway can fail once moved into the cluster.
+  Root Cause: Two edge configs were maintained independently.
+  Fix Direction: Treat one route list as canonical and keep the other in sync.
+  Impact / Risk: Works in Docker but breaks in Kubernetes, or vice versa.
+- Fix Order: 49
+  Priority: P2
+  Layer: Infra
+  Module: local profiles
+  File(s): services/audience-service/src/main/resources/application-local.yml; services/*/src/main/resources/application.yml;
+    docker-compose.yml
+  Issue Type: Environment drift
+  Short Description: Local profiles differ significantly from container profiles
+  Detailed Description: Local profile settings assume localhost Postgres/Redis/Kafka,
+    while containerized services assume internal container hosts. That is fine in
+    principle, but the local path is not aligned with the actual bootstrap scripts
+    and can fail on a fresh setup.
+  Root Cause: Bare-metal local dev and Docker-based dev were both sketched, but only
+    one is consistently maintained.
+  Fix Direction: Either fully document Docker-only development or provide a complete
+    local bootstrap that matches the profile.
+  Impact / Risk: New developers can get blocked on first run.
+- Fix Order: 50
+  Priority: P2
+  Layer: Shared cache
+  Module: tenant cache
+  File(s): shared/legent-cache/src/main/java/com/legent/cache/service/TenantCacheKeyGenerator.java
+  Issue Type: Cache / correctness
+  Short Description: Global fallback hides tenant bugs
+  Detailed Description: When no tenant context is present, the cache key generator
+    falls back to a global key. That makes missing-context bugs harder to detect and
+    can blur tenant boundaries in cached data.
+  Root Cause: Key generation depends on ambient state and a permissive fallback.
+  Fix Direction: Fail fast where tenant-scoped data is expected and make any global
+    cache usage explicit.
+  Impact / Risk: Ambiguous cache behavior and harder-to-diagnose tenant leakage.
+- Fix Order: 51
+  Priority: P2
+  Layer: Foundation
+  Module: feature flags
+  File(s): services/foundation-service/src/main/java/com/legent/foundation/service/FeatureFlagService.java
+  Issue Type: Config / cache
+  Short Description: Feature-flag cache and update flow is incomplete
+  Detailed Description: New and updated flags are not clearly cached and invalidated
+    across all relevant scopes, and the default-disabled fallback can mask missing
+    definitions.
+  Root Cause: Feature flag lifecycle handling is only partially wired.
+  Fix Direction: Add explicit cache invalidation for create/update/delete and test
+    flag refresh paths.
+  Impact / Risk: Flag changes may not appear immediately or may be hidden by fallback
+    behavior.
+- Fix Order: 52
+  Priority: P2
+  Layer: Frontend
+  Module: admin / settings
+  File(s): frontend/src/app/(workspace)/admin/page.tsx; frontend/src/components/admin/*;
+    frontend/src/app/(workspace)/settings/platform/page.tsx
+  Issue Type: UI / integration
+  Short Description: Admin console is largely presentational
+  Detailed Description: Admin, branding, search, webhook, and platform setting screens
+    expose controls, but much of the behavior remains sample/static or only partially
+    wired to backend contracts.
+  Root Cause: UI scaffolding moved ahead of the API completion.
+  Fix Direction: Bind all actions to real admin APIs, normalize DTOs, and add server-side
+    validation.
+  Impact / Risk: Admin changes may not persist or may mislead users.
+- Fix Order: 53
+  Priority: P2
+  Layer: Frontend
+  Module: admin search
+  File(s): frontend/src/components/admin/SearchPanel.tsx
+  Issue Type: Placeholder / hygiene
+  Short Description: Search panel contains placeholder text and duplicate client directive
+  Detailed Description: The file still contains '// ...existing code...' and repeats
+    the use client directive. The component only dumps raw JSON results, with no loading,
+    empty, or error handling.
+  Root Cause: Unfinished component was checked in as-is.
+  Fix Direction: Remove placeholder remnants and wrap the search flow with proper
+    result states.
+  Impact / Risk: Search UX is brittle and the source looks partially generated/incomplete.
+- Fix Order: 54
+  Priority: P2
+  Layer: Frontend
+  Module: admin settings
+  File(s): frontend/src/components/admin/AdminConfigPanel.tsx; frontend/src/components/admin/BrandingPanel.tsx;
+    frontend/src/components/admin/WebhookPanel.tsx
+  Issue Type: CRUD hardening
+  Short Description: Admin panels use raw any objects and lack loading/error validation
+  Detailed Description: These panels rely on untyped any state and optimistic save
+    calls. There is no visible request failure handling, schema validation, or permission
+    guard, so bad payloads can be saved silently.
+  Root Cause: Quick CRUD scaffolding was left without hardening.
+  Fix Direction: Introduce typed DTOs, loading/error states, and client-side validation.
+  Impact / Risk: Admin settings are fragile and easy to misuse.
+- Fix Order: 55
+  Priority: P2
+  Layer: Frontend
+  Module: audience segment builder
+  File(s): frontend/src/components/audience/SegmentRuleBuilder.tsx
+  Issue Type: Feature gap
+  Short Description: Rule builder does not model nested boolean trees
+  Detailed Description: The UI can add multiple top-level groups, but it cannot build
+    nested groups inside groups. That makes it impossible to express more complex
+    segment logic even when the backend evaluator supports recursive rule trees.
+  Root Cause: Flat UI state model only covers a simplified subset of the rule language.
+  Fix Direction: Add recursive group editing and serialize the structure to match
+    backend expectations.
+  Impact / Risk: Advanced audience segmentation cannot be authored from the UI.
+- Fix Order: 56
+  Priority: P2
+  Layer: Frontend
+  Module: deliverability
+  File(s): frontend/src/components/deliverability/DmarcDashboard.tsx
+  Issue Type: UX gap
+  Short Description: DMARC dashboard renders nothing when the list is empty
+  Detailed Description: The component returns null when there are no reports. That
+    produces a blank panel instead of a useful empty state or guidance message.
+  Root Cause: Empty-state handling was skipped.
+  Fix Direction: Render loading, empty, and error states explicitly.
+  Impact / Risk: Users see an empty area and cannot tell whether data is loading or
+    missing.
+- Fix Order: 57
+  Priority: P2
+  Layer: Frontend
+  Module: deliverability
+  File(s): frontend/src/components/deliverability/ReputationDashboard.tsx
+  Issue Type: UX gap
+  Short Description: Reputation dashboard also returns blank on empty data
+  Detailed Description: Like the DMARC panel, the reputation widget returns null when
+    no scores exist. It also lacks loading and failure handling.
+  Root Cause: Widget was implemented with the minimum happy path only.
+  Fix Direction: Add an empty state, loading state, and fetch error handling.
+  Impact / Risk: The deliverability page feels broken whenever there is no score history.
+- Fix Order: 58
+  Priority: P2
+  Layer: Frontend
+  Module: dependencies
+  File(s): frontend/package.json
+  Issue Type: Dependency / compatibility
+  Short Description: Frontend uses future major versions of Next and React
+  Detailed Description: The package.json pins very recent major versions that may
+    not align with the rest of the stack or the build environment. If those versions
+    are unavailable or incompatible, install/build can fail or produce API mismatches.
+  Root Cause: The template was written against speculative or forward-looking versions.
+  Fix Direction: Re-evaluate and pin stable versions that match the target environment,
+    then verify with build/test.
+  Impact / Risk: Dependency installation and build stability can suffer.
+- Fix Order: 59
+  Priority: P2
+  Layer: Frontend
+  Module: shell / navigation
+  File(s): frontend/src/components/layout/TopNavigationBar.tsx; frontend/src/components/shell/Header.tsx
+  Issue Type: Unwired UI
+  Short Description: Search and profile controls are cosmetic only
+  Detailed Description: The top navigation and shell header show search inputs and
+    a tenant/avatar surface, but there is no real search action, no navigation behavior,
+    and no accessibility semantics beyond display.
+  Root Cause: Shell controls were added as static chrome.
+  Fix Direction: Wire the controls to real routes/actions or remove them until they
+    are functional.
+  Impact / Risk: The header suggests capabilities that do not exist yet.
+- Fix Order: 60
+  Priority: P2
+  Layer: Frontend
+  Module: workspace
+  File(s): frontend/src/app/(workspace)/email/page.tsx; frontend/src/app/(workspace)/campaigns/page.tsx;
+    frontend/src/app/(workspace)/automation/page.tsx; frontend/src/app/(workspace)/tracking/page.tsx;
+    frontend/src/app/(workspace)/analytics/page.tsx; frontend/src/app/(workspace)/deliverability/page.tsx
+  Issue Type: UI / placeholder
+  Short Description: Main workspace pages are mostly stubs
+  Detailed Description: Several primary workspace pages still show coming-soon, module-pending,
+    or demo-only content. They are visible shells rather than connected product screens.
+  Root Cause: UI was created before service integration was complete.
+  Fix Direction: Replace static/demo state with live API-backed lists, forms, and
+    loading/error/empty states.
+  Impact / Risk: Users cannot complete core workflows from the workspace.
+- Fix Order: 61
+  Priority: P2
+  Layer: Build / docs
+  Module: repo root
+  File(s): Makefile; README.md
+  Issue Type: Build / docs drift
+  Short Description: Wrapper and build docs do not match the repository
+  Detailed Description: The Makefile expects wrapper-based execution, but the wrapper
+    files are absent. The README also describes infrastructure and frontend versions
+    that do not match the actual codebase, which makes the documented bootstrap flow
+    unreliable.
+  Root Cause: Documentation and automation drifted from the code over time.
+  Fix Direction: Either restore the wrapper assets or remove the wrapper references,
+    then align the README with the real modules and versions.
+  Impact / Risk: Developers following the docs will hit avoidable setup failures.
+- Fix Order: 62
+  Priority: P2
+  Layer: Backend
+  Module: audience-service
+  File(s): services/audience-service/src/main/java/com/legent/audience/service/ImportService.java
+  Issue Type: Execution / error handling
+  Short Description: Import job fails with generic runtime errors
+  Detailed Description: The import flow throws broad runtime failures when async processing
+    goes wrong, without structured recovery or a domain-specific failure state.
+  Root Cause: Import lifecycle was never formalized.
+  Fix Direction: Use typed domain exceptions and persist clear failure reasons and
+    terminal statuses.
+  Impact / Risk: Operators cannot distinguish processing failures from infrastructure
+    issues.
+- Fix Order: 63
+  Priority: P2
+  Layer: Backend
+  Module: campaign-service
+  File(s): services/campaign-service/src/main/java/com/legent/campaign/service/SchedulingService.java
+  Issue Type: Execution / resilience
+  Short Description: Scheduled campaign jobs log errors but do not fail cleanly
+  Detailed Description: The scheduler changes job state but on exceptions it mostly
+    logs and leaves recovery vague. Failure transitions are not fully closed out.
+  Root Cause: Error handling is partial.
+  Fix Direction: Persist a clear failed state, publish failure events, and add compensation/retry
+    semantics.
+  Impact / Risk: Campaign retries and recovery are unreliable.
+- Fix Order: 64
+  Priority: P2
+  Layer: Backend
+  Module: delivery-service
+  File(s): services/delivery-service/src/main/java/com/legent/delivery/service/ContentProcessingService.java
+  Issue Type: Algorithmic brittleness
+  Short Description: HTML link rewriting and pixel injection are regex-based
+  Detailed Description: The content processor rewrites anchors with regex and injects
+    tracking markup into raw HTML. That approach is fragile on malformed HTML and
+    can produce broken links or duplicate tracking artifacts.
+  Root Cause: Text substitution was chosen instead of DOM-safe HTML parsing.
+  Fix Direction: Parse and rewrite HTML with a proper DOM tool or templating step.
+  Impact / Risk: Tracked emails can be malformed or lose original links.
+- Fix Order: 65
+  Priority: P2
+  Layer: Backend
+  Module: platform-service
+  File(s): services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java
+  Issue Type: Reliability
+  Short Description: Webhook delivery is fire-and-forget
+  Detailed Description: The dispatcher uses reactive subscribe() without any retry
+    policy or backpressure control. If the downstream endpoint is slow or failing,
+    delivery can be lost without durable retry tracking.
+  Root Cause: Async dispatch was implemented as a best-effort push only.
+  Fix Direction: Add retry/backoff, dead-letter tracking, and durable delivery status
+    transitions.
+  Impact / Risk: Webhook failures may never be recovered or surfaced reliably.
+- Fix Order: 66
+  Priority: P3
+  Layer: Foundation
+  Module: notifications
+  File(s): services/foundation-service/src/main/java/com/legent/foundation/service/NotificationService.java
+  Issue Type: Placeholder / wiring
+  Short Description: Notification bus is only an in-memory list
+  Detailed Description: The notification service stores listeners in a local CopyOnWriteArrayList
+    and does not connect to Kafka, email, or any real notification channel. It looks
+    like a utility scaffold rather than a usable platform service.
+  Root Cause: Placeholder utility left in the codebase.
+  Fix Direction: Either remove it or connect it to a real event/notification backbone.
+  Impact / Risk: No actual notifications are delivered through this path.
+- Fix Order: 67
+  Priority: P3
+  Layer: Frontend
+  Module: root navigation
+  File(s): frontend/src/app/page.tsx
+  Issue Type: Navigation flow
+  Short Description: Root route redirects directly to /email
+  Detailed Description: The app sends all root traffic to the email area. That can
+    be fine for logged-in users, but it also makes the landing flow depend on later
+    auth hydration and can feel abrupt for unauthenticated entry.
+  Root Cause: Simple redirect was used instead of a landing/auth gate.
+  Fix Direction: Route based on auth state explicitly or provide a real landing page.
+  Impact / Risk: Minor UX inconsistency on first load.
+- Fix Order: 68
+  Priority: P3
+  Layer: Frontend
+  Module: shared input
+  File(s): frontend/src/components/ui/Input.tsx
+  Issue Type: Component drift
+  Short Description: fullWidth prop is accepted but never applied
+  Detailed Description: The Input component advertises a fullWidth prop, but the prop
+    is ignored in the rendered class list and layout logic.
+  Root Cause: API surface drifted from implementation.
+  Fix Direction: Either implement the prop or remove it from the component contract.
+  Impact / Risk: Minor styling inconsistency and confusing component API.
+- Fix Order: 69
+  Priority: P3
+  Layer: Docs
+  Module: README
+  File(s): README.md; repo structure
+  Issue Type: Docs / structure
+  Short Description: README project structure mentions docs and Admin Service that
+    do not exist
+  Detailed Description: The README references a docs/ folder and a dedicated Admin
+    Service, but the repository actually contains a Documentaion/ folder and no standalone
+    admin-service module. That can mislead contributors about where code and docs
+    belong.
+  Root Cause: The README was copied from an earlier architecture draft and not fully
+    synchronized.
+  Fix Direction: Update the README to match the actual module and documentation layout.
+  Impact / Risk: Onboarding confusion and misplaced implementation work.
+- Fix Order: 70
+  Priority: P3
+  Layer: Docs / hygiene
+  Module: root
+  File(s): docker
+  Issue Type: Repo hygiene
+  Short Description: Empty root docker file suggests a missing Docker config directory
+  Detailed Description: A zero-length file named docker sits at the repo root and
+    looks like an accidental placeholder rather than a real asset. It adds noise without
+    functionality.
+  Root Cause: Leftover placeholder or mistaken commit.
+  Fix Direction: Remove it or replace it with a properly structured docker/ directory
+    if that is intended.
+  Impact / Risk: Confusing repo layout and wasted maintenance overhead.

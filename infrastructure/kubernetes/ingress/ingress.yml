@@ -15,8 +15,16 @@ spec:
     - host: api.legent.local
       http:
         paths:
+          # Identity
+          - path: /api/v1/(auth|users)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: identity-service
+                port:
+                  number: 8089
           # Foundation
-          - path: /api/v1/(configs|feature-flags|tenants|health)
+          - path: /api/v1/(configs|feature-flags|tenants|admin|health)
             pathType: ImplementationSpecific
             backend:
               service:
@@ -24,7 +32,7 @@ spec:
                 port:
                   number: 8081
           # Audience
-          - path: /api/v1/(subscribers|lists|data-extensions|segments|imports)
+          - path: /api/v1/(subscribers|lists|data-extensions|segments|imports|suppressions)
             pathType: ImplementationSpecific
             backend:
               service:
@@ -32,13 +40,13 @@ spec:
                 port:
                   number: 8082
           # Content
-          - path: /api/v1/(templates|content-blocks|assets)
+          - path: /api/v1/(templates|content-blocks|assets|content)
             pathType: ImplementationSpecific
             backend:
               service:
                 name: content-service
                 port:
-                  number: 8083
+                  number: 8090
           # Campaign
           - path: /api/v1/(campaigns|sends)
             pathType: ImplementationSpecific
@@ -46,23 +54,47 @@ spec:
               service:
                 name: campaign-service
                 port:
+                  number: 8083
+          # Delivery
+          - path: /api/v1/(providers|delivery-status)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: delivery-service
+                port:
                   number: 8084
           # Tracking
-          - path: /api/v1/(tracking|reports)
+          - path: /api/v1/(tracking|reports|analytics|track)
             pathType: ImplementationSpecific
             backend:
               service:
                 name: tracking-service
                 port:
-                  number: 8086
+                  number: 8085
           # Automation
-          - path: /api/v1/(workflows|triggers)
+          - path: /api/v1/(workflows|triggers|workflow-definitions)
             pathType: ImplementationSpecific
             backend:
               service:
                 name: automation-service
                 port:
+                  number: 8086
+          # Deliverability
+          - path: /api/v1/(deliverability|reputation|dmarc)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: deliverability-service
+                port:
                   number: 8087
+          # Platform
+          - path: /api/v1/platform
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: platform-service
+                port:
+                  number: 8088
     - host: app.legent.local
       http:
         paths:
