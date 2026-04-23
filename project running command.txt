@@ -1,0 +1,43 @@
+cd "C:\Users\leelark.saxena\Desktop\Legent - v1.0.2"
+
+mvn clean
+
+mvn clean install -U -DskipTests
+
+docker compose down -v
+
+docker system prune -a -f
+
+docker volume prune -f
+
+docker compose build --no-cache
+
+docker compose up -d
+
+docker ps
+
+docker ps -a
+
+docker logs legent-platform-service
+
+📜 7. Check logs (very important)
+docker compose logs
+
+Real-time:
+
+docker compose logs -f
+
+Save to file:
+
+docker compose logs > logs.txt 2>&1
+
+for /f "tokens=1,*" %i in ('docker ps --format "{{.ID}} {{.Names}}"') do @echo ==== %j ==== & docker logs %i >> all_logs.txt 2>&1
+------
+
+git status
+
+git add .
+
+git commit -m "AI update"
+
+git push origin main

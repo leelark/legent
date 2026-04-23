@@ -1,6 +1,6 @@
-package com.legent.foundation.config;
+package com.legent.identity.config;
 
-import com.legent.foundation.security.JwtAuthenticationFilter;
+import com.legent.identity.security.JwtAuthenticationFilter;
 import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -17,8 +17,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Spring Security configuration.
- * JWT authentication and RBAC protections for foundation endpoints.
+ * Spring Security configuration for Identity Service.
+ * JWT authentication and RBAC protections.
  */
 @Configuration
 @EnableWebSecurity
@@ -39,7 +39,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/health/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/api/v1/webhooks/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

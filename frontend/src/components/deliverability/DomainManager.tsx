@@ -46,14 +46,18 @@ export const DomainManager: React.FC = () => {
         </thead>
         <tbody>
           {domains.map((d) => (
-            <tr key={d.domain}>
-              <td>{d.domain}</td>
-              <td>{d.status}</td>
-              <td>{d.spfStatus}</td>
-              <td>{d.dkimStatus}</td>
-              <td>{d.dmarcStatus}</td>
+            <tr key={d.id || d.domainName || d.domain}>
+              <td>{d.domainName || d.domain}</td>
+              <td>{d.status || (d.isActive ? 'VERIFIED' : 'PENDING')}</td>
+              <td>{String(d.spfVerified ?? d.spfStatus ?? false)}</td>
+              <td>{String(d.dkimVerified ?? d.dkimStatus ?? false)}</td>
+              <td>{String(d.dmarcVerified ?? d.dmarcStatus ?? false)}</td>
               <td>
-                {d.status !== 'VERIFIED' && <Button size="sm" onClick={() => handleValidate(d.domain)} disabled={loading}>Validate</Button>}
+                {(d.status !== 'VERIFIED' && !d.isActive) && (
+                  <Button size="sm" onClick={() => handleValidate(d.id)} disabled={loading || !d.id}>
+                    Validate
+                  </Button>
+                )}
               </td>
             </tr>
           ))}

@@ -1,0 +1,12 @@
+---
+alwaysApply: true
+---
+
+Use rules from .ai/AGENTS.md
+Use context from .ai/CONTEXT.md
+
+STRICT:
+- minimal diffs only
+- no full file rewrites untill required
+- preserve architecture
+- build + fix + enhance mode

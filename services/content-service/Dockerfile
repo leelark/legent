@@ -11,9 +11,9 @@ RUN chown legent:legent app.jar
 
 USER legent
 
-EXPOSE 8089
+EXPOSE 8083
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8089/actuator/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]

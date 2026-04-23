@@ -1,0 +1,907 @@
+﻿===== legent-frontend =====
+2026-04-22T09:37:54.253496853Z    Ôû▓ Next.js 15.5.15
+2026-04-22T09:37:54.253632688Z    - Local:        http://localhost:3000
+2026-04-22T09:37:54.253645591Z    - Network:      http://0.0.0.0:3000
+2026-04-22T09:37:54.253652293Z 
+2026-04-22T09:37:54.253657694Z  Ô£ô Starting...
+2026-04-22T09:37:56.537300081Z  Ô£ô Ready in 2.4s
+
+
+===== legent-gateway =====
+2026-04-22T09:37:39.517144114Z /docker-entrypoint.sh: /docker-entrypoint.d/ is not empty, will attempt to perform configuration
+2026-04-22T09:37:39.517232936Z /docker-entrypoint.sh: Looking for shell scripts in /docker-entrypoint.d/
+2026-04-22T09:37:39.524856549Z /docker-entrypoint.sh: Launching /docker-entrypoint.d/10-listen-on-ipv6-by-default.sh
+2026-04-22T09:37:39.544984800Z 10-listen-on-ipv6-by-default.sh: info: can not modify /etc/nginx/conf.d/default.conf (read-only file system?)
+2026-04-22T09:37:39.560436577Z /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh
+2026-04-22T09:37:39.618649383Z /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh
+2026-04-22T09:37:39.750557882Z /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh
+2026-04-22T09:37:39.820006708Z /docker-entrypoint.sh: Configuration complete; ready for start up
+docker : 2026-04-22T09:37:45.661382295Z 2026/04/22 09:37:40 [emerg] 1#1: host not found in upstream 
+"content-service:8083" in /etc/nginx/conf.d/default.conf:14
+At C:\Users\leelark.saxena\Desktop\Legent - v1.0.2\collect-docker-logs.ps1:34 char:9
++         docker logs --timestamps --tail 300 $containerId 2>&1 |
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-04-22T09:3...default.conf:14:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-04-22T09:37:45.682399398Z nginx: [emerg] host not found in upstream "content-service:8083" in 
+/etc/nginx/conf.d/default.conf:14
+
+
+===== legent-deliverability =====
+2026-04-22T09:37:37.797365689Z 
+2026-04-22T09:37:37.797453111Z   .   ____          _            __ _ _
+2026-04-22T09:37:37.797462413Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:37.797467815Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:37.797473216Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:37.797478017Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:37.797482918Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:37.944118612Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:37.948486408Z 
+2026-04-22T09:37:41.083598067Z 2026-04-22T09:37:41.014Z  INFO 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : Starting DeliverabilityApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T09:37:41.085151156Z 2026-04-22T09:37:41.084Z DEBUG 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-22T09:37:41.121479272Z 2026-04-22T09:37:41.120Z  INFO 1 --- [deliverability-service] [           main] c.l.d.DeliverabilityApplication          : The following 1 profile is active: "prod"
+2026-04-22T09:38:08.439150973Z 2026-04-22T09:38:08.438Z  INFO 1 --- [deliverability-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T09:38:09.599823201Z 2026-04-22T09:38:09.595Z  INFO 1 --- [deliverability-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 1052 ms. Found 6 JPA repository interfaces.
+2026-04-22T09:38:24.628814345Z 2026-04-22T09:38:24.627Z  INFO 1 --- [deliverability-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8087 (http)
+2026-04-22T09:38:24.908948430Z 2026-04-22T09:38:24.896Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T09:38:24.909020244Z 2026-04-22T09:38:24.897Z  INFO 1 --- [deliverability-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T09:38:25.253850428Z 2026-04-22T09:38:25.253Z  INFO 1 --- [deliverability-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T09:38:25.272848868Z 2026-04-22T09:38:25.272Z  INFO 1 --- [deliverability-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 42742 ms
+2026-04-22T09:38:28.489376587Z 2026-04-22T09:38:28.488Z DEBUG 1 --- [deliverability-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-22T09:38:28.498366810Z 2026-04-22T09:38:28.497Z DEBUG 1 --- [deliverability-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-22T09:38:30.472350506Z 2026-04-22T09:38:30.446Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-22T09:38:34.605593361Z 2026-04-22T09:38:34.604Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@8bc0696
+2026-04-22T09:38:34.658488243Z 2026-04-22T09:38:34.657Z  INFO 1 --- [deliverability-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-22T09:38:38.056122425Z 2026-04-22T09:38:38.004Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-22T09:38:38.056175632Z 2026-04-22T09:38:38.051Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-22T09:38:38.056186934Z 2026-04-22T09:38:38.052Z  INFO 1 --- [deliverability-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-22T09:38:38.768408991Z 2026-04-22T09:38:38.708Z  INFO 1 --- [deliverability-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_deliverability (PostgreSQL 15.17)
+2026-04-22T09:38:39.376438604Z 2026-04-22T09:38:39.374Z  INFO 1 --- [deliverability-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-04-22T09:38:40.402642190Z 2026-04-22T09:38:40.399Z  INFO 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-04-22T09:38:40.403328885Z 2026-04-22T09:38:40.400Z  WARN 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbMigrate      : outOfOrder mode is active. Migration of schema "public" may not be reproducible.
+2026-04-22T09:38:40.523239594Z 2026-04-22T09:38:40.510Z  INFO 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - deliverability schema"
+2026-04-22T09:38:41.354910249Z 2026-04-22T09:38:41.354Z  INFO 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "2 - dmarc reporting"
+2026-04-22T09:38:41.834598566Z 2026-04-22T09:38:41.834Z  INFO 1 --- [deliverability-service] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 2 migrations to schema "public", now at version v2 (execution time 00:00.888s)
+2026-04-22T09:38:44.391421367Z 2026-04-22T09:38:44.362Z  INFO 1 --- [deliverability-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+
+
+===== legent-delivery =====
+2026-04-22T09:37:43.145188559Z 
+2026-04-22T09:37:43.145261077Z   .   ____          _            __ _ _
+2026-04-22T09:37:43.145269879Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:43.145275680Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:43.145281282Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:43.145286383Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:43.145291784Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:43.159074643Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:43.159561565Z 
+2026-04-22T09:37:47.889356148Z 2026-04-22T09:37:47.872Z  INFO 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : Starting DeliveryApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T09:37:47.891243533Z 2026-04-22T09:37:47.890Z DEBUG 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-22T09:37:47.896773255Z 2026-04-22T09:37:47.896Z  INFO 1 --- [delivery-service] [           main] c.legent.delivery.DeliveryApplication    : The following 1 profile is active: "prod"
+2026-04-22T09:38:13.037123394Z 2026-04-22T09:38:13.036Z  INFO 1 --- [delivery-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T09:38:14.050239341Z 2026-04-22T09:38:14.049Z  INFO 1 --- [delivery-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 835 ms. Found 3 JPA repository interfaces.
+2026-04-22T09:38:29.758622826Z 2026-04-22T09:38:29.756Z  INFO 1 --- [delivery-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8084 (http)
+2026-04-22T09:38:29.992336715Z 2026-04-22T09:38:29.989Z  INFO 1 --- [delivery-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T09:38:30.018726773Z 2026-04-22T09:38:30.016Z  INFO 1 --- [delivery-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T09:38:30.610300443Z 2026-04-22T09:38:30.609Z  INFO 1 --- [delivery-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T09:38:30.644567309Z 2026-04-22T09:38:30.643Z  INFO 1 --- [delivery-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 41253 ms
+2026-04-22T09:38:34.346006621Z 2026-04-22T09:38:34.339Z DEBUG 1 --- [delivery-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-22T09:38:34.404421864Z 2026-04-22T09:38:34.395Z DEBUG 1 --- [delivery-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-22T09:38:36.287011456Z 2026-04-22T09:38:36.228Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-22T09:38:40.523239594Z 2026-04-22T09:38:40.509Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@4b508371
+2026-04-22T09:38:40.577141215Z 2026-04-22T09:38:40.576Z  INFO 1 --- [delivery-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-22T09:38:42.802390213Z 2026-04-22T09:38:42.793Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-22T09:38:42.802447248Z 2026-04-22T09:38:42.794Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-22T09:38:42.802455367Z 2026-04-22T09:38:42.795Z  INFO 1 --- [delivery-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-22T09:38:42.956739591Z 2026-04-22T09:38:42.950Z  INFO 1 --- [delivery-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_delivery (PostgreSQL 15.17)
+2026-04-22T09:38:43.330539515Z 2026-04-22T09:38:43.329Z  INFO 1 --- [delivery-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-04-22T09:38:44.746782654Z 2026-04-22T09:38:44.745Z  INFO 1 --- [delivery-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-04-22T09:38:44.760370912Z 2026-04-22T09:38:44.746Z  WARN 1 --- [delivery-service] [           main] o.f.core.internal.command.DbMigrate      : outOfOrder mode is active. Migration of schema "public" may not be reproducible.
+2026-04-22T09:38:44.966448687Z 2026-04-22T09:38:44.954Z  INFO 1 --- [delivery-service] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - delivery schema"
+
+
+===== legent-audience =====
+2026-04-22T09:37:43.354260619Z 
+2026-04-22T09:37:43.354373447Z   .   ____          _            __ _ _
+2026-04-22T09:37:43.354385250Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:43.354393052Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:43.354398753Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:43.354404355Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:43.354409456Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:43.465337490Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:43.465382501Z 
+2026-04-22T09:37:47.704025504Z {"time":"2026-04-22 09:37:47,693","level":"INFO","logger":"com.legent.audience.AudienceApplication","correlationId":"","tenantId":"","msg":"Starting AudienceApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)"}
+2026-04-22T09:37:47.705784056Z {"time":"2026-04-22 09:37:47,705","level":"DEBUG","logger":"com.legent.audience.AudienceApplication","correlationId":"","tenantId":"","msg":"Running with Spring Boot v3.2.5, Spring v6.1.6"}
+2026-04-22T09:37:47.734224568Z {"time":"2026-04-22 09:37:47,733","level":"INFO","logger":"com.legent.audience.AudienceApplication","correlationId":"","tenantId":"","msg":"The following 1 profile is active: "prod""}
+2026-04-22T09:38:18.466616436Z {"time":"2026-04-22 09:38:18,448","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+2026-04-22T09:38:18.482732337Z {"time":"2026-04-22 09:38:18,477","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data JPA repositories in DEFAULT mode."}
+2026-04-22T09:38:21.943537262Z {"time":"2026-04-22 09:38:21,942","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 3300 ms. Found 10 JPA repository interfaces."}
+2026-04-22T09:38:22.500422015Z {"time":"2026-04-22 09:38:22,499","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+2026-04-22T09:38:22.505355317Z {"time":"2026-04-22 09:38:22,504","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data Redis repositories in DEFAULT mode."}
+2026-04-22T09:38:22.746961712Z {"time":"2026-04-22 09:38:22,746","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.DataExtensionFieldRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.748668893Z {"time":"2026-04-22 09:38:22,748","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.DataExtensionRecordRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.763006497Z {"time":"2026-04-22 09:38:22,749","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.DataExtensionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.764791596Z {"time":"2026-04-22 09:38:22,764","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.ImportJobRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.766477773Z {"time":"2026-04-22 09:38:22,766","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.ListMembershipRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.772114933Z {"time":"2026-04-22 09:38:22,771","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SegmentMembershipRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.775946689Z {"time":"2026-04-22 09:38:22,775","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SegmentRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.781302186Z {"time":"2026-04-22 09:38:22,776","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SubscriberListRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.781345996Z {"time":"2026-04-22 09:38:22,780","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SubscriberRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.781721280Z {"time":"2026-04-22 09:38:22,781","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.audience.repository.SuppressionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:22.786844825Z {"time":"2026-04-22 09:38:22,781","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 114 ms. Found 0 Redis repository interfaces."}
+2026-04-22T09:38:41.504817916Z {"time":"2026-04-22 09:38:41,504","level":"INFO","logger":"org.springframework.boot.web.embedded.tomcat.TomcatWebServer","correlationId":"","tenantId":"","msg":"Tomcat initialized with port 8082 (http)"}
+2026-04-22T09:38:41.788979004Z {"time":"2026-04-22 09:38:41,788","level":"INFO","logger":"org.apache.catalina.core.StandardService","correlationId":"","tenantId":"","msg":"Starting service [Tomcat]"}
+2026-04-22T09:38:41.790331404Z {"time":"2026-04-22 09:38:41,789","level":"INFO","logger":"org.apache.catalina.core.StandardEngine","correlationId":"","tenantId":"","msg":"Starting Servlet engine: [Apache Tomcat/10.1.20]"}
+2026-04-22T09:38:43.088320687Z {"time":"2026-04-22 09:38:43,087","level":"INFO","logger":"org.apache.catalina.core.ContainerBase.[Tomcat].[localhost].[/]","correlationId":"","tenantId":"","msg":"Initializing Spring embedded WebApplicationContext"}
+2026-04-22T09:38:43.101365158Z {"time":"2026-04-22 09:38:43,100","level":"INFO","logger":"org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext","correlationId":"","tenantId":"","msg":"Root WebApplicationContext: initialization completed in 53269 ms"}
+
+
+===== legent-content =====
+docker : 2026-04-22T09:37:23.810223810Z no main manifest attribute, in app.jar
+At C:\Users\leelark.saxena\Desktop\Legent - v1.0.2\collect-docker-logs.ps1:34 char:9
++         docker logs --timestamps --tail 300 $containerId 2>&1 |
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-04-22T09:3...ute, in app.jar:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-04-22T09:37:56.673661411Z no main manifest attribute, in app.jar
+2026-04-22T09:38:05.256822073Z no main manifest attribute, in app.jar
+
+
+===== legent-platform-service =====
+2026-04-22T09:37:41.314702555Z 
+2026-04-22T09:37:41.315660696Z   .   ____          _            __ _ _
+2026-04-22T09:37:41.316261746Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:41.316854095Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:41.317499257Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:41.318031390Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:41.318556522Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:41.368456843Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:41.368505255Z 
+2026-04-22T09:37:44.474995407Z 2026-04-22T09:37:44.468Z  INFO 1 --- [platform-service] [           main] c.legent.platform.PlatformApplication    : Starting PlatformApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T09:37:44.478656448Z 2026-04-22T09:37:44.476Z DEBUG 1 --- [platform-service] [           main] c.legent.platform.PlatformApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-22T09:37:44.489961054Z 2026-04-22T09:37:44.480Z  INFO 1 --- [platform-service] [           main] c.legent.platform.PlatformApplication    : The following 1 profile is active: "prod"
+2026-04-22T09:38:12.336003750Z 2026-04-22T09:38:12.278Z  INFO 1 --- [platform-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T09:38:15.724476468Z 2026-04-22T09:38:15.723Z  INFO 1 --- [platform-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 3095 ms. Found 5 JPA repository interfaces.
+2026-04-22T09:38:31.113237026Z 2026-04-22T09:38:31.112Z  INFO 1 --- [platform-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8088 (http)
+2026-04-22T09:38:31.267986782Z 2026-04-22T09:38:31.267Z  INFO 1 --- [platform-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T09:38:31.269020280Z 2026-04-22T09:38:31.268Z  INFO 1 --- [platform-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T09:38:31.882451339Z 2026-04-22T09:38:31.881Z  INFO 1 --- [platform-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T09:38:31.886476410Z 2026-04-22T09:38:31.885Z  INFO 1 --- [platform-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 44535 ms
+2026-04-22T09:38:36.352605987Z 2026-04-22T09:38:36.352Z DEBUG 1 --- [platform-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-22T09:38:36.357216722Z 2026-04-22T09:38:36.356Z DEBUG 1 --- [platform-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-22T09:38:39.250131214Z 2026-04-22T09:38:39.210Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-22T09:38:43.760300575Z 2026-04-22T09:38:43.759Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@318e3942
+2026-04-22T09:38:43.793050480Z 2026-04-22T09:38:43.788Z  INFO 1 --- [platform-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-22T09:38:46.795943201Z 2026-04-22T09:38:46.795Z  INFO 1 --- [platform-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-22T09:38:46.796793299Z 2026-04-22T09:38:46.795Z  INFO 1 --- [platform-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-22T09:38:46.796947135Z 2026-04-22T09:38:46.796Z  INFO 1 --- [platform-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-22T09:38:47.174804623Z 2026-04-22T09:38:47.165Z  INFO 1 --- [platform-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_platform (PostgreSQL 15.17)
+2026-04-22T09:38:47.978284020Z 2026-04-22T09:38:47.963Z  INFO 1 --- [platform-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+
+
+===== legent-campaign =====
+2026-04-22T09:37:42.348758719Z 
+2026-04-22T09:37:42.349896105Z   .   ____          _            __ _ _
+2026-04-22T09:37:42.355531019Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:42.356483558Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:42.357395586Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:42.358328420Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:42.359814693Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:42.445078388Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:42.445173312Z 
+2026-04-22T09:37:47.287738488Z 2026-04-22 09:37:47.251 [main] INFO  c.l.campaign.CampaignApplication - [Tenant:, Req:] - Starting CampaignApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T09:37:47.287782699Z 2026-04-22 09:37:47.283 [main] DEBUG c.l.campaign.CampaignApplication - [Tenant:, Req:] - Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-22T09:37:47.287791102Z 2026-04-22 09:37:47.285 [main] INFO  c.l.campaign.CampaignApplication - [Tenant:, Req:] - The following 1 profile is active: "prod"
+2026-04-22T09:38:15.750407368Z 2026-04-22 09:38:15.743 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:38:15.778086387Z 2026-04-22 09:38:15.772 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T09:38:19.181196431Z 2026-04-22 09:38:19.170 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Finished Spring Data repository scanning in 3243 ms. Found 4 JPA repository interfaces.
+2026-04-22T09:38:19.651811104Z 2026-04-22 09:38:19.645 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:38:19.688639435Z 2026-04-22 09:38:19.676 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-22T09:38:19.975262789Z 2026-04-22 09:38:19.974 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.CampaignRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:19.983863412Z 2026-04-22 09:38:19.975 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.SendBatchRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:19.983956432Z 2026-04-22 09:38:19.981 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.SendJobRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:19.983969035Z 2026-04-22 09:38:19.982 [main] INFO  o.s.d.r.c.RepositoryConfigurationExtensionSupport - [Tenant:, Req:] - Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.campaign.repository.ThrottlingRuleRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:19.983981438Z 2026-04-22 09:38:19.983 [main] INFO  o.s.d.r.c.RepositoryConfigurationDelegate - [Tenant:, Req:] - Finished Spring Data repository scanning in 68 ms. Found 0 Redis repository interfaces.
+2026-04-22T09:38:38.453036371Z 2026-04-22 09:38:38.452 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - [Tenant:, Req:] - Tomcat initialized with port 8083 (http)
+2026-04-22T09:38:38.739864761Z 2026-04-22 09:38:38.739 [main] INFO  o.a.catalina.core.StandardService - [Tenant:, Req:] - Starting service [Tomcat]
+2026-04-22T09:38:38.811466319Z 2026-04-22 09:38:38.740 [main] INFO  o.a.catalina.core.StandardEngine - [Tenant:, Req:] - Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T09:38:39.860395135Z 2026-04-22 09:38:39.858 [main] INFO  o.a.c.c.C.[Tomcat].[localhost].[/] - [Tenant:, Req:] - Initializing Spring embedded WebApplicationContext
+2026-04-22T09:38:39.871097508Z 2026-04-22 09:38:39.870 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - [Tenant:, Req:] - Root WebApplicationContext: initialization completed in 51090 ms
+2026-04-22T09:38:44.587640734Z 2026-04-22 09:38:44.586 [main] DEBUG c.l.c.config.CorrelationIdFilter - [Tenant:, Req:] - Filter 'correlationIdFilter' configured for use
+2026-04-22T09:38:44.605212619Z 2026-04-22 09:38:44.604 [main] DEBUG com.legent.security.TenantFilter - [Tenant:, Req:] - Filter 'tenantFilter' configured for use
+2026-04-22T09:38:47.233796460Z 2026-04-22 09:38:47.190 [main] INFO  com.zaxxer.hikari.HikariDataSource - [Tenant:, Req:] - HikariPool-1 - Starting...
+
+
+===== legent-tracking =====
+2026-04-22T09:37:40.954981394Z 
+2026-04-22T09:37:40.955055613Z   .   ____          _            __ _ _
+2026-04-22T09:37:40.955065315Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:40.955072117Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:40.955076818Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:40.955081119Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:40.955085720Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:41.077234970Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:41.077280281Z 
+2026-04-22T09:37:44.098954776Z 2026-04-22T09:37:44.027Z  INFO 1 --- [tracking-service] [           main] c.legent.tracking.TrackingApplication    : Starting TrackingApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T09:37:44.119485928Z 2026-04-22T09:37:44.118Z DEBUG 1 --- [tracking-service] [           main] c.legent.tracking.TrackingApplication    : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-22T09:37:44.121683479Z 2026-04-22T09:37:44.120Z  INFO 1 --- [tracking-service] [           main] c.legent.tracking.TrackingApplication    : The following 1 profile is active: "prod"
+2026-04-22T09:38:14.509798926Z 2026-04-22T09:38:14.502Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:38:14.532057548Z 2026-04-22T09:38:14.518Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T09:38:17.127429653Z 2026-04-22T09:38:17.126Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2431 ms. Found 3 JPA repository interfaces.
+2026-04-22T09:38:17.421062474Z 2026-04-22T09:38:17.420Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:38:17.436829998Z 2026-04-22T09:38:17.435Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-22T09:38:17.676411140Z 2026-04-22T09:38:17.664Z  INFO 1 --- [tracking-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.tracking.repository.CampaignSummaryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:17.703880479Z 2026-04-22T09:38:17.687Z  INFO 1 --- [tracking-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.tracking.repository.RawEventRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:17.705674179Z 2026-04-22T09:38:17.705Z  INFO 1 --- [tracking-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.tracking.repository.SubscriberSummaryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:17.706072468Z 2026-04-22T09:38:17.705Z  INFO 1 --- [tracking-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 125 ms. Found 0 Redis repository interfaces.
+2026-04-22T09:38:35.784491470Z 2026-04-22T09:38:35.783Z  INFO 1 --- [tracking-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8085 (http)
+2026-04-22T09:38:36.062969410Z 2026-04-22T09:38:36.062Z  INFO 1 --- [tracking-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T09:38:36.113733199Z 2026-04-22T09:38:36.113Z  INFO 1 --- [tracking-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T09:38:36.563300095Z 2026-04-22T09:38:36.562Z  INFO 1 --- [tracking-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T09:38:36.579076867Z 2026-04-22T09:38:36.578Z  INFO 1 --- [tracking-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 49207 ms
+2026-04-22T09:38:41.505750924Z 2026-04-22T09:38:41.504Z DEBUG 1 --- [tracking-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-22T09:38:41.529712732Z 2026-04-22T09:38:41.529Z DEBUG 1 --- [tracking-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-22T09:38:43.344407635Z 2026-04-22T09:38:43.328Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-22T09:38:48.657203834Z 2026-04-22T09:38:48.651Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1ff463bb
+2026-04-22T09:38:48.737790666Z 2026-04-22T09:38:48.698Z  INFO 1 --- [tracking-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+
+
+===== legent-identity =====
+2026-04-22T09:37:08.289605927Z 
+2026-04-22T09:37:08.289666236Z   .   ____          _            __ _ _
+2026-04-22T09:37:08.289673637Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:08.289678438Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:08.289682738Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:08.289686539Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:08.289690740Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:08.304186365Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:08.304224371Z 
+2026-04-22T09:37:08.838617307Z 2026-04-22T09:37:08.834Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : Starting IdentityApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T09:37:08.840578708Z 2026-04-22T09:37:08.840Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : The following 1 profile is active: "prod"
+2026-04-22T09:37:12.655349365Z 2026-04-22T09:37:12.654Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:37:12.660987047Z 2026-04-22T09:37:12.660Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T09:37:13.453106130Z 2026-04-22T09:37:13.452Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 747 ms. Found 1 JPA repository interface.
+2026-04-22T09:37:13.675072833Z 2026-04-22T09:37:13.663Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:37:13.675230566Z 2026-04-22T09:37:13.674Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-22T09:37:13.825070181Z 2026-04-22T09:37:13.824Z  INFO 1 --- [identity-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.identity.repository.UserRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:37:13.825254337Z 2026-04-22T09:37:13.824Z  INFO 1 --- [identity-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 97 ms. Found 0 Redis repository interfaces.
+2026-04-22T09:37:18.372403492Z 2026-04-22T09:37:18.371Z  INFO 1 --- [identity-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8089 (http)
+2026-04-22T09:37:18.627686720Z 2026-04-22T09:37:18.627Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T09:37:18.632352065Z 2026-04-22T09:37:18.627Z  INFO 1 --- [identity-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T09:37:18.882285409Z 2026-04-22T09:37:18.881Z  INFO 1 --- [identity-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T09:37:18.885191298Z 2026-04-22T09:37:18.884Z  INFO 1 --- [identity-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 9561 ms
+2026-04-22T09:37:19.749781390Z 2026-04-22T09:37:19.746Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-04-22T09:37:20.578428112Z 2026-04-22T09:37:20.577Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@5122e4bf
+2026-04-22T09:37:20.583238135Z 2026-04-22T09:37:20.582Z  INFO 1 --- [identity-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-04-22T09:37:21.028723723Z 2026-04-22T09:37:21.028Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : Flyway Community Edition 9.22.3 by Redgate
+2026-04-22T09:37:21.029525944Z 2026-04-22T09:37:21.028Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : See release notes here: https://rd.gt/416ObMi
+2026-04-22T09:37:21.029600164Z 2026-04-22T09:37:21.028Z  INFO 1 --- [identity-service] [           main] o.f.c.internal.license.VersionPrinter    : 
+2026-04-22T09:37:21.082766883Z 2026-04-22T09:37:21.082Z  INFO 1 --- [identity-service] [           main] org.flywaydb.core.FlywayExecutor         : Database: jdbc:postgresql://postgres:5432/legent_identity (PostgreSQL 15.17)
+2026-04-22T09:37:21.182788784Z 2026-04-22T09:37:21.182Z  INFO 1 --- [identity-service] [           main] o.f.c.i.s.JdbcTableSchemaHistory         : Creating Schema History table "public"."flyway_schema_history" ...
+2026-04-22T09:37:21.704815718Z 2026-04-22T09:37:21.704Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Current version of schema "public": << Empty Schema >>
+2026-04-22T09:37:21.705286147Z 2026-04-22T09:37:21.704Z  WARN 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : outOfOrder mode is active. Migration of schema "public" may not be reproducible.
+2026-04-22T09:37:21.727151059Z 2026-04-22T09:37:21.726Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema "public" to version "1 - identity schema"
+2026-04-22T09:37:22.330974283Z 2026-04-22T09:37:22.328Z  INFO 1 --- [identity-service] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema "public", now at version v1 (execution time 00:00.428s)
+2026-04-22T09:37:22.718201153Z 2026-04-22T09:37:22.717Z  INFO 1 --- [identity-service] [           main] o.hibernate.jpa.internal.util.LogHelper  : HHH000204: Processing PersistenceUnitInfo [name: default]
+2026-04-22T09:37:24.078965302Z 2026-04-22T09:37:24.078Z  INFO 1 --- [identity-service] [           main] org.hibernate.Version                    : HHH000412: Hibernate ORM core version 6.4.4.Final
+2026-04-22T09:37:24.831043189Z 2026-04-22T09:37:24.810Z  INFO 1 --- [identity-service] [           main] o.h.c.internal.RegionFactoryInitiator    : HHH000026: Second-level cache disabled
+2026-04-22T09:37:29.830391569Z 2026-04-22T09:37:29.829Z  INFO 1 --- [identity-service] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-04-22T09:37:44.583763568Z 2026-04-22T09:37:44.575Z  INFO 1 --- [identity-service] [           main] o.h.e.t.j.p.i.JtaPlatformInitiator       : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-04-22T09:37:46.296593291Z 2026-04-22T09:37:46.292Z  INFO 1 --- [identity-service] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-04-22T09:37:59.921234150Z 2026-04-22T09:37:59.907Z  WARN 1 --- [identity-service] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-04-22T09:38:06.668436462Z 2026-04-22T09:38:06.665Z  WARN 1 --- [identity-service] [           main] .s.s.UserDetailsServiceAutoConfiguration : 
+2026-04-22T09:38:06.668574695Z 
+2026-04-22T09:38:06.668591099Z Using generated security password: e9986fdc-9e80-459d-bbcd-15ff617a9719
+2026-04-22T09:38:06.668599201Z 
+2026-04-22T09:38:06.668606103Z This generated password is for development use only. Your security configuration must be updated before running your application in production.
+2026-04-22T09:38:06.668613404Z 
+2026-04-22T09:38:08.852918108Z 2026-04-22T09:38:08.851Z  INFO 1 --- [identity-service] [           main] o.s.s.web.DefaultSecurityFilterChain     : Will secure any request with [org.springframework.security.web.session.DisableEncodeUrlFilter@57ac220f, org.springframework.security.web.context.request.async.WebAsyncManagerIntegrationFilter@7e641005, org.springframework.security.web.context.SecurityContextHolderFilter@5abf9a76, org.springframework.security.web.header.HeaderWriterFilter@3ae5cbb9, org.springframework.web.filter.CorsFilter@2ccfd2cb, org.springframework.security.web.csrf.CsrfFilter@ab90b8c, org.springframework.security.web.authentication.logout.LogoutFilter@349469db, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter@108a7fff, org.springframework.security.web.authentication.ui.DefaultLoginPageGeneratingFilter@28806954, org.springframework.security.web.authentication.ui.DefaultLogoutPageGeneratingFilter@36c8e1c6, org.springframework.security.web.authentication.www.BasicAuthenticationFilter@4a2c69a6, org.springframework.security.web.savedrequest.RequestCacheAwareFilter@7f2d4ffc, org.springframework.security.web.servletapi.SecurityContextHolderAwareRequestFilter@38293d23, org.springframework.security.web.authentication.AnonymousAuthenticationFilter@42014a, org.springframework.security.web.access.ExceptionTranslationFilter@7b237c2c, org.springframework.security.web.access.intercept.AuthorizationFilter@23b4f0a9]
+2026-04-22T09:38:10.260145891Z 2026-04-22T09:38:10.253Z  INFO 1 --- [identity-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port 8089 (http) with context path ''
+2026-04-22T09:38:10.419824572Z 2026-04-22T09:38:10.415Z  INFO 1 --- [identity-service] [           main] c.legent.identity.IdentityApplication    : Started IdentityApplication in 63.835 seconds (process running for 65.796)
+2026-04-22T09:38:38.024082414Z 2026-04-22T09:38:37.986Z  INFO 1 --- [identity-service] [nio-8089-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-04-22T09:38:38.024169526Z 2026-04-22T09:38:38.015Z  INFO 1 --- [identity-service] [nio-8089-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-04-22T09:38:38.137373511Z 2026-04-22T09:38:38.136Z  INFO 1 --- [identity-service] [nio-8089-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 121 ms
+
+
+===== legent-foundation =====
+2026-04-22T09:37:46.694421262Z 
+2026-04-22T09:37:46.694575902Z   .   ____          _            __ _ _
+2026-04-22T09:37:46.694586805Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:46.694592806Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:46.694598508Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:46.694604409Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:46.694610311Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:46.809737107Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:46.809801423Z 
+2026-04-22T09:37:50.307082681Z {"time":"2026-04-22 09:37:50,286","level":"INFO","logger":"com.legent.foundation.FoundationApplication","correlationId":"","tenantId":"","msg":"Starting FoundationApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)"}
+2026-04-22T09:37:50.317043842Z {"time":"2026-04-22 09:37:50,306","level":"DEBUG","logger":"com.legent.foundation.FoundationApplication","correlationId":"","tenantId":"","msg":"Running with Spring Boot v3.2.5, Spring v6.1.6"}
+2026-04-22T09:37:50.334557444Z {"time":"2026-04-22 09:37:50,333","level":"INFO","logger":"com.legent.foundation.FoundationApplication","correlationId":"","tenantId":"","msg":"The following 1 profile is active: "prod""}
+2026-04-22T09:38:17.830839551Z {"time":"2026-04-22 09:38:17,819","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+2026-04-22T09:38:17.862402505Z {"time":"2026-04-22 09:38:17,861","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data JPA repositories in DEFAULT mode."}
+2026-04-22T09:38:21.385538159Z {"time":"2026-04-22 09:38:21,384","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 3201 ms. Found 7 JPA repository interfaces."}
+2026-04-22T09:38:21.610210469Z {"time":"2026-04-22 09:38:21,609","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Multiple Spring Data modules found, entering strict repository configuration mode"}
+2026-04-22T09:38:21.621894981Z {"time":"2026-04-22 09:38:21,621","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Bootstrapping Spring Data Redis repositories in DEFAULT mode."}
+2026-04-22T09:38:21.854618590Z {"time":"2026-04-22 09:38:21,854","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.AdminConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:21.889791650Z {"time":"2026-04-22 09:38:21,889","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.AuditLogRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:21.900871226Z {"time":"2026-04-22 09:38:21,892","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.BrandingRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:21.929834299Z {"time":"2026-04-22 09:38:21,908","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.ConfigRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:21.940501183Z {"time":"2026-04-22 09:38:21,940","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.FeatureFlagRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:21.941672945Z {"time":"2026-04-22 09:38:21,941","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.TenantRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:21.942837205Z {"time":"2026-04-22 09:38:21,942","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationExtensionSupport","correlationId":"","tenantId":"","msg":"Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.foundation.repository.WebhookIntegrationRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository"}
+2026-04-22T09:38:21.943787217Z {"time":"2026-04-22 09:38:21,943","level":"INFO","logger":"org.springframework.data.repository.config.RepositoryConfigurationDelegate","correlationId":"","tenantId":"","msg":"Finished Spring Data repository scanning in 166 ms. Found 0 Redis repository interfaces."}
+2026-04-22T09:38:42.484407685Z {"time":"2026-04-22 09:38:42,477","level":"INFO","logger":"org.springframework.boot.web.embedded.tomcat.TomcatWebServer","correlationId":"","tenantId":"","msg":"Tomcat initialized with port 8081 (http)"}
+2026-04-22T09:38:42.855347139Z {"time":"2026-04-22 09:38:42,854","level":"INFO","logger":"org.apache.catalina.core.StandardService","correlationId":"","tenantId":"","msg":"Starting service [Tomcat]"}
+2026-04-22T09:38:42.883598297Z {"time":"2026-04-22 09:38:42,882","level":"INFO","logger":"org.apache.catalina.core.StandardEngine","correlationId":"","tenantId":"","msg":"Starting Servlet engine: [Apache Tomcat/10.1.20]"}
+2026-04-22T09:38:43.925692386Z {"time":"2026-04-22 09:38:43,925","level":"INFO","logger":"org.apache.catalina.core.ContainerBase.[Tomcat].[localhost].[/]","correlationId":"","tenantId":"","msg":"Initializing Spring embedded WebApplicationContext"}
+2026-04-22T09:38:43.940787310Z {"time":"2026-04-22 09:38:43,940","level":"INFO","logger":"org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext","correlationId":"","tenantId":"","msg":"Root WebApplicationContext: initialization completed in 51621 ms"}
+
+
+===== legent-automation =====
+2026-04-22T09:37:44.121680579Z 
+2026-04-22T09:37:44.121992657Z   .   ____          _            __ _ _
+2026-04-22T09:37:44.122637119Z  /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+2026-04-22T09:37:44.122913788Z ( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+2026-04-22T09:37:44.127099038Z  \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+2026-04-22T09:37:44.137766615Z   '  |____| .__|_| |_|_| |_\__, | / / / /
+2026-04-22T09:37:44.137871541Z  =========|_|==============|___/=/_/_/_/
+2026-04-22T09:37:44.161840956Z  :: Spring Boot ::                (v3.2.5)
+2026-04-22T09:37:44.169792951Z 
+2026-04-22T09:37:48.970329537Z 2026-04-22T09:37:48.815Z  INFO 1 --- [automation-service] [           main] c.l.automation.AutomationApplication     : Starting AutomationApplication v1.0.0-SNAPSHOT using Java 21.0.10 with PID 1 (/app/app.jar started by legent in /app)
+2026-04-22T09:37:48.970383151Z 2026-04-22T09:37:48.960Z DEBUG 1 --- [automation-service] [           main] c.l.automation.AutomationApplication     : Running with Spring Boot v3.2.5, Spring v6.1.6
+2026-04-22T09:37:48.970393054Z 2026-04-22T09:37:48.962Z  INFO 1 --- [automation-service] [           main] c.l.automation.AutomationApplication     : The following 1 profile is active: "prod"
+2026-04-22T09:38:16.548148694Z 2026-04-22T09:38:16.534Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:38:16.572012528Z 2026-04-22T09:38:16.561Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-04-22T09:38:19.529043568Z 2026-04-22T09:38:19.528Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 2705 ms. Found 4 JPA repository interfaces.
+2026-04-22T09:38:20.011371359Z 2026-04-22T09:38:20.000Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Multiple Spring Data modules found, entering strict repository configuration mode
+2026-04-22T09:38:20.017652063Z 2026-04-22T09:38:20.017Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-04-22T09:38:20.371390016Z 2026-04-22T09:38:20.370Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.InstanceHistoryRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:20.374309269Z 2026-04-22T09:38:20.372Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.WorkflowDefinitionRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:20.383725173Z 2026-04-22T09:38:20.373Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.WorkflowInstanceRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:20.384394923Z 2026-04-22T09:38:20.375Z  INFO 1 --- [automation-service] [           main] .RepositoryConfigurationExtensionSupport : Spring Data Redis - Could not safely identify store assignment for repository candidate interface com.legent.automation.repository.WorkflowRepository; If you want this repository to be a Redis repository, consider annotating your entities with one of these annotations: org.springframework.data.redis.core.RedisHash (preferred), or consider extending one of the following types with your repository: org.springframework.data.keyvalue.repository.KeyValueRepository
+2026-04-22T09:38:20.386139913Z 2026-04-22T09:38:20.384Z  INFO 1 --- [automation-service] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 162 ms. Found 0 Redis repository interfaces.
+2026-04-22T09:38:36.759180064Z 2026-04-22T09:38:36.758Z  INFO 1 --- [automation-service] [           main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port 8086 (http)
+2026-04-22T09:38:37.547827043Z 2026-04-22T09:38:37.520Z  INFO 1 --- [automation-service] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-04-22T09:38:37.549019508Z 2026-04-22T09:38:37.539Z  INFO 1 --- [automation-service] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/10.1.20]
+2026-04-22T09:38:38.852020403Z 2026-04-22T09:38:38.850Z  INFO 1 --- [automation-service] [           main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2026-04-22T09:38:38.884849723Z 2026-04-22T09:38:38.880Z  INFO 1 --- [automation-service] [           main] w.s.c.ServletWebServerApplicationContext : Root WebApplicationContext: initialization completed in 47906 ms
+2026-04-22T09:38:42.984317055Z 2026-04-22T09:38:42.975Z DEBUG 1 --- [automation-service] [           main] c.l.common.config.CorrelationIdFilter    : Filter 'correlationIdFilter' configured for use
+2026-04-22T09:38:43.000514588Z 2026-04-22T09:38:42.996Z DEBUG 1 --- [automation-service] [           main] com.legent.security.TenantFilter         : Filter 'tenantFilter' configured for use
+2026-04-22T09:38:45.604708011Z 2026-04-22T09:38:45.568Z  INFO 1 --- [automation-service] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+
+
+===== legent-postgres-init =====
+2026-04-22T09:37:00.848636430Z CREATE DATABASE
+2026-04-22T09:37:01.023780832Z CREATE DATABASE
+2026-04-22T09:37:01.318583890Z CREATE DATABASE
+2026-04-22T09:37:01.488955200Z CREATE DATABASE
+2026-04-22T09:37:01.676740236Z CREATE DATABASE
+2026-04-22T09:37:01.848809092Z CREATE DATABASE
+2026-04-22T09:37:02.299478956Z CREATE DATABASE
+2026-04-22T09:37:02.499016096Z CREATE DATABASE
+2026-04-22T09:37:02.688771218Z CREATE DATABASE
+2026-04-22T09:37:02.862635896Z CREATE DATABASE
+2026-04-22T09:37:02.864038071Z All databases created successfully
+
+
+===== legent-kafka =====
+2026-04-22T09:37:15.024154507Z 	log.cleaner.enable = true
+2026-04-22T09:37:15.024157209Z 	log.cleaner.io.buffer.load.factor = 0.9
+2026-04-22T09:37:15.024159911Z 	log.cleaner.io.buffer.size = 524288
+2026-04-22T09:37:15.024162614Z 	log.cleaner.io.max.bytes.per.second = 1.7976931348623157E308
+2026-04-22T09:37:15.024165416Z 	log.cleaner.max.compaction.lag.ms = 9223372036854775807
+2026-04-22T09:37:15.024168118Z 	log.cleaner.min.cleanable.ratio = 0.5
+2026-04-22T09:37:15.024170921Z 	log.cleaner.min.compaction.lag.ms = 0
+2026-04-22T09:37:15.024173623Z 	log.cleaner.threads = 1
+2026-04-22T09:37:15.024176325Z 	log.cleanup.policy = [delete]
+2026-04-22T09:37:15.024179128Z 	log.dir = /tmp/kafka-logs
+2026-04-22T09:37:15.024181830Z 	log.dirs = /var/lib/kafka/data
+2026-04-22T09:37:15.024184632Z 	log.flush.interval.messages = 9223372036854775807
+2026-04-22T09:37:15.024187435Z 	log.flush.interval.ms = null
+2026-04-22T09:37:15.024190337Z 	log.flush.offset.checkpoint.interval.ms = 60000
+2026-04-22T09:37:15.024196843Z 	log.flush.scheduler.interval.ms = 9223372036854775807
+2026-04-22T09:37:15.024199945Z 	log.flush.start.offset.checkpoint.interval.ms = 60000
+2026-04-22T09:37:15.024202748Z 	log.index.interval.bytes = 4096
+2026-04-22T09:37:15.024205450Z 	log.index.size.max.bytes = 10485760
+2026-04-22T09:37:15.024208252Z 	log.message.downconversion.enable = true
+2026-04-22T09:37:15.024210955Z 	log.message.format.version = 3.0-IV1
+2026-04-22T09:37:15.024213857Z 	log.message.timestamp.difference.max.ms = 9223372036854775807
+2026-04-22T09:37:15.024216659Z 	log.message.timestamp.type = CreateTime
+2026-04-22T09:37:15.024219462Z 	log.preallocate = false
+2026-04-22T09:37:15.024222164Z 	log.retention.bytes = -1
+2026-04-22T09:37:15.024224866Z 	log.retention.check.interval.ms = 300000
+2026-04-22T09:37:15.024227569Z 	log.retention.hours = 168
+2026-04-22T09:37:15.024230371Z 	log.retention.minutes = null
+2026-04-22T09:37:15.024233073Z 	log.retention.ms = null
+2026-04-22T09:37:15.024235876Z 	log.roll.hours = 168
+2026-04-22T09:37:15.024238778Z 	log.roll.jitter.hours = 0
+2026-04-22T09:37:15.024242982Z 	log.roll.jitter.ms = null
+2026-04-22T09:37:15.024247385Z 	log.roll.ms = null
+2026-04-22T09:37:15.024251689Z 	log.segment.bytes = 1073741824
+2026-04-22T09:37:15.024256093Z 	log.segment.delete.delay.ms = 60000
+2026-04-22T09:37:15.024265401Z 	max.connection.creation.rate = 2147483647
+2026-04-22T09:37:15.024270505Z 	max.connections = 2147483647
+2026-04-22T09:37:15.024275810Z 	max.connections.per.ip = 2147483647
+2026-04-22T09:37:15.024280514Z 	max.connections.per.ip.overrides = 
+2026-04-22T09:37:15.024288821Z 	max.incremental.fetch.session.cache.slots = 1000
+2026-04-22T09:37:15.024295026Z 	message.max.bytes = 1048588
+2026-04-22T09:37:15.024301732Z 	metadata.log.dir = null
+2026-04-22T09:37:15.024304634Z 	metadata.log.max.record.bytes.between.snapshots = 20971520
+2026-04-22T09:37:15.024307336Z 	metadata.log.max.snapshot.interval.ms = 3600000
+2026-04-22T09:37:15.024310239Z 	metadata.log.segment.bytes = 1073741824
+2026-04-22T09:37:15.024312941Z 	metadata.log.segment.min.bytes = 8388608
+2026-04-22T09:37:15.024315844Z 	metadata.log.segment.ms = 604800000
+2026-04-22T09:37:15.024318546Z 	metadata.max.idle.interval.ms = 500
+2026-04-22T09:37:15.024321348Z 	metadata.max.retention.bytes = 104857600
+2026-04-22T09:37:15.024324051Z 	metadata.max.retention.ms = 604800000
+2026-04-22T09:37:15.024326753Z 	metric.reporters = []
+2026-04-22T09:37:15.024336461Z 	metrics.num.samples = 2
+2026-04-22T09:37:15.024339564Z 	metrics.recording.level = INFO
+2026-04-22T09:37:15.024342366Z 	metrics.sample.window.ms = 30000
+2026-04-22T09:37:15.024345168Z 	min.insync.replicas = 1
+2026-04-22T09:37:15.024347871Z 	node.id = 1
+2026-04-22T09:37:15.024350673Z 	num.io.threads = 8
+2026-04-22T09:37:15.024353375Z 	num.network.threads = 3
+2026-04-22T09:37:15.024356178Z 	num.partitions = 1
+2026-04-22T09:37:15.024358980Z 	num.recovery.threads.per.data.dir = 1
+2026-04-22T09:37:15.024361682Z 	num.replica.alter.log.dirs.threads = null
+2026-04-22T09:37:15.024364385Z 	num.replica.fetchers = 1
+2026-04-22T09:37:15.024367187Z 	offset.metadata.max.bytes = 4096
+2026-04-22T09:37:15.024369989Z 	offsets.commit.required.acks = -1
+2026-04-22T09:37:15.024372692Z 	offsets.commit.timeout.ms = 5000
+2026-04-22T09:37:15.024375394Z 	offsets.load.buffer.size = 5242880
+2026-04-22T09:37:15.024378096Z 	offsets.retention.check.interval.ms = 600000
+2026-04-22T09:37:15.024380999Z 	offsets.retention.minutes = 10080
+2026-04-22T09:37:15.024383801Z 	offsets.topic.compression.codec = 0
+2026-04-22T09:37:15.024386503Z 	offsets.topic.num.partitions = 50
+2026-04-22T09:37:15.024389206Z 	offsets.topic.replication.factor = 1
+2026-04-22T09:37:15.024392108Z 	offsets.topic.segment.bytes = 104857600
+2026-04-22T09:37:15.024395011Z 	password.encoder.cipher.algorithm = AES/CBC/PKCS5Padding
+2026-04-22T09:37:15.024397813Z 	password.encoder.iterations = 4096
+2026-04-22T09:37:15.024400716Z 	password.encoder.key.length = 128
+2026-04-22T09:37:15.024403718Z 	password.encoder.keyfactory.algorithm = null
+2026-04-22T09:37:15.024406420Z 	password.encoder.old.secret = null
+2026-04-22T09:37:15.024409123Z 	password.encoder.secret = null
+2026-04-22T09:37:15.024411925Z 	principal.builder.class = class org.apache.kafka.common.security.authenticator.DefaultKafkaPrincipalBuilder
+2026-04-22T09:37:15.024414828Z 	process.roles = []
+2026-04-22T09:37:15.024417730Z 	producer.id.expiration.check.interval.ms = 600000
+2026-04-22T09:37:15.024420532Z 	producer.id.expiration.ms = 86400000
+2026-04-22T09:37:15.024423235Z 	producer.purgatory.purge.interval.requests = 1000
+2026-04-22T09:37:15.024426037Z 	queued.max.request.bytes = -1
+2026-04-22T09:37:15.024428939Z 	queued.max.requests = 500
+2026-04-22T09:37:15.024431642Z 	quota.window.num = 11
+2026-04-22T09:37:15.024434244Z 	quota.window.size.seconds = 1
+2026-04-22T09:37:15.024438247Z 	remote.log.index.file.cache.total.size.bytes = 1073741824
+2026-04-22T09:37:15.024445153Z 	remote.log.manager.task.interval.ms = 30000
+2026-04-22T09:37:15.024448156Z 	remote.log.manager.task.retry.backoff.max.ms = 30000
+2026-04-22T09:37:15.024451058Z 	remote.log.manager.task.retry.backoff.ms = 500
+2026-04-22T09:37:15.024453861Z 	remote.log.manager.task.retry.jitter = 0.2
+2026-04-22T09:37:15.024456563Z 	remote.log.manager.thread.pool.size = 10
+2026-04-22T09:37:15.024459365Z 	remote.log.metadata.manager.class.name = null
+2026-04-22T09:37:15.024462068Z 	remote.log.metadata.manager.class.path = null
+2026-04-22T09:37:15.024464870Z 	remote.log.metadata.manager.impl.prefix = null
+2026-04-22T09:37:15.024467672Z 	remote.log.metadata.manager.listener.name = null
+2026-04-22T09:37:15.024470475Z 	remote.log.reader.max.pending.tasks = 100
+2026-04-22T09:37:15.024473277Z 	remote.log.reader.threads = 10
+2026-04-22T09:37:15.024475979Z 	remote.log.storage.manager.class.name = null
+2026-04-22T09:37:15.024478782Z 	remote.log.storage.manager.class.path = null
+2026-04-22T09:37:15.024481584Z 	remote.log.storage.manager.impl.prefix = null
+2026-04-22T09:37:15.024484487Z 	remote.log.storage.system.enable = false
+2026-04-22T09:37:15.024487189Z 	replica.fetch.backoff.ms = 1000
+2026-04-22T09:37:15.024489991Z 	replica.fetch.max.bytes = 1048576
+2026-04-22T09:37:15.024492694Z 	replica.fetch.min.bytes = 1
+2026-04-22T09:37:15.024495396Z 	replica.fetch.response.max.bytes = 10485760
+2026-04-22T09:37:15.024498198Z 	replica.fetch.wait.max.ms = 500
+2026-04-22T09:37:15.024501301Z 	replica.high.watermark.checkpoint.interval.ms = 5000
+2026-04-22T09:37:15.024504404Z 	replica.lag.time.max.ms = 30000
+2026-04-22T09:37:15.024507106Z 	replica.selector.class = null
+2026-04-22T09:37:15.024509808Z 	replica.socket.receive.buffer.bytes = 65536
+2026-04-22T09:37:15.024512610Z 	replica.socket.timeout.ms = 30000
+2026-04-22T09:37:15.024515313Z 	replication.quota.window.num = 11
+2026-04-22T09:37:15.024518015Z 	replication.quota.window.size.seconds = 1
+2026-04-22T09:37:15.024520717Z 	request.timeout.ms = 30000
+2026-04-22T09:37:15.024523520Z 	reserved.broker.max.id = 1000
+2026-04-22T09:37:15.024526222Z 	sasl.client.callback.handler.class = null
+2026-04-22T09:37:15.024528924Z 	sasl.enabled.mechanisms = [GSSAPI]
+2026-04-22T09:37:15.024531827Z 	sasl.jaas.config = null
+2026-04-22T09:37:15.024534629Z 	sasl.kerberos.kinit.cmd = /usr/bin/kinit
+2026-04-22T09:37:15.024537331Z 	sasl.kerberos.min.time.before.relogin = 60000
+2026-04-22T09:37:15.024540134Z 	sasl.kerberos.principal.to.local.rules = [DEFAULT]
+2026-04-22T09:37:15.024546639Z 	sasl.kerberos.service.name = null
+2026-04-22T09:37:15.024549642Z 	sasl.kerberos.ticket.renew.jitter = 0.05
+2026-04-22T09:37:15.024552544Z 	sasl.kerberos.ticket.renew.window.factor = 0.8
+2026-04-22T09:37:15.024555247Z 	sasl.login.callback.handler.class = null
+2026-04-22T09:37:15.024558049Z 	sasl.login.class = null
+2026-04-22T09:37:15.024560751Z 	sasl.login.connect.timeout.ms = null
+2026-04-22T09:37:15.024563454Z 	sasl.login.read.timeout.ms = null
+2026-04-22T09:37:15.024566256Z 	sasl.login.refresh.buffer.seconds = 300
+2026-04-22T09:37:15.024568958Z 	sasl.login.refresh.min.period.seconds = 60
+2026-04-22T09:37:15.024571661Z 	sasl.login.refresh.window.factor = 0.8
+2026-04-22T09:37:15.024574363Z 	sasl.login.refresh.window.jitter = 0.05
+2026-04-22T09:37:15.024577065Z 	sasl.login.retry.backoff.max.ms = 10000
+2026-04-22T09:37:15.024579767Z 	sasl.login.retry.backoff.ms = 100
+2026-04-22T09:37:15.024582470Z 	sasl.mechanism.controller.protocol = GSSAPI
+2026-04-22T09:37:15.024585672Z 	sasl.mechanism.inter.broker.protocol = GSSAPI
+2026-04-22T09:37:15.024588575Z 	sasl.oauthbearer.clock.skew.seconds = 30
+2026-04-22T09:37:15.024591377Z 	sasl.oauthbearer.expected.audience = null
+2026-04-22T09:37:15.024594280Z 	sasl.oauthbearer.expected.issuer = null
+2026-04-22T09:37:15.024597082Z 	sasl.oauthbearer.jwks.endpoint.refresh.ms = 3600000
+2026-04-22T09:37:15.024599885Z 	sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms = 10000
+2026-04-22T09:37:15.024602687Z 	sasl.oauthbearer.jwks.endpoint.retry.backoff.ms = 100
+2026-04-22T09:37:15.024605489Z 	sasl.oauthbearer.jwks.endpoint.url = null
+2026-04-22T09:37:15.024608292Z 	sasl.oauthbearer.scope.claim.name = scope
+2026-04-22T09:37:15.024611094Z 	sasl.oauthbearer.sub.claim.name = sub
+2026-04-22T09:37:15.024613796Z 	sasl.oauthbearer.token.endpoint.url = null
+2026-04-22T09:37:15.024616499Z 	sasl.server.callback.handler.class = null
+2026-04-22T09:37:15.024619201Z 	sasl.server.max.receive.size = 524288
+2026-04-22T09:37:15.024621903Z 	security.inter.broker.protocol = PLAINTEXT
+2026-04-22T09:37:15.024624605Z 	security.providers = null
+2026-04-22T09:37:15.024627408Z 	server.max.startup.time.ms = 9223372036854775807
+2026-04-22T09:37:15.024630110Z 	socket.connection.setup.timeout.max.ms = 30000
+2026-04-22T09:37:15.024632913Z 	socket.connection.setup.timeout.ms = 10000
+2026-04-22T09:37:15.024635615Z 	socket.listen.backlog.size = 50
+2026-04-22T09:37:15.024638317Z 	socket.receive.buffer.bytes = 102400
+2026-04-22T09:37:15.024641019Z 	socket.request.max.bytes = 104857600
+2026-04-22T09:37:15.024648025Z 	socket.send.buffer.bytes = 102400
+2026-04-22T09:37:15.024651128Z 	ssl.cipher.suites = []
+2026-04-22T09:37:15.024654030Z 	ssl.client.auth = none
+2026-04-22T09:37:15.024656833Z 	ssl.enabled.protocols = [TLSv1.2, TLSv1.3]
+2026-04-22T09:37:15.024659635Z 	ssl.endpoint.identification.algorithm = https
+2026-04-22T09:37:15.024662438Z 	ssl.engine.factory.class = null
+2026-04-22T09:37:15.024665440Z 	ssl.key.password = null
+2026-04-22T09:37:15.024668343Z 	ssl.keymanager.algorithm = SunX509
+2026-04-22T09:37:15.024671045Z 	ssl.keystore.certificate.chain = null
+2026-04-22T09:37:15.024674047Z 	ssl.keystore.key = null
+2026-04-22T09:37:15.024676850Z 	ssl.keystore.location = null
+2026-04-22T09:37:15.024679552Z 	ssl.keystore.password = null
+2026-04-22T09:37:15.024682354Z 	ssl.keystore.type = JKS
+2026-04-22T09:37:15.024684957Z 	ssl.principal.mapping.rules = DEFAULT
+2026-04-22T09:37:15.024705174Z 	ssl.protocol = TLSv1.3
+2026-04-22T09:37:15.024712180Z 	ssl.provider = null
+2026-04-22T09:37:15.024715182Z 	ssl.secure.random.implementation = null
+2026-04-22T09:37:15.024717885Z 	ssl.trustmanager.algorithm = PKIX
+2026-04-22T09:37:15.024720887Z 	ssl.truststore.certificates = null
+2026-04-22T09:37:15.024723690Z 	ssl.truststore.location = null
+2026-04-22T09:37:15.024726492Z 	ssl.truststore.password = null
+2026-04-22T09:37:15.024729194Z 	ssl.truststore.type = JKS
+2026-04-22T09:37:15.024731896Z 	transaction.abort.timed.out.transaction.cleanup.interval.ms = 10000
+2026-04-22T09:37:15.024734799Z 	transaction.max.timeout.ms = 900000
+2026-04-22T09:37:15.024737601Z 	transaction.remove.expired.transaction.cleanup.interval.ms = 3600000
+2026-04-22T09:37:15.024740404Z 	transaction.state.log.load.buffer.size = 5242880
+2026-04-22T09:37:15.024743206Z 	transaction.state.log.min.isr = 2
+2026-04-22T09:37:15.024745908Z 	transaction.state.log.num.partitions = 50
+2026-04-22T09:37:15.024748811Z 	transaction.state.log.replication.factor = 3
+2026-04-22T09:37:15.024751613Z 	transaction.state.log.segment.bytes = 104857600
+2026-04-22T09:37:15.024754316Z 	transactional.id.expiration.ms = 604800000
+2026-04-22T09:37:15.024757919Z 	unclean.leader.election.enable = false
+2026-04-22T09:37:15.024760621Z 	unstable.api.versions.enable = false
+2026-04-22T09:37:15.024763423Z 	zookeeper.clientCnxnSocket = null
+2026-04-22T09:37:15.024766326Z 	zookeeper.connect = zookeeper:2181
+2026-04-22T09:37:15.024769128Z 	zookeeper.connection.timeout.ms = null
+2026-04-22T09:37:15.024771930Z 	zookeeper.max.in.flight.requests = 10
+2026-04-22T09:37:15.024781539Z 	zookeeper.metadata.migration.enable = false
+2026-04-22T09:37:15.024784641Z 	zookeeper.session.timeout.ms = 18000
+2026-04-22T09:37:15.024787344Z 	zookeeper.set.acl = false
+2026-04-22T09:37:15.024791947Z 	zookeeper.ssl.cipher.suites = null
+2026-04-22T09:37:15.024794950Z 	zookeeper.ssl.client.enable = false
+2026-04-22T09:37:15.024797852Z 	zookeeper.ssl.crl.enable = false
+2026-04-22T09:37:15.024800555Z 	zookeeper.ssl.enabled.protocols = null
+2026-04-22T09:37:15.024803357Z 	zookeeper.ssl.endpoint.identification.algorithm = HTTPS
+2026-04-22T09:37:15.024806059Z 	zookeeper.ssl.keystore.location = null
+2026-04-22T09:37:15.024808862Z 	zookeeper.ssl.keystore.password = null
+2026-04-22T09:37:15.024811564Z 	zookeeper.ssl.keystore.type = null
+2026-04-22T09:37:15.024814266Z 	zookeeper.ssl.ocsp.enable = false
+2026-04-22T09:37:15.024816969Z 	zookeeper.ssl.protocol = TLSv1.2
+2026-04-22T09:37:15.024819671Z 	zookeeper.ssl.truststore.location = null
+2026-04-22T09:37:15.024822473Z 	zookeeper.ssl.truststore.password = null
+2026-04-22T09:37:15.024825176Z 	zookeeper.ssl.truststore.type = null
+2026-04-22T09:37:15.024828078Z  (kafka.server.KafkaConfig)
+2026-04-22T09:37:15.067541714Z [2026-04-22 09:37:15,066] INFO [ThrottledChannelReaper-Fetch]: Starting (kafka.server.ClientQuotaManager$ThrottledChannelReaper)
+2026-04-22T09:37:15.069392684Z [2026-04-22 09:37:15,067] INFO [ThrottledChannelReaper-Produce]: Starting (kafka.server.ClientQuotaManager$ThrottledChannelReaper)
+2026-04-22T09:37:15.070556171Z [2026-04-22 09:37:15,070] INFO [ThrottledChannelReaper-Request]: Starting (kafka.server.ClientQuotaManager$ThrottledChannelReaper)
+2026-04-22T09:37:15.074021511Z [2026-04-22 09:37:15,073] INFO [ThrottledChannelReaper-ControllerMutation]: Starting (kafka.server.ClientQuotaManager$ThrottledChannelReaper)
+2026-04-22T09:37:15.110422491Z [2026-04-22 09:37:15,110] INFO Loading logs from log dirs ArraySeq(/var/lib/kafka/data) (kafka.log.LogManager)
+2026-04-22T09:37:15.115798051Z [2026-04-22 09:37:15,115] INFO No logs found to be loaded in /var/lib/kafka/data (kafka.log.LogManager)
+2026-04-22T09:37:15.128295453Z [2026-04-22 09:37:15,127] INFO Loaded 0 logs in 17ms (kafka.log.LogManager)
+2026-04-22T09:37:15.130714105Z [2026-04-22 09:37:15,130] INFO Starting log cleanup with a period of 300000 ms. (kafka.log.LogManager)
+2026-04-22T09:37:15.132863829Z [2026-04-22 09:37:15,132] INFO Starting log flusher with a default period of 9223372036854775807 ms. (kafka.log.LogManager)
+2026-04-22T09:37:15.147782485Z [2026-04-22 09:37:15,147] INFO Starting the log cleaner (kafka.log.LogCleaner)
+2026-04-22T09:37:16.245282574Z [2026-04-22 09:37:16,240] INFO [kafka-log-cleaner-thread-0]: Starting (kafka.log.LogCleaner$CleanerThread)
+2026-04-22T09:37:16.373131380Z [2026-04-22 09:37:16,372] INFO [feature-zk-node-event-process-thread]: Starting (kafka.server.FinalizedFeatureChangeListener$ChangeNotificationProcessorThread)
+2026-04-22T09:37:16.475848994Z [2026-04-22 09:37:16,475] INFO Feature ZK node at path: /feature does not exist (kafka.server.FinalizedFeatureChangeListener)
+2026-04-22T09:37:16.534732225Z [2026-04-22 09:37:16,534] INFO [zk-broker-1-to-controller-forwarding-channel-manager]: Starting (kafka.server.BrokerToControllerRequestThread)
+2026-04-22T09:37:17.439965852Z [2026-04-22 09:37:17,439] INFO Updated connection-accept-rate max connection creation rate to 2147483647 (kafka.network.ConnectionQuotas)
+2026-04-22T09:37:17.495959999Z [2026-04-22 09:37:17,495] INFO [SocketServer listenerType=ZK_BROKER, nodeId=1] Created data-plane acceptor and processors for endpoint : ListenerName(PLAINTEXT) (kafka.network.SocketServer)
+2026-04-22T09:37:17.497256061Z [2026-04-22 09:37:17,496] INFO Updated connection-accept-rate max connection creation rate to 2147483647 (kafka.network.ConnectionQuotas)
+2026-04-22T09:37:17.517458755Z [2026-04-22 09:37:17,516] INFO [SocketServer listenerType=ZK_BROKER, nodeId=1] Created data-plane acceptor and processors for endpoint : ListenerName(PLAINTEXT_HOST) (kafka.network.SocketServer)
+2026-04-22T09:37:17.532603624Z [2026-04-22 09:37:17,531] INFO [zk-broker-1-to-controller-alter-partition-channel-manager]: Starting (kafka.server.BrokerToControllerRequestThread)
+2026-04-22T09:37:17.591876734Z [2026-04-22 09:37:17,591] INFO [ExpirationReaper-1-Produce]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:17.598114298Z [2026-04-22 09:37:17,594] INFO [ExpirationReaper-1-Fetch]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:17.599196117Z [2026-04-22 09:37:17,596] INFO [ExpirationReaper-1-DeleteRecords]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:17.600481478Z [2026-04-22 09:37:17,600] INFO [ExpirationReaper-1-ElectLeader]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:17.642028196Z [2026-04-22 09:37:17,641] INFO [LogDirFailureHandler]: Starting (kafka.server.ReplicaManager$LogDirFailureHandler)
+2026-04-22T09:37:17.706931648Z [2026-04-22 09:37:17,706] INFO Creating /brokers/ids/1 (is it secure? false) (kafka.zk.KafkaZkClient)
+2026-04-22T09:37:17.757602915Z [2026-04-22 09:37:17,757] INFO Stat of the created znode at /brokers/ids/1 is: 27,27,1776850637734,1776850637734,1,0,0,72058610769854465,258,0,27
+2026-04-22T09:37:17.757687632Z  (kafka.zk.KafkaZkClient)
+2026-04-22T09:37:17.761063916Z [2026-04-22 09:37:17,760] INFO Registered broker 1 at path /brokers/ids/1 with addresses: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092, czxid (broker epoch): 27 (kafka.zk.KafkaZkClient)
+2026-04-22T09:37:17.966996845Z [2026-04-22 09:37:17,965] INFO [ControllerEventThread controllerId=1] Starting (kafka.controller.ControllerEventManager$ControllerEventThread)
+2026-04-22T09:37:17.982318749Z [2026-04-22 09:37:17,981] INFO [ExpirationReaper-1-topic]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:18.001438323Z [2026-04-22 09:37:18,000] INFO [ExpirationReaper-1-Heartbeat]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:18.004671379Z [2026-04-22 09:37:18,002] INFO [ExpirationReaper-1-Rebalance]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:18.034317186Z [2026-04-22 09:37:18,033] INFO [GroupCoordinator 1]: Starting up. (kafka.coordinator.group.GroupCoordinator)
+2026-04-22T09:37:18.078979136Z [2026-04-22 09:37:18,077] INFO Successfully created /controller_epoch with initial epoch 0 (kafka.zk.KafkaZkClient)
+2026-04-22T09:37:18.083177986Z [2026-04-22 09:37:18,082] INFO [GroupCoordinator 1]: Startup complete. (kafka.coordinator.group.GroupCoordinator)
+2026-04-22T09:37:18.120560861Z [2026-04-22 09:37:18,120] INFO [TransactionCoordinator id=1] Starting up. (kafka.coordinator.transaction.TransactionCoordinator)
+2026-04-22T09:37:18.167290830Z [2026-04-22 09:37:18,166] INFO [Controller id=1] 1 successfully elected as the controller. Epoch incremented to 1 and epoch zk version is now 1 (kafka.controller.KafkaController)
+2026-04-22T09:37:18.169519582Z [2026-04-22 09:37:18,169] INFO [TransactionCoordinator id=1] Startup complete. (kafka.coordinator.transaction.TransactionCoordinator)
+2026-04-22T09:37:18.170652811Z [2026-04-22 09:37:18,169] INFO [TxnMarkerSenderThread-1]: Starting (kafka.coordinator.transaction.TransactionMarkerChannelManager)
+2026-04-22T09:37:18.177112420Z [2026-04-22 09:37:18,176] INFO [Controller id=1] Creating FeatureZNode at path: /feature with contents: FeatureZNode(2,Enabled,Map()) (kafka.controller.KafkaController)
+2026-04-22T09:37:18.233628872Z [2026-04-22 09:37:18,233] INFO [ExpirationReaper-1-AlterAcls]: Starting (kafka.server.DelayedOperationPurgatory$ExpiredOperationReaper)
+2026-04-22T09:37:18.241992267Z [2026-04-22 09:37:18,240] INFO Feature ZK node created at path: /feature (kafka.server.FinalizedFeatureChangeListener)
+2026-04-22T09:37:18.283568591Z [2026-04-22 09:37:18,283] INFO [/config/changes-event-process-thread]: Starting (kafka.common.ZkNodeChangeNotificationListener$ChangeEventProcessThread)
+2026-04-22T09:37:18.284926967Z [2026-04-22 09:37:18,284] INFO [MetadataCache brokerId=1] Updated cache from existing <empty> to latest FinalizedFeaturesAndEpoch(features=Map(), epoch=0). (kafka.server.metadata.ZkMetadataCache)
+2026-04-22T09:37:18.285714226Z [2026-04-22 09:37:18,285] INFO [Controller id=1] Registering handlers (kafka.controller.KafkaController)
+2026-04-22T09:37:18.299452610Z [2026-04-22 09:37:18,299] INFO [Controller id=1] Deleting log dir event notifications (kafka.controller.KafkaController)
+2026-04-22T09:37:18.307895821Z [2026-04-22 09:37:18,307] INFO [Controller id=1] Deleting isr change notifications (kafka.controller.KafkaController)
+2026-04-22T09:37:18.314615582Z [2026-04-22 09:37:18,313] INFO [Controller id=1] Initializing controller context (kafka.controller.KafkaController)
+2026-04-22T09:37:18.319184608Z [2026-04-22 09:37:18,318] INFO [SocketServer listenerType=ZK_BROKER, nodeId=1] Enabling request processing. (kafka.network.SocketServer)
+2026-04-22T09:37:18.327646523Z [2026-04-22 09:37:18,327] INFO Awaiting socket connections on 0.0.0.0:29092. (kafka.network.DataPlaneAcceptor)
+2026-04-22T09:37:18.333432495Z [2026-04-22 09:37:18,333] INFO Awaiting socket connections on 0.0.0.0:9092. (kafka.network.DataPlaneAcceptor)
+2026-04-22T09:37:18.358674610Z [2026-04-22 09:37:18,358] INFO Kafka version: 7.5.0-ccs (org.apache.kafka.common.utils.AppInfoParser)
+2026-04-22T09:37:18.358755627Z [2026-04-22 09:37:18,358] INFO Kafka commitId: ff3c201baa948d97889dc26c99d7cdc23d038f2e (org.apache.kafka.common.utils.AppInfoParser)
+2026-04-22T09:37:18.358851446Z [2026-04-22 09:37:18,358] INFO Kafka startTimeMs: 1776850638339 (org.apache.kafka.common.utils.AppInfoParser)
+2026-04-22T09:37:18.363014890Z [2026-04-22 09:37:18,362] INFO [KafkaServer id=1] started (kafka.server.KafkaServer)
+2026-04-22T09:37:18.372932299Z [2026-04-22 09:37:18,372] INFO [Controller id=1] Initialized broker epochs cache: HashMap(1 -> 27) (kafka.controller.KafkaController)
+2026-04-22T09:37:18.407290761Z [2026-04-22 09:37:18,399] DEBUG [Controller id=1] Register BrokerModifications handler for Set(1) (kafka.controller.KafkaController)
+2026-04-22T09:37:18.424959841Z [2026-04-22 09:37:18,424] DEBUG [Channel manager on controller 1]: Controller 1 trying to connect to broker 1 (kafka.controller.ControllerChannelManager)
+2026-04-22T09:37:18.441447782Z [2026-04-22 09:37:18,441] INFO [RequestSendThread controllerId=1] Starting (kafka.controller.RequestSendThread)
+2026-04-22T09:37:18.444924287Z [2026-04-22 09:37:18,444] INFO [Controller id=1] Currently active brokers in the cluster: Set(1) (kafka.controller.KafkaController)
+2026-04-22T09:37:18.445888782Z [2026-04-22 09:37:18,445] INFO [Controller id=1] Currently shutting brokers in the cluster: HashSet() (kafka.controller.KafkaController)
+2026-04-22T09:37:18.447221252Z [2026-04-22 09:37:18,446] INFO [Controller id=1] Current list of topics in the cluster: HashSet() (kafka.controller.KafkaController)
+2026-04-22T09:37:18.448600932Z [2026-04-22 09:37:18,448] INFO [Controller id=1] Fetching topic deletions in progress (kafka.controller.KafkaController)
+2026-04-22T09:37:18.454334694Z [2026-04-22 09:37:18,453] INFO [Controller id=1] List of topics to be deleted:  (kafka.controller.KafkaController)
+2026-04-22T09:37:18.454968422Z [2026-04-22 09:37:18,454] INFO [Controller id=1] List of topics ineligible for deletion:  (kafka.controller.KafkaController)
+2026-04-22T09:37:18.455793589Z [2026-04-22 09:37:18,455] INFO [Controller id=1] Initializing topic deletion manager (kafka.controller.KafkaController)
+2026-04-22T09:37:18.457983533Z [2026-04-22 09:37:18,456] INFO [Topic Deletion Manager 1] Initializing manager with initial deletions: Set(), initial ineligible deletions: HashSet() (kafka.controller.TopicDeletionManager)
+2026-04-22T09:37:18.465339324Z [2026-04-22 09:37:18,464] INFO [Controller id=1] Sending update metadata request (kafka.controller.KafkaController)
+2026-04-22T09:37:18.475439070Z [2026-04-22 09:37:18,474] INFO [Controller id=1 epoch=1] Sending UpdateMetadata request to brokers HashSet(1) for 0 partitions (state.change.logger)
+2026-04-22T09:37:18.492841696Z [2026-04-22 09:37:18,492] INFO [ReplicaStateMachine controllerId=1] Initializing replica state (kafka.controller.ZkReplicaStateMachine)
+2026-04-22T09:37:18.494418016Z [2026-04-22 09:37:18,494] INFO [ReplicaStateMachine controllerId=1] Triggering online replica state changes (kafka.controller.ZkReplicaStateMachine)
+2026-04-22T09:37:18.507477762Z [2026-04-22 09:37:18,507] INFO [ReplicaStateMachine controllerId=1] Triggering offline replica state changes (kafka.controller.ZkReplicaStateMachine)
+2026-04-22T09:37:18.509311234Z [2026-04-22 09:37:18,508] DEBUG [ReplicaStateMachine controllerId=1] Started replica state machine with initial state -> HashMap() (kafka.controller.ZkReplicaStateMachine)
+2026-04-22T09:37:18.549308438Z [2026-04-22 09:37:18,548] INFO [PartitionStateMachine controllerId=1] Initializing partition state (kafka.controller.ZkPartitionStateMachine)
+2026-04-22T09:37:18.556818960Z [2026-04-22 09:37:18,556] INFO [PartitionStateMachine controllerId=1] Triggering online partition state changes (kafka.controller.ZkPartitionStateMachine)
+2026-04-22T09:37:18.569553240Z [2026-04-22 09:37:18,569] INFO [RequestSendThread controllerId=1] Controller 1 connected to kafka:9092 (id: 1 rack: null) for sending state change requests (kafka.controller.RequestSendThread)
+2026-04-22T09:37:18.571984733Z [2026-04-22 09:37:18,571] DEBUG [PartitionStateMachine controllerId=1] Started partition state machine with initial state -> HashMap() (kafka.controller.ZkPartitionStateMachine)
+2026-04-22T09:37:18.572749888Z [2026-04-22 09:37:18,572] INFO [Controller id=1] Ready to serve as the new controller with epoch 1 (kafka.controller.KafkaController)
+2026-04-22T09:37:18.585564685Z [2026-04-22 09:37:18,585] INFO [Controller id=1] Partitions undergoing preferred replica election:  (kafka.controller.KafkaController)
+2026-04-22T09:37:18.588152009Z [2026-04-22 09:37:18,587] INFO [Controller id=1] Partitions that completed preferred replica election:  (kafka.controller.KafkaController)
+2026-04-22T09:37:18.590294043Z [2026-04-22 09:37:18,588] INFO [Controller id=1] Skipping preferred replica election for partitions due to topic deletion:  (kafka.controller.KafkaController)
+2026-04-22T09:37:18.590451775Z [2026-04-22 09:37:18,589] INFO [Controller id=1] Resuming preferred replica election for partitions:  (kafka.controller.KafkaController)
+2026-04-22T09:37:18.592699631Z [2026-04-22 09:37:18,592] INFO [Controller id=1] Starting replica leader election (PREFERRED) for partitions  triggered by ZkTriggered (kafka.controller.KafkaController)
+2026-04-22T09:37:18.657389039Z [2026-04-22 09:37:18,652] INFO [Controller id=1] Starting the controller scheduler (kafka.controller.KafkaController)
+2026-04-22T09:37:18.736534776Z [2026-04-22 09:37:18,734] TRACE [Controller id=1 epoch=1] Received response UpdateMetadataResponseData(errorCode=0) for request UPDATE_METADATA with correlation id 0 sent to broker kafka:9092 (id: 1 rack: null) (state.change.logger)
+2026-04-22T09:37:18.753565227Z [2026-04-22 09:37:18,753] INFO [zk-broker-1-to-controller-alter-partition-channel-manager]: Recorded new controller, from now on will use node kafka:9092 (id: 1 rack: null) (kafka.server.BrokerToControllerRequestThread)
+2026-04-22T09:37:18.776410156Z [2026-04-22 09:37:18,775] INFO [zk-broker-1-to-controller-forwarding-channel-manager]: Recorded new controller, from now on will use node kafka:9092 (id: 1 rack: null) (kafka.server.BrokerToControllerRequestThread)
+2026-04-22T09:37:23.654928311Z [2026-04-22 09:37:23,654] INFO [Controller id=1] Processing automatic preferred replica leader election (kafka.controller.KafkaController)
+2026-04-22T09:37:23.655923184Z [2026-04-22 09:37:23,655] TRACE [Controller id=1] Checking need to trigger auto leader balancing (kafka.controller.KafkaController)
+
+
+===== legent-postgres =====
+2026-04-22T09:36:53.161123028Z The files belonging to this database system will be owned by user "postgres".
+2026-04-22T09:36:53.161187241Z This user must also own the server process.
+2026-04-22T09:36:53.161196943Z 
+2026-04-22T09:36:53.162001606Z The database cluster will be initialized with locale "en_US.utf8".
+2026-04-22T09:36:53.162022310Z The default database encoding has accordingly been set to "UTF8".
+2026-04-22T09:36:53.162033912Z The default text search configuration will be set to "english".
+2026-04-22T09:36:53.162040514Z 
+2026-04-22T09:36:53.162047015Z Data page checksums are disabled.
+2026-04-22T09:36:53.162052316Z 
+2026-04-22T09:36:53.162057317Z fixing permissions on existing directory /var/lib/postgresql/data ... ok
+2026-04-22T09:36:53.186543865Z creating subdirectories ... ok
+2026-04-22T09:36:53.187041465Z selecting dynamic shared memory implementation ... posix
+2026-04-22T09:36:53.297600404Z selecting default max_connections ... 100
+2026-04-22T09:36:53.342400557Z selecting default shared_buffers ... 128MB
+2026-04-22T09:36:53.434343034Z selecting default time zone ... UTC
+2026-04-22T09:36:53.437783630Z creating configuration files ... ok
+2026-04-22T09:36:53.688285045Z running bootstrap script ... ok
+docker : 2026-04-22T09:36:54.134841575Z sh: locale: not found
+At C:\Users\leelark.saxena\Desktop\Legent - v1.0.2\collect-docker-logs.ps1:34 char:9
++         docker logs --timestamps --tail 300 $containerId 2>&1 |
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-04-22T09:3...cale: not found:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-04-22T09:36:55.223012448Z performing post-bootstrap initialization ... ok
+2026-04-22T09:36:54.135249158Z 2026-04-22 09:36:54.134 UTC [35] WARNING:  no usable system locales were found
+2026-04-22T09:36:55.647247868Z syncing data to disk ... ok
+2026-04-22T09:36:55.647286976Z 
+2026-04-22T09:36:55.647298278Z 
+2026-04-22T09:36:55.647303779Z Success. You can now start the database server using:
+2026-04-22T09:36:55.647309381Z 
+2026-04-22T09:36:55.647274573Z initdb: warning: enabling "trust" authentication for local connections
+2026-04-22T09:36:55.647318382Z     pg_ctl -D /var/lib/postgresql/data -l logfile start
+2026-04-22T09:36:55.647324083Z 
+2026-04-22T09:36:55.647336586Z initdb: hint: You can change this by editing pg_hba.conf or using the option -A, or 
+--auth-local and --auth-host, the next time you run initdb.
+2026-04-22T09:36:55.833010603Z waiting for server to start....2026-04-22 09:36:55.832 UTC [41] LOG:  starting PostgreSQL 15.17 on x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+2026-04-22T09:36:55.891025625Z 2026-04-22 09:36:55.890 UTC [41] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+2026-04-22T09:36:55.925152421Z 2026-04-22 09:36:55.924 UTC [44] LOG:  database system was shut down at 2026-04-22 09:36:55 UTC
+2026-04-22T09:36:56.001016946Z 2026-04-22 09:36:56.000 UTC [41] LOG:  database system is ready to accept connections
+2026-04-22T09:36:56.004279619Z  done
+2026-04-22T09:36:56.004301122Z server started
+2026-04-22T09:36:56.086300015Z 
+2026-04-22T09:36:56.086333820Z /usr/local/bin/docker-entrypoint.sh: ignoring /docker-entrypoint-initdb.d/*
+2026-04-22T09:36:56.086339420Z 
+2026-04-22T09:36:56.087421077Z waiting for server to shut down...2026-04-22 09:36:56.087 UTC [41] LOG:  received fast shutdown request
+2026-04-22T09:36:56.140223336Z .2026-04-22 09:36:56.139 UTC [41] LOG:  aborting any active transactions
+2026-04-22T09:36:56.385853461Z 2026-04-22 09:36:56.385 UTC [1] LOG:  starting PostgreSQL 15.17 on 
+x86_64-pc-linux-musl, compiled by gcc (Alpine 15.2.0) 15.2.0, 64-bit
+2026-04-22T09:36:56.144350834Z 2026-04-22 09:36:56.144 UTC [41] LOG:  background worker "logical replication launcher" (PID 47) exited with exit code 1
+2026-04-22T09:36:56.385890566Z 2026-04-22 09:36:56.385 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+2026-04-22T09:36:56.144442548Z 2026-04-22 09:36:56.144 UTC [42] LOG:  shutting down
+2026-04-22T09:36:56.157144090Z 2026-04-22 09:36:56.156 UTC [42] LOG:  checkpoint starting: shutdown immediate
+2026-04-22T09:36:56.221795867Z 2026-04-22 09:36:56.221 UTC [42] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.024 s, sync=0.009 s, total=0.078 s; sync files=2, longest=0.005 s, average=0.005 s; distance=0 kB, estimate=0 kB
+2026-04-22T09:36:56.228295109Z 2026-04-22 09:36:56.227 UTC [41] LOG:  database system is shut down
+2026-04-22T09:36:56.287948061Z  done
+2026-04-22T09:36:56.287977065Z server stopped
+2026-04-22T09:36:56.290072069Z 
+2026-04-22T09:36:56.290115976Z PostgreSQL init process complete; ready for start up.
+2026-04-22T09:36:56.290120976Z 
+2026-04-22T09:36:56.385900268Z 2026-04-22 09:36:56.385 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+2026-04-22T09:36:56.457424842Z 2026-04-22 09:36:56.457 UTC [1] LOG:  listening on Unix socket 
+"/var/run/postgresql/.s.PGSQL.5432"
+2026-04-22T09:36:56.477680379Z 2026-04-22 09:36:56.477 UTC [55] LOG:  database system was shut down at 2026-04-22 
+09:36:56 UTC
+2026-04-22T09:36:56.556778652Z 2026-04-22 09:36:56.556 UTC [1] LOG:  database system is ready to accept connections
+
+
+===== legent-redis =====
+2026-04-22T09:36:52.848975456Z 1:C 22 Apr 2026 09:36:52.848 * oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
+2026-04-22T09:36:52.849031268Z 1:C 22 Apr 2026 09:36:52.848 * Redis version=7.4.8, bits=64, commit=00000000, modified=0, pid=1, just started
+2026-04-22T09:36:52.849038769Z 1:C 22 Apr 2026 09:36:52.848 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+2026-04-22T09:36:52.849399042Z 1:M 22 Apr 2026 09:36:52.849 * monotonic clock: POSIX clock_gettime
+2026-04-22T09:36:52.851078881Z 1:M 22 Apr 2026 09:36:52.850 * Running mode=standalone, port=6379.
+2026-04-22T09:36:52.852316532Z 1:M 22 Apr 2026 09:36:52.852 * Server initialized
+2026-04-22T09:36:52.852334635Z 1:M 22 Apr 2026 09:36:52.852 * Ready to accept connections tcp
+
+
+===== legent-zookeeper =====
+2026-04-22T09:36:52.826363588Z ===> User
+2026-04-22T09:36:52.866461690Z uid=1000(appuser) gid=1000(appuser) groups=1000(appuser)
+2026-04-22T09:36:52.866484494Z ===> Configuring ...
+2026-04-22T09:36:56.599687675Z ===> Running preflight checks ... 
+2026-04-22T09:36:56.602193738Z ===> Check if /var/lib/zookeeper/data is writable ...
+2026-04-22T09:36:57.157357158Z ===> Check if /var/lib/zookeeper/log is writable ...
+2026-04-22T09:36:57.667499947Z ===> Launching ... 
+2026-04-22T09:36:57.675811253Z ===> Launching zookeeper ... 
+2026-04-22T09:36:58.447215435Z [2026-04-22 09:36:58,446] INFO Reading configuration from: /etc/kafka/zookeeper.properties (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.456620199Z [2026-04-22 09:36:58,456] INFO clientPortAddress is 0.0.0.0:2181 (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.456648003Z [2026-04-22 09:36:58,456] INFO secureClientPort is not set (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.456651904Z [2026-04-22 09:36:58,456] INFO observerMasterPort is not set (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.456655304Z [2026-04-22 09:36:58,456] INFO metricsProvider.className is org.apache.zookeeper.metrics.impl.DefaultMetricsProvider (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.458734006Z [2026-04-22 09:36:58,458] INFO autopurge.snapRetainCount set to 3 (org.apache.zookeeper.server.DatadirCleanupManager)
+2026-04-22T09:36:58.458756609Z [2026-04-22 09:36:58,458] INFO autopurge.purgeInterval set to 0 (org.apache.zookeeper.server.DatadirCleanupManager)
+2026-04-22T09:36:58.458762610Z [2026-04-22 09:36:58,458] INFO Purge task is not scheduled. (org.apache.zookeeper.server.DatadirCleanupManager)
+2026-04-22T09:36:58.458767610Z [2026-04-22 09:36:58,458] WARN Either no config or no quorum defined in config, running in standalone mode (org.apache.zookeeper.server.quorum.QuorumPeerMain)
+2026-04-22T09:36:58.461028038Z [2026-04-22 09:36:58,460] INFO Log4j 1.2 jmx support not found; jmx disabled. (org.apache.zookeeper.jmx.ManagedUtil)
+2026-04-22T09:36:58.462447944Z [2026-04-22 09:36:58,462] INFO Reading configuration from: /etc/kafka/zookeeper.properties (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.463230858Z [2026-04-22 09:36:58,462] INFO clientPortAddress is 0.0.0.0:2181 (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.463250761Z [2026-04-22 09:36:58,463] INFO secureClientPort is not set (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.463438288Z [2026-04-22 09:36:58,463] INFO observerMasterPort is not set (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.463450090Z [2026-04-22 09:36:58,463] INFO metricsProvider.className is org.apache.zookeeper.metrics.impl.DefaultMetricsProvider (org.apache.zookeeper.server.quorum.QuorumPeerConfig)
+2026-04-22T09:36:58.463983667Z [2026-04-22 09:36:58,463] INFO Starting server (org.apache.zookeeper.server.ZooKeeperServerMain)
+2026-04-22T09:36:58.478311545Z [2026-04-22 09:36:58,477] INFO ServerMetrics initialized with provider org.apache.zookeeper.metrics.impl.DefaultMetricsProvider@68e965f5 (org.apache.zookeeper.server.ServerMetrics)
+2026-04-22T09:36:58.482167604Z [2026-04-22 09:36:58,481] INFO zookeeper.snapshot.trust.empty : false (org.apache.zookeeper.server.persistence.FileTxnSnapLog)
+2026-04-22T09:36:58.494949458Z [2026-04-22 09:36:58,494] INFO  (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.494985163Z [2026-04-22 09:36:58,494] INFO   ______                  _                                           (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.494995465Z [2026-04-22 09:36:58,494] INFO  |___  /                 | |                                          (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.495001366Z [2026-04-22 09:36:58,494] INFO     / /    ___     ___   | | __   ___    ___   _ __     ___   _ __    (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.495006666Z [2026-04-22 09:36:58,494] INFO    / /    / _ \   / _ \  | |/ /  / _ \  / _ \ | '_ \   / _ \ | '__| (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.495012667Z [2026-04-22 09:36:58,494] INFO   / /__  | (_) | | (_) | |   <  |  __/ |  __/ | |_) | |  __/ | |     (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.495019768Z [2026-04-22 09:36:58,494] INFO  /_____|  \___/   \___/  |_|\_\  \___|  \___| | .__/   \___| |_| (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.495148587Z [2026-04-22 09:36:58,494] INFO                                               | |                      (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.495160389Z [2026-04-22 09:36:58,494] INFO                                               |_|                      (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.495163989Z [2026-04-22 09:36:58,494] INFO  (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.496696912Z [2026-04-22 09:36:58,496] INFO Server environment:zookeeper.version=3.6.4--d65253dcf68e9097c6e95a126463fd5fdeb4521c, built on 12/18/2022 18:10 GMT (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.496720915Z [2026-04-22 09:36:58,496] INFO Server environment:host.name=500709e648f7 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.496725016Z [2026-04-22 09:36:58,496] INFO Server environment:java.version=11.0.20 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.496728116Z [2026-04-22 09:36:58,496] INFO Server environment:java.vendor=Azul Systems, Inc. (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.496731016Z [2026-04-22 09:36:58,496] INFO Server environment:java.home=/usr/lib/jvm/java-11-zulu-openjdk-ca (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497139076Z [2026-04-22 09:36:58,496] INFO Server environment:java.class.path=/usr/bin/../share/java/kafka/zstd-jni-1.5.5-1.jar:/usr/bin/../share/java/kafka/netty-handler-4.1.96.Final.jar:/usr/bin/../share/java/kafka/scala-collection-compat_2.13-2.10.0.jar:/usr/bin/../share/java/kafka/zookeeper-3.6.4.jar:/usr/bin/../share/java/kafka/netty-resolver-4.1.96.Final.jar:/usr/bin/../share/java/kafka/javax.annotation-api-1.3.2.jar:/usr/bin/../share/java/kafka/javax.ws.rs-api-2.1.1.jar:/usr/bin/../share/java/kafka/connect-api-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/plexus-utils-3.3.0.jar:/usr/bin/../share/java/kafka/zookeeper-jute-3.6.4.jar:/usr/bin/../share/java/kafka/kafka-log4j-appender-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/jetty-servlets-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/kafka-shell-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/jetty-servlet-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/netty-common-4.1.96.Final.jar:/usr/bin/../share/java/kafka/connect-mirror-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/kafka-streams-test-utils-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/aopalliance-repackaged-2.6.1.jar:/usr/bin/../share/java/kafka/jopt-simple-5.0.4.jar:/usr/bin/../share/java/kafka/jetty-security-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/scala-reflect-2.13.10.jar:/usr/bin/../share/java/kafka/jackson-jaxrs-json-provider-2.13.5.jar:/usr/bin/../share/java/kafka/kafka-tools-api-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/slf4j-reload4j-1.7.36.jar:/usr/bin/../share/java/kafka/jakarta.annotation-api-1.3.5.jar:/usr/bin/../share/java/kafka/jetty-util-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/slf4j-api-1.7.36.jar:/usr/bin/../share/java/kafka/javax.activation-api-1.2.0.jar:/usr/bin/../share/java/kafka/jetty-server-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/jetty-client-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/kafka-streams-scala_2.13-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/jersey-container-servlet-2.39.1.jar:/usr/bin/../share/java/kafka/swagger-annotations-2.2.8.jar:/usr/bin/../share/java/kafka/scala-java8-compat_2.13-1.0.2.jar:/usr/bin/../share/java/kafka/jersey-common-2.39.1.jar:/usr/bin/../share/java/kafka/netty-codec-4.1.96.Final.jar:/usr/bin/../share/java/kafka/hk2-utils-2.6.1.jar:/usr/bin/../share/java/kafka/kafka-streams-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/hk2-api-2.6.1.jar:/usr/bin/../share/java/kafka/paranamer-2.8.jar:/usr/bin/../share/java/kafka/jackson-databind-2.13.5.jar:/usr/bin/../share/java/kafka/scala-logging_2.13-3.9.4.jar:/usr/bin/../share/java/kafka/netty-transport-native-unix-common-4.1.96.Final.jar:/usr/bin/../share/java/kafka/jersey-hk2-2.39.1.jar:/usr/bin/../share/java/kafka/jakarta.ws.rs-api-2.1.6.jar:/usr/bin/../share/java/kafka/jackson-dataformat-csv-2.13.5.jar:/usr/bin/../share/java/kafka/jetty-io-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/kafka-streams-examples-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/jline-3.22.0.jar:/usr/bin/../share/java/kafka/jersey-container-servlet-core-2.39.1.jar:/usr/bin/../share/java/kafka/kafka-storage-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/kafka-metadata-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/metrics-core-2.2.0.jar:/usr/bin/../share/java/kafka/jaxb-api-2.3.1.jar:/usr/bin/../share/java/kafka/jackson-module-scala_2.13-2.13.5.jar:/usr/bin/../share/java/kafka/maven-artifact-3.8.4.jar:/usr/bin/../share/java/kafka/jackson-annotations-2.13.5.jar:/usr/bin/../share/java/kafka/jersey-server-2.39.1.jar:/usr/bin/../share/java/kafka/reflections-0.9.12.jar:/usr/bin/../share/java/kafka/javassist-3.29.2-GA.jar:/usr/bin/../share/java/kafka/jackson-jaxrs-base-2.13.5.jar:/usr/bin/../share/java/kafka/snappy-java-1.1.10.0.jar:/usr/bin/../share/java/kafka/commons-cli-1.4.jar:/usr/bin/../share/java/kafka/lz4-java-1.8.0.jar:/usr/bin/../share/java/kafka/jose4j-0.9.3.jar:/usr/bin/../share/java/kafka/kafka-group-coordinator-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/kafka-tools-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/netty-transport-4.1.96.Final.jar:/usr/bin/../share/java/kafka/audience-annotations-0.13.0.jar:/usr/bin/../share/java/kafka/jakarta.activation-api-1.2.2.jar:/usr/bin/../share/java/kafka/jakarta.xml.bind-api-2.3.3.jar:/usr/bin/../share/java/kafka/jackson-core-2.13.5.jar:/usr/bin/../share/java/kafka/hk2-locator-2.6.1.jar:/usr/bin/../share/java/kafka/activation-1.1.1.jar:/usr/bin/../share/java/kafka/kafka-clients-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/kafka-storage-api-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/kafka-server-common-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/jakarta.validation-api-2.0.2.jar:/usr/bin/../share/java/kafka/metrics-core-4.1.12.1.jar:/usr/bin/../share/java/kafka/connect-mirror-client-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/kafka_2.13-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/netty-transport-classes-epoll-4.1.96.Final.jar:/usr/bin/../share/java/kafka/jetty-http-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/jetty-continuation-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/kafka.jar:/usr/bin/../share/java/kafka/connect-json-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/argparse4j-0.7.0.jar:/usr/bin/../share/java/kafka/jersey-client-2.39.1.jar:/usr/bin/../share/java/kafka/jetty-util-ajax-9.4.51.v20230217.jar:/usr/bin/../share/java/kafka/netty-buffer-4.1.96.Final.jar:/usr/bin/../share/java/kafka/jackson-module-jaxb-annotations-2.13.5.jar:/usr/bin/../share/java/kafka/osgi-resource-locator-1.0.3.jar:/usr/bin/../share/java/kafka/scala-library-2.13.10.jar:/usr/bin/../share/java/kafka/commons-lang3-3.8.1.jar:/usr/bin/../share/java/kafka/connect-basic-auth-extension-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/javax.servlet-api-3.1.0.jar:/usr/bin/../share/java/kafka/connect-transforms-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/netty-transport-native-epoll-4.1.96.Final.jar:/usr/bin/../share/java/kafka/reload4j-1.2.25.jar:/usr/bin/../share/java/kafka/rocksdbjni-7.1.2.jar:/usr/bin/../share/java/kafka/trogdor-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/kafka-raft-7.5.0-ccs.jar:/usr/bin/../share/java/kafka/jakarta.inject-2.6.1.jar:/usr/bin/../share/java/kafka/jackson-datatype-jdk8-2.13.5.jar:/usr/bin/../share/java/kafka/connect-runtime-7.5.0-ccs.jar:/usr/bin/../share/java/confluent-telemetry/* (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497197784Z [2026-04-22 09:36:58,496] INFO Server environment:java.library.path=/usr/java/packages/lib:/usr/lib64:/lib64:/lib:/usr/lib (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497204085Z [2026-04-22 09:36:58,496] INFO Server environment:java.io.tmpdir=/tmp (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497207586Z [2026-04-22 09:36:58,496] INFO Server environment:java.compiler=<NA> (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497210886Z [2026-04-22 09:36:58,496] INFO Server environment:os.name=Linux (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497213787Z [2026-04-22 09:36:58,496] INFO Server environment:os.arch=amd64 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497216687Z [2026-04-22 09:36:58,496] INFO Server environment:os.version=6.6.87.2-microsoft-standard-WSL2 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497219587Z [2026-04-22 09:36:58,497] INFO Server environment:user.name=appuser (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497222488Z [2026-04-22 09:36:58,497] INFO Server environment:user.home=/home/appuser (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497442220Z [2026-04-22 09:36:58,497] INFO Server environment:user.dir=/home/appuser (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497452421Z [2026-04-22 09:36:58,497] INFO Server environment:os.memory.free=493MB (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497455922Z [2026-04-22 09:36:58,497] INFO Server environment:os.memory.max=512MB (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497458922Z [2026-04-22 09:36:58,497] INFO Server environment:os.memory.total=512MB (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497516430Z [2026-04-22 09:36:58,497] INFO zookeeper.enableEagerACLCheck = false (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497534233Z [2026-04-22 09:36:58,497] INFO zookeeper.digest.enabled = true (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497793571Z [2026-04-22 09:36:58,497] INFO zookeeper.closeSessionTxn.enabled = true (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497806172Z [2026-04-22 09:36:58,497] INFO zookeeper.flushDelay=0 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.497812373Z [2026-04-22 09:36:58,497] INFO zookeeper.maxWriteQueuePollTime=0 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.498082913Z [2026-04-22 09:36:58,497] INFO zookeeper.maxBatchSize=1000 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.498093514Z [2026-04-22 09:36:58,497] INFO zookeeper.intBufferStartingSizeBytes = 1024 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.499419606Z [2026-04-22 09:36:58,499] INFO Weighed connection throttling is disabled (org.apache.zookeeper.server.BlueThrottle)
+2026-04-22T09:36:58.501086248Z [2026-04-22 09:36:58,500] INFO minSessionTimeout set to 4000 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.501112952Z [2026-04-22 09:36:58,500] INFO maxSessionTimeout set to 40000 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.502215712Z [2026-04-22 09:36:58,501] INFO Response cache size is initialized with value 400. (org.apache.zookeeper.server.ResponseCache)
+2026-04-22T09:36:58.502231814Z [2026-04-22 09:36:58,501] INFO Response cache size is initialized with value 400. (org.apache.zookeeper.server.ResponseCache)
+2026-04-22T09:36:58.503293768Z [2026-04-22 09:36:58,502] INFO zookeeper.pathStats.slotCapacity = 60 (org.apache.zookeeper.server.util.RequestPathMetricsCollector)
+2026-04-22T09:36:58.503304670Z [2026-04-22 09:36:58,503] INFO zookeeper.pathStats.slotDuration = 15 (org.apache.zookeeper.server.util.RequestPathMetricsCollector)
+2026-04-22T09:36:58.503308270Z [2026-04-22 09:36:58,503] INFO zookeeper.pathStats.maxDepth = 6 (org.apache.zookeeper.server.util.RequestPathMetricsCollector)
+2026-04-22T09:36:58.503311271Z [2026-04-22 09:36:58,503] INFO zookeeper.pathStats.initialDelay = 5 (org.apache.zookeeper.server.util.RequestPathMetricsCollector)
+2026-04-22T09:36:58.503323173Z [2026-04-22 09:36:58,503] INFO zookeeper.pathStats.delay = 5 (org.apache.zookeeper.server.util.RequestPathMetricsCollector)
+2026-04-22T09:36:58.503617715Z [2026-04-22 09:36:58,503] INFO zookeeper.pathStats.enabled = false (org.apache.zookeeper.server.util.RequestPathMetricsCollector)
+2026-04-22T09:36:58.506548240Z [2026-04-22 09:36:58,506] INFO The max bytes for all large requests are set to 104857600 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.506581345Z [2026-04-22 09:36:58,506] INFO The large request threshold is set to -1 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.506588346Z [2026-04-22 09:36:58,506] INFO Created server with tickTime 2000 minSessionTimeout 4000 maxSessionTimeout 40000 clientPortListenBacklog -1 datadir /var/lib/zookeeper/log/version-2 snapdir /var/lib/zookeeper/data/version-2 (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.534525498Z [2026-04-22 09:36:58,534] INFO Logging initialized @741ms to org.eclipse.jetty.util.log.Slf4jLog (org.eclipse.jetty.util.log)
+2026-04-22T09:36:58.648882584Z [2026-04-22 09:36:58,648] WARN o.e.j.s.ServletContextHandler@5c7bfdc1{/,null,STOPPED} contextPath ends with /* (org.eclipse.jetty.server.handler.ContextHandler)
+2026-04-22T09:36:58.648921990Z [2026-04-22 09:36:58,648] WARN Empty contextPath (org.eclipse.jetty.server.handler.ContextHandler)
+2026-04-22T09:36:58.716657014Z [2026-04-22 09:36:58,712] INFO jetty-9.4.51.v20230217; built: 2023-02-17T08:19:37.309Z; git: b45c405e4544384de066f814ed42ae3dceacdd49; jvm 11.0.20+8-LTS (org.eclipse.jetty.server.Server)
+2026-04-22T09:36:58.750478519Z [2026-04-22 09:36:58,750] INFO DefaultSessionIdManager workerName=node0 (org.eclipse.jetty.server.session)
+2026-04-22T09:36:58.750513724Z [2026-04-22 09:36:58,750] INFO No SessionScavenger set, using defaults (org.eclipse.jetty.server.session)
+2026-04-22T09:36:58.752462807Z [2026-04-22 09:36:58,752] INFO node0 Scavenging every 660000ms (org.eclipse.jetty.server.session)
+2026-04-22T09:36:58.756640313Z [2026-04-22 09:36:58,756] WARN ServletContext@o.e.j.s.ServletContextHandler@5c7bfdc1{/,null,STARTING} has uncovered http methods for path: /* (org.eclipse.jetty.security.SecurityHandler)
+2026-04-22T09:36:58.769142426Z [2026-04-22 09:36:58,768] INFO Started o.e.j.s.ServletContextHandler@5c7bfdc1{/,null,AVAILABLE} (org.eclipse.jetty.server.handler.ContextHandler)
+2026-04-22T09:36:58.787095530Z [2026-04-22 09:36:58,786] INFO Started ServerConnector@5890e879{HTTP/1.1, (http/1.1)}{0.0.0.0:8080} (org.eclipse.jetty.server.AbstractConnector)
+2026-04-22T09:36:58.787129435Z [2026-04-22 09:36:58,786] INFO Started @994ms (org.eclipse.jetty.server.Server)
+2026-04-22T09:36:58.787271056Z [2026-04-22 09:36:58,787] INFO Started AdminServer on address 0.0.0.0, port 8080 and command URL /commands (org.apache.zookeeper.server.admin.JettyAdminServer)
+2026-04-22T09:36:58.794227565Z [2026-04-22 09:36:58,793] INFO Using org.apache.zookeeper.server.NIOServerCnxnFactory as server connection factory (org.apache.zookeeper.server.ServerCnxnFactory)
+2026-04-22T09:36:58.795303721Z [2026-04-22 09:36:58,794] WARN maxCnxns is not configured, using default value 0. (org.apache.zookeeper.server.ServerCnxnFactory)
+2026-04-22T09:36:58.796595708Z [2026-04-22 09:36:58,796] INFO Configuring NIO connection handler with 10s sessionless connection timeout, 2 selector thread(s), 16 worker threads, and 64 kB direct buffers. (org.apache.zookeeper.server.NIOServerCnxnFactory)
+2026-04-22T09:36:58.797937703Z [2026-04-22 09:36:58,797] INFO binding to port 0.0.0.0/0.0.0.0:2181 (org.apache.zookeeper.server.NIOServerCnxnFactory)
+2026-04-22T09:36:58.815505151Z [2026-04-22 09:36:58,815] INFO Using org.apache.zookeeper.server.watch.WatchManager as watch manager (org.apache.zookeeper.server.watch.WatchManagerFactory)
+2026-04-22T09:36:58.815540056Z [2026-04-22 09:36:58,815] INFO Using org.apache.zookeeper.server.watch.WatchManager as watch manager (org.apache.zookeeper.server.watch.WatchManagerFactory)
+2026-04-22T09:36:58.816929557Z [2026-04-22 09:36:58,816] INFO zookeeper.snapshotSizeFactor = 0.33 (org.apache.zookeeper.server.ZKDatabase)
+2026-04-22T09:36:58.816951660Z [2026-04-22 09:36:58,816] INFO zookeeper.commitLogCount=500 (org.apache.zookeeper.server.ZKDatabase)
+2026-04-22T09:36:58.823271577Z [2026-04-22 09:36:58,822] INFO zookeeper.snapshot.compression.method = CHECKED (org.apache.zookeeper.server.persistence.SnapStream)
+2026-04-22T09:36:58.823327785Z [2026-04-22 09:36:58,823] INFO Snapshotting: 0x0 to /var/lib/zookeeper/data/version-2/snapshot.0 (org.apache.zookeeper.server.persistence.FileTxnSnapLog)
+2026-04-22T09:36:58.827930053Z [2026-04-22 09:36:58,827] INFO Snapshot loaded in 11 ms, highest zxid is 0x0, digest is 1371985504 (org.apache.zookeeper.server.ZKDatabase)
+2026-04-22T09:36:58.827951256Z [2026-04-22 09:36:58,827] INFO Snapshotting: 0x0 to /var/lib/zookeeper/data/version-2/snapshot.0 (org.apache.zookeeper.server.persistence.FileTxnSnapLog)
+2026-04-22T09:36:58.828650557Z [2026-04-22 09:36:58,828] INFO Snapshot taken in 0 ms (org.apache.zookeeper.server.ZooKeeperServer)
+2026-04-22T09:36:58.841077760Z [2026-04-22 09:36:58,838] INFO PrepRequestProcessor (sid:0) started, reconfigEnabled=false (org.apache.zookeeper.server.PrepRequestProcessor)
+2026-04-22T09:36:58.841148470Z [2026-04-22 09:36:58,839] INFO zookeeper.request_throttler.shutdownTimeout = 10000 (org.apache.zookeeper.server.RequestThrottler)
+2026-04-22T09:36:58.856739831Z [2026-04-22 09:36:58,856] INFO Using checkIntervalMs=60000 maxPerMinute=10000 maxNeverUsedIntervalMs=0 (org.apache.zookeeper.server.ContainerManager)
+2026-04-22T09:36:58.858006915Z [2026-04-22 09:36:58,857] INFO ZooKeeper audit is disabled. (org.apache.zookeeper.audit.ZKAuditProvider)
+2026-04-22T09:37:03.062072521Z [2026-04-22 09:37:03,061] INFO The list of known four letter word commands is : [{1936881266=srvr, 1937006964=stat, 2003003491=wchc, 1685417328=dump, 1668445044=crst, 1936880500=srst, 1701738089=envi, 1668247142=conf, -720899=telnet close, 1751217000=hash, 2003003507=wchs, 2003003504=wchp, 1684632179=dirs, 1668247155=cons, 1835955314=mntr, 1769173615=isro, 1920298859=ruok, 1735683435=gtmk, 1937010027=stmk}] (org.apache.zookeeper.server.command.FourLetterCommands)
+2026-04-22T09:37:03.062114429Z [2026-04-22 09:37:03,061] INFO The list of enabled four letter word commands is : [[srvr]] (org.apache.zookeeper.server.command.FourLetterCommands)
+2026-04-22T09:37:03.062141434Z [2026-04-22 09:37:03,062] INFO Processing srvr command from /0:0:0:0:0:0:0:1:41970 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:37:10.802212142Z [2026-04-22 09:37:10,801] INFO Creating new log file: log.1 (org.apache.zookeeper.server.persistence.FileTxnLog)
+2026-04-22T09:37:13.344927258Z [2026-04-22 09:37:13,335] INFO Processing srvr command from /0:0:0:0:0:0:0:1:43062 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:37:23.586574216Z [2026-04-22 09:37:23,586] INFO Processing srvr command from /0:0:0:0:0:0:0:1:55476 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:37:34.132466333Z [2026-04-22 09:37:34,132] INFO Processing srvr command from /0:0:0:0:0:0:0:1:49730 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:37:44.742105574Z [2026-04-22 09:37:44,727] INFO Processing srvr command from /0:0:0:0:0:0:0:1:44670 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:37:55.292284700Z [2026-04-22 09:37:55,291] INFO Processing srvr command from /0:0:0:0:0:0:0:1:32774 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:38:05.679257359Z [2026-04-22 09:38:05,678] INFO Processing srvr command from /0:0:0:0:0:0:0:1:50016 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:38:16.205221719Z [2026-04-22 09:38:16,204] INFO Processing srvr command from /0:0:0:0:0:0:0:1:46494 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:38:26.849609640Z [2026-04-22 09:38:26,849] INFO Processing srvr command from /0:0:0:0:0:0:0:1:44254 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:38:37.808673056Z [2026-04-22 09:38:37,808] INFO Processing srvr command from /0:0:0:0:0:0:0:1:43490 (org.apache.zookeeper.server.NIOServerCnxn)
+2026-04-22T09:38:48.809366147Z [2026-04-22 09:38:48,805] INFO Processing srvr command from /0:0:0:0:0:0:0:1:45098 (org.apache.zookeeper.server.NIOServerCnxn)
+
+
+===== legent-mailhog =====
+2026-04-22T09:36:52.966266156Z [HTTP] Binding to address: 0.0.0.0:8025
+docker : 2026-04-22T09:36:52.965358573Z 2026/04/22 09:36:52 Using in-memory storage
+At C:\Users\leelark.saxena\Desktop\Legent - v1.0.2\collect-docker-logs.ps1:34 char:9
++         docker logs --timestamps --tail 300 $containerId 2>&1 |
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (2026-04-22T09:3...-memory storage:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+2026-04-22T09:36:52.965485798Z 2026/04/22 09:36:52 [SMTP] Binding to address: 0.0.0.0:1025
+2026-04-22T09:36:52.966286360Z 2026/04/22 09:36:52 Serving under http://0.0.0.0:8025/
+2026-04-22T09:36:52.967692244Z Creating API v1 with WebPath: 
+2026-04-22T09:36:52.968654238Z Creating API v2 with WebPath: 
+2026-04-22T09:37:52.971865285Z [APIv1] KEEPALIVE /api/v1/events
+2026-04-22T09:38:52.945878474Z [APIv1] KEEPALIVE /api/v1/events
+
+

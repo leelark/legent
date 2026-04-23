@@ -1,17 +1,34 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 
-const API_BASE_URL =
+const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  '';
+  ''
+).replace(/\/$/, '');
+
+function resolveApiUrl(url: string | undefined) {
+  if (!url) {
+    return `${API_BASE_URL}/api/v1`;
+  }
+
+  if (/^https?:\/\//.test(url)) {
+    return url;
+  }
+
+  if (url.startsWith('/api/')) {
+    return `${API_BASE_URL}${url}`;
+  }
+
+  const normalizedUrl = url.startsWith('/') ? url : `/${url}`;
+  return `${API_BASE_URL}/api/v1${normalizedUrl}`;
+}
 
 /**
  * Pre-configured Axios instance for API calls.
  * Automatically injects tenant and auth headers.
  */
 const apiClient: AxiosInstance = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1`,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
@@ -20,6 +37,8 @@ const apiClient: AxiosInstance = axios.create({
 
 // ── Request Interceptor ──
 apiClient.interceptors.request.use((config) => {
+  config.url = resolveApiUrl(config.url);
+
   // Inject tenant header
   // In production, this comes from the tenant store
   const tenantId = typeof window !== 'undefined'

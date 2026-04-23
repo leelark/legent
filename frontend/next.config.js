@@ -1,5 +1,9 @@
 const path = require('path');
 
+const apiGatewayUrl =
+  process.env.API_GATEWAY_URL ||
+  (process.env.NODE_ENV === 'development' ? 'http://localhost:8080' : 'http://gateway');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -9,7 +13,7 @@ const nextConfig = {
     return [
       {
         source: '/api/:path*',
-        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081'}/api/:path*`,
+        destination: `${apiGatewayUrl}/api/:path*`,
       },
     ];
   },
