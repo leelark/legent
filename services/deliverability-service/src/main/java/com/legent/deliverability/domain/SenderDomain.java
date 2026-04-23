@@ -30,6 +30,9 @@ public class SenderDomain extends BaseEntity {
     @Column(name = "domain_name", nullable = false)
     private String domainName;
 
+    @Column(name = "dkim_selector")
+    private String dkimSelector = "legent";
+
     @Column(name = "is_active")
     private Boolean isActive = false;
 

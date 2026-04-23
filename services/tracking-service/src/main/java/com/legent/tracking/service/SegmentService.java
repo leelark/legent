@@ -16,8 +16,8 @@ public class SegmentService {
         // Example: segment by audience, device, etc.
         return jdbcTemplate.queryForList("""
             SELECT event_type, count(*) AS count
-            FROM tracking_events
-            WHERE payload->>? = ?
+            FROM raw_events
+            WHERE metadata->>? = ?
             GROUP BY event_type
         """, field, value);
     }

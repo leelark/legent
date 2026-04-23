@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +38,20 @@ const columns = [
 
 export default function CampaignsPage() {
   const [search, setSearch] = useState('');
+  const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/v1/campaigns')
+      .then(res => res.json())
+      .then(data => {
+        setCampaigns(data.data?.content || data.data || []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  const filteredCampaigns = campaigns.filter(c => c.name?.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="space-y-6">
@@ -69,29 +83,30 @@ export default function CampaignsPage() {
       </Card>
 
       {/* Table */}
-      <Card className="!p-0 overflow-hidden">
-        <Table
-          columns={columns}
-          data={[]} // Connect to API later
-          rowKey={(row: any) => row.id}
-          emptyMessage="No campaigns found"
-          loading={false}
-        />
-      </Card>
-      
-      {/* Empty State visual */}
-      <Card>
-        <EmptyState
-            type="empty"
-            title="Create your first campaign"
-            description="Start engaging with your audience by creating a new email campaign."
-            action={
-              <Link href="/campaigns/new">
-                  <Button icon={<Megaphone size={16} />}>Create Campaign</Button>
-              </Link>
-            }
-        />
-      </Card>
+      {filteredCampaigns.length > 0 || loading ? (
+        <Card className="!p-0 overflow-hidden">
+          <Table
+            columns={columns}
+            data={filteredCampaigns}
+            rowKey={(row: any) => row.id}
+            emptyMessage="No campaigns found"
+            loading={loading}
+          />
+        </Card>
+      ) : (
+        <Card>
+          <EmptyState
+              type="empty"
+              title="Create your first campaign"
+              description="Start engaging with your audience by creating a new email campaign."
+              action={
+                <Link href="/campaigns/new">
+                    <Button icon={<Megaphone size={16} />}>Create Campaign</Button>
+                </Link>
+              }
+          />
+        </Card>
+      )}
     </div>
   );
 }

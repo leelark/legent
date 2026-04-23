@@ -57,6 +57,17 @@ public class IngestionController {
             @RequestParam String s, // subscriberId
             @RequestParam String m, // messageId
             HttpServletRequest request) {
+        
+        try {
+            java.net.URI uri = new java.net.URI(url);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https")) || host == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
 
         ingestionService.processClick(t, c, s, m, url, request.getHeader("User-Agent"), getClientIp(request));
 

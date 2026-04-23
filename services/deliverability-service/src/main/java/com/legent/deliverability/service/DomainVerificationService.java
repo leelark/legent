@@ -50,8 +50,8 @@ public class DomainVerificationService {
         try {
             boolean hasSpf = checkSpf(domain.getDomainName());
             boolean hasDmarc = checkDmarc(domain.getDomainName());
-            // DKIM usually requires checking a specific selector. Assuming default 'legent._domainkey' for example.
-            boolean hasDkim = checkDkim("legent", domain.getDomainName());
+            String selector = domain.getDkimSelector() != null && !domain.getDkimSelector().isBlank() ? domain.getDkimSelector() : "legent";
+            boolean hasDkim = checkDkim(selector, domain.getDomainName());
 
             domain.setSpfVerified(hasSpf);
             domain.setDmarcVerified(hasDmarc);

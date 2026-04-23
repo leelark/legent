@@ -22,10 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @RequiredArgsConstructor
 public class SmtpProviderAdapter implements ProviderAdapter {
 
-    // Note: In a true multi-tenant dynamic system, we wouldn't use standard auto-configured JavaMailSender
-    // Instead we'd create dynamic JavaMailSender instances based on tenant's SmtpProvider db record.
-    // Simplifying here to use the default configured one for illustration.
-    private final JavaMailSender javaMailSender;
+    private final ConcurrentHashMap<String, JavaMailSender> senderCache = new ConcurrentHashMap<>();
 
     // Throttling state: tenant+provider -> [windowStart, sentCount]
     private static final ConcurrentHashMap<String, AtomicLong> windowStartMap = new ConcurrentHashMap<>();
@@ -35,6 +32,26 @@ public class SmtpProviderAdapter implements ProviderAdapter {
     @Override
     public String getProviderType() {
         return "SMTP";
+    }
+
+    private JavaMailSender getJavaMailSender(SmtpProvider config) {
+        if (config.getHost() == null || config.getPort() == null || config.getUsername() == null) {
+            throw new IllegalArgumentException("Provider credentials are missing or invalid");
+        }
+        return senderCache.computeIfAbsent(config.getId(), id -> {
+            org.springframework.mail.javamail.JavaMailSenderImpl mailSender = new org.springframework.mail.javamail.JavaMailSenderImpl();
+            mailSender.setHost(config.getHost());
+            mailSender.setPort(config.getPort());
+            mailSender.setUsername(config.getUsername());
+            if (config.getPasswordHash() != null && !config.getPasswordHash().isBlank()) {
+                mailSender.setPassword(config.getPasswordHash());
+            }
+            java.util.Properties props = mailSender.getJavaMailProperties();
+            props.put("mail.transport.protocol", "smtp");
+            props.put("mail.smtp.auth", "true");
+            props.put("mail.smtp.starttls.enable", "true");
+            return mailSender;
+        });
     }
 
     @Override
@@ -62,10 +79,8 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             sentCountMap.get(throttleKey).incrementAndGet();
         }
         try {
-            // In a real implementation, we would create a new JavaMailSender with config details
-            // For now, we continue using the default one but we could easily switch here.
-            
-            MimeMessage message = javaMailSender.createMimeMessage();
+            JavaMailSender sender = getJavaMailSender(config);
+            MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
             helper.setTo(to);
             helper.setSubject(subject);
@@ -73,7 +88,7 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             for (Map.Entry<String, String> entry : metadata.entrySet()) {
                 message.addHeader("X-Legent-" + entry.getKey(), entry.getValue());
             }
-            javaMailSender.send(message);
+            sender.send(message);
             log.debug("Successfully sent via SMTP to {}", to);
         } catch (Exception e) {
             // Improved bounce classification

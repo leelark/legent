@@ -77,8 +77,9 @@ public class SubscriberService {
     public Page<SubscriberDto.Response> search(String query, String status, Pageable pageable) {
         String tenantId = TenantContext.getTenantId();
         if (status != null && !status.isBlank()) {
+            Subscriber.SubscriberStatus parsedStatus = parseStatus(status);
             return subscriberRepository.findByTenantAndStatus(
-                    tenantId, Subscriber.SubscriberStatus.valueOf(status.toUpperCase()), pageable
+                    tenantId, parsedStatus, pageable
             ).map(subscriberMapper::toResponse);
         }
         if (query != null && !query.isBlank()) {
@@ -115,7 +116,7 @@ public class SubscriberService {
         subscriberMapper.updateEntity(request, existing);
 
         if (request.getStatus() != null) {
-            existing.setStatus(Subscriber.SubscriberStatus.valueOf(request.getStatus().toUpperCase()));
+            existing.setStatus(parseStatus(request.getStatus()));
         }
 
         Subscriber saved = subscriberRepository.save(existing);
@@ -203,5 +204,17 @@ public class SubscriberService {
     private void invalidateCache(String subscriberId) {
         String key = TenantCacheKeyGenerator.key(AppConstants.CACHE_SUBSCRIBER_PREFIX, subscriberId);
         cacheService.delete(key);
+    }
+
+    private Subscriber.SubscriberStatus parseStatus(String status) {
+        if (status == null || status.isBlank()) return null;
+        try {
+            return Subscriber.SubscriberStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                org.springframework.http.HttpStatus.BAD_REQUEST, 
+                "Invalid status: " + status + ". Allowed values: " + java.util.Arrays.toString(Subscriber.SubscriberStatus.values())
+            );
+        }
     }
 }

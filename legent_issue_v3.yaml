@@ -1,0 +1,492 @@
+audit:
+module: "FullSystem"
+
+issues:
+- id: "ISSUE-0001"
+fix_order: 1
+priority: "Critical"
+layer: "Infrastructure"
+module: "SecurityBootstrap"
+files:
+- "docker-compose.yml"
+- "services/automation-service/src/main/resources/application.yml"
+- "services/campaign-service/src/main/resources/application.yml"
+- "services/content-service/src/main/resources/application.yml"
+- "services/delivery-service/src/main/resources/application.yml"
+- "services/platform-service/src/main/resources/application.yml"
+- "services/tracking-service/src/main/resources/application.yml"
+- "shared/legent-security/src/main/java/com/legent/security/JwtTokenProvider.java"
+
+  issue_type: "Misconfiguration"
+
+  title: "JWT secret is not consistently provisioned across local/runtime entrypoints"
+
+  description: |
+    Several service boot configurations rely on the shared security module, but the required JWT secret is not consistently supplied across the compose/runtime setup. That creates startup failures or partially booted services depending on the launch path.
+
+  technical_details: |
+    - JwtTokenProvider requires legent.security.jwt.secret at construction time
+    - docker-compose does not provide JWT_SECRET for the application services
+    - multiple service application.yml files do not define the secret locally
+    - some services can start only when an external environment injects the missing value
+
+  impacted_flow: |
+    Local bootstrap → service startup → authentication filter wiring → request handling
+
+  root_cause: |
+    Security configuration is split across shared code and per-service runtime config without a single guaranteed source of truth.
+
+  fix_recommendation: |
+    Centralize the JWT secret as a required deployment secret, propagate it through compose and all runtime profiles, and add startup validation that fails fast with a clear error if the secret is absent.
+
+  dependency_impact: |
+    Affects every service that scans com.legent.security and depends on JwtTokenProvider, token validation, and tenant extraction.
+
+  risk_if_not_fixed: |
+    Services fail to boot in some environments, authentication becomes environment-dependent, and deployment parity is broken.
+
+  validation_steps: |
+    - Start each service with docker-compose using only documented env files
+    - Verify all security-scanned services boot without missing-property exceptions
+    - Add a startup test that asserts the JWT secret is present in every active profile
+
+- id: "ISSUE-0002"
+  fix_order: 2
+  priority: "Critical"
+  layer: "Shared"
+  module: "CacheSecurity"
+  files:
+    - "shared/legent-cache/src/main/java/com/legent/cache/config/RedisConfig.java"
+    - "shared/legent-cache/src/main/java/com/legent/cache/service/CacheService.java"
+
+  issue_type: "Security Vulnerability"
+
+  title: "Unsafe polymorphic Redis serialization is enabled globally"
+
+  description: |
+    The Redis ObjectMapper is configured with default typing for non-final classes. That pattern is unsafe for untrusted cache payloads and increases the blast radius of cache poisoning or gadget-based deserialization attacks.
+
+  technical_details: |
+    - activateDefaultTyping is enabled
+    - polymorphic deserialization is allowed broadly
+    - cached values can be materialized into arbitrary subtype graphs
+    - cache trust boundaries are not enforced at the serializer level
+
+  impacted_flow: |
+    Cache read/write paths → serialized object materialization → downstream service consumption
+
+  root_cause: |
+    A convenience serializer configuration was chosen instead of a narrowly scoped, allowlisted Redis serialization strategy.
+
+  fix_recommendation: |
+    Replace default typing with a strict serializer strategy, use explicit DTO mapping or typed serializers, and restrict accepted classes to a narrow allowlist.
+
+  dependency_impact: |
+    Impacts every service using the shared cache library and any feature that stores user-influenced objects in Redis.
+
+  risk_if_not_fixed: |
+    Deserialization abuse can lead to privilege escalation, service compromise, or corrupted cached state.
+
+  validation_steps: |
+    - Fuzz cache payloads with unexpected class metadata
+    - Confirm deserialization rejects non-allowlisted types
+    - Verify normal cache round-trips still succeed for intended DTOs
+
+- id: "ISSUE-0003"
+  fix_order: 3
+  priority: "Critical"
+  layer: "Backend"
+  module: "TrackingService"
+  files:
+    - "services/tracking-service/src/main/java/com/legent/tracking/repository/TrackingEventRepository.java"
+    - "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseWriter.java"
+    - "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java"
+    - "services/tracking-service/src/main/java/com/legent/tracking/service/FunnelService.java"
+    - "services/tracking-service/src/main/java/com/legent/tracking/service/SegmentService.java"
+    - "services/tracking-service/src/main/java/com/legent/tracking/config/ClickHouseConfig.java"
+    - "services/tracking-service/src/main/resources/db/migration/V1__tracking_schema.sql"
+
+  issue_type: "Data Layer Mismatch"
+
+  title: "Tracking storage and query paths are internally inconsistent"
+
+  description: |
+    The tracking subsystem mixes PostgreSQL-style SQL, ClickHouse wiring, and two different event table names. One code path writes to raw_events, another reads and writes tracking_events, while the schema migration only creates raw_events, campaign_summaries, and subscriber_summaries.
+
+  technical_details: |
+    - repository writes to tracking_events, which is not created by the migration
+    - ClickHouseWriter inserts into raw_events
+    - analytics queries use date_trunc and JSON operators that are PostgreSQL-specific
+    - funnel and segment services query tracking_events with payload operators
+    - ClickHouse config falls back to the default datasource when clickhouse properties are absent, hiding the mismatch until runtime
+
+  impacted_flow: |
+    Pixel/click ingestion → event persistence → analytics aggregation → funnel and segment evaluation
+
+  root_cause: |
+    The tracking domain was split across two storage models without a single canonical schema, dialect, or repository contract.
+
+  fix_recommendation: |
+    Choose one storage model per responsibility, align table names and SQL dialects to that model, and add integration tests that validate inserts and analytics queries against the actual target database.
+
+  dependency_impact: |
+    Affects public tracking endpoints, analytics dashboards, funnel reporting, segment evaluation, and any downstream campaign attribution.
+
+  risk_if_not_fixed: |
+    Tracking data will silently fail, analytics will return empty or incorrect results, and production debugging will be extremely difficult.
+
+  validation_steps: |
+    - Run migrations and verify every referenced table exists
+    - Execute insert/query smoke tests against the real database engine
+    - Confirm analytics and funnel endpoints return non-empty results for seeded data
+
+- id: "ISSUE-0004"
+  fix_order: 4
+  priority: "Critical"
+  layer: "Backend"
+  module: "TrackingService"
+  files:
+    - "services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java"
+    - "services/tracking-service/src/main/java/com/legent/tracking/controller/IngestionController.java"
+    - "frontend/src/components/tracking/ClickLink.tsx"
+    - "frontend/src/components/tracking/TrackingPixel.tsx"
+
+  issue_type: "Security Vulnerability"
+
+  title: "Tracking click endpoints redirect to arbitrary URLs without validation"
+
+  description: |
+    The click tracking paths accept a url parameter and redirect to it directly. That enables open redirect abuse, phishing chains, and reputation damage because untrusted destinations are not filtered or signed.
+
+  technical_details: |
+    - TrackingController sends users to the provided url
+    - IngestionController also redirects based on caller input
+    - no allowlist, signature, or destination normalization is enforced
+    - frontend components build the redirect URL from application state without defensive validation
+
+  impacted_flow: |
+    Email click → tracking endpoint → redirect target → end-user browser navigation
+
+  root_cause: |
+    Redirect targets are treated as trusted input even though they come from request parameters or client-side constructed links.
+
+  fix_recommendation: |
+    Replace direct redirects with signed destination tokens or a strict domain allowlist, and reject any unapproved scheme, host, or path.
+
+  dependency_impact: |
+    Impacts every outbound tracked link, campaign click reporting, and any client component that builds tracked destinations.
+
+  risk_if_not_fixed: |
+    Attackers can weaponize the application as a redirector, causing phishing, malware distribution, or brand abuse.
+
+  validation_steps: |
+    - Attempt redirects to external domains and confirm they are blocked
+    - Confirm only signed or allowlisted destinations are permitted
+    - Verify click tracking still records legitimate navigations
+
+- id: "ISSUE-0005"
+  fix_order: 5
+  priority: "High"
+  layer: "Backend"
+  module: "DeliveryService"
+  files:
+    - "services/delivery-service/src/main/java/com/legent/delivery/controller/ProviderController.java"
+
+  issue_type: "Not Implemented"
+
+  title: "Provider management endpoints still return scaffold data instead of persisted providers"
+
+  description: |
+    The provider controller explicitly advertises scaffold behavior and returns empty or echo-only responses. That means provider CRUD is not actually backed by persistent state or real validation.
+
+  technical_details: |
+    - list endpoint returns an empty collection
+    - create endpoint only echoes name and type
+    - provider records are not persisted or reloaded
+    - downstream delivery selection cannot rely on the controller as a source of truth
+
+  impacted_flow: |
+    Admin provider setup → provider persistence → delivery routing selection → message dispatch
+
+  root_cause: |
+    The controller was left as a placeholder after scaffolding and never connected to the service/repository layer.
+
+  fix_recommendation: |
+    Implement full provider persistence, validation, update/delete flows, and readback from the backing store before exposing the endpoints to production clients.
+
+  dependency_impact: |
+    Affects SMTP/provider setup, routing strategy, tenant-specific delivery configuration, and operational observability.
+
+  risk_if_not_fixed: |
+    Operators will believe providers are configured when no durable configuration exists, causing delivery failures that are hard to diagnose.
+
+  validation_steps: |
+    - Create a provider and verify it is stored and returned by a subsequent GET
+    - Update and delete providers through the full service path
+    - Confirm invalid provider data is rejected with clear validation errors
+
+- id: "ISSUE-0006"
+  fix_order: 6
+  priority: "High"
+  layer: "Backend"
+  module: "DeliveryService"
+  files:
+    - "services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java"
+
+  issue_type: "Incorrect Implementation"
+
+  title: "SMTP adapter ignores provider-specific configuration and always uses the default sender"
+
+  description: |
+    The SMTP adapter is wired to a generic JavaMailSender instead of constructing sender settings from the resolved provider configuration. That makes provider selection mostly cosmetic and prevents tenant-specific SMTP credentials from being honored.
+
+  technical_details: |
+    - provider metadata is not used to build the sender
+    - the default injected sender is used for all messages
+    - comments indicate dynamic provider creation was intended but not implemented
+    - tenant routing and per-provider authentication are bypassed
+
+  impacted_flow: |
+    Provider selection → sender construction → SMTP handshake → outbound email delivery
+
+  root_cause: |
+    The adapter was simplified to a single shared sender and the provider-resolution step was never completed.
+
+  fix_recommendation: |
+    Build the mail sender from the selected provider record, cache validated provider instances safely, and fail fast when provider credentials are missing or invalid.
+
+  dependency_impact: |
+    Impacts all outbound email sends, tenant isolation, retry behavior, and provider failover logic.
+
+  risk_if_not_fixed: |
+    Messages will be sent through the wrong account or fail authentication despite apparently valid provider records.
+
+  validation_steps: |
+    - Configure multiple providers and verify each one is selected correctly
+    - Confirm outbound SMTP settings match the stored provider record
+    - Test invalid credentials and confirm the failure is surfaced clearly
+
+- id: "ISSUE-0007"
+  fix_order: 7
+  priority: "High"
+  layer: "Backend"
+  module: "DeliveryService"
+  files:
+    - "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java"
+
+  issue_type: "Transaction Boundary Bug"
+
+  title: "Scheduled retry path bypasses the intended transactional boundary via self-invocation"
+
+  description: |
+    The retry loop calls processSendRequest on the same bean instance. In Spring proxy mode, that self-invocation bypasses the @Transactional(REQUIRES_NEW) semantics, so the scheduled retry path does not get the isolated transaction it expects.
+
+  technical_details: |
+    - processSendRequest is annotated for REQUIRES_NEW
+    - processScheduledRetries invokes it directly from the same class
+    - proxy interception is skipped on self-invocation
+    - retry failures can leak across items in the same execution path
+
+  impacted_flow: |
+    Scheduled retry scan → per-message resend → transaction commit/rollback → retry ledger updates
+
+  root_cause: |
+    Transactional work was placed behind an internal method call instead of a proxied service boundary.
+
+  fix_recommendation: |
+    Move the send operation to a separate proxied service, or invoke the transactional method through the Spring proxy, and add tests that prove each retry is isolated.
+
+  dependency_impact: |
+    Affects retry processing, send status persistence, failure accounting, and downstream audit trails.
+
+  risk_if_not_fixed: |
+    A single retry failure can compromise adjacent retry records, produce inconsistent delivery state, and create duplicate or missing send outcomes.
+
+  validation_steps: |
+    - Force one retry item to fail and confirm later items still commit independently
+    - Inspect transaction logs to verify REQUIRES_NEW is actually applied
+    - Add an integration test that exercises the scheduled retry path specifically
+
+- id: "ISSUE-0008"
+  fix_order: 8
+  priority: "Medium"
+  layer: "Backend"
+  module: "DeliverabilityService"
+  files:
+    - "services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainVerificationService.java"
+
+  issue_type: "Incorrect Implementation"
+
+  title: "DKIM verification is hardcoded to a single selector"
+
+  description: |
+    The DKIM check uses a fixed selector value instead of a domain-specific or tenant-specific selector. That makes verification brittle and incorrect for any setup that does not use the exact hardcoded selector.
+
+  technical_details: |
+    - checkDkim is invoked with a fixed selector literal
+    - different domains can require different selectors
+    - verification can fail even when DNS records are valid
+    - mock DNS mode can hide the real production behavior during local testing
+
+  impacted_flow: |
+    Domain onboarding → DNS verification → deliverability readiness → production send enablement
+
+  root_cause: |
+    A domain-independent verification shortcut was used where the selector must be configuration-driven.
+
+  fix_recommendation: |
+    Persist selector configuration per domain, use it in verification, and make the selector part of the onboarding contract and health checks.
+
+  dependency_impact: |
+    Affects domain verification, deliverability readiness scoring, onboarding automation, and support diagnostics.
+
+  risk_if_not_fixed: |
+    Valid domains may be marked unverified, or incorrect assumptions may allow bad DNS configurations to pass local-only checks.
+
+  validation_steps: |
+    - Verify domains with different selectors and confirm each is checked correctly
+    - Test both mock DNS and real DNS modes
+    - Confirm the onboarding status matches actual DNS records
+
+- id: "ISSUE-0009"
+  fix_order: 9
+  priority: "High"
+  layer: "Frontend"
+  module: "ContentBuilder"
+  files:
+    - "frontend/src/components/content/TemplateBuilder.tsx"
+
+  issue_type: "Security Vulnerability"
+
+  title: "Template rendering injects unsanitized HTML directly into the DOM"
+
+  description: |
+    The template builder renders block content through dangerous raw HTML insertion without sanitization. Any attacker-controlled or editor-supplied markup can execute script in the browser context.
+
+  technical_details: |
+    - dangerouslySetInnerHTML is used directly
+    - block.content is rendered without sanitization
+    - stored or previewed template HTML can carry script payloads
+    - the editor path and the render path share the same trust boundary
+
+  impacted_flow: |
+    Template editing → preview/render → browser DOM execution → account/session compromise
+
+  root_cause: |
+    Raw HTML was treated as trusted content instead of being sanitized before rendering.
+
+  fix_recommendation: |
+    Sanitize HTML with a strict allowlist before rendering, enforce a CSP that blocks inline script execution, and separate authoring markup from executable markup.
+
+  dependency_impact: |
+    Impacts content editing, template previews, campaign rendering, and any preview or send-time HTML path that reuses the same content.
+
+  risk_if_not_fixed: |
+    Stored XSS can hijack editor sessions, alter content, exfiltrate tokens, and pivot into admin actions.
+
+  validation_steps: |
+    - Attempt a script-bearing payload and confirm it is neutralized
+    - Verify safe markup still renders correctly
+    - Confirm CSP blocks inline execution in the preview flow
+
+- id: "ISSUE-0010"
+  fix_order: 10
+  priority: "Medium"
+  layer: "Backend"
+  module: "AudienceService"
+  files:
+    - "services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java"
+
+  issue_type: "Input Validation Bug"
+
+  title: "Subscriber status parsing can throw runtime exceptions on invalid user input"
+
+  description: |
+    Subscriber search and update paths convert request strings directly into enum values. Any unexpected status string can trigger IllegalArgumentException and turn a client validation problem into a server error.
+
+  technical_details: |
+    - valueOf is used on external status input
+    - invalid values are not normalized into a controlled validation response
+    - 500 errors can be produced by malformed filters or updates
+    - the failure mode is inconsistent with the rest of the API’s validation behavior
+
+  impacted_flow: |
+    UI filter/update input → service parsing → subscriber query/update → API response
+
+  root_cause: |
+    External enum parsing is done without a validation boundary or graceful fallback.
+
+  fix_recommendation: |
+    Replace direct enum valueOf calls with explicit validation and a controlled error response that lists allowed status values.
+
+  dependency_impact: |
+    Affects subscriber search, bulk updates, list operations, and any UI component that submits status filters.
+
+  risk_if_not_fixed: |
+    Ordinary user input can cause server exceptions, noisy logs, and avoidable support incidents.
+
+  validation_steps: |
+    - Submit invalid status strings and confirm the API returns a validation error
+    - Verify valid statuses still route correctly
+    - Add regression tests for both query and update paths
+
+- id: "ISSUE-0011"
+  fix_order: 11
+  priority: "Medium"
+  layer: "Frontend"
+  module: "WorkspaceUI"
+  files:
+    - "frontend/src/app/(workspace)/campaigns/page.tsx"
+    - "frontend/src/app/(workspace)/campaigns/[id]/tracking/page.tsx"
+    - "frontend/src/app/(workspace)/settings/platform/page.tsx"
+    - "frontend/src/app/(workspace)/settings/deliverability/page.tsx"
+    - "frontend/src/app/(workspace)/automation/page.tsx"
+    - "frontend/src/app/(workspace)/audience/page.tsx"
+    - "frontend/src/app/(workspace)/audience/data-extensions/page.tsx"
+    - "frontend/src/app/(workspace)/audience/lists/page.tsx"
+    - "frontend/src/app/(workspace)/email/page.tsx"
+    - "frontend/src/app/(workspace)/tracking/page.tsx"
+    - "frontend/src/app/(workspace)/admin/page.tsx"
+    - "frontend/src/components/admin/AdminConfigPanel.tsx"
+    - "frontend/src/components/admin/BrandingPanel.tsx"
+    - "frontend/src/components/admin/SearchPanel.tsx"
+    - "frontend/src/components/admin/WebhookPanel.tsx"
+    - "frontend/src/components/audience/SegmentRuleBuilder.tsx"
+    - "frontend/src/components/content/PersonalizationTester.tsx"
+    - "frontend/src/components/deliverability/DomainManager.tsx"
+    - "frontend/src/components/layout/TopNavigationBar.tsx"
+    - "frontend/src/components/shell/Header.tsx"
+
+  issue_type: "Not Implemented"
+
+  title: "Large parts of the workspace UI are still scaffolded with static or placeholder state"
+
+  description: |
+    Multiple workspace pages and supporting panels still render mock rows, hardcoded metrics, random demo values, or empty collections instead of live backend data. Several flows are visually complete but functionally disconnected from the services they are supposed to represent.
+
+  technical_details: |
+    - campaigns and tracking views use placeholder datasets or synthetic metrics
+    - platform and deliverability settings pages include static sample records
+    - admin and audience panels expose UI shells without durable backend behavior
+    - several components present controls that do not yet drive real state transitions
+    - the user experience suggests operational functionality that is not actually wired through
+
+  impacted_flow: |
+    Navigation → dashboard and settings views → perceived system state → operator actions
+
+  root_cause: |
+    The UI layer was assembled ahead of backend integration, leaving production-looking screens that still behave like prototypes.
+
+  fix_recommendation: |
+    Replace placeholder state with API-backed data flows, add loading/error/empty states, and remove any demo-only controls that do not execute real business operations.
+
+  dependency_impact: |
+    Affects campaign management, audience operations, platform settings, deliverability setup, and admin visibility.
+
+  risk_if_not_fixed: |
+    Operators will make decisions based on fabricated or stale UI state, which can lead to misconfiguration, missed incidents, and false confidence in system health.
+
+  validation_steps: |
+    - Confirm each listed page loads live data from the intended service
+    - Remove all random/demo values and verify repeatable rendering
+    - Test that every visible action changes persisted state or is clearly labeled as read-only

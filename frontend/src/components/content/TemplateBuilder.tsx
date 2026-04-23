@@ -16,6 +16,16 @@ interface TemplateBuilderProps {
   onBlocksChange: (blocks: ContentBlock[]) => void;
 }
 
+const sanitizeHtml = (html: string) => {
+  if (!html) return '';
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/on[a-zA-Z]+\s*=\s*"[^"]*"/gi, '')
+    .replace(/on[a-zA-Z]+\s*=\s*'[^']*'/gi, '')
+    .replace(/on[a-zA-Z]+\s*=\s*[^\s>]+/gi, '')
+    .replace(/javascript:/gi, '');
+};
+
 export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBlocksChange }) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -49,7 +59,7 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
             }}>Delete</Button>
           </div>
           <div className="p-2 bg-gray-50 rounded">
-            <div dangerouslySetInnerHTML={{ __html: block.content }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }} />
           </div>
         </Card>
       ))}

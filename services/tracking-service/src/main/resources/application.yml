@@ -76,3 +76,9 @@ management:
     web:
       exposure:
         include: health,metrics,prometheus
+
+legent:
+  security:
+    jwt:
+      secret: ${LEGENT_SECURITY_JWT_SECRET:legent-default-secret-key-that-is-at-least-32-bytes-long}
+      expiration-ms: 86400000

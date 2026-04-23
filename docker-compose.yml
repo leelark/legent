@@ -132,6 +132,7 @@ services:
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     command: server /data --console-address ":9001"
     volumes:
       - legent_minio_data:/data
@@ -152,6 +153,7 @@ services:
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
       - DISABLE_INSTALL_DEMO_CONFIG=true
       - DISABLE_SECURITY_PLUGIN=true
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     ulimits:
       memlock:
         soft: -1
@@ -193,6 +195,7 @@ services:
       - KAFKA_CLUSTERS_0_NAME=local
       - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
       - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       kafka:
         condition: service_healthy
@@ -217,6 +220,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -250,6 +254,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -286,6 +291,7 @@ services:
       - MINIO_ENDPOINT=http://minio:9000
       - MINIO_ACCESS_KEY=minioadmin
       - MINIO_SECRET_KEY=minioadmin
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -322,6 +328,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -355,6 +362,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -390,6 +398,7 @@ services:
       - REDIS_PORT=6379
       - MAIL_HOST=mailhog
       - MAIL_PORT=1025
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -423,6 +432,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -456,6 +466,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -489,6 +500,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -522,6 +534,7 @@ services:
       - KAFKA_BOOTSTRAP=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -546,6 +559,7 @@ services:
         condition: service_healthy
     environment:
       - API_GATEWAY_URL=http://gateway
+      - LEGENT_SECURITY_JWT_SECRET=${JWT_SECRET:-legent-default-secret-key-that-is-at-least-32-bytes-long}
 
   gateway:
     image: nginx:1.27-alpine

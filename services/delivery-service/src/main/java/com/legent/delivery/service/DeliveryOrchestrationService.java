@@ -30,6 +30,10 @@ public class DeliveryOrchestrationService {
     private final DeliveryEventPublisher eventPublisher;
     private final ContentProcessingService contentProcessingService;
 
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private DeliveryOrchestrationService self;
+
     private static final int MAX_RETRIES = 3;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -180,9 +184,8 @@ public class DeliveryOrchestrationService {
                 "messageId", logEntry.getMessageId()
             );
             try {
-                // Self-calling bypasses proxy transaction, but propagation is REQUIRES_NEW anyway.
-                // Normally we'd autowire self, but direct call is acceptable for completion.
-                processSendRequest(payload, logEntry.getTenantId(), logEntry.getMessageId());
+                // Call through self proxy to ensure @Transactional boundary is applied.
+                self.processSendRequest(payload, logEntry.getTenantId(), logEntry.getMessageId());
             } catch (Exception e) {
                 log.warn("Scheduled retry loop failure", e);
             }

@@ -17,12 +17,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ClickHouseWriter {
 
-    @Qualifier("clickHouseDataSource")
-    private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate;
 
     public void writeBatch(List<TrackingDto.RawEventPayload> events) {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(java.util.Objects.requireNonNull(dataSource));
-        
         String sql = "INSERT INTO raw_events (id, tenant_id, event_type, campaign_id, subscriber_id, message_id, user_agent, ip_address, link_url, timestamp, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         List<Object[]> batchArgs = events.stream()

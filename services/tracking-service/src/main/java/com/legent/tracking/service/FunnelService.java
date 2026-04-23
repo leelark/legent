@@ -16,8 +16,8 @@ public class FunnelService {
         // Example: open, click, conversion counts for a campaign
         return jdbcTemplate.queryForList("""
             SELECT event_type, count(*) AS count
-            FROM tracking_events
-            WHERE payload->>'campaignId' = ?
+            FROM raw_events
+            WHERE campaign_id = ?
             GROUP BY event_type
         """, campaignId);
     }

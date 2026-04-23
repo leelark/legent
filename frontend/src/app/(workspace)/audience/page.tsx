@@ -32,6 +32,42 @@ function StatCard({ label, value, icon: Icon, href, color }: {
 }
 
 export default function AudienceDashboard() {
+  const [stats, setStats] = useState({
+    subscribers: 0,
+    lists: 0,
+    dataExtensions: 0,
+    segments: 0
+  });
+  const [loading, setLoading] = useState(true);
+  const [recentSubscribers, setRecentSubscribers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [subRes, listRes, deRes, segRes, recentRes] = await Promise.all([
+          fetch('/api/v1/subscribers/count').then(r => r.json()),
+          fetch('/api/v1/lists?size=1').then(r => r.json()),
+          fetch('/api/v1/data-extensions?size=1').then(r => r.json()),
+          fetch('/api/v1/segments?size=1').then(r => r.json()),
+          fetch('/api/v1/subscribers?size=5&sortDir=desc').then(r => r.json())
+        ]);
+
+        setStats({
+          subscribers: subRes.data || 0,
+          lists: listRes.totalElements || 0,
+          dataExtensions: deRes.totalElements || 0,
+          segments: segRes.totalElements || 0
+        });
+        setRecentSubscribers(recentRes.content || []);
+      } catch (err) {
+        console.error("Failed to fetch audience stats", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -54,10 +90,10 @@ export default function AudienceDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Subscribers" value="—" icon={Users} href="/audience/subscribers" color="bg-gradient-to-br from-brand-500 to-brand-700" />
-        <StatCard label="Lists" value="—" icon={ListBullets} href="/audience/lists" color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
-        <StatCard label="Data Extensions" value="—" icon={Database} href="/audience/data-extensions" color="bg-gradient-to-br from-amber-500 to-amber-700" />
-        <StatCard label="Segments" value="—" icon={Funnel} href="/audience/segments" color="bg-gradient-to-br from-violet-500 to-violet-700" />
+        <StatCard label="Total Subscribers" value={loading ? "—" : stats.subscribers} icon={Users} href="/audience/subscribers" color="bg-gradient-to-br from-brand-500 to-brand-700" />
+        <StatCard label="Lists" value={loading ? "—" : stats.lists} icon={ListBullets} href="/audience/lists" color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard label="Data Extensions" value={loading ? "—" : stats.dataExtensions} icon={Database} href="/audience/data-extensions" color="bg-gradient-to-br from-amber-500 to-amber-700" />
+        <StatCard label="Segments" value={loading ? "—" : stats.segments} icon={Funnel} href="/audience/segments" color="bg-gradient-to-br from-violet-500 to-violet-700" />
       </div>
 
       {/* Quick Access Tabs */}
@@ -71,11 +107,25 @@ export default function AudienceDashboard() {
         >
           {(tab) => (
             <div className="py-8 text-center">
-              <p className="text-sm text-content-muted">
-                {tab === 'recent' && 'Recent subscribers will appear here after data is loaded.'}
-                {tab === 'imports' && 'Import history will appear here.'}
-                {tab === 'segments' && 'Active segments with computed counts will appear here.'}
-              </p>
+              {loading ? (
+                <p className="text-sm text-content-muted">Loading...</p>
+              ) : (
+                <>
+                  {tab === 'recent' && (
+                    <div className="space-y-2">
+                      {recentSubscribers.length > 0 ? (
+                        recentSubscribers.map(sub => (
+                          <div key={sub.id} className="text-sm text-content-primary">{sub.email}</div>
+                        ))
+                      ) : (
+                        <p className="text-sm text-content-muted">No recent subscribers.</p>
+                      )}
+                    </div>
+                  )}
+                  {tab === 'imports' && <p className="text-sm text-content-muted">Import history will appear here.</p>}
+                  {tab === 'segments' && <p className="text-sm text-content-muted">Active segments with computed counts will appear here.</p>}
+                </>
+              )}
               <Link href={tab === 'recent' ? '/audience/subscribers' : tab === 'imports' ? '/audience/imports' : '/audience/segments'}>
                 <Button variant="ghost" size="sm" className="mt-3">View All →</Button>
               </Link>

@@ -29,6 +29,18 @@ public class TrackingController {
     // Click tracking endpoint
     @GetMapping("/click")
     public void trackClick(@RequestParam String mid, @RequestParam String url, HttpServletResponse response) throws IOException {
+        try {
+            java.net.URI uri = new java.net.URI(url);
+            String scheme = uri.getScheme();
+            String host = uri.getHost();
+            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https")) || host == null) {
+                response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid redirect URL");
+                return;
+            }
+        } catch (Exception e) {
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid redirect URL");
+            return;
+        }
         trackingService.handleClick(mid, url);
         response.sendRedirect(url);
     }
