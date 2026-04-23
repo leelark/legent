@@ -5,9 +5,12 @@ import com.legent.foundation.service.BrandingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/v1/admin/branding")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('ADMIN')")
 public class BrandingController {
     private final BrandingService brandingService;
 

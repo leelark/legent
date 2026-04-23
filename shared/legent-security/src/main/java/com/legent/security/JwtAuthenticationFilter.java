@@ -1,8 +1,6 @@
-package com.legent.foundation.security;
+package com.legent.security;
 
 import com.legent.common.constant.AppConstants;
-import com.legent.security.JwtTokenProvider;
-import com.legent.security.TenantContext;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -14,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -50,13 +49,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authorizationHeader.substring(AppConstants.BEARER_PREFIX.length()).trim();
         if (token.isEmpty()) {
-            unauthorized(response, "INVALID_TOKEN", "Authorization header contains no Bearer token");
+            filterChain.doFilter(request, response);
             return;
         }
 
         Optional<Claims> claimsOptional = jwtTokenProvider.validateToken(token);
         if (claimsOptional.isEmpty()) {
-            unauthorized(response, "INVALID_TOKEN", "JWT token is invalid or expired");
+            // Token is invalid or expired, but we let it pass to anyRequest().authenticated() or permitAll()
+            // The SecurityContext will not be populated, thus causing 403/401 for authenticated endpoints.
+            filterChain.doFilter(request, response);
             return;
         }
 
@@ -65,7 +66,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String tenantId = claims.get("tenantId", String.class);
         Set<String> roles = extractRoles(claims);
 
-        if (tenantId != null && !tenantId.isBlank() && TenantContext.getTenantId() == null) {
+        // Populate TenantContext if available
+        if (tenantId != null && !tenantId.isBlank()) {
             TenantContext.setTenantId(tenantId);
         }
 
@@ -76,9 +78,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 principal,
-                token,
+                null,
                 authorities
         );
+        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         filterChain.doFilter(request, response);
@@ -88,7 +91,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Object rawRoles = claims.get("roles");
         if (rawRoles instanceof List<?>) {
             return ((List<?>) rawRoles).stream()
-                    .filter(value -> value != null)
+                    .filter(java.util.Objects::nonNull)
                     .map(Object::toString)
                     .map(String::trim)
                     .filter(value -> !value.isEmpty())
@@ -104,15 +107,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return Collections.emptySet();
-    }
-
-    private void unauthorized(HttpServletResponse response, String errorCode, String message) throws IOException {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-        response.setContentType("application/json");
-        response.getWriter().write(String.format(
-                "{\"success\":false,\"error\":{\"errorCode\":\"%s\",\"message\":\"%s\"}}",
-                errorCode,
-                message
-        ));
     }
 }

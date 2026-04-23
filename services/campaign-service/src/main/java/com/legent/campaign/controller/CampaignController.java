@@ -11,14 +11,18 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.security.access.prepost.PreAuthorize;
+
 @RestController
 @RequestMapping("/api/v1/campaigns")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER', 'ANALYST', 'VIEWER')")
 public class CampaignController {
 
     private final CampaignService campaignService;
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER', 'ANALYST', 'VIEWER')")
     public PagedResponse<CampaignDto.Response> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -28,17 +32,20 @@ public class CampaignController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER', 'ANALYST', 'VIEWER')")
     public ApiResponse<CampaignDto.Response> getById(@PathVariable String id) {
         return ApiResponse.ok(campaignService.getById(id));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
     public ApiResponse<CampaignDto.Response> create(@Valid @RequestBody CampaignDto.CreateRequest request) {
         return ApiResponse.ok(campaignService.create(request));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
     public ApiResponse<CampaignDto.Response> update(@PathVariable String id,
                                                     @Valid @RequestBody CampaignDto.UpdateRequest request) {
         return ApiResponse.ok(campaignService.update(id, request));
@@ -46,6 +53,7 @@ public class CampaignController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
     public void delete(@PathVariable String id) {
         campaignService.delete(id);
     }

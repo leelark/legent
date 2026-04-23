@@ -9,17 +9,20 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 
+import org.springframework.security.access.prepost.PreAuthorize;
+import com.legent.security.TenantContext;
+
 @RestController
 @RequestMapping("/api/v1/platform/search")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN')")
 public class SearchController {
 
     private final GlobalSearchService searchService;
 
     @GetMapping
-    public ApiResponse<List<SearchIndexDoc>> search(
-            @RequestHeader("X-Tenant-Id") String tenantId, 
-            @RequestParam String q) {
+    public ApiResponse<List<SearchIndexDoc>> search(@RequestParam String q) {
+        String tenantId = TenantContext.getTenantId();
         return ApiResponse.ok(searchService.search(tenantId, q));
     }
 }

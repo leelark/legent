@@ -13,4 +13,5 @@ import org.springframework.stereotype.Repository;
 public interface SenderDomainRepository extends JpaRepository<SenderDomain, String> {
     List<SenderDomain> findByTenantId(String tenantId);
     Optional<SenderDomain> findByTenantIdAndDomainName(String tenantId, String domainName);
+    Optional<SenderDomain> findByTenantIdAndId(String tenantId, String id);
 }

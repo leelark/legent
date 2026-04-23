@@ -1,6 +1,6 @@
 package com.legent.foundation.config;
 
-import com.legent.foundation.security.JwtAuthenticationFilter;
+import com.legent.security.JwtAuthenticationFilter;
 import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

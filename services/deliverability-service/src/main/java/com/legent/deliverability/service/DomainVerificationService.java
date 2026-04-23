@@ -13,6 +13,8 @@ import org.xbill.DNS.Record;
 import org.xbill.DNS.TXTRecord;
 import org.xbill.DNS.TextParseException;
 import org.xbill.DNS.Type;
+import com.legent.security.TenantContext;
+import com.legent.common.exception.NotFoundException;
 
 
 @Slf4j
@@ -26,9 +28,12 @@ public class DomainVerificationService {
     @Value("${legent.deliverability.mock-dns:false}")
     private boolean mockDns;
 
+
+
     public SenderDomain verifyDomain(String domainId) {
-        SenderDomain domain = domainRepository.findById(domainId)
-                .orElseThrow(() -> new IllegalArgumentException("Domain not found"));
+        String tenantId = TenantContext.getTenantId();
+        SenderDomain domain = domainRepository.findByTenantIdAndId(tenantId, domainId)
+                .orElseThrow(() -> new NotFoundException("Domain", domainId));
 
         if (mockDns) {
             // Short-circuit for MVP local testing

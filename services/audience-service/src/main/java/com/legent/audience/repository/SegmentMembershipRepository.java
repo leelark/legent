@@ -12,15 +12,15 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SegmentMembershipRepository extends JpaRepository<SegmentMembership, String> {
 
-    Page<SegmentMembership> findBySegmentId(String segmentId, Pageable pageable);
-    java.util.List<SegmentMembership> findBySegmentId(String segmentId);
+    Page<SegmentMembership> findByTenantIdAndSegmentId(String tenantId, String segmentId, Pageable pageable);
+    java.util.List<SegmentMembership> findByTenantIdAndSegmentId(String tenantId, String segmentId);
 
-    @Query("SELECT COUNT(m) FROM SegmentMembership m WHERE m.segmentId = :segId")
-    long countBySegment(@Param("segId") String segmentId);
+    @Query("SELECT COUNT(m) FROM SegmentMembership m WHERE m.tenantId = :tid AND m.segmentId = :segId")
+    long countByTenantAndSegment(@Param("tid") String tenantId, @Param("segId") String segmentId);
 
     @Modifying
-    @Query("DELETE FROM SegmentMembership m WHERE m.segmentId = :segId")
-    void deleteAllBySegmentId(@Param("segId") String segmentId);
+    @Query("DELETE FROM SegmentMembership m WHERE m.tenantId = :tid AND m.segmentId = :segId")
+    void deleteAllByTenantIdAndSegmentId(@Param("tid") String tenantId, @Param("segId") String segmentId);
 
-    boolean existsBySegmentIdAndSubscriberId(String segmentId, String subscriberId);
+    boolean existsByTenantIdAndSegmentIdAndSubscriberId(String tenantId, String segmentId, String subscriberId);
 }

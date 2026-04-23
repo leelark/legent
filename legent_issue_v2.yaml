@@ -1,0 +1,372 @@
+audit_issues:
+- fix_order: 1
+  priority: Critical
+  layer: Shared security + all services
+  files:
+  - services/*/src/main/java/**/SecurityConfig.java
+  - shared/legent-security/**
+  category: Security / Misconfiguration
+  short_description: Most service APIs are effectively public
+  technical_details: Security configs end with permitAll exposing APIs
+  impacted_feature: All APIs
+  root_cause: Dev config left open
+  fix_recommendation: Apply RBAC and auth
+  dependency_impact: All services
+  risk: Unauthorized access
+- fix_order: 2
+  priority: Critical
+  layer: Foundation / Platform admin APIs
+  files:
+  - AdminConfigController.java
+  - BrandingController.java
+  - WebhookController.java
+  - SearchController.java
+  category: Security / Access Control
+  short_description: Admin endpoints lack checks
+  technical_details: No @PreAuthorize or tenant validation
+  impacted_feature: Admin APIs
+  root_cause: Missing auth layer
+  fix_recommendation: Add RBAC checks
+  dependency_impact: JWT, UI
+  risk: Privilege escalation
+- fix_order: 3
+  priority: Critical
+  layer: Shared security / Startup
+  files:
+  - SecurityProperties.java
+  - application.yml
+  category: Config
+  short_description: JWT secret conflict
+  technical_details: Default secret invalid
+  impacted_feature: Startup/auth
+  root_cause: Validation mismatch
+  fix_recommendation: Remove defaults
+  dependency_impact: All services
+  risk: Startup failure
+- fix_order: 4
+  priority: High
+  layer: "FE \u2194 BE"
+  files:
+  - PagedResponse.java
+  - segments/page.tsx
+  category: Integration
+  short_description: Pagination mismatch
+  technical_details: FE expects different schema
+  impacted_feature: Lists
+  root_cause: Schema drift
+  fix_recommendation: Unify DTO
+  dependency_impact: All APIs
+  risk: Broken UI
+- fix_order: 5
+  priority: High
+  layer: Tracking
+  files:
+  - TrackingController.java
+  - TrackingPixel.tsx
+  category: Integration
+  short_description: Duplicate tracking APIs
+  technical_details: Two URL formats exist
+  impacted_feature: Tracking
+  root_cause: Duplicate impl
+  fix_recommendation: Unify API
+  dependency_impact: Analytics
+  risk: Lost events
+- fix_order: 6
+  priority: High
+  layer: Frontend
+  files:
+  - TemplateBuilder.tsx
+  category: Security
+  short_description: XSS risk
+  technical_details: dangerouslySetInnerHTML used
+  impacted_feature: Editor
+  root_cause: No sanitization
+  fix_recommendation: Sanitize HTML
+  dependency_impact: Content system
+  risk: Account compromise
+- fix_order: 7
+  priority: High
+  layer: Audience Import
+  files:
+  - ImportService.java
+  category: Security
+  short_description: Temp file persistence
+  technical_details: Uses temp paths
+  impacted_feature: Import
+  root_cause: No durable storage
+  fix_recommendation: Use object storage
+  dependency_impact: Jobs
+  risk: Failure risk
+- fix_order: 8
+  priority: High
+  layer: Audience Import
+  files:
+  - ImportProcessingService.java
+  category: Performance
+  short_description: N+1 queries
+  technical_details: Row-by-row DB calls
+  impacted_feature: Import
+  root_cause: No batching
+  fix_recommendation: Batch ops
+  dependency_impact: DB
+  risk: Slow system
+- fix_order: 9
+  priority: Critical
+  layer: Segmentation
+  files:
+  - SegmentEvaluationService.java
+  category: Security
+  short_description: Cross-tenant access
+  technical_details: No tenant filter
+  impacted_feature: Segments
+  root_cause: Missing validation
+  fix_recommendation: Tenant queries
+  dependency_impact: Segmentation
+  risk: Data leak
+- fix_order: 10
+  priority: High
+  layer: Segmentation
+  files:
+  - SegmentEvaluationService.java
+  category: Logic
+  short_description: SQL injection risk
+  technical_details: Operator not validated
+  impacted_feature: Rules
+  root_cause: User input trusted
+  fix_recommendation: Whitelist ops
+  dependency_impact: Query engine
+  risk: Query failure
+- fix_order: 11
+  priority: High
+  layer: Subscriber
+  files:
+  - SubscriberService.java
+  category: Bug
+  short_description: Enum crash
+  technical_details: valueOf without check
+  impacted_feature: Search
+  root_cause: No validation
+  fix_recommendation: Validate input
+  dependency_impact: API
+  risk: 500 errors
+- fix_order: 12
+  priority: Medium
+  layer: Subscriber
+  files:
+  - SubscriberService.java
+  category: Bug
+  short_description: Null pointer risk
+  technical_details: No null checks
+  impacted_feature: Bulk ops
+  root_cause: Missing validation
+  fix_recommendation: Add checks
+  dependency_impact: Import
+  risk: Crash
+- fix_order: 13
+  priority: High
+  layer: Automation
+  files:
+  - WorkflowEngine.java
+  category: Security
+  short_description: Cross-tenant workflow
+  technical_details: No tenant validation
+  impacted_feature: Workflow
+  root_cause: Trust ID
+  fix_recommendation: Tenant check
+  dependency_impact: Workflow
+  risk: Data breach
+- fix_order: 14
+  priority: High
+  layer: Delivery
+  files:
+  - DeliveryOrchestrationService.java
+  category: Transaction
+  short_description: Self invocation issue
+  technical_details: Proxy bypass
+  impacted_feature: Retry
+  root_cause: Wrong pattern
+  fix_recommendation: Separate service
+  dependency_impact: Retry
+  risk: Inconsistency
+- fix_order: 15
+  priority: High
+  layer: Delivery
+  files:
+  - SmtpProviderAdapter.java
+  category: Missing
+  short_description: Provider config ignored
+  technical_details: Static sender
+  impacted_feature: Email
+  root_cause: Incomplete impl
+  fix_recommendation: Dynamic config
+  dependency_impact: Delivery
+  risk: Wrong routing
+- fix_order: 16
+  priority: Medium
+  layer: Delivery
+  files:
+  - ProviderController.java
+  category: Placeholder
+  short_description: Stub controller
+  technical_details: Returns dummy data
+  impacted_feature: Admin
+  root_cause: Not implemented
+  fix_recommendation: Implement CRUD
+  dependency_impact: UI
+  risk: Broken feature
+- fix_order: 17
+  priority: High
+  layer: Deliverability
+  files:
+  - DomainValidationService.java
+  category: Placeholder
+  short_description: Fake DNS validation
+  technical_details: Simulated checks
+  impacted_feature: Domain
+  root_cause: Mock logic
+  fix_recommendation: Real DNS
+  dependency_impact: Verification
+  risk: False success
+- fix_order: 18
+  priority: Medium
+  layer: Deliverability
+  files:
+  - DomainVerificationService.java
+  category: Logic
+  short_description: Hardcoded selector
+  technical_details: Fixed DKIM selector
+  impacted_feature: Verification
+  root_cause: Hardcoded
+  fix_recommendation: Make dynamic
+  dependency_impact: Domain
+  risk: Wrong result
+- fix_order: 19
+  priority: High
+  layer: Deliverability
+  files:
+  - ReputationController.java
+  category: Security
+  short_description: No tenant filter
+  technical_details: Returns all data
+  impacted_feature: Reports
+  root_cause: Direct DB access
+  fix_recommendation: Add filter
+  dependency_impact: Dashboard
+  risk: Leak
+- fix_order: 20
+  priority: High
+  layer: Tracking
+  files:
+  - IngestionController.java
+  category: Security
+  short_description: Open redirect
+  technical_details: Redirect user URL
+  impacted_feature: Click tracking
+  root_cause: No validation
+  fix_recommendation: Allowlist
+  dependency_impact: Tracking
+  risk: Phishing
+- fix_order: 21
+  priority: Medium
+  layer: Tracking
+  files:
+  - ClickHouseConfig.java
+  category: Config
+  short_description: Wrong DB usage
+  technical_details: Fallback datasource
+  impacted_feature: Analytics
+  root_cause: Bad config
+  fix_recommendation: Separate DB
+  dependency_impact: Analytics
+  risk: Wrong data
+- fix_order: 22
+  priority: Medium
+  layer: Tracking
+  files:
+  - TrackingIngestionService.java
+  category: Logic
+  short_description: Bad deduplication
+  technical_details: Hash collision risk
+  impacted_feature: Tracking
+  root_cause: Weak key
+  fix_recommendation: Use UUID
+  dependency_impact: Analytics
+  risk: Bad metrics
+- fix_order: 23
+  priority: High
+  layer: FE
+  files:
+  - SearchPanel.tsx
+  category: Integration
+  short_description: Disabled backend feature
+  technical_details: Flag missing
+  impacted_feature: Search
+  root_cause: Config mismatch
+  fix_recommendation: Align feature
+  dependency_impact: Admin UI
+  risk: Broken UX
+- fix_order: 24
+  priority: Medium
+  layer: Foundation
+  files:
+  - BrandingService.java
+  category: Bug
+  short_description: Null return
+  technical_details: No default
+  impacted_feature: Branding
+  root_cause: No fallback
+  fix_recommendation: Default object
+  dependency_impact: UI
+  risk: Crash
+- fix_order: 25
+  priority: Medium
+  layer: Foundation
+  files:
+  - ConfigService.java
+  category: Cache
+  short_description: Wrong invalidation
+  technical_details: Tenant context mismatch
+  impacted_feature: Config
+  root_cause: Bad design
+  fix_recommendation: Explicit tenant key
+  dependency_impact: Cache
+  risk: Stale data
+- fix_order: 26
+  priority: Medium
+  layer: Shared cache
+  files:
+  - CacheService.java
+  category: Security
+  short_description: Unsafe serialization
+  technical_details: Default typing enabled
+  impacted_feature: Cache
+  root_cause: Weak typing
+  fix_recommendation: Strict DTO
+  dependency_impact: Cache
+  risk: Exploit risk
+- fix_order: 27
+  priority: Medium
+  layer: Platform
+  files:
+  - WebhookDispatcherService.java
+  category: Reliability
+  short_description: No retry
+  technical_details: Fire and forget
+  impacted_feature: Webhooks
+  root_cause: No resilience
+  fix_recommendation: Add retry
+  dependency_impact: Integration
+  risk: Data loss
+- fix_order: 28
+  priority: Low
+  layer: Frontend
+  files:
+  - layout.tsx
+  category: UX
+  short_description: Auth flicker
+  technical_details: Client hydration delay
+  impacted_feature: Login
+  root_cause: Bad state
+  fix_recommendation: Central auth
+  dependency_impact: UI
+  risk: Poor UX

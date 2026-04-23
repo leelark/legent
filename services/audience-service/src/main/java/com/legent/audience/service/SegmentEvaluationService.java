@@ -17,6 +17,7 @@ import com.legent.audience.dto.SegmentDto;
 import com.legent.audience.event.SegmentEventPublisher;
 import com.legent.audience.repository.SegmentMembershipRepository;
 import com.legent.audience.repository.SegmentRepository;
+import com.legent.cache.service.TenantCacheKeyGenerator;
 import com.legent.cache.service.CacheService;
 import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
@@ -62,7 +63,7 @@ public class SegmentEvaluationService {
         Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 
-        String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
+        String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_SEGMENT_COUNT_PREFIX, segmentId);
         Optional<SegmentDto.CountPreview> cached = cacheService.get(cacheKey, SegmentDto.CountPreview.class);
         if (cached.isPresent()) return cached.get();
 
@@ -83,7 +84,8 @@ public class SegmentEvaluationService {
      */
     @Transactional(readOnly = true)
     public List<String> getSegmentMembers(String segmentId) {
-        return membershipRepository.findBySegmentId(segmentId).stream()
+        String tenantId = TenantContext.getTenantId();
+        return membershipRepository.findByTenantIdAndSegmentId(tenantId, segmentId).stream()
                 .map(SegmentMembership::getSubscriberId)
                 .collect(Collectors.toList());
     }
@@ -91,7 +93,7 @@ public class SegmentEvaluationService {
     @Async("segmentExecutor")
     @Transactional
     public void recompute(@org.springframework.lang.NonNull String segmentId, String tenantId) {
-        Segment segment = segmentRepository.findById(segmentId)
+        Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 
         segment.setStatus(Segment.SegmentStatus.COMPUTING);
@@ -101,7 +103,7 @@ public class SegmentEvaluationService {
             long startMs = System.currentTimeMillis();
 
             // Clear existing memberships
-            membershipRepository.deleteAllBySegmentId(segmentId);
+            membershipRepository.deleteAllByTenantIdAndSegmentId(tenantId, segmentId);
 
             // Execute query and materialize using batch insert
             List<String> subscriberIds = executeQuery(tenantId, segment.getRules());
@@ -130,7 +132,7 @@ public class SegmentEvaluationService {
             segmentRepository.save(segment);
 
             // Invalidate count cache
-            String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
+            String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_SEGMENT_COUNT_PREFIX, segmentId);
             cacheService.delete(cacheKey);
 
             eventPublisher.publishRecomputed(segment);
@@ -200,6 +202,10 @@ public class SegmentEvaluationService {
     @SuppressWarnings("unchecked")
     private int appendRuleConditions(StringBuilder sql, Map<String, Object> params, Map<String, Object> rules, int paramIdx) {
         String operator = (String) rules.getOrDefault("operator", "AND");
+        if (!"AND".equalsIgnoreCase(operator) && !"OR".equalsIgnoreCase(operator)) {
+            throw new IllegalArgumentException("Invalid SQL operator: " + operator);
+        }
+        
         List<Map<String, Object>> conditions = (List<Map<String, Object>>) rules.get("conditions");
         List<Map<String, Object>> groups = (List<Map<String, Object>>) rules.get("groups");
 
@@ -228,7 +234,7 @@ public class SegmentEvaluationService {
         }
 
         if (!clauses.isEmpty()) {
-            String joined = String.join(" " + operator + " ", clauses);
+            String joined = String.join(" " + operator.toUpperCase() + " ", clauses);
             sql.append(" AND (").append(joined).append(")");
         }
 
@@ -272,21 +278,24 @@ public class SegmentEvaluationService {
             case "IS_NOT_NULL" -> column + " IS NOT NULL";
             case "IN_LIST" -> {
                 params.put(paramName, value);
-                yield "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.subscriber_id = s.id AND lm.list_id = :" + paramName + " AND lm.status = 'ACTIVE')";
+                yield "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :" + paramName + " AND lm.status = 'ACTIVE')";
             }
             case "NOT_IN_LIST" -> {
                 params.put(paramName, value);
-                yield "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.subscriber_id = s.id AND lm.list_id = :" + paramName + " AND lm.status = 'ACTIVE')";
+                yield "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :" + paramName + " AND lm.status = 'ACTIVE')";
             }
             case "IN_SEGMENT" -> {
                 params.put(paramName, value);
-                yield "EXISTS (SELECT 1 FROM segment_memberships sm WHERE sm.subscriber_id = s.id AND sm.segment_id = :" + paramName + ")";
+                yield "EXISTS (SELECT 1 FROM segment_memberships sm WHERE sm.tenant_id = :tid AND sm.subscriber_id = s.id AND sm.segment_id = :" + paramName + ")";
             }
             default -> null;
         };
     }
 
     private String mapFieldToColumn(String field) {
+        if (field == null || !field.matches("^[a-zA-Z0-9_]+$")) {
+            throw new IllegalArgumentException("Invalid field name: " + field);
+        }
         return switch (field.toLowerCase()) {
             case "email" -> "s.email";
             case "first_name", "firstname" -> "s.first_name";
@@ -302,12 +311,7 @@ public class SegmentEvaluationService {
             case "last_activity_at", "lastactivityat" -> "s.last_activity_at";
             case "list_membership" -> null; // handled specially in buildCondition
             // Fallback: Assume it's a dynamic custom attribute stored in the JSONB column
-            default -> {
-                if (field == null || !field.matches("^[a-zA-Z0-9_]+$")) {
-                    throw new IllegalArgumentException("Invalid field name: " + field);
-                }
-                yield "s.custom_fields->>'" + field + "'";
-            }
+            default -> "s.custom_fields->>'" + field + "'";
         };
     }
 }

@@ -46,8 +46,14 @@ public class TenantFilter extends OncePerRequestFilter {
         }
 
         String tenantId = request.getHeader(AppConstants.HEADER_TENANT_ID);
+        String currentTenantId = TenantContext.getTenantId();
 
         if (tenantId == null || tenantId.isBlank()) {
+            if (currentTenantId != null && !currentTenantId.isBlank()) {
+                // Already set by JwtAuthenticationFilter, proceed
+                filterChain.doFilter(request, response);
+                return;
+            }
             log.warn("Missing X-Tenant-Id header for path: {}", path);
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType("application/json");
@@ -63,11 +69,22 @@ public class TenantFilter extends OncePerRequestFilter {
             return;
         }
 
+        // If tenantId in header differs from currentTenantId (from JWT), it's a conflict
+        if (currentTenantId != null && !currentTenantId.isBlank() && !currentTenantId.equals(tenantId)) {
+            log.error("Tenant ID conflict: JWT={}, Header={}", currentTenantId, tenantId);
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            return;
+        }
+
         try {
-            TenantContext.setTenantId(tenantId);
+            if (currentTenantId == null) {
+                TenantContext.setTenantId(tenantId);
+            }
             filterChain.doFilter(request, response);
         } finally {
-            TenantContext.clear();
+            if (currentTenantId == null) {
+                TenantContext.clear();
+            }
         }
     }
 

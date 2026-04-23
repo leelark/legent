@@ -1,6 +1,6 @@
 package com.legent.identity.config;
 
-import com.legent.identity.security.JwtAuthenticationFilter;
+import com.legent.security.JwtAuthenticationFilter;
 import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;

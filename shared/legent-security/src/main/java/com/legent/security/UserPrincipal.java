@@ -1,4 +1,4 @@
-package com.legent.foundation.security;
+package com.legent.security;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
