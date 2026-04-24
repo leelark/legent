@@ -27,8 +27,8 @@ export default function SegmentsPage() {
   const fetchSegments = async () => {
     setLoading(true);
     try {
-      const res = await get<{ content: any[] }>('/api/v1/segments?page=0&size=50');
-      setSegments(res.content || []);
+      const res = await get<any>('/segments?page=0&size=50');
+      setSegments(res.content || res || []);
     } catch (e) {
       setSegments([]);
     }

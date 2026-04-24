@@ -10,6 +10,7 @@ import {
   Users, ListBullets, Database, Funnel,
   Upload, ShieldCheck, TrendUp, Plus
 } from '@phosphor-icons/react/dist/ssr';
+import { get } from '@/lib/api-client';
 
 function StatCard({ label, value, icon: Icon, href, color }: {
   label: string; value: string | number; icon: any; href: string; color: string;
@@ -45,20 +46,20 @@ export default function AudienceDashboard() {
     const fetchStats = async () => {
       try {
         const [subRes, listRes, deRes, segRes, recentRes] = await Promise.all([
-          fetch('/api/v1/subscribers/count').then(r => r.json()),
-          fetch('/api/v1/lists?size=1').then(r => r.json()),
-          fetch('/api/v1/data-extensions?size=1').then(r => r.json()),
-          fetch('/api/v1/segments?size=1').then(r => r.json()),
-          fetch('/api/v1/subscribers?size=5&sortDir=desc').then(r => r.json())
+          get<any>('/subscribers/count'),
+          get<any>('/lists?size=1'),
+          get<any>('/data-extensions?size=1'),
+          get<any>('/segments?size=1'),
+          get<any>('/subscribers?size=5&sortDir=desc')
         ]);
 
         setStats({
           subscribers: subRes.data || 0,
-          lists: listRes.totalElements || 0,
-          dataExtensions: deRes.totalElements || 0,
-          segments: segRes.totalElements || 0
+          lists: listRes.data?.totalElements || listRes.totalElements || 0,
+          dataExtensions: deRes.data?.totalElements || deRes.totalElements || 0,
+          segments: segRes.data?.totalElements || segRes.totalElements || 0
         });
-        setRecentSubscribers(recentRes.content || []);
+        setRecentSubscribers(recentRes.data?.content || recentRes.content || []);
       } catch (err) {
         console.error("Failed to fetch audience stats", err);
       } finally {

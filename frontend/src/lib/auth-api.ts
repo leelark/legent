@@ -20,12 +20,12 @@ export interface LoginResponse {
 
 export const authApi = {
   login: (tenantId: string, request: LoginRequest) => 
-    post<ApiResponse<LoginResponse>>('/auth/login', request, {
+    post<LoginResponse>('/auth/login', request, {
       headers: { 'X-Tenant-Id': tenantId }
     }),
     
   signup: (request: SignupRequest) => 
-    post<ApiResponse<LoginResponse>>('/auth/signup', request),
+    post<LoginResponse>('/auth/signup', request),
 };
 
 interface ApiResponse<T> {

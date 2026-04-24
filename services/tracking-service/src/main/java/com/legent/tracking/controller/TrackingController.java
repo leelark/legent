@@ -16,8 +16,11 @@ public class TrackingController {
 
     // Tracking pixel endpoint
     @GetMapping(value = "/open.gif", produces = MediaType.IMAGE_GIF_VALUE)
-    public void trackOpen(@RequestParam String mid, HttpServletResponse response) throws IOException {
-        trackingService.handleOpen(mid);
+    public void trackOpen(
+            @RequestParam String mid, 
+            @RequestParam("t") String tenantId,
+            HttpServletResponse response) throws IOException {
+        trackingService.handleOpen(mid, tenantId);
         // 1x1 transparent gif
         response.setContentType("image/gif");
         response.getOutputStream().write(new byte[]{
@@ -28,7 +31,11 @@ public class TrackingController {
 
     // Click tracking endpoint
     @GetMapping("/click")
-    public void trackClick(@RequestParam String mid, @RequestParam String url, HttpServletResponse response) throws IOException {
+    public void trackClick(
+            @RequestParam String mid, 
+            @RequestParam String url, 
+            @RequestParam("t") String tenantId,
+            HttpServletResponse response) throws IOException {
         try {
             java.net.URI uri = new java.net.URI(url);
             String scheme = uri.getScheme();
@@ -41,13 +48,16 @@ public class TrackingController {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid redirect URL");
             return;
         }
-        trackingService.handleClick(mid, url);
+        trackingService.handleClick(mid, url, tenantId);
         response.sendRedirect(url);
     }
 
     // Conversion event endpoint
     @PostMapping("/conversion")
-    public void trackConversion(@RequestParam String mid, @RequestBody String payload) {
-        trackingService.handleConversion(mid, payload);
+    public void trackConversion(
+            @RequestParam String mid, 
+            @RequestParam("t") String tenantId,
+            @RequestBody String payload) {
+        trackingService.handleConversion(mid, payload, tenantId);
     }
 }

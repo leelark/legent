@@ -1,7 +1,7 @@
 // Usage: <ClickLink mid="..." url="https://...">Click here</ClickLink>
 import React from 'react';
 
-export const ClickLink: React.FC<{ mid: string; tid?: string; url: string; children: React.ReactNode }> = ({ mid, tid, url, children }) => {
+export const ClickLink: React.FC<{ mid: string; tid: string; url: string; children: React.ReactNode }> = ({ mid, tid, url, children }) => {
   try {
     const parsedUrl = new URL(url);
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
@@ -10,6 +10,6 @@ export const ClickLink: React.FC<{ mid: string; tid?: string; url: string; child
   } catch (e) {
     return <span>{children}</span>;
   }
-  const trackingUrl = `/api/v1/track/click?mid=${encodeURIComponent(mid)}&url=${encodeURIComponent(url)}${tid ? `&t=${encodeURIComponent(tid)}` : ''}`;
+  const trackingUrl = `/api/v1/track/click?mid=${encodeURIComponent(mid)}&url=${encodeURIComponent(url)}&t=${encodeURIComponent(tid)}`;
   return <a href={trackingUrl} target="_blank" rel="noopener noreferrer">{children}</a>;
 };

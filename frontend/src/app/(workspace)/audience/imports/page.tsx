@@ -62,8 +62,8 @@ export default function ImportsPage() {
   const fetchImports = async () => {
     setLoading(true);
     try {
-      const response = await get<{ content: any[] }>('/api/v1/imports?page=0&size=50');
-      setImports(response.content || []);
+      const response = await get<any>('/imports?page=0&size=50');
+      setImports(response.content || response || []);
     } catch {
       setImports([]);
     } finally {

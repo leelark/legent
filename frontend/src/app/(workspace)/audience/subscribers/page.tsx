@@ -187,7 +187,7 @@ export default function SubscribersPage() {
       <Card className="!p-0 overflow-hidden">
         <Table
           columns={columns}
-          data={data?.content || []}
+          data={data?.content || data?.data?.content || []}
           rowKey={(row: any) => row.id}
           emptyMessage="No subscribers found"
           loading={loading}
@@ -196,10 +196,10 @@ export default function SubscribersPage() {
           onSelectionChange={setSelected}
         />
         <div className="p-4 border-t border-border-default flex justify-between items-center text-sm text-content-secondary">
-          <span>Total: {data?.totalElements || 0}</span>
+          <span>Total: {data?.totalElements ?? data?.data?.totalElements ?? 0}</span>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" disabled={data?.first || !data} onClick={() => setPage(p => p - 1)}>Prev</Button>
-            <Button variant="secondary" size="sm" disabled={data?.last || !data} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="secondary" size="sm" disabled={data?.first ?? data?.data?.first ?? true} onClick={() => setPage(p => p - 1)}>Prev</Button>
+            <Button variant="secondary" size="sm" disabled={data?.last ?? data?.data?.last ?? true} onClick={() => setPage(p => p + 1)}>Next</Button>
           </div>
         </div>
       </Card>

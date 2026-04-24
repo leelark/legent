@@ -14,7 +14,9 @@ public class FunnelController {
     private final FunnelService funnelService;
 
     @GetMapping
-    public List<Map<String, Object>> getFunnel(@RequestParam String campaignId) {
-        return funnelService.getFunnel(campaignId);
+    public List<Map<String, Object>> getFunnel(
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            @RequestParam String campaignId) {
+        return funnelService.getFunnel(tenantId, campaignId);
     }
 }

@@ -18,8 +18,8 @@ public class AnalyticsController {
     private final com.legent.tracking.service.AnalyticsService analyticsService;
 
     @GetMapping("/campaigns")
-    public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries() {
-        return ApiResponse.ok(campaignSummaryRepository.findAll());
+    public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries(@RequestHeader("X-Tenant-Id") String tenantId) {
+        return ApiResponse.ok(campaignSummaryRepository.findAllByTenantId(tenantId));
     }
 
     @GetMapping("/campaigns/{id}")

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
+import { get } from '@/lib/api-client';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { useParams } from 'next/navigation';
@@ -42,15 +43,14 @@ export default function TemplateDetailPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch(`/api/v1/templates/${id}`);
-        const body = (await res.json()) as ApiResponse<TemplateDetail>;
-        if (body?.success && body.data) {
-          setTemplate(body.data);
+        const res = await get<TemplateDetail>(`/templates/${id}`);
+        if (res) {
+          setTemplate(res);
         } else {
-          setError(body?.error?.message || 'Failed to load template');
+          setError('Failed to load template');
         }
-      } catch (e) {
-        setError('Failed to load template');
+      } catch (e: any) {
+        setError(e.message || 'Failed to load template');
       } finally {
         setIsLoading(false);
       }

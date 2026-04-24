@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Upload, ArrowRight, ArrowLeft, CheckCircle, WarningCircle, FileText } from '@phosphor-icons/react';
-import { get } from '@/lib/api-client';
+import { get, post } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 
 const STEPS = ['Upload', 'Map Fields', 'Validate', 'Import'];
@@ -59,8 +59,8 @@ export default function ImportWizardPage() {
     if (currentStep === 3 && jobId && (!jobStatus || (jobStatus.status !== 'COMPLETED' && jobStatus.status !== 'COMPLETED_WITH_ERRORS' && jobStatus.status !== 'FAILED'))) {
       interval = setInterval(async () => {
         try {
-          const res = await get<{ data: any }>(`/api/v1/imports/${jobId}`);
-          setJobStatus(res.data);
+          const res = await get<any>(`/imports/${jobId}`);
+          setJobStatus(res);
         } catch (e) {
           console.error('Failed to fetch job status');
         }
@@ -121,14 +121,12 @@ export default function ImportWizardPage() {
         })
       ], { type: 'application/json' });
       formData.append('request', requestBlob);
-      const res = await fetch('/api/v1/imports', {
-        method: 'POST',
-        body: formData,
+      const res = await post<any>('/imports', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      const data = await res.json();
-      if (data.data?.id) {
-        setJobId(data.data.id);
-        setJobStatus(data.data);
+      if (res?.id) {
+        setJobId(res.id);
+        setJobStatus(res);
         setCurrentStep(3);
       } else {
         alert('Failed to start import');

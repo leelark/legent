@@ -26,6 +26,10 @@ public class EventProcessingConsumer {
 
     @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = AppConstants.GROUP_TRACKING, concurrency = "3")
     public void consumeIngestedEvent(EventEnvelope<String> event) {
+        if (event.getTenantId() == null || event.getTenantId().isBlank()) {
+            log.error("Received tracking event missing tenant context: {}", event.getEventId());
+            return;
+        }
         try {
             TenantContext.setTenantId(event.getTenantId());
             

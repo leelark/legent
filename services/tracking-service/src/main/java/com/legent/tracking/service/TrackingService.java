@@ -9,15 +9,15 @@ import org.springframework.stereotype.Service;
 public class TrackingService {
     private final TrackingEventPublisher eventPublisher;
 
-    public void handleOpen(String mid) {
-        eventPublisher.publishOpen(mid);
+    public void handleOpen(String mid, String tenantId) {
+        eventPublisher.publishOpen(mid, tenantId);
     }
 
-    public void handleClick(String mid, String url) {
-        eventPublisher.publishClick(mid, url);
+    public void handleClick(String mid, String url, String tenantId) {
+        eventPublisher.publishClick(mid, url, tenantId);
     }
 
-    public void handleConversion(String mid, String payload) {
-        eventPublisher.publishConversion(mid, payload);
+    public void handleConversion(String mid, String payload, String tenantId) {
+        eventPublisher.publishConversion(mid, payload, tenantId);
     }
 }

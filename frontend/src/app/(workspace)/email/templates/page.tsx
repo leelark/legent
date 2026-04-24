@@ -7,6 +7,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Plus } from '@phosphor-icons/react/dist/ssr';
+import { get, post } from '@/lib/api-client';
 
 interface TemplateSummary {
   id: string;
@@ -44,10 +45,11 @@ export default function EmailTemplatesPage() {
   const loadTemplates = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/v1/templates?page=0&size=20');
-      const body = (await res.json()) as PagedResponse<TemplateSummary>;
-      if (body?.success && Array.isArray(body.data)) {
-        setTemplates(body.data);
+      const res = await get<any>('/templates?page=0&size=20');
+      if (Array.isArray(res)) {
+        setTemplates(res);
+      } else if (res?.content) {
+        setTemplates(res.content);
       } else {
         setError('Unable to load templates');
       }
@@ -68,10 +70,7 @@ export default function EmailTemplatesPage() {
     setError(null);
 
     try {
-      const response = await fetch('/api/v1/templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
+      const res = await post<any>('/templates', {
           name: name.trim(),
           subject: subject.trim(),
           htmlContent: '<p>Your content here</p>',
@@ -79,17 +78,15 @@ export default function EmailTemplatesPage() {
           category: 'General',
           tags: [],
           metadata: '{}',
-        }),
       });
-      const body = await response.json();
-      if (body?.success && body.data) {
-        setTemplates((current) => [body.data, ...current]);
+      if (res) {
+        setTemplates((current) => [res, ...current]);
         setName('');
         setSubject('');
       } else {
-        setError(body?.error?.message || 'Unable to create template');
+        setError('Unable to create template');
       }
-    } catch (e) {
+    } catch (e: any) {
       setError('Unable to create template');
     } finally {
       setIsCreating(false);

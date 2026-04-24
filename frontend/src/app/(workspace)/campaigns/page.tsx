@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Plus, Megaphone, MagnifyingGlass } from '@phosphor-icons/react';
+import { get } from '@/lib/api-client';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   DRAFT: 'default',
@@ -42,10 +43,10 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/v1/campaigns')
-      .then(res => res.json())
-      .then(data => {
-        setCampaigns(data.data?.content || data.data || []);
+    get<any>('/campaigns')
+      .then(res => {
+        const data = res.data?.content || res.data || [];
+        setCampaigns(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));

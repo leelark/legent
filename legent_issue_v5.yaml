@@ -1,0 +1,109 @@
+- fix_order: 1
+  priority: High
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/campaigns/page.tsx
+    - frontend/src/app/(workspace)/tracking/page.tsx
+    - frontend/src/app/(workspace)/audience/page.tsx
+    - frontend/src/app/(workspace)/audience/imports/new/page.tsx
+    - frontend/src/app/(workspace)/audience/imports/page.tsx
+    - frontend/src/app/(workspace)/audience/segments/page.tsx
+    - frontend/src/app/(workspace)/email/templates/page.tsx
+    - frontend/src/app/(workspace)/email/templates/[id]/page.tsx
+  issue_category: Bug
+  short_description: Tenant-protected pages bypass shared API client and drop auth/tenant headers
+  technical_details: >
+    These pages call fetch() directly instead of using the centralized apiClient helpers
+    that inject Authorization and X-Tenant-Id headers. As a result, requests to protected
+    endpoints are missing authentication and tenant context, leading to unauthorized
+    responses or inconsistent behavior across modules.
+  impacted_flow: Campaign listing, analytics dashboard, audience management, email template operations
+  root_cause: Direct API calls bypass shared HTTP abstraction layer responsible for header injection
+  fix_recommendation: >
+    Replace all direct fetch() calls with apiClient.get/post wrappers to ensure consistent
+    header injection and standardized error handling across the frontend.
+  dependency_impact: api-client.ts, auth storage, tenant context logic, all workspace modules
+  risk_if_not_fixed: Unauthorized errors, inconsistent data access, broken user workflows
+
+- fix_order: 2
+  priority: High
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/audience/page.tsx
+    - frontend/src/app/(workspace)/audience/subscribers/page.tsx
+    - frontend/src/app/(workspace)/audience/imports/page.tsx
+    - frontend/src/app/(workspace)/audience/segments/page.tsx
+  issue_category: Bug
+  short_description: Incorrect handling of paginated API response structure
+  technical_details: >
+    Frontend expects pagination fields (content, totalElements, etc.) at the root level,
+    while backend returns a PagedResponse object containing data and pagination metadata.
+    Some hooks also unwrap data inconsistently, causing type mismatches and UI failures.
+  impacted_flow: Audience lists, subscribers table, imports, segments, pagination controls
+  root_cause: Mismatch between frontend assumptions and backend response contract
+  fix_recommendation: >
+    Standardize usage of PagedResponse by accessing data for records and pagination
+    for metadata, or normalize API responses in a shared hook.
+  dependency_impact: useApi.ts, shared DTOs, all paginated UI components
+  risk_if_not_fixed: Broken UI rendering, incorrect pagination, unreliable data display
+
+- fix_order: 3
+  priority: Critical
+  layer_module: BE
+  file_names:
+    - services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java
+    - services/tracking-service/src/main/java/com/legent/tracking/controller/FunnelController.java
+    - services/tracking-service/src/main/java/com/legent/tracking/service/FunnelService.java
+  issue_category: Security
+  short_description: Missing tenant isolation in analytics endpoints
+  technical_details: >
+    Some analytics endpoints fetch data without filtering by tenant_id. Queries like
+    repository.findAll() and raw_events lookup by campaign_id allow cross-tenant data exposure.
+  impacted_flow: Analytics dashboard, campaign performance reporting, funnel metrics
+  root_cause: Lack of tenant filtering in query layer and missing enforcement in controllers
+  fix_recommendation: >
+    Enforce tenant-based filtering on all queries, require X-Tenant-Id header,
+    and implement repository methods that always scope by tenant_id.
+  dependency_impact: tracking repositories, analytics services, tenant middleware
+  risk_if_not_fixed: Data leakage across tenants, compliance violations, security breach
+
+- fix_order: 4
+  priority: Critical
+  layer_module: Integration
+  file_names:
+    - frontend/src/components/tracking/TrackingPixel.tsx
+    - frontend/src/components/tracking/ClickLink.tsx
+    - services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java
+    - services/tracking-service/src/main/java/com/legent/tracking/event/TrackingEventPublisher.java
+    - services/tracking-service/src/main/java/com/legent/tracking/event/EventProcessingConsumer.java
+  issue_category: Security
+  short_description: Tracking events missing tenant context in legacy flow
+  technical_details: >
+    Legacy tracking implementation publishes events without tenantId. Event consumers
+    persist these events assuming tenant context exists, leading to unscoped data storage
+    and broken attribution.
+  impacted_flow: Email open tracking, click tracking, conversion tracking, analytics pipeline
+  root_cause: Event publisher does not attach tenant metadata, and consumer lacks validation
+  fix_recommendation: >
+    Ensure tenantId is always derived and attached before publishing events. Add validation
+    to reject or quarantine events missing tenant context.
+  dependency_impact: event schema, tracking components, analytics storage
+  risk_if_not_fixed: Incorrect analytics, cross-tenant data mixing, unreliable reporting
+
+- fix_order: 5
+  priority: Medium
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/settings/platform/page.tsx
+  issue_category: Missing
+  short_description: Platform settings page not connected to backend APIs
+  technical_details: >
+    The page renders static UI without fetching or persisting actual configuration data.
+    No API integration exists for reading or updating platform settings.
+  impacted_flow: Platform configuration, branding, webhook setup, system settings
+  root_cause: Page implemented as static mock without backend integration
+  fix_recommendation: >
+    Connect the page to backend APIs using shared API client, implement GET/POST flows,
+    and add proper state handling for persistence.
+  dependency_impact: admin APIs, settings services, UI forms
+  risk_if_not_fixed: Configuration changes not saved, misleading UI, operational failures

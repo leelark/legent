@@ -32,11 +32,11 @@ public class TrackingEventPublisher {
         }
     }
 
-    public void publishOpen(String mid) {
+    public void publishOpen(String mid, String tenantId) {
         try {
             EventEnvelope<String> envelope = EventEnvelope.wrap(
                     AppConstants.TOPIC_EMAIL_OPEN,
-                    null, // tenantId might need to be extracted from mid or passed
+                    tenantId,
                     SOURCE,
                     mid
             );
@@ -46,11 +46,11 @@ public class TrackingEventPublisher {
         }
     }
 
-    public void publishClick(String mid, String url) {
+    public void publishClick(String mid, String url, String tenantId) {
         try {
             EventEnvelope<String> envelope = EventEnvelope.wrap(
                     AppConstants.TOPIC_EMAIL_CLICK,
-                    null, // tenantId
+                    tenantId,
                     SOURCE,
                     "{\"mid\":\"" + mid + "\",\"url\":\"" + url + "\"}"
             );
@@ -60,11 +60,11 @@ public class TrackingEventPublisher {
         }
     }
 
-    public void publishConversion(String mid, String payload) {
+    public void publishConversion(String mid, String payload, String tenantId) {
         try {
             EventEnvelope<String> envelope = EventEnvelope.wrap(
                     AppConstants.TOPIC_CONVERSION_EVENT,
-                    null, // tenantId
+                    tenantId,
                     SOURCE,
                     payload
             );

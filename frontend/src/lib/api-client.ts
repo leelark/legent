@@ -78,22 +78,22 @@ apiClient.interceptors.response.use(
 export default apiClient;
 
 // ── Convenience helpers ──
-export async function get<T>(url: string, config?: AxiosRequestConfig) {
-  const response = await apiClient.get<T>(url, config);
-  return response.data;
+export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.get<any>(url, config);
+  return response.data?.data ?? response.data;
 }
 
-export async function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
-  const response = await apiClient.post<T>(url, data, config);
-  return response.data;
+export async function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.post<any>(url, data, config);
+  return response.data?.data ?? response.data;
 }
 
-export async function put<T>(url: string, data?: unknown, config?: AxiosRequestConfig) {
-  const response = await apiClient.put<T>(url, data, config);
-  return response.data;
+export async function put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.put<any>(url, data, config);
+  return response.data?.data ?? response.data;
 }
 
-export async function del<T>(url: string, config?: AxiosRequestConfig) {
-  const response = await apiClient.delete<T>(url, config);
-  return response.data;
+export async function del<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.delete<any>(url, config);
+  return response.data?.data ?? response.data;
 }

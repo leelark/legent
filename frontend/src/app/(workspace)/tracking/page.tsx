@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ChartPieSlice, Activity, TrendUp } from '@phosphor-icons/react';
+import { get } from '@/lib/api-client';
 
 export default function TrackingPage() {
   const [summaries, setSummaries] = useState<any[]>([]);
@@ -16,11 +17,11 @@ export default function TrackingPage() {
     const fetchAnalytics = async () => {
       try {
         const [sumRes, countRes] = await Promise.all([
-          fetch('/api/v1/analytics/campaigns').then(r => r.json()),
-          fetch('/api/v1/analytics/events/counts').then(r => r.json())
+          get<any>('/analytics/campaigns'),
+          get<any>('/analytics/events/counts')
         ]);
-        setSummaries(sumRes.data || []);
-        setEventCounts(countRes.data || []);
+        setSummaries(Array.isArray(sumRes) ? sumRes : sumRes?.content || []);
+        setEventCounts(Array.isArray(countRes) ? countRes : countRes?.content || []);
       } catch (err) {
         console.error("Failed to fetch analytics", err);
       } finally {
