@@ -22,15 +22,15 @@ public class SmtpProvider extends TenantAwareEntity {
     private String host;
     private Integer port;
     private String username;
-    
-    @Column(name = "password_hash")
-    private String passwordHash;
 
     @Column(name = "encrypted_password")
     private String encryptedPassword;
 
     @Column(name = "encryption_iv")
     private String encryptionIv;
+
+    @Column(name = "encryption_salt")
+    private String encryptionSalt;
 
     @Column(name = "is_active")
     private boolean isActive = true;

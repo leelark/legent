@@ -33,37 +33,24 @@ function isAuthEndpoint(url: string | undefined): boolean {
 
 /**
  * Pre-configured Axios instance for API calls.
- * Automatically injects tenant and auth headers.
+ * SECURITY: Uses HTTP-only cookies for authentication (immune to XSS).
+ * The browser automatically sends cookies with withCredentials: true.
  */
 const apiClient: AxiosInstance = axios.create({
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important: sends HTTP-only cookies with requests
 });
 
 // ── Request Interceptor ──
 apiClient.interceptors.request.use((config) => {
   config.url = resolveApiUrl(config.url);
 
-  // Inject tenant header
-  // In production, this comes from the tenant store
-  const tenantId = typeof window !== 'undefined'
-    ? localStorage.getItem('legent_tenant_id')
-    : null;
-
-  if (tenantId) {
-    config.headers['X-Tenant-Id'] = tenantId;
-  }
-
-  // Inject auth token
-  const token = typeof window !== 'undefined'
-    ? localStorage.getItem('legent_token')
-    : null;
-
-  if (token) {
-    config.headers['Authorization'] = `Bearer ${token}`;
-  }
+  // Note: Auth token and tenantId are now sent automatically via HTTP-only cookies
+  // set by the backend AuthController. No manual header injection needed.
+  // This prevents XSS attacks from stealing session tokens.
 
   return config;
 });

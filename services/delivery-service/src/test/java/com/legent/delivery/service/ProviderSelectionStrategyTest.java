@@ -23,6 +23,7 @@ class ProviderSelectionStrategyTest {
 
     @Mock private RoutingRuleRepository routingRuleRepository;
     @Mock private SmtpProviderRepository smtpProviderRepository;
+    @Mock private ProviderCircuitBreaker circuitBreaker;
     @Mock private ProviderAdapter smtpAdapter;
     @Mock private ProviderAdapter mockAdapter;
 
@@ -32,9 +33,11 @@ class ProviderSelectionStrategyTest {
     void setUp() {
         when(smtpAdapter.getProviderType()).thenReturn("SMTP");
         when(mockAdapter.getProviderType()).thenReturn("MOCK");
+        when(circuitBreaker.isCircuitClosed("provider-1")).thenReturn(true);
         strategy = new ProviderSelectionStrategy(
                 routingRuleRepository,
                 smtpProviderRepository,
+                circuitBreaker,
                 List.of(smtpAdapter, mockAdapter)
         );
     }
@@ -96,6 +99,7 @@ class ProviderSelectionStrategyTest {
         ProviderSelectionStrategy noFallbackStrategy = new ProviderSelectionStrategy(
                 routingRuleRepository,
                 smtpProviderRepository,
+                circuitBreaker,
                 List.of(smtpAdapter)
         );
 

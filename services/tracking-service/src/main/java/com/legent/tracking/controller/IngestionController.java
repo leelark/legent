@@ -3,10 +3,12 @@ package com.legent.tracking.controller;
 import com.legent.common.dto.ApiResponse;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.TrackingIngestionService;
+import com.legent.tracking.service.TrackingUrlVerifier;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,6 +18,7 @@ import org.springframework.validation.annotation.Validated;
 
 import java.net.URI;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/tracking")
 @RequiredArgsConstructor
@@ -23,6 +26,7 @@ import java.net.URI;
 public class IngestionController {
 
     private final TrackingIngestionService ingestionService;
+    private final TrackingUrlVerifier trackingUrlVerifier;
 
     // A transparent 1x1 GIF byte array
     private static final byte[] PIXEL_BYTES = new byte[]{
@@ -39,8 +43,15 @@ public class IngestionController {
             @RequestParam @NotBlank String c, // campaignId
             @RequestParam @NotBlank String s, // subscriberId
             @RequestParam @NotBlank String m, // messageId
+            @RequestParam @NotBlank String sig, // HMAC signature
             HttpServletRequest request) {
-        
+
+        // Verify HMAC signature to prevent event forgery
+        if (!trackingUrlVerifier.verifySignature(sig, t, c, s, m)) {
+            log.warn("Invalid tracking signature for open event: t={}, c={}, s={}, m={}", t, c, s, m);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         ingestionService.processOpen(t, c, s, m, request.getHeader("User-Agent"), getClientIp(request));
 
         HttpHeaders headers = new HttpHeaders();
@@ -59,8 +70,15 @@ public class IngestionController {
             @RequestParam @NotBlank String c, // campaignId
             @RequestParam @NotBlank String s, // subscriberId
             @RequestParam @NotBlank String m, // messageId
+            @RequestParam @NotBlank String sig, // HMAC signature
             HttpServletRequest request) {
-        
+
+        // Verify HMAC signature to prevent event forgery
+        if (!trackingUrlVerifier.verifySignature(sig, t, c, s, m)) {
+            log.warn("Invalid tracking signature for click event: t={}, c={}, s={}, m={}", t, c, s, m);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         try {
             java.net.URI uri = new java.net.URI(url);
             String scheme = uri.getScheme();

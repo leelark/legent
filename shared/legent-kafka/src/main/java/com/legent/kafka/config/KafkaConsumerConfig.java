@@ -60,7 +60,7 @@ public class KafkaConsumerConfig {
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory((ConsumerFactory<? super String, ? super Object>) consumerFactory());
-        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.RECORD);
 
         // Exponential backoff: 1s initial, 2x multiplier, 30s max, 5 retries
         ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);

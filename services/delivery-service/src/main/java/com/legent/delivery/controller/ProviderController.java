@@ -5,8 +5,10 @@ import java.util.stream.Collectors;
 
 import com.legent.common.dto.ApiResponse;
 import com.legent.delivery.domain.SmtpProvider;
+import com.legent.delivery.adapter.impl.SmtpProviderAdapter;
 import com.legent.delivery.dto.SmtpProviderDto;
 import com.legent.delivery.repository.SmtpProviderRepository;
+import com.legent.delivery.service.CredentialEncryptionService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,8 @@ import org.springframework.web.bind.annotation.*;
 public class ProviderController {
 
     private final SmtpProviderRepository repository;
+    private final CredentialEncryptionService encryptionService;
+    private final SmtpProviderAdapter smtpProviderAdapter;
 
     @GetMapping
     public ApiResponse<List<SmtpProviderDto.Response>> list() {
@@ -40,10 +44,15 @@ public class ProviderController {
         provider.setHost(request.getHost());
         provider.setPort(request.getPort());
         provider.setUsername(request.getUsername());
-        provider.setPasswordHash(request.getPassword());
+        // Encrypt password before storing
+        if (request.getPassword() != null && !request.getPassword().isBlank()) {
+            var encrypted = encryptionService.encrypt(request.getPassword());
+            provider.setEncryptedPassword(encrypted.encryptedData());
+            provider.setEncryptionIv(encrypted.iv());
+        }
         provider.setPriority(request.getPriority() != null ? request.getPriority() : 1);
         provider.setMaxSendRate(request.getMaxSendRate());
-        
+
         provider = repository.save(provider);
         return ApiResponse.ok(mapToResponse(provider));
     }
@@ -53,21 +62,28 @@ public class ProviderController {
         SmtpProvider provider = repository.findById(id)
             .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
             .orElseThrow(() -> new RuntimeException("Provider not found"));
-        
+
         provider.setName(request.getName());
         provider.setType(request.getType());
         provider.setHost(request.getHost());
         provider.setPort(request.getPort());
         provider.setUsername(request.getUsername());
+        // Encrypt password before storing
         if (request.getPassword() != null && !request.getPassword().isBlank()) {
-            provider.setPasswordHash(request.getPassword());
+            var encrypted = encryptionService.encrypt(request.getPassword());
+            provider.setEncryptedPassword(encrypted.encryptedData());
+            provider.setEncryptionIv(encrypted.iv());
         }
         if (request.getPriority() != null) {
             provider.setPriority(request.getPriority());
         }
         provider.setMaxSendRate(request.getMaxSendRate());
-        
+
         provider = repository.save(provider);
+        
+        // Invalidate sender cache so new config is picked up immediately
+        smtpProviderAdapter.invalidateCache(provider.getId());
+        
         return ApiResponse.ok(mapToResponse(provider));
     }
 
@@ -76,7 +92,12 @@ public class ProviderController {
         SmtpProvider provider = repository.findById(id)
             .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
             .orElseThrow(() -> new RuntimeException("Provider not found"));
+        String providerId = provider.getId();
         repository.delete(provider);
+        
+        // Invalidate sender cache
+        smtpProviderAdapter.invalidateCache(providerId);
+        
         return ApiResponse.ok(null);
     }
 

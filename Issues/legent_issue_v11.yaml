@@ -1,0 +1,869 @@
+issues:
+
+  - fix_order: 1
+    priority: CRITICAL
+    layer: Backend
+    module: Delivery Service
+    file_names:
+      - services/delivery-service/src/main/resources/application.yml
+      - services/delivery-service/src/main/java/com/legent/delivery/service/CredentialEncryptionService.java
+      - docker-compose.yml
+    issue_type: MISCONFIGURATION
+    category: Build/Runtime Failure
+    short_description: legent.delivery.credential-key not configured — CredentialEncryptionService fails on startup
+    technical_details: >
+      CredentialEncryptionService constructor requires @Value("${legent.delivery.credential-key}") and throws
+      IllegalArgumentException if blank. This property is not set in docker-compose.yml environment block for
+      delivery-service, nor in .env, nor in application.yml defaults. The service fails to start entirely.
+    impacted_flow: All email delivery — delivery-service cannot initialize
+    root_cause: Missing required environment variable in docker-compose.yml
+    fix_recommendation: >
+      Add LEGENT_DELIVERY_CREDENTIAL_KEY to .env and docker-compose.yml delivery-service environment block.
+      Add to application.yml: legent.delivery.credential-key: ${LEGENT_DELIVERY_CREDENTIAL_KEY}.
+    dependency_impact: delivery-service does not start; no emails can be sent
+    risk_if_not_fixed: Complete delivery pipeline failure in any deployment
+
+  - fix_order: 2
+    priority: CRITICAL
+    layer: Backend — Campaign Service, Delivery Service
+    module: Send Execution Pipeline
+    file_names:
+      - services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java
+      - services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+    issue_type: BROKEN_FUNCTIONALITY
+    category: Functional Completeness
+    short_description: email.send.requested event payload missing subject and htmlBody — all emails sent with generic default content
+    technical_details: >
+      SendExecutionService publishes email.send.requested with payload containing only:
+      {email, subscriberId, campaignId, batchId}. DeliveryOrchestrationService reads payload.get("htmlBody") and
+      payload.get("subject"), both return null. Fallback values are applied: subject="Legent Campaign",
+      htmlBody="<html><body>Email content</body></html>". Template content from Content Service is never fetched,
+      rendered, or included in the send payload at any point in the pipeline.
+    impacted_flow: Every campaign email send — 100% of emails are sent with generic placeholder content
+    root_cause: Missing content resolution step between campaign orchestration and delivery dispatch. Template rendering
+      via Content Service Thymeleaf is implemented but never called in the send path.
+    fix_recommendation: >
+      Before publishing email.send.requested, campaign-service must call content-service REST API to render
+      the template with subscriber personalisation variables. The rendered subject and htmlBody must be included
+      in the Kafka payload. Alternatively, pass templateId and personalisation data and have delivery-service
+      call content-service at dispatch time.
+    dependency_impact: Renders the entire campaign email delivery feature non-functional
+    risk_if_not_fixed: Zero usable email marketing capability
+
+  - fix_order: 3
+    priority: CRITICAL
+    layer: Infrastructure — Kafka
+    module: Kafka Topic Setup
+    file_names:
+      - docker-compose.yml
+    issue_type: MISCONFIGURATION
+    category: Integration Failure
+    short_description: Critical Kafka topics not created by kafka-setup — consumer groups cannot subscribe to missing topics
+    technical_details: >
+      kafka-setup container creates 30 topics. The following critical topics consumed by services are NOT created:
+      send.batch.created (consumed by SendExecutionService), send.batch.completed, email.delivered,
+      content.published, email.retry.scheduled, email.failed.dlq, email.unsubscribed, workflow.step.started,
+      workflow.step.completed, workflow.step.failed, bounce.classified, spam.score.generated,
+      compliance.violation, analytics.aggregated, search.index.updated, notification.created, import.started,
+      import.completed, import.failed. Services configured to consume these topics will log warnings and never
+      receive events.
+    impacted_flow: Campaign batch execution, automation step tracking, deliverability feedback, analytics aggregation
+    root_cause: Incomplete kafka-setup topic list relative to AppConstants topic definitions
+    fix_recommendation: Add all missing topics to kafka-setup container command. Ensure topics are created with
+      appropriate partition counts (minimum 6 for high-throughput delivery topics).
+    dependency_impact: send.batch.created missing → SendExecutionService never executes → no individual email dispatches
+    risk_if_not_fixed: Silent delivery pipeline breakage with no error messages
+
+  - fix_order: 4
+    priority: CRITICAL
+    layer: Infrastructure — Kafka
+    module: Kafka Consumer Configuration
+    file_names:
+      - shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaConsumerConfig.java
+      - services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventConsumer.java
+      - services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java
+      - services/audience-service/src/main/java/com/legent/audience/event/AudienceResolutionConsumer.java
+    issue_type: BROKEN_FUNCTIONALITY
+    category: Integration Failure
+    short_description: MANUAL_IMMEDIATE ack mode configured but consumers never call Acknowledgment.acknowledge() — messages never committed
+    technical_details: >
+      KafkaConsumerConfig sets ContainerProperties.AckMode.MANUAL_IMMEDIATE. This mode requires the consumer
+      method to receive an Acknowledgment parameter and call acknowledgment.acknowledge() after processing.
+      None of the @KafkaListener methods in DeliveryEventConsumer, CampaignEventConsumer, or
+      AudienceResolutionConsumer include the Acknowledgment parameter. Without acknowledge(), offsets are never
+      committed. On consumer restart or rebalance, ALL previously processed messages are replayed from the
+      last committed offset (which never advances from the initial position). This causes infinite reprocessing
+      of every event in the topic from the beginning.
+    impacted_flow: Every Kafka consumer across all services
+    root_cause: AckMode.MANUAL_IMMEDIATE set in shared config but listener signatures do not accept Acknowledgment
+    fix_recommendation: >
+      Either switch AckMode to BATCH or RECORD in KafkaConsumerConfig (automatic offset commit after processing),
+      or add Acknowledgment ack parameter to every @KafkaListener method and call ack.acknowledge() in the
+      finally block after successful processing. The former is safer given current code structure.
+    dependency_impact: Cascading duplicate processing of all events; database idempotency checks provide some protection
+      but CPU/DB load multiplies with each consumer restart
+    risk_if_not_fixed: Runaway message reprocessing, duplicate email sends, data corruption
+
+  - fix_order: 5
+    priority: CRITICAL
+    layer: Infrastructure — Kafka
+    module: Kafka Cluster Configuration
+    file_names:
+      - docker-compose.yml
+    issue_type: MISCONFIGURATION
+    category: Infrastructure
+    short_description: Single Kafka broker with replication-factor 1 — complete event backbone SPOF
+    technical_details: >
+      All 30 topics are created with --replication-factor 1. There is one broker (KAFKA_BROKER_ID=1, single
+      container). Any broker restart, crash, or maintenance window results in total Kafka unavailability.
+      All services that depend on Kafka for async communication (every service) will be unable to publish
+      or consume events. kafka restart: on-failure (not unless-stopped) means it may not auto-restart in all cases.
+    impacted_flow: Entire platform — all async event flows
+    root_cause: Development-only configuration promoted to the only deployment configuration
+    fix_recommendation: >
+      For production: deploy minimum 3 Kafka brokers with replication-factor 3, min.insync.replicas 2.
+      For development stability: at minimum use restart: unless-stopped and add a health check probe that
+      verifies topic availability.
+    dependency_impact: Total platform outage on broker failure
+    risk_if_not_fixed: Zero fault tolerance for the central messaging system
+
+  - fix_order: 6
+    priority: CRITICAL
+    layer: Backend — Delivery Service
+    module: CredentialEncryptionService
+    file_names:
+      - services/delivery-service/src/main/java/com/legent/delivery/service/CredentialEncryptionService.java
+    issue_type: SECURITY_RISK
+    category: Security
+    short_description: AES key derived via single SHA-256 hash of raw password — no salt, no KDF — weak key derivation
+    technical_details: >
+      CredentialEncryptionService.deriveKey() applies MessageDigest.getInstance("SHA-256") directly to the
+      password bytes. This is not a key derivation function. Without salt, iteration count, or a proper KDF
+      (PBKDF2, bcrypt, Argon2), the derived key is susceptible to precomputed dictionary attacks if the
+      encrypted credentials database is compromised.
+    impacted_flow: SMTP provider credential storage and retrieval
+    root_cause: Raw SHA-256 used instead of PBKDF2WithHmacSHA256 or equivalent KDF
+    fix_recommendation: >
+      Use SecretKeyFactory with PBKDF2WithHmacSHA256, minimum 100,000 iterations, 16-byte random salt stored
+      alongside the encrypted data. Alternatively use a hardware KMS or Vault for key management.
+    dependency_impact: Compromised database exposes decryptable provider credentials
+    risk_if_not_fixed: SMTP credentials fully recoverable via offline dictionary attack
+
+  - fix_order: 7
+    priority: CRITICAL
+    layer: Backend — Delivery Service
+    module: SmtpProvider domain entity
+    file_names:
+      - services/delivery-service/src/main/java/com/legent/delivery/domain/SmtpProvider.java
+      - services/delivery-service/src/main/resources/db/migration/V1__delivery_schema.sql
+    issue_type: SECURITY_RISK
+    category: Security
+    short_description: password_hash column stores SMTP passwords as plain text (misleading column name)
+    technical_details: >
+      SmtpProvider.passwordHash field maps to the password_hash column. In SmtpProviderAdapter.resolvePassword(),
+      when no encrypted_password exists, the code uses config.getPasswordHash() directly as the SMTP password.
+      A log.warn states "Using legacy password hash for provider". The column name implies hashing, but the value
+      is used as a raw password — it is stored in plaintext. Any database read exposure reveals cleartext
+      provider credentials.
+    impacted_flow: SMTP provider authentication
+    root_cause: Design inconsistency — column intended as a hash but used as plaintext fallback
+    fix_recommendation: >
+      Migrate all provider records to use encrypted_password + encryption_iv. Remove the passwordHash field
+      and password_hash column after migration. Add a data migration script to encrypt existing entries.
+    dependency_impact: Database breach exposes all SMTP credentials in plaintext
+    risk_if_not_fixed: Complete compromise of all email sending credentials
+
+  - fix_order: 8
+    priority: HIGH
+    layer: Backend — Delivery Service
+    module: SmtpProviderAdapter
+    file_names:
+      - services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java
+    issue_type: LOGICAL_FLAW
+    category: Performance / Correctness
+    short_description: In-memory SMTP sender cache keyed by provider ID — config changes are never reflected
+    technical_details: >
+      SmtpProviderAdapter.senderCache is a ConcurrentHashMap keyed by provider ID. Once a JavaMailSender is
+      cached for a provider ID, any subsequent changes to host, port, username, or password are ignored because
+      computeIfAbsent returns the existing cached sender. An admin updating SMTP credentials will find the old
+      connection still in use until service restart.
+    impacted_flow: SMTP provider configuration updates
+    root_cause: Cache invalidation not implemented for provider configuration changes
+    fix_recommendation: >
+      Include a cache key that incorporates a version or last-modified timestamp from the SmtpProvider entity.
+      Alternatively, publish a config.updated Kafka event on provider save and have a listener evict the cache entry.
+    dependency_impact: Provider credential rotations, host migrations have no effect without service restart
+    risk_if_not_fixed: Stale connections after provider config changes; potential delivery failures
+
+  - fix_order: 9
+    priority: HIGH
+    layer: Backend — Delivery Service
+    module: SmtpProviderAdapter
+    file_names:
+      - services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java
+    issue_type: LOGICAL_FLAW
+    category: Concurrency
+    short_description: Per-provider in-memory throttling has race condition — check-then-increment is not atomic
+    technical_details: >
+      sendEmail() checks windowStartMap and sentCountMap via separate non-atomic operations. Between the
+      comparison (sent >= maxSendRate) and the subsequent incrementAndGet(), multiple threads can pass the check
+      and exceed maxSendRate. Additionally, this in-memory state exists per JVM instance — running multiple
+      delivery-service replicas results in each replica applying the rate limit independently, effectively
+      multiplying the real send rate by the number of instances.
+    impacted_flow: SMTP rate limiting when running multiple delivery service instances
+    root_cause: Non-atomic check-and-increment; state not shared across instances
+    fix_recommendation: >
+      Replace in-memory rate limiting with Redis-based sliding window Lua script (identical pattern to
+      ThrottlingService.acquirePermits()). Key structure: throttle:provider:{providerId}:{windowStart}.
+    dependency_impact: Provider rate limits violated; potential provider account suspension
+    risk_if_not_fixed: Exceeds provider send-per-second limits, causing SMTP rejections and potential blacklisting
+
+  - fix_order: 10
+    priority: HIGH
+    layer: Backend — Tracking Service
+    module: TrackingController
+    file_names:
+      - services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java
+    issue_type: INCORRECT_IMPLEMENTATION
+    category: Functional Completeness
+    short_description: TrackingController.trackConversion ignores request body entirely — conversion events always have empty data
+    technical_details: >
+      The /api/v1/track/conversion endpoint accepts @RequestBody String payload but builds a hardcoded empty
+      ConversionRequest with all fields null. The payload parameter is never read or parsed. eventName is
+      hardcoded to "conversion", currency is null, value is null. The actual conversion data from the client
+      is discarded.
+    impacted_flow: Conversion tracking
+    root_cause: Incomplete implementation — body parsing was not wired up
+    fix_recommendation: >
+      Remove this duplicate endpoint. Use IngestionController.trackConversion at /api/v1/tracking/events
+      which correctly accepts @RequestBody @Valid TrackingDto.ConversionRequest and passes it to ingestionService.
+      Update frontend to call /api/v1/tracking/events instead of /api/v1/track/conversion.
+    dependency_impact: All conversion tracking data is lost; ROI reporting is impossible
+    risk_if_not_fixed: Conversion funnel analytics are permanently empty
+
+  - fix_order: 11
+    priority: HIGH
+    layer: Backend — Tracking Service
+    module: TrackingController
+    file_names:
+      - services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java
+      - services/delivery-service/src/main/java/com/legent/delivery/service/ContentProcessingService.java
+    issue_type: INCORRECT_IMPLEMENTATION
+    category: Functional Completeness
+    short_description: TrackingController /track/open.gif and /track/click pass null for User-Agent and IP — device analytics lost
+    technical_details: >
+      TrackingController.trackOpen() calls trackingIngestionService.processOpen(tenantId, campaignId, subscriberId,
+      mid, null, null) — hardcoded null for userAgentString and ipAddress. Same issue in trackClick(). The
+      IngestionController counterpart at /api/v1/tracking/o.gif correctly uses request.getHeader("User-Agent")
+      and getClientIp(request). ContentProcessingService generates URLs pointing to /api/v1/tracking/o.gif
+      (IngestionController), so the duplicate TrackingController is unnecessary but causes confusion.
+    impacted_flow: Device/browser analytics for email opens and clicks via /api/v1/track/* endpoints
+    root_cause: Incomplete implementation — request injection not added to TrackingController
+    fix_recommendation: >
+      Remove TrackingController entirely (it is a non-functional duplicate of IngestionController). Ensure
+      NGINX routes /api/v1/track/* to the same upstream as /api/v1/tracking/* or configure the endpoints
+      in IngestionController to also handle /api/v1/track/* paths.
+    dependency_impact: Device-type and browser breakdown in analytics is inaccurate
+    risk_if_not_fixed: Analytics device segmentation reports show all nulls for a subset of tracking events
+
+  - fix_order: 12
+    priority: HIGH
+    layer: Backend — Deliverability Service
+    module: FeedbackLoopConsumer
+    file_names:
+      - services/deliverability-service/src/main/java/com/legent/deliverability/event/FeedbackLoopConsumer.java
+      - services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventPublisher.java
+    issue_type: INTEGRATION_FAILURE
+    category: Data Flow
+    short_description: FeedbackLoopConsumer expects domainId in email.bounced payload but DeliveryEventPublisher never includes it — domain reputation never updates
+    technical_details: >
+      FeedbackLoopConsumer.consumeDeliveryFailedEvents() reads String domainId = (String) payload.get("domainId")
+      and only calls reputationEngine.recordNegativeSignal() if domainId != null. Examination of
+      DeliveryEventPublisher.publishEmailBounced() reveals it publishes only {email, reason} — no domainId field.
+      Result: domainId is always null; reputationEngine.recordNegativeSignal() is never called; domain reputation
+      scores are permanently frozen at their initial values regardless of actual bounce volume.
+    impacted_flow: Domain reputation scoring; deliverability feedback loop
+    root_cause: Missing field in event payload contract between delivery service and deliverability service
+    fix_recommendation: >
+      In DeliveryOrchestrationService, extract the sending domain from the email address (already done for
+      provider selection). Include it in the email.bounced event payload as "senderDomain". In
+      FeedbackLoopConsumer, look up the DomainConfig by tenantId and senderDomain to obtain the domainId,
+      then call reputationEngine.recordNegativeSignal().
+    dependency_impact: Deliverability scoring is non-functional; system cannot detect domain reputation degradation
+    risk_if_not_fixed: No automated response to bounce rate increases; domain blacklisting goes undetected
+
+  - fix_order: 13
+    priority: HIGH
+    layer: Backend — Deliverability Service
+    module: ReputationEngine
+    file_names:
+      - services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java
+    issue_type: LOGICAL_FLAW
+    category: Algorithm Correctness
+    short_description: Reputation scoring monotonically decrements with no time-windowed rate calculation and no recovery mechanism
+    technical_details: >
+      recordNegativeSignal() adds a fixed delta to hardBounceRate and complaintRate fields (0.015 and 0.025 per
+      event respectively). These are cumulative totals, not rates. They grow unbounded with no time window. A
+      domain that bounced 100 times in January will show a bounce rate of 1.5 (150%) forever. There is no
+      scheduled decay job, no rolling window calculation, and no positive signal (successful delivery) to
+      improve reputation. Score can only decrease, never recover.
+    impacted_flow: Reputation scoring engine; adaptive send strategy
+    root_cause: Simplified MVP implementation that was not replaced with proper time-series rate calculation
+    fix_recommendation: >
+      Replace static rate fields with a time-series sliding window. Store delivery events in a time-bucketed
+      table (hourly or daily). Calculate bounce_rate = hard_bounces_last_30d / total_sent_last_30d.
+      Add a daily scheduled job that recalculates and persists the current reputation score.
+      Add positive score recovery: every N successful deliveries in a window adds a small positive increment.
+    dependency_impact: Provider selection, send rate throttling, warm-up logic all dependent on accurate reputation
+    risk_if_not_fixed: Permanently degraded reputation scores; adaptive sending never functions correctly
+
+  - fix_order: 14
+    priority: HIGH
+    layer: Backend — Tracking Service
+    module: AggregationService
+    file_names:
+      - services/tracking-service/src/main/java/com/legent/tracking/service/AggregationService.java
+    issue_type: HIDDEN_DEFECT
+    category: Data Integrity
+    short_description: Unique open and click counts rely on non-durable Redis keys — Redis flush destroys 30-day uniqueness data
+    technical_details: >
+      isUniqueAction() sets a Redis key with 30-day TTL to track whether a given subscriber has opened or clicked
+      a given campaign. If Redis is flushed, restarted without persistence, or evicts the key under memory
+      pressure, subsequent events from the same subscriber will be counted as unique again, inflating unique
+      open/click metrics permanently. No fallback to database-stored uniqueness verification exists.
+    impacted_flow: Campaign analytics unique open rate, unique click rate
+    root_cause: Uniqueness tracking delegated entirely to ephemeral Redis cache
+    fix_recommendation: >
+      Store uniqueness in a database table (e.g., campaign_unique_events: tenant_id, campaign_id, subscriber_id,
+      event_type, first_seen_at) with a unique index. On Redis miss, check the database before counting as unique.
+      Use Redis as an L1 cache only, with DB as the authoritative source.
+    dependency_impact: Reported unique open rates and click rates inaccurate after any Redis restart
+    risk_if_not_fixed: Inflated unique engagement metrics mislead campaign performance analysis
+
+  - fix_order: 15
+    priority: HIGH
+    layer: Backend — Campaign Service
+    module: ThrottlingService
+    file_names:
+      - services/campaign-service/src/main/java/com/legent/campaign/service/ThrottlingService.java
+    issue_type: LOGICAL_FLAW
+    category: Scalability
+    short_description: ThrottlingService.rulesCache is an in-memory ConcurrentHashMap — not distributed across campaign-service instances
+    technical_details: >
+      rulesCache is declared as a final Map<String, List<ThrottlingRule>> = new ConcurrentHashMap<>(). Each
+      campaign-service instance maintains its own copy of rules. If multiple instances are running, a rule update
+      (reloadRules) only invalidates the cache on the instance that called it. Other instances continue with
+      stale rules. Additionally, the rulesCache is never automatically invalidated — rules are only refreshed
+      on explicit call to reloadRules(), which has no automatic trigger.
+    impacted_flow: Domain throttle rule evaluation; accurate rate limiting across instances
+    root_cause: Local cache used for data requiring cross-instance consistency
+    fix_recommendation: >
+      Store throttling rules in Redis with a configurable TTL (e.g., 5 minutes). Listen on config.updated
+      Kafka events to invalidate the Redis-cached rules. Remove the in-memory ConcurrentHashMap.
+    dependency_impact: Multi-instance deployments silently use stale throttle rules
+    risk_if_not_fixed: Domain throttle limits not enforced correctly at scale; potential provider violations
+
+  - fix_order: 16
+    priority: HIGH
+    layer: Backend — Audience Service
+    module: SegmentEvaluationService
+    file_names:
+      - services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java
+    issue_type: SECURITY_RISK
+    category: SQL Injection Risk
+    short_description: mapFieldToColumn default case injects field name directly into SQL string for JSONB path access
+    technical_details: >
+      The default case in mapFieldToColumn returns: "s.custom_fields->>'\" + field + \"'". Even though field
+      is validated against the regex ^[a-zA-Z0-9_]+$, this still allows arbitrary JSONB key access and the
+      field name is embedded directly in the SQL string without parameterization. A specially crafted field
+      name like "email' OR '1'='1" — while blocked by the regex — represents a defence-in-depth gap. More
+      critically, the JSONB operator injection pattern `custom_fields->>'x' OR custom_fields` could bypass
+      the regex if it were ever relaxed.
+    impacted_flow: Segment evaluation query generation; subscriber data exposure
+    root_cause: SQL string concatenation for dynamic JSONB path access
+    fix_recommendation: >
+      Use a parameterized JSONB access pattern: define a function or use CAST with a fixed column reference.
+      Consider maintaining an explicit allowlist of custom field names registered in the DataExtension schema
+      and resolve them to safe aliases. Never interpolate user-controlled values into SQL strings, even with
+      regex protection.
+    dependency_impact: Potential SQL injection on segment evaluation with maliciously crafted field names
+    risk_if_not_fixed: Data exposure or manipulation via specially crafted segment rule field names
+
+  - fix_order: 17
+    priority: HIGH
+    layer: Backend — Automation Service
+    module: WorkflowEngine
+    file_names:
+      - services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java
+    issue_type: HIDDEN_DEFECT
+    category: Data Integrity
+    short_description: executeFlowLoop does not persist WorkflowInstance state between individual node executions — crash mid-journey loses all progress
+    technical_details: >
+      executeFlowLoop iterates through workflow nodes in a while loop, updating instance.setCurrentNodeId(currId)
+      in memory. instanceRepository.save(instance) is only called when the loop breaks (suspend/complete/error).
+      For a long sequential journey of 20+ nodes, a JVM crash or OOM between node 15 and node 16 means the
+      instance in the database still shows node 0. On recovery, the workflow restarts from node 0, potentially
+      re-sending emails already sent in nodes 1-14.
+    impacted_flow: Automation journey execution reliability
+    root_cause: Optimistic batching of DB saves within async execution loop without intermediate checkpoints
+    fix_recommendation: >
+      Save instanceRepository after every N nodes (configurable, default 1 for critical send nodes).
+      Use Spring's @Transactional with propagation REQUIRES_NEW per node execution to isolate each step.
+      For SEND_EMAIL nodes specifically, persist a checkpoint before dispatch.
+    dependency_impact: Workflow crashes cause duplicate email sends to journey subscribers
+    risk_if_not_fixed: Duplicate transactional email sends; subscriber experience degraded; potential compliance issues
+
+  - fix_order: 18
+    priority: HIGH
+    layer: Backend — Tracking Service
+    module: ClickHouseWriter + ClickHouseConfig
+    file_names:
+      - services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseWriter.java
+      - services/tracking-service/src/main/java/com/legent/tracking/config/ClickHouseConfig.java
+      - docker-compose.yml
+    issue_type: BROKEN_FUNCTIONALITY
+    category: Data Flow
+    short_description: ClickHouse password is empty in docker-compose — ClickHouse writes fail; no table schema initialization exists
+    technical_details: >
+      SPRING_DATASOURCE_CLICKHOUSE_PASSWORD in docker-compose.yml is set to ${CLICKHOUSE_PASSWORD}, which is
+      blank in .env (CLICKHOUSE_PASSWORD=). This may be acceptable if ClickHouse has no auth, but the ClickHouse
+      container has no password configured either, so this may work. However, no DDL or migration script creates
+      the raw_events table in ClickHouse. ClickHouseWriter.writeBatch() will fail with "table not found" on
+      every write attempt. ClickHouse tables must be pre-created with appropriate MergeTree engine settings.
+    impacted_flow: All raw tracking event persistence to ClickHouse
+    root_cause: Missing ClickHouse schema initialization; no migration mechanism for ClickHouse
+    fix_recommendation: >
+      Add a ClickHouse schema initialization script as a Docker entrypoint or application startup bean.
+      Table DDL: CREATE TABLE IF NOT EXISTS raw_events (id String, tenant_id String, event_type String,
+      campaign_id String, subscriber_id String, message_id String, user_agent String, ip_address String,
+      link_url String, timestamp DateTime64(3), metadata String) ENGINE = MergeTree()
+      PARTITION BY toYYYYMM(timestamp) ORDER BY (tenant_id, campaign_id, timestamp).
+    dependency_impact: All ClickHouse-based analytics queries return empty results
+    risk_if_not_fixed: Analytics are computed from PostgreSQL aggregates only; historical raw event queries fail
+
+  - fix_order: 19
+    priority: HIGH
+    layer: Backend — Audience Service
+    module: SubscriberService, AudienceResolutionConsumer
+    file_names:
+      - services/audience-service/src/main/java/com/legent/audience/event/AudienceResolutionConsumer.java
+      - services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java
+    issue_type: NOT_IMPLEMENTED
+    category: Functional Completeness
+    short_description: Suppression check not performed during audience resolution — hard-bounced and unsubscribed addresses included in sends
+    technical_details: >
+      AudienceResolutionConsumer resolves segment or list members and publishes them for batching. There is no
+      query against the suppression_list or subscribers WHERE status='UNSUBSCRIBED' to exclude suppressed
+      addresses. DeliverabilityService maintains its own suppression_lists table. AudienceService has a
+      Suppression table. Neither is checked before resolving the final send audience. Hard-bounced or
+      complained-about addresses will receive subsequent campaign emails until manually removed.
+    impacted_flow: Campaign audience resolution; compliance with CAN-SPAM, GDPR
+    root_cause: Suppression filtering not implemented in the audience resolution pipeline
+    fix_recommendation: >
+      Before publishing send.audience.resolved, filter out: subscribers WHERE status IN ('UNSUBSCRIBED',
+      'HARD_BOUNCED', 'COMPLAINED'). Additionally query deliverability suppression_lists for the tenant and
+      exclude matching emails. Publish the filtered list only.
+    dependency_impact: Regulatory compliance failure; ISP reputation damage from sending to unsubscribes
+    risk_if_not_fixed: CAN-SPAM/GDPR violations; elevated complaint rates; domain blacklisting
+
+  - fix_order: 20
+    priority: HIGH
+    layer: Backend — Delivery Service
+    module: DeliveryOrchestrationService
+    file_names:
+      - services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+    issue_type: PARTIALLY_IMPLEMENTED
+    category: Algorithm
+    short_description: Retry backoff uses fixed delays (2/10/30 min) with no jitter — thundering herd on transient failures
+    technical_details: >
+      calculateRetryDelayMinutes() returns fixed values: attempt 1 = 2 min, attempt 2 = 10 min, attempt 3+ = 30 min.
+      There is no jitter component. If 10,000 messages fail simultaneously due to a transient provider outage
+      and all schedule retries at exactly Instant.now() + 2 minutes, they will all attempt to send at the
+      exact same time, overloading the provider again. Retries are also triggered by a @Scheduled poll every
+      60 seconds that fetches ALL eligible retry records — no limit on batch size.
+    impacted_flow: Retry storm after transient SMTP provider outage
+    root_cause: Missing jitter in retry calculation; unbounded retry batch polling
+    fix_recommendation: >
+      Add random jitter: delay = baseDelay * (1 + random.nextDouble() * 0.25). Cap the scheduled retry poll
+      batch to a configurable max (e.g., 500 per cycle). Consider publishing retries to a separate Kafka topic
+      with delay semantics rather than polling the database.
+    dependency_impact: Provider overload on mass transient failures compounds the outage
+    risk_if_not_fixed: Retry thundering herd cascades a temporary outage into a sustained one
+
+  - fix_order: 21
+    priority: HIGH
+    layer: Backend — Delivery Service
+    module: DeliveryOrchestrationService
+    file_names:
+      - services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+    issue_type: NOT_IMPLEMENTED
+    category: Architecture
+    short_description: No circuit breaker for provider failover — sustained provider failures cause retry queue buildup without fallback
+    technical_details: >
+      ProviderSelectionStrategy selects the highest-priority active provider, with fallback to MOCK adapter if
+      no adapter type matches. There is no circuit breaker (Resilience4j or equivalent) that detects a provider
+      failure threshold and automatically routes to a fallback provider. All failed messages enter the retry
+      queue indefinitely, growing without bound until the provider recovers.
+    impacted_flow: Provider failover; sustained SMTP outage handling
+    root_cause: Circuit breaker pattern not implemented
+    fix_recommendation: >
+      Implement Resilience4j CircuitBreaker per provider (identified by providerId). On circuit OPEN, select
+      the next priority provider automatically. Publish a provider_circuit_open event for monitoring.
+      Define: failureRateThreshold=50%, slowCallRateThreshold=80%, waitDurationInOpenState=60s.
+    dependency_impact: Provider outage causes unbounded retry queue growth; subscriber delays
+    risk_if_not_fixed: Provider outage blocks entire send queue; no automatic recovery path
+
+  - fix_order: 22
+    priority: HIGH
+    layer: Backend — Audience Service
+    module: BatchingService (domain extraction)
+    file_names:
+      - services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java
+      - services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+    issue_type: LOGICAL_FLAW
+    category: Data Inconsistency
+    short_description: Domain extraction uses indexOf vs lastIndexOf — inconsistent behavior for email addresses with multiple @ signs
+    technical_details: >
+      BatchingService.extractDomain() uses email.substring(email.indexOf("@") + 1) — takes everything after
+      the FIRST @ sign. DeliveryOrchestrationService.extractDomain() uses email.lastIndexOf("@") — takes
+      everything after the LAST @ sign. For a valid email address these are equivalent, but for a malformed
+      address like user@alias@gmail.com, BatchingService would extract alias@gmail.com (incorrect domain)
+      while DeliveryOrchestrationService would extract gmail.com. Batching would group them under alias@gmail.com
+      which would not match any routing rule for gmail.com.
+    impacted_flow: Domain-based batching and provider routing
+    root_cause: Inconsistent string parsing logic copied between services
+    fix_recommendation: >
+      Standardise on lastIndexOf("@") for all domain extraction. Better: use a proper email address parser
+      (InternetAddress from Jakarta Mail) to extract the domain component canonically.
+    dependency_impact: Misrouted batches; wrong throttle rule application for edge-case email addresses
+    risk_if_not_fixed: Edge-case emails batched into incorrect domain groups; routing rule mismatches
+
+  - fix_order: 23
+    priority: MEDIUM
+    layer: Infrastructure
+    module: Docker Compose / Environment
+    file_names:
+      - docker-compose.yml
+      - .env
+    issue_type: MISCONFIGURATION
+    category: Security
+    short_description: SPRING_JPA_HIBERNATE_DDL_AUTO=update and FLYWAY_VALIDATE_ON_MIGRATE=false simultaneously active — dual schema management risk
+    technical_details: >
+      docker-compose.yml sets SPRING_JPA_HIBERNATE_DDL_AUTO=update as a global environment variable for all
+      services. Flyway is also enabled. DDL auto=update allows Hibernate to modify schema at runtime
+      (adding columns, creating tables) independently of Flyway migrations. This creates schema drift where the
+      actual database schema may not match any Flyway migration baseline. Additionally FLYWAY_VALIDATE_ON_MIGRATE
+      is false and OUT_OF_ORDER is true, meaning schema consistency is never checked.
+    impacted_flow: Database schema consistency across all services
+    root_cause: Development convenience settings carried forward without production hardening
+    fix_recommendation: >
+      Set SPRING_JPA_HIBERNATE_DDL_AUTO=validate (or none) for all services in docker-compose.yml.
+      Set SPRING_FLYWAY_VALIDATE_ON_MIGRATE=true. Set SPRING_FLYWAY_OUT_OF_ORDER=false.
+      All schema changes must go through Flyway migrations exclusively.
+    dependency_impact: Schema drift causes unpredictable query failures; data loss on column type changes
+    risk_if_not_fixed: Inconsistent schema between service instances; data corruption on concurrent migrations
+
+  - fix_order: 24
+    priority: MEDIUM
+    layer: Infrastructure
+    module: Docker Compose / Environment
+    file_names:
+      - .env
+    issue_type: SECURITY_RISK
+    category: Security
+    short_description: JWT secret committed to .env in repository — weak key for production
+    technical_details: >
+      .env contains LEGENT_SECURITY_JWT_SECRET=legent_prod_jwt_secret_2026_x9K4mP8vR2tN7qL5cB1dF6hJ3sW0yU4zG8aH2kM9pT.
+      This value is committed to the repository. While the key is 64+ chars, its public exposure allows anyone
+      with repository access to forge valid JWTs for any userId and tenantId. The JJWT library is configured
+      with HMAC-SHA (HS256/HS512) which requires only this single shared secret.
+    impacted_flow: Authentication and tenant isolation — all services
+    root_cause: Default development secret not replaced with environment-specific secret management
+    fix_recommendation: >
+      Remove JWT secret from .env and .gitignore the file. Use a secrets manager (HashiCorp Vault, AWS Secrets
+      Manager, Kubernetes Secrets) for production. Rotate the secret immediately and invalidate all existing tokens.
+      Consider switching to RS256 (asymmetric) so each service only needs the public key.
+    dependency_impact: Repository access = ability to forge auth tokens for any tenant
+    risk_if_not_fixed: Complete authentication bypass by anyone with repository read access
+
+  - fix_order: 25
+    priority: MEDIUM
+    layer: Frontend
+    module: API Client / Auth
+    file_names:
+      - frontend/src/lib/api-client.ts
+      - frontend/src/lib/auth.ts
+    issue_type: SECURITY_RISK
+    category: Security
+    short_description: JWT and tenantId stored in localStorage — XSS attack can steal session tokens
+    technical_details: >
+      auth.ts defines localStorage keys TOKEN_STORAGE_KEY='legent_token' and TENANT_STORAGE_KEY='legent_tenant_id'.
+      api-client.ts reads them via localStorage.getItem(). Any XSS vulnerability in the frontend application
+      (injected third-party script, DOM-based XSS) can read these values and exfiltrate auth tokens.
+      HTTP-only cookies are immune to this attack.
+    impacted_flow: Frontend session security
+    root_cause: localStorage used instead of HTTP-only secure cookies
+    fix_recommendation: >
+      Store JWT in HTTP-only, Secure, SameSite=Strict cookies. Remove localStorage usage for sensitive tokens.
+      The Next.js BFF (Backend for Frontend) pattern can handle token storage server-side.
+    dependency_impact: Session hijacking via any XSS in the application
+    risk_if_not_fixed: Complete session compromise on any XSS finding
+
+  - fix_order: 26
+    priority: MEDIUM
+    layer: Infrastructure — NGINX
+    module: Gateway Configuration
+    file_names:
+      - config/nginx/nginx.conf
+    issue_type: MISCONFIGURATION
+    category: Security
+    short_description: /api/v1/track/* tracking endpoints have no rate limiting — open to tracking event flooding
+    technical_details: >
+      All API routes in nginx.conf apply limit_req zone=api_limit burst=20 nodelay, except /api/v1/track and
+      /api/v1/health. /api/v1/tracking (IngestionController) does have rate limiting. The /api/v1/track/*
+      endpoints (TrackingController) have no rate limiting. While TrackingController has functional issues,
+      it is still accessible and could be used to flood the tracking ingestion service.
+    impacted_flow: Tracking endpoint availability
+    root_cause: Missing rate limit directive on /api/v1/track location block
+    fix_recommendation: >
+      Add limit_req zone=api_limit burst=50 nodelay to the /api/v1/track location block. Consider a separate
+      higher-throughput rate limit zone for tracking endpoints (they receive legitimate high volume from emails).
+    dependency_impact: DDoS via tracking endpoint could saturate Redis deduplication and Kafka
+    risk_if_not_fixed: Tracking service overload via unauthenticated endpoint flooding
+
+  - fix_order: 27
+    priority: MEDIUM
+    layer: Backend — Tracking Service
+    module: TrackingController / IngestionController
+    file_names:
+      - services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java
+      - services/tracking-service/src/main/java/com/legent/tracking/controller/IngestionController.java
+    issue_type: SECURITY_RISK
+    category: Security
+    short_description: Tracking URLs contain raw subscriber IDs as query parameters — no HMAC signing — events forgeable
+    technical_details: >
+      ContentProcessingService generates tracking URLs with format:
+      /api/v1/tracking/o.gif?t={tenantId}&c={campaignId}&s={subscriberId}&m={messageId}
+      Anyone who receives one tracking URL can construct valid tracking events for any other subscriberId or
+      campaignId by changing the query parameters. There is no server-side validation that mid corresponds to
+      a real email sent to that subscriber. Attribution data can be manufactured at will.
+    impacted_flow: Tracking data integrity; analytics accuracy
+    root_cause: No HMAC signing of tracking URL parameters
+    fix_recommendation: >
+      Sign tracking URLs with HMAC-SHA256: signature = HMAC(tenantId:campaignId:subscriberId:messageId, secret).
+      Include the signature as a query parameter. IngestionController must verify the signature before accepting
+      the event. The signing key should be per-tenant and stored in Redis or Foundation service config.
+    dependency_impact: Forged tracking events inflate open/click rates; analytics are untrustworthy
+    risk_if_not_fixed: Tracking data manipulation; fraudulent campaign performance reporting
+
+  - fix_order: 28
+    priority: MEDIUM
+    layer: Backend — Audience Service
+    module: SegmentEvaluationService
+    file_names:
+      - services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java
+    issue_type: LOGICAL_FLAW
+    category: Concurrency
+    short_description: scheduledRecompute sets TenantContext in a loop but uses @Async — TenantContext propagation to async thread is unreliable
+    technical_details: >
+      scheduledRecompute() calls TenantContext.setTenantId(seg.getTenantId()) then calls
+      selfProvider.getObject().recompute(segmentId, seg.getTenantId()) which is @Async. TenantContext is a
+      ThreadLocal. The @Async executor (segmentExecutor) runs in a different thread where TenantContext is not
+      set. TenantTaskDecorator exists in legent-security to propagate context, but whether it is configured on
+      the segmentExecutor depends on the AsyncConfig in audience-service. If not configured, segment recompute
+      runs without a valid TenantContext, potentially causing cross-tenant data access.
+    impacted_flow: Scheduled segment recomputation; multi-tenant data isolation
+    root_cause: ThreadLocal context propagation to async executor not guaranteed without explicit decorator
+    fix_recommendation: >
+      Verify audience-service AsyncConfig decorates its segmentExecutor with TenantTaskDecorator.
+      Alternatively, pass tenantId as a parameter to recompute() (which it already does) and use
+      TenantContext.setTenantId(tenantId) as the first line of the recompute method.
+    dependency_impact: Segment recompute could execute queries without tenant isolation, reading wrong tenant's data
+    risk_if_not_fixed: Cross-tenant data exposure in segment membership calculations
+
+  - fix_order: 29
+    priority: MEDIUM
+    layer: Backend — Foundation / Platform Services
+    module: Webhook / Search / Notification
+    file_names:
+      - services/foundation-service/src/main/java/com/legent/foundation/service/WebhookService.java
+      - services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java
+      - services/foundation-service/src/main/java/com/legent/foundation/service/GlobalSearchService.java
+      - services/platform-service/src/main/java/com/legent/platform/service/GlobalSearchService.java
+    issue_type: LOGICAL_FLAW
+    category: Architecture
+    short_description: Foundation Service and Platform Service duplicate webhook dispatch, global search, and notification functionality — unclear ownership
+    technical_details: >
+      Both foundation-service and platform-service contain WebhookService/WebhookDispatcherService,
+      GlobalSearchService, and notification functionality. Both services manage their own webhook_integrations
+      tables. Both index documents in OpenSearch. Frontend has no clear path to know which service owns which
+      functionality. API routes in nginx point /api/v1/platform to platform-service but foundation-service
+      also handles webhook and search paths. Two webhook dispatch pipelines may both fire for the same event.
+    impacted_flow: Webhook dispatch, search indexing, notification delivery
+    root_cause: Feature ownership not established between two services during development
+    fix_recommendation: >
+      Merge Platform Service into Foundation Service, or clearly delineate: Foundation owns tenant provisioning,
+      config, feature flags, audit. Platform owns webhook dispatch, notifications, OpenSearch indexing.
+      Delete all duplicate code from the service that surrenders ownership.
+    dependency_impact: Duplicate webhook dispatches to clients; inconsistent search indexes
+    risk_if_not_fixed: Double webhook delivery; confusing API surface for consumers
+
+  - fix_order: 30
+    priority: MEDIUM
+    layer: Backend — Tracking Service
+    module: TrackingIngestionService (deduplication)
+    file_names:
+      - services/tracking-service/src/main/java/com/legent/tracking/service/TrackingIngestionService.java
+    issue_type: LOGICAL_FLAW
+    category: Data Integrity
+    short_description: Deduplication key uses linkUrl.hashCode() — hash collisions can suppress legitimate distinct clicks
+    technical_details: >
+      isDuplicate() builds dedup key including url.hashCode() for click events. Java's String.hashCode() is a
+      32-bit integer. Two different URLs that happen to produce the same hashCode (birthday collision, ~50%
+      probability at ~65,536 URLs) would cause the second click to be silently dropped as a duplicate.
+      MessageId-level dedup with a 2-hour window may also be too short if emails are opened hours after
+      delivery.
+    impacted_flow: Click deduplication accuracy
+    root_cause: Integer hash used as a uniqueness component where full value is needed
+    fix_recommendation: >
+      Use the full URL in the deduplication key, URL-encoded or SHA-256 hashed (not Java hashCode).
+      Example: track:dedup:{tenantId}:CLICK:{messageId}:{subscriberId}:{SHA256(url)}.
+      Consider extending the dedup window to 7 days for click events.
+    dependency_impact: Click deduplication false positives cause legitimate clicks to be discarded
+    risk_if_not_fixed: Lost click events for URL pairs with hash collisions; inaccurate CTR metrics
+
+  - fix_order: 31
+    priority: MEDIUM
+    layer: Backend — Delivery Service
+    module: DeliveryOrchestrationService
+    file_names:
+      - services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+    issue_type: PERFORMANCE_ISSUE
+    category: Scalability
+    short_description: message_logs stores full HTML email body in TEXT column — extreme row size at scale
+    technical_details: >
+      MessageLog.htmlBody is mapped to a TEXT column in message_logs. A typical marketing email HTML body is
+      20-100KB. At 1,000,000 emails/day, this adds 20-100GB per day to the message_logs table. PostgreSQL TEXT
+      columns above 8KB are stored in TOAST, causing random I/O on reads. The scheduled retry query fetches
+      these rows with all fields, loading 20-100KB per retry candidate.
+    impacted_flow: Database storage growth; retry processing performance
+    root_cause: Full content stored for retry purposes instead of referencing the original template
+    fix_recommendation: >
+      Remove html_body and subject from message_logs. Store campaignId and templateId/version in the message
+      log. At retry time, re-fetch the rendered content from Content Service using these references.
+      Alternatively, store only a hash of the content for integrity checking.
+    dependency_impact: message_logs table grows unboundedly; TOAST page fragmentation causes query slowdowns
+    risk_if_not_fixed: 20-100GB/day storage growth; PostgreSQL I/O degradation within days of production launch
+
+  - fix_order: 32
+    priority: MEDIUM
+    layer: Backend — Campaign Service
+    module: SendExecutionService
+    file_names:
+      - services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java
+    issue_type: LOGICAL_FLAW
+    category: Algorithm
+    short_description: findBatchWithRetry uses Thread.sleep polling loop — blocking thread for up to 750ms
+    technical_details: >
+      findBatchWithRetry() retries up to 5 times with 150ms sleep between attempts. This is a busy-wait polling
+      pattern that blocks a thread for up to 750ms. In a high-throughput scenario with thousands of batch events,
+      this creates thread pool exhaustion. The retry also has no exponential backoff or terminal exception with
+      context for debugging which batch was missing.
+    impacted_flow: Batch processing throughput
+    root_cause: Polling used to handle eventual consistency of batch DB write vs event consumption
+    fix_recommendation: >
+      Ensure batch is persisted (saved and flushed) before publishing the batch.created event. Use
+      TransactionSynchronization.afterCommit() (BatchingService already does this) to publish only after DB
+      commit. With this guarantee, findBatchWithRetry retry loop should be unnecessary. Remove it and replace
+      with a simple findById + orElseThrow with a descriptive exception.
+    dependency_impact: Thread pool exhaustion at high batch event rates
+    risk_if_not_fixed: Delivery throughput degrades under load; potential thread starvation
+
+  - fix_order: 33
+    priority: LOW
+    layer: Backend — Identity Service
+    module: AuthService
+    file_names:
+      - services/identity-service/src/main/java/com/legent/identity/service/AuthService.java
+    issue_type: NOT_IMPLEMENTED
+    category: Functional Completeness
+    short_description: No token refresh endpoint — users must re-login when JWT expires (86400000ms = 24h)
+    technical_details: >
+      JWT expiry is 24 hours. AuthController exposes /login and /signup only. There is no /refresh endpoint.
+      Clients that hold an expired token receive 401 and are redirected to login by the frontend interceptor.
+      For long-running sessions or background operations, token expiry causes unexpected 401 errors.
+    impacted_flow: User session management
+    root_cause: Refresh token flow not implemented
+    fix_recommendation: >
+      Implement a refresh token stored in an HTTP-only cookie or secure DB table. On access token expiry,
+      client presents refresh token to receive a new access token without re-entering credentials.
+    dependency_impact: User experience degradation; background sync operations fail
+    risk_if_not_fixed: Users must re-login every 24 hours; long-running frontend sessions break
+
+  - fix_order: 34
+    priority: LOW
+    layer: Backend — Automation Service
+    module: WorkflowEngine
+    file_names:
+      - services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java
+    issue_type: PARTIALLY_IMPLEMENTED
+    category: Functional Completeness
+    short_description: Workflow lookup in startWorkflow does not enforce tenant isolation on initial workflow fetch
+    technical_details: >
+      startWorkflow() calls workflowRepository.findById(workflowId) without a tenant_id filter. Any tenant
+      could pass a workflowId belonging to another tenant (if they can guess or enumerate it). The subsequent
+      definition lookup is tenant-filtered, but the initial workflow existence and status check is not.
+    impacted_flow: Workflow execution tenant isolation
+    root_cause: Missing tenant filter on workflow entity lookup
+    fix_recommendation: >
+      Replace workflowRepository.findById(workflowId) with
+      workflowRepository.findByIdAndTenantId(workflowId, tenantId) and throw NotFoundException if absent.
+    dependency_impact: Cross-tenant workflow visibility; potential cross-tenant automation execution
+    risk_if_not_fixed: Tenant A can check the status of Tenant B's workflows
+
+  - fix_order: 35
+    priority: LOW
+    layer: Infrastructure
+    module: Kubernetes
+    file_names:
+      - infrastructure/kubernetes/base/configmap.yml
+    issue_type: NOT_IMPLEMENTED
+    category: Infrastructure
+    short_description: Kubernetes deployment manifests do not exist — no path to production-grade deployment
+    technical_details: >
+      The infrastructure/kubernetes/base/ directory contains only a placeholder configmap.yml. No Deployment,
+      Service, HorizontalPodAutoscaler, PodDisruptionBudget, Ingress, ServiceAccount, or Secret manifests
+      exist for any of the 11 application services or 9 infrastructure services. The production deployment
+      target is Kubernetes per the README and implementation plan, but the implementation is completely missing.
+    impacted_flow: Production deployment
+    root_cause: Kubernetes manifests not yet authored
+    fix_recommendation: >
+      Create Kubernetes manifests for all services with: resource requests/limits, liveness/readiness probes,
+      HPA based on CPU/RPS, PDB for availability guarantees, ConfigMap/Secret refs. Use Helm charts or
+      Kustomize for environment overlays.
+    dependency_impact: Cannot deploy to Kubernetes; stuck on Docker Compose
+    risk_if_not_fixed: No production-grade deployment path; no autoscaling; no rolling updates
+
+  - fix_order: 36
+    priority: LOW
+    layer: Backend — All Services
+    module: Observability
+    file_names:
+      - shared/legent-common/src/main/java/com/legent/common/config/CorrelationIdFilter.java
+    issue_type: NOT_IMPLEMENTED
+    category: Observability
+    short_description: No distributed tracing configured — cross-service request correlation not possible beyond X-Correlation-Id header
+    technical_details: >
+      CorrelationIdFilter propagates X-Correlation-Id in HTTP headers. However, this correlation ID is not
+      propagated through Kafka message headers, is not included in log MDC entries in all services consistently,
+      and there is no distributed tracing backend (Jaeger, Zipkin, OpenTelemetry) configured anywhere.
+      Debugging a failed email send requires manually correlating logs across campaign, audience, delivery,
+      and tracking services by pattern-matching on IDs.
+    impacted_flow: Operational debugging; incident response
+    root_cause: Observability tooling not implemented
+    fix_recommendation: >
+      Add OpenTelemetry Java agent to all services. Configure OTLP export to Jaeger or Tempo.
+      Add Kafka header propagation for trace context (W3C TraceContext). Include traceId in all log statements
+      via MDC. Add Grafana dashboards for service-level throughput, error rate, and latency.
+    dependency_impact: Debugging production incidents requires manual log correlation; MTTR increases significantly
+    risk_if_not_fixed: Impossible to trace individual email delivery failures across services in production

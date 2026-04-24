@@ -17,6 +17,8 @@ public class ContentProcessingService {
     @Value("${legent.tracking.base-url}")
     private String trackingBaseUrl;
 
+    private final TrackingUrlSigner trackingUrlSigner;
+
     @PostConstruct
     public void validateConfiguration() {
         if (trackingBaseUrl == null || trackingBaseUrl.isBlank()) {
@@ -53,8 +55,10 @@ public class ContentProcessingService {
         if (trackingBaseUrl == null || trackingBaseUrl.isBlank()) {
             throw new IllegalStateException("Tracking base URL not configured");
         }
-        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s",
-                trackingBaseUrl, t, c, s, m);
+        // Generate HMAC signature to prevent URL tampering
+        String sig = trackingUrlSigner.generateSignature(t, c, s, m);
+        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s&sig=%s",
+                trackingBaseUrl, t, c, s, m, sig);
         String pixelTag = String.format("<img src=\"%s\" width=\"1\" height=\"1\" border=\"0\" style=\"display:none;\" />", pixelUrl);
 
         if (html.toLowerCase().contains("</body>")) {
@@ -77,9 +81,11 @@ public class ContentProcessingService {
             if (originalUrl.startsWith("#") || originalUrl.contains("/api/v1/tracking/c")) {
                 sb.append(matcher.group(0));
             } else {
-                String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s",
+                // Generate HMAC signature to prevent URL tampering
+                String sig = trackingUrlSigner.generateSignature(t, c, s, m);
+                String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s&sig=%s",
                         trackingBaseUrl, java.net.URLEncoder.encode(originalUrl, java.nio.charset.StandardCharsets.UTF_8),
-                        t, c, s, m);
+                        t, c, s, m, sig);
                 
                 String fullTag = matcher.group(0).replace(originalUrl, trackedUrl);
                 sb.append(fullTag);

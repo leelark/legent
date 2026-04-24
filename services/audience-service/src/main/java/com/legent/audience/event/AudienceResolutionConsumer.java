@@ -1,23 +1,23 @@
 package com.legent.audience.event;
 
-import com.legent.common.constant.AppConstants;
-import java.util.ArrayList;
-import java.util.List;
-
-import java.util.Map;
-
+import com.legent.audience.client.DeliverabilityServiceClient;
 import com.legent.audience.domain.Subscriber;
 import com.legent.audience.repository.SubscriberRepository;
+import com.legent.audience.service.SegmentEvaluationService;
+import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
-import com.legent.audience.service.SegmentEvaluationService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
-import java.util.Set;
+
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -29,6 +29,7 @@ public class AudienceResolutionConsumer {
     private final EventPublisher eventPublisher;
     private final SubscriberRepository subscriberRepository;
     private final SegmentEvaluationService segmentEvaluationService;
+    private final DeliverabilityServiceClient deliverabilityClient;
 
     @KafkaListener(topics = AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, groupId = AppConstants.GROUP_AUDIENCE)
     public void handleResolutionRequest(EventEnvelope<Map<String, Object>> event) {
@@ -63,9 +64,27 @@ public class AudienceResolutionConsumer {
             }
 
             List<Subscriber> audience = subscriberRepository.findAllById(subscriberIds);
-            
+
+            // Check for suppressed subscribers (bounced, complained, unsubscribed)
+            List<String> emailsToCheck = audience.stream()
+                    .map(Subscriber::getEmail)
+                    .distinct()
+                    .collect(Collectors.toList());
+
+            Set<String> suppressedEmails = deliverabilityClient.checkSuppressedEmails(tenantId, emailsToCheck);
+
+            // Filter out suppressed subscribers
+            List<Subscriber> filteredAudience = audience.stream()
+                    .filter(sub -> !suppressedEmails.contains(sub.getEmail()))
+                    .collect(Collectors.toList());
+
+            int suppressedCount = audience.size() - filteredAudience.size();
+            if (suppressedCount > 0) {
+                log.info("Filtered out {} suppressed subscribers for job {}", suppressedCount, jobId);
+            }
+
             List<Map<String, String>> chunk = new ArrayList<>();
-            for (Subscriber sub : audience) {
+            for (Subscriber sub : filteredAudience) {
                 chunk.add(Map.of(
                     "subscriberId", sub.getId(),
                     "email", sub.getEmail(),

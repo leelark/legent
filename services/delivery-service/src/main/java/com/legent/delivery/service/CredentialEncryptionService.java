@@ -4,12 +4,14 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Cipher;
+import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
+import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.security.spec.KeySpec;
 import java.util.Base64;
 
 /**
@@ -23,24 +25,36 @@ public class CredentialEncryptionService {
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_LENGTH = 16;
+    private static final int PBKDF2_ITERATIONS = 100000;
+    private static final int KEY_LENGTH = 256;
 
     private final SecretKeySpec secretKey;
+    private final byte[] salt;
 
     public CredentialEncryptionService(
-            @Value("${legent.delivery.credential-key}") String credentialKey) {
+            @Value("${legent.delivery.credential-key}") String credentialKey,
+            @Value("${legent.delivery.encryption-salt:}") String saltConfig) {
         if (credentialKey == null || credentialKey.isBlank()) {
             throw new IllegalArgumentException("legent.delivery.credential-key must be configured");
         }
-        byte[] keyBytes = deriveKey(credentialKey);
+        // Use provided salt or generate a deterministic salt from the key itself
+        if (saltConfig != null && !saltConfig.isBlank()) {
+            this.salt = Base64.getDecoder().decode(saltConfig);
+        } else {
+            // Generate a fixed salt from the first 16 chars of the key hash for backward compatibility
+            this.salt = java.util.Arrays.copyOf(credentialKey.getBytes(StandardCharsets.UTF_8), 16);
+        }
+        byte[] keyBytes = deriveKey(credentialKey, this.salt);
         this.secretKey = new SecretKeySpec(keyBytes, ALGORITHM);
     }
 
-    private byte[] deriveKey(String password) {
+    private byte[] deriveKey(String password, byte[] salt) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return digest.digest(password.getBytes(StandardCharsets.UTF_8));
+            SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+            KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_LENGTH);
+            return factory.generateSecret(spec).getEncoded();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to derive encryption key", e);
+            throw new RuntimeException("Failed to derive encryption key using PBKDF2", e);
         }
     }
 

@@ -77,7 +77,7 @@ class DeliveryOrchestrationServiceTest {
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
         verify(eventPublisher).publishEmailFailed(eq("tenant-1"), eq("evt-123"), any(), any(), anyString());
-        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("bounce@example.com"), anyString());
+        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("bounce@example.com"), anyString(), eq("example.com"));
     }
 
     @Test
@@ -117,7 +117,7 @@ class DeliveryOrchestrationServiceTest {
 
         verify(providerStrategy, never()).selectProvider(anyString(), anyString());
         verify(eventPublisher).publishEmailFailed(eq("tenant-1"), eq("evt-123"), any(), any(), anyString());
-        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("invalid-email"), anyString());
+        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("invalid-email"), anyString(), eq(""));
     }
 
     @Test

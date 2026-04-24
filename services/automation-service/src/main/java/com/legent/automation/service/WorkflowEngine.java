@@ -159,7 +159,7 @@ public class WorkflowEngine {
                 }
 
                 String nextId = handler.execute(instance, node);
-                
+
                 logHistory(instance, currId, "SUCCESS", null);
                 // Emit workflow.step.completed event
                 eventPublisher.publishAction(
@@ -184,7 +184,8 @@ public class WorkflowEngine {
 
                 currId = nextId;
                 instance.setCurrentNodeId(currId);
-                // Save progress periodically if linear execution is long, else save at end/suspend is enough
+                // Persist state between node executions to ensure recovery if service crashes
+                instanceRepository.save(instance);
             } catch (Exception e) {
                 log.error("Error executing node {} in instance {}", currId, instance.getId(), e);
                 logHistory(instance, currId, "ERROR", e.getMessage());

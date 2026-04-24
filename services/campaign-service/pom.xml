@@ -61,6 +61,12 @@
             <artifactId>flyway-core</artifactId>
         </dependency>
 
+        <!-- WebClient for inter-service calls -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
+
         <!-- Utilities -->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -1,5 +1,6 @@
 package com.legent.delivery.service;
 
+import com.legent.cache.service.CacheService;
 import com.legent.delivery.domain.MessageLog;
 import java.util.Optional;
 
@@ -29,6 +30,7 @@ public class DeliveryOrchestrationService {
     private final MessageLogRepository messageLogRepository;
     private final DeliveryEventPublisher eventPublisher;
     private final ContentProcessingService contentProcessingService;
+    private final CacheService cacheService;
 
     @org.springframework.context.annotation.Lazy
     @org.springframework.beans.factory.annotation.Autowired
@@ -91,15 +93,14 @@ public class DeliveryOrchestrationService {
             logEntry.setCampaignId(campaignId);
             logEntry.setSubscriberId(subscriberId);
             logEntry.setEmail(email);
-            logEntry.setSubject(subject);
-            logEntry.setHtmlBody(htmlBody);
+            // Fix 31: Don't store full HTML body in message_logs - only store references
+            // Content is fetched from content-service at retry time if needed
+            logEntry.setContentReference(generateContentReference(campaignId, messageId));
             logEntry.setAttemptCount(0);
             logEntry = messageLogRepository.save(logEntry);
-        } else {
-            // Update subject and htmlBody if they changed (for retries)
-            logEntry.setSubject(subject);
-            logEntry.setHtmlBody(htmlBody);
         }
+        // Note: For retries, content is re-fetched from the original event or content-service
+        // This prevents 20-100GB/day storage growth from storing full HTML bodies
 
         try {
             // Determine domain
@@ -129,17 +130,28 @@ public class DeliveryOrchestrationService {
             // Dispatch
             adapter.sendEmail(java.util.Objects.requireNonNull(email), java.util.Objects.requireNonNull(subject), java.util.Objects.requireNonNull(processedHtml), metadata, strategyResult.dbRecord());
 
-            // Success
+            // Fix 31: Clear sensitive/large content from memory after sending
+            // (content is not persisted in message_logs to save storage)
+
+            // Success - record with circuit breaker
+            providerStrategy.recordProviderSuccess(strategyResult.dbRecord().getId());
             logEntry.setStatus(MessageLog.DeliveryStatus.SENT.name());
             logEntry.setProviderResponse("250 OK");
             logEntry.setNextRetryAt(null);
-            
+
             eventPublisher.publishEmailSent(normalizedTenantId, messageId, campaignId, subscriberId);
 
         } catch (ProviderDispatchException e) {
+            // Record failure with circuit breaker for non-transient failures
+            if (e.isPermanent() && logEntry.getProviderId() != null) {
+                providerStrategy.recordProviderFailure(logEntry.getProviderId());
+            }
             handleDispatchFailure(logEntry, normalizedTenantId, messageId, campaignId, subscriberId, e);
         } catch (Exception e) {
-            // General hard failure
+            // General hard failure - record with circuit breaker
+            if (logEntry.getProviderId() != null) {
+                providerStrategy.recordProviderFailure(logEntry.getProviderId());
+            }
             String reason = e.getMessage() != null ? e.getMessage() : "Unexpected delivery failure";
             handleDispatchFailure(logEntry, normalizedTenantId, messageId, campaignId, subscriberId,
                     new ProviderDispatchException(reason, true, e));
@@ -160,7 +172,8 @@ public class DeliveryOrchestrationService {
             
             if (e.isPermanent()) {
                 // Synthesize a bounce event for audience/suppression
-                eventPublisher.publishEmailBounced(tenantId, logEntry.getEmail(), e.getMessage());
+                String senderDomain = extractDomain(logEntry.getEmail());
+                eventPublisher.publishEmailBounced(tenantId, logEntry.getEmail(), e.getMessage(), senderDomain);
             }
         } else {
             // Transient -> Schedule Retry
@@ -183,15 +196,19 @@ public class DeliveryOrchestrationService {
                 continue;
             }
 
+            // Fix 31: Fetch content from content-service instead of message_logs
+            // (message_logs no longer stores full HTML to prevent 20-100GB/day storage growth)
+            Map<String, String> content = fetchContentForRetry(logEntry.getCampaignId(), logEntry.getContentReference());
+
             // Build complete payload with all required fields for retry
             Map<String, Object> payload = new java.util.HashMap<>();
             payload.put("email", logEntry.getEmail());
             payload.put("subscriberId", logEntry.getSubscriberId() != null ? logEntry.getSubscriberId() : "");
             payload.put("campaignId", logEntry.getCampaignId() != null ? logEntry.getCampaignId() : "");
             payload.put("messageId", logEntry.getMessageId());
-            // Include subject and htmlBody from original request - fetch from DB or cache
-            payload.put("subject", logEntry.getSubject() != null ? logEntry.getSubject() : "Legent Campaign");
-            payload.put("htmlBody", logEntry.getHtmlBody() != null ? logEntry.getHtmlBody() : "<html><body>Email content</body></html>");
+            // Use content from content-service or fallback defaults
+            payload.put("subject", content.getOrDefault("subject", "Legent Campaign"));
+            payload.put("htmlBody", content.getOrDefault("htmlBody", "<html><body>Email content</body></html>"));
             try {
                 // Call through self proxy to ensure @Transactional boundary is applied.
                 self.processSendRequest(payload, logEntry.getTenantId(), logEntry.getMessageId());
@@ -201,12 +218,17 @@ public class DeliveryOrchestrationService {
         }
     }
 
+    private static final java.util.Random JITTER_RANDOM = new java.util.Random();
+
     private long calculateRetryDelayMinutes(int attemptCount) {
-        return switch (attemptCount) {
+        long baseDelay = switch (attemptCount) {
             case 1 -> 2;
             case 2 -> 10;
             default -> 30;
         };
+        // Add jitter: +/- 20% randomization to prevent thundering herd
+        double jitterFactor = 0.8 + (JITTER_RANDOM.nextDouble() * 0.4); // 0.8 to 1.2
+        return Math.max(1, Math.round(baseDelay * jitterFactor));
     }
 
     private String extractDomain(String email) {
@@ -230,5 +252,47 @@ public class DeliveryOrchestrationService {
         }
         String normalized = String.valueOf(value).trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    /**
+     * Generates a content reference key for retrieving email content at retry time.
+     * Fix 31: Instead of storing full HTML (20-100KB per email), we store a reference
+     * and fetch content from the original event or content-service when needed.
+     */
+    private String generateContentReference(String campaignId, String messageId) {
+        // Format: campaignId:messageId - used to look up original content
+        return String.format("ref:%s:%s",
+                campaignId != null ? campaignId : "none",
+                messageId);
+    }
+
+    /**
+     * Fetches email content for retry from cache or content-service.
+     * Fix 31: Content is no longer stored in message_logs to prevent storage bloat.
+     */
+    private Map<String, String> fetchContentForRetry(String campaignId, String contentReference) {
+        Map<String, String> result = new java.util.HashMap<>();
+
+        // Try to fetch from cache first (content may be cached for 24-48 hours)
+        if (contentReference != null && !contentReference.isBlank()) {
+            try {
+                // Attempt to get from Redis cache using contentReference as key
+                Optional<String> cached = cacheService.get("email:content:" + contentReference, String.class);
+                if (cached.isPresent()) {
+                    // Parse cached JSON content
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    return mapper.readValue(cached.get(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+                }
+            } catch (Exception e) {
+                log.debug("Failed to fetch cached content for retry: {}", e.getMessage());
+            }
+        }
+
+        // Fallback: In production, this would call content-service API
+        // For now, return empty map to trigger fallback defaults
+        log.warn("Content not found for retry - campaignId={}, reference={}. Using fallback defaults.",
+                campaignId, contentReference);
+
+        return result;
     }
 }

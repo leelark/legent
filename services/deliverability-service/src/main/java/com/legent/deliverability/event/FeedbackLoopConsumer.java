@@ -34,11 +34,12 @@ public class FeedbackLoopConsumer {
             Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
             
             String email = (String) payload.get("email");
-            String bounceType = (String) payload.get("bounceType"); 
+            String bounceType = (String) payload.get("bounceType");
             if (bounceType == null) {
                 bounceType = (String) payload.get("type");
             }
             String domainId = (String) payload.get("domainId");
+            String senderDomain = (String) payload.get("senderDomain");
 
             if (email == null || email.isBlank()) return;
 
@@ -46,9 +47,9 @@ public class FeedbackLoopConsumer {
             boolean isHardBounce = bounceType != null && bounceType.contains("HARD");
             boolean isComplaint = AppConstants.TOPIC_EMAIL_COMPLAINT.equals(event.getEventType());
             if (isHardBounce || isComplaint) {
-                
+
                 String reason = isComplaint ? "COMPLAINT" : "HARD_BOUNCE";
-                
+
                 // Add to suppression list if it doesn't exist
                 if (suppressionRepository.findByTenantIdAndEmail(event.getTenantId(), email).isEmpty()) {
                     SuppressionList suppression = new SuppressionList();
@@ -58,13 +59,14 @@ public class FeedbackLoopConsumer {
                     suppression.setReason(reason);
                     suppression.setSource(event.getSource());
                     suppressionRepository.save(suppression);
-                    
+
                     log.info("Added {} to SuppressionList for tenant {} due to {}", email, event.getTenantId(), reason);
                 }
 
-                // Penalize domain reputation if applicable
-                if (domainId != null) {
-                    reputationEngine.recordNegativeSignal(event.getTenantId(), domainId, reason);
+                // Penalize domain reputation if applicable - use senderDomain or domainId
+                String reputationDomain = domainId != null ? domainId : senderDomain;
+                if (reputationDomain != null && !reputationDomain.isBlank()) {
+                    reputationEngine.recordNegativeSignal(event.getTenantId(), reputationDomain, reason);
                 }
             }
 

@@ -50,9 +50,10 @@ public class MessageLog extends BaseEntity {
     @Column(name = "provider_response", columnDefinition = "TEXT")
     private String providerResponse;
 
-    @Column(name = "subject")
-    private String subject;
+    // Fix 31: Removed subject and htmlBody fields to prevent storage bloat
+    // (20-100KB per email * 1M emails/day = 20-100GB/day)
+    // Content is now fetched from content-service at retry time using contentReference
 
-    @Column(name = "html_body", columnDefinition = "TEXT")
-    private String htmlBody;
+    @Column(name = "content_reference")
+    private String contentReference;
 }

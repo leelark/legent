@@ -23,14 +23,17 @@ public class ProviderSelectionStrategy {
 
     private final RoutingRuleRepository routingRuleRepository;
     private final SmtpProviderRepository smtpProviderRepository;
+    private final ProviderCircuitBreaker circuitBreaker;
     private final Map<String, ProviderAdapter> adapters;
 
     public ProviderSelectionStrategy(
             RoutingRuleRepository routingRuleRepository,
             SmtpProviderRepository smtpProviderRepository,
+            ProviderCircuitBreaker circuitBreaker,
             List<ProviderAdapter> adapterList) {
         this.routingRuleRepository = routingRuleRepository;
         this.smtpProviderRepository = smtpProviderRepository;
+        this.circuitBreaker = circuitBreaker;
         this.adapters = adapterList.stream()
                 .filter(adapter -> normalizeType(adapter.getProviderType()) != null)
                 .collect(Collectors.toMap(
@@ -74,6 +77,17 @@ public class ProviderSelectionStrategy {
             throw new IllegalStateException("No active SMTP provider configured for tenant " + normalizedTenantId);
         }
 
+        // Check circuit breaker before selecting provider
+        String providerId = providerConfig.getId();
+        if (!circuitBreaker.isCircuitClosed(providerId)) {
+            log.warn("Circuit breaker OPEN for provider {}, attempting failover to fallback provider", providerId);
+            providerConfig = selectFallbackProvider(normalizedTenantId, ruleOpt.orElse(null), providerConfig);
+            if (providerConfig == null) {
+                throw new IllegalStateException("Primary provider circuit open and no fallback available for tenant " + normalizedTenantId);
+            }
+            providerId = providerConfig.getId();
+        }
+
         String providerType = normalizeType(providerConfig.getType());
         ProviderAdapter adapter = providerType != null ? adapters.get(providerType) : null;
         if (adapter != null) {
@@ -89,7 +103,50 @@ public class ProviderSelectionStrategy {
         throw new IllegalStateException("No provider adapter registered for provider type " + providerConfig.getType());
     }
 
+    /**
+     * Selects a fallback provider when the primary provider's circuit is open.
+     */
+    private SmtpProvider selectFallbackProvider(String tenantId, RoutingRule rule, SmtpProvider primaryProvider) {
+        // First check if routing rule has a fallback provider configured
+        if (rule != null && rule.getFallbackProvider() != null) {
+            SmtpProvider fallback = rule.getFallbackProvider();
+            if (fallback.isActive() && circuitBreaker.isCircuitClosed(fallback.getId())) {
+                log.info("Using routing rule fallback provider: {}", fallback.getId());
+                return fallback;
+            }
+        }
+
+        // Otherwise, find next available provider by priority
+        List<SmtpProvider> providers = smtpProviderRepository
+                .findByTenantIdAndIsActiveTrueOrderByPriorityAsc(tenantId);
+
+        for (SmtpProvider provider : providers) {
+            // Skip the primary provider and any with open circuits
+            if (!provider.getId().equals(primaryProvider.getId()) && circuitBreaker.isCircuitClosed(provider.getId())) {
+                log.info("Using fallback provider {} for tenant {}", provider.getId(), tenantId);
+                return provider;
+            }
+        }
+
+        return null; // No fallback available
+    }
+
     public record ProviderSelectionResult(ProviderAdapter adapter, SmtpProvider dbRecord) {}
+
+    /**
+     * Records a successful provider invocation.
+     */
+    public void recordProviderSuccess(String providerId) {
+        circuitBreaker.recordSuccess(providerId);
+    }
+
+    /**
+     * Records a failed provider invocation.
+     * Returns true if the circuit should be opened.
+     */
+    public boolean recordProviderFailure(String providerId) {
+        return circuitBreaker.recordFailure(providerId);
+    }
 
     private String normalizeIdentifier(String value) {
         if (value == null) {

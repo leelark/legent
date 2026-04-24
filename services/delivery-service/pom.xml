@@ -13,7 +13,7 @@
     <name>Delivery Service</name>
     <description>Email delivery engine with multi-provider support</description>
 
-    <dependencies>
+    <dependencies> 
         <!-- Internal Libraries -->
         <dependency>
             <groupId>com.legent</groupId>
@@ -26,6 +26,10 @@
         <dependency>
             <groupId>com.legent</groupId>
             <artifactId>legent-kafka</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.legent</groupId>
+            <artifactId>legent-cache</artifactId>
         </dependency>
 
         <!-- Spring Boot -->

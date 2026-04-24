@@ -5,9 +5,17 @@ import com.legent.identity.dto.SignupRequest;
 import com.legent.identity.dto.LoginRequest;
 import com.legent.identity.dto.LoginResponse;
 import com.legent.identity.service.AuthService;
+import com.legent.identity.service.RefreshTokenService;
+import com.legent.security.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Collections;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -15,19 +23,237 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final RefreshTokenService refreshTokenService;
+    private final JwtTokenProvider jwtTokenProvider;
+
+    private static final int COOKIE_MAX_AGE = 86400; // 24 hours in seconds
+    private static final int REFRESH_COOKIE_MAX_AGE = 2592000; // 30 days in seconds
+    private static final String TOKEN_COOKIE_NAME = "legent_token";
+    private static final String REFRESH_COOKIE_NAME = "legent_refresh_token";
+    private static final String TENANT_COOKIE_NAME = "legent_tenant_id";
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(
             @RequestHeader("X-Tenant-Id") String tenantId,
-            @Valid @RequestBody LoginRequest request) {
-        
+            @Valid @RequestBody LoginRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+
         String token = authService.login(request.getEmail(), request.getPassword(), tenantId);
-        return ApiResponse.ok(new LoginResponse(token));
+
+        // Extract userId from token to create refresh token
+        String userId = jwtTokenProvider.getUserId(token).orElseThrow();
+
+        // Create and set refresh token (Fix 33)
+        String refreshToken = refreshTokenService.createRefreshToken(
+                userId, tenantId,
+                httpRequest.getHeader("User-Agent"),
+                getClientIp(httpRequest)
+        );
+
+        // Set HTTP-only, Secure, SameSite=Strict cookies
+        setAuthCookies(response, token, tenantId, refreshToken);
+
+        // Return minimal response (token not in body for security)
+        return ApiResponse.ok(new LoginResponse("success"));
     }
 
     @PostMapping("/signup")
-    public ApiResponse<LoginResponse> signup(@Valid @RequestBody SignupRequest request) {
+    public ApiResponse<LoginResponse> signup(
+            @Valid @RequestBody SignupRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+
+        // AuthService.signup generates a new tenant and returns token with embedded tenantId
         String token = authService.signup(request);
-        return ApiResponse.ok(new LoginResponse(token));
+
+        // Parse tenantId and userId from token
+        String tenantId = extractTenantIdFromToken(token);
+        String userId = jwtTokenProvider.getUserId(token).orElseThrow();
+
+        // Create and set refresh token (Fix 33)
+        String refreshToken = refreshTokenService.createRefreshToken(
+                userId, tenantId,
+                httpRequest.getHeader("User-Agent"),
+                getClientIp(httpRequest)
+        );
+
+        // Set HTTP-only, Secure, SameSite=Strict cookies
+        setAuthCookies(response, token, tenantId, refreshToken);
+
+        // Return minimal response (token not in body for security)
+        return ApiResponse.ok(new LoginResponse("success"));
+    }
+
+    /**
+     * Extracts tenantId from JWT token claims.
+     */
+    private String extractTenantIdFromToken(String token) {
+        try {
+            // JWT format: header.payload.signature
+            String[] parts = token.split("\\.");
+            if (parts.length >= 2) {
+                String payload = parts[1];
+                // Base64URL decode
+                String normalized = payload.replace("-", "+").replace("_", "/");
+                java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
+                byte[] decoded = decoder.decode(normalized);
+                String json = new String(decoded, java.nio.charset.StandardCharsets.UTF_8);
+
+                // Parse JSON to extract tenantId claim
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(json);
+                return node.has("tenantId") ? node.get("tenantId").asText() : "";
+            }
+        } catch (Exception e) {
+            // Log error but don't fail - cookie may be incomplete
+        }
+        return "";
+    }
+
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            HttpServletResponse response) {
+        // Revoke the refresh token if present
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            refreshTokenService.revokeToken(refreshToken);
+        }
+
+        // Clear auth cookies
+        clearCookie(response, TOKEN_COOKIE_NAME);
+        clearCookie(response, REFRESH_COOKIE_NAME);
+        clearCookie(response, TENANT_COOKIE_NAME);
+        return ApiResponse.ok(null);
+    }
+
+    /**
+     * Refresh endpoint (Fix 33): Exchanges a valid refresh token for a new access token.
+     * Allows users to extend their session without re-entering credentials.
+     */
+    @PostMapping("/refresh")
+    public ApiResponse<LoginResponse> refresh(
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ApiResponse.error("REFRESH_TOKEN_REQUIRED", "No refresh token provided", "Please provide a refresh token cookie");
+        }
+
+        // Validate refresh token and get user info
+        var validationResult = refreshTokenService.validateRefreshToken(refreshToken);
+        if (validationResult.isEmpty()) {
+            return ApiResponse.error("INVALID_REFRESH_TOKEN", "Refresh token is invalid or expired", "The provided refresh token may have been revoked or expired");
+        }
+
+        var result = validationResult.get();
+
+        // Revoke the old refresh token (rotation for security)
+        refreshTokenService.revokeToken(refreshToken);
+
+        // Generate new access token
+        String newToken = jwtTokenProvider.generateToken(
+                result.userId(),
+                result.tenantId(),
+                Collections.singletonMap("roles", "USER") // Roles should be fetched from DB
+        );
+
+        // Create new refresh token
+        String newRefreshToken = refreshTokenService.createRefreshToken(
+                result.userId(), result.tenantId(),
+                httpRequest.getHeader("User-Agent"),
+                getClientIp(httpRequest)
+        );
+
+        // Set new cookies
+        setAuthCookies(response, newToken, result.tenantId(), newRefreshToken);
+
+        return ApiResponse.ok(new LoginResponse("success"));
+    }
+
+    /**
+     * Logout from all devices: Revokes all refresh tokens for the user.
+     */
+    @PostMapping("/logout-all")
+    public ApiResponse<Void> logoutAll(
+            @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            HttpServletResponse response) {
+
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            // Validate to get user info
+            var validationResult = refreshTokenService.validateRefreshToken(refreshToken);
+            validationResult.ifPresent(result ->
+                    refreshTokenService.revokeAllUserTokens(result.userId(), result.tenantId())
+            );
+        }
+
+        // Clear cookies
+        clearCookie(response, TOKEN_COOKIE_NAME);
+        clearCookie(response, REFRESH_COOKIE_NAME);
+        clearCookie(response, TENANT_COOKIE_NAME);
+        return ApiResponse.ok(null);
+    }
+
+    /**
+     * Sets HTTP-only, Secure, SameSite=Strict cookies for authentication.
+     * These cookies are immune to XSS attacks and cannot be accessed by JavaScript.
+     */
+    private void setAuthCookies(HttpServletResponse response, String token, String tenantId, String refreshToken) {
+        // JWT access token cookie - HTTP-only, Secure, SameSite=Strict
+        ResponseCookie tokenCookie = ResponseCookie.from(TOKEN_COOKIE_NAME, token)
+                .httpOnly(true)
+                .secure(true)  // Only sent over HTTPS
+                .sameSite("Strict")  // Prevents CSRF attacks
+                .maxAge(COOKIE_MAX_AGE)
+                .path("/")
+                .build();
+
+        // Refresh token cookie - longer-lived, used to obtain new access tokens
+        ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .maxAge(REFRESH_COOKIE_MAX_AGE)  // 30 days
+                .path("/api/v1/auth/refresh")  // Only sent to refresh endpoint
+                .build();
+
+        // Tenant ID cookie - HTTP-only (not sensitive but prevents tampering)
+        ResponseCookie tenantCookie = ResponseCookie.from(TENANT_COOKIE_NAME, tenantId)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .maxAge(COOKIE_MAX_AGE)
+                .path("/")
+                .build();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        response.addHeader(HttpHeaders.SET_COOKIE, tenantCookie.toString());
+    }
+
+    /**
+     * Extracts client IP address from request.
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader == null) {
+            return request.getRemoteAddr();
+        }
+        return xfHeader.split(",")[0].trim();
+    }
+
+    /**
+     * Clears a cookie by setting max-age to 0.
+     */
+    private void clearCookie(HttpServletResponse response, String name) {
+        ResponseCookie cookie = ResponseCookie.from(name, "")
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .maxAge(0)
+                .path("/")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 }

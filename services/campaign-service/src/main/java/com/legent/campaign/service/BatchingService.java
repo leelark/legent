@@ -86,7 +86,7 @@ public class BatchingService {
 
     private String extractDomain(String email) {
         if (email == null || !email.contains("@")) return "unknown";
-        return email.substring(email.indexOf("@") + 1).toLowerCase();
+        return email.substring(email.lastIndexOf("@") + 1).toLowerCase();
     }
 
     private void publishBatchEventsAfterCommit(String tenantId, String jobId, List<String> batchIds) {

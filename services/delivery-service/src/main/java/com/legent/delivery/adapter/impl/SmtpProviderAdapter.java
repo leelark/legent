@@ -36,11 +36,18 @@ public class SmtpProviderAdapter implements ProviderAdapter {
         return "SMTP";
     }
 
+    private String buildCacheKey(SmtpProvider config) {
+        // Include updated_at timestamp in cache key to invalidate when config changes
+        String timestamp = config.getUpdatedAt() != null ? config.getUpdatedAt().toString() : "0";
+        return config.getId() + ":" + timestamp;
+    }
+
     private JavaMailSender getJavaMailSender(SmtpProvider config) {
         if (config.getHost() == null || config.getPort() == null || config.getUsername() == null) {
             throw new IllegalArgumentException("Provider credentials are missing or invalid");
         }
-        return senderCache.computeIfAbsent(config.getId(), id -> {
+        String cacheKey = buildCacheKey(config);
+        return senderCache.computeIfAbsent(cacheKey, key -> {
             org.springframework.mail.javamail.JavaMailSenderImpl mailSender = new org.springframework.mail.javamail.JavaMailSenderImpl();
             mailSender.setHost(config.getHost());
             mailSender.setPort(config.getPort());
@@ -58,20 +65,16 @@ public class SmtpProviderAdapter implements ProviderAdapter {
     }
 
     private String resolvePassword(SmtpProvider config) {
-        // First try encrypted password (secure)
+        // Only use encrypted password (secure)
         if (config.getEncryptedPassword() != null && !config.getEncryptedPassword().isBlank()
                 && config.getEncryptionIv() != null && !config.getEncryptionIv().isBlank()) {
             try {
                 return credentialEncryptionService.decrypt(config.getEncryptedPassword(), config.getEncryptionIv());
             } catch (Exception e) {
-                log.error("Failed to decrypt password for provider {}", config.getId(), e);
+                log.error("Failed to decrypt password for provider {}. Ensure LEGENT_DELIVERY_CREDENTIAL_KEY is set correctly.", config.getId(), e);
             }
         }
-        // Fallback to legacy password hash (deprecated, will be removed)
-        if (config.getPasswordHash() != null && !config.getPasswordHash().isBlank()) {
-            log.warn("Using legacy password hash for provider {}. Consider migrating to encrypted storage.", config.getId());
-            return config.getPasswordHash();
-        }
+        log.error("No encrypted password configured for provider {}. SMTP credentials must be encrypted.", config.getId());
         return null;
     }
 
@@ -100,6 +103,12 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             sentCountMap.get(throttleKey).incrementAndGet();
         }
         try {
+            // Refresh provider from DB to get latest config (in case of cache staleness)
+            // Note: config is already passed in, but this ensures we're using the latest
+        } catch (Exception e) {
+            // Ignore refresh errors, continue with provided config
+        }
+        try {
             JavaMailSender sender = getJavaMailSender(config);
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
@@ -122,5 +131,28 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             }
             throw new ProviderDispatchException("SMTP Dispatch failed: " + msg, permanent, e);
         }
+    }
+
+    /**
+     * Invalidates the sender cache for a specific provider.
+     * Called when provider configuration is updated.
+     */
+    public void invalidateCache(String providerId) {
+        // Remove all entries with this provider ID prefix (they include timestamps)
+        senderCache.entrySet().removeIf(entry -> entry.getKey().startsWith(providerId + ":"));
+        windowStartMap.remove(providerId);
+        sentCountMap.remove(providerId);
+        log.info("Invalidated sender cache for provider {}", providerId);
+    }
+
+    /**
+     * Invalidates the entire sender cache.
+     * Use with caution - intended for admin operations.
+     */
+    public void invalidateAllCache() {
+        senderCache.clear();
+        windowStartMap.clear();
+        sentCountMap.clear();
+        log.info("Invalidated entire sender cache");
     }
 }

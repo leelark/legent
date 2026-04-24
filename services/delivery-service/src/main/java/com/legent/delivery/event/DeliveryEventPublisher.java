@@ -54,13 +54,14 @@ public class DeliveryEventPublisher {
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, envelope);
     }
 
-    public void publishEmailBounced(String tenantId, String email, String reason) {
+    public void publishEmailBounced(String tenantId, String email, String reason, String senderDomain) {
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_BOUNCED, tenantId, SOURCE,
                 Map.of(
                         "email", email,
                         "reason", reason,
-                        "type", "HARD_BOUNCE"
+                        "type", "HARD_BOUNCE",
+                        "senderDomain", senderDomain != null ? senderDomain : ""
                 )
         );
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_BOUNCED, envelope);

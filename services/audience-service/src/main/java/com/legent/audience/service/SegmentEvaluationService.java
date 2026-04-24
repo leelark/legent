@@ -92,57 +92,64 @@ public class SegmentEvaluationService {
     @Async("segmentExecutor")
     @Transactional
     public void recompute(@org.springframework.lang.NonNull String segmentId, String tenantId) {
-        Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
-                .orElseThrow(() -> new NotFoundException("Segment", segmentId));
-
-        segment.setStatus(Segment.SegmentStatus.COMPUTING);
-        segmentRepository.save(segment);
-
+        // Set tenant context for this async thread - crucial for multi-tenant data isolation
+        TenantContext.setTenantId(tenantId);
         try {
+            Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
+                    .orElseThrow(() -> new NotFoundException("Segment", segmentId));
+
+            segment.setStatus(Segment.SegmentStatus.COMPUTING);
+            segmentRepository.save(segment);
+
             long startMs = System.currentTimeMillis();
 
-            // Clear existing memberships
-            membershipRepository.deleteAllByTenantIdAndSegmentId(tenantId, segmentId);
+            try {
+                // Clear existing memberships
+                membershipRepository.deleteAllByTenantIdAndSegmentId(tenantId, segmentId);
 
-            // Execute query and materialize using batch insert
-            List<String> subscriberIds = executeQuery(tenantId, segment.getRules());
-            if (!subscriberIds.isEmpty()) {
-                String sqlInsert = "INSERT INTO segment_memberships (id, tenant_id, segment_id, subscriber_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)";
-                List<Object[]> batchArgs = new ArrayList<>();
-                Instant now = Instant.now();
-                for (String subId : subscriberIds) {
-                    batchArgs.add(new Object[] {
-                            com.legent.common.util.IdGenerator.newId(),
-                            tenantId,
-                            segmentId,
-                            subId,
-                            now,
-                            now
-                    });
+                // Execute query and materialize using batch insert
+                List<String> subscriberIds = executeQuery(tenantId, segment.getRules());
+                if (!subscriberIds.isEmpty()) {
+                    String sqlInsert = "INSERT INTO segment_memberships (id, tenant_id, segment_id, subscriber_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)";
+                    List<Object[]> batchArgs = new ArrayList<>();
+                    Instant now = Instant.now();
+                    for (String subId : subscriberIds) {
+                        batchArgs.add(new Object[] {
+                                com.legent.common.util.IdGenerator.newId(),
+                                tenantId,
+                                segmentId,
+                                subId,
+                                now,
+                                now
+                        });
+                    }
+                    jdbcTemplate.batchUpdate(sqlInsert, batchArgs);
                 }
-                jdbcTemplate.batchUpdate(sqlInsert, batchArgs);
+
+                long durationMs = System.currentTimeMillis() - startMs;
+                segment.setMemberCount(subscriberIds.size());
+                segment.setLastEvaluatedAt(Instant.now());
+                segment.setEvaluationDurationMs(durationMs);
+                segment.setStatus(Segment.SegmentStatus.ACTIVE);
+                segmentRepository.save(segment);
+
+                // Invalidate count cache
+                String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
+                cacheService.delete(cacheKey);
+
+                eventPublisher.publishRecomputed(segment);
+                log.info("Segment recomputed: id={}, members={}, duration={}ms", segmentId, subscriberIds.size(),
+                        durationMs);
+
+            } catch (Exception e) {
+                segment.setStatus(Segment.SegmentStatus.ERROR);
+                segmentRepository.save(segment);
+                log.error("Segment recomputation failed: id={}", segmentId, e);
+                throw e;
             }
-
-            long durationMs = System.currentTimeMillis() - startMs;
-            segment.setMemberCount(subscriberIds.size());
-            segment.setLastEvaluatedAt(Instant.now());
-            segment.setEvaluationDurationMs(durationMs);
-            segment.setStatus(Segment.SegmentStatus.ACTIVE);
-            segmentRepository.save(segment);
-
-            // Invalidate count cache
-            String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
-            cacheService.delete(cacheKey);
-
-            eventPublisher.publishRecomputed(segment);
-            log.info("Segment recomputed: id={}, members={}, duration={}ms", segmentId, subscriberIds.size(),
-                    durationMs);
-
-        } catch (Exception e) {
-            segment.setStatus(Segment.SegmentStatus.ERROR);
-            segmentRepository.save(segment);
-            log.error("Segment recomputation failed: id={}", segmentId, e);
-            throw e;
+        } finally {
+            // Always clear tenant context after async execution
+            TenantContext.clear();
         }
     }
 
@@ -305,7 +312,16 @@ public class SegmentEvaluationService {
         if (field == null || !field.matches("^[a-zA-Z0-9_]+$")) {
             throw new IllegalArgumentException("Invalid field name: " + field);
         }
-        return switch (field.toLowerCase()) {
+        // Additional validation: max length and reserved SQL keywords check
+        if (field.length() > 64) {
+            throw new IllegalArgumentException("Field name too long: " + field);
+        }
+        String lowerField = field.toLowerCase();
+        // Block SQL keywords that could be used for injection
+        if (isSqlKeyword(lowerField)) {
+            throw new IllegalArgumentException("Reserved field name not allowed: " + field);
+        }
+        return switch (lowerField) {
             case "email" -> "s.email";
             case "first_name", "firstname" -> "s.first_name";
             case "last_name", "lastname" -> "s.last_name";
@@ -319,8 +335,22 @@ public class SegmentEvaluationService {
             case "subscribed_at", "subscribedat" -> "s.subscribed_at";
             case "last_activity_at", "lastactivityat" -> "s.last_activity_at";
             case "list_membership" -> null; // handled specially in buildCondition
-            // Fallback: Assume it's a dynamic custom attribute stored in the JSONB column
-            default -> "s.custom_fields->>'" + field + "'";
+            // Fallback: Use JSONB #>> operator with text array for safe access
+            // Format: s.custom_fields #>> '{field_name}'
+            default -> "s.custom_fields #>> '{" + lowerField + "}'";
+        };
+    }
+
+    /**
+     * Checks if the field name is a reserved SQL keyword that could be used for injection.
+     */
+    private boolean isSqlKeyword(String field) {
+        return switch (field) {
+            case "select", "insert", "update", "delete", "drop", "create", "alter",
+                 "where", "and", "or", "not", "null", "true", "false",
+                 "union", "join", "from", "table", "column", "database",
+                 "exec", "execute", "script", "eval", "cast", "convert" -> true;
+            default -> false;
         };
     }
 }

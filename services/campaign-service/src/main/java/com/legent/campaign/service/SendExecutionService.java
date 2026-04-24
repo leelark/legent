@@ -2,13 +2,17 @@ package com.legent.campaign.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.campaign.client.ContentServiceClient;
+import com.legent.campaign.domain.Campaign;
 import com.legent.common.constant.AppConstants;
 import java.util.List;
 
 import java.util.Map;
 
 import com.legent.campaign.domain.SendBatch;
+import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
+import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.kafka.model.EventEnvelope;
@@ -28,9 +32,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class SendExecutionService {
 
     private final SendBatchRepository batchRepository;
+    private final CampaignRepository campaignRepository;
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final ThrottlingService throttlingService;
+    private final ContentServiceClient contentServiceClient;
 
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
@@ -58,6 +64,34 @@ public class SendExecutionService {
                 return;
             }
             
+            // Fetch campaign to get template/content info
+            Campaign campaign = campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(
+                    tenantId, batch.getCampaignId())
+                    .orElseThrow(() -> new NotFoundException("Campaign not found: " + batch.getCampaignId()));
+            
+            // Fetch and render template content
+            String subject = campaign.getSubject();
+            String htmlBody = null;
+            
+            if (campaign.getContentId() != null && !campaign.getContentId().isBlank()) {
+                ContentServiceClient.TemplateVersionDto version = contentServiceClient.getLatestVersion(
+                        tenantId, campaign.getContentId());
+                if (version != null) {
+                    if (subject == null || subject.isBlank()) {
+                        subject = version.subject();
+                    }
+                    htmlBody = version.htmlContent();
+                }
+            }
+            
+            // Fallback if no template found
+            if (subject == null || subject.isBlank()) {
+                subject = "Legent Campaign";
+            }
+            if (htmlBody == null || htmlBody.isBlank()) {
+                htmlBody = "<html><body>Email content</body></html>";
+            }
+            
             // Limit by domain throttling rules before publishing to delivery
             int acquiredPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), subscribers.size());
             
@@ -66,14 +100,23 @@ public class SendExecutionService {
                 
                 // Publish individual email send requests into Delivery Kafka Topic
                 try {
-                    EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
+                    Map<String, Object> emailPayload = new java.util.HashMap<>();
+                    emailPayload.put("email", sub.get("email"));
+                    emailPayload.put("subscriberId", sub.get("subscriberId"));
+                    emailPayload.put("campaignId", batch.getCampaignId());
+                    emailPayload.put("batchId", batchId);
+                    emailPayload.put("subject", subject);
+                    emailPayload.put("htmlBody", htmlBody);
+                    if (sub.get("firstName") != null) {
+                        emailPayload.put("firstName", sub.get("firstName"));
+                    }
+                    if (sub.get("lastName") != null) {
+                        emailPayload.put("lastName", sub.get("lastName"));
+                    }
+                    
+                    EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
                             AppConstants.TOPIC_EMAIL_SEND_REQUESTED, tenantId, "campaign-service",
-                            Map.of(
-                                    "email", sub.get("email"),
-                                    "subscriberId", sub.get("subscriberId"),
-                                    "campaignId", batch.getCampaignId(),
-                                    "batchId", batchId
-                            )
+                            emailPayload
                     );
                     eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
                 } catch (Exception e) {
@@ -120,23 +163,11 @@ public class SendExecutionService {
     }
 
     private SendBatch findBatchWithRetry(String batchId) {
-        for (int attempt = 1; attempt <= 5; attempt++) {
-            java.util.Optional<SendBatch> batch = batchRepository.findById(batchId);
-            if (batch.isPresent()) {
-                return batch.get();
-            }
-
-            if (attempt < 5) {
-                try {
-                    Thread.sleep(150L);
-                } catch (InterruptedException interruptedException) {
-                    Thread.currentThread().interrupt();
-                    throw new RuntimeException("Interrupted while waiting for batch", interruptedException);
-                }
-            }
-        }
-
-        throw new RuntimeException("Batch " + batchId + " not found after 5 retries");
+        // BatchingService uses TransactionSynchronization.afterCommit() to ensure
+        // batch is persisted before publishing batch.created event.
+        // No polling needed - batch should exist when this method is called.
+        return batchRepository.findById(batchId)
+                .orElseThrow(() -> new com.legent.common.exception.NotFoundException("SendBatch", batchId));
     }
 
     /**

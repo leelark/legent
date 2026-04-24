@@ -70,6 +70,8 @@ management:
         include: health,metrics,prometheus
 
 legent:
+  delivery:
+    credential-key: ${LEGENT_DELIVERY_CREDENTIAL_KEY}
   tracking:
     base-url: ${TRACKING_BASE_URL}
   security:
