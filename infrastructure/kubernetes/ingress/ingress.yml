@@ -46,7 +46,7 @@ spec:
                 port:
                   number: 8082
           # Content
-          - path: /api/v1/(templates|content-blocks|assets|content)(/.*)?
+          - path: /api/v1/(templates|content-blocks|assets|content|emails)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:

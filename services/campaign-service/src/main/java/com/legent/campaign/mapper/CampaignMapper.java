@@ -22,6 +22,7 @@ public interface CampaignMapper {
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "audiences", ignore = true)
     @Mapping(target = "version", ignore = true)
+    @Mapping(target = "contentId", source = "templateId")
     Campaign toEntity(CampaignDto.CreateRequest request);
 
     @Mapping(target = "id", ignore = true)

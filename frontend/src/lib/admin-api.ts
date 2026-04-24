@@ -4,6 +4,11 @@ export type AdminConfig = {
   id?: string;
   key: string;
   value: string;
+  description?: string;
+  category?: string;
+  configType?: string;
+  editable?: boolean;
+  tenantId?: string;
 };
 
 export type Branding = {

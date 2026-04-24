@@ -77,13 +77,21 @@ public class TemplateController {
         response.setId(template.getId());
         response.setName(template.getName());
         response.setSubject(template.getSubject());
-        response.setStatus(template.getStatus().name());
-        response.setTemplateType(template.getTemplateType().name());
+        if (template.getStatus() != null) {
+            response.setStatus(template.getStatus().name());
+        }
+        if (template.getTemplateType() != null) {
+            response.setTemplateType(template.getTemplateType().name());
+        }
         response.setCategory(template.getCategory());
         response.setTags(template.getTags());
         response.setMetadata(template.getMetadata());
-        response.setCreatedAt(template.getCreatedAt().toString());
-        response.setUpdatedAt(template.getUpdatedAt().toString());
+        if (template.getCreatedAt() != null) {
+            response.setCreatedAt(template.getCreatedAt().toString());
+        }
+        if (template.getUpdatedAt() != null) {
+            response.setUpdatedAt(template.getUpdatedAt().toString());
+        }
         return response;
     }
 }

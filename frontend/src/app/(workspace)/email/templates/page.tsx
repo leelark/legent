@@ -35,8 +35,10 @@ export default function EmailTemplatesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadTemplates();
@@ -44,6 +46,7 @@ export default function EmailTemplatesPage() {
 
   const loadTemplates = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const res = await get<any>('/templates?page=0&size=20');
       if (Array.isArray(res)) {
@@ -53,8 +56,8 @@ export default function EmailTemplatesPage() {
       } else {
         setError('Unable to load templates');
       }
-    } catch (e) {
-      setError('Unable to load templates');
+    } catch (e: any) {
+      setError(e?.response?.data?.error?.message || 'Unable to load templates');
     } finally {
       setIsLoading(false);
     }
@@ -65,29 +68,41 @@ export default function EmailTemplatesPage() {
       setError('Template name is required.');
       return;
     }
+    if (!subject.trim()) {
+      setError('Subject is required.');
+      return;
+    }
+    if (!body.trim()) {
+      setError('Body is required.');
+      return;
+    }
 
     setIsCreating(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const res = await post<any>('/templates', {
           name: name.trim(),
           subject: subject.trim(),
-          htmlContent: '<p>Your content here</p>',
-          textContent: 'Your content here',
+          body: body.trim(),
+          textContent: body.trim().replace(/<[^>]*>/g, ''),
           category: 'General',
           tags: [],
           metadata: '{}',
       });
-      if (res) {
+      if (res && res.id) {
         setTemplates((current) => [res, ...current]);
         setName('');
         setSubject('');
+        setBody('');
+        setSuccessMessage('Template created successfully');
       } else {
         setError('Unable to create template');
       }
     } catch (e: any) {
-      setError('Unable to create template');
+      const msg = e?.response?.data?.error?.message || e?.message || 'Unable to create template';
+      setError(msg);
     } finally {
       setIsCreating(false);
     }
@@ -123,13 +138,24 @@ export default function EmailTemplatesPage() {
             placeholder="Your next campaign subject"
           />
         </div>
+        <div className="p-6">
+          <label className="mb-1 block text-sm font-medium text-content-primary">Body (HTML)</label>
+          <textarea
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            placeholder="<p>Your email content here</p>"
+            rows={4}
+            className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30 transition-all"
+          />
+        </div>
         <div className="flex flex-wrap gap-3 p-6">
-          <Button onClick={handleCreateTemplate} loading={isCreating}>
+          <Button onClick={handleCreateTemplate} loading={isCreating} disabled={isCreating}>
             Create Template
           </Button>
           <span className="text-sm text-content-muted">Create a draft template and edit it later.</span>
         </div>
         {error ? <p className="px-6 text-sm text-danger">{error}</p> : null}
+        {successMessage ? <p className="px-6 text-sm text-success">{successMessage}</p> : null}
       </Card>
 
       <Card>

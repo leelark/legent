@@ -41,11 +41,17 @@ public class TemplateService {
         template.setTenantId(tenantId);
         template.setName(request.getName());
         template.setSubject(request.getSubject());
-        template.setHtmlContent(request.getHtmlContent());
+        String html = request.getBody() != null ? request.getBody() : request.getHtmlContent();
+        template.setHtmlContent(html);
         template.setTextContent(request.getTextContent());
         template.setCategory(request.getCategory());
         template.setTags(request.getTags());
         template.setMetadata(request.getMetadata());
+        if (request.getCreatedBy() != null && !request.getCreatedBy().isBlank()) {
+            template.setCreatedBy(request.getCreatedBy());
+        } else if (TenantContext.getUserId() != null) {
+            template.setCreatedBy(TenantContext.getUserId());
+        }
 
         EmailTemplate savedTemplate = templateRepository.save(template);
         return Objects.requireNonNull(savedTemplate, "Saved template cannot be null");

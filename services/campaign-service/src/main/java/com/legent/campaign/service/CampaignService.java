@@ -52,15 +52,14 @@ public class CampaignService {
         String tenantId = TenantContext.getTenantId();
         Campaign campaign = campaignMapper.toEntity(request);
         campaign.setTenantId(tenantId);
-        
-        if (campaign.getAudiences() != null) {
-            final Campaign finalCampaign = campaign;
-            campaign.getAudiences().forEach(a -> {
-                a.setTenantId(tenantId);
-                a.setCampaign(finalCampaign);
-            });
+        if (campaign.getType() == null) {
+            campaign.setType(Campaign.CampaignType.STANDARD);
         }
-        
+        if (request.getAudiences() != null && !request.getAudiences().isEmpty()) {
+            for (CampaignDto.AudienceRequest ar : request.getAudiences()) {
+                campaign.addAudience(ar.getAudienceType().name(), ar.getAudienceId());
+            }
+        }
         return campaignMapper.toResponse(campaignRepository.save(campaign));
     }
 

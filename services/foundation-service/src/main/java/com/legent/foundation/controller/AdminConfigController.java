@@ -1,7 +1,9 @@
 package com.legent.foundation.controller;
 
+import com.legent.common.dto.ApiResponse;
 import com.legent.foundation.domain.AdminConfig;
 import com.legent.foundation.repository.AdminConfigRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,12 +19,26 @@ public class AdminConfigController {
     private final AdminConfigRepository repo;
 
     @GetMapping
-    public List<AdminConfig> list() {
-        return repo.findAll();
+    public ApiResponse<List<AdminConfig>> list() {
+        String tenantId = TenantContext.getTenantId();
+        List<AdminConfig> configs;
+        if (tenantId != null && !tenantId.isBlank()) {
+            configs = repo.findByTenantIdOrTenantIdIsNull(tenantId);
+        } else {
+            configs = repo.findAll();
+        }
+        return ApiResponse.ok(configs);
     }
 
     @PostMapping
-    public AdminConfig save(@RequestBody AdminConfig config) {
-        return repo.save(config);
+    public ApiResponse<AdminConfig> save(@RequestBody AdminConfig config) {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId != null && !tenantId.isBlank()) {
+            config.setTenantId(tenantId);
+        }
+        if (config.getConfigKey() == null || config.getConfigKey().isBlank()) {
+            throw new IllegalArgumentException("Config key is required");
+        }
+        return ApiResponse.ok(repo.save(config));
     }
 }

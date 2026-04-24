@@ -14,14 +14,19 @@ public class TemplateDto {
         @Size(max = 255)
         private String name;
 
+        @NotBlank
         @Size(max = 500)
         private String subject;
+
+        @NotBlank
+        private String body;
 
         private String htmlContent;
         private String textContent;
         private String category;
         private List<String> tags;
         private String metadata;
+        private String createdBy;
     }
 
     @Data

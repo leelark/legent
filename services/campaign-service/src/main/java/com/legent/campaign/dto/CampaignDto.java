@@ -57,8 +57,9 @@ public class CampaignDto {
         private String subject;
         private String preheader;
         private String senderProfileId;
-        @NotNull
-        private CampaignType type;
+        private String templateId;
+        @Builder.Default
+        private CampaignType type = CampaignType.STANDARD;
         private List<AudienceRequest> audiences;
     }
 
