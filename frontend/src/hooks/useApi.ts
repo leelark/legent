@@ -27,8 +27,8 @@ export function useApi<T>(url: string, options: UseApiOptions = {}): UseApiRetur
     setLoading(true);
     setError(null);
     try {
-      const result = await get<{ data: T }>(url);
-      setData((result as any).data ?? result);
+      const result = await get<T>(url);
+      setData(result);
     } catch (err: any) {
       const message = err.response?.data?.error?.message || err.message || 'An error occurred';
       setError(message);

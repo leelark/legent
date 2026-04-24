@@ -6,7 +6,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
-@Configuration
+@Configuration("campaignAsyncConfig")
 public class AsyncConfig {
 
     @Bean(name = "sendExecutor")

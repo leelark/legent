@@ -43,50 +43,48 @@ public class TenantFilter extends OncePerRequestFilter {
             @org.springframework.lang.NonNull HttpServletRequest request,
             @org.springframework.lang.NonNull HttpServletResponse response,
             @org.springframework.lang.NonNull FilterChain filterChain) throws ServletException, IOException {
+        try {
+            String path = request.getRequestURI();
+            String tenantId = request.getHeader(AppConstants.HEADER_TENANT_ID);
+            if (tenantId == null || tenantId.isBlank()) {
+                tenantId = request.getParameter("t");
+            }
 
-        String path = request.getRequestURI();
-        String tenantId = request.getHeader(AppConstants.HEADER_TENANT_ID);
-        if (tenantId == null || tenantId.isBlank()) {
-            tenantId = request.getParameter("t");
-        }
+            String currentTenantId = TenantContext.getTenantId();
 
-        String currentTenantId = TenantContext.getTenantId();
+            // If tenant is missing and path is NOT tenant-free, fail
+            if ((tenantId == null || tenantId.isBlank()) && (currentTenantId == null || currentTenantId.isBlank())) {
+                if (isTenantFreePath(path)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
 
-        // If tenant is missing and path is NOT tenant-free, fail
-        if ((tenantId == null || tenantId.isBlank()) && (currentTenantId == null || currentTenantId.isBlank())) {
-            if (isTenantFreePath(path)) {
-                filterChain.doFilter(request, response);
+                log.warn("Missing tenant ID for path: {}", path);
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                response.setContentType("application/json");
+                com.legent.common.dto.ApiResponse<Void> apiResponse = com.legent.common.dto.ApiResponse.error(
+                    "MISSING_TENANT",
+                    "X-Tenant-Id header is required (or use 't' query parameter on public tracking routes)",
+                    "Path: " + path
+                );
+                OBJECT_MAPPER.writeValue(response.getWriter(), apiResponse);
                 return;
             }
-            
-            log.warn("Missing tenant ID for path: {}", path);
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.setContentType("application/json");
-            com.legent.common.dto.ApiResponse<Void> apiResponse = com.legent.common.dto.ApiResponse.error(
-                "MISSING_TENANT",
-                "X-Tenant-Id header is required (or use 't' query parameter on public tracking routes)",
-                "Path: " + path
-            );
-            OBJECT_MAPPER.writeValue(response.getWriter(), apiResponse);
-            return;
-        }
 
-        // If tenantId provided (header/param) and differs from currentTenantId (from JWT), it's a conflict
-        if (tenantId != null && !tenantId.isBlank() && currentTenantId != null && !currentTenantId.isBlank() && !currentTenantId.equals(tenantId)) {
-            log.error("Tenant ID conflict: JWT={}, Provided={}", currentTenantId, tenantId);
-            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-            return;
-        }
+            // If tenantId provided (header/param) and differs from currentTenantId (from JWT), it's a conflict
+            if (tenantId != null && !tenantId.isBlank() && currentTenantId != null && !currentTenantId.isBlank() && !currentTenantId.equals(tenantId)) {
+                log.error("Tenant ID conflict: JWT={}, Provided={}", currentTenantId, tenantId);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
 
-        try {
-            if (currentTenantId == null && tenantId != null) {
+            if ((currentTenantId == null || currentTenantId.isBlank()) && tenantId != null && !tenantId.isBlank()) {
                 TenantContext.setTenantId(tenantId);
             }
+
             filterChain.doFilter(request, response);
         } finally {
-            if (currentTenantId == null) {
-                TenantContext.clear();
-            }
+            TenantContext.clear();
         }
     }
 

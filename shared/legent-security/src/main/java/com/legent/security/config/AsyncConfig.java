@@ -11,7 +11,7 @@ import java.util.concurrent.Executor;
 /**
  * Global async configuration that ensures tenant context propagation.
  */
-@Configuration
+@Configuration("securityAsyncConfig")
 @EnableAsync
 public class AsyncConfig implements AsyncConfigurer {
 

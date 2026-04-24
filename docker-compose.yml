@@ -208,7 +208,7 @@ services:
     volumes:
       - legent_minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -239,7 +239,7 @@ services:
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health?wait_for_status=yellow"]
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow"]
       interval: 15s
       timeout: 10s
       retries: 10
@@ -262,7 +262,7 @@ services:
         soft: 262144
         hard: 262144
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "localhost:8123/ping"]
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:8123/ping"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -310,7 +310,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8081/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -333,7 +333,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8089/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8089/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -362,7 +362,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8090/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8090/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -389,7 +389,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8082/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -412,7 +412,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8083/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8083/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -442,7 +442,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8084/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -471,7 +471,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8085/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8085/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -494,7 +494,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8086/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8086/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -518,7 +518,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8087/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8087/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -541,7 +541,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8088/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8088/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -559,7 +559,7 @@ services:
       API_GATEWAY_URL: ${API_GATEWAY_URL}
     depends_on:
       gateway:
-        condition: service_healthy
+        condition: service_started
     deploy:
       resources:
         limits:
@@ -576,27 +576,27 @@ services:
       - ./config/nginx/proxy_params.conf:/etc/nginx/proxy_params.conf:rw
     depends_on:
       foundation-service:
-        condition: service_healthy
+        condition: service_started
       identity-service:
-        condition: service_healthy
+        condition: service_started
       audience-service:
-        condition: service_healthy
+        condition: service_started
       content-service:
-        condition: service_healthy
+        condition: service_started
       campaign-service:
-        condition: service_healthy
+        condition: service_started
       delivery-service:
-        condition: service_healthy
+        condition: service_started
       tracking-service:
-        condition: service_healthy
+        condition: service_started
       automation-service:
-        condition: service_healthy
+        condition: service_started
       deliverability-service:
-        condition: service_healthy
+        condition: service_started
       platform-service:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost/nginx-health || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/nginx-health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 15

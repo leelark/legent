@@ -1,0 +1,347 @@
+system:
+  name: legent_marketing_tool
+  environment: local
+  base_url: http://localhost:3000
+
+issues:
+
+  - id: ISSUE-001
+    name: template_creation_failure
+    module: template_management
+    priority: P0
+
+    api:
+      endpoint: POST /api/v1/templates
+      method: POST
+
+    console_errors:
+      - status: 500
+        message: "Internal Server Error"
+        trace: :contentReference[oaicite:0]{index=0}
+
+    request_payload_expected:
+      name: string
+      subject: string
+      body: string
+      createdBy: string
+
+    request_payload_possible_issue:
+      - missing_fields
+      - incorrect_field_names
+      - null_values
+
+    response_expected:
+      status: 201
+      body:
+        id: uuid
+        name: string
+
+    root_causes:
+      backend:
+        - null_pointer_exception
+        - dto_entity_mapping_issue
+        - db_constraint_violation
+      frontend:
+        - incorrect_payload_structure
+        - form_state_not_bound
+
+    fixes:
+      backend:
+        - validate_request_body
+        - add_global_exception_handler
+        - fix_entity_mapping
+        - ensure_db_transaction_commit
+      frontend:
+        - align_payload_with_api_contract
+        - bind_all_inputs
+        - handle_success_and_error_response
+
+    validation_rules:
+      - name_required
+      - subject_required
+      - body_required
+
+    observability:
+      logs:
+        - request_payload_log
+        - error_stacktrace
+      metrics:
+        - template_create_success_rate
+
+    acceptance_criteria:
+      - api_returns_201
+      - no_500_error
+      - template_persisted
+
+  - id: ISSUE-002
+    name: campaign_creation_failure
+    module: campaign_management
+    priority: P0
+
+    api:
+      endpoint: POST /api/v1/campaigns
+      method: POST
+
+    console_errors:
+      - status: 400
+        message: "Bad Request"
+        axios_error: true
+        trace: :contentReference[oaicite:1]{index=1}
+
+    request_payload_expected:
+      name: string
+      templateId: uuid
+      audienceIds: list
+      scheduleType: "NOW | LATER"
+      scheduleTime: datetime
+
+    request_payload_possible_issue:
+      - missing_templateId
+      - invalid_audienceIds
+      - incorrect_schedule_format
+
+    response_expected:
+      status: 201
+      body:
+        campaignId: uuid
+
+    root_causes:
+      backend:
+        - request_validation_failure
+        - dto_mismatch
+      frontend:
+        - malformed_payload
+        - inclusion_logic_not_working
+
+    fixes:
+      backend:
+        - enforce_schema_validation
+        - fix_campaign_dto
+        - validate_schedule_logic
+      frontend:
+        - correct_payload_mapping
+        - fix_inclusion_selection_logic
+        - validate_required_fields
+
+    validation_rules:
+      - name_required
+      - templateId_required
+      - audience_required
+      - valid_schedule_time_if_later
+
+    acceptance_criteria:
+      - api_returns_201
+      - no_400_error
+      - campaign_created
+
+  - id: ISSUE-003
+    name: campaign_save_button_not_working
+    module: campaign_ui
+    priority: P0
+
+    console_errors:
+      - status: NONE
+        issue: "No API call triggered"
+
+    root_causes:
+      frontend:
+        - missing_onclick_handler
+        - api_not_invoked
+
+    fixes:
+      frontend:
+        - bind_save_button_to_api
+        - add_loading_state
+        - disable_button_on_submit
+
+    acceptance_criteria:
+      - clicking_save_triggers_api
+      - success_toast_visible
+
+  - id: ISSUE-004
+    name: schedule_later_not_working
+    module: campaign_scheduler
+    priority: P0
+
+    console_errors:
+      - status: NONE
+        issue: "Schedule ignored"
+
+    root_causes:
+      backend:
+        - scheduler_not_implemented
+      frontend:
+        - datetime_not_sent
+
+    fixes:
+      backend:
+        - implement_scheduler_service
+        - validate_future_datetime
+      frontend:
+        - send_scheduleTime_field
+        - validate_datetime_picker
+
+    acceptance_criteria:
+      - campaign_executes_at_scheduled_time
+
+  - id: ISSUE-005
+    name: email_creation_not_working
+    module: email_management
+    priority: P0
+
+    console_errors:
+      - status: NONE
+        issue: "Feature not functional"
+
+    api:
+      endpoint: POST /api/v1/emails
+
+    root_causes:
+      - api_missing
+      - template_binding_missing
+
+    fixes:
+      backend:
+        - create_email_api
+        - persist_email_data
+      frontend:
+        - connect_ui_to_api
+
+    acceptance_criteria:
+      - email_created
+      - visible_in_ui
+
+  - id: ISSUE-006
+    name: recent_emails_missing
+    module: email_dashboard
+    priority: P1
+
+    console_errors:
+      - status: NONE
+        issue: "Coming Soon placeholder"
+
+    api:
+      endpoint: GET /api/v1/emails/recent
+
+    fixes:
+      backend:
+        - implement_recent_email_api
+      frontend:
+        - build_list_view
+        - add_pagination
+
+    acceptance_criteria:
+      - recent_emails_displayed
+
+  - id: ISSUE-007
+    name: automation_module_empty
+    module: automation
+    priority: P1
+
+    console_errors:
+      - status: NONE
+        issue: "Module pending"
+
+    root_causes:
+      - feature_not_implemented
+
+    fixes:
+      backend:
+        - create_crud_apis
+        - define_workflow_schema
+      frontend:
+        - build_ui
+        - add_create_flow
+
+    acceptance_criteria:
+      - automation_creation_possible
+
+  - id: ISSUE-008
+    name: analytics_api_failure
+    module: analytics
+    priority: P0
+
+    api:
+      endpoint: GET /api/v1/analytics/events/counts
+
+    console_errors:
+      - status: 500
+        message: "Internal Server Error"
+        trace: :contentReference[oaicite:2]{index=2}
+
+    root_causes:
+      - db_query_failure
+      - null_handling_missing
+
+    fixes:
+      backend:
+        - fix_aggregation_query
+        - handle_empty_data
+
+    acceptance_criteria:
+      - api_returns_200
+      - valid_data_returned
+
+  - id: ISSUE-009
+    name: admin_configuration_broken
+    module: admin
+    priority: P2
+
+    console_errors:
+      - status: NONE
+        issue: "UI not functional"
+
+    root_causes:
+      - api_not_connected
+      - incomplete_ui
+
+    fixes:
+      backend:
+        - create_config_get_update_api
+      frontend:
+        - rebuild_ui
+        - bind_all_fields
+
+    acceptance_criteria:
+      - config_loads_and_saves
+
+  - id: ISSUE-010
+    name: admin_options_not_visible
+    module: admin
+    priority: P2
+
+    console_errors:
+      - status: NONE
+        issue: "Partial data rendering"
+
+    root_causes:
+      - incomplete_api_response
+      - ui_render_issue
+
+    fixes:
+      backend:
+        - return_full_config
+      frontend:
+        - dynamic_render_all_fields
+
+    acceptance_criteria:
+      - all_options_visible
+
+execution_order:
+  - ISSUE-001
+  - ISSUE-002
+  - ISSUE-003
+  - ISSUE-004
+  - ISSUE-005
+  - ISSUE-008
+  - ISSUE-006
+  - ISSUE-007
+  - ISSUE-009
+  - ISSUE-010
+
+final_checks:
+  - no_console_errors
+  - all_apis_success
+  - ui_fully_functional
+  - data_persisted
+  - scheduler_working

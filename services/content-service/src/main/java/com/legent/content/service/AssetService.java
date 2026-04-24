@@ -143,7 +143,7 @@ public class AssetService {
         assetRepository.save(asset);
         
         // Ensure physical file is also removed from storage
-        deleteFromMinio(asset.getFileName());
+        deleteFromMinio(resolveObjectName(asset));
     }
 
     private String serializeMetadata(Map<String, String> metadata) {
@@ -170,5 +170,35 @@ public class AssetService {
         } catch (IllegalArgumentException ignored) {
         }
         return defaultName;
+    }
+
+    private String resolveObjectName(Asset asset) {
+        String storagePath = asset.getStoragePath();
+        if (storagePath == null || storagePath.isBlank()) {
+            return asset.getFileName();
+        }
+
+        try {
+            URI uri = URI.create(storagePath);
+            String path = uri.getPath();
+            if (path == null || path.isBlank()) {
+                return asset.getFileName();
+            }
+
+            String normalizedPath = path.startsWith("/") ? path.substring(1) : path;
+            String bucketPrefix = defaultBucket + "/";
+            if (normalizedPath.startsWith(bucketPrefix) && normalizedPath.length() > bucketPrefix.length()) {
+                return normalizedPath.substring(bucketPrefix.length());
+            }
+
+            int separatorIndex = normalizedPath.indexOf('/');
+            if (separatorIndex >= 0 && separatorIndex < normalizedPath.length() - 1) {
+                return normalizedPath.substring(separatorIndex + 1);
+            }
+
+            return asset.getFileName();
+        } catch (IllegalArgumentException ignored) {
+            return asset.getFileName();
+        }
     }
 }

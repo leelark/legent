@@ -1,0 +1,363 @@
+audit:
+  module: "legent-main"
+  generated_at: "2026-04-24T00:00:00Z"
+  total_issues: 10
+
+  issues:
+    - id: "ISSUE-0001"
+      fix_order: 1
+      priority: "Critical"
+      layer: "Module"
+      module: "shared-security"
+      files:
+        - "shared/legent-security/src/main/java/com/legent/security/config/AsyncConfig.java"
+        - "services/audience-service/src/main/java/com/legent/audience/config/AsyncConfig.java"
+        - "services/automation-service/src/main/java/com/legent/automation/config/AsyncConfig.java"
+        - "services/campaign-service/src/main/java/com/legent/campaign/config/AsyncConfig.java"
+        - "services/deliverability-service/src/main/java/com/legent/deliverability/config/AsyncConfig.java"
+        - "services/delivery-service/src/main/java/com/legent/delivery/config/AsyncConfig.java"
+        - "services/platform-service/src/main/java/com/legent/platform/config/AsyncConfig.java"
+        - "services/tracking-service/src/main/java/com/legent/tracking/config/AsyncConfig.java"
+      issue_type: "Bug"
+      title: "Duplicate Spring bean name collision for AsyncConfig"
+      description: |
+        Multiple modules define a configuration class named AsyncConfig. Because Spring derives the bean name from the class name, these classes all register as asyncConfig when they are component-scanned together. This causes Spring Boot application-context startup to fail before the service can become healthy.
+      technical_details: |
+        - The shared security module defines com.legent.security.config.AsyncConfig.
+        - Several services also define a local AsyncConfig class under their own config package.
+        - Services that scan both their own package tree and com.legent.security end up registering two non-compatible beans with the same generated name.
+        - The result is a ConflictingBeanDefinitionException during context parsing, which prevents the container from starting and immediately blocks health checks.
+        - This is the first hard startup blocker seen in the logs for deliverability, and the same pattern is present in other services that share the security package.
+      impacted_flow: |
+        Application startup for deliverability and any other service that scans the shared security package together with a local AsyncConfig class. This blocks health checks, gateway readiness, and the login path indirectly because the gateway cannot wait on an unhealthy service.
+      root_cause: |
+        Shared and service-local configuration classes use the same simple class name and are discovered through overlapping component scans without explicit bean naming or scan boundaries.
+      fix_recommendation: |
+        - Rename the service-local config class or give it an explicit unique bean name.
+        - Prefer moving shared async configuration into a single shared module and remove duplicate local AsyncConfig definitions.
+        - Restrict component scanning so services do not scan unrelated config packages.
+        - Rebuild one service at a time and validate /actuator/health before bringing up the full stack.
+      dependency_impact: |
+        All services that currently share the same pattern must be checked after the first fix because the same collision can surface in audience, automation, campaign, delivery, platform, and tracking.
+      risk_if_not_fixed: |
+        Startup will continue to fail in one or more services, the containers will remain unhealthy, and the compose dependency chain will keep blocking the gateway and frontend.
+      validation_steps: |
+        - Boot each affected service independently.
+        - Confirm the application context loads without ConflictingBeanDefinitionException.
+        - Confirm /actuator/health returns UP.
+        - Start the full compose stack and verify all dependent containers become healthy.
+
+    - id: "ISSUE-0002"
+      fix_order: 2
+      priority: "Critical"
+      layer: "Config"
+      module: "shared-security"
+      files:
+        - ".env"
+        - "shared/legent-security/src/main/java/com/legent/security/SecurityProperties.java"
+        - "shared/legent-security/src/main/java/com/legent/security/JwtTokenProvider.java"
+      issue_type: "Config"
+      title: "JWT secret value is a placeholder and fails security validation"
+      description: |
+        The environment file provides a short placeholder JWT secret instead of a real 64-character secret. The shared security module explicitly validates that the secret must be configured and at least 64 characters long, so a fresh startup will fail once the security configuration is reached.
+      technical_details: |
+        - SecurityProperties.validate() throws an IllegalStateException when the JWT secret is missing or shorter than 64 characters.
+        - The current .env value is a placeholder string and does not satisfy that validation.
+        - JwtTokenProvider uses the secret to create a signing key, so a weak or placeholder value is not only invalid but also unsafe.
+        - This is a separate startup blocker from the bean collision: once the bean-name issue is fixed, this validation can still stop the service.
+      impacted_flow: |
+        All services that rely on shared JWT authentication, including login, role-based authorization, and any service-to-service authenticated request.
+      root_cause: |
+        A placeholder environment value was committed or left in place even though the application enforces a minimum secret length at runtime.
+      fix_recommendation: |
+        - Replace the placeholder with a real high-entropy secret of at least 64 characters.
+        - Store it in a secrets manager or compose override, not in source control.
+        - Verify that every service using shared security receives the same secret value.
+        - Restart the stack and confirm that the security properties bean initializes successfully.
+      dependency_impact: |
+        Authentication tokens generated before the secret change will become invalid. Any cached sessions or tokens must be cleared and users must log in again.
+      risk_if_not_fixed: |
+        Services can fail startup, or if validation is bypassed, token signing becomes insecure and inconsistent across the stack.
+      validation_steps: |
+        - Set a 64+ character JWT secret.
+        - Restart the stack.
+        - Confirm no IllegalStateException is thrown from SecurityProperties.validate().
+        - Log in successfully and confirm a JWT is issued and accepted by downstream services.
+
+    - id: "ISSUE-0003"
+      fix_order: 3
+      priority: "Critical"
+      layer: "Module"
+      module: "shared-security"
+      files:
+        - "shared/legent-security/src/main/java/com/legent/security/TenantFilter.java"
+        - "shared/legent-security/src/main/java/com/legent/security/JwtAuthenticationFilter.java"
+        - "shared/legent-security/src/main/java/com/legent/security/TenantContext.java"
+      issue_type: "Security"
+      title: "Tenant context can leak across requests and async work"
+      description: |
+        The tenant ThreadLocal is not cleared reliably for every request path. The filter returns early for tenant-free endpoints without entering the clearing block, and the JWT filter writes tenant state into the ThreadLocal without owning cleanup. Because servlet threads are reused, stale tenant state can leak into later requests or background work.
+      technical_details: |
+        - TenantFilter has an early return for tenant-free paths that bypasses the try/finally cleanup path.
+        - JwtAuthenticationFilter writes TenantContext from JWT claims but does not clear it.
+        - TenantTaskDecorator propagates tenant state into async work, which makes any missing cleanup more dangerous because stale context can be inherited by later tasks.
+        - This creates a cross-tenant data-isolation risk if one request leaves stale context behind and a later request reuses the same thread.
+      impacted_flow: |
+        Any tenant-aware endpoint, especially public tracking routes, async jobs, and authenticated service flows that rely on TenantContext for repository filtering or authorization.
+      root_cause: |
+        Thread-local tenant state is treated as request-scoped, but cleanup is conditional and not guaranteed for every execution path.
+      fix_recommendation: |
+        - Clear TenantContext in a finally block for every request path, including tenant-free early returns.
+        - Ensure the JWT filter either participates in the same cleanup contract or never leaves tenant state behind.
+        - Add tests that simulate thread reuse across authenticated and public endpoints.
+        - Validate async tasks also clear thread-local state after execution.
+      dependency_impact: |
+        Any repository or service that reads TenantContext inherits the risk. This includes controllers, async workflows, tracking routes, and any future tenant-aware endpoints.
+      risk_if_not_fixed: |
+        Cross-tenant data exposure, incorrect authorization decisions, and nondeterministic production bugs caused by thread reuse.
+      validation_steps: |
+        - Send authenticated and public requests on the same server thread pool.
+        - Verify TenantContext is empty after each request.
+        - Run concurrency tests that mix tenants and public paths.
+        - Confirm no tenant data appears in the wrong request or async task.
+
+    - id: "ISSUE-0004"
+      fix_order: 4
+      priority: "Critical"
+      layer: "Infra"
+      module: "compose"
+      files:
+        - "docker-compose.yml"
+        - "config/nginx/nginx.conf"
+      issue_type: "Integration"
+      title: "Compose startup graph is over-coupled and blocks the entire stack"
+      description: |
+        The gateway waits for every backend service to be healthy, and the frontend waits for the gateway to be healthy. This creates a hard startup chain where one unhealthy backend prevents the gateway from starting, which in turn prevents the frontend from starting and causes login access to fail with 502.
+      technical_details: |
+        - The gateway service has depends_on entries for all backend services with condition: service_healthy.
+        - The frontend depends on the gateway being healthy before it can start.
+        - A single failing container therefore blocks the full stack, even if the login-critical identity service is already healthy.
+        - This architecture turns one service defect into a system-wide outage.
+      impacted_flow: |
+        Full local startup, gateway availability, login access, and every frontend route served through the gateway.
+      root_cause: |
+        Startup-time health gating is used as a global dependency mechanism instead of only for truly mandatory services.
+      fix_recommendation: |
+        - Split dependencies into mandatory and optional groups.
+        - Let the gateway start without waiting for every non-critical backend.
+        - Let the frontend start independently and handle backend failures at request time.
+        - Use readiness checks for routing decisions instead of blocking container startup for the whole system.
+      dependency_impact: |
+        After decoupling startup, each service still needs a correct health endpoint, but one bad service will no longer prevent the entire application from coming up.
+      risk_if_not_fixed: |
+        The stack will continue to fail as a whole whenever any one backend is unhealthy, making local setup and production-style startup fragile.
+      validation_steps: |
+        - Start a single backend in an unhealthy state and verify the rest of the stack can still start.
+        - Confirm the gateway serves routes that do not require the failed service.
+        - Confirm frontend access remains available even when a non-critical backend is down.
+
+    - id: "ISSUE-0005"
+      fix_order: 5
+      priority: "Critical"
+      layer: "Infra"
+      module: "content-service"
+      files:
+        - "services/content-service/Dockerfile"
+        - "docker-compose.yml"
+      issue_type: "Config"
+      title: "Content service container healthcheck points at the wrong runtime port"
+      description: |
+        The content service Dockerfile probes localhost:8083, but the runtime stack exposes and uses port 8090 for the service. That makes the container appear unhealthy even when the application has actually started, which then blocks any compose dependency that waits for content-service health.
+      technical_details: |
+        - The image metadata and healthcheck are hardcoded to 8083.
+        - The compose runtime maps the content service on 8090.
+        - If the application listens on 8090, the healthcheck never reaches the live process and the container never becomes healthy.
+        - Because the gateway waits for healthy backends, this mismatch can prevent the gateway from starting.
+      impacted_flow: |
+        Local setup, content-service readiness, gateway startup, and any frontend flow that is blocked until the gateway becomes healthy.
+      root_cause: |
+        The Dockerfile healthcheck and port metadata were not aligned with the actual runtime port used by the container and compose.
+      fix_recommendation: |
+        - Align the Dockerfile EXPOSE and HEALTHCHECK port with the actual application port.
+        - Or set the service port explicitly through PORT and use that value consistently in the image and compose.
+        - Rebuild the image and verify the healthcheck succeeds inside the container.
+      dependency_impact: |
+        Any compose dependency that waits on content-service health, especially the gateway, will become unblocked once the healthcheck matches the real runtime port.
+      risk_if_not_fixed: |
+        The container remains unhealthy, the gateway never becomes ready, and the whole stack can be blocked even though the service process is running.
+      validation_steps: |
+        - Start the content service container alone.
+        - Verify the healthcheck returns UP on the actual listening port.
+        - Re-run compose and confirm the gateway is no longer blocked by content-service health.
+
+    - id: "ISSUE-0006"
+      fix_order: 6
+      priority: "High"
+      layer: "BE"
+      module: "content-service"
+      files:
+        - "services/content-service/src/main/java/com/legent/content/controller/AssetController.java"
+        - "services/content-service/src/main/java/com/legent/content/service/AssetService.java"
+      issue_type: "Bug"
+      title: "Asset deletion uses the wrong MinIO object key"
+      description: |
+        Upload stores the real object under a tenant-prefixed object name, but deletion later calls MinIO with only the extracted file name. That means the delete path does not target the original object key, so objects can remain orphaned in storage even though the database row is marked deleted.
+      technical_details: |
+        - AssetController builds objectName as tenantId + "/" + UUID + "_" + originalFilename.
+        - AssetService.uploadToMinio stores the object using that full key.
+        - AssetService.createAsset stores the URL and then extracts only the final path segment into fileName.
+        - deleteAsset later calls deleteFromMinio(asset.getFileName()), which omits the tenant prefix and UUID path component.
+        - The database delete succeeds, but the underlying object in MinIO may not be removed.
+      impacted_flow: |
+        Asset upload/delete flows in the content module and any frontend content-management screen that expects physical file cleanup.
+      root_cause: |
+        The storage key is not persisted separately, so deletion reconstructs the wrong key from a URL-derived filename.
+      fix_recommendation: |
+        - Persist the exact MinIO object key alongside the URL.
+        - Delete using the stored object key instead of the extracted filename.
+        - Backfill any existing asset rows if necessary so old records can be deleted correctly.
+      dependency_impact: |
+        Any downstream cleanup, storage accounting, and duplicate-name handling that depends on accurate deletion must be updated if the object-key model changes.
+      risk_if_not_fixed: |
+        Storage leaks accumulate over time, delete operations appear to succeed while files remain in MinIO, and repeated uploads increase bucket clutter and cost.
+      validation_steps: |
+        - Upload an asset.
+        - Delete it through the API.
+        - Confirm the MinIO object is actually removed.
+        - Confirm the database row and bucket contents stay in sync.
+
+    - id: "ISSUE-0007"
+      fix_order: 7
+      priority: "High"
+      layer: "FE"
+      module: "frontend"
+      files:
+        - "frontend/src/hooks/useApi.ts"
+        - "frontend/src/app/(workspace)/audience/subscribers/page.tsx"
+      issue_type: "Bug"
+      title: "Subscribers page expects a paged object but the hook stores an array"
+      description: |
+        The generic useApi hook unwraps the response before storing it, but the subscribers page still renders as if it had a paged object with content and totalElements fields. That mismatch makes the table and pager render empty or incorrect data even when the backend returns valid results.
+      technical_details: |
+        - useApi calls get() and then stores result.data ?? result.
+        - For paged endpoints, get() already returns a normalized structure.
+        - The subscribers page then reads data.content, data.data.content, and data.totalElements.
+        - If data has already been collapsed into an array, those fields are undefined and the table becomes empty.
+      impacted_flow: |
+        Audience subscribers listing, search, pagination, selection, and CRUD operations in the frontend.
+      root_cause: |
+        The hook and the consuming component disagree on the response shape that should be stored in state.
+      fix_recommendation: |
+        - Make useApi preserve the full paged envelope.
+        - Or update the subscribers page to consume the array shape that the hook actually returns.
+        - Standardize a single response contract for all frontend list screens.
+      dependency_impact: |
+        Any future page that reuses useApi for paged endpoints must follow the same contract or it will repeat the same bug.
+      risk_if_not_fixed: |
+        Users will see empty tables, broken counts, and unusable pagination even though the API is working correctly.
+      validation_steps: |
+        - Load the subscribers page with real paged data.
+        - Confirm rows render.
+        - Confirm total count and pager state are correct.
+        - Test search and next/prev navigation.
+
+    - id: "ISSUE-0008"
+      fix_order: 8
+      priority: "High"
+      layer: "FE"
+      module: "frontend"
+      files:
+        - "frontend/src/lib/auth.ts"
+        - "frontend/src/app/login/page.tsx"
+        - "frontend/src/app/(workspace)/layout.tsx"
+      issue_type: "Bug"
+      title: "JWT claim parsing is missing base64url padding"
+      description: |
+        The JWT parsing helper decodes the payload with atob after replacing URL-safe characters, but it does not add the required base64 padding. Some valid JWT payloads therefore fail to decode, which can make the app treat the signed-in user as anonymous or lose role information during hydration.
+      technical_details: |
+        - JWT payload segments are base64url-encoded and commonly omit padding.
+        - parseJwtClaims decodes the payload without first normalizing the length to a multiple of four.
+        - If decoding fails, the helper returns null.
+        - Login and workspace hydration both depend on this helper, so a parsing failure can corrupt the client-side auth state even when the token itself is valid.
+      impacted_flow: |
+        Login post-processing, workspace rehydration after refresh, role-based UI rendering, and any logic that depends on stored JWT claims.
+      root_cause: |
+        The helper assumes every JWT payload is already base64-padded, which is not guaranteed for standard JWTs.
+      fix_recommendation: |
+        - Normalize the payload length by appending the correct number of '=' characters before calling atob.
+        - Add tests using real JWT examples with and without padding.
+        - Confirm login and refresh flows preserve userId, roles, and tenantId correctly.
+      dependency_impact: |
+        The login page and workspace layout both rely on the helper, so fixing it improves auth hydration across the whole frontend.
+      risk_if_not_fixed: |
+        Users can log in successfully but still appear unauthenticated or lose roles after refresh, causing confusing and intermittent access problems.
+      validation_steps: |
+        - Decode several valid JWTs with different payload lengths.
+        - Refresh the app after login and confirm the user stays signed in.
+        - Verify roles are preserved across page reloads.
+
+    - id: "ISSUE-0009"
+      fix_order: 9
+      priority: "Medium"
+      layer: "FE"
+      module: "frontend"
+      files:
+        - "frontend/src/lib/api-client.ts"
+        - "frontend/src/app/login/page.tsx"
+      issue_type: "Design"
+      title: "Global 401 redirect masks login errors"
+      description: |
+        The Axios response interceptor redirects the browser to /login on every 401 response. That is problematic for the login flow itself because a bad password or other auth failure should be shown inline, not immediately converted into a route redirect that hides the actual error message.
+      technical_details: |
+        - The interceptor runs for all requests, including the login request.
+        - A 401 from /auth/login can trigger a redirect before the login page has a chance to surface the backend error text.
+        - This makes it harder to distinguish invalid credentials from a genuine session-expiration event.
+        - It also makes debugging harder because the visible symptom is a route bounce instead of the true backend response.
+      impacted_flow: |
+        Login error handling and any authenticated page that relies on 401 semantics for user feedback.
+      root_cause: |
+        A single global unauthorized handler is being used for both session-expiration flows and credential-validation flows.
+      fix_recommendation: |
+        - Exempt auth endpoints from the global redirect.
+        - Or allow callers to opt out of redirect behavior for requests that intentionally expect 401 responses.
+        - Show the backend error message on the login form when credentials are invalid.
+      dependency_impact: |
+        Authentication UX and error handling become more consistent once login requests are excluded from the global redirect policy.
+      risk_if_not_fixed: |
+        Users see confusing redirects instead of actionable login errors, which makes the login experience appear broken even when the backend returns a meaningful message.
+      validation_steps: |
+        - Submit an invalid password.
+        - Confirm the form stays on the login page and displays the backend message.
+        - Confirm authenticated pages still redirect on real session expiration.
+
+    - id: "ISSUE-0010"
+      fix_order: 10
+      priority: "Medium"
+      layer: "Infra"
+      module: "frontend"
+      files:
+        - "frontend/Dockerfile"
+      issue_type: "Config"
+      title: "Frontend healthcheck uses an unstable hostname target"
+      description: |
+        The frontend Docker healthcheck probes http://$(hostname):3000. Inside a container, the hostname value is not a stable service target and may not resolve reliably. That can mark the container unhealthy even when the Next.js server is actually serving traffic.
+      technical_details: |
+        - The check depends on hostname DNS resolution rather than a direct loopback probe.
+        - The container may be reachable on localhost while the hostname value is not resolvable.
+        - An incorrect health status can confuse compose orchestration and local debugging.
+      impacted_flow: |
+        Frontend container health reporting and any compose logic that watches frontend health.
+      root_cause: |
+        The healthcheck is tied to container hostname resolution instead of the local server endpoint.
+      fix_recommendation: |
+        - Change the probe to localhost.
+        - Keep the healthcheck minimal and deterministic.
+        - Rebuild the image and verify the container reports healthy consistently.
+      dependency_impact: |
+        Any local orchestration that uses frontend health as a readiness signal will become more reliable after the healthcheck is fixed.
+      risk_if_not_fixed: |
+        The frontend may be reported unhealthy intermittently, which complicates startup debugging and can mask real issues.
+      validation_steps: |
+        - Start the frontend container by itself.
+        - Confirm the healthcheck passes repeatedly.
+        - Restart the container multiple times and confirm the health state stays stable.

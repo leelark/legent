@@ -17,8 +17,9 @@ export function parseJwtClaims(token: string): JwtClaims | null {
       return null;
     }
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
     const json = decodeURIComponent(
-      atob(normalized)
+      atob(padded)
         .split('')
         .map((char) => {
           const code = char.charCodeAt(0).toString(16).padStart(2, '0');

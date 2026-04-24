@@ -6,7 +6,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
-@Configuration
+@Configuration("trackingAsyncConfig")
 public class AsyncConfig {
 
     @Bean(name = "trackingExecutor")

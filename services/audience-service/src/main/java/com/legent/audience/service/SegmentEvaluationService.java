@@ -48,9 +48,7 @@ public class SegmentEvaluationService {
     private final SegmentEventPublisher eventPublisher;
     private final EntityManager entityManager;
     private final JdbcTemplate jdbcTemplate;
-
-    @org.springframework.context.annotation.Lazy
-    private final SegmentEvaluationService self;
+    private final org.springframework.beans.factory.ObjectProvider<SegmentEvaluationService> selfProvider;
 
     private static final Duration COUNT_CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_SEGMENT_COUNT_TTL_SECONDS);
 
@@ -161,7 +159,7 @@ public class SegmentEvaluationService {
             try {
                 TenantContext.setTenantId(seg.getTenantId());
                 String segmentId = java.util.Objects.requireNonNull(seg.getId(), "Segment ID cannot be null");
-                self.recompute(segmentId, seg.getTenantId());
+                selfProvider.getObject().recompute(segmentId, seg.getTenantId());
             } catch (Exception e) {
                 log.error("Failed to recompute segment {}: {}", seg.getId(), e.getMessage());
             } finally {

@@ -24,6 +24,13 @@ function resolveApiUrl(url: string | undefined) {
   return `${API_BASE_URL}/api/v1${normalizedUrl}`;
 }
 
+function isAuthEndpoint(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  return /\/api\/v1\/auth(?:\/|$)/.test(url);
+}
+
 /**
  * Pre-configured Axios instance for API calls.
  * Automatically injects tenant and auth headers.
@@ -65,7 +72,7 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    if (error.response?.status === 401 && !isAuthEndpoint(error.config?.url)) {
       // Handle unauthorized — redirect to login
       if (typeof window !== 'undefined') {
         window.location.href = '/login';

@@ -7,6 +7,7 @@ Rules:
 
 * NO explanations, comments, logs, or text
 * DO NOT skip or partially fix any issue untill and unless it is fixed and have been iimplemented properly
+* PERFORM DIRECT Code IMPLEMENTATION or fix 
 
 Execution:
 
@@ -26,6 +27,5 @@ Ensure:
 * Ports, URLs, datasources, secrets aligned
 * Docker and Kubernetes fully working
 
-Constraint:
 
-* PERFORM DIRECT IN-PLACE IMPLEMENTATION ONLY
+--------------------------------

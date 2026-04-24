@@ -41,6 +41,10 @@ export default function SubscribersPage() {
   const { data, loading, refetch } = useApi<any>(
     `/api/v1/subscribers?page=${page}&size=20${debouncedSearch ? `&query=${debouncedSearch}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`
   );
+  const rows = data?.content ?? [];
+  const totalElements = data?.totalElements ?? 0;
+  const isFirstPage = data?.first ?? true;
+  const isLastPage = data?.last ?? true;
 
   const columns = [
     {
@@ -187,7 +191,7 @@ export default function SubscribersPage() {
       <Card className="!p-0 overflow-hidden">
         <Table
           columns={columns}
-          data={data?.content || data?.data?.content || []}
+          data={rows}
           rowKey={(row: any) => row.id}
           emptyMessage="No subscribers found"
           loading={loading}
@@ -196,10 +200,10 @@ export default function SubscribersPage() {
           onSelectionChange={setSelected}
         />
         <div className="p-4 border-t border-border-default flex justify-between items-center text-sm text-content-secondary">
-          <span>Total: {data?.totalElements ?? data?.data?.totalElements ?? 0}</span>
+          <span>Total: {totalElements}</span>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" disabled={data?.first ?? data?.data?.first ?? true} onClick={() => setPage(p => p - 1)}>Prev</Button>
-            <Button variant="secondary" size="sm" disabled={data?.last ?? data?.data?.last ?? true} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button variant="secondary" size="sm" disabled={isFirstPage} onClick={() => setPage(p => p - 1)}>Prev</Button>
+            <Button variant="secondary" size="sm" disabled={isLastPage} onClick={() => setPage(p => p + 1)}>Next</Button>
           </div>
         </div>
       </Card>
