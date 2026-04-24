@@ -45,4 +45,7 @@ public class SendBatch extends TenantAwareEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String payload;
+
+    @Column(name = "retry_count")
+    private Integer retryCount = 0;
 }

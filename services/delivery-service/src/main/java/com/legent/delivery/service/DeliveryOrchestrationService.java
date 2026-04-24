@@ -91,8 +91,14 @@ public class DeliveryOrchestrationService {
             logEntry.setCampaignId(campaignId);
             logEntry.setSubscriberId(subscriberId);
             logEntry.setEmail(email);
+            logEntry.setSubject(subject);
+            logEntry.setHtmlBody(htmlBody);
             logEntry.setAttemptCount(0);
             logEntry = messageLogRepository.save(logEntry);
+        } else {
+            // Update subject and htmlBody if they changed (for retries)
+            logEntry.setSubject(subject);
+            logEntry.setHtmlBody(htmlBody);
         }
 
         try {
@@ -177,12 +183,15 @@ public class DeliveryOrchestrationService {
                 continue;
             }
 
-            Map<String, Object> payload = Map.of(
-                "email", logEntry.getEmail(),
-                "subscriberId", logEntry.getSubscriberId() != null ? logEntry.getSubscriberId() : "",
-                "campaignId", logEntry.getCampaignId() != null ? logEntry.getCampaignId() : "",
-                "messageId", logEntry.getMessageId()
-            );
+            // Build complete payload with all required fields for retry
+            Map<String, Object> payload = new java.util.HashMap<>();
+            payload.put("email", logEntry.getEmail());
+            payload.put("subscriberId", logEntry.getSubscriberId() != null ? logEntry.getSubscriberId() : "");
+            payload.put("campaignId", logEntry.getCampaignId() != null ? logEntry.getCampaignId() : "");
+            payload.put("messageId", logEntry.getMessageId());
+            // Include subject and htmlBody from original request - fetch from DB or cache
+            payload.put("subject", logEntry.getSubject() != null ? logEntry.getSubject() : "Legent Campaign");
+            payload.put("htmlBody", logEntry.getHtmlBody() != null ? logEntry.getHtmlBody() : "<html><body>Email content</body></html>");
             try {
                 // Call through self proxy to ensure @Transactional boundary is applied.
                 self.processSendRequest(payload, logEntry.getTenantId(), logEntry.getMessageId());

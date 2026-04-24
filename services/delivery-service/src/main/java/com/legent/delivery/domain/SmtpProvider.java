@@ -26,6 +26,12 @@ public class SmtpProvider extends TenantAwareEntity {
     @Column(name = "password_hash")
     private String passwordHash;
 
+    @Column(name = "encrypted_password")
+    private String encryptedPassword;
+
+    @Column(name = "encryption_iv")
+    private String encryptionIv;
+
     @Column(name = "is_active")
     private boolean isActive = true;
 

@@ -95,6 +95,7 @@ public class ConfigService {
 
         invalidateCache(tenantId, request.getConfigKey());
         publishConfigUpdatedEvent(tenantId, request.getConfigKey(), "CREATED");
+        log.info("Cache invalidated for tenant {} config {}", tenantId, request.getConfigKey());
 
         return configMapper.toResponse(saved);
     }
@@ -112,8 +113,10 @@ public class ConfigService {
         SystemConfig saved = configRepository.save(existing);
         log.info("Config updated: key={}, id={}", saved.getConfigKey(), id);
 
-        invalidateCache(existing.getTenantId(), existing.getConfigKey());
-        publishConfigUpdatedEvent(existing.getTenantId(), existing.getConfigKey(), "UPDATED");
+        String tenantIdForCache = existing.getTenantId();
+        invalidateCache(tenantIdForCache, existing.getConfigKey());
+        publishConfigUpdatedEvent(tenantIdForCache, existing.getConfigKey(), "UPDATED");
+        log.info("Cache invalidated for tenant {} config {}", tenantIdForCache, existing.getConfigKey());
 
         return configMapper.toResponse(saved);
     }
@@ -126,12 +129,25 @@ public class ConfigService {
         configRepository.save(existing);
         log.info("Config soft-deleted: key={}, id={}", existing.getConfigKey(), id);
 
-        invalidateCache(existing.getTenantId(), existing.getConfigKey());
+        String tenantIdForCache = existing.getTenantId();
+        invalidateCache(tenantIdForCache, existing.getConfigKey());
     }
 
     private void invalidateCache(String tenantId, String configKey) {
-        String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_CONFIG_PREFIX, configKey);
+        String cacheKey = generateTenantCacheKey(tenantId, configKey);
         cacheService.delete(cacheKey);
+        // Also evict global cache variant
+        if (tenantId != null) {
+            String globalCacheKey = generateTenantCacheKey(null, configKey);
+            cacheService.delete(globalCacheKey);
+        }
+    }
+
+    private String generateTenantCacheKey(String tenantId, String configKey) {
+        if (tenantId == null) {
+            return AppConstants.CACHE_CONFIG_PREFIX + "global:" + configKey;
+        }
+        return AppConstants.CACHE_CONFIG_PREFIX + tenantId + ":" + configKey;
     }
 
     private void publishConfigUpdatedEvent(String tenantId, String configKey, String action) {

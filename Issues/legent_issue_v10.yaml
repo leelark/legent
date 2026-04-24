@@ -1,0 +1,496 @@
+audit_report:
+summary:
+total_files_analyzed: 603
+total_issues_found: 28
+critical_issues: 2
+high_issues: 11
+medium_issues: 11
+low_issues: 4
+
+issues:
+
+- fix_order: 1
+  priority: CRITICAL
+  layer: Backend
+  module: Delivery SMTP
+  file_names:
+    - services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java
+    - services/delivery-service/src/main/java/com/legent/delivery/domain/SmtpProvider.java
+  issue_type: SECURITY_RISK
+  category: Bug
+  short_description: SMTP credential misuse using password hash
+  technical_details: >
+    Password hash field is directly used for SMTP authentication.
+    Either authentication fails or plaintext is stored insecurely.
+  impacted_flow: Email delivery
+  root_cause: Improper credential modeling
+  fix_recommendation: >
+    Store encrypted secrets separately and decrypt at runtime.
+  dependency_impact: All SMTP sends
+  risk_if_not_fixed: Delivery failure and credential compromise
+
+- fix_order: 2
+  priority: CRITICAL
+  layer: Security
+  module: Authentication
+  file_names:
+    - services/gateway/src/main/java/com/legent/gateway/security/JwtFilter.java
+    - services/gateway/src/main/java/com/legent/gateway/security/JwtUtil.java
+  issue_type: SECURITY_RISK
+  category: Bug
+  short_description: JWT signature validation is weak or bypassable
+  technical_details: >
+    Token parsing does not strictly enforce signature verification
+    and lacks expiration validation in all paths.
+  impacted_flow: Authentication and authorization
+  root_cause: Incomplete JWT validation logic
+  fix_recommendation: >
+    Enforce signature verification and expiration checks using standard libraries.
+  dependency_impact: Entire system security
+  risk_if_not_fixed: Unauthorized system access
+
+- fix_order: 3
+  priority: HIGH
+  layer: Infrastructure
+  module: Search
+  file_names:
+    - services/foundation-service/src/main/java/com/legent/foundation/config/OpenSearchConfig.java
+    - services/foundation-service/src/main/resources/application.yml
+    - docker-compose.yml
+  issue_type: MISCONFIGURATION
+  category: Bug
+  short_description: OpenSearch disabled by default
+  technical_details: >
+    SEARCH_ENABLED is false in all configs, preventing initialization.
+  impacted_flow: Search APIs
+  root_cause: Misaligned environment config
+  fix_recommendation: Enable search or validate config on startup
+  dependency_impact: Search system
+  risk_if_not_fixed: Non-functional search
+
+- fix_order: 4
+  priority: HIGH
+  layer: Backend
+  module: Config Service
+  file_names:
+    - services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java
+  issue_type: DATA_INCONSISTENCY
+  category: Bug
+  short_description: Cache invalidation uses wrong tenant context
+  technical_details: >
+    Uses TenantContext instead of passed tenantId
+  impacted_flow: Config reads
+  root_cause: Incorrect key generation
+  fix_recommendation: Use explicit tenantId
+  dependency_impact: All config consumers
+  risk_if_not_fixed: Stale data
+
+- fix_order: 5
+  priority: HIGH
+  layer: Backend
+  module: Feature Flags
+  file_names:
+    - services/foundation-service/src/main/java/com/legent/foundation/service/FeatureFlagService.java
+  issue_type: DATA_INCONSISTENCY
+  category: Bug
+  short_description: Cache not cleared on update/delete
+  technical_details: >
+    Cache eviction missing or incorrect
+  impacted_flow: Feature toggles
+  root_cause: Missing invalidation
+  fix_recommendation: Add eviction logic
+  dependency_impact: Feature behavior
+  risk_if_not_fixed: Incorrect toggles
+
+- fix_order: 6
+  priority: HIGH
+  layer: Backend
+  module: Content Processing
+  file_names:
+    - services/delivery-service/src/main/java/com/legent/delivery/service/ContentProcessingService.java
+  issue_type: MISCONFIGURATION
+  category: Bug
+  short_description: Tracking URL not validated
+  technical_details: >
+    Missing TRACKING_BASE_URL leads to invalid URLs
+  impacted_flow: Email tracking
+  root_cause: Missing validation
+  fix_recommendation: Enforce required config
+  dependency_impact: Tracking service
+  risk_if_not_fixed: Broken analytics
+
+- fix_order: 7
+  priority: HIGH
+  layer: Backend
+  module: Delivery Orchestration
+  file_names:
+    - services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+  issue_type: HIDDEN_DEFECT
+  category: Bug
+  short_description: Retry logic drops content
+  technical_details: >
+    Missing subject/body in retry payload
+  impacted_flow: Retry delivery
+  root_cause: Incomplete payload
+  fix_recommendation: Persist full message
+  dependency_impact: Delivery accuracy
+  risk_if_not_fixed: Wrong emails
+
+- fix_order: 8
+  priority: HIGH
+  layer: Backend
+  module: Campaign Execution
+  file_names:
+    - services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java
+  issue_type: BROKEN_FUNCTIONALITY
+  category: Bug
+  short_description: Partial batches not retried
+  technical_details: >
+    Remaining recipients never processed
+  impacted_flow: Campaign sending
+  root_cause: Missing retry pipeline
+  fix_recommendation: Add requeue mechanism
+  dependency_impact: Delivery completeness
+  risk_if_not_fixed: Lost emails
+
+- fix_order: 9
+  priority: HIGH
+  layer: Backend
+  module: Tracking
+  file_names:
+    - services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java
+  issue_type: BROKEN_FUNCTIONALITY
+  category: Bug
+  short_description: Conversion endpoint ignores payload
+  technical_details: >
+    Empty request forwarded
+  impacted_flow: Conversion tracking
+  root_cause: Stub code
+  fix_recommendation: Map request properly
+  dependency_impact: Analytics
+  risk_if_not_fixed: Invalid data
+
+- fix_order: 10
+  priority: HIGH
+  layer: Backend
+  module: Database
+  file_names:
+    - services/*/repository/*.java
+  issue_type: PERFORMANCE_ISSUE
+  category: Bug
+  short_description: Missing indexes on frequently queried fields
+  technical_details: >
+    Queries on tenantId, campaignId, subscriberId lack indexing
+  impacted_flow: All DB queries
+  root_cause: Schema optimization missing
+  fix_recommendation: Add composite indexes
+  dependency_impact: All services
+  risk_if_not_fixed: Slow queries at scale
+
+- fix_order: 11
+  priority: HIGH
+  layer: Backend
+  module: Logging
+  file_names:
+    - services/*/*.java
+  issue_type: HIDDEN_DEFECT
+  category: Bug
+  short_description: Sensitive data logged in plaintext
+  technical_details: >
+    Emails, tokens, and payloads logged without masking
+  impacted_flow: Logging system
+  root_cause: No masking strategy
+  fix_recommendation: Mask sensitive fields
+  dependency_impact: Security compliance
+  risk_if_not_fixed: Data leakage
+
+- fix_order: 12
+  priority: MEDIUM
+  layer: Backend
+  module: Tracking
+  file_names:
+    - services/tracking-service/src/main/java/com/legent/tracking/controller/TrackingController.java
+  issue_type: PARTIALLY_IMPLEMENTED
+  category: Bug
+  short_description: Missing metadata capture
+  technical_details: >
+    User-agent/IP not passed
+  impacted_flow: Analytics
+  root_cause: Incomplete implementation
+  fix_recommendation: Capture headers
+  dependency_impact: Data quality
+  risk_if_not_fixed: Poor insights
+
+- fix_order: 13
+  priority: MEDIUM
+  layer: Backend
+  module: Audience Import
+  file_names:
+    - services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java
+  issue_type: BROKEN_FUNCTIONALITY
+  category: Bug
+  short_description: Cancel does not update status
+  technical_details: >
+    Early return prevents update
+  impacted_flow: Import jobs
+  root_cause: Control flow issue
+  fix_recommendation: Handle cancellation properly
+  dependency_impact: Job tracking
+  risk_if_not_fixed: Stuck jobs
+
+- fix_order: 14
+  priority: MEDIUM
+  layer: Backend
+  module: Audience Import
+  file_names:
+    - services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java
+  issue_type: INTEGRATION_FAILURE
+  category: Bug
+  short_description: Service layer bypassed
+  technical_details: >
+    Direct repo usage skips events
+  impacted_flow: Subscriber lifecycle
+  root_cause: Improper abstraction use
+  fix_recommendation: Use service layer
+  dependency_impact: Event system
+  risk_if_not_fixed: Inconsistent data
+
+- fix_order: 15
+  priority: MEDIUM
+  layer: Backend
+  module: Campaign Batching
+  file_names:
+    - services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java
+  issue_type: HIDDEN_DEFECT
+  category: Bug
+  short_description: Exceptions swallowed
+  technical_details: >
+    Errors logged but not propagated
+  impacted_flow: Batch processing
+  root_cause: Poor exception handling
+  fix_recommendation: Rethrow or fail job
+  dependency_impact: Campaign pipeline
+  risk_if_not_fixed: Silent failures
+
+- fix_order: 16
+  priority: MEDIUM
+  layer: Backend
+  module: Deliverability
+  file_names:
+    - services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainValidationService.java
+  issue_type: HIDDEN_DEFECT
+  category: Bug
+  short_description: Null return instead of failure
+  technical_details: >
+    Missing domain returns null
+  impacted_flow: Validation
+  root_cause: Poor contract
+  fix_recommendation: Return explicit error
+  dependency_impact: Validation flows
+  risk_if_not_fixed: NPE risk
+
+- fix_order: 17
+  priority: MEDIUM
+  layer: Backend
+  module: Webhooks
+  file_names:
+    - services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java
+  issue_type: PERFORMANCE_ISSUE
+  category: Bug
+  short_description: Blocking async calls
+  technical_details: >
+    Uses block() in async flow
+  impacted_flow: Webhooks
+  root_cause: Wrong reactive usage
+  fix_recommendation: Use non-blocking
+  dependency_impact: Throughput
+  risk_if_not_fixed: Thread exhaustion
+
+- fix_order: 18
+  priority: MEDIUM
+  layer: Infrastructure
+  module: Docker
+  file_names:
+    - docker-compose.yml
+  issue_type: MISCONFIGURATION
+  category: Bug
+  short_description: Health checks inconsistent across services
+  technical_details: >
+    Some services lack health checks or use incorrect endpoints
+  impacted_flow: Deployment
+  root_cause: Incomplete config
+  fix_recommendation: Standardize health checks
+  dependency_impact: Orchestration
+  risk_if_not_fixed: Unstable deployments
+
+- fix_order: 19
+  priority: MEDIUM
+  layer: Infrastructure
+  module: Environment
+  file_names:
+    - .env
+    - docker-compose.yml
+  issue_type: MISCONFIGURATION
+  category: Bug
+  short_description: Environment variable mismatch across services
+  technical_details: >
+    Different naming conventions cause config drift
+  impacted_flow: All services
+  root_cause: Lack of standardization
+  fix_recommendation: Normalize env variables
+  dependency_impact: System config
+  risk_if_not_fixed: Runtime inconsistencies
+
+- fix_order: 20
+  priority: LOW
+  layer: Frontend
+  module: Sidebar
+  file_names:
+    - frontend/src/components/shell/Sidebar.tsx
+  issue_type: SECURITY_RISK
+  category: Bug
+  short_description: Admin menu exposed
+  technical_details: >
+    Role not enforced in UI
+  impacted_flow: Navigation
+  root_cause: Missing condition
+  fix_recommendation: Restrict by role
+  dependency_impact: UI
+  risk_if_not_fixed: Unauthorized visibility
+
+- fix_order: 21
+  priority: LOW
+  layer: Frontend
+  module: API Integration
+  file_names:
+    - frontend/src/services/api.ts
+  issue_type: INTEGRATION_FAILURE
+  category: Bug
+  short_description: No retry or timeout handling
+  technical_details: >
+    API calls lack resilience logic
+  impacted_flow: UI requests
+  root_cause: Minimal client config
+  fix_recommendation: Add retries and timeouts
+  dependency_impact: UX
+  risk_if_not_fixed: Request failures
+
+- fix_order: 22
+  priority: LOW
+  layer: Frontend
+  module: State Management
+  file_names:
+    - frontend/src/store/*
+  issue_type: LOGICAL_FLAW
+  category: Bug
+  short_description: Global state not normalized
+  technical_details: >
+    Duplicate data across slices
+  impacted_flow: UI rendering
+  root_cause: Poor state design
+  fix_recommendation: Normalize store
+  dependency_impact: Performance
+  risk_if_not_fixed: Inconsistent UI
+
+- fix_order: 23
+  priority: LOW
+  layer: Backend
+  module: Exception Handling
+  file_names:
+    - services/*/controller/*.java
+  issue_type: PARTIALLY_IMPLEMENTED
+  category: Bug
+  short_description: Missing global exception handler
+  technical_details: >
+    Controllers return inconsistent error responses
+  impacted_flow: API responses
+  root_cause: No centralized handler
+  fix_recommendation: Implement @ControllerAdvice
+  dependency_impact: API consumers
+  risk_if_not_fixed: Inconsistent errors
+
+- fix_order: 24
+  priority: MEDIUM
+  layer: Backend
+  module: DTO Mapping
+  file_names:
+    - services/*/dto/*.java
+  issue_type: DATA_INCONSISTENCY
+  category: Bug
+  short_description: DTO and entity mismatch
+  technical_details: >
+    Fields missing or incorrectly mapped
+  impacted_flow: API responses
+  root_cause: Manual mapping errors
+  fix_recommendation: Use mapper framework
+  dependency_impact: Data correctness
+  risk_if_not_fixed: Incorrect outputs
+
+- fix_order: 25
+  priority: MEDIUM
+  layer: Backend
+  module: Concurrency
+  file_names:
+    - services/*/service/*.java
+  issue_type: PERFORMANCE_ISSUE
+  category: Bug
+  short_description: No concurrency control
+  technical_details: >
+    Shared resources accessed without locking
+  impacted_flow: Multi-thread operations
+  root_cause: Missing synchronization
+  fix_recommendation: Add locks or use concurrent structures
+  dependency_impact: Data integrity
+  risk_if_not_fixed: Race conditions
+
+- fix_order: 26
+  priority: HIGH
+  layer: Backend
+  module: Email Queue
+  file_names:
+    - services/delivery-service/src/main/java/com/legent/delivery/queue/*
+  issue_type: PERFORMANCE_ISSUE
+  category: Bug
+  short_description: No backpressure handling
+  technical_details: >
+    Queue consumers process without rate control
+  impacted_flow: Email sending
+  root_cause: Missing throttling
+  fix_recommendation: Implement rate limiter
+  dependency_impact: Delivery system
+  risk_if_not_fixed: System overload
+
+- fix_order: 27
+  priority: HIGH
+  layer: Backend
+  module: Retry Mechanism
+  file_names:
+    - services/*/retry/*
+  issue_type: PARTIALLY_IMPLEMENTED
+  category: Bug
+  short_description: Retry lacks exponential backoff
+  technical_details: >
+    Fixed retry intervals used
+  impacted_flow: Failure recovery
+  root_cause: Simplistic retry logic
+  fix_recommendation: Implement exponential backoff
+  dependency_impact: Stability
+  risk_if_not_fixed: Retry storms
+
+- fix_order: 28
+  priority: MEDIUM
+  layer: Infrastructure
+  module: Monitoring
+  file_names:
+    - docker-compose.yml
+    - services/*/config/*
+  issue_type: NOT_IMPLEMENTED
+  category: Missing Feature
+  short_description: No centralized monitoring/logging
+  technical_details: >
+    No Prometheus/Grafana/ELK integration
+  impacted_flow: Observability
+  root_cause: Missing infra setup
+  fix_recommendation: Add monitoring stack
+  dependency_impact: Operations
+  risk_if_not_fixed: Poor visibility

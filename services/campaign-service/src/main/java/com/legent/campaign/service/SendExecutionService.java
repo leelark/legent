@@ -14,14 +14,17 @@ import com.legent.kafka.producer.EventPublisher;
 import com.legent.kafka.model.EventEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-
+/**
+ * Service for executing send batches.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-
+@EnableScheduling
 public class SendExecutionService {
 
     private final SendBatchRepository batchRepository;
@@ -134,5 +137,41 @@ public class SendExecutionService {
         }
 
         throw new RuntimeException("Batch " + batchId + " not found after 5 retries");
+    }
+
+    /**
+     * Scheduled job to retry PARTIAL batches.
+     * Runs every 5 minutes to requeue partial batches for processing.
+     */
+    @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 300000)
+    @Transactional
+    public void retryPartialBatches() {
+        List<SendBatch> partialBatches = batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL);
+        log.info("Found {} PARTIAL batches to retry", partialBatches.size());
+
+        for (SendBatch batch : partialBatches) {
+            try {
+                // Reset status to PENDING so it can be picked up again
+                batch.setStatus(SendBatch.BatchStatus.PENDING);
+                batch.setRetryCount(batch.getRetryCount() != null ? batch.getRetryCount() + 1 : 1);
+                batchRepository.save(batch);
+
+                // Publish batch created event to trigger reprocessing
+                EventEnvelope<Map<String, Object>> retryEvent = EventEnvelope.wrap(
+                        AppConstants.TOPIC_BATCH_CREATED, batch.getTenantId(), "campaign-service",
+                        Map.of(
+                            "batchId", batch.getId(),
+                            "jobId", batch.getJobId(),
+                            "campaignId", batch.getCampaignId(),
+                            "retry", true,
+                            "retryCount", batch.getRetryCount()
+                        )
+                );
+                eventPublisher.publish(AppConstants.TOPIC_BATCH_CREATED, retryEvent);
+                log.info("Requeued PARTIAL batch {} for retry (attempt {})", batch.getId(), batch.getRetryCount());
+            } catch (Exception e) {
+                log.error("Failed to requeue PARTIAL batch {} for retry", batch.getId(), e);
+            }
+        }
     }
 }

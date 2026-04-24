@@ -49,4 +49,10 @@ public class MessageLog extends BaseEntity {
 
     @Column(name = "provider_response", columnDefinition = "TEXT")
     private String providerResponse;
+
+    @Column(name = "subject")
+    private String subject;
+
+    @Column(name = "html_body", columnDefinition = "TEXT")
+    private String htmlBody;
 }

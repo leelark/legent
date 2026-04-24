@@ -28,4 +28,249 @@ Ensure:
 * Docker and Kubernetes fully working
 
 
---------------------------------
+--------------------------------v2--------------
+Act as Senior Spring Boot + DevOps + Kubernetes Architect.
+
+Fix ALL issues from input file in strict order:
+P0 → P1 → others → by fix_order.
+
+Rules:
+
+* NO explanations, comments, logs, or text
+* DO NOT skip or partially fix any issue until it is fully fixed
+* PERFORM DIRECT code implementation/fix
+
+Execution:
+
+* Apply fixes across ALL affected files
+* Update dependent files
+* Remove duplication, conflicts, hardcoding
+
+Enforce:
+
+* Single source of truth (configs, env, ports)
+* Environment variables ONLY
+* Consistent configs across Spring, Docker
+
+Ensure:
+
+* All services start successfully
+* All containers are healthy
+* Gateway routing works
+* Login works end-to-end
+
+After fixes (do Not Stop):
+
+* Re-analyze entire codebase
+* Check build, startup, docker, login, APIs
+
+If ANY issue remains:
+
+* Fix → Re-check → Repeat
+
+There should be 
+
+* ZERO errors
+* ZERO unhealthy services
+* ZERO login/API failures
+
+Never stop , keep fixing code 
+
+
+-----------------------------vo-----------------------
+Act as a Principal Software Architect, Senior Code Auditor, and Distributed Systems Expert.
+
+Your task is to perform a COMPLETE, DEEP, END-TO-END AUDIT of the entire codebase across ALL files, layers, and configurations.
+
+This is a PRODUCTION-GRADE audit. You must identify ALL explicit AND hidden issues. No assumption of correctness is allowed.
+
+═══════════════════════════════
+🔴 CORE MANDATE (NON-NEGOTIABLE)
+═══════════════════════════════
+
+- Analyze EVERY file individually (NO skipping under any condition)
+- Maintain a FILE COVERAGE CHECK internally before final output
+- Perform STRICT MULTI-PASS ANALYSIS:
+
+  PASS 1 → Syntax, structure, compile/runtime risks  
+  PASS 2 → Logic, algorithms, and correctness  
+  PASS 3 → Cross-file dependencies and data flow  
+  PASS 4 → Architecture, design, and layering  
+  PASS 5 → Infrastructure, deployment, and runtime behavior  
+  PASS 6 → Security and performance  
+
+- If a file appears correct → VALIDATE deeply (do not assume)
+- Identify CASCADING and CROSS-LAYER issues explicitly
+- Detect PARTIAL implementations and HIDDEN defects
+- DO NOT ignore “minor” issues — include EVERYTHING
+
+═══════════════════════════════
+🔍 SCOPE (COVER 100%)
+═══════════════════════════════
+
+1. Code-Level:
+   - Syntax errors, null risks, edge cases
+   - Dead/unreachable code
+   - Exception handling gaps
+   - Logging issues
+
+2. Algorithm & Logic:
+   - Incorrect logic or assumptions
+   - Inefficient algorithms (time/space)
+   - Broken flows or missing branches
+
+3. Functional Completeness:
+   - Missing features
+   - Stub/placeholder code
+   - Incomplete implementations
+
+4. Architecture & Design:
+   - SOLID violations
+   - Tight coupling / poor modularity
+   - Layer leakage
+
+5. Data Flow & Mapping:
+   - DTO/entity mismatches
+   - Serialization/deserialization issues
+   - Contract inconsistencies
+
+6. Frontend:
+   - State management issues
+   - API integration problems
+   - UX-functional gaps
+
+7. Backend:
+   - Controller/service/repository flaws
+   - Validation gaps
+   - Business logic inconsistency
+
+8. Database:
+   - Schema issues
+   - Missing constraints/indexes
+   - Query inefficiencies
+
+9. Integration:
+   - API/service communication failures
+   - Event/data pipeline issues
+
+10. Infrastructure & DevOps:
+   - Docker/K8s misconfigurations
+   - Env/config issues
+   - Deployment/runtime failures
+
+11. Dependencies:
+   - Missing/incorrect versions
+   - Vulnerable or unused libraries
+
+12. Security:
+   - Auth/authz flaws
+   - Injection risks
+   - Sensitive data exposure
+
+13. Performance & Scalability:
+   - Bottlenecks
+   - Blocking operations
+   - Non-scalable design
+
+14. Execution Failures:
+   - Build failures
+   - Runtime crashes
+   - Incorrect outputs
+
+═══════════════════════════════
+⚠️ ISSUE TYPES (MANDATORY TAGGING)
+═══════════════════════════════
+
+Each issue MUST be categorized as one of:
+
+- NOT_IMPLEMENTED
+- PARTIALLY_IMPLEMENTED
+- INCORRECT_IMPLEMENTATION
+- BROKEN_FUNCTIONALITY
+- MISCONFIGURATION
+- LOGICAL_FLAW
+- INTEGRATION_FAILURE
+- DATA_INCONSISTENCY
+- PERFORMANCE_ISSUE
+- SECURITY_RISK
+- BUILD_FAILURE
+- HIDDEN_DEFECT
+
+═══════════════════════════════
+🧠 ANALYSIS RULES
+═══════════════════════════════
+
+- Do NOT merge multiple issues into one row
+- Each row = EXACTLY ONE issue
+- Maintain strict FIX ORDER:
+  Foundation → Core logic → Integration → UI → Optimization
+
+- Explicitly mention:
+  - Dependency chains
+  - Cascading impact
+  - Cross-file references
+
+- Avoid generic statements — everything must be technically precise
+- Validate implementation correctness, not just presence
+
+═══════════════════════════════
+📊 OUTPUT FORMAT (STRICT YAML ONLY)
+═══════════════════════════════
+
+Return ONLY a VALID YAML document.
+
+Structure:
+
+audit_report:
+  summary:
+    total_files_analyzed: <number>
+    total_issues_found: <number>
+    critical_issues: <number>
+    high_issues: <number>
+    medium_issues: <number>
+    low_issues: <number>
+
+  issues:
+    - fix_order: 1
+      priority: CRITICAL
+      layer: Backend
+      module: Authentication
+      file_names:
+        - authController.java
+      issue_type: SECURITY_RISK
+      category: Bug
+      short_description: Missing token validation
+      technical_details: >
+        JWT token is parsed but signature verification is skipped,
+        allowing forged tokens.
+      impacted_flow: Login / Protected APIs
+      root_cause: Improper JWT validation logic
+      fix_recommendation: >
+        Use a verified JWT library and enforce signature validation with secret/public key.
+      dependency_impact: Affects all secured endpoints
+      risk_if_not_fixed: Unauthorized access to entire system
+
+    - fix_order: 2
+      ...
+
+═══════════════════════════════
+🚫 OUTPUT RESTRICTIONS
+═══════════════════════════════
+
+- DO NOT include explanations outside YAML
+- DO NOT include markdown
+- DO NOT skip any issue
+- DO NOT summarize instead of listing issues
+
+═══════════════════════════════
+🎯 FINAL GOAL
+═══════════════════════════════
+
+Produce a COMPLETE, PRODUCTION-READY audit report that:
+
+- Covers 100% of files and issues
+- Identifies TRUE root causes
+- Provides IMPLEMENTABLE fixes
+- Maintains correct dependency-based fix order
+
+This output should be directly usable to FIX and STABILIZE the system end-to-end.

@@ -19,7 +19,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(LegentException.class)
     public ResponseEntity<ApiResponse<Void>> handleLegentException(LegentException e) {
-        return ResponseEntity.status(e.getHttpStatus())
+        return ResponseEntity.status(e.getHttpStatus().value())
                 .body(ApiResponse.error(e.getErrorCode(), e.getMessage(), e.getDetails()));
     }
 

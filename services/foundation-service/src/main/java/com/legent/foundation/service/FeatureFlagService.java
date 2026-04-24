@@ -125,10 +125,15 @@ public class FeatureFlagService {
         FeatureFlag saved = featureFlagRepository.save(existing);
         log.info("Feature flag updated: key={}, id={}", saved.getFlagKey(), id);
 
-        // Invalidate cache
-        String cacheKey = TenantCacheKeyGenerator.key(
-                AppConstants.CACHE_FEATURE_FLAG_PREFIX, existing.getFlagKey());
+        // Invalidate cache using explicit tenantId from entity
+        String cacheKey = generateTenantCacheKey(existing.getTenantId(), existing.getFlagKey());
         cacheService.delete(cacheKey);
+        // Also evict global cache variant
+        if (existing.getTenantId() != null) {
+            String globalCacheKey = generateTenantCacheKey(null, existing.getFlagKey());
+            cacheService.delete(globalCacheKey);
+        }
+        log.info("Cache invalidated for feature flag {}", existing.getFlagKey());
 
         return featureFlagMapper.toResponse(saved);
     }
@@ -140,5 +145,22 @@ public class FeatureFlagService {
         existing.softDelete();
         featureFlagRepository.save(existing);
         log.info("Feature flag soft-deleted: key={}, id={}", existing.getFlagKey(), id);
+
+        // Invalidate cache for the deleted flag
+        String cacheKey = generateTenantCacheKey(existing.getTenantId(), existing.getFlagKey());
+        cacheService.delete(cacheKey);
+        // Also evict global cache variant
+        if (existing.getTenantId() != null) {
+            String globalCacheKey = generateTenantCacheKey(null, existing.getFlagKey());
+            cacheService.delete(globalCacheKey);
+        }
+        log.info("Cache invalidated for feature flag {}", existing.getFlagKey());
+    }
+
+    private String generateTenantCacheKey(String tenantId, String flagKey) {
+        if (tenantId == null) {
+            return AppConstants.CACHE_FEATURE_FLAG_PREFIX + "global:" + flagKey;
+        }
+        return AppConstants.CACHE_FEATURE_FLAG_PREFIX + tenantId + ":" + flagKey;
     }
 }

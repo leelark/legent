@@ -88,7 +88,7 @@ legent:
 
 foundation:
   search:
-    enabled: ${SEARCH_ENABLED:false}
+    enabled: ${SEARCH_ENABLED:true}
 
 opensearch:
   url: ${OPENSEARCH_URL}

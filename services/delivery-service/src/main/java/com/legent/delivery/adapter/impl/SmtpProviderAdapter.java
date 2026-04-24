@@ -5,6 +5,7 @@ import java.util.Map;
 import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.adapter.ProviderDispatchException;
 import com.legent.delivery.domain.SmtpProvider;
+import com.legent.delivery.service.CredentialEncryptionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -23,6 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class SmtpProviderAdapter implements ProviderAdapter {
 
     private final ConcurrentHashMap<String, JavaMailSender> senderCache = new ConcurrentHashMap<>();
+    private final CredentialEncryptionService credentialEncryptionService;
 
     // Throttling state: tenant+provider -> [windowStart, sentCount]
     private static final ConcurrentHashMap<String, AtomicLong> windowStartMap = new ConcurrentHashMap<>();
@@ -43,8 +45,9 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             mailSender.setHost(config.getHost());
             mailSender.setPort(config.getPort());
             mailSender.setUsername(config.getUsername());
-            if (config.getPasswordHash() != null && !config.getPasswordHash().isBlank()) {
-                mailSender.setPassword(config.getPasswordHash());
+            String password = resolvePassword(config);
+            if (password != null && !password.isBlank()) {
+                mailSender.setPassword(password);
             }
             java.util.Properties props = mailSender.getJavaMailProperties();
             props.put("mail.transport.protocol", "smtp");
@@ -52,6 +55,24 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             props.put("mail.smtp.starttls.enable", "true");
             return mailSender;
         });
+    }
+
+    private String resolvePassword(SmtpProvider config) {
+        // First try encrypted password (secure)
+        if (config.getEncryptedPassword() != null && !config.getEncryptedPassword().isBlank()
+                && config.getEncryptionIv() != null && !config.getEncryptionIv().isBlank()) {
+            try {
+                return credentialEncryptionService.decrypt(config.getEncryptedPassword(), config.getEncryptionIv());
+            } catch (Exception e) {
+                log.error("Failed to decrypt password for provider {}", config.getId(), e);
+            }
+        }
+        // Fallback to legacy password hash (deprecated, will be removed)
+        if (config.getPasswordHash() != null && !config.getPasswordHash().isBlank()) {
+            log.warn("Using legacy password hash for provider {}. Consider migrating to encrypted storage.", config.getId());
+            return config.getPasswordHash();
+        }
+        return null;
     }
 
     @Override

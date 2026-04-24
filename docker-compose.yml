@@ -301,7 +301,8 @@ services:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_foundation
       OPENSEARCH_URL: http://opensearch:9200
-      SEARCH_ENABLED: "false"
+      SEARCH_ENABLED: "true"
+      FOUNDATION_SEARCH_ENABLED: "true"
     depends_on:
       postgres-init:
         condition: service_completed_successfully

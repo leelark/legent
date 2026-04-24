@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,6 +16,27 @@ public class ContentProcessingService {
 
     @Value("${legent.tracking.base-url}")
     private String trackingBaseUrl;
+
+    @PostConstruct
+    public void validateConfiguration() {
+        if (trackingBaseUrl == null || trackingBaseUrl.isBlank()) {
+            throw new IllegalStateException("Required configuration 'legent.tracking.base-url' is not set. " +
+                    "Please configure the tracking base URL (e.g., http://localhost:8080)");
+        }
+        // Validate URL format
+        try {
+            java.net.URI uri = new java.net.URI(trackingBaseUrl);
+            if (uri.getScheme() == null || (!uri.getScheme().equals("http") && !uri.getScheme().equals("https"))) {
+                throw new IllegalStateException("Invalid tracking base URL scheme. Must be http or https: " + trackingBaseUrl);
+            }
+            if (uri.getHost() == null || uri.getHost().isBlank()) {
+                throw new IllegalStateException("Invalid tracking base URL - missing host: " + trackingBaseUrl);
+            }
+        } catch (java.net.URISyntaxException e) {
+            throw new IllegalStateException("Invalid tracking base URL format: " + trackingBaseUrl, e);
+        }
+        log.info("ContentProcessingService initialized with tracking base URL: {}", trackingBaseUrl);
+    }
 
     private static final Pattern LINK_PATTERN = Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1", Pattern.CASE_INSENSITIVE);
 
@@ -28,7 +50,10 @@ public class ContentProcessingService {
     }
 
     private String injectTrackingPixel(String html, String t, String c, String s, String m) {
-        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s", 
+        if (trackingBaseUrl == null || trackingBaseUrl.isBlank()) {
+            throw new IllegalStateException("Tracking base URL not configured");
+        }
+        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s",
                 trackingBaseUrl, t, c, s, m);
         String pixelTag = String.format("<img src=\"%s\" width=\"1\" height=\"1\" border=\"0\" style=\"display:none;\" />", pixelUrl);
 
