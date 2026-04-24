@@ -76,7 +76,7 @@
         <dependency>
             <groupId>org.opensearch.client</groupId>
             <artifactId>opensearch-rest-high-level-client</artifactId>
-            <version>2.11.1</version>
+            <version>${opensearch-client.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>commons-logging</groupId>
@@ -87,7 +87,7 @@
         <dependency>
             <groupId>org.opensearch.client</groupId>
             <artifactId>opensearch-java</artifactId>
-            <version>2.11.1</version>
+            <version>${opensearch-client.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>commons-logging</groupId>

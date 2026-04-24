@@ -69,6 +69,19 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token)
                     .getPayload();
 
+            if (claims.getSubject() == null || claims.getSubject().isBlank()) {
+                return Optional.empty();
+            }
+            String tenantId = claims.get("tenantId", String.class);
+            if (tenantId == null || tenantId.isBlank()) {
+                return Optional.empty();
+            }
+            Date issuedAt = claims.getIssuedAt();
+            Date expiresAt = claims.getExpiration();
+            if (issuedAt == null || expiresAt == null || !expiresAt.after(issuedAt)) {
+                return Optional.empty();
+            }
+
             return Optional.of(claims);
         } catch (ExpiredJwtException e) {
             log.warn("JWT token has expired");

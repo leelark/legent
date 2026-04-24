@@ -8,8 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.Objects;
-
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -26,14 +24,12 @@ public class WebhookService {
             return;
         }
 
-        for (WebhookIntegration wh : repo.findAll()) {
+        for (WebhookIntegration wh : repo.findByEventType(eventType)) {
             if (wh == null || wh.getEventType() == null || wh.getUrl() == null || wh.getUrl().isBlank()) {
                 continue;
             }
 
-            if (Objects.equals(wh.getEventType(), eventType)) {
-                dispatchWithRetry(wh.getUrl(), payload, eventType, 1);
-            }
+            dispatchWithRetry(wh.getUrl(), payload, eventType, 1);
         }
     }
 

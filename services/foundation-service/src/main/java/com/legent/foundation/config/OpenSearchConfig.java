@@ -15,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 @ConditionalOnProperty(name = "foundation.search.enabled", havingValue = "true")
 public class OpenSearchConfig {
 
-    @Value("${opensearch.url:http://localhost:9200}")
+    @Value("${opensearch.url}")
     private String openSearchUrl;
 
     @Bean

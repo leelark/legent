@@ -1,5 +1,5 @@
 server:
-  port: 8089
+  port: ${PORT:8089}
 
 spring:
   autoconfigure:
@@ -10,8 +10,8 @@ spring:
     name: identity-service
   # ── Database ──
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/legent_identity}
-    username: ${SPRING_DATASOURCE_USERNAME:legent}
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:legent_identity}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER}}
     password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     open-in-view: false

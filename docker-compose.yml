@@ -21,11 +21,11 @@ x-spring-env: &spring-env
   REDIS_PORT: "6379"
   KAFKA_BOOTSTRAP: kafka:9092
   LEGENT_SECURITY_JWT_SECRET: ${LEGENT_SECURITY_JWT_SECRET}
-  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000,http://app.legent.local}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
 
 x-db-env: &db-env
-  SPRING_DATASOURCE_USERNAME: legent
-  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-legent}
+  SPRING_DATASOURCE_USERNAME: ${DB_USER}
+  SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
 
 services:
   postgres:
@@ -33,14 +33,14 @@ services:
     container_name: legent-postgres
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: legent
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-legent}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - legent_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U legent -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d postgres"]
       interval: 5s
       timeout: 5s
       retries: 15
@@ -57,15 +57,15 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      PGPASSWORD: ${DB_PASSWORD:-legent}
+      PGPASSWORD: ${DB_PASSWORD}
     command:
       - sh
       - -c
       - |
         set -e
         for db in legent_foundation legent_identity legent_audience legent_content legent_campaign legent_delivery legent_tracking legent_automation legent_deliverability legent_platform; do
-          psql -h postgres -U legent -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$db'" | grep -q 1 || \
-          psql -h postgres -U legent -d postgres -c "CREATE DATABASE $$db"
+          psql -h postgres -U ${DB_USER} -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$$db'" | grep -q 1 || \
+          psql -h postgres -U ${DB_USER} -d postgres -c "CREATE DATABASE $$db"
         done
         echo "All databases ready"
 
@@ -151,6 +151,7 @@ services:
     command: >
       sh -c "
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic system.initialized --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic identity.user.signup --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic config.updated --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.created --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.updated --partitions 3 --replication-factor 1 &&
@@ -432,6 +433,7 @@ services:
       MAIL_PASSWORD: ""
       MAIL_SMTP_AUTH: "false"
       MAIL_SMTP_STARTTLS: "false"
+      TRACKING_BASE_URL: ${TRACKING_BASE_URL}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -460,7 +462,7 @@ services:
       CLICKHOUSE_PORT: "8123"
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: default
-      SPRING_DATASOURCE_CLICKHOUSE_PASSWORD: ""
+      SPRING_DATASOURCE_CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -553,8 +555,8 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      NEXT_PUBLIC_API_BASE_URL: ""
-      API_GATEWAY_URL: http://gateway
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
+      API_GATEWAY_URL: ${API_GATEWAY_URL}
     depends_on:
       gateway:
         condition: service_healthy

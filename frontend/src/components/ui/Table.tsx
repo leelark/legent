@@ -159,40 +159,40 @@ export function Table<T>({
   );
 }
 
-export function TableHeader({ className, children }: { className?: string; children?: React.ReactNode }) {
-  return <thead className={clsx('bg-surface-secondary border-b border-border-default', className)}>{children}</thead>;
+export function TableHeader({ className, children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return <thead className={clsx('bg-surface-secondary border-b border-border-default', className)} {...props}>{children}</thead>;
 }
 
-export function TableBody({ className, children }: { className?: string; children?: React.ReactNode }) {
-  return <tbody className={clsx('divide-y divide-border-default', className)}>{children}</tbody>;
+export function TableBody({ className, children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return <tbody className={clsx('divide-y divide-border-default', className)} {...props}>{children}</tbody>;
 }
 
-export function TableFooter({ className, children }: { className?: string; children?: React.ReactNode }) {
-  return <tfoot className={clsx('bg-surface-secondary font-medium', className)}>{children}</tfoot>;
+export function TableFooter({ className, children, ...props }: React.HTMLAttributes<HTMLTableSectionElement>) {
+  return <tfoot className={clsx('bg-surface-secondary font-medium', className)} {...props}>{children}</tfoot>;
 }
 
-export function TableRow({ className, children, onClick }: { className?: string; children?: React.ReactNode; onClick?: () => void }) {
+export function TableRow({ className, children, ...props }: React.HTMLAttributes<HTMLTableRowElement>) {
   return (
     <tr 
       className={clsx('border-b border-border-default transition-colors hover:bg-surface-secondary/50', className)}
-      onClick={onClick}
+      {...props}
     >
       {children}
     </tr>
   );
 }
 
-export function TableHead({ className, children }: { className?: string; children?: React.ReactNode }) {
+export function TableHead({ className, children, ...props }: React.ThHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <th className={clsx('px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-secondary align-middle', className)}>
+    <th className={clsx('px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-secondary align-middle', className)} {...props}>
       {children}
     </th>
   );
 }
 
-export function TableCell({ className, children }: { className?: string; children?: React.ReactNode }) {
+export function TableCell({ className, children, ...props }: React.TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={clsx('px-4 py-3 align-middle text-content-primary', className)}>
+    <td className={clsx('px-4 py-3 align-middle text-content-primary', className)} {...props}>
       {children}
     </td>
   );

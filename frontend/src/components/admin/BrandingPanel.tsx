@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { getBranding, saveBranding } from '@/lib/admin-api';
+import { getBranding, saveBranding, type Branding } from '@/lib/admin-api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export const BrandingPanel: React.FC = () => {
-  const [branding, setBranding] = useState<any>({});
+  const [branding, setBranding] = useState<Branding>({});
   const [edit, setEdit] = useState(false);
   useEffect(() => { getBranding().then(setBranding); }, []);
   const handleSave = async () => {

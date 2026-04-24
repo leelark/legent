@@ -15,7 +15,7 @@ class WebhookServiceTest {
         var wh = new WebhookIntegration();
         wh.setEventType("test");
         wh.setUrl("http://example.com");
-        Mockito.when(repo.findAll()).thenReturn(java.util.List.of(wh));
+        Mockito.when(repo.findByEventType("test")).thenReturn(java.util.List.of(wh));
         var svc = new com.legent.foundation.service.WebhookService(repo, restTemplate);
         svc.sendEvent("test", "payload");
 

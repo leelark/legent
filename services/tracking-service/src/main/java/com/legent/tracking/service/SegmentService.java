@@ -12,13 +12,13 @@ import java.util.Map;
 public class SegmentService {
     private final JdbcTemplate jdbcTemplate;
 
-    public List<Map<String, Object>> getSegment(String field, String value) {
+    public List<Map<String, Object>> getSegment(String tenantId, String field, String value) {
         // Example: segment by audience, device, etc.
         return jdbcTemplate.queryForList("""
             SELECT event_type, count(*) AS count
             FROM raw_events
-            WHERE metadata->>? = ?
+            WHERE tenant_id = ? AND metadata->>? = ?
             GROUP BY event_type
-        """, field, value);
+        """, tenantId, field, value);
     }
 }

@@ -25,9 +25,15 @@ spec:
             - containerPort: 3000
           env:
             - name: NEXT_PUBLIC_API_BASE_URL
-              value: "http://api.legent.local"
+              valueFrom:
+                configMapKeyRef:
+                  name: legent-config
+                  key: NEXT_PUBLIC_API_BASE_URL
             - name: API_GATEWAY_URL
-              value: "http://api.legent.local"
+              valueFrom:
+                configMapKeyRef:
+                  name: legent-config
+                  key: API_GATEWAY_URL
             - name: NODE_ENV
               value: "production"
           resources:

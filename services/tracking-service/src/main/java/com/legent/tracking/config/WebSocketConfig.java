@@ -2,6 +2,7 @@ package com.legent.tracking.config;
 
 import com.legent.tracking.ws.AnalyticsWebSocketHandler;
 import com.legent.tracking.ws.TenantHandshakeInterceptor;
+import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
@@ -17,11 +18,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
     private final AnalyticsWebSocketHandler analyticsWebSocketHandler;
     @NonNull
     private final TenantHandshakeInterceptor tenantHandshakeInterceptor;
+    @NonNull
+    private final SecurityProperties securityProperties;
 
     @Override
     public void registerWebSocketHandlers(@NonNull WebSocketHandlerRegistry registry) {
         registry.addHandler(analyticsWebSocketHandler, "/ws/analytics")
                 .addInterceptors(tenantHandshakeInterceptor)
-                .setAllowedOrigins("*");
+                .setAllowedOriginPatterns(securityProperties.getCors().getAllowedOrigins().toArray(String[]::new));
     }
 }

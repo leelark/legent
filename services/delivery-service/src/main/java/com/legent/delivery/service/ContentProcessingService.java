@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class ContentProcessingService {
 
-    @Value("${legent.tracking.base-url:http://localhost:8085}")
+    @Value("${legent.tracking.base-url}")
     private String trackingBaseUrl;
 
     private static final Pattern LINK_PATTERN = Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1", Pattern.CASE_INSENSITIVE);

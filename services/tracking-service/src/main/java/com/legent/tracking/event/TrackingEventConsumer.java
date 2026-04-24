@@ -2,6 +2,7 @@ package com.legent.tracking.event;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.ClickHouseWriter;
@@ -24,27 +25,27 @@ public class TrackingEventConsumer {
     private final AggregationService aggregationService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = "ingested_events", groupId = "tracking-clickhouse-group")
-    public void handleIngestedEvents(List<String> messages) {
-        if (messages == null || messages.isEmpty()) {
+    @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = "tracking-clickhouse-group")
+    public void handleIngestedEvents(List<EventEnvelope<String>> events) {
+        if (events == null || events.isEmpty()) {
             log.info("Received empty tracking event batch");
             return;
         }
 
-        log.info("Received batch of {} tracking events", messages.size());
+        log.info("Received batch of {} tracking events", events.size());
         List<TrackingDto.RawEventPayload> batch = new ArrayList<>();
 
-        for (String message : messages) {
+        for (EventEnvelope<String> event : events) {
             try {
-                EventEnvelope<TrackingDto.RawEventPayload> envelope = objectMapper.readValue(message, 
-                        new TypeReference<EventEnvelope<TrackingDto.RawEventPayload>>() {});
-
-                if (envelope == null || envelope.getPayload() == null) {
-                    log.warn("Skipping tracking event with missing payload: {}", message);
+                if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
+                    log.warn("Skipping tracking event with missing payload");
                     continue;
                 }
 
-                TrackingDto.RawEventPayload payload = envelope.getPayload();
+                TrackingDto.RawEventPayload payload = objectMapper.readValue(
+                        event.getPayload(),
+                        new TypeReference<TrackingDto.RawEventPayload>() {}
+                );
                 batch.add(payload);
 
                 // Also perform real-time aggregation for UI summaries
@@ -52,7 +53,7 @@ public class TrackingEventConsumer {
                 aggregationService.aggregateEvent(rawEvent);
 
             } catch (Exception e) {
-                log.error("Failed to parse tracking event: {}", message, e);
+                log.error("Failed to parse tracking event", e);
             }
         }
 

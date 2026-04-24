@@ -1,9 +1,12 @@
 package com.legent.tracking.controller;
 
-import com.legent.tracking.service.TrackingService;
+import com.legent.tracking.dto.TrackingDto;
+import com.legent.tracking.service.TrackingIngestionService;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
 
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -11,16 +14,26 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/api/v1/track")
 @RequiredArgsConstructor
+@Validated
 public class TrackingController {
-    private final TrackingService trackingService;
+    private final TrackingIngestionService trackingIngestionService;
 
     // Tracking pixel endpoint
     @GetMapping(value = "/open.gif", produces = MediaType.IMAGE_GIF_VALUE)
     public void trackOpen(
-            @RequestParam String mid, 
-            @RequestParam("t") String tenantId,
+            @RequestParam @NotBlank String mid,
+            @RequestParam("t") @NotBlank String tenantId,
+            @RequestParam(required = false, name = "c") String campaignId,
+            @RequestParam(required = false, name = "s") String subscriberId,
             HttpServletResponse response) throws IOException {
-        trackingService.handleOpen(mid, tenantId);
+        trackingIngestionService.processOpen(
+                tenantId,
+                campaignId,
+                subscriberId,
+                mid,
+                null,
+                null
+        );
         // 1x1 transparent gif
         response.setContentType("image/gif");
         response.getOutputStream().write(new byte[]{
@@ -32,9 +45,11 @@ public class TrackingController {
     // Click tracking endpoint
     @GetMapping("/click")
     public void trackClick(
-            @RequestParam String mid, 
-            @RequestParam String url, 
-            @RequestParam("t") String tenantId,
+            @RequestParam @NotBlank String mid,
+            @RequestParam @NotBlank String url,
+            @RequestParam("t") @NotBlank String tenantId,
+            @RequestParam(required = false, name = "c") String campaignId,
+            @RequestParam(required = false, name = "s") String subscriberId,
             HttpServletResponse response) throws IOException {
         try {
             java.net.URI uri = new java.net.URI(url);
@@ -48,7 +63,15 @@ public class TrackingController {
             response.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid redirect URL");
             return;
         }
-        trackingService.handleClick(mid, url, tenantId);
+        trackingIngestionService.processClick(
+                tenantId,
+                campaignId,
+                subscriberId,
+                mid,
+                url,
+                null,
+                null
+        );
         response.sendRedirect(url);
     }
 
@@ -58,6 +81,13 @@ public class TrackingController {
             @RequestParam String mid, 
             @RequestParam("t") String tenantId,
             @RequestBody String payload) {
-        trackingService.handleConversion(mid, payload, tenantId);
+        TrackingDto.ConversionRequest request = TrackingDto.ConversionRequest.builder()
+                .campaignId(null)
+                .subscriberId(null)
+                .eventName("conversion")
+                .currency(null)
+                .value(null)
+                .build();
+        trackingIngestionService.processConversion(tenantId, request, null, null);
     }
 }

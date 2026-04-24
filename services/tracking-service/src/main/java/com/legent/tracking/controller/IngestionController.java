@@ -3,6 +3,8 @@ package com.legent.tracking.controller;
 import com.legent.common.dto.ApiResponse;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.TrackingIngestionService;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -10,13 +12,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
 
 import java.net.URI;
 
 @RestController
 @RequestMapping("/api/v1/tracking")
 @RequiredArgsConstructor
-
+@Validated
 public class IngestionController {
 
     private final TrackingIngestionService ingestionService;
@@ -32,10 +35,10 @@ public class IngestionController {
 
     @GetMapping("/o.gif")
     public ResponseEntity<byte[]> trackOpen(
-            @RequestParam String t, // tenantId
-            @RequestParam String c, // campaignId
-            @RequestParam String s, // subscriberId
-            @RequestParam String m, // messageId
+            @RequestParam @NotBlank String t, // tenantId
+            @RequestParam @NotBlank String c, // campaignId
+            @RequestParam @NotBlank String s, // subscriberId
+            @RequestParam @NotBlank String m, // messageId
             HttpServletRequest request) {
         
         ingestionService.processOpen(t, c, s, m, request.getHeader("User-Agent"), getClientIp(request));
@@ -51,11 +54,11 @@ public class IngestionController {
 
     @GetMapping("/c")
     public ResponseEntity<Void> trackClick(
-            @RequestParam String url,
-            @RequestParam String t, // tenantId
-            @RequestParam String c, // campaignId
-            @RequestParam String s, // subscriberId
-            @RequestParam String m, // messageId
+            @RequestParam @NotBlank String url,
+            @RequestParam @NotBlank String t, // tenantId
+            @RequestParam @NotBlank String c, // campaignId
+            @RequestParam @NotBlank String s, // subscriberId
+            @RequestParam @NotBlank String m, // messageId
             HttpServletRequest request) {
         
         try {
@@ -79,8 +82,8 @@ public class IngestionController {
     @PostMapping("/events")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public ApiResponse<Void> trackConversion(
-            @RequestHeader("X-Tenant-Id") String tenantId,
-            @RequestBody TrackingDto.ConversionRequest requestPayload,
+            @RequestHeader("X-Tenant-Id") @NotBlank String tenantId,
+            @RequestBody @Valid TrackingDto.ConversionRequest requestPayload,
             HttpServletRequest request) {
         
         ingestionService.processConversion(tenantId, requestPayload, request.getHeader("User-Agent"), getClientIp(request));

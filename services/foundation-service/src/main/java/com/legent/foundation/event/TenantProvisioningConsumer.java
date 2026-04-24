@@ -1,5 +1,6 @@
 package com.legent.foundation.event;
 
+import com.legent.common.constant.AppConstants;
 import com.legent.common.event.UserSignedUpEvent;
 import com.legent.foundation.domain.Tenant;
 import com.legent.foundation.repository.TenantRepository;
@@ -21,7 +22,7 @@ public class TenantProvisioningConsumer {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    @KafkaListener(topics = "identity.user.signup", groupId = "foundation-provisioning-group")
+    @KafkaListener(topics = AppConstants.TOPIC_IDENTITY_USER_SIGNUP, groupId = AppConstants.GROUP_FOUNDATION_PROVISIONING)
     public void handleUserSignedUp(String message) {
         try {
             EventEnvelope<UserSignedUpEvent> envelope = objectMapper.readValue(message, 

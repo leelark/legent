@@ -34,8 +34,8 @@ public class SecurityProperties {
     }
     @jakarta.annotation.PostConstruct
     public void validate() {
-        if (jwt.getSecret() == null || jwt.getSecret().isBlank() || jwt.getSecret().length() < 32) {
-            throw new IllegalStateException("JWT secret must be explicitly configured and must be at least 32 characters long.");
+        if (jwt.getSecret() == null || jwt.getSecret().isBlank() || jwt.getSecret().length() < 64) {
+            throw new IllegalStateException("JWT secret must be explicitly configured and must be at least 64 characters long.");
         }
         if (cors.getAllowedOrigins() == null || cors.getAllowedOrigins().isEmpty()) {
             throw new IllegalStateException("CORS allowed origins must be explicitly configured.");

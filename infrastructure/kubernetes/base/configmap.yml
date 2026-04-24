@@ -7,8 +7,6 @@ data:
   # ── Database ──
   DB_HOST: "legent-postgres"
   DB_PORT: "5432"
-  DB_USER: "legent"
-  SPRING_DATASOURCE_USERNAME: "legent"
 
   # ── Spring ──
   SPRING_PROFILES_ACTIVE: "prod"
@@ -53,9 +51,12 @@ data:
   CAMPAIGN_SERVICE_URL: "http://campaign-service:8083"
   DELIVERY_SERVICE_URL: "http://delivery-service:8084"
   TRACKING_SERVICE_URL: "http://tracking-service:8085"
+  TRACKING_BASE_URL: "http://api.legent.local"
   AUTOMATION_SERVICE_URL: "http://automation-service:8086"
   DELIVERABILITY_SERVICE_URL: "http://deliverability-service:8087"
   PLATFORM_SERVICE_URL: "http://platform-service:8088"
+  NEXT_PUBLIC_API_BASE_URL: "http://api.legent.local"
+  API_GATEWAY_URL: "http://api.legent.local"
 
   # ── Observability ──
   LOG_LEVEL: "INFO"

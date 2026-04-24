@@ -3,6 +3,7 @@ package com.legent.automation.controller;
 import com.legent.automation.domain.WorkflowDefinition;
 import com.legent.automation.repository.WorkflowDefinitionRepository;
 import com.legent.common.dto.ApiResponse;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,22 +16,16 @@ public class WorkflowDefinitionController {
     private final WorkflowDefinitionRepository workflowDefinitionRepository;
 
     @GetMapping("/{workflowId}/latest")
-    public ApiResponse<WorkflowDefinition> getLatestDefinition(
-            @RequestHeader("X-Tenant-Id") String tenantId,
-            @PathVariable String workflowId
-    ) {
-        Optional<WorkflowDefinition> latest = workflowDefinitionRepository.findAll().stream()
-                .filter(wd -> wd.getWorkflowId().equals(workflowId) && wd.getTenantId().equals(tenantId))
-                .max((a, b) -> Integer.compare(a.getVersion(), b.getVersion()));
+    public ApiResponse<WorkflowDefinition> getLatestDefinition(@PathVariable String workflowId) {
+        String tenantId = TenantContext.getTenantId();
+        Optional<WorkflowDefinition> latest = workflowDefinitionRepository.findTopByTenantIdAndWorkflowIdOrderByVersionDesc(tenantId, workflowId);
         return latest.map(ApiResponse::ok)
             .orElseGet(() -> ApiResponse.error("NOT_FOUND", "No definition found", null));
     }
 
     @PostMapping
-    public ApiResponse<WorkflowDefinition> saveDefinition(
-            @RequestHeader("X-Tenant-Id") String tenantId,
-            @RequestBody WorkflowDefinition definition
-    ) {
+    public ApiResponse<WorkflowDefinition> saveDefinition(@RequestBody WorkflowDefinition definition) {
+        String tenantId = TenantContext.getTenantId();
         definition.setTenantId(tenantId);
         WorkflowDefinition saved = workflowDefinitionRepository.save(definition);
         return ApiResponse.ok(saved);

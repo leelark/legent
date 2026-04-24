@@ -14,7 +14,7 @@ spring:
   # ── Database ──
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:legent_foundation}}
-    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:legent}}
+    username: ${SPRING_DATASOURCE_USERNAME:${DB_USER}}
     password: ${SPRING_DATASOURCE_PASSWORD}
     hikari:
       maximum-pool-size: 20
@@ -91,7 +91,7 @@ foundation:
     enabled: ${SEARCH_ENABLED:false}
 
 opensearch:
-  url: ${OPENSEARCH_URL:http://localhost:9200}
+  url: ${OPENSEARCH_URL}
 
 # ── Logging ──
 logging:

@@ -32,3 +32,11 @@ logging:
   level:
     root: WARN
     com.legent: DEBUG
+
+legent:
+  security:
+    jwt:
+      secret: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    cors:
+      allowed-origins:
+        - "http://localhost:3000"

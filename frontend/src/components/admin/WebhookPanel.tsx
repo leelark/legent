@@ -1,12 +1,12 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import { getWebhooks, saveWebhook } from '@/lib/admin-api';
+import { getWebhooks, saveWebhook, type WebhookIntegration } from '@/lib/admin-api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export const WebhookPanel: React.FC = () => {
-  const [webhooks, setWebhooks] = useState<any[]>([]);
-  const [wh, setWh] = useState<any>({ name: '', url: '', eventType: '' });
+  const [webhooks, setWebhooks] = useState<WebhookIntegration[]>([]);
+  const [wh, setWh] = useState<WebhookIntegration>({ name: '', url: '', eventType: '' });
   useEffect(() => { getWebhooks().then(setWebhooks); }, []);
   const handleSave = async () => {
     await saveWebhook(wh);

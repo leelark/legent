@@ -1,6 +1,9 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import DOMPurify from 'isomorphic-dompurify';
 
 export interface ContentBlock {
   id: string;
@@ -18,12 +21,11 @@ interface TemplateBuilderProps {
 
 const sanitizeHtml = (html: string) => {
   if (!html) return '';
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/on[a-zA-Z]+\s*=\s*"[^"]*"/gi, '')
-    .replace(/on[a-zA-Z]+\s*=\s*'[^']*'/gi, '')
-    .replace(/on[a-zA-Z]+\s*=\s*[^\s>]+/gi, '')
-    .replace(/javascript:/gi, '');
+  return DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
+    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'style']
+  });
 };
 
 export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBlocksChange }) => {

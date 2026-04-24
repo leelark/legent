@@ -10,6 +10,7 @@ import com.legent.campaign.mapper.SendJobMapper;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import com.legent.common.exception.NotFoundException;
+import com.legent.common.exception.ValidationException;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,12 +35,18 @@ public class OrchestrationService {
 
     @Transactional
     public SendJobDto.Response triggerSend(String campaignId, SendJobDto.TriggerRequest request) {
+        if (request == null) {
+            request = new SendJobDto.TriggerRequest();
+        }
         String tenantId = TenantContext.getTenantId();
         Campaign campaign = campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, campaignId)
                 .orElseThrow(() -> new NotFoundException("Campaign", campaignId));
 
         if (campaign.getStatus() != Campaign.CampaignStatus.DRAFT) {
             throw new IllegalStateException("Campaign is already " + campaign.getStatus());
+        }
+        if (campaign.getAudiences() == null || campaign.getAudiences().isEmpty()) {
+            throw new ValidationException("campaign.audiences", "At least one audience is required before triggering a send");
         }
 
         SendJob job = new SendJob();
@@ -61,8 +68,12 @@ public class OrchestrationService {
 
         if (job.getStatus() == SendJob.JobStatus.RESOLVING) {
             List<Map<String, String>> audienceList = campaign.getAudiences().stream()
+                    .filter(a -> a != null && a.getAudienceType() != null && a.getAudienceId() != null && !a.getAudienceId().isBlank())
                     .map(a -> Map.of("type", a.getAudienceType().name(), "id", a.getAudienceId()))
                     .collect(Collectors.toList());
+            if (audienceList.isEmpty()) {
+                throw new ValidationException("campaign.audiences", "Audience definitions are invalid");
+            }
             
             eventPublisher.publishAudienceResolutionRequested(tenantId, campaignId, job.getId(), audienceList);
             log.info("Triggered immediate send for job: {}", job.getId());

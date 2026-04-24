@@ -10,4 +10,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface WorkflowDefinitionRepository extends JpaRepository<WorkflowDefinition, WorkflowDefinition.WorkflowDefinitionId> {
     Optional<WorkflowDefinition> findByWorkflowIdAndVersionAndTenantId(String workflowId, Integer version, String tenantId);
+    Optional<WorkflowDefinition> findTopByTenantIdAndWorkflowIdOrderByVersionDesc(String tenantId, String workflowId);
 }

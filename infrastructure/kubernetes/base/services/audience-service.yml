@@ -34,6 +34,8 @@ spec:
           env:
             - name: DB_NAME
               value: "legent_audience"
+            - name: MINIO_BUCKET
+              value: "legent-imports"
           resources:
             requests:
               cpu: 250m

@@ -1,5 +1,6 @@
 package com.legent.identity.event;
 
+import com.legent.common.constant.AppConstants;
 import com.legent.common.event.UserSignedUpEvent;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
@@ -20,7 +21,9 @@ public class IdentityEventPublisher {
                 .slug(slug)
                 .build();
 
-        eventPublisher.publish("identity.user.signup", 
-                EventEnvelope.wrap("UserSignedUp", tenantId, "identity-service", payload));
+        eventPublisher.publish(
+                AppConstants.TOPIC_IDENTITY_USER_SIGNUP,
+                EventEnvelope.wrap(AppConstants.TOPIC_IDENTITY_USER_SIGNUP, tenantId, "identity-service", payload)
+        );
     }
 }

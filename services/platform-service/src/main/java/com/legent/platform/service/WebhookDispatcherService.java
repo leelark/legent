@@ -19,10 +19,12 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -80,17 +82,19 @@ public class WebhookDispatcherService {
                     .header("X-Legent-Signature", signature)
                     .bodyValue(jsonPayload)
                     .exchangeToMono(response -> {
-                        return response.bodyToMono(String.class).map(body -> {
+                        return response.bodyToMono(String.class).defaultIfEmpty("").map(body -> {
                             boolean isSuccess = response.statusCode().is2xxSuccessful();
                             logDelivery(tenantId, config.getId(), normalizedEventType, response.statusCode().value(), body, isSuccess);
                             return isSuccess;
                         });
                     })
+                    .timeout(Duration.ofSeconds(5))
+                    .retryWhen(Retry.backoff(2, Duration.ofMillis(300)).filter(this::isTransientWebhookError))
                     .onErrorResume(e -> {
                         logDelivery(tenantId, config.getId(), normalizedEventType, 0, e.getMessage(), false);
                         return Mono.just(false);
                     })
-                    .subscribe();
+                    .block();
         }
     }
 
@@ -154,5 +158,9 @@ public class WebhookDispatcherService {
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private boolean isTransientWebhookError(Throwable throwable) {
+        return !(throwable instanceof IllegalArgumentException);
     }
 }

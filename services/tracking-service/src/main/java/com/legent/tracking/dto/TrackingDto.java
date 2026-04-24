@@ -4,6 +4,7 @@ import java.util.Map;
 
 import java.time.Instant;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -38,6 +39,7 @@ public class TrackingDto {
         private String email;
         private String subscriberId;
         private String campaignId;
+        @NotBlank
         private String eventName;
         private Double value;
         private String currency;

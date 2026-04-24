@@ -1,11 +1,11 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { getAdminConfigs, saveAdminConfig } from '@/lib/admin-api';
+import { getAdminConfigs, saveAdminConfig, type AdminConfig } from '@/lib/admin-api';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 
 export const AdminConfigPanel: React.FC = () => {
-  const [configs, setConfigs] = useState<any[]>([]);
+  const [configs, setConfigs] = useState<AdminConfig[]>([]);
   const [key, setKey] = useState('');
   const [value, setValue] = useState('');
   useEffect(() => { getAdminConfigs().then(setConfigs); }, []);

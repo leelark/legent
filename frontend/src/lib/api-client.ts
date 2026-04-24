@@ -78,7 +78,7 @@ apiClient.interceptors.response.use(
 export default apiClient;
 
 // ── Convenience helpers ──
-export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.get<any>(url, config);
   const resData = response.data;
   if (resData?.pagination) {
@@ -91,17 +91,17 @@ export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<
   return resData?.data ?? resData;
 }
 
-export async function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+export async function post<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.post<any>(url, data, config);
   return response.data?.data ?? response.data;
 }
 
-export async function put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+export async function put<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.put<any>(url, data, config);
   return response.data?.data ?? response.data;
 }
 
-export async function del<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function del<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.delete<any>(url, config);
   return response.data?.data ?? response.data;
 }

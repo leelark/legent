@@ -1,11 +1,17 @@
-import apiClient from './api-client';
+import { get } from './api-client';
 
-export const getEventCounts = async () => {
-  const res = await apiClient.get('/api/v1/analytics/events/counts');
-  return res.data;
+export type TrackingAggregate = {
+  event_type: string;
+  count: number;
 };
 
-export const getEventTimeline = async (eventType: string) => {
-  const res = await apiClient.get('/api/v1/analytics/events/timeline', { params: { eventType } });
-  return res.data;
-};
+export const getEventCounts = async () => get<any>('/analytics/events/counts');
+
+export const getEventTimeline = async (eventType: string) =>
+  get<any>('/analytics/events/timeline', { params: { eventType } });
+
+export const getFunnel = async (campaignId: string) =>
+  get<TrackingAggregate[]>('/analytics/funnel', { params: { campaignId } });
+
+export const getSegment = async (field: string, value: string) =>
+  get<TrackingAggregate[]>('/analytics/segment', { params: { field, value } });

@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  * Filter that validates JWT bearer tokens and populates Spring Security context.
  */
 @Slf4j
-@Component
+@Component("identityJwtAuthenticationFilter")
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 

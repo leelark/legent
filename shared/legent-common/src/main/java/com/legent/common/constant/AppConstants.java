@@ -95,6 +95,7 @@ public final class AppConstants {
     public static final String TOPIC_NOTIFICATION_CREATED = "notification.created";
     public static final String TOPIC_WEBHOOK_TRIGGERED = "webhook.triggered";
     public static final String TOPIC_INTEGRATION_SYNC = "integration.sync";
+    public static final String TOPIC_IDENTITY_USER_SIGNUP = "identity.user.signup";
 
     // ── Kafka Consumer Groups ──
     public static final String GROUP_FOUNDATION = "foundation-service";
@@ -106,6 +107,7 @@ public final class AppConstants {
     public static final String GROUP_AUTOMATION = "automation-service";
     public static final String GROUP_DELIVERABILITY = "deliverability-service";
     public static final String GROUP_PLATFORM = "platform-service";
+    public static final String GROUP_FOUNDATION_PROVISIONING = "foundation-provisioning-group";
 
     // ── Cache (Audience & Campaign) ──
     public static final String CACHE_SUBSCRIBER_PREFIX = "subscriber:";

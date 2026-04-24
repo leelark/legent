@@ -9,6 +9,7 @@ import java.util.Map;
 
 import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.repository.SendBatchRepository;
+import com.legent.common.exception.ValidationException;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.kafka.model.EventEnvelope;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,9 @@ public class SendExecutionService {
         try {
             SendBatch batch = findBatchWithRetry(batchId);
             if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) return;
+            if (batch.getCampaignId() == null || batch.getCampaignId().isBlank()) {
+                throw new ValidationException("campaignId", "Batch campaignId is required");
+            }
 
             batch.setStatus(SendBatch.BatchStatus.PROCESSING);
             batchRepository.saveAndFlush(batch);
@@ -42,6 +46,14 @@ public class SendExecutionService {
             }
 
             List<Map<String, String>> subscribers = objectMapper.readValue(payloadJson, new TypeReference<>() {});
+            subscribers = subscribers.stream()
+                    .filter(sub -> sub != null && sub.get("email") != null && !sub.get("email").isBlank())
+                    .toList();
+            if (subscribers.isEmpty()) {
+                batch.setStatus(SendBatch.BatchStatus.COMPLETED);
+                batchRepository.save(batch);
+                return;
+            }
             
             // Limit by domain throttling rules before publishing to delivery
             int acquiredPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), subscribers.size());
@@ -56,7 +68,7 @@ public class SendExecutionService {
                             Map.of(
                                     "email", sub.get("email"),
                                     "subscriberId", sub.get("subscriberId"),
-                                    "campaignId", batch.getCampaignId() != null ? batch.getCampaignId() : "missing_camp_id",
+                                    "campaignId", batch.getCampaignId(),
                                     "batchId", batchId
                             )
                     );
@@ -86,7 +98,7 @@ public class SendExecutionService {
                             AppConstants.TOPIC_SEND_FAILED, tenantId, "campaign-service",
                             Map.of(
                                 "batchId", batchId,
-                                "campaignId", batch.getCampaignId() != null ? batch.getCampaignId() : "unknown",
+                                "campaignId", batch.getCampaignId(),
                                 "reason", "RATE_LIMIT_EXCEEDED",
                                 "unprocessedCount", remaining.size()
                             )

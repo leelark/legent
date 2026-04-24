@@ -1,5 +1,6 @@
 package com.legent.tracking.event;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.tracking.dto.TrackingDto;
@@ -28,8 +29,9 @@ class TrackingEventConsumerTest {
     @Test
     @SuppressWarnings("unchecked")
     void handleIngestedEvents_Success() throws Exception {
-        String msg = "{\"payload\":{\"eventType\":\"OPEN\"}}";
-        List<String> messages = List.of(msg);
+        EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setPayload("{\"tenantId\":\"tenant-1\",\"campaignId\":\"campaign-1\",\"subscriberId\":\"subscriber-1\",\"eventType\":\"OPEN\",\"timestamp\":\"2026-01-01T00:00:00Z\"}");
+        List<EventEnvelope<String>> messages = List.of(envelope);
 
         TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
                 .tenantId("tenant-1")
@@ -38,11 +40,9 @@ class TrackingEventConsumerTest {
                 .eventType("OPEN")
                 .timestamp(java.time.Instant.now())
                 .build();
-        EventEnvelope<TrackingDto.RawEventPayload> envelope = new EventEnvelope<>();
-        envelope.setPayload(payload);
-        
-        when(objectMapper.readValue(eq(msg), any(com.fasterxml.jackson.core.type.TypeReference.class)))
-                .thenReturn(envelope);
+
+        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(payload);
 
         consumer.handleIngestedEvents(messages);
 

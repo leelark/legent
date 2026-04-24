@@ -15,6 +15,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -25,43 +27,45 @@ public class EventProcessingConsumer {
     private final AggregationService aggregationService;
 
     @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = AppConstants.GROUP_TRACKING, concurrency = "3")
-    public void consumeIngestedEvent(EventEnvelope<String> event) {
-        if (event.getTenantId() == null || event.getTenantId().isBlank()) {
-            log.error("Received tracking event missing tenant context: {}", event.getEventId());
+    public void consumeIngestedEvent(List<EventEnvelope<String>> events) {
+        if (events == null || events.isEmpty()) {
             return;
         }
-        try {
-            TenantContext.setTenantId(event.getTenantId());
-            
-            TrackingDto.RawEventPayload payload = objectMapper.readValue(event.getPayload(), TrackingDto.RawEventPayload.class);
-            
-            // 1. Persist to Raw Store
-            RawEvent raw = new RawEvent();
-            raw.setId(payload.getId());
-            raw.setTenantId(payload.getTenantId());
-            raw.setEventType(payload.getEventType());
-            raw.setCampaignId(payload.getCampaignId());
-            raw.setSubscriberId(payload.getSubscriberId());
-            raw.setMessageId(payload.getMessageId());
-            raw.setUserAgent(payload.getUserAgent());
-            raw.setIpAddress(payload.getIpAddress());
-            raw.setLinkUrl(payload.getLinkUrl());
-            raw.setTimestamp(payload.getTimestamp());
-            if (payload.getMetadata() != null && !payload.getMetadata().isEmpty()) {
-                raw.setMetadata(objectMapper.writeValueAsString(payload.getMetadata()));
+
+        for (EventEnvelope<String> event : events) {
+            if (event == null || event.getTenantId() == null || event.getTenantId().isBlank()) {
+                log.error("Received tracking event missing tenant context");
+                continue;
             }
+            try {
+                TenantContext.setTenantId(event.getTenantId());
 
-            rawEventRepository.save(raw);
+                TrackingDto.RawEventPayload payload = objectMapper.readValue(event.getPayload(), TrackingDto.RawEventPayload.class);
 
-            // 2. Aggregate
-            aggregationService.aggregateEvent(raw);
+                RawEvent raw = new RawEvent();
+                raw.setId(payload.getId());
+                raw.setTenantId(payload.getTenantId());
+                raw.setEventType(payload.getEventType());
+                raw.setCampaignId(payload.getCampaignId());
+                raw.setSubscriberId(payload.getSubscriberId());
+                raw.setMessageId(payload.getMessageId());
+                raw.setUserAgent(payload.getUserAgent());
+                raw.setIpAddress(payload.getIpAddress());
+                raw.setLinkUrl(payload.getLinkUrl());
+                raw.setTimestamp(payload.getTimestamp());
+                if (payload.getMetadata() != null && !payload.getMetadata().isEmpty()) {
+                    raw.setMetadata(objectMapper.writeValueAsString(payload.getMetadata()));
+                }
 
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse tracking payload", e);
-        } catch (Exception e) {
-            log.error("Failed to process event {}", event.getEventId(), e);
-        } finally {
-            TenantContext.clear();
+                rawEventRepository.save(raw);
+                aggregationService.aggregateEvent(raw);
+            } catch (JsonProcessingException e) {
+                log.error("Failed to parse tracking payload", e);
+            } catch (Exception e) {
+                log.error("Failed to process event {}", event.getEventId(), e);
+            } finally {
+                TenantContext.clear();
+            }
         }
     }
 }

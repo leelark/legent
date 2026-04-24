@@ -49,15 +49,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String token = authorizationHeader.substring(AppConstants.BEARER_PREFIX.length()).trim();
         if (token.isEmpty()) {
-            filterChain.doFilter(request, response);
+            unauthorized(response, "INVALID_TOKEN", "Authorization header contains no Bearer token");
             return;
         }
 
         Optional<Claims> claimsOptional = jwtTokenProvider.validateToken(token);
         if (claimsOptional.isEmpty()) {
-            // Token is invalid or expired, but we let it pass to anyRequest().authenticated() or permitAll()
-            // The SecurityContext will not be populated, thus causing 403/401 for authenticated endpoints.
-            filterChain.doFilter(request, response);
+            unauthorized(response, "INVALID_TOKEN", "JWT token is invalid or expired");
             return;
         }
 
@@ -107,5 +105,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return Collections.emptySet();
+    }
+
+    private void unauthorized(HttpServletResponse response, String errorCode, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        response.setContentType("application/json");
+        response.getWriter().write(String.format(
+                "{\"success\":false,\"error\":{\"errorCode\":\"%s\",\"message\":\"%s\"}}",
+                errorCode,
+                message
+        ));
     }
 }

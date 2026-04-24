@@ -1,7 +1,5 @@
 package com.legent.tracking.config;
 
-import java.util.List;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,6 +13,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import com.legent.security.JwtAuthenticationFilter;
+import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
 
 
@@ -25,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final SecurityProperties securityProperties;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -32,11 +32,11 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
+                .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/v1/health/**").permitAll()
-                .requestMatchers("/api/v1/track/**").permitAll()
-                .requestMatchers("/api/v1/tracking/**").permitAll()
+                .requestMatchers("/api/v1/track/open.gif", "/api/v1/track/click").permitAll()
+                .requestMatchers("/api/v1/tracking/o.gif", "/api/v1/tracking/c").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .anyRequest().authenticated()
             )
@@ -47,10 +47,11 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOriginPatterns(List.of("*"));
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
+        config.setAllowedOriginPatterns(securityProperties.getCors().getAllowedOrigins());
+        config.setAllowedMethods(securityProperties.getCors().getAllowedMethods());
+        config.setAllowedHeaders(securityProperties.getCors().getAllowedHeaders());
+        config.setAllowCredentials(securityProperties.getCors().isAllowCredentials());
+        config.setMaxAge(securityProperties.getCors().getMaxAge());
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

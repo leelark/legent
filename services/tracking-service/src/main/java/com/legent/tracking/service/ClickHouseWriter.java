@@ -3,6 +3,7 @@ package com.legent.tracking.service;
 import com.legent.tracking.dto.TrackingDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import java.sql.Timestamp;
@@ -14,7 +15,9 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ClickHouseWriter {
 
+    @Qualifier("clickHouseJdbcTemplate")
     private final JdbcTemplate jdbcTemplate;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public void writeBatch(List<TrackingDto.RawEventPayload> events) {
         String sql = "INSERT INTO raw_events (id, tenant_id, event_type, campaign_id, subscriber_id, message_id, user_agent, ip_address, link_url, timestamp, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -42,7 +45,7 @@ public class ClickHouseWriter {
     private String serializeMetadata(java.util.Map<String, Object> metadata) {
         if (metadata == null) return "{}";
         try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(metadata);
+            return objectMapper.writeValueAsString(metadata);
         } catch (Exception e) {
             return "{}";
         }

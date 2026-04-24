@@ -22,6 +22,9 @@ import java.util.Set;
 @Order(10)
 public class TenantFilter extends OncePerRequestFilter {
 
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+
     /**
      * Paths that do NOT require a tenant context.
      */
@@ -29,8 +32,10 @@ public class TenantFilter extends OncePerRequestFilter {
             "/actuator",
             "/api/v1/health",
             "/api/v1/auth",
-            "/api/v1/track",
-            "/api/v1/tracking"
+            "/api/v1/track/open.gif",
+            "/api/v1/track/click",
+            "/api/v1/tracking/o.gif",
+            "/api/v1/tracking/c"
     );
 
     @Override
@@ -58,11 +63,11 @@ public class TenantFilter extends OncePerRequestFilter {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType("application/json");
             com.legent.common.dto.ApiResponse<Void> apiResponse = com.legent.common.dto.ApiResponse.error(
-                "MISSING_TENANT", 
-                "Tenant ID is required (via X-Tenant-Id header or 't' parameter)", 
+                "MISSING_TENANT",
+                "X-Tenant-Id header is required (or use 't' query parameter on public tracking routes)",
                 "Path: " + path
             );
-            new com.fasterxml.jackson.databind.ObjectMapper().writeValue(response.getWriter(), apiResponse);
+            OBJECT_MAPPER.writeValue(response.getWriter(), apiResponse);
             return;
         }
 

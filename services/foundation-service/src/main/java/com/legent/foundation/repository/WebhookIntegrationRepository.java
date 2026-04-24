@@ -6,4 +6,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WebhookIntegrationRepository extends JpaRepository<WebhookIntegration, Long> {
+    java.util.List<WebhookIntegration> findByEventType(String eventType);
 }
