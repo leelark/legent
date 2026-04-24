@@ -1,0 +1,31 @@
+Act as Senior Spring Boot + DevOps + Kubernetes Architect.
+
+Fix ALL issues from input file in strict order:
+P0 → P1 → others → by fix_order.
+
+Rules:
+
+* NO explanations, comments, logs, or text
+* DO NOT skip or partially fix any issue untill and unless it is fixed and have been iimplemented properly
+
+Execution:
+
+* Apply fixes across ALL similar/affected files
+* Update all dependent files
+* Remove duplication, conflicts, hardcoding
+
+Enforce:
+
+* Single source of truth (DB, ports, credentials, env)
+* Environment variables ONLY (no hardcoded values)
+* Consistent configs across Spring, Docker, Kubernetes
+
+Ensure:
+
+* All services correctly wired and reachable
+* Ports, URLs, datasources, secrets aligned
+* Docker and Kubernetes fully working
+
+Constraint:
+
+* PERFORM DIRECT IN-PLACE IMPLEMENTATION ONLY

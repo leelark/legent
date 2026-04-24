@@ -17,7 +17,7 @@ import com.legent.audience.dto.SegmentDto;
 import com.legent.audience.event.SegmentEventPublisher;
 import com.legent.audience.repository.SegmentMembershipRepository;
 import com.legent.audience.repository.SegmentRepository;
-import com.legent.cache.service.TenantCacheKeyGenerator;
+
 import com.legent.cache.service.CacheService;
 import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
@@ -63,9 +63,10 @@ public class SegmentEvaluationService {
         Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 
-        String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_SEGMENT_COUNT_PREFIX, segmentId);
+        String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
         Optional<SegmentDto.CountPreview> cached = cacheService.get(cacheKey, SegmentDto.CountPreview.class);
-        if (cached.isPresent()) return cached.get();
+        if (cached.isPresent())
+            return cached.get();
 
         long startMs = System.currentTimeMillis();
         long count = executeCountQuery(tenantId, segment.getRules());
@@ -112,7 +113,7 @@ public class SegmentEvaluationService {
                 List<Object[]> batchArgs = new ArrayList<>();
                 Instant now = Instant.now();
                 for (String subId : subscriberIds) {
-                    batchArgs.add(new Object[]{
+                    batchArgs.add(new Object[] {
                             com.legent.common.util.IdGenerator.newId(),
                             tenantId,
                             segmentId,
@@ -132,11 +133,12 @@ public class SegmentEvaluationService {
             segmentRepository.save(segment);
 
             // Invalidate count cache
-            String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_SEGMENT_COUNT_PREFIX, segmentId);
+            String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
             cacheService.delete(cacheKey);
 
             eventPublisher.publishRecomputed(segment);
-            log.info("Segment recomputed: id={}, members={}, duration={}ms", segmentId, subscriberIds.size(), durationMs);
+            log.info("Segment recomputed: id={}, members={}, duration={}ms", segmentId, subscriberIds.size(),
+                    durationMs);
 
         } catch (Exception e) {
             segment.setStatus(Segment.SegmentStatus.ERROR);
@@ -171,7 +173,8 @@ public class SegmentEvaluationService {
     // ── Query Generation Engine ──
 
     private long executeCountQuery(String tenantId, Map<String, Object> rules) {
-        StringBuilder sql = new StringBuilder("SELECT COUNT(s.id) FROM subscribers s WHERE s.tenant_id = :tid AND s.deleted_at IS NULL");
+        StringBuilder sql = new StringBuilder(
+                "SELECT COUNT(s.id) FROM subscribers s WHERE s.tenant_id = :tid AND s.deleted_at IS NULL");
         Map<String, Object> params = new HashMap<>();
         params.put("tid", tenantId);
 
@@ -184,7 +187,8 @@ public class SegmentEvaluationService {
 
     @SuppressWarnings("unchecked")
     private List<String> executeQuery(String tenantId, Map<String, Object> rules) {
-        StringBuilder sql = new StringBuilder("SELECT s.id FROM subscribers s WHERE s.tenant_id = :tid AND s.deleted_at IS NULL");
+        StringBuilder sql = new StringBuilder(
+                "SELECT s.id FROM subscribers s WHERE s.tenant_id = :tid AND s.deleted_at IS NULL");
         Map<String, Object> params = new HashMap<>();
         params.put("tid", tenantId);
 
@@ -200,12 +204,13 @@ public class SegmentEvaluationService {
      * ALL user input is parameterized — never concatenated.
      */
     @SuppressWarnings("unchecked")
-    private int appendRuleConditions(StringBuilder sql, Map<String, Object> params, Map<String, Object> rules, int paramIdx) {
+    private int appendRuleConditions(StringBuilder sql, Map<String, Object> params, Map<String, Object> rules,
+            int paramIdx) {
         String operator = (String) rules.getOrDefault("operator", "AND");
         if (!"AND".equalsIgnoreCase(operator) && !"OR".equalsIgnoreCase(operator)) {
             throw new IllegalArgumentException("Invalid SQL operator: " + operator);
         }
-        
+
         List<Map<String, Object>> conditions = (List<Map<String, Object>>) rules.get("conditions");
         List<Map<String, Object>> groups = (List<Map<String, Object>>) rules.get("groups");
 
@@ -219,7 +224,8 @@ public class SegmentEvaluationService {
                 String paramName = "p" + (paramIdx++);
 
                 String clause = buildCondition(field, op, value, paramName, params);
-                if (clause != null) clauses.add(clause);
+                if (clause != null)
+                    clauses.add(clause);
             }
         }
 
@@ -229,7 +235,8 @@ public class SegmentEvaluationService {
                 Map<String, Object> subParams = new HashMap<>();
                 paramIdx = appendRuleConditions(subSql, subParams, group, paramIdx);
                 params.putAll(subParams);
-                if (!subSql.isEmpty()) clauses.add("(" + subSql + ")");
+                if (!subSql.isEmpty())
+                    clauses.add("(" + subSql + ")");
             }
         }
 
@@ -243,7 +250,8 @@ public class SegmentEvaluationService {
 
     private String buildCondition(String field, String op, Object value, String paramName, Map<String, Object> params) {
         String column = mapFieldToColumn(field);
-        if (column == null) return null;
+        if (column == null)
+            return null;
 
         return switch (op.toUpperCase()) {
             case "EQUALS" -> {
@@ -278,15 +286,18 @@ public class SegmentEvaluationService {
             case "IS_NOT_NULL" -> column + " IS NOT NULL";
             case "IN_LIST" -> {
                 params.put(paramName, value);
-                yield "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :" + paramName + " AND lm.status = 'ACTIVE')";
+                yield "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :"
+                        + paramName + " AND lm.status = 'ACTIVE')";
             }
             case "NOT_IN_LIST" -> {
                 params.put(paramName, value);
-                yield "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :" + paramName + " AND lm.status = 'ACTIVE')";
+                yield "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :"
+                        + paramName + " AND lm.status = 'ACTIVE')";
             }
             case "IN_SEGMENT" -> {
                 params.put(paramName, value);
-                yield "EXISTS (SELECT 1 FROM segment_memberships sm WHERE sm.tenant_id = :tid AND sm.subscriber_id = s.id AND sm.segment_id = :" + paramName + ")";
+                yield "EXISTS (SELECT 1 FROM segment_memberships sm WHERE sm.tenant_id = :tid AND sm.subscriber_id = s.id AND sm.segment_id = :"
+                        + paramName + ")";
             }
             default -> null;
         };

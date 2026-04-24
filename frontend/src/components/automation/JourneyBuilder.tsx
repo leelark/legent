@@ -30,15 +30,10 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
   const dragOverIdx = useRef<number | null>(null);
 
   const resolveWorkflowId = () => {
-    if (workflowId && workflowId.trim().length > 0) {
-      return workflowId;
+    if (!workflowId || workflowId.trim().length === 0) {
+      throw new Error('Workflow ID is required');
     }
-
-    if (typeof window !== 'undefined') {
-      return window.localStorage.getItem('current_workflow_id') || 'demo-workflow';
-    }
-
-    return 'demo-workflow';
+    return workflowId;
   };
 
   const handleDragStart = (idx: number) => setDraggedIdx(idx);

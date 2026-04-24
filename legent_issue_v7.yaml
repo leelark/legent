@@ -1,0 +1,185 @@
+- fix_order: 1
+  priority: Critical
+  layer_module: BE
+  file_names:
+    - services/identity-service/src/main/java/com/legent/identity/security/JwtService.java
+    - services/identity-service/src/main/java/com/legent/identity/security/SecurityConfig.java
+  issue_category: Security
+  short_description: JWT validation lacks strict signature and expiry enforcement
+  technical_details: >
+    Token parsing does not consistently enforce signature validation and expiration checks,
+    allowing potentially expired or tampered tokens to pass authentication in edge cases.
+  impacted_flow: Authentication, authorization, API security
+  root_cause: Improper JWT validation configuration
+  fix_recommendation: >
+    Enforce strict signature verification, expiration validation, and algorithm checks
+  dependency_impact: All secured APIs
+  risk_if_not_fixed: Unauthorized access, token forgery risk
+
+- fix_order: 2
+  priority: High
+  layer_module: BE
+  file_names:
+    - services/*/src/main/java/**/controller/*.java
+  issue_category: Bug
+  short_description: Missing global exception handling
+  technical_details: >
+    Controllers directly return errors without a centralized @ControllerAdvice,
+    leading to inconsistent error formats and unhandled runtime exceptions.
+  impacted_flow: All API responses
+  root_cause: Lack of global exception handler
+  fix_recommendation: >
+    Implement centralized exception handling using @RestControllerAdvice
+  dependency_impact: All services
+  risk_if_not_fixed: Inconsistent API behavior, poor client handling
+
+- fix_order: 3
+  priority: High
+  layer_module: BE
+  file_names:
+    - services/*/src/main/java/**/service/*.java
+  issue_category: Performance
+  short_description: Blocking operations in service layer
+  technical_details: >
+    Several services perform synchronous DB and external calls without async handling,
+    causing thread blocking under load.
+  impacted_flow: High concurrency operations, API latency
+  root_cause: Lack of async/non-blocking design
+  fix_recommendation: >
+    Introduce async processing or reactive patterns where applicable
+  dependency_impact: Thread pools, API performance
+  risk_if_not_fixed: Scalability bottlenecks
+
+- fix_order: 4
+  priority: High
+  layer_module: DB
+  file_names:
+    - database/schema/*.sql
+    - services/*/src/main/java/**/entity/*.java
+  issue_category: Design
+  short_description: Missing database constraints and indexes
+  technical_details: >
+    Tables lack foreign key constraints, unique constraints, and proper indexing,
+    leading to data inconsistency and slow queries.
+  impacted_flow: Data integrity, query performance
+  root_cause: Incomplete schema design
+  fix_recommendation: >
+    Add constraints and indexes aligned with query patterns
+  dependency_impact: All DB operations
+  risk_if_not_fixed: Data corruption, slow performance
+
+- fix_order: 5
+  priority: High
+  layer_module: Integration
+  file_names:
+    - services/*/src/main/java/**/client/*.java
+  issue_category: Integration
+  short_description: No retry or timeout configuration for inter-service calls
+  technical_details: >
+    REST clients lack timeout, retry, and circuit breaker configurations,
+    making services fragile to downstream failures.
+  impacted_flow: Service-to-service communication
+  root_cause: Missing resilience patterns
+  fix_recommendation: >
+    Implement timeouts, retries, and circuit breakers (e.g., Resilience4j)
+  dependency_impact: All integrations
+  risk_if_not_fixed: Cascading failures
+
+- fix_order: 6
+  priority: Medium
+  layer_module: Infra
+  file_names:
+    - docker-compose.yml
+    - infrastructure/kubernetes/base/deployments/*.yml
+  issue_category: Config
+  short_description: No resource limits defined
+  technical_details: >
+    Containers do not define CPU/memory limits, leading to unpredictable resource usage.
+  impacted_flow: Deployment stability
+  root_cause: Missing resource configuration
+  fix_recommendation: >
+    Define requests and limits for all containers
+  dependency_impact: Kubernetes scheduling
+  risk_if_not_fixed: Resource exhaustion
+
+- fix_order: 7
+  priority: Medium
+  layer_module: BE
+  file_names:
+    - services/*/src/main/java/**/repository/*.java
+  issue_category: Performance
+  short_description: N+1 query problems in JPA usage
+  technical_details: >
+    Lazy-loaded relationships are accessed in loops without fetch joins,
+    causing excessive DB queries.
+  impacted_flow: Data fetching APIs
+  root_cause: Improper JPA fetch strategy
+  fix_recommendation: >
+    Use fetch joins or entity graphs
+  dependency_impact: DB performance
+  risk_if_not_fixed: High latency
+
+- fix_order: 8
+  priority: Medium
+  layer_module: FE
+  file_names:
+    - frontend/src/hooks/*.ts
+    - frontend/src/components/**/*.tsx
+  issue_category: Bug
+  short_description: Missing error and loading state handling
+  technical_details: >
+    Many components do not handle API loading/error states,
+    leading to blank screens or crashes.
+  impacted_flow: UI/UX
+  root_cause: Incomplete state management
+  fix_recommendation: >
+    Standardize loading/error handling in hooks/components
+  dependency_impact: All UI modules
+  risk_if_not_fixed: Poor user experience
+
+- fix_order: 9
+  priority: Medium
+  layer_module: Security
+  file_names:
+    - services/*/src/main/java/**/controller/*.java
+  issue_category: Security
+  short_description: Missing input validation on request payloads
+  technical_details: >
+    Controllers accept request bodies without proper validation annotations,
+    allowing invalid or malicious input.
+  impacted_flow: All APIs
+  root_cause: Lack of validation layer
+  fix_recommendation: >
+    Use @Valid and validation annotations
+  dependency_impact: DTOs, controllers
+  risk_if_not_fixed: Injection and data integrity issues
+
+- fix_order: 10
+  priority: Low
+  layer_module: Infra
+  file_names:
+    - infrastructure/kubernetes/base/deployments/*.yml
+  issue_category: Config
+  short_description: Missing health probes
+  technical_details: >
+    Some deployments lack liveness/readiness probes
+  impacted_flow: Service reliability
+  root_cause: Incomplete K8s config
+  fix_recommendation: Add proper probes
+  dependency_impact: Kubernetes lifecycle
+  risk_if_not_fixed: Unstable deployments
+
+- fix_order: 11
+  priority: Low
+  layer_module: FE
+  file_names:
+    - frontend/src/styles/**/*.css
+  issue_category: Design
+  short_description: Inconsistent styling and duplication
+  technical_details: >
+    Styles are duplicated and not centralized
+  impacted_flow: UI consistency
+  root_cause: No design system
+  fix_recommendation: Centralize styles
+  dependency_impact: Frontend maintainability
+  risk_if_not_fixed: UI inconsistency

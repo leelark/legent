@@ -18,6 +18,8 @@ public class WebhookService {
     private final WebhookIntegrationRepository repo;
     private final RestTemplate restTemplate;
 
+    private final java.util.concurrent.ScheduledExecutorService scheduler = java.util.concurrent.Executors.newScheduledThreadPool(2);
+
     public void sendEvent(String eventType, String payload) {
         if (eventType == null || eventType.isBlank()) {
             log.warn("Skipping webhook dispatch because eventType is blank");
@@ -30,15 +32,21 @@ public class WebhookService {
             }
 
             if (Objects.equals(wh.getEventType(), eventType)) {
-                try {
-                    restTemplate.postForObject(wh.getUrl(), payload, String.class);
-                    log.info("Webhook dispatched successfully for eventType={} url={}", eventType, wh.getUrl());
-                } catch (RestClientException ex) {
-                    log.warn("Webhook dispatch failed for eventType={} url={} reason={}",
-                            eventType,
-                            wh.getUrl(),
-                            ex.getMessage());
-                }
+                dispatchWithRetry(wh.getUrl(), payload, eventType, 1);
+            }
+        }
+    }
+
+    private void dispatchWithRetry(String url, String payload, String eventType, int attempt) {
+        try {
+            restTemplate.postForObject(url, payload, String.class);
+            log.info("Webhook dispatched successfully for eventType={} url={}", eventType, url);
+        } catch (RestClientException ex) {
+            if (attempt < 3) {
+                log.warn("Webhook dispatch failed, retrying (attempt {}) for url={} reason={}", attempt, url, ex.getMessage());
+                scheduler.schedule(() -> dispatchWithRetry(url, payload, eventType, attempt + 1), 2L * attempt, java.util.concurrent.TimeUnit.SECONDS);
+            } else {
+                log.error("Webhook dispatch permanently failed after 3 attempts for url={} reason={}", url, ex.getMessage());
             }
         }
     }

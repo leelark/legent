@@ -5,7 +5,7 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { ChartPieSlice, Activity, TrendUp } from '@phosphor-icons/react';
+import { TrendUp } from '@phosphor-icons/react';
 import { get } from '@/lib/api-client';
 
 export default function TrackingPage() {
@@ -36,9 +36,9 @@ export default function TrackingPage() {
     { key: 'totalSends', header: 'Sends' },
     { key: 'totalOpens', header: 'Opens' },
     { key: 'totalClicks', header: 'Clicks' },
-    { 
-      key: 'ctr', 
-      header: 'CTR', 
+    {
+      key: 'ctr',
+      header: 'CTR',
       render: (row: any) => row.totalSends > 0 ? ((row.totalClicks / row.totalSends) * 100).toFixed(2) + '%' : '0%'
     }
   ];
@@ -53,15 +53,15 @@ export default function TrackingPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {eventCounts.map((item: any) => (
           <Card key={item.event_type} className="p-4">
-             <div className="flex items-center gap-3">
-               <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
-                 <TrendUp size={20} />
-               </div>
-               <div>
-                 <p className="text-xs font-medium text-content-secondary uppercase">{item.event_type}</p>
-                 <p className="text-xl font-bold">{item.count}</p>
-               </div>
-             </div>
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-brand-50 rounded-lg text-brand-600">
+                <TrendUp size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-medium text-content-secondary uppercase">{item.event_type}</p>
+                <p className="text-xl font-bold">{item.count}</p>
+              </div>
+            </div>
           </Card>
         ))}
       </div>

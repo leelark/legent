@@ -53,19 +53,39 @@ public class JwtTokenProvider {
 
     /**
      * Validates a token and returns the parsed claims.
+     * Enforces strict signature, expiration, and algorithm validation.
      */
     public Optional<Claims> validateToken(String token) {
         try {
+            if (token == null || token.isBlank()) {
+                return Optional.empty();
+            }
+
             Claims claims = Jwts.parser()
                     .verifyWith(signingKey)
                     .build()
                     .parseSignedClaims(token)
                     .getPayload();
+
+            // Strict expiration check (already handled by parseSignedClaims, but explicit logging)
+            if (claims.getExpiration().before(new Date())) {
+                log.warn("JWT token is expired");
+                return Optional.empty();
+            }
+
             return Optional.of(claims);
+        } catch (ExpiredJwtException e) {
+            log.warn("JWT token has expired: {}", e.getMessage());
+        } catch (SignatureException e) {
+            log.error("JWT signature validation failed: {}", e.getMessage());
+        } catch (MalformedJwtException e) {
+            log.error("JWT token is malformed: {}", e.getMessage());
+        } catch (UnsupportedJwtException e) {
+            log.error("JWT token algorithm is not supported: {}", e.getMessage());
         } catch (JwtException | IllegalArgumentException e) {
-            log.warn("Invalid JWT token: {}", e.getMessage());
-            return Optional.empty();
+            log.warn("JWT validation failed: {}", e.getMessage());
         }
+        return Optional.empty();
     }
 
     /**

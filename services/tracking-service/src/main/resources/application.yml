@@ -12,11 +12,11 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:legent_tracking}}
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USER:legent}}
-    password: ${SPRING_DATASOURCE_PASSWORD:${DB_PASSWORD:legent}}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     clickhouse:
       url: ${SPRING_DATASOURCE_CLICKHOUSE_URL:jdbc:clickhouse://${CLICKHOUSE_HOST:clickhouse}:${CLICKHOUSE_PORT:8123}/${CLICKHOUSE_DB:default}}
       username: ${SPRING_DATASOURCE_CLICKHOUSE_USERNAME:${CLICKHOUSE_USER:default}}
-      password: ${SPRING_DATASOURCE_CLICKHOUSE_PASSWORD:${CLICKHOUSE_PASSWORD:}}
+      password: ${SPRING_DATASOURCE_CLICKHOUSE_PASSWORD}
       driver-class-name: ${SPRING_DATASOURCE_CLICKHOUSE_DRIVER_CLASS_NAME:com.clickhouse.jdbc.ClickHouseDriver}
     hikari:
       maximum-pool-size: 50 # High ingest requires large DB pool if we aren't batching
@@ -80,5 +80,5 @@ management:
 legent:
   security:
     jwt:
-      secret: ${LEGENT_SECURITY_JWT_SECRET:legent-default-secret-key-that-is-at-least-32-bytes-long}
+      secret: ${LEGENT_SECURITY_JWT_SECRET}
       expiration-ms: 86400000

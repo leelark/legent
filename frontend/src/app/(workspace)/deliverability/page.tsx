@@ -22,15 +22,23 @@ export default function DeliverabilityPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Simulate fetching domains
-    setTimeout(() => {
-      setDomains([
-        { id: '1', domain: 'legent.com', isVerified: true, spfStatus: 'PASS', dkimStatus: 'PASS', dmarcStatus: 'PASS', reputationScore: 98 },
-        { id: '2', domain: 'marketing.legent.com', isVerified: false, spfStatus: 'FAIL', dkimStatus: 'PENDING', dmarcStatus: 'NONE', reputationScore: 45 },
-      ]);
-      setLoading(false);
-    }, 800);
+    const fetchDomains = async () => {
+      try {
+        const response = await get<any>('/deliverability/domains');
+        const data = Array.isArray(response) ? response : response?.content || response?.data || [];
+        setDomains(data);
+      } catch (e) {
+        console.error('Failed to fetch domains', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchDomains();
   }, []);
+
+  const avgReputation = domains.length > 0 ? Math.round(domains.reduce((sum, d) => sum + (d.reputationScore || 0), 0) / domains.length) : 0;
+  const verifiedCount = domains.filter(d => d.isVerified).length;
+  const issuesCount = domains.filter(d => !d.isVerified || d.spfStatus === 'FAIL' || d.dkimStatus === 'FAIL').length;
 
   return (
     <div className="space-y-6">
@@ -47,7 +55,7 @@ export default function DeliverabilityPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-green-600 dark:text-green-400">Avg Reputation</p>
-                <h3 className="text-3xl font-bold text-content-primary">92/100</h3>
+                <h3 className="text-3xl font-bold text-content-primary">{avgReputation}/100</h3>
               </div>
               <ShieldCheck size={48} weight="duotone" className="text-green-500" />
             </div>
@@ -59,7 +67,7 @@ export default function DeliverabilityPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-brand-600 dark:text-brand-400">Authenticated Domains</p>
-                <h3 className="text-3xl font-bold text-content-primary">1 / 2</h3>
+                <h3 className="text-3xl font-bold text-content-primary">{verifiedCount} / {domains.length}</h3>
               </div>
               <Globe size={48} weight="duotone" className="text-brand-500" />
             </div>
@@ -71,7 +79,7 @@ export default function DeliverabilityPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-orange-600 dark:text-orange-400">Issues Detected</p>
-                <h3 className="text-3xl font-bold text-content-primary">2</h3>
+                <h3 className="text-3xl font-bold text-content-primary">{issuesCount}</h3>
               </div>
               <WarningCircle size={48} weight="duotone" className="text-orange-500" />
             </div>

@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: legent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: legent/frontend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: API_GATEWAY_URL
+              value: "http://api.legent.local"
+            - name: LEGENT_SECURITY_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: legent-secrets
+                  key: LEGENT_SECURITY_JWT_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: legent
+spec:
+  selector:
+    app: frontend
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000

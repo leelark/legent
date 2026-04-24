@@ -80,7 +80,15 @@ export default apiClient;
 // ── Convenience helpers ──
 export async function get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.get<any>(url, config);
-  return response.data?.data ?? response.data;
+  const resData = response.data;
+  if (resData?.pagination) {
+    return {
+      content: resData.data,
+      data: resData.data,
+      ...resData.pagination
+    } as any;
+  }
+  return resData?.data ?? resData;
 }
 
 export async function post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {

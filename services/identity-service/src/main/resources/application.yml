@@ -12,7 +12,7 @@ spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/legent_identity}
     username: ${SPRING_DATASOURCE_USERNAME:legent}
-    password: ${SPRING_DATASOURCE_PASSWORD:legent}
+    password: ${SPRING_DATASOURCE_PASSWORD}
   jpa:
     open-in-view: false
     hibernate:
@@ -52,4 +52,4 @@ legent:
       secret: ${LEGENT_SECURITY_JWT_SECRET}
       expiration-ms: 86400000 # 24h
     cors:
-      allowed-origins: http://localhost:3000
+      allowed-origins: ${CORS_ALLOWED_ORIGINS}

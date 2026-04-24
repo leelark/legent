@@ -1,0 +1,276 @@
+- fix_order: 1
+  priority: Critical
+  layer_module: Infra
+  file_names:
+    - infrastructure/kubernetes/base/deployments/frontend.yml
+    - infrastructure/kubernetes/ingress/ingress.yml
+    - docker-compose.yml
+  issue_category: Config
+  short_description: Frontend missing in Kubernetes while referenced by ingress
+  technical_details: >
+    Ingress routes traffic to a frontend service that is not defined in Kubernetes manifests,
+    while docker-compose defines it. This creates environment inconsistency and broken routing.
+  impacted_flow: UI access, browser entrypoint, all frontend features in Kubernetes
+  root_cause: Missing Deployment and Service definitions for frontend in Kubernetes
+  fix_recommendation: >
+    Add frontend Deployment and Service, align ports and service names with docker-compose,
+    and update ingress to reference correct service
+  dependency_impact: Ingress, frontend image, service discovery, environment parity
+  risk_if_not_fixed: Application UI inaccessible in Kubernetes deployments
+
+- fix_order: 2
+  priority: Critical
+  layer_module: Infra
+  file_names:
+    - infrastructure/kubernetes/base/secrets.yml
+    - infrastructure/kubernetes/base/configmap.yml
+    - docker-compose.yml
+    - services/*/src/main/resources/application.yml
+  issue_category: Security
+  short_description: Hardcoded credentials and secrets across configs
+  technical_details: >
+    Plaintext DB passwords, JWT secrets, and service credentials are embedded across
+    YAML files and Spring configs, with fallback defaults.
+  impacted_flow: Authentication, DB access, service startup, security
+  root_cause: No centralized secret management and reliance on defaults
+  fix_recommendation: >
+    Move all secrets to environment variables or Kubernetes Secrets, remove defaults,
+    enforce required config validation at startup
+  dependency_impact: All services, DB connections, auth flows
+  risk_if_not_fixed: Credential leakage, security breach, inconsistent environments
+
+- fix_order: 3
+  priority: Critical
+  layer_module: BE
+  file_names:
+    - services/foundation-service/src/main/java/com/legent/foundation/config/OpenSearchConfig.java
+    - services/foundation-service/src/main/resources/application.yml
+    - infrastructure/kubernetes/base/configmap.yml
+  issue_category: Missing
+  short_description: OpenSearch dependency enabled without deployment
+  technical_details: >
+    Search is enabled but OpenSearch service is not deployed in Kubernetes,
+    fallback points to localhost causing failures
+  impacted_flow: Search APIs, admin search, content discovery
+  root_cause: Misalignment between feature flag and infrastructure
+  fix_recommendation: >
+    Disable search by default or provision OpenSearch and inject endpoint via env
+  dependency_impact: Search controllers, config maps, service startup
+  risk_if_not_fixed: Service startup failure or broken search features
+
+- fix_order: 4
+  priority: Critical
+  layer_module: Shared
+  file_names:
+    - shared/legent-security/src/main/java/com/legent/security/TenantFilter.java
+    - services/identity-service/src/main/resources/application.yml
+  issue_category: Security
+  short_description: Tenant filter blocks login endpoint
+  technical_details: >
+    TenantFilter does not whitelist login route (/api/v1/auth/**) causing
+    authentication requests to fail before reaching auth layer
+  impacted_flow: Login, authentication, session creation
+  root_cause: Misaligned whitelist configuration
+  fix_recommendation: >
+    Add login endpoints to whitelist and centralize public route config
+  dependency_impact: Auth service, frontend login, security filters
+  risk_if_not_fixed: Users unable to log in
+
+- fix_order: 5
+  priority: High
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/campaigns/page.tsx
+    - frontend/src/app/(workspace)/tracking/page.tsx
+    - frontend/src/app/(workspace)/audience/page.tsx
+    - frontend/src/app/(workspace)/email/templates/page.tsx
+  issue_category: Integration
+  short_description: Direct fetch calls bypass API client
+  technical_details: >
+    Pages use fetch() instead of apiClient, missing Authorization and Tenant headers
+  impacted_flow: Campaigns, tracking, audience, templates
+  root_cause: No enforced API abstraction usage
+  fix_recommendation: Replace all fetch calls with apiClient wrappers
+  dependency_impact: api-client.ts, auth, tenant propagation
+  risk_if_not_fixed: Unauthorized errors, inconsistent API behavior
+
+- fix_order: 6
+  priority: High
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/audience/page.tsx
+    - frontend/src/app/(workspace)/audience/imports/page.tsx
+  issue_category: Bug
+  short_description: Pagination response mismatch
+  technical_details: >
+    UI expects flat pagination fields but backend returns wrapped PagedResponse
+  impacted_flow: Audience lists, pagination UI
+  root_cause: DTO mismatch between frontend and backend
+  fix_recommendation: Normalize API response or update UI to match contract
+  dependency_impact: useApi hooks, list components
+  risk_if_not_fixed: Broken UI, incorrect data display
+
+- fix_order: 7
+  priority: High
+  layer_module: BE
+  file_names:
+    - services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java
+  issue_category: Security
+  short_description: Analytics endpoint lacks tenant filtering
+  technical_details: >
+    Uses findAll() without tenant constraint exposing cross-tenant data
+  impacted_flow: Analytics dashboard
+  root_cause: Missing tenant condition in query
+  fix_recommendation: Add tenant-scoped repository methods
+  dependency_impact: Analytics service, UI
+  risk_if_not_fixed: Data leakage
+
+- fix_order: 8
+  priority: High
+  layer_module: BE
+  file_names:
+    - services/tracking-service/src/main/java/com/legent/tracking/service/FunnelService.java
+  issue_category: Security
+  short_description: Funnel queries not tenant scoped
+  technical_details: >
+    Queries raw_events by campaign_id only
+  impacted_flow: Funnel analytics
+  root_cause: Missing tenant filter in query
+  fix_recommendation: Add tenant_id filtering
+  dependency_impact: Analytics, reporting
+  risk_if_not_fixed: Cross-tenant data exposure
+
+- fix_order: 9
+  priority: High
+  layer_module: BE
+  file_names:
+    - services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java
+  issue_category: Bug
+  short_description: Cache keys not tenant-aware
+  technical_details: >
+    Cache uses segmentId only, causing cross-tenant contamination
+  impacted_flow: Segment counts
+  root_cause: Improper cache key design
+  fix_recommendation: Include tenantId in cache keys
+  dependency_impact: Cache layer, segmentation
+  risk_if_not_fixed: Incorrect data display
+
+- fix_order: 10
+  priority: High
+  layer_module: BE
+  file_names:
+    - services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainValidationService.java
+  issue_category: Missing
+  short_description: Domain validation is mocked
+  technical_details: >
+    SPF/DKIM checks are simulated instead of real DNS validation
+  impacted_flow: Deliverability setup
+  root_cause: Placeholder implementation
+  fix_recommendation: Implement real DNS validation
+  dependency_impact: Deliverability APIs
+  risk_if_not_fixed: False validation results
+
+- fix_order: 11
+  priority: High
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/deliverability/page.tsx
+  issue_category: Missing
+  short_description: Deliverability UI uses static data
+  technical_details: >
+    Page renders hardcoded values instead of API data
+  impacted_flow: Deliverability dashboard
+  root_cause: Not integrated with backend
+  fix_recommendation: Connect to APIs
+  dependency_impact: Deliverability service
+  risk_if_not_fixed: Misleading UI
+
+- fix_order: 12
+  priority: High
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/automations/builder/page.tsx
+  issue_category: Design
+  short_description: Builder uses hardcoded workflow
+  technical_details: >
+    Falls back to demo workflow ID
+  impacted_flow: Automation builder
+  root_cause: Demo logic in production
+  fix_recommendation: Remove fallback, require real workflow
+  dependency_impact: Automation service
+  risk_if_not_fixed: Incorrect workflow edits
+
+- fix_order: 13
+  priority: Medium
+  layer_module: BE
+  file_names:
+    - services/foundation-service/src/main/java/com/legent/foundation/service/WebhookService.java
+  issue_category: Design
+  short_description: No retry mechanism for webhooks
+  technical_details: >
+    Webhooks sent synchronously without retry or persistence
+  impacted_flow: Webhook delivery
+  root_cause: Missing outbox pattern
+  fix_recommendation: Implement retry queue/outbox
+  dependency_impact: Integration flows
+  risk_if_not_fixed: Lost webhooks
+
+- fix_order: 14
+  priority: Medium
+  layer_module: BE
+  file_names:
+    - services/foundation-service/src/main/java/com/legent/foundation/controller/AdminConfigController.java
+  issue_category: Design
+  short_description: Controllers expose entities directly
+  technical_details: >
+    No DTO separation, tight coupling to DB schema
+  impacted_flow: Admin APIs
+  root_cause: Missing abstraction layer
+  fix_recommendation: Use DTOs and mappers
+  dependency_impact: API contracts
+  risk_if_not_fixed: Breaking changes risk
+
+- fix_order: 15
+  priority: Medium
+  layer_module: Config
+  file_names:
+    - services/*/src/main/resources/application.yml
+  issue_category: Misconfiguration
+  short_description: Localhost configs in production
+  technical_details: >
+    CORS and service URLs point to localhost
+  impacted_flow: Deployment, API access
+  root_cause: Hardcoded environment values
+  fix_recommendation: Use env variables
+  dependency_impact: All services
+  risk_if_not_fixed: Deployment failures
+
+- fix_order: 16
+  priority: Medium
+  layer_module: FE
+  file_names:
+    - frontend/src/app/(workspace)/campaigns/new/page.tsx
+  issue_category: Missing
+  short_description: Campaign creation uses default template
+  technical_details: >
+    Hardcoded template ID used
+  impacted_flow: Campaign creation
+  root_cause: Incomplete implementation
+  fix_recommendation: Add template selection
+  dependency_impact: Campaign service
+  risk_if_not_fixed: Incorrect campaigns
+
+- fix_order: 17
+  priority: Medium
+  layer_module: BE
+  file_names:
+    - services/automation-service/src/main/java/com/legent/automation/controller/WorkflowDefinitionController.java
+  issue_category: Performance
+  short_description: Inefficient workflow lookup
+  technical_details: >
+    Loads all records to find latest version
+  impacted_flow: Workflow builder
+  root_cause: Missing optimized query
+  fix_recommendation: Add DB-level query with limit
+  dependency_impact: Automation service
+  risk_if_not_fixed: Performance degradation
