@@ -26,11 +26,9 @@ public class TenantFilter extends OncePerRequestFilter {
      * Paths that do NOT require a tenant context.
      */
     private static final Set<String> TENANT_FREE_PATHS = Set.of(
-            "/api/v1/health",
-            "/api/v1/health/ready",
-            "/api/v1/health/live",
             "/actuator",
-            "/api/v1/auth/",
+            "/api/v1/health",
+            "/api/v1/auth",
             "/api/v1/track",
             "/api/v1/tracking"
     );

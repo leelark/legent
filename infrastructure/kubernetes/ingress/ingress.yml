@@ -5,10 +5,16 @@ metadata:
   namespace: legent
   annotations:
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
     nginx.ingress.kubernetes.io/rate-limit: "100"
     nginx.ingress.kubernetes.io/rate-limit-window: "1s"
-    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
     nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Tenant-Id, X-Correlation-Id, X-Request-Id"
 spec:
   ingressClassName: nginx
   rules:
@@ -16,7 +22,7 @@ spec:
       http:
         paths:
           # Identity
-          - path: /api/v1/(auth|users)
+          - path: /api/v1/(auth|users)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -24,7 +30,7 @@ spec:
                 port:
                   number: 8089
           # Foundation
-          - path: /api/v1/(configs|feature-flags|tenants|admin|health)
+          - path: /api/v1/(configs|feature-flags|tenants|admin|health)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -32,7 +38,7 @@ spec:
                 port:
                   number: 8081
           # Audience
-          - path: /api/v1/(subscribers|lists|data-extensions|segments|imports|suppressions)
+          - path: /api/v1/(subscribers|lists|data-extensions|segments|imports|suppressions)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -40,7 +46,7 @@ spec:
                 port:
                   number: 8082
           # Content
-          - path: /api/v1/(templates|content-blocks|assets|content)
+          - path: /api/v1/(templates|content-blocks|assets|content)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -48,7 +54,7 @@ spec:
                 port:
                   number: 8090
           # Campaign
-          - path: /api/v1/(campaigns|sends)
+          - path: /api/v1/(campaigns|sends)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -56,15 +62,15 @@ spec:
                 port:
                   number: 8083
           # Delivery
-          - path: /api/v1/(providers|delivery-status)
+          - path: /api/v1/(providers|delivery-status)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
                 name: delivery-service
                 port:
                   number: 8084
-          # Tracking
-          - path: /api/v1/(tracking|reports|analytics|track)
+          # Tracking (pixel + analytics + reports)
+          - path: /api/v1/(tracking|track|reports|analytics)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -72,7 +78,7 @@ spec:
                 port:
                   number: 8085
           # Automation
-          - path: /api/v1/(workflows|triggers|workflow-definitions)
+          - path: /api/v1/(workflows|triggers|workflow-definitions)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -80,7 +86,7 @@ spec:
                 port:
                   number: 8086
           # Deliverability
-          - path: /api/v1/(deliverability|reputation|dmarc)
+          - path: /api/v1/(deliverability|reputation|dmarc)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -88,7 +94,7 @@ spec:
                 port:
                   number: 8087
           # Platform
-          - path: /api/v1/platform
+          - path: /api/v1/platform(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:

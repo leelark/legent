@@ -7,8 +7,12 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.tracking.dto.TrackingDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TrackingEventPublisher {
@@ -19,16 +23,15 @@ public class TrackingEventPublisher {
 
     public void publishIngestedEvent(TrackingDto.RawEventPayload payload) {
         try {
-            // Publish to intermediate holding topic
             EventEnvelope<String> envelope = EventEnvelope.wrap(
-                    AppConstants.TOPIC_TRACKING_INGESTED, 
-                    payload.getTenantId(), 
+                    AppConstants.TOPIC_TRACKING_INGESTED,
+                    payload.getTenantId(),
                     SOURCE,
                     objectMapper.writeValueAsString(payload)
             );
             eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, payload.getMessageId(), envelope);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to publish tracking ingestion", e);
+            log.error("Failed to publish tracking ingestion for mid={}", payload.getMessageId(), e);
         }
     }
 
@@ -42,21 +45,22 @@ public class TrackingEventPublisher {
             );
             eventPublisher.publish(AppConstants.TOPIC_EMAIL_OPEN, mid, envelope);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to publish email open event", e);
+            log.error("Failed to publish email open event for mid={}", mid, e);
         }
     }
 
     public void publishClick(String mid, String url, String tenantId) {
         try {
+            String payload = objectMapper.writeValueAsString(Map.of("mid", mid, "url", url));
             EventEnvelope<String> envelope = EventEnvelope.wrap(
                     AppConstants.TOPIC_EMAIL_CLICK,
                     tenantId,
                     SOURCE,
-                    "{\"mid\":\"" + mid + "\",\"url\":\"" + url + "\"}"
+                    payload
             );
             eventPublisher.publish(AppConstants.TOPIC_EMAIL_CLICK, mid, envelope);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to publish email click event", e);
+            log.error("Failed to publish email click event for mid={}", mid, e);
         }
     }
 
@@ -70,7 +74,7 @@ public class TrackingEventPublisher {
             );
             eventPublisher.publish(AppConstants.TOPIC_CONVERSION_EVENT, mid, envelope);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to publish conversion event", e);
+            log.error("Failed to publish conversion event for mid={}", mid, e);
         }
     }
 }

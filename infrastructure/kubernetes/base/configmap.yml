@@ -4,20 +4,50 @@ metadata:
   name: legent-config
   namespace: legent
 data:
-  # Database
+  # ── Database ──
   DB_HOST: "legent-postgres"
   DB_PORT: "5432"
   DB_USER: "legent"
+  SPRING_DATASOURCE_USERNAME: "legent"
 
-  # Redis
+  # ── Spring ──
+  SPRING_PROFILES_ACTIVE: "prod"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "update"
+  SPRING_FLYWAY_ENABLED: "true"
+  SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+  SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+  SPRING_FLYWAY_OUT_OF_ORDER: "true"
+
+  # ── Redis ──
   REDIS_HOST: "legent-redis"
   REDIS_PORT: "6379"
 
-  # Kafka
+  # ── Kafka ──
   KAFKA_BOOTSTRAP: "legent-kafka:9092"
 
-  # Service URLs (internal DNS)
+  # ── MinIO ──
+  MINIO_ENDPOINT: "http://legent-minio:9000"
+  MINIO_BUCKET: "legent-assets"
+
+  # ── OpenSearch ──
+  OPENSEARCH_URL: "http://legent-opensearch:9200"
+  SEARCH_ENABLED: "false"
+
+  # ── ClickHouse (tracking analytics) ──
+  CLICKHOUSE_HOST: "legent-clickhouse"
+  CLICKHOUSE_PORT: "8123"
+  CLICKHOUSE_DB: "default"
+  CLICKHOUSE_USER: "default"
+
+  # ── Mail (MailHog for dev/staging) ──
+  MAIL_HOST: "legent-mailhog"
+  MAIL_PORT: "1025"
+  MAIL_SMTP_AUTH: "false"
+  MAIL_SMTP_STARTTLS: "false"
+
+  # ── Service URLs (internal DNS) ──
   FOUNDATION_SERVICE_URL: "http://foundation-service:8081"
+  IDENTITY_SERVICE_URL: "http://identity-service:8089"
   AUDIENCE_SERVICE_URL: "http://audience-service:8082"
   CONTENT_SERVICE_URL: "http://content-service:8090"
   CAMPAIGN_SERVICE_URL: "http://campaign-service:8083"
@@ -26,8 +56,9 @@ data:
   AUTOMATION_SERVICE_URL: "http://automation-service:8086"
   DELIVERABILITY_SERVICE_URL: "http://deliverability-service:8087"
   PLATFORM_SERVICE_URL: "http://platform-service:8088"
-  IDENTITY_SERVICE_URL: "http://identity-service:8089"
 
-  # General
-  SPRING_PROFILES_ACTIVE: "prod"
+  # ── Observability ──
   LOG_LEVEL: "INFO"
+
+  # ── JVM ──
+  JAVA_TOOL_OPTIONS: "-Xmx512m -Xms256m"

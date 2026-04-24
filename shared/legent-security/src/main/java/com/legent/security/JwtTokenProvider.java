@@ -14,7 +14,8 @@ import java.util.Optional;
 
 /**
  * JWT token provider for generating and validating access tokens.
- * Production-ready: supports configurable secret, expiry, and claims extraction.
+ * Production-ready: supports configurable secret, expiry, and claims
+ * extraction.
  */
 @Slf4j
 @Component
@@ -55,6 +56,7 @@ public class JwtTokenProvider {
      * Validates a token and returns the parsed claims.
      * Enforces strict signature, expiration, and algorithm validation.
      */
+
     public Optional<Claims> validateToken(String token) {
         try {
             if (token == null || token.isBlank()) {
@@ -67,21 +69,13 @@ public class JwtTokenProvider {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            // Strict expiration check (already handled by parseSignedClaims, but explicit logging)
-            if (claims.getExpiration().before(new Date())) {
-                log.warn("JWT token is expired");
-                return Optional.empty();
-            }
-
             return Optional.of(claims);
         } catch (ExpiredJwtException e) {
-            log.warn("JWT token has expired: {}", e.getMessage());
-        } catch (SignatureException e) {
-            log.error("JWT signature validation failed: {}", e.getMessage());
-        } catch (MalformedJwtException e) {
-            log.error("JWT token is malformed: {}", e.getMessage());
+            log.warn("JWT token has expired");
+        } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
+            log.error("JWT integrity check failed: {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            log.error("JWT token algorithm is not supported: {}", e.getMessage());
+            log.error("JWT format not supported: {}", e.getMessage());
         } catch (JwtException | IllegalArgumentException e) {
             log.warn("JWT validation failed: {}", e.getMessage());
         }

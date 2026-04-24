@@ -1,10 +1,12 @@
 package com.legent.tracking.controller;
 
 import java.util.List;
+import java.util.Map;
 
 import com.legent.common.dto.ApiResponse;
 import com.legent.tracking.domain.CampaignSummary;
 import com.legent.tracking.repository.CampaignSummaryRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,30 +20,28 @@ public class AnalyticsController {
     private final com.legent.tracking.service.AnalyticsService analyticsService;
 
     @GetMapping("/campaigns")
-    public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries(@RequestHeader("X-Tenant-Id") String tenantId) {
+    public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries() {
+        String tenantId = TenantContext.getTenantId();
         return ApiResponse.ok(campaignSummaryRepository.findAllByTenantId(tenantId));
     }
 
     @GetMapping("/campaigns/{id}")
-    public ApiResponse<CampaignSummary> getCampaignSummary(
-            @RequestHeader("X-Tenant-Id") String tenantId, 
-            @PathVariable String id) {
-        
+    public ApiResponse<CampaignSummary> getCampaignSummary(@PathVariable String id) {
+        String tenantId = TenantContext.getTenantId();
         CampaignSummary summary = campaignSummaryRepository.findByTenantIdAndCampaignId(tenantId, id)
-                .orElse(new CampaignSummary()); // Return zeros if none
+                .orElse(new CampaignSummary());
         return ApiResponse.ok(summary);
     }
 
     @GetMapping("/events/counts")
-    public ApiResponse<List<java.util.Map<String, Object>>> getEventCounts(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ApiResponse<List<Map<String, Object>>> getEventCounts() {
+        String tenantId = TenantContext.getTenantId();
         return ApiResponse.ok(analyticsService.getEventCounts(tenantId));
     }
 
     @GetMapping("/events/timeline")
-    public ApiResponse<List<java.util.Map<String, Object>>> getEventTimeline(
-            @RequestHeader("X-Tenant-Id") String tenantId,
-            @RequestParam String eventType) {
+    public ApiResponse<List<Map<String, Object>>> getEventTimeline(@RequestParam String eventType) {
+        String tenantId = TenantContext.getTenantId();
         return ApiResponse.ok(analyticsService.getEventTimeline(tenantId, eventType));
     }
 }
