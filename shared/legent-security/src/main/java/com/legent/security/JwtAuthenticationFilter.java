@@ -4,11 +4,13 @@ import com.legent.common.constant.AppConstants;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
+import org.springframework.util.StringUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,7 +28,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Filter that validates JWT bearer tokens and populates Spring Security context.
+ * Filter that validates JWT tokens from Bearer header or HTTP-only cookies.
  */
 @Slf4j
 @Component
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private static final String TOKEN_COOKIE_NAME = "legent_token";
 
     @Override
     protected void doFilterInternal(
@@ -42,16 +45,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
-        String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        String token = extractToken(request);
 
-        if (authorizationHeader == null || !authorizationHeader.startsWith(AppConstants.BEARER_PREFIX)) {
+        if (!StringUtils.hasText(token)) {
             filterChain.doFilter(request, response);
-            return;
-        }
-
-        String token = authorizationHeader.substring(AppConstants.BEARER_PREFIX.length()).trim();
-        if (token.isEmpty()) {
-            unauthorized(response, "INVALID_TOKEN", "Authorization header contains no Bearer token");
             return;
         }
 
@@ -85,6 +82,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Extracts JWT token from Authorization header or HTTP-only cookie.
+     */
+    private String extractToken(HttpServletRequest request) {
+        // First, try to get from Authorization header (Bearer token)
+        String authorizationHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authorizationHeader != null && authorizationHeader.startsWith(AppConstants.BEARER_PREFIX)) {
+            String token = authorizationHeader.substring(AppConstants.BEARER_PREFIX.length()).trim();
+            if (StringUtils.hasText(token)) {
+                return token;
+            }
+        }
+
+        // Fallback to cookie-based auth
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (TOKEN_COOKIE_NAME.equals(cookie.getName())) {
+                    String token = cookie.getValue();
+                    if (StringUtils.hasText(token)) {
+                        return token;
+                    }
+                }
+            }
+        }
+
+        return null;
     }
 
     private Set<String> extractRoles(Claims claims) {

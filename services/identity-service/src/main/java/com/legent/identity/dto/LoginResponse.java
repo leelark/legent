@@ -8,5 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LoginResponse {
-    private String token;
+    private String status;
+    private String userId;
+    private String tenantId;
+    private java.util.List<String> roles;
 }

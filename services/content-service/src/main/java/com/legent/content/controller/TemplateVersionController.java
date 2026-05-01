@@ -34,6 +34,12 @@ public class TemplateVersionController {
         return ApiResponse.ok(mapToResponse(version));
     }
 
+    @GetMapping("/latest")
+    public ApiResponse<TemplateVersionDto.Response> getLatestVersion(@PathVariable String templateId) {
+        TemplateVersion version = versionService.getLatestVersion(templateId);
+        return ApiResponse.ok(mapToResponse(version));
+    }
+
     private TemplateVersionDto.Response mapToResponse(TemplateVersion version) {
         TemplateVersionDto.Response response = new TemplateVersionDto.Response();
         response.setId(version.getId());

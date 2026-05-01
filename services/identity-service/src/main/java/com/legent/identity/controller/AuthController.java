@@ -11,11 +11,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -26,11 +28,18 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final JwtTokenProvider jwtTokenProvider;
 
+    @Value("${legent.security.cookie.secure:true}")
+    private boolean cookieSecure;
+
+    @Value("${legent.security.cookie.same-site:Strict}")
+    private String cookieSameSite;
+
     private static final int COOKIE_MAX_AGE = 86400; // 24 hours in seconds
     private static final int REFRESH_COOKIE_MAX_AGE = 2592000; // 30 days in seconds
     private static final String TOKEN_COOKIE_NAME = "legent_token";
     private static final String REFRESH_COOKIE_NAME = "legent_refresh_token";
     private static final String TENANT_COOKIE_NAME = "legent_tenant_id";
+    private static final String REFRESH_COOKIE_PATH = "/api/v1/auth/refresh";
 
     @PostMapping("/login")
     public ApiResponse<LoginResponse> login(
@@ -54,8 +63,11 @@ public class AuthController {
         // Set HTTP-only, Secure, SameSite=Strict cookies
         setAuthCookies(response, token, tenantId, refreshToken);
 
-        // Return minimal response (token not in body for security)
-        return ApiResponse.ok(new LoginResponse("success"));
+        // Get roles for response (userId already extracted)
+        List<String> roles = jwtTokenProvider.extractRoles(token);
+
+        // Return user info (token is in HTTP-only cookie)
+        return ApiResponse.ok(new LoginResponse("success", userId, tenantId, roles));
     }
 
     @PostMapping("/signup")
@@ -81,8 +93,11 @@ public class AuthController {
         // Set HTTP-only, Secure, SameSite=Strict cookies
         setAuthCookies(response, token, tenantId, refreshToken);
 
-        // Return minimal response (token not in body for security)
-        return ApiResponse.ok(new LoginResponse("success"));
+        // Get roles for response (userId and tenantId already extracted)
+        List<String> roles = jwtTokenProvider.extractRoles(token);
+
+        // Return user info (token is in HTTP-only cookie)
+        return ApiResponse.ok(new LoginResponse("success", userId, tenantId, roles));
     }
 
     /**
@@ -120,10 +135,10 @@ public class AuthController {
             refreshTokenService.revokeToken(refreshToken);
         }
 
-        // Clear auth cookies
-        clearCookie(response, TOKEN_COOKIE_NAME);
-        clearCookie(response, REFRESH_COOKIE_NAME);
-        clearCookie(response, TENANT_COOKIE_NAME);
+        // Clear auth cookies - use correct paths
+        clearCookie(response, TOKEN_COOKIE_NAME, "/");
+        clearCookie(response, REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH);
+        clearCookie(response, TENANT_COOKIE_NAME, "/");
         return ApiResponse.ok(null);
     }
 
@@ -169,7 +184,11 @@ public class AuthController {
         // Set new cookies
         setAuthCookies(response, newToken, result.tenantId(), newRefreshToken);
 
-        return ApiResponse.ok(new LoginResponse("success"));
+        // Get user info for response
+        String newUserId = jwtTokenProvider.getUserId(newToken).orElse("");
+        List<String> newRoles = jwtTokenProvider.extractRoles(newToken);
+
+        return ApiResponse.ok(new LoginResponse("success", newUserId, result.tenantId(), newRoles));
     }
 
     /**
@@ -188,10 +207,10 @@ public class AuthController {
             );
         }
 
-        // Clear cookies
-        clearCookie(response, TOKEN_COOKIE_NAME);
-        clearCookie(response, REFRESH_COOKIE_NAME);
-        clearCookie(response, TENANT_COOKIE_NAME);
+        // Clear cookies - use correct paths to match original cookie paths
+        clearCookie(response, TOKEN_COOKIE_NAME, "/");
+        clearCookie(response, REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH);
+        clearCookie(response, TENANT_COOKIE_NAME, "/");
         return ApiResponse.ok(null);
     }
 
@@ -200,11 +219,12 @@ public class AuthController {
      * These cookies are immune to XSS attacks and cannot be accessed by JavaScript.
      */
     private void setAuthCookies(HttpServletResponse response, String token, String tenantId, String refreshToken) {
-        // JWT access token cookie - HTTP-only, Secure, SameSite=Strict
+        // JWT access token cookie - HTTP-only, SameSite=Strict
+        // secure flag is environment-based (false for local HTTP, true for production HTTPS)
         ResponseCookie tokenCookie = ResponseCookie.from(TOKEN_COOKIE_NAME, token)
                 .httpOnly(true)
-                .secure(true)  // Only sent over HTTPS
-                .sameSite("Strict")  // Prevents CSRF attacks
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .maxAge(COOKIE_MAX_AGE)
                 .path("/")
                 .build();
@@ -212,17 +232,17 @@ public class AuthController {
         // Refresh token cookie - longer-lived, used to obtain new access tokens
         ResponseCookie refreshCookie = ResponseCookie.from(REFRESH_COOKIE_NAME, refreshToken)
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .maxAge(REFRESH_COOKIE_MAX_AGE)  // 30 days
-                .path("/api/v1/auth/refresh")  // Only sent to refresh endpoint
+                .path(REFRESH_COOKIE_PATH)  // Only sent to refresh endpoint
                 .build();
 
         // Tenant ID cookie - HTTP-only (not sensitive but prevents tampering)
         ResponseCookie tenantCookie = ResponseCookie.from(TENANT_COOKIE_NAME, tenantId)
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .maxAge(COOKIE_MAX_AGE)
                 .path("/")
                 .build();
@@ -245,14 +265,15 @@ public class AuthController {
 
     /**
      * Clears a cookie by setting max-age to 0.
+     * Must use the same path as when the cookie was created.
      */
-    private void clearCookie(HttpServletResponse response, String name) {
+    private void clearCookie(HttpServletResponse response, String name, String path) {
         ResponseCookie cookie = ResponseCookie.from(name, "")
                 .httpOnly(true)
-                .secure(true)
-                .sameSite("Strict")
+                .secure(cookieSecure)
+                .sameSite(cookieSameSite)
                 .maxAge(0)
-                .path("/")
+                .path(path)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }

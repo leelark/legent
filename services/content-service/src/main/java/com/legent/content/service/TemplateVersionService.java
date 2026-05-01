@@ -76,4 +76,11 @@ public class TemplateVersionService {
         );
         return version;
     }
+
+    @Transactional(readOnly = true)
+    public TemplateVersion getLatestVersion(String templateId) {
+        String tenantId = TenantContext.requireTenantId();
+        return versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId)
+                .orElseThrow(() -> new NotFoundException("No versions found for template: " + templateId));
+    }
 }

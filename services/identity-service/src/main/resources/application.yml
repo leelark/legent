@@ -53,3 +53,7 @@ legent:
       expiration-ms: 86400000 # 24h
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS}
+    cookie:
+      # Set secure=false for local HTTP development, true for production HTTPS
+      secure: ${LEGENT_SECURITY_COOKIE_SECURE:true}
+      same-site: ${LEGENT_SECURITY_COOKIE_SAME_SITE:Strict}

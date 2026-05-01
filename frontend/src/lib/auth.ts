@@ -6,6 +6,8 @@
 export const USER_STORAGE_KEY = 'legent_user_id';
 export const ROLES_STORAGE_KEY = 'legent_roles';
 export const THEME_STORAGE_KEY = 'legent_theme';
+export const TOKEN_STORAGE_KEY = 'legent_token';
+export const TENANT_STORAGE_KEY = 'legent_tenant_id';
 
 export interface JwtClaims {
   sub?: string;

@@ -22,8 +22,10 @@ public class NotificationController {
     }
 
     @PostMapping("/{id}/read")
-    public ApiResponse<Void> markAsRead(@PathVariable String id) {
-        notificationEngine.markAsRead(id);
+    public ApiResponse<Void> markAsRead(
+            @PathVariable String id,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+        notificationEngine.markAsRead(id, tenantId);
         return ApiResponse.ok(null);
     }
 }

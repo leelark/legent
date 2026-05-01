@@ -2,6 +2,8 @@ package com.legent.platform.service;
 
 import java.util.List;
 
+import com.legent.common.exception.NotFoundException;
+import com.legent.common.exception.UnauthorizedException;
 import com.legent.platform.domain.Notification;
 import com.legent.platform.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,10 +40,17 @@ public class NotificationEngine {
         return notificationRepository.findByTenantIdAndIsReadFalseOrderByCreatedAtDesc(tenantId);
     }
 
-    public void markAsRead(String notificationId) {
-        notificationRepository.findById(notificationId).ifPresent(notif -> {
-            notif.setIsRead(true);
-            notificationRepository.save(notif);
-        });
+    public void markAsRead(String notificationId, String tenantId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new NotFoundException("Notification not found: " + notificationId));
+
+        // Verify ownership - prevent cross-tenant data manipulation
+        if (!tenantId.equals(notification.getTenantId())) {
+            throw new UnauthorizedException("Access denied to notification");
+        }
+
+        notification.setIsRead(true);
+        notificationRepository.save(notification);
+        log.debug("Notification {} marked as read for tenant {}", notificationId, tenantId);
     }
 }

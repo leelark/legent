@@ -1,6 +1,7 @@
 package com.legent.foundation.controller;
 
 import com.legent.common.dto.ApiResponse;
+import com.legent.common.exception.ValidationException;
 import com.legent.foundation.domain.AdminConfig;
 import com.legent.foundation.repository.AdminConfigRepository;
 import com.legent.security.TenantContext;
@@ -37,7 +38,7 @@ public class AdminConfigController {
             config.setTenantId(tenantId);
         }
         if (config.getConfigKey() == null || config.getConfigKey().isBlank()) {
-            throw new IllegalArgumentException("Config key is required");
+            throw new ValidationException("configKey", "Config key is required");
         }
         return ApiResponse.ok(repo.save(config));
     }

@@ -8,9 +8,12 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Date;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * JWT token provider for generating and validating access tokens.
@@ -107,5 +110,26 @@ public class JwtTokenProvider {
      */
     public Optional<String> getTenantId(String token) {
         return validateToken(token).map(c -> c.get("tenantId", String.class));
+    }
+
+    /**
+     * Extracts roles from a token.
+     */
+    public List<String> extractRoles(String token) {
+        Optional<Claims> claimsOpt = validateToken(token);
+        if (claimsOpt.isEmpty()) {
+            return Collections.emptyList();
+        }
+        Claims claims = claimsOpt.get();
+        Object roles = claims.get("roles");
+        if (roles instanceof List) {
+            return ((List<?>) roles).stream()
+                    .map(Object::toString)
+                    .collect(Collectors.toList());
+        }
+        if (roles instanceof String) {
+            return Collections.singletonList((String) roles);
+        }
+        return Collections.emptyList();
     }
 }

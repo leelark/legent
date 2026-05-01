@@ -49,25 +49,26 @@ export default function LoginPage() {
     try {
       localStorage.setItem(TENANT_STORAGE_KEY, tenantId.trim());
 
-      const response = await post<{ token: string }>('/auth/login', {
+      // Call login endpoint - token is set in HTTP-only cookie by backend
+      const response = await post<{ status: string; userId: string; tenantId: string; roles: string[] }>('/auth/login', {
         email,
         password,
       });
 
-      const token = (response as any).data?.token || (response as any).token;
-      if (!token) {
-        throw new Error('Login response did not return a token.');
+      const data = (response as any).data || response;
+      if (data?.status !== 'success') {
+        throw new Error('Login failed.');
       }
 
-      const claims = parseJwtClaims(token);
-      const roles = claims?.roles ?? [];
-      const userId = claims?.sub ?? 'anonymous';
+      const userId = data.userId || 'anonymous';
+      const roles = data.roles ?? [];
 
-      localStorage.setItem(TOKEN_STORAGE_KEY, token);
+      // Token is in HTTP-only cookie - store only non-sensitive data
       localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles));
       localStorage.setItem(USER_STORAGE_KEY, userId);
 
-      login(userId, token, roles);
+      // Pass null for token since it's in HTTP-only cookie
+      login(userId, null as any, roles);
       setCurrentTenant({
         id: tenantId.trim(),
         name: tenantId.trim(),

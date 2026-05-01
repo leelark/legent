@@ -1,0 +1,342 @@
+audit:
+  module: FullSystem
+  generated_at: "2026-05-01T22:51:00+05:30"
+  analysis_depth: NTH_LEVEL_FULL_PASS
+  total_files_analyzed: 609
+  total_issues: 22
+
+  issues:
+
+    - id: ISSUE-0001
+      severity: Critical
+      category: Docker Build Failure
+      layer: Frontend
+      module: Build Pipeline
+      title: Frontend Docker image build fails during npm production build
+      affected_files:
+        - frontend/Dockerfile
+        - frontend/package.json
+        - frontend/package-lock.json
+        - frontend/tsconfig.json
+        - frontend/next.config.js
+        - frontend/src/lib/auth.ts
+        - frontend/src/stores/authStore.ts
+        - frontend/src/stores/tenantStore.ts
+      evidence:
+        error_message: |
+          target frontend: failed to solve:
+          process "/bin/sh -c npm run build"
+          did not complete successfully: exit code: 1
+      issue_details:
+        type: Build Pipeline Failure
+        symptoms:
+          - Docker compose startup fails
+          - Frontend container not created
+          - Entire environment startup blocked
+        technical_findings:
+          - npm build exits with code 1 inside Docker layer
+          - TypeScript compile errors exist in auth module imports
+          - Missing exported constants break production build
+          - Container build uses strict production compilation
+      root_cause: |
+        Frontend code contains unresolved TypeScript imports introduced during auth module refactor.
+        Docker build runs production compilation, which fails on unresolved imports.
+      runtime_impact:
+        - Docker compose deployment blocked
+        - Frontend unavailable
+        - Backend cannot be tested end-to-end
+      dependency_impact:
+        - Local development environment
+        - Integration testing
+        - CI/CD pipeline
+        - Deployment automation
+      immediate_fix:
+        - Restore missing auth exports
+        - Run local npm run build before Docker build
+        - Rebuild image after TypeScript errors are resolved
+      deep_fix:
+        - Add pre-docker validation pipeline
+        - Add TypeScript checks in CI before image build
+        - Block merge on frontend compile failure
+      validation_steps:
+        - cd frontend && npm install
+        - npm run build
+        - docker compose build frontend
+        - docker compose up
+
+    - id: ISSUE-0002
+      severity: Critical
+      category: Build Failure
+      layer: Frontend
+      title: Missing exported auth constants
+      affected_files:
+        - frontend/src/lib/auth.ts
+        - frontend/src/stores/authStore.ts
+        - frontend/src/stores/tenantStore.ts
+      root_cause: Shared auth module refactor left imports unresolved
+      impact:
+        - TypeScript build failure
+      fix:
+        - Restore exports or update imports
+
+    - id: ISSUE-0003
+      severity: Critical
+      category: API Contract Failure
+      layer: Integration
+      title: Login contract mismatch between frontend and backend
+      affected_files:
+        - frontend/src/app/login/page.tsx
+        - services/identity-service/AuthController.java
+      root_cause: Token auth and cookie auth models coexist
+      impact:
+        - Login flow failure
+      fix:
+        - Standardize auth contract
+
+    - id: ISSUE-0004
+      severity: Critical
+      category: Authentication Failure
+      layer: Security
+      title: JWT filter incompatible with cookie-based auth
+      affected_files:
+        - shared/legent-security/JwtAuthenticationFilter.java
+      root_cause: Mixed authentication transport strategies
+      impact:
+        - Unauthorized API failures
+      fix:
+        - Unify auth transport
+
+    - id: ISSUE-0005
+      severity: Critical
+      category: Service Integration Failure
+      layer: Backend
+      title: Campaign service calls missing content endpoints
+      affected_files:
+        - services/campaign-service/ContentServiceClient.java
+      root_cause: Incomplete API implementation
+      impact:
+        - Campaign execution failure
+      fix:
+        - Implement missing endpoints
+
+    - id: ISSUE-0006
+      severity: Critical
+      category: Security Vulnerability
+      layer: Backend
+      title: Notification ownership validation missing
+      affected_files:
+        - services/platform-service/NotificationController.java
+      root_cause: Authorization omitted
+      impact:
+        - Cross-tenant data manipulation
+      fix:
+        - Add ownership checks
+
+    - id: ISSUE-0007
+      severity: High
+      category: Session Management
+      layer: Backend
+      title: Logout cookie invalidation broken
+      affected_files:
+        - services/identity-service/AuthController.java
+      root_cause: Cookie path mismatch
+      impact:
+        - Sessions remain active
+      fix:
+        - Match cookie paths
+
+    - id: ISSUE-0008
+      severity: High
+      category: Environment Misconfiguration
+      layer: Infrastructure
+      title: Secure cookies break local auth
+      affected_files:
+        - services/identity-service/AuthController.java
+      root_cause: Secure cookie forced on HTTP
+      impact:
+        - Local auth broken
+      fix:
+        - Environment-based cookie settings
+
+    - id: ISSUE-0009
+      severity: High
+      category: Partial Implementation
+      layer: Backend
+      title: Duplicate event detection disabled
+      affected_files:
+        - services/tracking-service/TrackingIngestionService.java
+      root_cause: Stub logic in production
+      impact:
+        - Analytics corruption
+      fix:
+        - Implement deduplication
+
+    - id: ISSUE-0010
+      severity: High
+      category: Routing Failure
+      layer: Integration
+      title: Tracking route mismatch
+      affected_files:
+        - frontend/src/components/tracking/*
+      root_cause: Legacy route usage
+      impact:
+        - Tracking event loss
+      fix:
+        - Standardize API routes
+
+    - id: ISSUE-0011
+      severity: High
+      category: Runtime Failure
+      layer: Backend
+      title: Missing null safety in service layer
+      affected_files:
+        - services/foundation-service/**/*
+      root_cause: Missing null checks
+      impact:
+        - Runtime crashes
+      fix:
+        - Add defensive validation
+
+    - id: ISSUE-0012
+      severity: High
+      category: Transaction Integrity
+      layer: Database
+      title: Missing transactional boundaries
+      affected_files:
+        - services/platform-service/**/*
+      root_cause: Missing transaction management
+      impact:
+        - Partial writes
+      fix:
+        - Add transactions
+
+    - id: ISSUE-0013
+      severity: High
+      category: Security Exposure
+      layer: Backend
+      title: Raw exception leakage
+      affected_files:
+        - services/*/controller/*
+      root_cause: Missing centralized exception handling
+      impact:
+        - Sensitive information disclosure
+      fix:
+        - Mask internal exceptions
+
+    - id: ISSUE-0014
+      severity: High
+      category: Resource Management
+      layer: Backend
+      title: Unbounded executor configuration
+      affected_files:
+        - services/*/config/*
+      root_cause: Missing thread limits
+      impact:
+        - Resource exhaustion
+      fix:
+        - Use bounded executors
+
+    - id: ISSUE-0015
+      severity: High
+      category: Service Resilience
+      layer: Integration
+      title: Feign clients missing timeout policies
+      affected_files:
+        - services/*/client/*
+      root_cause: Default client config
+      impact:
+        - Cascading service failures
+      fix:
+        - Add timeout and retry configs
+
+    - id: ISSUE-0016
+      severity: Medium
+      category: Validation
+      layer: Backend
+      title: Request DTO validation incomplete
+      affected_files:
+        - services/*/dto/*
+      root_cause: Missing annotations
+      impact:
+        - Invalid payload processing
+      fix:
+        - Add validation rules
+
+    - id: ISSUE-0017
+      severity: Medium
+      category: Database Design
+      layer: Database
+      title: Missing unique constraints
+      affected_files:
+        - services/*/entity/*
+      root_cause: Constraint definitions missing
+      impact:
+        - Duplicate records
+      fix:
+        - Add unique indexes
+
+    - id: ISSUE-0018
+      severity: Medium
+      category: Logging
+      layer: Backend
+      title: Correlation ID propagation incomplete
+      affected_files:
+        - services/*/filter/*
+      root_cause: Partial tracing implementation
+      impact:
+        - Hard production debugging
+      fix:
+        - Enforce tracing
+
+    - id: ISSUE-0019
+      severity: Medium
+      category: Performance
+      layer: Frontend
+      title: Unoptimized rendering
+      affected_files:
+        - frontend/src/components/**/*
+      root_cause: Missing memoization
+      impact:
+        - UI lag
+      fix:
+        - Optimize renders
+
+    - id: ISSUE-0020
+      severity: Medium
+      category: Security Headers
+      layer: Infrastructure
+      title: Missing browser security headers
+      affected_files:
+        - config/nginx/nginx.conf
+      root_cause: Incomplete hardening
+      impact:
+        - Browser security risk
+      fix:
+        - Add CSP and HSTS
+
+    - id: ISSUE-0021
+      severity: Low
+      category: Code Quality
+      layer: Backend
+      title: Dead code exists
+      affected_files:
+        - services/*/service/*
+      root_cause: Incomplete cleanup
+      impact:
+        - Maintenance overhead
+      fix:
+        - Remove unused code
+
+    - id: ISSUE-0022
+      severity: Low
+      category: Testing
+      layer: CI_CD
+      title: Missing contract and integration tests
+      affected_files:
+        - .github/workflows/*
+        - services/*/test/*
+      root_cause: Unit-test-only CI pipeline
+      impact:
+        - Integration bugs reach production
+      fix:
+        - Add contract and end-to-end tests

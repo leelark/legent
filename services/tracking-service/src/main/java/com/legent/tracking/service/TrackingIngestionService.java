@@ -112,12 +112,10 @@ public class TrackingIngestionService {
         if (msgId == null || subId == null) {
             return false; // Cannot deduplicate without both IDs
         }
-        // Check if we already have this event in the database
-        // We use a time window of 24 hours for deduplication
-        // Query for existing event - in production, add a query method to repository
-        // For now, we'll rely on Redis for immediate dedup and DB for persistence
-        // This is a simplified check - a real implementation would add a specific query
-        return false; // Let it through, DB unique constraints will catch true duplicates
+        // Check if we already have this event in the database within last 24 hours
+        Instant since = Instant.now().minusSeconds(86400); // 24 hours ago
+        return rawEventRepository.findTopByTenantIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
+                tenantId, type, msgId, subId, since).isPresent();
     }
 
     /**
