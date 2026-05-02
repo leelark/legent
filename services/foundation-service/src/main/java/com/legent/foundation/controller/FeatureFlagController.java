@@ -2,6 +2,8 @@ package com.legent.foundation.controller;
 
 import com.legent.common.constant.AppConstants;
 
+import java.util.Map;
+
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import com.legent.foundation.dto.FeatureFlagDto;
@@ -30,6 +32,14 @@ public class FeatureFlagController {
     @PreAuthorize("@rbacEvaluator.hasPermission('feature:read', principal.roles)")
     public ApiResponse<FeatureFlagDto.EvaluationResult> evaluate(@PathVariable String key) {
         return ApiResponse.ok(featureFlagService.evaluate(key));
+    }
+
+    @PostMapping("/evaluate/{key}/context")
+    @PreAuthorize("@rbacEvaluator.hasPermission('feature:read', principal.roles)")
+    public ApiResponse<FeatureFlagDto.EvaluationResult> evaluateWithContext(
+            @PathVariable String key,
+            @RequestBody Map<String, Object> context) {
+        return ApiResponse.ok(featureFlagService.evaluateWithContext(key, context));
     }
 
     @GetMapping

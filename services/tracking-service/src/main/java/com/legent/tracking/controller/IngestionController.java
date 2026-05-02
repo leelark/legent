@@ -74,7 +74,7 @@ public class IngestionController {
             HttpServletRequest request) {
 
         // Verify HMAC signature to prevent event forgery
-        if (!trackingUrlVerifier.verifySignature(sig, t, c, s, m)) {
+        if (!trackingUrlVerifier.verifyClickSignature(sig, t, c, s, m, url)) {
             log.warn("Invalid tracking signature for click event: t={}, c={}, s={}, m={}", t, c, s, m);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
@@ -110,9 +110,9 @@ public class IngestionController {
 
     private String getClientIp(HttpServletRequest request) {
         String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader == null) {
+        if (xfHeader == null || xfHeader.isBlank()) {
             return request.getRemoteAddr();
         }
-        return xfHeader.split(",")[0];
+        return xfHeader.split(",")[0].trim();
     }
 }

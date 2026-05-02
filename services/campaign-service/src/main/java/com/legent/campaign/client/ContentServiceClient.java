@@ -4,26 +4,37 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
 import java.util.Map;
 
 /**
  * Client for calling content-service to fetch and render templates.
+ * Configured with timeouts and retry policies for resilience.
  */
 @Slf4j
 @Component
 public class ContentServiceClient {
 
     private final WebClient webClient;
+    
+    private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
 
     public ContentServiceClient(
             @Value("${legent.content-service.url:http://content-service:8090}") String baseUrl) {
+        // Configure HTTP client with timeouts
+        HttpClient httpClient = HttpClient.create()
+                .responseTimeout(READ_TIMEOUT)
+                .compress(true);
+        
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }

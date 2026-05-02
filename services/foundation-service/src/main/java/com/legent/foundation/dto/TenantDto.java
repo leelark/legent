@@ -64,5 +64,8 @@ public class TenantDto {
         private Map<String, Object> branding;
         private Instant createdAt;
         private Instant updatedAt;
+        private Instant suspendedAt;
+        private String suspensionReason;
+        private Instant archivedAt;
     }
 }

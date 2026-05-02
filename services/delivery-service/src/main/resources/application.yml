@@ -74,6 +74,7 @@ legent:
     credential-key: ${LEGENT_DELIVERY_CREDENTIAL_KEY}
   tracking:
     base-url: ${TRACKING_BASE_URL}
+    signing-key: ${LEGENT_TRACKING_SIGNING_KEY}
   security:
     jwt:
       secret: ${LEGENT_SECURITY_JWT_SECRET}

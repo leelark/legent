@@ -30,6 +30,7 @@ public class TrackingIngestionService {
 
     @Transactional
     public void processOpen(String tenantId, String campaignId, String subscriberId, String messageId, String userAgentString, String ipAddress) {
+        requireTenantAndMessage(tenantId, messageId);
         if (isDuplicateInDatabase(tenantId, "OPEN", messageId, subscriberId) ||
             isDuplicateInRedis(tenantId, "OPEN", messageId, subscriberId, "")) {
             log.debug("Duplicate OPEN event detected for message {} subscriber {}", messageId, subscriberId);
@@ -42,6 +43,7 @@ public class TrackingIngestionService {
 
     @Transactional
     public void processClick(String tenantId, String campaignId, String subscriberId, String messageId, String linkUrl, String userAgentString, String ipAddress) {
+        requireTenantAndMessage(tenantId, messageId);
         if (isDuplicateInDatabase(tenantId, "CLICK", messageId, subscriberId) ||
             isDuplicateInRedis(tenantId, "CLICK", messageId, subscriberId, linkUrl)) {
             log.debug("Duplicate CLICK event detected for message {} subscriber {}", messageId, subscriberId);
@@ -54,12 +56,18 @@ public class TrackingIngestionService {
 
     @Transactional
     public void processConversion(String tenantId, TrackingDto.ConversionRequest request, String userAgentString, String ipAddress) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalArgumentException("tenantId is required");
+        }
+        if (request == null || request.getEventName() == null || request.getEventName().isBlank()) {
+            throw new IllegalArgumentException("eventName is required");
+        }
         Map<String, Object> meta = new HashMap<>();
-        meta.put("eventName", request.getEventName());
+        meta.put("eventName", request.getEventName().trim());
         meta.put("value", request.getValue());
         meta.put("currency", request.getCurrency());
 
-        TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, request.getCampaignId(), request.getSubscriberId(), null, null, userAgentString, ipAddress, meta);
+        TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(), null, userAgentString, ipAddress, meta);
         saveEventToDatabase(payload);
         eventPublisher.publishIngestedEvent(payload);
     }
@@ -116,6 +124,15 @@ public class TrackingIngestionService {
         Instant since = Instant.now().minusSeconds(86400); // 24 hours ago
         return rawEventRepository.findTopByTenantIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
                 tenantId, type, msgId, subId, since).isPresent();
+    }
+
+    private void requireTenantAndMessage(String tenantId, String messageId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalArgumentException("tenantId is required");
+        }
+        if (messageId == null || messageId.isBlank()) {
+            throw new IllegalArgumentException("messageId is required");
+        }
     }
 
     /**

@@ -62,6 +62,8 @@ public class ConfigDto {
         private String description;
         private boolean encrypted;
         private boolean system;
+        private Integer configVersion;
+        private String lastModifiedBy;
         private Instant createdAt;
         private Instant updatedAt;
     }

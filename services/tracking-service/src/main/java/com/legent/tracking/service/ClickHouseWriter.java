@@ -26,14 +26,14 @@ public class ClickHouseWriter {
                 .map(event -> new Object[]{
                         event.getId(),
                         event.getTenantId(),
-                        event.getEventType(),
+                        event.getEventType() == null ? null : event.getEventType().trim().toUpperCase(java.util.Locale.ROOT),
                         event.getCampaignId(),
                         event.getSubscriberId(),
                         event.getMessageId(),
                         event.getUserAgent(),
                         event.getIpAddress(),
                         event.getLinkUrl(),
-                        Timestamp.from(event.getTimestamp()),
+                        Timestamp.from(event.getTimestamp() == null ? java.time.Instant.now() : event.getTimestamp()),
                         serializeMetadata(event.getMetadata())
                 })
                 .collect(Collectors.toList());

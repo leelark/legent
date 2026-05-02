@@ -41,5 +41,8 @@ public interface ConfigRepository extends JpaRepository<SystemConfig, String> {
 
     Optional<SystemConfig> findByTenantIdAndConfigKeyAndDeletedAtIsNull(String tenantId, String configKey);
 
+    @Query("SELECT c FROM SystemConfig c WHERE c.tenantId = :tenantId AND c.configKey = :configKey AND c.deletedAt IS NULL")
+    Optional<SystemConfig> findByTenantIdAndConfigKey(@Param("tenantId") String tenantId, @Param("configKey") String configKey);
+
     boolean existsByTenantIdAndConfigKeyAndDeletedAtIsNull(String tenantId, String configKey);
 }

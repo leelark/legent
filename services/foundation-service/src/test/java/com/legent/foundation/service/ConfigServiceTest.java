@@ -152,6 +152,6 @@ class ConfigServiceTest {
 
                 assertThat(result.getConfigKey()).isEqualTo("new.key");
                 verify(eventPublisher).publish(anyString(), any());
-                verify(cacheService).delete(anyString());
+                verify(cacheService, times(2)).delete(anyString());
         }
 }

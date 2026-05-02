@@ -9,6 +9,8 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { EnvelopeSimple, Plus, ArrowRight } from '@phosphor-icons/react';
 import { get, post } from '@/lib/api-client';
+import { useToast } from '@/components/ui/Toast';
+import { Skeleton, StatCardSkeleton } from '@/components/ui/Skeleton';
 
 interface EmailItem {
   id: string;
@@ -27,15 +29,24 @@ export default function EmailPage() {
   const [newBody, setNewBody] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { addToast } = useToast();
 
   const loadEmails = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await get<any>('/emails/recent');
       const data = Array.isArray(res) ? res : (res?.data || []);
       setEmails(data);
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message || 'Failed to load emails');
+      const message = e?.response?.data?.error?.message || 'Failed to load emails';
+      setError(message);
+      addToast({
+        type: 'error',
+        title: 'Failed to load emails',
+        message,
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }
@@ -47,7 +58,9 @@ export default function EmailPage() {
 
   const handleCreate = async () => {
     if (!newName.trim() || !newSubject.trim() || !newBody.trim()) {
-      setError('Name, subject, and body are required');
+      const message = 'Name, subject, and body are required';
+      setError(message);
+      addToast({ type: 'warning', title: 'Validation Error', message });
       return;
     }
     setCreating(true);
@@ -63,8 +76,21 @@ export default function EmailPage() {
       setNewBody('');
       setShowCreate(false);
       loadEmails();
+      addToast({
+        type: 'success',
+        title: 'Email created',
+        message: `"${newName.trim()}" has been created successfully`,
+        duration: 3000
+      });
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message || 'Failed to create email');
+      const message = e?.response?.data?.error?.message || 'Failed to create email';
+      setError(message);
+      addToast({
+        type: 'error',
+        title: 'Failed to create email',
+        message,
+        duration: 5000
+      });
     } finally {
       setCreating(false);
     }
@@ -114,26 +140,39 @@ export default function EmailPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { label: 'Total Emails', value: emails.length.toString(), change: '-' },
-          { label: 'Drafts', value: emails.filter(e => e.status === 'DRAFT').length.toString(), change: '-' },
-          { label: 'Sent', value: emails.filter(e => e.status === 'SENT').length.toString(), change: '-' },
-          { label: 'Templates', value: '-', change: '-' },
-        ].map((stat) => (
-          <Card key={stat.label}>
-            <p className="text-xs font-medium text-content-secondary uppercase tracking-wider">
-              {stat.label}
-            </p>
-            <p className="mt-2 text-2xl font-bold text-content-primary">{stat.value}</p>
-          </Card>
-        ))}
-      </div>
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: 'Total Emails', value: emails.length.toString(), change: '-' },
+            { label: 'Drafts', value: emails.filter(e => e.status === 'DRAFT').length.toString(), change: '-' },
+            { label: 'Sent', value: emails.filter(e => e.status === 'SENT').length.toString(), change: '-' },
+            { label: 'Templates', value: '-', change: '-' },
+          ].map((stat) => (
+            <Card key={stat.label}>
+              <p className="text-xs font-medium text-content-secondary uppercase tracking-wider">
+                {stat.label}
+              </p>
+              <p className="mt-2 text-2xl font-bold text-content-primary">{stat.value}</p>
+            </Card>
+          ))}
+        </div>
+      )}
 
       <Card>
-        <CardHeader title="Recent Emails" action={<Badge variant="info">{emails.length} items</Badge>} />
+        <CardHeader title="Recent Emails" action={!loading && <Badge variant="info">{emails.length} items</Badge>} />
         {loading ? (
-          <div className="p-8 text-sm text-content-secondary">Loading emails...</div>
+          <div className="p-6 space-y-4">
+            <Skeleton variant="text" width="100%" height={60} />
+            <Skeleton variant="text" width="100%" height={60} />
+            <Skeleton variant="text" width="100%" height={60} />
+          </div>
         ) : emails.length === 0 ? (
           <EmptyState
             type="empty"

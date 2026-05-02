@@ -7,6 +7,10 @@ import com.legent.common.dto.PagedResponse;
 import com.legent.foundation.dto.TenantDto;
 import com.legent.foundation.service.TenantService;
 import jakarta.validation.Valid;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -74,5 +78,41 @@ public class TenantController {
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
     public void deleteTenant(@PathVariable String id) {
         tenantService.deleteTenant(id);
+    }
+
+    @PostMapping("/{id}/suspend")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<TenantDto.Response> suspendTenant(
+            @PathVariable String id,
+            @RequestBody(required = false) SuspendRequest request) {
+        String reason = request != null ? request.getReason() : null;
+        return ApiResponse.ok(tenantService.suspendTenant(id, reason));
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<TenantDto.Response> restoreTenant(@PathVariable String id) {
+        return ApiResponse.ok(tenantService.restoreTenant(id));
+    }
+
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<TenantDto.Response> archiveTenant(@PathVariable String id) {
+        return ApiResponse.ok(tenantService.archiveTenant(id));
+    }
+
+    @DeleteMapping("/{id}/hard")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public void hardDeleteTenant(@PathVariable String id) {
+        tenantService.hardDeleteTenant(id);
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SuspendRequest {
+        private String reason;
     }
 }

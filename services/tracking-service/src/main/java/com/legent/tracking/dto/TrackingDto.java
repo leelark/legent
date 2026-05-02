@@ -36,6 +36,7 @@ public class TrackingDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ConversionRequest {
+        private String messageId;
         private String email;
         private String subscriberId;
         private String campaignId;

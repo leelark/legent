@@ -51,4 +51,7 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, String> 
     long countByTenantAndStatus(@Param("tid") String tenantId, @Param("status") Subscriber.SubscriberStatus status);
 
     List<Subscriber> findByTenantIdAndEmailInAndDeletedAtIsNull(String tenantId, List<String> emails);
+
+    @Query("SELECT s FROM Subscriber s WHERE s.tenantId = :tid AND s.id = :id AND s.deletedAt IS NULL")
+    Optional<Subscriber> findByTenantIdAndId(@Param("tid") String tenantId, @Param("id") String id);
 }

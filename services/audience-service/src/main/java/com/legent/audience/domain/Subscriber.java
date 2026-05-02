@@ -18,7 +18,11 @@ import org.hibernate.type.SqlTypes;
  * subscriber_key is the primary business identifier for deduplication.
  */
 @Entity
-@Table(name = "subscribers")
+@Table(name = "subscribers", 
+       uniqueConstraints = {
+           @UniqueConstraint(name = "uk_subscriber_tenant_email", columnNames = {"tenant_id", "email"}),
+           @UniqueConstraint(name = "uk_subscriber_tenant_key", columnNames = {"tenant_id", "subscriber_key"})
+       })
 @Getter
 @Setter
 @NoArgsConstructor
@@ -75,7 +79,13 @@ public class Subscriber extends TenantAwareEntity {
     @Column(name = "bounced_at")
     private Instant bouncedAt;
 
+    @Column(name = "double_opt_in_confirmed", nullable = false)
+    private boolean doubleOptInConfirmed = false;
+
+    @Column(name = "double_opt_in_confirmed_at")
+    private Instant doubleOptInConfirmedAt;
+
     public enum SubscriberStatus {
-        ACTIVE, UNSUBSCRIBED, BOUNCED, HELD, BLOCKED
+        ACTIVE, UNSUBSCRIBED, BOUNCED, HELD, BLOCKED, PENDING_CONFIRMATION
     }
 }

@@ -39,4 +39,20 @@ public class SmtpProvider extends TenantAwareEntity {
 
     @Column(name = "max_send_rate")
     private Integer maxSendRate; // per second
+
+    // Health monitoring fields
+    @Column(name = "health_check_enabled")
+    private boolean healthCheckEnabled = true;
+
+    @Column(name = "health_check_url", length = 500)
+    private String healthCheckUrl;
+
+    @Column(name = "health_check_interval_seconds")
+    private Integer healthCheckIntervalSeconds = 60;
+
+    @Column(name = "last_health_check_at")
+    private java.time.Instant lastHealthCheckAt;
+
+    @Column(name = "health_status", length = 20)
+    private String healthStatus = "UNKNOWN";
 }

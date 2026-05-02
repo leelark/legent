@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -58,7 +59,7 @@ public class ContentProcessingService {
         // Generate HMAC signature to prevent URL tampering
         String sig = trackingUrlSigner.generateSignature(t, c, s, m);
         String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s&sig=%s",
-                trackingBaseUrl, t, c, s, m, sig);
+                trackingBaseUrl, encode(t), encode(c), encode(s), encode(m), encode(sig));
         String pixelTag = String.format("<img src=\"%s\" width=\"1\" height=\"1\" border=\"0\" style=\"display:none;\" />", pixelUrl);
 
         if (html.toLowerCase().contains("</body>")) {
@@ -82,10 +83,9 @@ public class ContentProcessingService {
                 sb.append(matcher.group(0));
             } else {
                 // Generate HMAC signature to prevent URL tampering
-                String sig = trackingUrlSigner.generateSignature(t, c, s, m);
+                String sig = trackingUrlSigner.generateClickSignature(t, c, s, m, originalUrl);
                 String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s&sig=%s",
-                        trackingBaseUrl, java.net.URLEncoder.encode(originalUrl, java.nio.charset.StandardCharsets.UTF_8),
-                        t, c, s, m, sig);
+                        trackingBaseUrl, encode(originalUrl), encode(t), encode(c), encode(s), encode(m), encode(sig));
                 
                 String fullTag = matcher.group(0).replace(originalUrl, trackedUrl);
                 sb.append(fullTag);
@@ -94,5 +94,9 @@ public class ContentProcessingService {
         }
         sb.append(html.substring(lastEnd));
         return sb.toString();
+    }
+
+    private String encode(String value) {
+        return java.net.URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
     }
 }

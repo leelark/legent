@@ -1,7 +1,9 @@
 package com.legent.tracking.controller;
 
 import com.legent.tracking.dto.TrackingDto;
+import jakarta.servlet.http.HttpServletRequest;
 import com.legent.tracking.service.TrackingIngestionService;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -25,14 +27,16 @@ public class TrackingController {
             @RequestParam("t") @NotBlank String tenantId,
             @RequestParam(required = false, name = "c") String campaignId,
             @RequestParam(required = false, name = "s") String subscriberId,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
+            HttpServletRequest request,
             HttpServletResponse response) throws IOException {
         trackingIngestionService.processOpen(
                 tenantId,
                 campaignId,
                 subscriberId,
                 mid,
-                null,
-                null
+                userAgent,
+                clientIp(request)
         );
         // 1x1 transparent gif
         response.setContentType("image/gif");
@@ -50,6 +54,8 @@ public class TrackingController {
             @RequestParam("t") @NotBlank String tenantId,
             @RequestParam(required = false, name = "c") String campaignId,
             @RequestParam(required = false, name = "s") String subscriberId,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
+            HttpServletRequest request,
             HttpServletResponse response) throws IOException {
         try {
             java.net.URI uri = new java.net.URI(url);
@@ -69,8 +75,8 @@ public class TrackingController {
                 subscriberId,
                 mid,
                 url,
-                null,
-                null
+                userAgent,
+                clientIp(request)
         );
         response.sendRedirect(url);
     }
@@ -78,16 +84,22 @@ public class TrackingController {
     // Conversion event endpoint
     @PostMapping("/conversion")
     public void trackConversion(
-            @RequestParam String mid, 
-            @RequestParam("t") String tenantId,
-            @RequestBody String payload) {
-        TrackingDto.ConversionRequest request = TrackingDto.ConversionRequest.builder()
-                .campaignId(null)
-                .subscriberId(null)
-                .eventName("conversion")
-                .currency(null)
-                .value(null)
-                .build();
-        trackingIngestionService.processConversion(tenantId, request, null, null);
+            @RequestParam(required = false) String mid,
+            @RequestParam("t") @NotBlank String tenantId,
+            @Valid @RequestBody TrackingDto.ConversionRequest conversion,
+            @RequestHeader(value = "User-Agent", required = false) String userAgent,
+            HttpServletRequest request) {
+        if ((conversion.getMessageId() == null || conversion.getMessageId().isBlank()) && mid != null && !mid.isBlank()) {
+            conversion.setMessageId(mid);
+        }
+        trackingIngestionService.processConversion(tenantId, conversion, userAgent, clientIp(request));
+    }
+
+    private String clientIp(HttpServletRequest request) {
+        String forwardedFor = request.getHeader("X-Forwarded-For");
+        if (forwardedFor != null && !forwardedFor.isBlank()) {
+            return forwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 }

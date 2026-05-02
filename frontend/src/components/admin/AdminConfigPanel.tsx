@@ -19,7 +19,7 @@ export const AdminConfigPanel: React.FC = () => {
     setLoading(true);
     try {
       const data = await getAdminConfigs();
-      setConfigs(Array.isArray(data) ? data : (data?.data || []));
+      setConfigs(Array.isArray(data) ? data : []);
       setError(null);
     } catch (e: any) {
       setError(e?.response?.data?.error?.message || 'Failed to load configs');

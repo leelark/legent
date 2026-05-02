@@ -46,6 +46,11 @@ public class TrackingEventConsumer {
                         event.getPayload(),
                         new TypeReference<TrackingDto.RawEventPayload>() {}
                 );
+                if (payload.getTenantId() == null || payload.getTenantId().isBlank()
+                        || payload.getEventType() == null || payload.getEventType().isBlank()) {
+                    log.warn("Skipping tracking event with missing tenantId or eventType");
+                    continue;
+                }
                 batch.add(payload);
 
                 // Also perform real-time aggregation for UI summaries
@@ -68,11 +73,23 @@ public class TrackingEventConsumer {
 
     private RawEvent toRawEvent(TrackingDto.RawEventPayload p) {
         RawEvent e = new RawEvent();
+        e.setId(p.getId());
         e.setTenantId(p.getTenantId());
         e.setCampaignId(p.getCampaignId());
         e.setSubscriberId(p.getSubscriberId());
-        e.setEventType(p.getEventType());
-        e.setTimestamp(p.getTimestamp());
+        e.setMessageId(p.getMessageId());
+        e.setEventType(p.getEventType().trim().toUpperCase(java.util.Locale.ROOT));
+        e.setUserAgent(p.getUserAgent());
+        e.setIpAddress(p.getIpAddress());
+        e.setLinkUrl(p.getLinkUrl());
+        e.setTimestamp(p.getTimestamp() == null ? java.time.Instant.now() : p.getTimestamp());
+        if (p.getMetadata() != null && !p.getMetadata().isEmpty()) {
+            try {
+                e.setMetadata(objectMapper.writeValueAsString(p.getMetadata()));
+            } catch (Exception ex) {
+                log.warn("Unable to serialize tracking metadata for event {}", p.getId(), ex);
+            }
+        }
         return e;
     }
 }

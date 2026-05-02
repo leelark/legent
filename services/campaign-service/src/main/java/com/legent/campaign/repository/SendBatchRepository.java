@@ -21,4 +21,6 @@ public interface SendBatchRepository extends JpaRepository<SendBatch, String> {
     void updateStatusByJobId(@Param("tenantId") String tenantId, @Param("jobId") String jobId, @Param("status") SendBatch.BatchStatus status);
 
     List<SendBatch> findByStatus(SendBatch.BatchStatus status);
+
+    List<SendBatch> findByJobIdAndStatus(String jobId, SendBatch.BatchStatus status);
 }

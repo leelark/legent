@@ -14,4 +14,6 @@ public interface TemplateVersionRepository extends JpaRepository<TemplateVersion
     Optional<TemplateVersion> findByTemplate_IdAndVersionNumberAndTenantId(String templateId, Integer versionNumber, String tenantId);
 
     Integer countByTemplate_IdAndTenantId(String templateId, String tenantId);
+
+    Optional<TemplateVersion> findFirstByTemplate_IdAndTenantIdAndIsPublishedTrueOrderByVersionNumberDesc(String templateId, String tenantId);
 }

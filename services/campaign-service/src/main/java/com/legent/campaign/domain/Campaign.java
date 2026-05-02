@@ -47,6 +47,19 @@ public class Campaign extends TenantAwareEntity {
     @OneToMany(mappedBy = "campaign", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CampaignAudience> audiences = new ArrayList<>();
 
+    // Approval workflow fields
+    @Column(name = "approval_required", nullable = false)
+    private boolean approvalRequired = false;
+
+    @Column(name = "approved_by", length = 36)
+    private String approvedBy;
+
+    @Column(name = "approved_at")
+    private java.time.Instant approvedAt;
+
+    @Column(name = "current_approver", length = 36)
+    private String currentApprover;
+
     public void addAudience(String type, String sourceId) {
         CampaignAudience ca = new CampaignAudience();
         ca.setCampaign(this);

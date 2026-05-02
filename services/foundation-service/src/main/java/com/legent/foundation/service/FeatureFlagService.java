@@ -3,7 +3,7 @@ package com.legent.foundation.service;
 import com.legent.common.constant.AppConstants;
 
 import java.util.List;
-
+import java.util.Map;
 import com.legent.cache.service.CacheService;
 import com.legent.cache.service.TenantCacheKeyGenerator;
 import com.legent.common.exception.NotFoundException;
@@ -35,6 +35,7 @@ public class FeatureFlagService {
     private final FeatureFlagRepository featureFlagRepository;
     private final FeatureFlagMapper featureFlagMapper;
     private final CacheService cacheService;
+    private final FeatureFlagEngine featureFlagEngine;
 
     private static final Duration CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_FLAG_TTL_SECONDS);
 
@@ -67,6 +68,45 @@ public class FeatureFlagService {
                     FeatureFlagDto.EvaluationResult result = FeatureFlagDto.EvaluationResult.builder()
                             .flagKey(flagKey)
                             .enabled(resolved.isEnabled())
+                            .resolvedScope(scope)
+                            .build();
+
+                    cacheService.set(cacheKey, result, CACHE_TTL);
+                    return result;
+                });
+    }
+
+    /**
+     * Evaluates a feature flag with context-aware rules.
+     * Supports percentage rollout, user attributes, time-based rules, etc.
+     */
+    @Transactional(readOnly = true)
+    public FeatureFlagDto.EvaluationResult evaluateWithContext(String flagKey, Map<String, Object> context) {
+        String tenantId = TenantContext.getTenantId();
+        String cacheKey = TenantCacheKeyGenerator.key(AppConstants.CACHE_FEATURE_FLAG_PREFIX, flagKey + ":ctx:" + context.hashCode());
+
+        return cacheService.get(cacheKey, FeatureFlagDto.EvaluationResult.class)
+                .orElseGet(() -> {
+                    List<FeatureFlag> flags = featureFlagRepository
+                            .findByKeyWithFallback(flagKey, tenantId);
+
+                    if (flags.isEmpty()) {
+                        return FeatureFlagDto.EvaluationResult.builder()
+                                .flagKey(flagKey)
+                                .enabled(false)
+                                .resolvedScope("DEFAULT")
+                                .build();
+                    }
+
+                    FeatureFlag resolved = flags.get(0);
+                    String scope = (resolved.getTenantId() != null) ? "TENANT" : "GLOBAL";
+
+                    // Apply rules evaluation
+                    boolean enabled = featureFlagEngine.evaluateWithRules(resolved, context);
+
+                    FeatureFlagDto.EvaluationResult result = FeatureFlagDto.EvaluationResult.builder()
+                            .flagKey(flagKey)
+                            .enabled(enabled)
                             .resolvedScope(scope)
                             .build();
 

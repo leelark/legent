@@ -35,7 +35,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/v1/health/**").permitAll()
-                .requestMatchers("/api/v1/track/open.gif", "/api/v1/track/click").permitAll()
                 .requestMatchers("/api/v1/tracking/o.gif", "/api/v1/tracking/c").permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .anyRequest().authenticated()

@@ -51,4 +51,17 @@ public class SendJob extends TenantAwareEntity {
 
     @Column(name = "error_message")
     private String errorMessage;
+
+    // Checkpointing fields
+    @Column(name = "last_checkpoint_at")
+    private Instant lastCheckpointAt;
+
+    @Column(name = "checkpoint_interval")
+    private Integer checkpointInterval = 1000;
+
+    @Column(name = "can_resume", nullable = false)
+    private boolean canResume = false;
+
+    @Column(name = "resumed_from_job_id", length = 36)
+    private String resumedFromJobId;
 }

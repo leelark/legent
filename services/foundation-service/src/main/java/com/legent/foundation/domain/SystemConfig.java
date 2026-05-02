@@ -42,6 +42,12 @@ public class SystemConfig extends BaseEntity {
     @Column(name = "is_system", nullable = false)
     private boolean system = false;
 
+    @Column(name = "config_version", nullable = false)
+    private Integer configVersion = 1;
+
+    @Column(name = "last_modified_by", length = 36)
+    private String lastModifiedBy;
+
     public enum ValueType {
         STRING, INTEGER, BOOLEAN, JSON, DECIMAL
     }

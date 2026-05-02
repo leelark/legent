@@ -8,6 +8,9 @@ import { useAuthStore } from '@/stores/authStore';
 import { useTenantStore } from '@/stores/tenantStore';
 import { parseJwtClaims, getStoredRoles, getStoredTenantId, TOKEN_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
 import { useUIStore } from '@/stores/uiStore';
+import { ToastProvider } from '@/components/ui/Toast';
+import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 /**
  * Workspace layout — provides the app shell with sidebar + header + workspace area.
@@ -69,19 +72,46 @@ export default function WorkspaceLayout({
     }
   }, [hydrated, isAuthenticated, router]);
 
-  if (!hydrated || !isAuthenticated) {
+  if (!hydrated) {
+    return (
+      <div className="flex h-screen overflow-hidden">
+        <div className="w-64 bg-surface-primary border-r border-border-default" />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <div className="h-14 bg-surface-primary border-b border-border-default" />
+          <main className="flex-1 overflow-auto bg-surface-secondary p-6">
+            <div className="space-y-4">
+              <Skeleton variant="text" width="30%" height={32} />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Skeleton variant="rounded" width="100%" height={120} />
+                <Skeleton variant="rounded" width="100%" height={120} />
+                <Skeleton variant="rounded" width="100%" height={120} />
+                <Skeleton variant="rounded" width="100%" height={120} />
+              </div>
+              <Skeleton variant="rounded" width="100%" height={400} />
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return null;
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-auto bg-surface-secondary p-6">
-          <div className="animate-fade-in">{children}</div>
-        </main>
+    <ToastProvider>
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          <main className="flex-1 overflow-auto bg-surface-secondary p-6">
+            <ErrorBoundary>
+              <div className="animate-fade-in">{children}</div>
+            </ErrorBoundary>
+          </main>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 }

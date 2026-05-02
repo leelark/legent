@@ -61,6 +61,7 @@ class OrchestrationServiceTest {
         Campaign campaign = new Campaign();
         campaign.setStatus(Campaign.CampaignStatus.DRAFT);
         campaign.setTenantId(TENANT_ID);
+        campaign.addAudience("LIST", "audience-1");
 
         SendJobDto.TriggerRequest request = new SendJobDto.TriggerRequest(); // null scheduledAt
 
@@ -90,6 +91,7 @@ class OrchestrationServiceTest {
         Campaign campaign = new Campaign();
         campaign.setStatus(Campaign.CampaignStatus.DRAFT);
         campaign.setTenantId(TENANT_ID);
+        campaign.addAudience("LIST", "audience-1");
 
         SendJobDto.TriggerRequest request = new SendJobDto.TriggerRequest();
         request.setScheduledAt(Instant.now().plusSeconds(3600));

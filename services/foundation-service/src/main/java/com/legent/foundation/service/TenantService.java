@@ -95,4 +95,87 @@ public class TenantService {
 
         auditService.log("TENANT_DELETE", "Tenant", id, null);
     }
+
+    @Transactional
+    public TenantDto.Response suspendTenant(String id, String reason) {
+        Tenant existing = tenantRepository.findActiveById(id)
+                .orElseThrow(() -> new NotFoundException("Tenant", id));
+
+        if (existing.getStatus() == Tenant.TenantStatus.SUSPENDED) {
+            throw new IllegalStateException("Tenant is already suspended");
+        }
+
+        existing.setStatus(Tenant.TenantStatus.SUSPENDED);
+        existing.setSuspendedAt(java.time.Instant.now());
+        existing.setSuspensionReason(reason);
+
+        Tenant saved = tenantRepository.save(existing);
+        log.info("Tenant suspended: id={}, reason={}", id, reason);
+
+        auditService.log("TENANT_SUSPEND", "Tenant", id,
+                java.util.Map.of("reason", reason != null ? reason : "No reason provided"));
+
+        return tenantMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public TenantDto.Response restoreTenant(String id) {
+        Tenant existing = tenantRepository.findActiveById(id)
+                .orElseThrow(() -> new NotFoundException("Tenant", id));
+
+        if (existing.getStatus() != Tenant.TenantStatus.SUSPENDED) {
+            throw new IllegalStateException("Tenant is not suspended");
+        }
+
+        existing.setStatus(Tenant.TenantStatus.ACTIVE);
+        existing.setSuspendedAt(null);
+        existing.setSuspensionReason(null);
+
+        Tenant saved = tenantRepository.save(existing);
+        log.info("Tenant restored: id={}", id);
+
+        auditService.log("TENANT_RESTORE", "Tenant", id, null);
+
+        return tenantMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public TenantDto.Response archiveTenant(String id) {
+        Tenant existing = tenantRepository.findActiveById(id)
+                .orElseThrow(() -> new NotFoundException("Tenant", id));
+
+        if (existing.getStatus() == Tenant.TenantStatus.ARCHIVED) {
+            throw new IllegalStateException("Tenant is already archived");
+        }
+
+        existing.setStatus(Tenant.TenantStatus.ARCHIVED);
+        existing.setArchivedAt(java.time.Instant.now());
+
+        Tenant saved = tenantRepository.save(existing);
+        log.info("Tenant archived: id={}", id);
+
+        auditService.log("TENANT_ARCHIVE", "Tenant", id,
+                java.util.Map.of("previousStatus", existing.getStatus().name()));
+
+        return tenantMapper.toResponse(saved);
+    }
+
+    @Transactional
+    public void hardDeleteTenant(String id) {
+        Tenant existing = tenantRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Tenant", id));
+
+        // Only allow hard delete if tenant is already archived or deactivated
+        if (existing.getStatus() != Tenant.TenantStatus.ARCHIVED
+                && existing.getStatus() != Tenant.TenantStatus.DEACTIVATED) {
+            throw new IllegalStateException(
+                    "Tenant must be archived or deactivated before hard deletion. Current status: " + existing.getStatus());
+        }
+
+        tenantRepository.delete(existing);
+        log.info("Tenant hard-deleted: id={}", id);
+
+        auditService.log("TENANT_HARD_DELETE", "Tenant", id,
+                java.util.Map.of("finalStatus", existing.getStatus().name()));
+    }
 }

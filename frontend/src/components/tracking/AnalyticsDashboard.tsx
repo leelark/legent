@@ -9,7 +9,7 @@ import { useTenantStore } from '@/stores/tenantStore';
 export const AnalyticsDashboard: React.FC = () => {
   const [counts, setCounts] = useState<any[]>([]);
   const [timeline, setTimeline] = useState<any[]>([]);
-  const [selectedType, setSelectedType] = useState('open');
+  const [selectedType, setSelectedType] = useState('OPEN');
   const currentTenant = useTenantStore((state) => state.currentTenant);
 
   useEffect(() => {
@@ -41,9 +41,9 @@ export const AnalyticsDashboard: React.FC = () => {
         <div className="flex items-center gap-4 mb-2">
           <h3 className="font-bold">Timeline</h3>
           <select value={selectedType} onChange={e => setSelectedType(e.target.value)} className="border rounded px-2 py-1">
-            <option value="open">Open</option>
-            <option value="click">Click</option>
-            <option value="conversion">Conversion</option>
+            <option value="OPEN">Open</option>
+            <option value="CLICK">Click</option>
+            <option value="CONVERSION">Conversion</option>
           </select>
         </div>
         <Line

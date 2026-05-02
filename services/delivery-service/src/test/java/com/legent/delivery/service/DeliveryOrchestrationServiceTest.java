@@ -117,7 +117,7 @@ class DeliveryOrchestrationServiceTest {
 
         verify(providerStrategy, never()).selectProvider(anyString(), anyString());
         verify(eventPublisher).publishEmailFailed(eq("tenant-1"), eq("evt-123"), any(), any(), anyString());
-        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("invalid-email"), anyString(), eq(""));
+        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("invalid-email"), anyString(), isNull());
     }
 
     @Test

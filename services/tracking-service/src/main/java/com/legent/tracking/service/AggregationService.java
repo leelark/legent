@@ -21,10 +21,15 @@ public class AggregationService {
 
     @Transactional
     public void aggregateEvent(RawEvent event) {
-        if (event.getCampaignId() != null) {
+        if (event == null || event.getTenantId() == null || event.getTenantId().isBlank()
+                || event.getEventType() == null || event.getEventType().isBlank()) {
+            log.warn("Skipping invalid tracking event aggregation");
+            return;
+        }
+        if (event.getCampaignId() != null && !event.getCampaignId().isBlank()) {
             aggregateCampaign(event);
         }
-        if (event.getSubscriberId() != null) {
+        if (event.getSubscriberId() != null && !event.getSubscriberId().isBlank()) {
             aggregateSubscriber(event);
         }
     }
@@ -39,20 +44,22 @@ public class AggregationService {
 
         switch (event.getEventType()) {
             case "OPEN":
-                summary.setTotalOpens(summary.getTotalOpens() + 1);
-                if (isUniqueAction(event.getTenantId(), "uniq_open_camp", event.getCampaignId(), event.getSubscriberId())) {
-                    summary.setUniqueOpens(summary.getUniqueOpens() + 1);
+                summary.setTotalOpens(increment(summary.getTotalOpens()));
+                if (hasSubscriber(event) && isUniqueAction(event.getTenantId(), "uniq_open_camp", event.getCampaignId(), event.getSubscriberId())) {
+                    summary.setUniqueOpens(increment(summary.getUniqueOpens()));
                 }
                 break;
             case "CLICK":
-                summary.setTotalClicks(summary.getTotalClicks() + 1);
-                if (isUniqueAction(event.getTenantId(), "uniq_clk_camp", event.getCampaignId(), event.getSubscriberId())) {
-                    summary.setUniqueClicks(summary.getUniqueClicks() + 1);
+                summary.setTotalClicks(increment(summary.getTotalClicks()));
+                if (hasSubscriber(event) && isUniqueAction(event.getTenantId(), "uniq_clk_camp", event.getCampaignId(), event.getSubscriberId())) {
+                    summary.setUniqueClicks(increment(summary.getUniqueClicks()));
                 }
                 break;
             case "CONVERSION":
-                summary.setTotalConversions(summary.getTotalConversions() + 1);
+                summary.setTotalConversions(increment(summary.getTotalConversions()));
                 break;
+            default:
+                log.debug("Ignoring unsupported campaign event type {}", event.getEventType());
         }
         campaignSummaryRepository.save(summary);
     }
@@ -69,11 +76,13 @@ public class AggregationService {
 
         switch (event.getEventType()) {
             case "OPEN":
-                summary.setTotalOpens(summary.getTotalOpens() + 1);
+                summary.setTotalOpens(increment(summary.getTotalOpens()));
                 break;
             case "CLICK":
-                summary.setTotalClicks(summary.getTotalClicks() + 1);
+                summary.setTotalClicks(increment(summary.getTotalClicks()));
                 break;
+            default:
+                log.debug("Ignoring unsupported subscriber event type {}", event.getEventType());
         }
         subscriberSummaryRepository.save(summary);
     }
@@ -85,5 +94,13 @@ public class AggregationService {
         }
         cacheService.set(key, "1", java.time.Duration.ofDays(30)); // 30 day unique window
         return true;
+    }
+
+    private boolean hasSubscriber(RawEvent event) {
+        return event.getSubscriberId() != null && !event.getSubscriberId().isBlank();
+    }
+
+    private long increment(Long value) {
+        return value == null ? 1L : value + 1;
     }
 }

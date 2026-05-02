@@ -39,6 +39,7 @@ public class AnalyticsService {
             log.warn("TenantId or eventType is null/blank; returning empty timeline");
             return new ArrayList<>();
         }
+        String normalizedEventType = eventType.trim().toUpperCase(java.util.Locale.ROOT);
         try {
             return jdbcTemplate.queryForList("""
                 SELECT date_trunc('hour', "timestamp") AS hour, COALESCE(count(*), 0) AS count
@@ -46,7 +47,7 @@ public class AnalyticsService {
                 WHERE tenant_id = ? AND event_type = ?
                 GROUP BY hour
                 ORDER BY hour
-            """, tenantId, eventType);
+            """, tenantId, normalizedEventType);
         } catch (DataAccessException e) {
             log.error("Failed to query event timeline for tenant {} and eventType {}", tenantId, eventType, e);
             return new ArrayList<>();

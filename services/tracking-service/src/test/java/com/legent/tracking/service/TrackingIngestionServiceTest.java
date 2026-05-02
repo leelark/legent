@@ -4,6 +4,7 @@ import org.mockito.ArgumentCaptor;
 
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.event.TrackingEventPublisher;
+import com.legent.tracking.repository.RawEventRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,6 +23,12 @@ class TrackingIngestionServiceTest {
 
     @Mock
     private com.legent.cache.service.CacheService cacheService;
+
+    @Mock
+    private RawEventRepository rawEventRepository;
+
+    @Mock
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @InjectMocks
     private TrackingIngestionService ingestionService;

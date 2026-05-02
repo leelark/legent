@@ -8,10 +8,9 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -31,8 +30,13 @@ public class TrackingUrlSigner {
 
     // Cache key prefix for tenant-specific signing keys
     private static final String SIGNING_KEY_PREFIX = "tracking:signing-key:";
-    // Signature expiration time (7 days - matches email open window)
-    private static final Duration SIGNATURE_TTL = Duration.ofDays(7);
+
+    @PostConstruct
+    void validateConfiguration() {
+        if (globalSigningKey == null || globalSigningKey.isBlank()) {
+            throw new IllegalStateException("Required configuration 'legent.tracking.signing-key' is not set");
+        }
+    }
 
     /**
      * Generates an HMAC-SHA256 signature for tracking URL parameters.
@@ -46,7 +50,7 @@ public class TrackingUrlSigner {
     public String generateSignature(String tenantId, String campaignId, String subscriberId, String messageId) {
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            String data = String.format("%s:%s:%s:%s", tenantId, campaignId, subscriberId, messageId);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, null);
 
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -58,6 +62,23 @@ public class TrackingUrlSigner {
         } catch (Exception e) {
             log.error("Failed to generate tracking URL signature", e);
             throw new RuntimeException("Failed to sign tracking URL", e);
+        }
+    }
+
+    public String generateClickSignature(String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+        try {
+            String signingKey = getOrCreateSigningKey(tenantId);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, url);
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKey);
+            byte[] signatureBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(signatureBytes);
+        } catch (Exception e) {
+            log.error("Failed to generate tracking click URL signature", e);
+            throw new RuntimeException("Failed to sign tracking click URL", e);
         }
     }
 
@@ -78,7 +99,7 @@ public class TrackingUrlSigner {
 
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            String data = String.format("%s:%s:%s:%s", tenantId, campaignId, subscriberId, messageId);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, null);
 
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -90,6 +111,28 @@ public class TrackingUrlSigner {
             return constantTimeEquals(signature, expectedSignature);
         } catch (Exception e) {
             log.error("Failed to verify tracking URL signature", e);
+            return false;
+        }
+    }
+
+    public boolean verifyClickSignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+        if (signature == null || signature.isBlank()) {
+            return false;
+        }
+
+        try {
+            String signingKey = getOrCreateSigningKey(tenantId);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, url);
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
+            mac.init(secretKey);
+            byte[] expectedSignatureBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            String expectedSignature = Base64.getUrlEncoder().withoutPadding().encodeToString(expectedSignatureBytes);
+
+            return constantTimeEquals(signature, expectedSignature);
+        } catch (Exception e) {
+            log.error("Failed to verify tracking click URL signature", e);
             return false;
         }
     }
@@ -106,9 +149,9 @@ public class TrackingUrlSigner {
             return cachedKey.get();
         }
 
-        // Generate new key using SHA-256 of tenant-specific data + global secret
+        // Deterministic per-tenant key keeps sent tracking URLs valid across Redis restarts.
         String newKey = generateSigningKey(tenantId);
-        cacheService.set(cacheKey, newKey, SIGNATURE_TTL);
+        cacheService.set(cacheKey, newKey);
         return newKey;
     }
 
@@ -117,13 +160,26 @@ public class TrackingUrlSigner {
      */
     private String generateSigningKey(String tenantId) {
         try {
-            String seed = globalSigningKey + ":" + tenantId + ":" + Instant.now().toEpochMilli();
+            String seed = globalSigningKey + ":" + normalize(tenantId);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(seed.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (Exception e) {
             throw new RuntimeException("Failed to generate signing key", e);
         }
+    }
+
+    private String signaturePayload(String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+        return String.join(":",
+                normalize(tenantId),
+                normalize(campaignId),
+                normalize(subscriberId),
+                normalize(messageId),
+                normalize(url));
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim();
     }
 
     /**
