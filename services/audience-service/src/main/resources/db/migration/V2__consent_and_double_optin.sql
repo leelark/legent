@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS consent_records (
     legal_basis         VARCHAR(50) NOT NULL DEFAULT 'CONSENT',
     privacy_version     VARCHAR(20),
     notes               VARCHAR(1000),
+    created_by          VARCHAR(36),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     CONSTRAINT uq_consent_subscriber_type UNIQUE (subscriber_id, consent_type)

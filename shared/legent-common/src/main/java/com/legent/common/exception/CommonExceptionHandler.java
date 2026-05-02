@@ -14,8 +14,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.stream.Collectors;
 
-@RestControllerAdvice
-public class GlobalExceptionHandler {
+@RestControllerAdvice("commonExceptionHandler")
+public class CommonExceptionHandler {
 
     @ExceptionHandler(LegentException.class)
     public ResponseEntity<ApiResponse<Void>> handleLegentException(LegentException e) {

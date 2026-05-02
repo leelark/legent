@@ -9,6 +9,31 @@ ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS suspension_reason VARCHAR(500);
 ALTER TABLE tenants ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
 
+-- ── Audit Logs (for general audit trail) ──
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id              VARCHAR(26) PRIMARY KEY,
+    tenant_id       VARCHAR(36),
+    user_id         VARCHAR(36),
+    action          VARCHAR(100) NOT NULL,
+    resource_type   VARCHAR(50) NOT NULL,
+    resource_id     VARCHAR(50),
+    ip_address      VARCHAR(45),
+    user_agent      VARCHAR(500),
+    changes         JSONB,
+    status          VARCHAR(20) DEFAULT 'SUCCESS',
+    error_message   TEXT,
+    created_by      VARCHAR(26),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ,
+    version         BIGINT DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant ON audit_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at);
+
 -- ── Tenant Audit Log ──
 CREATE TABLE IF NOT EXISTS tenant_audit_log (
     id              VARCHAR(36) PRIMARY KEY,

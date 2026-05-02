@@ -107,3 +107,22 @@ CREATE TABLE IF NOT EXISTS template_versions (
 
 CREATE INDEX idx_template_versions_template ON template_versions(template_id);
 CREATE INDEX idx_template_versions_published ON template_versions(template_id, is_published);
+
+-- ── Emails ──
+CREATE TABLE IF NOT EXISTS emails (
+    id              VARCHAR(36) PRIMARY KEY,
+    tenant_id       VARCHAR(36) NOT NULL,
+    name            VARCHAR(255) NOT NULL,
+    subject         VARCHAR(500) NOT NULL,
+    body            TEXT,
+    template_id     VARCHAR(36),
+    status          VARCHAR(20) NOT NULL DEFAULT 'DRAFT',
+    created_by      VARCHAR(36),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at      TIMESTAMPTZ,
+    version         BIGINT NOT NULL DEFAULT 0
+);
+
+CREATE INDEX idx_emails_tenant ON emails(tenant_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_emails_status ON emails(tenant_id, status) WHERE deleted_at IS NULL;

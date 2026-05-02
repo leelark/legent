@@ -20,6 +20,7 @@ CREATE TABLE webhooks (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(36),
+    version BIGINT DEFAULT 0,
     deleted_at TIMESTAMP WITH TIME ZONE
 );
 CREATE INDEX idx_webhooks_tenant ON webhooks(tenant_id) WHERE deleted_at IS NULL;

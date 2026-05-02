@@ -1,5 +1,16 @@
 -- V1 Deliverability Schema
 
+-- Domains table for domain configuration
+CREATE TABLE domains (
+    id BIGSERIAL PRIMARY KEY,
+    domain VARCHAR(255) NOT NULL UNIQUE,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    spf_status VARCHAR(20),
+    dkim_status VARCHAR(20),
+    dmarc_status VARCHAR(20),
+    last_checked TIMESTAMP WITH TIME ZONE
+);
+
 CREATE TABLE sender_domains (
     id VARCHAR(36) PRIMARY KEY,
     tenant_id VARCHAR(36) NOT NULL,
@@ -22,6 +33,13 @@ CREATE TABLE domain_reputations (
     hard_bounce_rate DECIMAL(5,4) DEFAULT 0,
     complaint_rate DECIMAL(5,4) DEFAULT 0,
     calculated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE reputation_scores (
+    id BIGSERIAL PRIMARY KEY,
+    domain VARCHAR(255) NOT NULL UNIQUE,
+    score FLOAT NOT NULL DEFAULT 100.00,
+    last_updated TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE suppression_list (

@@ -1,4 +1,4 @@
--- Initial Data for Identity Service
+-- V5: Initial Data for Identity Service
 -- Default Tenant
 INSERT INTO tenants (id, name, status, settings, created_at, updated_at)
 VALUES ('01HTENANT000000000000000001', 'Default Tenant', 'ACTIVE', '{}', NOW(), NOW())

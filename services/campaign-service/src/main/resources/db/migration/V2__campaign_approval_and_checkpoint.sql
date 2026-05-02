@@ -16,8 +16,10 @@ CREATE TABLE IF NOT EXISTS campaign_approvals (
     approved_at         TIMESTAMPTZ,
     rejection_reason    VARCHAR(1000),
     comments            TEXT,
+    created_by          VARCHAR(36),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at          TIMESTAMPTZ,
     CONSTRAINT uq_campaign_approval UNIQUE (campaign_id, status)
 );
 

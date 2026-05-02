@@ -17,10 +17,9 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_tenant
     ON refresh_tokens (user_id, tenant_id);
 
--- Index for cleanup of expired tokens
+-- Index for cleanup of expired tokens (partial indexes with CURRENT_TIMESTAMP require immutable functions)
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at
-    ON refresh_tokens (expires_at)
-    WHERE expires_at < CURRENT_TIMESTAMP;
+    ON refresh_tokens (expires_at);
 
 -- Index for finding revoked tokens
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_revoked

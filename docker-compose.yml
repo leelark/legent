@@ -151,6 +151,13 @@ services:
         condition: service_healthy
     command: >
       sh -c "
+        echo 'Waiting for Kafka to be fully ready...' &&
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          kafka-broker-api-versions --bootstrap-server kafka:9092 >/dev/null 2>&1 && break;
+          echo 'Kafka not ready yet, retrying in 5s...' &&
+          sleep 5;
+        done &&
+        echo 'Creating Kafka topics...' &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic system.initialized --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic identity.user.signup --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic config.updated --partitions 3 --replication-factor 1 &&
@@ -203,7 +210,7 @@ services:
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic import.started --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic import.completed --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic import.failed --partitions 3 --replication-factor 1 &&
-        echo 'All topics created'
+        echo 'All topics created successfully'
       "
 
   mailhog:
@@ -322,9 +329,13 @@ services:
     <<: *service-defaults
     ports:
       - "8081:8081"
+    volumes:
+      - ./services/foundation-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_foundation
+      SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
       OPENSEARCH_URL: http://opensearch:9200
       SEARCH_ENABLED: "true"
       FOUNDATION_SEARCH_ENABLED: "true"
@@ -348,9 +359,14 @@ services:
     <<: *service-defaults
     ports:
       - "8089:8089"
+    volumes:
+      - ./services/identity-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_identity
+      SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -371,6 +387,8 @@ services:
     <<: *service-defaults
     ports:
       - "8090:8090"
+    volumes:
+      - ./services/content-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_content
@@ -378,6 +396,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: legent-assets
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration,filesystem:/app/db/migration
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -400,9 +419,13 @@ services:
     <<: *service-defaults
     ports:
       - "8082:8082"
+    volumes:
+      - ./services/audience-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_audience
+      SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
@@ -427,9 +450,13 @@ services:
     <<: *service-defaults
     ports:
       - "8083:8083"
+    volumes:
+      - ./services/campaign-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_campaign
+      SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -481,6 +508,8 @@ services:
     <<: *service-defaults
     ports:
       - "8085:8085"
+    volumes:
+      - ./services/tracking-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_tracking
@@ -490,6 +519,8 @@ services:
       CLICKHOUSE_DB: default
       CLICKHOUSE_USER: default
       SPRING_DATASOURCE_CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -510,9 +541,12 @@ services:
     <<: *service-defaults
     ports:
       - "8086:8086"
+    volumes:
+      - ./services/automation-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_automation
+      SPRING_FLYWAY_LOCATIONS: classpath:db/migration,filesystem:/app/db/migration
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -533,10 +567,15 @@ services:
     <<: *service-defaults
     ports:
       - "8087:8087"
+    volumes:
+      - ./services/deliverability-service/src/main/resources/db/migration:/app/db/migration:ro
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_deliverability
       LEGENT_DELIVERABILITY_MOCK_DNS: "false"
+      LEGENT_DELIVERABILITY_FEEDBACK_LOOP_ENABLED: "false"
+      SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
     depends_on:
       postgres-init:
         condition: service_completed_successfully

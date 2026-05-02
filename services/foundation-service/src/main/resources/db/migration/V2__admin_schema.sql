@@ -1,8 +1,13 @@
 -- Admin configs, branding, and integrations schema
 CREATE TABLE IF NOT EXISTS admin_configs (
     id BIGSERIAL PRIMARY KEY,
-    key VARCHAR(255) NOT NULL UNIQUE,
-    value TEXT
+    config_key VARCHAR(255) NOT NULL UNIQUE,
+    value TEXT,
+    description TEXT,
+    category VARCHAR(50),
+    config_type VARCHAR(50) DEFAULT 'STRING',
+    is_editable BOOLEAN DEFAULT TRUE,
+    tenant_id VARCHAR(26)
 );
 
 CREATE TABLE IF NOT EXISTS branding (
