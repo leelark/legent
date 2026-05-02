@@ -54,6 +54,10 @@ export function Sidebar() {
       {/* Navigation */}
       <nav className="flex-1 space-y-1 px-3 py-4">
         {NAV_ITEMS.map((item) => {
+          if (item.admin && !isAdmin()) {
+            return null;
+          }
+
           const isActive = pathname.startsWith(item.href);
           const Icon = item.icon;
 

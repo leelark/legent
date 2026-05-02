@@ -12,6 +12,7 @@ import {
 import { useUIStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
+import { post } from '@/lib/api-client';
 
 export function Header() {
   const router = useRouter();
@@ -19,12 +20,18 @@ export function Header() {
   const { logout, isAuthenticated } = useAuth();
   const { tenantName } = useTenant();
 
-  const handleLogout = () => {
-    logout();
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    } else {
-      router.push('/login');
+  const handleLogout = async () => {
+    try {
+      await post('/auth/logout');
+    } catch {
+      // Continue with client-side logout even if backend call fails.
+    } finally {
+      logout();
+      if (typeof window !== 'undefined') {
+        window.location.href = '/login';
+      } else {
+        router.push('/login');
+      }
     }
   };
 

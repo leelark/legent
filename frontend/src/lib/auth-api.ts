@@ -15,7 +15,10 @@ export interface SignupRequest {
 }
 
 export interface LoginResponse {
-  token: string;
+  status: string;
+  userId: string;
+  tenantId: string;
+  roles: string[];
 }
 
 export const authApi = {
@@ -26,6 +29,12 @@ export const authApi = {
     
   signup: (request: SignupRequest) => 
     post<LoginResponse>('/auth/signup', request),
+
+  logout: () =>
+    post<void>('/auth/logout'),
+
+  refresh: () =>
+    post<LoginResponse>('/auth/refresh'),
 };
 
 interface ApiResponse<T> {

@@ -16,8 +16,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -80,7 +80,7 @@ public class AuthController {
         String token = authService.signup(request);
 
         // Parse tenantId and userId from token
-        String tenantId = extractTenantIdFromToken(token);
+        String tenantId = jwtTokenProvider.getTenantId(token).orElseThrow();
         String userId = jwtTokenProvider.getUserId(token).orElseThrow();
 
         // Create and set refresh token (Fix 33)
@@ -98,32 +98,6 @@ public class AuthController {
 
         // Return user info (token is in HTTP-only cookie)
         return ApiResponse.ok(new LoginResponse("success", userId, tenantId, roles));
-    }
-
-    /**
-     * Extracts tenantId from JWT token claims.
-     */
-    private String extractTenantIdFromToken(String token) {
-        try {
-            // JWT format: header.payload.signature
-            String[] parts = token.split("\\.");
-            if (parts.length >= 2) {
-                String payload = parts[1];
-                // Base64URL decode
-                String normalized = payload.replace("-", "+").replace("_", "/");
-                java.util.Base64.Decoder decoder = java.util.Base64.getDecoder();
-                byte[] decoded = decoder.decode(normalized);
-                String json = new String(decoded, java.nio.charset.StandardCharsets.UTF_8);
-
-                // Parse JSON to extract tenantId claim
-                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
-                com.fasterxml.jackson.databind.JsonNode node = mapper.readTree(json);
-                return node.has("tenantId") ? node.get("tenantId").asText() : "";
-            }
-        } catch (Exception e) {
-            // Log error but don't fail - cookie may be incomplete
-        }
-        return "";
     }
 
     @PostMapping("/logout")
@@ -167,11 +141,16 @@ public class AuthController {
         // Revoke the old refresh token (rotation for security)
         refreshTokenService.revokeToken(refreshToken);
 
+        List<String> roles = authService.getUserRoles(result.tenantId(), result.userId());
+        if (roles.isEmpty()) {
+            return ApiResponse.error("USER_NOT_FOUND", "User is inactive or does not exist", "Please sign in again");
+        }
+
         // Generate new access token
         String newToken = jwtTokenProvider.generateToken(
                 result.userId(),
                 result.tenantId(),
-                Collections.singletonMap("roles", "USER") // Roles should be fetched from DB
+                Map.of("roles", roles)
         );
 
         // Create new refresh token
@@ -184,11 +163,27 @@ public class AuthController {
         // Set new cookies
         setAuthCookies(response, newToken, result.tenantId(), newRefreshToken);
 
-        // Get user info for response
-        String newUserId = jwtTokenProvider.getUserId(newToken).orElse("");
-        List<String> newRoles = jwtTokenProvider.extractRoles(newToken);
+        return ApiResponse.ok(new LoginResponse("success", result.userId(), result.tenantId(), roles));
+    }
 
-        return ApiResponse.ok(new LoginResponse("success", newUserId, result.tenantId(), newRoles));
+    @GetMapping("/session")
+    public ApiResponse<LoginResponse> session(
+            @CookieValue(name = TOKEN_COOKIE_NAME, required = false) String token) {
+        if (token == null || token.isBlank()) {
+            return ApiResponse.error("SESSION_NOT_FOUND", "No active session", "Please login");
+        }
+
+        var claimsOpt = jwtTokenProvider.validateToken(token);
+        if (claimsOpt.isEmpty()) {
+            return ApiResponse.error("INVALID_SESSION", "Session is invalid or expired", "Please login again");
+        }
+
+        var claims = claimsOpt.get();
+        String userId = claims.getSubject();
+        String tenantId = claims.get("tenantId", String.class);
+        List<String> roles = jwtTokenProvider.extractRoles(token);
+
+        return ApiResponse.ok(new LoginResponse("success", userId, tenantId, roles));
     }
 
     /**

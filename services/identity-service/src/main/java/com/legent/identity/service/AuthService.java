@@ -14,6 +14,7 @@ import com.legent.identity.dto.SignupRequest;
 import com.legent.identity.event.IdentityEventPublisher;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -89,5 +90,14 @@ public class AuthService {
                 Map.of(
                         "roles", Collections.singletonList(savedUser.getRole()),
                         "email", savedUser.getEmail()));
+    }
+
+    @Transactional(readOnly = true)
+    public List<String> getUserRoles(String tenantId, String userId) {
+        return userRepository.findByTenantIdAndId(tenantId, userId)
+                .filter(User::isActive)
+                .map(User::getRole)
+                .map(Collections::singletonList)
+                .orElse(Collections.emptyList());
     }
 }

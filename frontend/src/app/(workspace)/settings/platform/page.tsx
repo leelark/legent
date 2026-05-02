@@ -15,6 +15,13 @@ interface WebhookConfig {
   isActive: boolean;
 }
 
+interface PlatformWebhookConfig {
+  id: string;
+  endpointUrl: string;
+  eventsSubscribed: string;
+  isActive: boolean;
+}
+
 interface TenantConfig {
   tenantId: string;
   themeColor: string;
@@ -30,14 +37,28 @@ export default function PlatformSettings() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    const parseEvents = (eventsSubscribed: string) => {
+      try {
+        const parsed = JSON.parse(eventsSubscribed);
+        return Array.isArray(parsed) ? parsed.join(', ') : String(parsed);
+      } catch {
+        return eventsSubscribed || '';
+      }
+    };
+
     const fetchData = async () => {
       setLoading(true);
       try {
         const [webhookRes, configRes] = await Promise.all([
-          get<WebhookConfig[]>('/platform/webhooks'),
+          get<PlatformWebhookConfig[]>('/platform/webhooks'),
           get<TenantConfig>('/platform/config')
         ]);
-        setWebhooks(webhookRes || []);
+        setWebhooks((webhookRes || []).map((hook) => ({
+          id: hook.id,
+          url: hook.endpointUrl,
+          events: parseEvents(hook.eventsSubscribed),
+          isActive: hook.isActive,
+        })));
         setConfig(configRes || { tenantId: '', themeColor: '#4F46E5', displayName: 'Legent Studio' });
       } catch (err) {
         console.error('Failed to load platform settings', err);

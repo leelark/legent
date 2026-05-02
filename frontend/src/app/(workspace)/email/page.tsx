@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -31,7 +31,7 @@ export default function EmailPage() {
   const [error, setError] = useState<string | null>(null);
   const { addToast } = useToast();
 
-  const loadEmails = async () => {
+  const loadEmails = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -50,11 +50,11 @@ export default function EmailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [addToast]);
 
   useEffect(() => {
     loadEmails();
-  }, []);
+  }, [loadEmails]);
 
   const handleCreate = async () => {
     if (!newName.trim() || !newSubject.trim() || !newBody.trim()) {

@@ -60,8 +60,10 @@ export function getStoredToken(): string | null {
  * The API client will handle adding the X-Tenant-Id header from the cookie.
  */
 export function getStoredTenantId(): string | null {
-  // TenantId is now in HTTP-only cookie - not accessible to JavaScript
-  return null;
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  return localStorage.getItem(TENANT_STORAGE_KEY);
 }
 
 export function getStoredRoles(): string[] {

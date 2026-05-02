@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { post } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenantStore } from '@/stores/tenantStore';
-import { parseJwtClaims, TENANT_STORAGE_KEY, USER_STORAGE_KEY, TOKEN_STORAGE_KEY, ROLES_STORAGE_KEY } from '@/lib/auth';
+import { TENANT_STORAGE_KEY, USER_STORAGE_KEY, ROLES_STORAGE_KEY } from '@/lib/auth';
 import { ROUTES } from '@/lib/constants';
 
 export default function LoginPage() {
@@ -29,8 +29,7 @@ export default function LoginPage() {
       setTenantId(savedTenant);
     }
 
-    const existingToken = localStorage.getItem(TOKEN_STORAGE_KEY);
-    if (existingToken && isAuthenticated) {
+    if (isAuthenticated) {
       router.replace(ROUTES.EMAIL);
     }
   }, [isAuthenticated, router]);
@@ -50,10 +49,11 @@ export default function LoginPage() {
       localStorage.setItem(TENANT_STORAGE_KEY, tenantId.trim());
 
       // Call login endpoint - token is set in HTTP-only cookie by backend
-      const response = await post<{ status: string; userId: string; tenantId: string; roles: string[] }>('/auth/login', {
-        email,
-        password,
-      });
+      const response = await post<{ status: string; userId: string; tenantId: string; roles: string[] }>(
+        '/auth/login',
+        { email, password },
+        { headers: { 'X-Tenant-Id': tenantId.trim() } }
+      );
 
       const data = (response as any).data || response;
       if (data?.status !== 'success') {
@@ -67,12 +67,11 @@ export default function LoginPage() {
       localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles));
       localStorage.setItem(USER_STORAGE_KEY, userId);
 
-      // Pass null for token since it's in HTTP-only cookie
-      login(userId, null as any, roles);
+      login(userId, roles);
       setCurrentTenant({
-        id: tenantId.trim(),
-        name: tenantId.trim(),
-        slug: tenantId.trim(),
+        id: data.tenantId || tenantId.trim(),
+        name: data.tenantId || tenantId.trim(),
+        slug: data.tenantId || tenantId.trim(),
         status: 'ACTIVE',
         plan: 'STARTER',
       });

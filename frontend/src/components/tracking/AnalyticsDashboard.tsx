@@ -3,8 +3,20 @@ import React, { useEffect, useState } from 'react';
 import { getEventCounts, getEventTimeline } from '@/lib/tracking-api';
 import { Card } from '@/components/ui/Card';
 import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 import { subscribeAnalytics } from '@/lib/analytics-ws';
 import { useTenantStore } from '@/stores/tenantStore';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
 
 export const AnalyticsDashboard: React.FC = () => {
   const [counts, setCounts] = useState<any[]>([]);

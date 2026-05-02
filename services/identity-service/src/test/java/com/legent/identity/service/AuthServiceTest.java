@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
@@ -90,5 +91,32 @@ class AuthServiceTest {
                 () -> authService.login("user@example.com", "bad-secret", "tenant-1"));
 
         verifyNoInteractions(tokenProvider);
+    }
+
+    @Test
+    void getUserRoles_whenUserExistsAndActive_returnsRole() {
+        User user = new User();
+        user.setId("user-1");
+        user.setTenantId("tenant-1");
+        user.setRole("ADMIN");
+        user.setActive(true);
+
+        when(userRepository.findByTenantIdAndId("tenant-1", "user-1"))
+                .thenReturn(Optional.of(user));
+
+        var roles = authService.getUserRoles("tenant-1", "user-1");
+
+        assertEquals(1, roles.size());
+        assertEquals("ADMIN", roles.get(0));
+    }
+
+    @Test
+    void getUserRoles_whenUserMissing_returnsEmptyList() {
+        when(userRepository.findByTenantIdAndId("tenant-1", "missing"))
+                .thenReturn(Optional.empty());
+
+        var roles = authService.getUserRoles("tenant-1", "missing");
+
+        assertTrue(roles.isEmpty());
     }
 }

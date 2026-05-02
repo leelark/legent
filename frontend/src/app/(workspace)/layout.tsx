@@ -6,11 +6,12 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Header } from '@/components/shell/Header';
 import { useAuthStore } from '@/stores/authStore';
 import { useTenantStore } from '@/stores/tenantStore';
-import { parseJwtClaims, getStoredRoles, getStoredTenantId, TOKEN_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
+import { getStoredRoles, getStoredTenantId, THEME_STORAGE_KEY } from '@/lib/auth';
 import { useUIStore } from '@/stores/uiStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { get } from '@/lib/api-client';
 
 /**
  * Workspace layout — provides the app shell with sidebar + header + workspace area.
@@ -29,41 +30,72 @@ export default function WorkspaceLayout({
   const setTheme = useUIStore((state) => state.setTheme);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      setHydrated(true);
-      return;
-    }
+    let cancelled = false;
 
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY);
-    const storedTenantId = getStoredTenantId();
-    const storedRoles = getStoredRoles();
-    const storedUserId = localStorage.getItem('legent_user_id');
+    const hydrateSession = async () => {
+      if (typeof window === 'undefined') {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+        return;
+      }
 
-    if (token && !isAuthenticated) {
-      const claims = parseJwtClaims(token);
-      const roles = storedRoles.length > 0 ? storedRoles : claims?.roles ?? [];
-      const userId = storedUserId ?? claims?.sub ?? 'anonymous';
-      login(userId, token, roles);
-    }
+      const storedTenantId = getStoredTenantId();
+      const storedRoles = getStoredRoles();
+      const storedUserId = localStorage.getItem('legent_user_id');
 
-    if (storedTenantId) {
-      setCurrentTenant({
-        id: storedTenantId,
-        name: storedTenantId,
-        slug: storedTenantId,
-        status: 'ACTIVE',
-        plan: 'STARTER',
-      });
-    }
+      if (!isAuthenticated) {
+        try {
+          const session = await get<{ status: string; userId: string; tenantId: string; roles: string[] }>('/auth/session');
+          if (!cancelled && session?.status === 'success' && session.userId) {
+            const roles = Array.isArray(session.roles) ? session.roles : storedRoles;
+            login(session.userId, roles);
+            localStorage.setItem('legent_user_id', session.userId);
+            localStorage.setItem('legent_roles', JSON.stringify(roles));
+            localStorage.setItem('legent_tenant_id', session.tenantId);
+            setCurrentTenant({
+              id: session.tenantId,
+              name: session.tenantId,
+              slug: session.tenantId,
+              status: 'ACTIVE',
+              plan: 'STARTER',
+            });
+          } else if (!cancelled && storedUserId && storedRoles.length > 0) {
+            login(storedUserId, storedRoles);
+          }
+        } catch {
+          if (!cancelled) {
+            localStorage.removeItem('legent_user_id');
+            localStorage.removeItem('legent_roles');
+          }
+        }
+      }
 
-    const storedTheme = typeof window !== 'undefined'
-      ? localStorage.getItem(THEME_STORAGE_KEY)
-      : null;
-    if (storedTheme === 'dark' || storedTheme === 'light') {
-      setTheme(storedTheme as 'light' | 'dark');
-    }
+      if (storedTenantId) {
+        setCurrentTenant({
+          id: storedTenantId,
+          name: storedTenantId,
+          slug: storedTenantId,
+          status: 'ACTIVE',
+          plan: 'STARTER',
+        });
+      }
 
-    setHydrated(true);
+      const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+      if (storedTheme === 'dark' || storedTheme === 'light') {
+        setTheme(storedTheme as 'light' | 'dark');
+      }
+
+      if (!cancelled) {
+        setHydrated(true);
+      }
+    };
+
+    hydrateSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, login, setCurrentTenant, setTheme]);
 
   useEffect(() => {
