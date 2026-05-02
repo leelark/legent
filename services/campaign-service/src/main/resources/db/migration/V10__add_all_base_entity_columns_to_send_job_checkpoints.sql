@@ -2,5 +2,4 @@
 -- Fixes all remaining schema validation errors
 
 ALTER TABLE send_job_checkpoints 
-    ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0,
-    ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+    ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;

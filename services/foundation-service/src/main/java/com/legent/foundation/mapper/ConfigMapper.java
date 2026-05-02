@@ -23,5 +23,7 @@ public interface ConfigMapper {
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "deletedAt", ignore = true)
     @Mapping(target = "version", ignore = true)
+    @Mapping(target = "configVersion", ignore = true)
+    @Mapping(target = "lastModifiedBy", ignore = true)
     SystemConfig toEntity(ConfigDto.CreateRequest request);
 }

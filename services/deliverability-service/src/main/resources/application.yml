@@ -25,6 +25,11 @@ spring:
         format_sql: false
     open-in-view: false
 
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
   flyway:
     enabled: true
     baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:true}

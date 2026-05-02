@@ -15,7 +15,7 @@
     <artifactId>identity-service</artifactId>
     <name>Legent Identity Service</name>
     <description>Identity and User management with JWT Auth</description>
-
+ 
     <dependencies>
         <!-- Internal Libraries -->
         <dependency>

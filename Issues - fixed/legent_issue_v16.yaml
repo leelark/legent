@@ -1,0 +1,296 @@
+audit:
+  repository: legent-main
+  scope: full static re-audit of the monorepo
+  build_verification:
+    attempted_commands:
+    - command: mvn -q -DskipTests compile
+      result: failed
+      reason: mvn is not installed in this audit environment
+    - command: java -version; node -v; npm -v
+      result: available
+      details: Java 21, Node.js 22, npm 10 are present
+    note: I could not execute a full Maven build or runtime boot in this environment because the Maven CLI/wrapper is missing.
+  summary:
+    critical: 5
+    high: 10
+    medium: 7
+    low: 4
+    overall_assessment: Not production-ready yet. The codebase has a strong scaffold, but several security, resilience, and
+      integration paths are still incomplete or fail-open.
+findings:
+- id: AUDIT-001
+  severity: critical
+  layer: build_tooling
+  type: missing_build_wrapper
+  files:
+  - README.md
+  - pom.xml
+  - root filesystem
+  issue: The repository documentation references Maven wrapper support, but no mvnw/mvnw.cmd is present, and Maven is not
+    installed in the audit environment.
+  evidence: README says to use ./mvnw, but the repo root does not contain wrapper files.
+  impact: Builds are not reproducible from a fresh checkout without external tooling setup.
+  fix: Add Maven wrapper files, pin Maven and JDK versions, and make the documented build path match the repository.
+- id: AUDIT-002
+  severity: high
+  layer: documentation
+  type: version_mismatch
+  files:
+  - README.md
+  - frontend/package.json
+  issue: The README still describes the frontend as Next.js 14, while package.json pins Next 15.1.7 and React 19.
+  evidence: README tech stack and setup text are stale relative to the actual frontend dependencies.
+  impact: Onboarding and upgrade guidance becomes unreliable and can cause incorrect environment setup.
+  fix: Synchronize all docs with the real dependency set and keep a single source of truth for runtime versions.
+- id: AUDIT-003
+  severity: high
+  layer: infra
+  type: compose_startup_race
+  files:
+  - docker-compose.yml
+  issue: gateway and frontend depend on service_started rather than service_healthy for backend services.
+  evidence: The gateway waits for containers to start, not for application health checks to pass.
+  impact: Users can see 502/503 errors during startup even when all containers are technically running.
+  fix: Gate the gateway and frontend on health or add robust retry/connection retry logic at the edge.
+- id: AUDIT-004
+  severity: medium
+  layer: infra
+  type: false_resource_limits
+  files:
+  - docker-compose.yml
+  issue: The compose file relies on deploy.resources for limits and reservations, which are commonly ignored in non-swarm
+    Docker Compose usage.
+  evidence: Most local compose workflows will not enforce those limits the way the file suggests.
+  impact: Runtime memory and CPU behavior will differ between local, CI, and production-like runs.
+  fix: Use explicit compose-compatible runtime flags for local validation or move limits to orchestration-specific manifests.
+- id: AUDIT-005
+  severity: critical
+  layer: security
+  type: fail_open_authorization
+  files:
+  - services/foundation-service/src/main/java/com/legent/foundation/service/FeatureFlagEngine.java
+  issue: Feature flag evaluation fails open for unknown rule types and for exceptions during rule processing.
+  evidence: Unknown types and catch blocks return true, enabling the flag instead of denying it.
+  impact: Invalid, malformed, or attacker-influenced rules can unintentionally enable restricted features.
+  fix: Default to deny on parsing/evaluation failures, and explicitly whitelist only validated rule types.
+- id: AUDIT-006
+  severity: critical
+  layer: security
+  type: key_rotation_missing
+  files:
+  - services/delivery-service/src/main/java/com/legent/delivery/service/TrackingUrlSigner.java
+  issue: Tenant signing keys are derived deterministically from a global secret and tenant id, cached without a TTL, and never
+    rotated.
+  evidence: getOrCreateSigningKey stores the key in Redis without expiry even though the comments claim TTL and rotation.
+  impact: A long-lived secret compromise can affect all tenant signatures, and stale keys never age out automatically.
+  fix: Store versioned keys with TTL, support rotation, and keep old keys only for a bounded overlap window.
+- id: AUDIT-007
+  severity: high
+  layer: deliverability
+  type: logic_error
+  files:
+  - services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainValidationService.java
+  - services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainVerificationService.java
+  issue: Domain verification status is decided using SPF and DKIM only; DMARC is checked but not required for VERIFIED status.
+  evidence: Both services set VERIFIED when SPF/DKIM succeed even if DMARC fails or is absent.
+  impact: Domains can be marked production-ready when they still lack a key email-authentication control.
+  fix: Make the verification state reflect the full policy, or model SPF/DKIM/DMARC separately and derive status from an explicit
+    rule.
+- id: AUDIT-008
+  severity: medium
+  layer: deliverability
+  type: partial_implementation
+  files:
+  - services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainValidationService.java
+  issue: validateDomain returns null when no DomainConfig is found, which pushes null-handling downstream instead of surfacing
+    a clear domain error.
+  evidence: The method exits early with return null if repository lookup misses.
+  impact: Callers can silently skip required domain state creation or produce avoidable NullPointerExceptions.
+  fix: Return an explicit exception or create a default record with a controlled onboarding state.
+- id: AUDIT-009
+  severity: high
+  layer: integration
+  type: silent_failure
+  files:
+  - services/campaign-service/src/main/java/com/legent/campaign/client/ContentServiceClient.java
+  issue: Remote content-service failures are swallowed and converted into null values.
+  evidence: All exceptions in getTemplate, renderTemplate, and getLatestVersion are logged and then return null.
+  impact: Campaign flows can degrade quietly and callers may continue with partial or broken content.
+  fix: Return explicit error states or throw typed exceptions, and add retry/circuit-breaker behavior at the client boundary.
+- id: AUDIT-010
+  severity: high
+  layer: delivery
+  type: not_implemented
+  files:
+  - services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java
+  issue: The retry content fallback path is not actually integrated with content-service.
+  evidence: fetchContentForRetry only checks cache and otherwise returns an empty map with fallback defaults.
+  impact: Retries can send generic placeholder content instead of the original campaign payload.
+  fix: Implement a real content-service lookup path and fail the retry job explicitly when content cannot be recovered.
+- id: AUDIT-011
+  severity: medium
+  layer: delivery
+  type: fragile_content_rewrite
+  files:
+  - services/delivery-service/src/main/java/com/legent/delivery/service/ContentProcessingService.java
+  issue: HTML link rewriting is done with regex, and a null htmlContent input returns null instead of a controlled failure.
+  evidence: The service operates on raw string matching and replacement rather than a DOM-safe parser.
+  impact: Complex or malformed HTML can be rewritten incorrectly, and null content can cascade into later failures.
+  fix: Validate input early, use a parser-based HTML transformation strategy, and enforce a clear non-null contract.
+- id: AUDIT-012
+  severity: high
+  layer: security
+  type: weak_secret_derivation
+  files:
+  - services/delivery-service/src/main/java/com/legent/delivery/service/CredentialEncryptionService.java
+  issue: When no salt is configured, the service derives a fixed salt from the credential key itself.
+  evidence: The fallback salt is deterministic and reused for every encrypted credential.
+  impact: This weakens key-derivation hygiene and complicates safe rotation and forward secrecy.
+  fix: Require an independent random salt, store salt/version metadata with each ciphertext, and add a rotation strategy.
+- id: AUDIT-013
+  severity: medium
+  layer: delivery
+  type: partial_support
+  files:
+  - services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java
+  issue: SMTP support assumes encrypted credentials are always present and returns null when they are missing or unreadable.
+  evidence: resolvePassword logs an error and returns null; the sender is then built without an explicit validation path for
+    non-authenticated relays.
+  impact: Provider configuration failures surface late and can become runtime send failures instead of startup validation
+    errors.
+  fix: Validate provider config before activation, model auth/no-auth providers explicitly, and fail fast on incomplete configuration.
+- id: AUDIT-014
+  severity: high
+  layer: runtime
+  type: blocking_async_execution
+  files:
+  - services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java
+  issue: The async webhook dispatcher still blocks on WebClient.block(), which consumes worker threads under load.
+  evidence: The method is annotated @Async but immediately waits on a reactive pipeline with block().
+  impact: Throughput collapses under bursty webhook traffic because the async executor becomes a blocking queue.
+  fix: Use a fully non-blocking pipeline or isolate blocking I/O onto a bounded dedicated executor.
+- id: AUDIT-015
+  severity: medium
+  layer: runtime
+  type: missing_dead_letter_strategy
+  files:
+  - services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java
+  issue: Webhook delivery failures are logged but there is no durable DLQ or retry-state persistence beyond the delivery log.
+  evidence: Failures return Mono.just(false) after logging, but no redrive or scheduled retry mechanism exists.
+  impact: Transient downstream outages can turn into permanent missed notifications.
+  fix: Persist retry state, add a dead-letter path, and expose replay tooling for operators.
+- id: AUDIT-016
+  severity: high
+  layer: data_consistency
+  type: outbox_missing
+  files:
+  - services/tracking-service/src/main/java/com/legent/tracking/service/TrackingIngestionService.java
+  issue: Tracking events are written to the database and then immediately published to Kafka without an outbox or transactional
+    bridge.
+  evidence: DB save failures are swallowed and publishing still continues.
+  impact: Database and event stream can diverge, causing duplicate or missing analytics records.
+  fix: Adopt an outbox pattern or a transaction-aware event publication strategy.
+- id: AUDIT-017
+  severity: medium
+  layer: analytics
+  type: algorithmic_simplification
+  files:
+  - services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java
+  issue: Reputation scoring uses a coarse estimated rate and a permissive cache-error path.
+  evidence: The code approximates rate as events per 1000 sends and returns null on cache count failures.
+  impact: Scores can drift from real deliverability risk, especially at volume or during cache incidents.
+  fix: Base scoring on actual denominators, make cache failure behavior explicit, and persist scoring inputs for auditability.
+- id: AUDIT-018
+  severity: medium
+  layer: runtime
+  type: unsafe_initialization
+  files:
+  - services/content-service/src/main/java/com/legent/content/service/AssetService.java
+  issue: MinIO initialization errors are only logged, and the service continues even if the client is not ready.
+  evidence: initMinio catches generic Exception and just warns.
+  impact: Later upload/delete calls can fail with opaque runtime errors or null dereferences.
+  fix: Fail fast on required storage dependency startup, or expose a readiness gate that prevents asset operations until MinIO
+    is healthy.
+- id: AUDIT-019
+  severity: medium
+  layer: workflow
+  type: partial_implementation
+  files:
+  - services/audience-service/src/main/java/com/legent/audience/service/ConsentService.java
+  issue: Double opt-in token creation is only partially wired end-to-end.
+  evidence: The method generates a raw token and notes that it should be sent by email, but the sending path is not implemented
+    here.
+  impact: Consent onboarding can stop after token generation unless another service independently finishes the flow.
+  fix: Connect token generation to a concrete delivery path and make the lifecycle explicit in the API contract.
+- id: AUDIT-020
+  severity: medium
+  layer: frontend
+  type: state_drift
+  files:
+  - frontend/src/app/(workspace)/layout.tsx
+  - frontend/src/lib/auth.ts
+  - frontend/src/stores/authStore.ts
+  issue: Authentication state is spread across HTTP-only cookies, localStorage, and Zustand stores, which increases drift
+    risk.
+  evidence: The layout hydrates session from cookies but also rehydrates from stored user/role/tenant values.
+  impact: A stale tenant or role can survive after a failed session refresh and the UI can display an identity that no longer
+    matches the server.
+  fix: Use one authoritative source for identity state, refresh it centrally, and clear all local mirrors on failure.
+- id: AUDIT-021
+  severity: low
+  layer: frontend
+  type: dead_code
+  files:
+  - frontend/src/lib/auth.ts
+  issue: Several auth constants and helpers are deprecated or unused, but they still remain in the live code path.
+  evidence: TOKEN_STORAGE_KEY is defined even though tokens are no longer read from localStorage, and getStoredToken always
+    returns null.
+  impact: This makes the auth model harder to reason about and easier to regress during future changes.
+  fix: Remove dead auth code or isolate it behind a migration compatibility layer with a clear end-of-life date.
+- id: AUDIT-022
+  severity: medium
+  layer: security
+  type: response_hardening_gap
+  files:
+  - services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java
+  - services/delivery-service/src/main/java/com/legent/delivery/service/TrackingUrlSigner.java
+  issue: Several external-facing flows accept missing secrets or normalize them into empty strings instead of blocking the
+    operation.
+  evidence: Webhook signature generation returns an empty string when the secret is absent, and the tracking signer relies
+    on configuration that must exist at runtime.
+  impact: Security-sensitive integrations can degrade silently instead of failing closed.
+  fix: Validate secrets at startup, refuse to serve the feature without them, and surface a clear readiness state.
+- id: AUDIT-023
+  severity: low
+  layer: data
+  type: serializer_contract_gap
+  files:
+  - shared/legent-cache/src/main/java/com/legent/cache/service/CacheService.java
+  issue: The generic cache API performs unchecked casts and assumes the caller always uses the same serializer shape.
+  evidence: get(String, Class) returns Optional.of((T) value) without verifying the runtime type.
+  impact: Cross-service cache misuse can turn into ClassCastException or subtle deserialization drift.
+  fix: Introduce typed cache wrappers, explicit serializer contracts, or key namespaces with value schemas.
+- id: AUDIT-024
+  severity: high
+  layer: infra
+  type: non_reproducible_dependency
+  files:
+  - docker-compose.yml
+  - frontend/package.json
+  - README.md
+  issue: The repo mixes pinned and floating versions and still uses some broad tags in infrastructure images.
+  evidence: kafka-ui is pulled with latest, while docs and code disagree on frontend framework versions.
+  impact: The same checkout can produce different runtime behavior over time.
+  fix: Pin all runtime images and align docs, lockfiles, and dependency manifests to the same release train.
+production_readiness_gaps:
+- Add a reproducible build wrapper and CI pipeline that runs backend compile, unit tests, frontend build, lint, and smoke
+  tests.
+- Add infrastructure validation for docker compose, Kubernetes manifests, and service health dependencies.
+- 'Introduce explicit observability standards: structured logs, trace propagation, dashboards, alerts, and SLOs.'
+- Replace fail-open security defaults with fail-closed behavior and add a secrets management strategy.
+- Add outbox or transactional messaging for all write-then-publish workflows.
+- Add load, soak, and failure-injection tests for delivery, tracking, webhook, and import paths.
+- Add real dead-letter and replay tooling for webhook, delivery retry, and ingestion failures.
+- Replace placeholder/default content fallbacks with explicit error contracts and user-visible failure handling.
+- Remove stale auth/session duplication and make identity state single-source.
+- Document operational runbooks for backup/restore, incident response, key rotation, and dependency recovery.

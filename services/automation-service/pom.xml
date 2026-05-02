@@ -13,7 +13,7 @@
     <name>Automation Service</name>
     <description>Workflow state machine engine for subscriber journeys</description>
 
-    <dependencies>
+    <dependencies> 
         <!-- Internal Libraries -->
         <dependency>
             <groupId>com.legent</groupId>

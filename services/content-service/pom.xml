@@ -15,7 +15,7 @@
     <artifactId>content-service</artifactId> 
     <name>Legent Content Service</name>
     <description>Email template management, rendering, and asset storage</description>
-
+ 
     <dependencies>
         <dependency>
             <groupId>com.legent</groupId>

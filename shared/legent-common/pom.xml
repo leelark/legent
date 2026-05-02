@@ -11,7 +11,7 @@
         <version>1.0.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent> 
- 
+  
     <artifactId>legent-common</artifactId>
     <name>Legent Common Library</name>
     <description>Shared base entities, DTOs, exceptions, and utilities</description>

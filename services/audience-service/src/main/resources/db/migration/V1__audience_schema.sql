@@ -105,6 +105,11 @@ CREATE TABLE IF NOT EXISTS list_memberships (
     status              VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     added_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     removed_at          TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_by          VARCHAR(36),
+    deleted_at          TIMESTAMPTZ,
+    version             BIGINT NOT NULL DEFAULT 0,
     CONSTRAINT uq_list_member UNIQUE (list_id, subscriber_id)
 );
 

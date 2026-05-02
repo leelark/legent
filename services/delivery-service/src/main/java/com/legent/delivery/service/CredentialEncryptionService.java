@@ -37,12 +37,13 @@ public class CredentialEncryptionService {
         if (credentialKey == null || credentialKey.isBlank()) {
             throw new IllegalArgumentException("legent.delivery.credential-key must be configured");
         }
-        // Use provided salt or generate a deterministic salt from the key itself
-        if (saltConfig != null && !saltConfig.isBlank()) {
-            this.salt = Base64.getDecoder().decode(saltConfig);
-        } else {
-            // Generate a fixed salt from the first 16 chars of the key hash for backward compatibility
-            this.salt = java.util.Arrays.copyOf(credentialKey.getBytes(StandardCharsets.UTF_8), 16);
+        // Require an independent random salt for security
+        if (saltConfig == null || saltConfig.isBlank()) {
+            throw new IllegalArgumentException("legent.delivery.encryption-salt must be configured with a Base64-encoded random salt (at least 16 bytes)");
+        }
+        this.salt = Base64.getDecoder().decode(saltConfig);
+        if (this.salt.length < 16) {
+            throw new IllegalArgumentException("legent.delivery.encryption-salt must be at least 16 bytes when decoded");
         }
         byte[] keyBytes = deriveKey(credentialKey, this.salt);
         this.secretKey = new SecretKeySpec(keyBytes, ALGORITHM);

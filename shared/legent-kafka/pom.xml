@@ -11,7 +11,7 @@
         <version>1.0.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-
+ 
     <artifactId>legent-kafka</artifactId>
     <name>Legent Kafka Library</name>
     <description>Kafka producer/consumer abstraction, event envelope, and DLQ handling</description>

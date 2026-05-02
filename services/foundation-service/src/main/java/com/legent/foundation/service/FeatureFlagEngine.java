@@ -57,12 +57,12 @@ public class FeatureFlagEngine {
     private boolean evaluateRule(Map<String, Object> rule, Map<String, Object> context) {
         // Null safety: Handle null rule or context
         if (rule == null) {
-            return true; // Null rule passes
+            return false; // Null rule fails - fail closed
         }
         
         String type = (String) rule.get("type");
         if (type == null) {
-            return true; // No type = always pass
+            return false; // No type = fail closed
         }
 
         try {
@@ -78,12 +78,12 @@ public class FeatureFlagEngine {
                 case "NEVER" -> false;
                 default -> {
                     log.warn("Unknown rule type: {}", type);
-                    yield true; // Unknown rules pass by default
+                    yield false; // Unknown rules fail closed
                 }
             };
         } catch (Exception e) {
             log.error("Error evaluating rule {}: {}", type, e.getMessage());
-            return true; // Fail open on rule evaluation errors
+            return false; // Fail closed on rule evaluation errors
         }
     }
 
@@ -92,7 +92,7 @@ public class FeatureFlagEngine {
      */
     private boolean evaluatePercentageRollout(Map<String, Object> rule, Map<String, Object> context) {
         if (rule == null) {
-            return true;
+            return false;
         }
         Integer percentage = (Integer) rule.get("percentage");
         if (percentage == null || percentage >= 100) {
@@ -120,7 +120,7 @@ public class FeatureFlagEngine {
         String operator = (String) rule.getOrDefault("operator", "EQUALS");
 
         if (attribute == null) {
-            return true;
+            return false;
         }
 
         Object actualValue = context.get("user_" + attribute);
@@ -201,7 +201,7 @@ public class FeatureFlagEngine {
         String operator = (String) rule.getOrDefault("operator", "EQUALS");
 
         if (attribute == null) {
-            return true;
+            return false;
         }
 
         // Get from context or from TenantContext
@@ -224,7 +224,7 @@ public class FeatureFlagEngine {
     private boolean evaluateIpRange(Map<String, Object> rule, Map<String, Object> context) {
         String userIp = (String) context.get("ip_address");
         if (userIp == null) {
-            return true; // Can't evaluate, fail open
+            return false; // Can't evaluate, fail closed
         }
 
         List<String> allowedIps = (List<String>) rule.get("allowedIps");

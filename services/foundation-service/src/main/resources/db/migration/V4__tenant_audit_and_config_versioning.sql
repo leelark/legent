@@ -79,7 +79,6 @@ CREATE INDEX IF NOT EXISTS idx_config_version_tenant_key ON config_version_histo
 CREATE INDEX IF NOT EXISTS idx_config_version_changed_at ON config_version_history(changed_at);
 
 -- ── System Config Version Tracking ──
-ALTER TABLE system_configs ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1;
 ALTER TABLE system_configs ADD COLUMN IF NOT EXISTS last_modified_by VARCHAR(36);
 
 -- ── Feature Flag Version History ──

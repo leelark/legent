@@ -12,7 +12,7 @@
     <artifactId>campaign-service</artifactId>
     <name>Campaign Service</name>
     <description>Campaign management and send orchestration module</description>
-
+ 
     <dependencies>
         <!-- Internal Libraries -->
         <dependency>

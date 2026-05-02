@@ -1,0 +1,376 @@
+# Source: extracted from uploaded Docker logs and container status snapshot
+# Note: the log file excerpt visible in chat is truncated, so this report covers the issues
+# that are explicitly visible in the provided content.
+
+report:
+  project: Legent v1.0.2
+  captured_from: docker_ps_and_container_logs
+  evidence_source: turn1file0
+  assessment: PARTIALLY_HEALTHY_WITH_BLOCKERS
+
+environment:
+  containers_total: 20
+  containers_healthy: 15
+  containers_starting: 3
+  containers_with_errors_observed: 3
+  containers_with_warnings_observed: 4
+
+container_status:
+  healthy:
+    - legent-frontend
+    - legent-gateway
+    - legent-tracking
+    - legent-campaign
+    - legent-foundation
+    - legent-content
+    - legent-automation
+    - legent-identity
+    - legent-platform-service
+    - legent-kafka
+    - legent-postgres
+    - legent-redis
+    - legent-opensearch
+    - legent-minio
+    - legent-zookeeper
+  starting:
+    - legent-delivery
+    - legent-audience
+    - legent-deliverability
+  running_without_healthcheck:
+    - legent-kafka-ui
+    - legent-mailhog
+
+issues:
+
+  - issue_id: ISSUE-001
+    severity: CRITICAL
+    module: delivery-service
+    container: legent-delivery
+    image: legent-v102-delivery-service
+    status: failing_to_start
+    health: starting_loop
+    category: startup_failure
+    type: jpa_entitymanagerfactory_initialization_failure
+
+    symptom_summary:
+      - Spring Boot application context fails during startup
+      - entityManagerFactory bean creation fails repeatedly
+      - container remains in health: starting
+
+    observed_error_chain:
+      - "BeanCreationException: Error creating bean with name 'entityManagerFactory'"
+      - "IllegalArgumentException: scale has no meaning for SQL floating point types"
+      - "Error starting ApplicationContext"
+      - "Application run failed"
+
+    likely_root_cause:
+      - JPA entity mapping uses scale on a floating-point SQL type
+      - A field annotated with precision/scale is mapped to float/double instead of BigDecimal
+      - Hibernate schema generation or validation rejects the mapping
+
+    evidence:
+      timestamps:
+        - "2026-05-02T18:36:18.355Z"
+        - "2026-05-02T18:37:27.946Z"
+        - "2026-05-02T18:37:57.842Z"
+        - "2026-05-02T18:38:36.282Z"
+        - "2026-05-02T18:39:08.902Z"
+        - "2026-05-02T18:39:45.820Z"
+
+    impact:
+      - service_does_not_start
+      - downstream_apis_unavailable
+      - repeated_restart_attempts
+      - blocks_delivery_workflows
+
+    recommended_fix:
+      code:
+        - "Replace Float/Double with BigDecimal where scale is required"
+        - "Remove scale from @Column if the field must remain floating point"
+        - "Review all entity annotations for precision/scale misuse"
+      verification:
+        - "Rebuild the service image"
+        - "Run container and confirm no entityManagerFactory startup error"
+        - "Check /actuator/health once the service is up"
+
+  - issue_id: ISSUE-002
+    severity: CRITICAL
+    module: audience-service
+    container: legent-audience
+    image: legent-v102-audience-service
+    status: failing_to_start
+    health: starting
+    category: schema_validation_failure
+    type: hibernate_schema_mismatch
+    confidence: inferred_from_schema_tables_in_log_excerpt
+
+    symptom_summary:
+      - Hibernate schema validation fails on startup
+      - Missing database column prevents JPA SessionFactory creation
+      - Service remains in starting state
+
+    observed_error_chain:
+      - "SchemaManagementException: Schema-validation: missing column [created_at] in table [list_memberships]"
+      - "Unable to build Hibernate SessionFactory"
+      - "Failed to initialize JPA EntityManagerFactory"
+      - "Application run failed"
+
+    likely_root_cause:
+      - Entity model expects created_at in list_memberships
+      - Database migration did not create the column
+      - Flyway/Liquibase or manual schema update is out of sync with entity definitions
+
+    evidence:
+      timestamps:
+        - "2026-05-02T18:36:40.885Z"
+        - "2026-05-02T18:37:51.241Z"
+        - "2026-05-02T18:38:29.405Z"
+        - "2026-05-02T18:39:09.223Z"
+        - "2026-05-02T18:39:49.742Z"
+
+    impact:
+      - service_does_not_start
+      - database_validation_blocks_boot
+      - dependent_features_unavailable
+
+    recommended_fix:
+      database:
+        - "Add missing created_at column in the migration for list_memberships"
+        - "Verify the migration order and environment parity"
+        - "Re-run schema migration on the target database"
+      code:
+        - "Confirm @Column(name = 'created_at') matches the actual DB schema"
+        - "Review entity base audit fields and inheritance mappings"
+      sample_sql:
+        - |
+          ALTER TABLE list_memberships
+          ADD COLUMN created_at TIMESTAMP NULL;
+
+  - issue_id: ISSUE-003
+    severity: HIGH
+    module: deliverability-service
+    container: legent-deliverability
+    image: legent-v102-deliverability-service
+    status: running_with_runtime_errors
+    health: starting
+    category: configuration_error
+    type: redis_connection_failure
+
+    symptom_summary:
+      - Service starts but Redis health checks fail repeatedly
+      - Application tries to connect to Redis using localhost
+      - Connection refused errors repeat during requests / health checks
+
+    observed_error_chain:
+      - "RedisConnectionFailureException: Unable to connect to Redis"
+      - "Connection refused: localhost/127.0.0.1:6379"
+      - "Redis health check failed"
+
+    likely_root_cause:
+      - Incorrect Redis host configuration inside Docker
+      - Application is using localhost instead of Docker service name
+      - Container networking is not aligned with Spring Redis properties
+
+    evidence:
+      timestamps:
+        - "2026-05-02T18:37:12.002Z"
+        - "2026-05-02T18:37:21.796Z"
+        - "2026-05-02T18:37:32.010Z"
+        - "2026-05-02T18:37:42.155Z"
+        - "2026-05-02T18:37:52.271Z"
+        - "2026-05-02T18:38:02.410Z"
+        - "2026-05-02T18:38:12.517Z"
+        - "2026-05-02T18:38:22.667Z"
+        - "2026-05-02T18:38:32.762Z"
+        - "2026-05-02T18:38:42.853Z"
+        - "2026-05-02T18:38:52.965Z"
+
+    impact:
+      - redis_healthcheck_fails
+      - degraded_application_health
+      - caching_or_queue_operations_may_fail
+      - may_affect_request_handling_paths
+
+    recommended_fix:
+      configuration:
+        - "Set spring.redis.host to the Docker Compose service name, not localhost"
+        - "Verify spring.redis.port matches the Redis container port"
+        - "Confirm network aliases in docker-compose.yml"
+      example:
+        spring_redis_host: legent-redis
+        spring_redis_port: 6379
+
+  - issue_id: ISSUE-004
+    severity: MEDIUM
+    module: campaign-service
+    container: legent-campaign
+    image: legent-v102-campaign-service
+    status: running_with_startup_noise
+    health: healthy
+    category: kafka_consumer_rebalance
+    type: transient_startup_consumer_rebalance
+
+    symptom_summary:
+      - Consumer group rebalance messages are repeated during startup
+      - No hard failure is visible in the excerpt
+      - Service appears healthy
+
+    observed_messages:
+      - "MemberIdRequiredException"
+      - "Request joining group due to: rebalance failed"
+
+    likely_root_cause:
+      - Normal Kafka consumer group formation during startup
+      - Not necessarily a defect unless it persists after startup
+      - Could also indicate slow consumer initialization
+
+    impact:
+      - temporary_consumer_delay
+      - startup_log_noise
+
+    recommended_fix:
+      - "Monitor after startup to confirm messages stop"
+      - "Review consumer concurrency and startup ordering if it persists"
+      - "Check Kafka broker readiness and topic availability"
+
+  - issue_id: ISSUE-005
+    severity: MEDIUM
+    module: tracking-service
+    container: legent-tracking
+    image: legent-v102-tracking-service
+    status: running_with_startup_noise
+    health: healthy
+    category: kafka_consumer_rebalance
+    type: transient_startup_consumer_rebalance
+
+    symptom_summary:
+      - Consumer rebalance messages appear repeatedly during startup
+      - Service is still reported healthy
+      - No explicit fatal error is visible in the excerpt
+
+    observed_messages:
+      - "MemberIdRequiredException"
+      - "Request joining group due to: rebalance failed"
+
+    likely_root_cause:
+      - Transient Kafka membership negotiation during startup
+      - May be expected when multiple consumers join at once
+
+    impact:
+      - temporary_event_processing_delay
+      - startup_log_noise
+
+    recommended_fix:
+      - "Observe whether the messages disappear after bootstrap"
+      - "Validate consumer group config and startup sequencing if persistent"
+
+  - issue_id: ISSUE-006
+    severity: LOW
+    module: foundation-service
+    container: legent-foundation
+    image: legent-v102-foundation-service
+    status: running_with_warnings
+    health: healthy
+    category: migration_warning
+    type: flyway_duplicate_column_warnings
+
+    symptom_summary:
+      - Flyway reports existing columns and skips them
+      - This is not fatal in the excerpt, but indicates schema drift or non-idempotent migrations
+
+    observed_messages:
+      - 'DB: column "version" of relation "system_configs" already exists, skipping'
+      - 'DB: column "content_id" of relation "campaigns" already exists, skipping'
+      - 'DB: column "scheduled_at" of relation "campaigns" already exists, skipping'
+      - 'DB: column "deleted_at" of relation "send_job_checkpoints" already exists, skipping'
+      - 'DB: column "updated_at" of relation "send_job_checkpoints" already exists, skipping'
+      - 'DB: column "created_at" of relation "send_job_checkpoints" already exists, skipping'
+
+    likely_root_cause:
+      - Migrations are being applied to a database that already has some columns
+      - Schema change scripts may not be idempotent
+      - Dev database may have drifted from expected baseline
+
+    impact:
+      - noisy_startup_logs
+      - possible_future_schema_drift
+      - may_hide_real_migration_issues
+
+    recommended_fix:
+      - "Review and clean migration scripts"
+      - "Confirm migration history table is correct"
+      - "Avoid reapplying migrations against an already modified schema"
+
+  - issue_id: ISSUE-007
+    severity: LOW
+    module: deliverability-service
+    container: legent-deliverability
+    image: legent-v102-deliverability-service
+    status: running_with_warnings
+    health: starting
+    category: flyway_warning
+    type: duplicate_column_warning
+
+    symptom_summary:
+      - Flyway skips an existing column in sender_domains
+      - Warning is not fatal by itself, but it suggests schema drift
+
+    observed_messages:
+      - 'DB: column "status" of relation "sender_domains" already exists, skipping'
+
+    likely_root_cause:
+      - Migration re-run on a non-empty schema
+      - Existing DB state does not match migration assumptions
+
+    impact:
+      - startup_log_noise
+      - potential_migration_confusion
+
+    recommended_fix:
+      - "Confirm migration order"
+      - "Check whether the service is pointing to the intended database"
+      - "Clean up duplicate or already-applied schema changes"
+
+non_fatal_startup_messages:
+  - module: campaign-service
+    message: "Will secure any request with DefaultSecurityFilterChain"
+    classification: normal_spring_security_startup
+  - module: tracking-service
+    message: "Will secure any request with DefaultSecurityFilterChain"
+    classification: normal_spring_security_startup
+  - module: content-service
+    message: "Will secure any request with DefaultSecurityFilterChain"
+    classification: normal_spring_security_startup
+  - module: automation-service
+    message: "Will secure any request with DefaultSecurityFilterChain"
+    classification: normal_spring_security_startup
+  - module: identity-service
+    message: "Will secure any request with DefaultSecurityFilterChain"
+    classification: normal_spring_security_startup
+
+overall_summary:
+  critical_blockers:
+    - delivery-service
+    - audience-service
+    - deliverability-service
+  major_root_causes:
+    - invalid_jpa_mapping_precision_scale
+    - missing_database_column_created_at
+    - redis_host_set_to_localhost_inside_container
+  secondary_concerns:
+    - kafka_consumer_rebalance_noise
+    - flyway_duplicate_column_warnings
+  production_readiness: NOT_READY
+  priority_fix_order:
+    - delivery-service
+    - audience-service
+    - deliverability-service
+    - migration_cleanup
+    - kafka_startup_noise_review
+
+next_actions:
+  - "Fix the delivery-service JPA mapping first"
+  - "Add the missing list_memberships.created_at column or correct the migration"
+  - "Change Redis host from localhost to the Docker service name"
+  - "Rebuild and re-run the compose stack"
+  - "Recheck logs after startup for any remaining errors"

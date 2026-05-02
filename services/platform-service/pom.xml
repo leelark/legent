@@ -15,7 +15,7 @@
 
     <dependencies>
         <!-- Internal Libraries -->
-        <dependency>
+        <dependency> 
             <groupId>com.legent</groupId>
             <artifactId>legent-common</artifactId>
         </dependency>

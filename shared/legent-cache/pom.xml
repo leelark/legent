@@ -15,7 +15,7 @@
     <artifactId>legent-cache</artifactId>
     <name>Legent Cache Library</name>
     <description>Redis configuration, tenant-aware caching, and cache service</description>
-
+ 
     <dependencies>
         <dependency>
             <groupId>com.legent</groupId>

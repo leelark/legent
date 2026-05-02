@@ -13,7 +13,7 @@
     <name>Tracking Service</name>
     <description>Analytics and tracking microservice for opens, clicks, and conversions</description>
 
-    <dependencies>
+    <dependencies> 
         <!-- Internal Libraries -->
         <dependency>
             <groupId>com.legent</groupId>

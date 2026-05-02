@@ -1,6 +1,7 @@
 package com.legent.delivery.domain;
 
 import java.time.Instant;
+import java.math.BigDecimal;
 
 import com.legent.common.model.TenantAwareEntity;
 import jakarta.persistence.*;
@@ -39,7 +40,7 @@ public class ProviderHealthCheck extends TenantAwareEntity {
     private Integer consecutiveFailures = 0;
 
     @Column(name = "success_rate_24h", precision = 5, scale = 2)
-    private Double successRate24h;
+    private BigDecimal successRate24h;
 
     @Column(name = "total_sent_24h")
     private Long totalSent24h = 0L;

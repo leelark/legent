@@ -12,7 +12,7 @@
     <artifactId>delivery-service</artifactId>
     <name>Delivery Service</name>
     <description>Email delivery engine with multi-provider support</description>
-
+ 
     <dependencies> 
         <!-- Internal Libraries -->
         <dependency>

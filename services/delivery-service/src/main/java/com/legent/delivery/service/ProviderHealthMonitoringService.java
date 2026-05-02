@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.math.BigDecimal;
 
 import com.legent.delivery.domain.ProviderHealthCheck;
 import com.legent.delivery.domain.ProviderHealthStatus;
@@ -77,7 +78,7 @@ public class ProviderHealthMonitoringService {
         Instant since24h = Instant.now().minus(Duration.ofHours(24));
         Long totalSent = healthCheckRepository.countTotalChecks(provider.getId(), since24h);
         Long healthyChecks = healthCheckRepository.countHealthyChecks(provider.getId(), since24h);
-        Double successRate = totalSent > 0 ? (healthyChecks * 100.0 / totalSent) : 100.0;
+        BigDecimal successRate = totalSent > 0 ? BigDecimal.valueOf(healthyChecks * 100.0 / totalSent) : BigDecimal.valueOf(100.0);
 
         // Record health check
         ProviderHealthCheck check = new ProviderHealthCheck();

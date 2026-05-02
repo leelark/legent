@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.netty.http.client.HttpClient;
+import reactor.util.retry.Retry;
 
 import java.time.Duration;
 import java.util.Map;
@@ -41,6 +42,7 @@ public class ContentServiceClient {
 
     /**
      * Fetches a template by ID from content-service.
+     * @throws ContentServiceException if the template cannot be fetched
      */
     public TemplateDto getTemplate(String tenantId, String templateId) {
         try {
@@ -50,10 +52,13 @@ public class ContentServiceClient {
                     .retrieve()
                     .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Object>>() {})
                     .timeout(Duration.ofSeconds(5))
+                    .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
+                            .filter(throwable -> !(throwable instanceof WebClientResponseException.NotFound))
+                            .doAfterRetry(sig -> log.warn("Retrying template fetch for {}/{}", tenantId, templateId)))
                     .block();
 
             if (response == null || !response.containsKey("data")) {
-                return null;
+                throw new ContentServiceException("Invalid response from content-service for template " + templateId);
             }
 
             @SuppressWarnings("unchecked")
@@ -64,15 +69,16 @@ public class ContentServiceClient {
             return new TemplateDto(id, name, subject);
         } catch (WebClientResponseException.NotFound e) {
             log.warn("Template {} not found for tenant {}", templateId, tenantId);
-            return null;
+            throw new ContentServiceNotFoundException("Template " + templateId + " not found for tenant " + tenantId, e);
         } catch (Exception e) {
             log.error("Failed to fetch template {} for tenant {}", templateId, tenantId, e);
-            return null;
+            throw new ContentServiceException("Failed to fetch template " + templateId + " for tenant " + tenantId, e);
         }
     }
 
     /**
      * Renders a template with personalization variables.
+     * @throws ContentServiceException if the template cannot be rendered
      */
     public RenderedContent renderTemplate(String tenantId, String templateId, Map<String, Object> variables) {
         try {
@@ -83,10 +89,12 @@ public class ContentServiceClient {
                     .retrieve()
                     .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Object>>() {})
                     .timeout(Duration.ofSeconds(5))
+                    .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
+                            .doAfterRetry(sig -> log.warn("Retrying template render for {}/{}", tenantId, templateId)))
                     .block();
 
             if (response == null || !response.containsKey("data")) {
-                return null;
+                throw new ContentServiceException("Invalid response from content-service for render " + templateId);
             }
 
             @SuppressWarnings("unchecked")
@@ -97,12 +105,13 @@ public class ContentServiceClient {
             return new RenderedContent(subject, htmlBody, textBody);
         } catch (Exception e) {
             log.error("Failed to render template {} for tenant {}", templateId, tenantId, e);
-            return null;
+            throw new ContentServiceException("Failed to render template " + templateId + " for tenant " + tenantId, e);
         }
     }
 
     /**
      * Gets the latest published version of a template.
+     * @throws ContentServiceException if the version cannot be fetched
      */
     public TemplateVersionDto getLatestVersion(String tenantId, String templateId) {
         try {
@@ -112,10 +121,13 @@ public class ContentServiceClient {
                     .retrieve()
                     .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Object>>() {})
                     .timeout(Duration.ofSeconds(5))
+                    .retryWhen(Retry.backoff(3, Duration.ofMillis(100))
+                            .filter(throwable -> !(throwable instanceof WebClientResponseException.NotFound))
+                            .doAfterRetry(sig -> log.warn("Retrying latest version fetch for {}/{}", tenantId, templateId)))
                     .block();
 
             if (response == null || !response.containsKey("data")) {
-                return null;
+                throw new ContentServiceException("Invalid response from content-service for latest version " + templateId);
             }
 
             @SuppressWarnings("unchecked")
@@ -124,13 +136,37 @@ public class ContentServiceClient {
             String htmlContent = data.get("htmlContent") != null ? data.get("htmlContent").toString() : null;
             String textContent = data.get("textContent") != null ? data.get("textContent").toString() : null;
             return new TemplateVersionDto(subject, htmlContent, textContent);
+        } catch (WebClientResponseException.NotFound e) {
+            log.warn("Latest version not found for template {} tenant {}", templateId, tenantId);
+            throw new ContentServiceNotFoundException("Latest version not found for template " + templateId + " tenant " + tenantId, e);
         } catch (Exception e) {
             log.error("Failed to get latest version for template {} tenant {}", templateId, tenantId, e);
-            return null;
+            throw new ContentServiceException("Failed to get latest version for template " + templateId + " tenant " + tenantId, e);
         }
     }
 
     public record TemplateDto(String id, String name, String subject) {}
     public record TemplateVersionDto(String subject, String htmlContent, String textContent) {}
     public record RenderedContent(String subject, String htmlBody, String textBody) {}
+
+    /**
+     * Exception thrown when content-service operations fail.
+     */
+    public static class ContentServiceException extends RuntimeException {
+        public ContentServiceException(String message) {
+            super(message);
+        }
+        public ContentServiceException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
+    /**
+     * Exception thrown when content is not found in content-service.
+     */
+    public static class ContentServiceNotFoundException extends ContentServiceException {
+        public ContentServiceNotFoundException(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
 }

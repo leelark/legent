@@ -11,7 +11,7 @@
         <version>1.0.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
-
+ 
     <artifactId>legent-security</artifactId>
     <name>Legent Security Library</name>
     <description>Multi-tenant context, JWT, RBAC, and security filters</description>

@@ -306,7 +306,7 @@ services:
           memory: 1G
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:latest
+    image: provectuslabs/kafka-ui:v1.0.0
     container_name: legent-kafka-ui
     ports:
       - "8091:8080"
@@ -642,25 +642,25 @@ services:
       - ./config/nginx/proxy_params.conf:/etc/nginx/proxy_params.conf:rw
     depends_on:
       foundation-service:
-        condition: service_started
+        condition: service_healthy
       identity-service:
-        condition: service_started
+        condition: service_healthy
       audience-service:
-        condition: service_started
+        condition: service_healthy
       content-service:
-        condition: service_started
+        condition: service_healthy
       campaign-service:
-        condition: service_started
+        condition: service_healthy
       delivery-service:
-        condition: service_started
+        condition: service_healthy
       tracking-service:
-        condition: service_started
+        condition: service_healthy
       automation-service:
-        condition: service_started
+        condition: service_healthy
       deliverability-service:
-        condition: service_started
+        condition: service_healthy
       platform-service:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/nginx-health || exit 1"]
       interval: 10s

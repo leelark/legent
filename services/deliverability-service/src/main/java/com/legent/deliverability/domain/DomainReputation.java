@@ -29,10 +29,10 @@ public class DomainReputation {
     @Column(name = "reputation_score")
     private Integer reputationScore = 100;
 
-    @Column(name = "hard_bounce_rate")
+    @Column(name = "hard_bounce_rate", precision = 5, scale = 4)
     private BigDecimal hardBounceRate = BigDecimal.ZERO;
 
-    @Column(name = "complaint_rate")
+    @Column(name = "complaint_rate", precision = 5, scale = 4)
     private BigDecimal complaintRate = BigDecimal.ZERO;
 
     @Column(name = "calculated_at")
