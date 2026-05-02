@@ -79,27 +79,40 @@ public class ReputationEngine {
                 String.valueOf(WINDOW_SECONDS),
                 eventId);
 
-        int countInWindow = eventCount != null ? eventCount.intValue() : 1;
+        int countInWindow = eventCount != null ? eventCount.intValue() : 0;
+        if (eventCount == null) {
+            log.warn("Failed to get event count from cache for domain {}. Using 0.", domainId);
+        }
 
-        // Calculate time-windowed rate (events per 1000 emails assumption)
-        // For accurate calculation, you'd need total sent count from another counter
-        double estimatedRate = Math.min(countInWindow / 1000.0, 1.0); // Cap at 100%
+        // AUDIT-017: Get actual total sent count from cache for accurate rate calculation
+        String sentKey = "reputation:sent:" + tenantId + ":" + domainId;
+        Long totalSent = getTotalSentFromCache(sentKey);
+        
+        // Calculate actual rate using real denominator
+        double actualRate;
+        if (totalSent != null && totalSent > 0) {
+            actualRate = Math.min(countInWindow / (double) totalSent, 1.0);
+        } else {
+            // Fallback: assume 1000 as baseline if no sent count available
+            actualRate = Math.min(countInWindow / 1000.0, 1.0);
+            log.debug("No total sent count available for domain {}, using baseline assumption", domainId);
+        }
 
         // Update reputation with time-windowed calculation
         DomainReputation reputation = reputationRepository.findByDomainId(domainId)
                 .orElseGet(() -> createNewReputation(tenantId, domainId));
 
         // Apply penalty based on time-windowed rate (not cumulative)
-        double penalty = calculatePenalty(eventType, estimatedRate);
+        double penalty = calculatePenalty(eventType, actualRate);
         int newScore = Math.max(MIN_REPUTATION,
                 (int) (reputation.getReputationScore() - penalty));
 
         // Update rates using time-windowed values
         if ("HARD_BOUNCE".equals(eventType)) {
-            reputation.setHardBounceRate(BigDecimal.valueOf(estimatedRate)
+            reputation.setHardBounceRate(BigDecimal.valueOf(actualRate)
                     .setScale(4, RoundingMode.HALF_UP));
         } else if ("COMPLAINT".equals(eventType)) {
-            reputation.setComplaintRate(BigDecimal.valueOf(estimatedRate)
+            reputation.setComplaintRate(BigDecimal.valueOf(actualRate)
                     .setScale(4, RoundingMode.HALF_UP));
         }
 
@@ -108,7 +121,7 @@ public class ReputationEngine {
         reputationRepository.save(reputation);
 
         log.info("Domain {} reputation {} -> {} (window events: {}, rate: {:.4f}, type: {})",
-                domainId, reputation.getReputationScore(), newScore, countInWindow, estimatedRate, eventType);
+                domainId, reputation.getReputationScore(), newScore, countInWindow, actualRate, eventType);
     }
 
     /**
@@ -133,8 +146,13 @@ public class ReputationEngine {
             Long bounceCount = countEventsInLastHour(bounceKey, now);
             Long complaintCount = countEventsInLastHour(complaintKey, now);
 
-            if ((bounceCount == null || bounceCount == 0) &&
-                (complaintCount == null || complaintCount == 0)) {
+            // AUDIT-017: Skip recovery when we can't read from Redis (fail closed)
+            if (bounceCount == null || complaintCount == null) {
+                log.warn("Redis unavailable, skipping reputation recovery for domain {}. Scores will not change.", domainId);
+                continue;
+            }
+
+            if (bounceCount == 0 && complaintCount == 0) {
                 // No negative events in last hour, apply recovery
                 int currentScore = reputation.getReputationScore();
                 if (currentScore < MAX_REPUTATION) {
@@ -161,7 +179,21 @@ public class ReputationEngine {
             return cacheService.executeScript(redisScript,
                     Arrays.asList(key), String.valueOf(now));
         } catch (Exception e) {
-            log.warn("Failed to count events for key {}", key, e);
+            log.error("Failed to count events for key {}: {}. Cache unavailable - cannot verify event count.", key, e.getMessage());
+            // AUDIT-017: Return null on cache failure to distinguish from "no events"
+            return null;
+        }
+    }
+    
+    /**
+     * AUDIT-017: Get total sent count from cache for accurate rate calculation.
+     */
+    private Long getTotalSentFromCache(String key) {
+        try {
+            Optional<Long> count = cacheService.get(key, Long.class);
+            return count.orElse(null);
+        } catch (Exception e) {
+            log.warn("Failed to get total sent count from cache: {}", e.getMessage());
             return null;
         }
     }

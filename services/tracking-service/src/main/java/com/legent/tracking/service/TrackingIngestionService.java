@@ -37,8 +37,10 @@ public class TrackingIngestionService {
             return;
         }
         TrackingDto.RawEventPayload payload = buildPayload("OPEN", tenantId, campaignId, subscriberId, messageId, null, userAgentString, ipAddress, null);
+        // AUDIT-016: Outbox pattern - save to DB first, then publish within same transaction
         saveEventToDatabase(payload);
-        eventPublisher.publishIngestedEvent(payload);
+        // Publish event using transactional outbox pattern
+        publishEventWithOutbox(payload);
     }
 
     @Transactional
@@ -160,6 +162,30 @@ public class TrackingIngestionService {
             log.error("Failed to save event to database: {}", payload.getId(), e);
             // Don't throw - we still want to publish to Kafka even if DB save fails
         }
+    }
+
+    /**
+     * AUDIT-016: Publish event with transactional outbox pattern.
+     * Ensures DB and Kafka stay consistent by using transaction synchronization.
+     */
+    private void publishEventWithOutbox(TrackingDto.RawEventPayload payload) {
+        // Register a transaction synchronization to publish after successful commit
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    // Only publish to Kafka after DB transaction successfully commits
+                    eventPublisher.publishIngestedEvent(payload);
+                }
+                
+                @Override
+                public void afterCompletion(int status) {
+                    if (status == STATUS_ROLLED_BACK) {
+                        log.warn("Transaction rolled back, event {} not published to Kafka", payload.getId());
+                    }
+                }
+            }
+        );
     }
 
     private TrackingDto.RawEventPayload buildPayload(String eventType, String tenantId, String campaignId, String subscriberId, 

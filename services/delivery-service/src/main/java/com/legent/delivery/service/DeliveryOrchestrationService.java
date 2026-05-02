@@ -269,6 +269,7 @@ public class DeliveryOrchestrationService {
     /**
      * Fetches email content for retry from cache or content-service.
      * Fix 31: Content is no longer stored in message_logs to prevent storage bloat.
+     * AUDIT-010: Now integrated with content-service for real content retrieval.
      */
     private Map<String, String> fetchContentForRetry(String campaignId, String contentReference) {
         Map<String, String> result = new java.util.HashMap<>();
@@ -288,11 +289,74 @@ public class DeliveryOrchestrationService {
             }
         }
 
-        // Fallback: In production, this would call content-service API
-        // For now, return empty map to trigger fallback defaults
-        log.warn("Content not found for retry - campaignId={}, reference={}. Using fallback defaults.",
-                campaignId, contentReference);
+        // AUDIT-010: Call content-service API to fetch original content
+        if (campaignId != null && !campaignId.isBlank()) {
+            try {
+                Map<String, String> contentFromService = fetchContentFromContentService(campaignId);
+                if (!contentFromService.isEmpty()) {
+                    log.info("Retrieved content from content-service for campaign {}", campaignId);
+                    return contentFromService;
+                }
+            } catch (Exception e) {
+                log.error("Failed to fetch content from content-service for campaign {}: {}", campaignId, e.getMessage());
+            }
+        }
 
+        // If all fetch attempts fail, return empty map - caller must handle failure
+        log.error("Content not found for retry - campaignId={}, reference={}. Retry will use fallback defaults.",
+                campaignId, contentReference);
+        return result;
+    }
+
+    /**
+     * AUDIT-010: Fetch content from content-service API.
+     * Makes HTTP call to content-service to retrieve campaign content.
+     */
+    private Map<String, String> fetchContentFromContentService(String campaignId) {
+        Map<String, String> result = new java.util.HashMap<>();
+        try {
+            // Call content-service to get campaign content
+            // This is a simplified implementation - in production, use a proper client
+            String contentServiceUrl = System.getenv().getOrDefault("CONTENT_SERVICE_URL", "http://content-service:8090");
+            java.net.URI uri = java.net.URI.create(contentServiceUrl + "/api/v1/content/campaign/" + campaignId);
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) uri.toURL().openConnection();
+            conn.setRequestMethod("GET");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(5000);
+            conn.setRequestProperty("Accept", "application/json");
+
+            int responseCode = conn.getResponseCode();
+            if (responseCode == 200) {
+                try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                        new java.io.InputStreamReader(conn.getInputStream()))) {
+                    StringBuilder response = new StringBuilder();
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        response.append(line);
+                    }
+                    // Parse response and extract content
+                    com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                    com.fasterxml.jackson.databind.JsonNode root = mapper.readTree(response.toString());
+                    if (root.has("data")) {
+                        com.fasterxml.jackson.databind.JsonNode data = root.get("data");
+                        if (data.has("subject")) {
+                            result.put("subject", data.get("subject").asText());
+                        }
+                        if (data.has("htmlBody")) {
+                            result.put("htmlBody", data.get("htmlBody").asText());
+                        }
+                        if (data.has("textBody")) {
+                            result.put("textBody", data.get("textBody").asText());
+                        }
+                    }
+                }
+            } else {
+                log.warn("Content-service returned status {} for campaign {}", responseCode, campaignId);
+            }
+        } catch (Exception e) {
+            log.error("Error calling content-service for campaign {}: {}", campaignId, e.getMessage());
+            throw new RuntimeException("Failed to fetch content from content-service", e);
+        }
         return result;
     }
 }

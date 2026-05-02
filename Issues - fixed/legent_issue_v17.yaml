@@ -1,0 +1,343 @@
+audit:
+  module: "FullSystem"
+  generated_at: "2026-05-02T20:00:07.664664Z"
+  analysis_depth: "NTH_LEVEL_FULL_PASS"
+
+  scope:
+    repository_files_enumerated: 683
+    review_mode: "Static code review with targeted deep dives into high-risk runtime paths and configuration wiring"
+
+  build_verification:
+    maven: "not executed; mvn unavailable in the analysis environment"
+    docker: "static compose review only; no container build executed"
+
+  total_files_analyzed: 683
+  total_issues: 8
+
+  issues:
+    - id: "ISSUE-0001"
+      fix_order: 1
+      priority: "Critical"
+      layer: "Config"
+      module: "DeliveryService"
+
+      files:
+        - "services/delivery-service/src/main/java/com/legent/delivery/service/CredentialEncryptionService.java"
+        - "services/delivery-service/src/main/resources/application.yml"
+        - "docker-compose.yml"
+        - ".env"
+
+      issue_type: "Startup Misconfiguration"
+      title: "Required encryption salt is not wired into deployment config"
+
+      description: |
+        The delivery service requires a Base64-encoded random salt at startup, but the deployment wiring does not provide it.
+        The bean constructor throws during initialization when the salt is missing, so the service can fail to start instead of degrading safely.
+
+      technical_details: |
+        - CredentialEncryptionService requires legent.delivery.encryption-salt
+        - application.yml defines the property lookup
+        - docker-compose.yml passes LEGENT_DELIVERY_CREDENTIAL_KEY only
+        - .env also contains the credential key only
+        - The service therefore has a hard dependency that is not satisfied by the runtime config
+
+      impacted_flow: |
+        Container startup → Spring context initialization → delivery-service health check → email/provider dispatch paths
+
+      root_cause: |
+        A mandatory cryptographic configuration parameter was added in code without updating the runtime configuration contract.
+
+      fix_recommendation: |
+        Add LEGENT_DELIVERY_ENCRYPTION_SALT to all runtime environments, validate it at startup with a clear preflight check, and fail the compose/deploy pipeline early if the variable is absent.
+
+      dependency_impact: |
+        Blocks delivery-service boot, which in turn blocks provider loading, credential encryption, and any email send flow that depends on encrypted credentials.
+
+      risk_if_not_fixed: |
+        Production deployment can fail entirely or remain permanently unhealthy.
+
+      validation_steps: |
+        Start the service with and without the salt present, verify the bean initializes only when the value is supplied, and confirm the health endpoint becomes ready only after successful startup.
+
+    - id: "ISSUE-0002"
+      fix_order: 2
+      priority: "High"
+      layer: "Backend"
+      module: "DeliveryService"
+
+      files:
+        - "services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/SmtpProviderAdapter.java"
+
+      issue_type: "Runtime NPE"
+      title: "SMTP send path dereferences metadata without a null guard"
+
+      description: |
+        The SMTP adapter iterates over metadata entries without verifying that the metadata map is non-null.
+        Any caller that omits metadata will trigger a NullPointerException during email dispatch.
+
+      technical_details: |
+        - sendEmail(...) accepts metadata as an input
+        - message headers are added via metadata.entrySet()
+        - no null/empty guard exists before the loop
+        - the failure occurs after message construction, so it is a late runtime crash
+
+      impacted_flow: |
+        Campaign or transactional email request → SMTP provider adapter → JavaMail send
+
+      root_cause: |
+        Defensive input validation was skipped for an optional parameter that is used as if it were mandatory.
+
+      fix_recommendation: |
+        Normalize metadata to an empty map at the method boundary, or guard the loop with a null check before iterating.
+
+      dependency_impact: |
+        Breaks outbound email delivery for any request path that does not populate metadata.
+
+      risk_if_not_fixed: |
+        Intermittent production mail failures and hard-to-trace send crashes.
+
+      validation_steps: |
+        Send a message with metadata omitted, with metadata empty, and with metadata populated; verify the adapter succeeds in all valid cases.
+
+    - id: "ISSUE-0003"
+      fix_order: 3
+      priority: "High"
+      layer: "Backend"
+      module: "ContentService"
+
+      files:
+        - "services/content-service/src/main/java/com/legent/content/service/AssetService.java"
+
+      issue_type: "Data Consistency Bug"
+      title: "Asset deletion is not atomic across database and object storage"
+
+      description: |
+        The asset record is soft-deleted in the database before the MinIO object is removed.
+        If the storage delete fails, the database says the asset is gone while the blob remains in object storage, creating permanent drift.
+
+      technical_details: |
+        - deleteAsset() sets deletedAt and saves the row first
+        - deleteFromMinio(...) runs afterward
+        - any MinIO failure leaves the DB committed and the object orphaned
+        - the transaction does not cover the external object store operation
+
+      impacted_flow: |
+        Asset delete request → database soft delete → object-storage delete
+
+      root_cause: |
+        External side effects were sequenced after the durable database write without a compensation strategy or outbox/saga pattern.
+
+      fix_recommendation: |
+        Use a compensating workflow: delete storage first with retry, or mark the row as pending deletion and finalize only after a successful object-store removal.
+
+      dependency_impact: |
+        Affects asset listing, storage costs, cleanup jobs, and any later object-name reuse or restore workflow.
+
+      risk_if_not_fixed: |
+        Orphaned files accumulate, storage cost increases, and asset state becomes inconsistent across layers.
+
+      validation_steps: |
+        Simulate a MinIO failure during delete and verify the asset remains in a consistent retryable state instead of being half-deleted.
+
+    - id: "ISSUE-0004"
+      fix_order: 4
+      priority: "High"
+      layer: "Backend"
+      module: "DeliverabilityService"
+
+      files:
+        - "services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainVerificationService.java"
+        - "services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainValidationService.java"
+
+      issue_type: "Incomplete Verification Logic"
+      title: "Domain verification can report success while ignoring validation failures and DMARC policy"
+
+      description: |
+        The verification flow records SPF, DKIM, and DMARC checks, but the final status only depends on SPF and DKIM.
+        In addition, DNS exceptions are caught and logged while the code still persists the domain object, which can hide validation failure states.
+
+      technical_details: |
+        - DomainVerificationService sets VERIFIED when SPF and DKIM pass, regardless of DMARC result
+        - DomainValidationService sets VERIFIED when SPF and DKIM pass, also ignoring DMARC
+        - both paths can persist state after exceptions without surfacing a hard failure
+        - this creates a fail-open verification model
+
+      impacted_flow: |
+        Sender domain onboarding → DNS verification → domain activation → deliverability eligibility
+
+      root_cause: |
+        The status transition logic is incomplete and the exception handling path suppresses failure semantics instead of making them explicit.
+
+      fix_recommendation: |
+        Make the verification rule explicit: include DMARC when required by policy, fail closed on DNS errors, and persist a distinct FAILED/ERROR state instead of silently saving the old object.
+
+      dependency_impact: |
+        Affects domain activation, message sending eligibility, reputation scoring, and admin review flows.
+
+      risk_if_not_fixed: |
+        Domains may appear production-ready when DNS validation is incomplete or broken.
+
+      validation_steps: |
+        Test SPF-only, DKIM-only, DMARC-missing, and DNS-error scenarios; verify the final status matches the intended policy in each case.
+
+    - id: "ISSUE-0005"
+      fix_order: 5
+      priority: "High"
+      layer: "Backend"
+      module: "DeliverabilityService"
+
+      files:
+        - "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java"
+
+      issue_type: "Silent Failure"
+      title: "Reputation recovery treats Redis read failures as zero events"
+
+      description: |
+        Event-count reads return null on Redis/script failure, and the recovery job interprets null the same as no negative events.
+        That means infrastructure failure can accidentally trigger reputation recovery instead of blocking it.
+
+      technical_details: |
+        - countEventsInLastHour(...) catches exceptions and returns null
+        - applyReputationRecovery() treats null as zero
+        - recovery is applied even when the data source is unavailable
+        - this mixes "no events" with "cannot read events"
+
+      impacted_flow: |
+        Event ingestion → reputation scoring → scheduled recovery job → sender/domain reputation state
+
+      root_cause: |
+        Unavailability of the backing cache is being converted into a successful business outcome rather than a hard read failure.
+
+      fix_recommendation: |
+        Distinguish between no events and unreadable events; skip recovery and raise an operational alert when Redis/script execution fails.
+
+      dependency_impact: |
+        Impacts sender reputation, throttling decisions, and any downstream deliverability policy using the score.
+
+      risk_if_not_fixed: |
+        Scores can recover incorrectly during Redis outages, hiding operational problems and weakening enforcement.
+
+      validation_steps: |
+        Simulate Redis unavailability during the recovery job and confirm the score does not change and the failure is visible in logs/metrics.
+
+    - id: "ISSUE-0006"
+      fix_order: 6
+      priority: "Medium"
+      layer: "Backend"
+      module: "PlatformService"
+
+      files:
+        - "services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java"
+
+      issue_type: "Security Degradation"
+      title: "Webhook signing silently degrades to an empty signature"
+
+      description: |
+        When the secret is missing or signature generation fails, the dispatcher returns an empty string and still sends the webhook.
+        That weakens authenticity guarantees and can make downstream validation ambiguous.
+
+      technical_details: |
+        - generateSignature(...) returns "" when secret is null or empty
+        - generateSignature(...) also returns "" on exceptions
+        - dispatch continues and sets X-Legent-Signature to the empty value
+
+      impacted_flow: |
+        Event publication → webhook dispatch → receiver signature verification
+
+      root_cause: |
+        A security control is implemented as an optional convenience path instead of a hard requirement or an explicit unsigned mode.
+
+      fix_recommendation: |
+        Fail closed when a signed webhook is expected, or add an explicit configuration flag for unsigned webhooks and reject silent fallback to blank signatures.
+
+      dependency_impact: |
+        Affects webhook trust, receiver-side validation, and integration reliability with third-party systems.
+
+      risk_if_not_fixed: |
+        Receivers may accept unsigned or ambiguously signed payloads, reducing the integrity of event delivery.
+
+      validation_steps: |
+        Run the dispatcher with and without a secret configured and verify the behavior is explicit, deterministic, and documented.
+
+    - id: "ISSUE-0007"
+      fix_order: 7
+      priority: "Medium"
+      layer: "Backend"
+      module: "PlatformService"
+
+      files:
+        - "services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java"
+
+      issue_type: "Incorrect Retry Policy"
+      title: "Webhook retries treat permanent client errors as transient"
+
+      description: |
+        The retry filter treats every error except IllegalArgumentException as transient.
+        That means 4xx-style request mistakes are retried as though they were temporary transport failures.
+
+      technical_details: |
+        - isTransientWebhookError(...) returns true for nearly all throwables
+        - retryBackoff is applied to permanent failures as well as temporary ones
+        - this can amplify duplicate webhook attempts and waste capacity
+
+      impacted_flow: |
+        Webhook delivery → retry logic → remote receiver
+
+      root_cause: |
+        Error classification is too broad and does not distinguish permanent contract violations from retryable transport issues.
+
+      fix_recommendation: |
+        Classify failures by response status and exception type; retry only transport/timeouts/5xx-like conditions and stop on permanent 4xx failures.
+
+      dependency_impact: |
+        Increases duplicate deliveries, retry storms, and false operational noise.
+
+      risk_if_not_fixed: |
+        Production webhook traffic can be repeatedly replayed even when the payload or contract is invalid.
+
+      validation_steps: |
+        Simulate 400, 401, 404, 429, 500, and timeout responses and verify only the intended classes are retried.
+
+    - id: "ISSUE-0008"
+      fix_order: 8
+      priority: "Medium"
+      layer: "Frontend"
+      module: "WorkspaceShell"
+
+      files:
+        - "frontend/src/app/(workspace)/layout.tsx"
+        - "frontend/src/app/(workspace)/admin/page.tsx"
+        - "frontend/src/hooks/useAuth.ts"
+        - "frontend/src/stores/authStore.ts"
+        - "frontend/src/components/shell/Sidebar.tsx"
+
+      issue_type: "Client-Side Access Control Gap"
+      title: "Authenticated routing and admin gating rely heavily on client-side state"
+
+      description: |
+        The workspace shell hydrates auth state in the browser and returns null when unauthenticated, while admin access is gated by client-only role checks.
+        That creates a blank-screen failure mode during hydration problems and makes route visibility depend on local state before server confirmation.
+
+      technical_details: |
+        - layout.tsx hydrates session client-side and returns null if not authenticated
+        - admin/page.tsx redirects after mount instead of being server-protected
+        - Sidebar visibility depends on client role state
+        - auth store persists user/role context in localStorage while the token is HTTP-only
+
+      impacted_flow: |
+        Initial page load → session hydration → role-based navigation → admin page access
+
+      root_cause: |
+        Critical navigation and authorization UX are implemented primarily in client state rather than using a stronger server-side guard or middleware boundary.
+
+      fix_recommendation: |
+        Add server-side route protection or middleware for protected areas, return an explicit unauthorized state instead of null, and treat localStorage only as a cache for non-sensitive UI preferences.
+
+      dependency_impact: |
+        Affects workspace rendering, admin visibility, login redirects, and any feature that depends on hydrated auth state.
+
+      risk_if_not_fixed: |
+        Users can see blank screens during session failures and the UI can briefly expose routes before the client redirect completes.
+
+      validation_steps: |
+        Test fresh loads, expired sessions, cookie removal, and localStorage desynchronization; verify users are redirected cleanly with a visible fallback state.

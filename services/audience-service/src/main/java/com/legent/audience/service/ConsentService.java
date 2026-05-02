@@ -186,10 +186,10 @@ public class ConsentService {
         DoubleOptInToken saved = tokenRepository.save(token);
         log.info("Double opt-in token created: subscriber={}, expires={}", subscriberId, token.getExpiresAt());
 
-        // Store raw token temporarily for sending email (in real implementation,
-        // this would be passed to an email service)
-        // Note: In production, the raw token should be sent to the user via email
-        // and only the hash is stored in the database
+        // AUDIT-019: Publish event to trigger double opt-in email sending
+        // The delivery-service will consume this event and send the confirmation email
+        eventPublisher.publishDoubleOptInRequested(tenantId, subscriberId, email, rawToken);
+        log.debug("Published DOUBLE_OPT_IN_REQUESTED event for subscriber {}", subscriberId);
 
         return saved;
     }

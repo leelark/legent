@@ -44,7 +44,9 @@ public class ContentProcessingService {
     private static final Pattern LINK_PATTERN = Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1", Pattern.CASE_INSENSITIVE);
 
     public String processContent(String htmlContent, String tenantId, String campaignId, String subscriberId, String messageId) {
-        if (htmlContent == null) return null;
+        if (htmlContent == null || htmlContent.isBlank()) {
+            throw new IllegalArgumentException("HTML content cannot be null or empty");
+        }
 
         String processed = injectTrackingPixel(htmlContent, tenantId, campaignId, subscriberId, messageId);
         processed = rewriteLinks(processed, tenantId, campaignId, subscriberId, messageId);

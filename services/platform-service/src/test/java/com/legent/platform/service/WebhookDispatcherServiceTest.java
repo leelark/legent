@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.repository.WebhookConfigRepository;
 import com.legent.platform.repository.WebhookLogRepository;
+import com.legent.platform.repository.WebhookRetryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +28,7 @@ class WebhookDispatcherServiceTest {
 
     @Mock private WebhookConfigRepository configRepository;
     @Mock private WebhookLogRepository logRepository;
+    @Mock private WebhookRetryRepository retryRepository;
     @Mock private WebClient webClient;
     @Mock private WebClient.RequestBodyUriSpec requestBodyUriSpec;
     @Mock private WebClient.RequestBodySpec requestBodySpec;
@@ -36,7 +38,7 @@ class WebhookDispatcherServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new WebhookDispatcherService(configRepository, logRepository, webClient, new ObjectMapper());
+        service = new WebhookDispatcherService(configRepository, logRepository, retryRepository, webClient, new ObjectMapper());
     }
 
     @Test

@@ -71,11 +71,12 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             try {
                 return credentialEncryptionService.decrypt(config.getEncryptedPassword(), config.getEncryptionIv());
             } catch (Exception e) {
-                log.error("Failed to decrypt password for provider {}. Ensure LEGENT_DELIVERY_CREDENTIAL_KEY is set correctly.", config.getId(), e);
+                throw new IllegalStateException("Failed to decrypt password for provider " + config.getId() + 
+                        ". Ensure LEGENT_DELIVERY_CREDENTIAL_KEY is set correctly.", e);
             }
         }
-        log.error("No encrypted password configured for provider {}. SMTP credentials must be encrypted.", config.getId());
-        return null;
+        throw new IllegalStateException("No encrypted password configured for provider " + config.getId() + 
+                ". SMTP credentials must be encrypted.");
     }
 
     @Override
@@ -115,8 +116,10 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlBody, true);
-            for (Map.Entry<String, String> entry : metadata.entrySet()) {
-                message.addHeader("X-Legent-" + entry.getKey(), entry.getValue());
+            if (metadata != null && !metadata.isEmpty()) {
+                for (Map.Entry<String, String> entry : metadata.entrySet()) {
+                    message.addHeader("X-Legent-" + entry.getKey(), entry.getValue());
+                }
             }
             sender.send(message);
             log.debug("Successfully sent via SMTP to {}", to);

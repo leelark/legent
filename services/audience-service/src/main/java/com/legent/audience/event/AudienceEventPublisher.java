@@ -64,4 +64,25 @@ public class AudienceEventPublisher {
         eventPublisher.publish(AppConstants.TOPIC_SUBSCRIBER_UPDATED, envelope);
         log.debug("Published double opt-in confirmed event for subscriber {}", subscriberId);
     }
+
+    /**
+     * AUDIT-019: Publish double opt-in requested event to trigger email sending.
+     * The delivery-service consumes this event to send the confirmation email.
+     */
+    public void publishDoubleOptInRequested(String tenantId, String subscriberId, String email, String rawToken) {
+        EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                tenantId,
+                "audience-service",
+                Map.of(
+                        "eventType", "DOUBLE_OPT_IN_REQUESTED",
+                        "subscriberId", subscriberId,
+                        "email", email,
+                        "token", rawToken,
+                        "templateId", "double-opt-in-confirmation"
+                )
+        );
+        eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
+        log.debug("Published double opt-in requested event for subscriber {}", subscriberId);
+    }
 }

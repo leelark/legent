@@ -24,7 +24,9 @@ public class DomainValidationService {
 
     public DomainConfig validateDomain(String domain) {
         DomainConfig config = domainRepo.findByDomain(domain);
-        if (config == null) return null;
+        if (config == null) {
+            throw new DomainConfigNotFoundException("Domain config not found for domain: " + domain);
+        }
 
         if (mockDns) {
             config.setSpfStatus("PASS");
@@ -37,7 +39,11 @@ public class DomainValidationService {
         }
 
         config.setLastChecked(Instant.now());
-        config.setStatus("PASS".equals(config.getSpfStatus()) && "PASS".equals(config.getDkimStatus()) ? "VERIFIED" : "PENDING");
+        // All three checks (SPF, DKIM, DMARC) must pass for VERIFIED status
+        boolean allPassed = "PASS".equals(config.getSpfStatus()) 
+                && "PASS".equals(config.getDkimStatus()) 
+                && "PASS".equals(config.getDmarcStatus());
+        config.setStatus(allPassed ? "VERIFIED" : "PENDING");
         return Objects.requireNonNull(domainRepo.save(config));
     }
 
@@ -58,6 +64,7 @@ public class DomainValidationService {
             }
             return false;
         } catch (Exception e) {
+            // AUDIT-017: Return false on DNS exceptions to fail closed
             return false;
         }
     }

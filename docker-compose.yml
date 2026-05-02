@@ -488,6 +488,7 @@ services:
       MAIL_SMTP_STARTTLS: "false"
       TRACKING_BASE_URL: ${TRACKING_BASE_URL}
       LEGENT_DELIVERY_CREDENTIAL_KEY: ${LEGENT_DELIVERY_CREDENTIAL_KEY}
+      LEGENT_DELIVERY_ENCRYPTION_SALT: ${LEGENT_DELIVERY_ENCRYPTION_SALT}
     depends_on:
       postgres-init:
         condition: service_completed_successfully

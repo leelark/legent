@@ -42,17 +42,44 @@ public class CacheService {
     }
 
     /**
-     * Retrieves a value by key.
+     * Retrieves a value by key with type-safe verification.
+     * AUDIT-023: Validates runtime type matches expected type.
      */
-    @SuppressWarnings("unchecked")
     public <T> Optional<T> get(String key, Class<T> type) {
         Object value = redisTemplate.opsForValue().get(key);
         if (value == null) {
             log.debug("Cache MISS: key={}", key);
             return Optional.empty();
         }
+        // AUDIT-023: Type-safe validation
+        if (!type.isInstance(value)) {
+            log.warn("Cache type mismatch for key={}: expected={}, actual={}", 
+                    key, type.getName(), value.getClass().getName());
+            return Optional.empty();
+        }
         log.debug("Cache HIT: key={}", key);
-        return Optional.of((T) value);
+        return Optional.of(type.cast(value));
+    }
+    
+    /**
+     * AUDIT-023: Type-safe wrapper for String values with namespace.
+     */
+    public Optional<String> getString(String namespace, String key) {
+        return get(namespace + ":" + key, String.class);
+    }
+    
+    /**
+     * AUDIT-023: Type-safe wrapper for Long values with namespace.
+     */
+    public Optional<Long> getLong(String namespace, String key) {
+        return get(namespace + ":" + key, Long.class);
+    }
+    
+    /**
+     * AUDIT-023: Type-safe wrapper for Integer values with namespace.
+     */
+    public Optional<Integer> getInteger(String namespace, String key) {
+        return get(namespace + ":" + key, Integer.class);
     }
 
     /**

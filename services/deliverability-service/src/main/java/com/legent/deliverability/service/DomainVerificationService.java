@@ -56,12 +56,17 @@ public class DomainVerificationService {
             domain.setSpfVerified(hasSpf);
             domain.setDmarcVerified(hasDmarc);
             domain.setDkimVerified(hasDkim);
-            domain.setStatus((hasSpf && hasDkim) ? SenderDomain.VerificationStatus.VERIFIED : SenderDomain.VerificationStatus.FAILED);
-            domain.setIsActive(hasSpf && hasDkim); // Basic requirement
+            // All three checks (SPF, DKIM, DMARC) must pass for VERIFIED status
+            boolean allVerified = hasSpf && hasDkim && hasDmarc;
+            domain.setStatus(allVerified ? SenderDomain.VerificationStatus.VERIFIED : SenderDomain.VerificationStatus.FAILED);
+            domain.setIsActive(allVerified); // Require all three for active status
             domain.setLastVerifiedAt(Instant.now());
 
         } catch (Exception e) {
             log.error("DNS verification failed for domain {}", domain.getDomainName(), e);
+            // AUDIT-017: Fail closed - set FAILED status on DNS errors
+            domain.setStatus(SenderDomain.VerificationStatus.FAILED);
+            domain.setLastVerifiedAt(Instant.now());
         }
 
         return domainRepository.save(domain);

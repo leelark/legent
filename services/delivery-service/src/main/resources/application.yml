@@ -78,6 +78,7 @@ management:
 legent:
   delivery:
     credential-key: ${LEGENT_DELIVERY_CREDENTIAL_KEY}
+    encryption-salt: ${LEGENT_DELIVERY_ENCRYPTION_SALT}
   tracking:
     base-url: ${TRACKING_BASE_URL}
     signing-key: ${LEGENT_TRACKING_SIGNING_KEY}

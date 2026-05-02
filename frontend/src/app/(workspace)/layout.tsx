@@ -128,7 +128,15 @@ export default function WorkspaceLayout({
   }
 
   if (!isAuthenticated) {
-    return null;
+    // AUDIT-020: Show loading/redirecting state instead of blank screen
+    return (
+      <div className="flex h-screen items-center justify-center bg-surface-secondary">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mx-auto mb-4" />
+          <p className="text-content-secondary">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   return (

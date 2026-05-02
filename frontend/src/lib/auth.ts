@@ -6,8 +6,8 @@
 export const USER_STORAGE_KEY = 'legent_user_id';
 export const ROLES_STORAGE_KEY = 'legent_roles';
 export const THEME_STORAGE_KEY = 'legent_theme';
-export const TOKEN_STORAGE_KEY = 'legent_token';
-export const TENANT_STORAGE_KEY = 'legent_tenant_id';
+// AUDIT-021: Removed TOKEN_STORAGE_KEY - tokens are in HTTP-only cookies only
+// AUDIT-021: Removed TENANT_STORAGE_KEY - tenant is in HTTP-only cookies only
 
 export interface JwtClaims {
   sub?: string;
@@ -43,29 +43,6 @@ export function parseJwtClaims(token: string): JwtClaims | null {
   }
 }
 
-/**
- * Gets the stored token from localStorage (DEPRECATED).
- * @deprecated Tokens are now stored in HTTP-only cookies set by the backend.
- * This function is kept for backward compatibility and will return null.
- */
-export function getStoredToken(): string | null {
-  // Token is now in HTTP-only cookie - not accessible to JavaScript
-  // Browser automatically sends cookie with requests to the same domain
-  return null;
-}
-
-/**
- * Gets the stored tenantId from localStorage (DEPRECATED).
- * @deprecated TenantId is now stored in HTTP-only cookie set by the backend.
- * The API client will handle adding the X-Tenant-Id header from the cookie.
- */
-export function getStoredTenantId(): string | null {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-  return localStorage.getItem(TENANT_STORAGE_KEY);
-}
-
 export function getStoredRoles(): string[] {
   if (typeof window === 'undefined') {
     return [];
@@ -83,6 +60,7 @@ export function getStoredRoles(): string[] {
 }
 
 /**
+ * AUDIT-020: Centralized auth state management.
  * Clears all stored authentication data from localStorage.
  * Note: HTTP-only cookies must be cleared by the backend /logout endpoint.
  */
@@ -92,6 +70,29 @@ export function clearStoredAuth(): void {
   }
   localStorage.removeItem(USER_STORAGE_KEY);
   localStorage.removeItem(ROLES_STORAGE_KEY);
+  // AUDIT-020: Sync with Zustand store to ensure state consistency
   // Note: HTTP-only cookies cannot be cleared from JavaScript
   // Call /api/v1/auth/logout endpoint to clear cookies
+}
+
+/**
+ * AUDIT-020: Initialize auth state from localStorage on app startup.
+ * Returns initial state for Zustand store.
+ */
+export function initializeAuthState(): { userId: string | null; roles: string[] } {
+  if (typeof window === 'undefined') {
+    return { userId: null, roles: [] };
+  }
+  const userId = localStorage.getItem(USER_STORAGE_KEY);
+  const rolesRaw = localStorage.getItem(ROLES_STORAGE_KEY);
+  let roles: string[] = [];
+  if (rolesRaw) {
+    try {
+      const parsed = JSON.parse(rolesRaw);
+      roles = Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      roles = [];
+    }
+  }
+  return { userId, roles };
 }

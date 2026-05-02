@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { USER_STORAGE_KEY, ROLES_STORAGE_KEY } from '@/lib/auth';
+import { USER_STORAGE_KEY, ROLES_STORAGE_KEY, initializeAuthState } from '@/lib/auth';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -11,11 +11,16 @@ interface AuthState {
   logout: () => void;
 }
 
+// AUDIT-020: Initialize state from centralized source to prevent drift
+const initialState = initializeAuthState();
+const hasAuthData = initialState.userId !== null && initialState.roles.length > 0;
+
 export const useAuthStore = create<AuthState>((set) => ({
-  isAuthenticated: false,
-  userId: null,
-  token: null,
-  roles: [],
+  // AUDIT-020: Initialize from centralized source instead of hardcoded defaults
+  isAuthenticated: hasAuthData,
+  userId: initialState.userId,
+  token: null, // Token is in HTTP-only cookie
+  roles: initialState.roles,
 
   login: (userId, roles) => {
     if (typeof window !== 'undefined') {

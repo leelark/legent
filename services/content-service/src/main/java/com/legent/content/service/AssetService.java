@@ -62,8 +62,11 @@ public class AssetService {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(defaultBucket).build());
                 log.info("Created MinIO bucket: {}", defaultBucket);
             }
+            log.info("MinIO initialized successfully at {}", minioEndpoint);
         } catch (Exception e) {
-            log.warn("MinIO bucket initialization: {}. This is expected if MinIO is not yet ready.", e.getMessage());
+            // AUDIT-018: Fail fast on required storage dependency
+            throw new IllegalStateException("Failed to initialize MinIO storage at " + minioEndpoint + 
+                    ". Asset operations will not be available.", e);
         }
     }
 
@@ -139,11 +142,14 @@ public class AssetService {
     @Transactional
     public void deleteAsset(@NonNull String tenantId, @NonNull String id) {
         Asset asset = getAsset(tenantId, id);
+        String objectName = resolveObjectName(asset);
+        
+        // Delete from storage first (external operation) - if this fails, DB won't be modified
+        deleteFromMinio(objectName);
+        
+        // Only soft-delete in DB after successful storage deletion
         asset.setDeletedAt(Instant.now());
         assetRepository.save(asset);
-        
-        // Ensure physical file is also removed from storage
-        deleteFromMinio(resolveObjectName(asset));
     }
 
     private String serializeMetadata(Map<String, String> metadata) {

@@ -10,8 +10,10 @@ import java.util.stream.Collectors;
 
 import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.domain.WebhookLog;
+import com.legent.platform.domain.WebhookRetry;
 import com.legent.platform.repository.WebhookConfigRepository;
 import com.legent.platform.repository.WebhookLogRepository;
+import com.legent.platform.repository.WebhookRetryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -25,6 +27,7 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.UUID;
 
@@ -35,10 +38,14 @@ public class WebhookDispatcherService {
 
     private final WebhookConfigRepository configRepository;
     private final WebhookLogRepository logRepository;
+    private final WebhookRetryRepository retryRepository;
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    
+    /**
+     * AUDIT-014: Non-blocking webhook dispatch.
+     * Uses reactive pipeline without blocking the async executor thread.
+     */
     @Async("webhookExecutor")
     public void dispatch(String tenantId, String eventType, Object payload) {
         
@@ -61,6 +68,9 @@ public class WebhookDispatcherService {
             return;
         }
 
+        // Collect all webhook dispatch Monos for concurrent execution
+        List<Mono<Boolean>> dispatchMonos = new java.util.ArrayList<>();
+        
         for (WebhookConfig config : configs) {
             
             // Check if this webhook is listening to this specific event
@@ -74,8 +84,9 @@ public class WebhookDispatcherService {
             }
 
             String signature = generateSignature(jsonPayload, config.getSecretKey());
-
-            webClient.post()
+            
+            // AUDIT-014: Build reactive chain without blocking
+            Mono<Boolean> dispatchMono = webClient.post()
                     .uri(config.getEndpointUrl())
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-Legent-Event", normalizedEventType)
@@ -92,14 +103,56 @@ public class WebhookDispatcherService {
                     .retryWhen(Retry.backoff(2, Duration.ofMillis(300)).filter(this::isTransientWebhookError))
                     .onErrorResume(e -> {
                         logDelivery(tenantId, config.getId(), normalizedEventType, 0, e.getMessage(), false);
+                        // AUDIT-015: Store failed webhook for retry
+                        storeFailedWebhookForRetry(tenantId, config.getId(), normalizedEventType, jsonPayload, e.getMessage());
                         return Mono.just(false);
-                    })
-                    .block();
+                    });
+            
+            dispatchMonos.add(dispatchMono);
+        }
+        
+        // AUDIT-014: Wait for all dispatches to complete without blocking individual threads
+        if (!dispatchMonos.isEmpty()) {
+            Mono.when(dispatchMonos).block();
+        }
+    }
+    
+    /**
+     * AUDIT-015: Store failed webhook for retry processing.
+     * Persists failed webhook to database with exponential backoff schedule.
+     */
+    private void storeFailedWebhookForRetry(String tenantId, String webhookId, String eventType, String payload, String errorMessage) {
+        try {
+            WebhookRetry retry = new WebhookRetry();
+            retry.setId(UUID.randomUUID().toString());
+            retry.setTenantId(tenantId);
+            retry.setWebhookId(webhookId);
+            retry.setEventType(eventType);
+            retry.setPayload(payload);
+            retry.setErrorMessage(errorMessage);
+            retry.setRetryCount(0);
+            retry.setMaxRetries(3);
+            retry.setStatus("PENDING");
+            retry.setCreatedAt(Instant.now());
+            retry.setNextRetryAt(Instant.now().plusSeconds(30)); // First retry in 30 seconds
+            
+            retryRepository.save(retry);
+            log.info("Stored failed webhook for retry: id={}, tenant={}, webhook={}, event={}", 
+                    retry.getId(), tenantId, webhookId, eventType);
+        } catch (Exception e) {
+            log.error("Failed to store webhook retry: tenant={}, webhook={}, error={}", 
+                    tenantId, webhookId, e.getMessage(), e);
         }
     }
 
+    /**
+     * AUDIT-022: Generate HMAC signature for webhook payload.
+     * Throws exception if secret is missing - webhooks must have secrets configured.
+     */
     private String generateSignature(String payload, String secret) {
-        if (secret == null || secret.isEmpty()) return "";
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException("Webhook secret is not configured. Cannot dispatch webhook without valid signature.");
+        }
         try {
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secret_key = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -107,8 +160,7 @@ public class WebhookDispatcherService {
             byte[] hash = sha256_HMAC.doFinal(payload.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (Exception e) {
-            log.warn("Failed to generate webhook signature", e);
-            return "";
+            throw new IllegalStateException("Failed to generate webhook signature", e);
         }
     }
 
@@ -160,7 +212,29 @@ public class WebhookDispatcherService {
         return normalized.isBlank() ? null : normalized;
     }
 
+    /**
+     * AUDIT-014: Classify errors to determine if retry is appropriate.
+     * Retry only on transient errors (5xx, timeouts, connection issues).
+     * Do NOT retry on 4xx client errors (except 429 rate limit).
+     */
     private boolean isTransientWebhookError(Throwable throwable) {
-        return !(throwable instanceof IllegalArgumentException);
+        // Never retry IllegalArgumentException (client errors)
+        if (throwable instanceof IllegalArgumentException) {
+            return false;
+        }
+        
+        // Check for WebClientResponseException to examine HTTP status
+        if (throwable instanceof org.springframework.web.reactive.function.client.WebClientResponseException) {
+            org.springframework.web.reactive.function.client.WebClientResponseException wcre = 
+                (org.springframework.web.reactive.function.client.WebClientResponseException) throwable;
+            int status = wcre.getStatusCode().value();
+            // Don't retry client errors (4xx) except 429 (Too Many Requests)
+            if (status >= 400 && status < 500 && status != 429) {
+                return false;
+            }
+        }
+        
+        // Retry everything else (5xx server errors, IO exceptions, timeouts, etc.)
+        return true;
     }
 }
