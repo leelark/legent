@@ -1,5 +1,6 @@
 package com.legent.tracking.dto;
 
+import java.math.BigDecimal;
 import java.util.Map;
 
 import java.time.Instant;
@@ -42,7 +43,7 @@ public class TrackingDto {
         private String campaignId;
         @NotBlank
         private String eventName;
-        private Double value;
+        private BigDecimal value; // AUDIT-027: Use BigDecimal instead of Double for monetary precision
         private String currency;
     }
 }

@@ -107,7 +107,7 @@ public class CampaignWorkflowService {
      * Reject a campaign approval.
      */
     @Transactional
-    public CampaignApproval rejectCampaign(String tenantId, String approvalId, String reason) {
+    public CampaignApproval rejectCampaign(String tenantId, String approvalId, String reason, String comments) {
         String userId = TenantContext.getUserId();
 
         CampaignApproval approval = approvalRepository.findById(approvalId)
@@ -129,6 +129,8 @@ public class CampaignWorkflowService {
         approval.setApprovedBy(userId);
         approval.setApprovedAt(Instant.now());
         approval.setRejectionReason(reason);
+        // LEGENT-MED-002: Persist comments field that was previously ignored
+        approval.setComments(comments);
 
         approvalRepository.save(approval);
 
