@@ -30,7 +30,14 @@ public class JwtTokenProvider {
     public JwtTokenProvider(
             @Value("${legent.security.jwt.secret}") String secret,
             @Value("${legent.security.jwt.expiration-ms:86400000}") long expirationMs) {
-        this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+        if (secretBytes.length < 32) {
+            throw new IllegalArgumentException(
+                "JWT secret must be at least 256 bits (32 bytes), got: " + secretBytes.length +
+                ". Please set a stronger secret in LEGENT_SECURITY_JWT_SECRET environment variable.");
+        }
+        log.info("JWT TokenProvider initialized with secret length: {} bytes", secretBytes.length);
+        this.signingKey = Keys.hmacShaKeyFor(secretBytes);
         this.expirationMs = expirationMs;
     }
 

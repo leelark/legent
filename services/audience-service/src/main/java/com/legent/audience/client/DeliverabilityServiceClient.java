@@ -24,7 +24,8 @@ public class DeliverabilityServiceClient {
     private final WebClient webClient;
 
     public DeliverabilityServiceClient(
-            @Value("${legent.deliverability-service.url:http://deliverability-service:8085}") String baseUrl) {
+            // LEGENT-HIGH-005: Fixed port from 8085 (tracking-service) to 8087 (deliverability-service)
+            @Value("${legent.deliverability-service.url:http://deliverability-service:8087}") String baseUrl) {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();

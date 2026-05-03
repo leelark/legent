@@ -12,6 +12,7 @@ import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { get } from '@/lib/api-client';
+import { showToast } from '@/stores/toastStore';
 
 /**
  * Workspace layout — provides the app shell with sidebar + header + workspace area.
@@ -63,10 +64,13 @@ export default function WorkspaceLayout({
           } else if (!cancelled && storedUserId && storedRoles.length > 0) {
             login(storedUserId, storedRoles);
           }
-        } catch {
+        } catch (error) {
+          // LEGENT-HIGH-006: Log error and show user feedback for session hydration failures
+          console.error('Session hydration failed:', error);
           if (!cancelled) {
             localStorage.removeItem('legent_user_id');
             localStorage.removeItem('legent_roles');
+            showToast.error('Session expired', 'Please log in again to continue.', 5000);
           }
         }
       }

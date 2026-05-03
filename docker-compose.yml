@@ -335,7 +335,7 @@ services:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_foundation
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
-      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
       OPENSEARCH_URL: http://opensearch:9200
       SEARCH_ENABLED: "true"
       FOUNDATION_SEARCH_ENABLED: "true"
@@ -365,7 +365,7 @@ services:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_identity
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
-      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
     depends_on:
       postgres-init:
@@ -425,7 +425,7 @@ services:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_audience
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
-      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
       MINIO_ENDPOINT: http://minio:9000
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
@@ -456,7 +456,7 @@ services:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_campaign
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
-      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -521,7 +521,7 @@ services:
       CLICKHOUSE_USER: default
       SPRING_DATASOURCE_CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
-      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -576,7 +576,7 @@ services:
       LEGENT_DELIVERABILITY_MOCK_DNS: "false"
       LEGENT_DELIVERABILITY_FEEDBACK_LOOP_ENABLED: "false"
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
-      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false"
+      SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
     depends_on:
       postgres-init:
         condition: service_completed_successfully

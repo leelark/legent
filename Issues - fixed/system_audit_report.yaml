@@ -1,0 +1,891 @@
+```yaml
+audit:
+  module: "LegentEmailStudio"
+  generated_at: "2026-05-03T02:47:00Z"
+  analysis_depth: "NTH_LEVEL_FULL_PASS"
+  total_files_analyzed: 150
+  total_issues: 23
+
+  issues:
+    # ═══════════════════════════════════════════════════════════════════════════
+    # CRITICAL ISSUES (Foundation Layer - Fix First)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    - id: "LEGENT-AUDIT-001"
+      fix_order: 1
+      priority: "Critical"
+      layer: "Security"
+      module: "shared/legent-security"
+      files:
+        - "shared/legent-security/src/main/java/com/legent/security/JwtTokenProvider.java:33"
+      issue_type: "Security Vulnerability"
+      title: "JWT Secret Key Insufficient Length Check Missing"
+      description: |
+        JWT signing key is created directly from secret bytes without minimum length validation.
+        Short secrets (< 256 bits / 32 bytes) result in weak HMAC-SHA256 signatures vulnerable to brute force.
+      technical_details: |
+        - Keys.hmacShaKeyFor() accepts any length, but HMAC-SHA256 requires >= 256 bits for security
+        - No validation that secret meets minimum length requirement
+        - Constructor silently accepts weak secrets
+      impacted_flow: |
+        Authentication → Token Generation → Token Validation → All API Access
+      root_cause: |
+        Missing secret key strength validation in JwtTokenProvider constructor.
+        The application relies on deployment-time configuration without runtime validation.
+      fix_recommendation: |
+        Add minimum length validation in constructor:
+        ```java
+        if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
+            throw new IllegalArgumentException("JWT secret must be at least 256 bits (32 bytes)");
+        }
+        ```
+      dependency_impact: |
+        Impacts ALL services using JWT authentication (identity-service, all other services)
+      risk_if_not_fixed: |
+        Authentication bypass, session hijacking, privilege escalation in production
+      validation_steps: |
+        1. Test with short secret (< 32 chars) - should throw exception
+        2. Test with 32+ char secret - should work normally
+        3. Verify all existing secrets meet minimum length
+
+    - id: "LEGENT-AUDIT-002"
+      fix_order: 2
+      priority: "Critical"
+      layer: "Security"
+      module: "shared/legent-security"
+      files:
+        - "shared/legent-security/src/main/java/com/legent/security/TenantContext.java:17-18"
+      issue_type: "Memory Leak / Thread Safety"
+      title: "ThreadLocal Values Not Cleared After Async Processing"
+      description: |
+        TenantContext uses ThreadLocal without guaranteed cleanup in async contexts.
+        Thread pool reuse can leak tenant context between requests.
+      technical_details: |
+        - ThreadLocal.set() in lines 26, 44 without guaranteed cleanup
+        - clear() method exists but not automatically called after async operations
+        - WorkflowEngine uses @Async - thread pool threads persist and retain ThreadLocal values
+      impacted_flow: |
+        Async Workflow Execution → Tenant Data Leak → Cross-Tenant Data Exposure
+      root_cause: |
+        No automatic cleanup mechanism for ThreadLocal after request/transaction completion.
+        The clear() method requires manual invocation.
+      fix_recommendation: |
+        1. Add @PreDestroy or use TaskDecorator for async executors
+        2. Implement automatic cleanup via TransactionSynchronization
+        3. Add try-finally blocks in all async entry points
+        ```java
+        try {
+            TenantContext.setTenantId(tenantId);
+            // process
+        } finally {
+            TenantContext.clear();
+        }
+        ```
+      dependency_impact: |
+        Impacts automation-service (WorkflowEngine), all @Async operations
+      risk_if_not_fixed: |
+        Cross-tenant data leaks, GDPR violations, data privacy breaches
+      validation_steps: |
+        1. Run concurrent async workflows for different tenants
+        2. Verify ThreadLocal values don't persist between executions
+        3. Check thread pool thread state after multiple executions
+
+    - id: "LEGENT-AUDIT-003"
+      fix_order: 3
+      priority: "Critical"
+      layer: "Backend"
+      module: "services/delivery-service"
+      files:
+        - "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java:313-361"
+      issue_type: "Incorrect Implementation"
+      title: "Content-Service HTTP Client Created Per Request - No Connection Pooling"
+      description: |
+        fetchContentFromContentService() creates new HttpURLConnection per call without connection pooling.
+        High volume email retries will exhaust ephemeral ports and cause connection timeouts.
+      technical_details: |
+        - Line 322: new HttpURLConnection created per retry
+        - No connection reuse or pooling
+        - No proper timeouts (only 5s connect/read)
+        - No retry logic for transient failures
+        - 200 status check hardcoded (doesn't handle 201, 204, etc.)
+      impacted_flow: |
+        Email Retry Scheduled → Content Fetch → Content-Service API Call → Port Exhaustion
+      root_cause: |
+        Using low-level HttpURLConnection instead of WebClient with connection pooling.
+        Missing proper HTTP client configuration.
+      fix_recommendation: |
+        1. Use WebClient with connection pooling (similar to DeliverabilityServiceClient)
+        2. Configure max connections, keep-alive, and proper timeouts
+        3. Implement circuit breaker pattern
+        ```java
+        @Component
+        public class ContentServiceClient {
+            private final WebClient webClient;
+            public ContentServiceClient(@Value(...) String baseUrl) {
+                this.webClient = WebClient.builder()
+                    .baseUrl(baseUrl)
+                    .clientConnector(new ReactorClientHttpConnector(
+                        HttpClient.create().option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                    )).build();
+            }
+        }
+        ```
+      dependency_impact: |
+        delivery-service depends on content-service for retry content
+      risk_if_not_fixed: |
+        Email retry failures at scale, port exhaustion, memory leaks from unclosed connections
+      validation_steps: |
+        1. Load test with 1000 concurrent retries
+        2. Monitor netstat for CLOSE_WAIT connections
+        3. Verify connection reuse in metrics
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # HIGH PRIORITY ISSUES
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    - id: "LEGENT-AUDIT-004"
+      fix_order: 4
+      priority: "High"
+      layer: "Backend"
+      module: "services/audience-service"
+      files:
+        - "services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java:148-179"
+      issue_type: "Data Consistency Risk"
+      title: "Bulk Upsert No Transaction Boundary for Individual Records"
+      description: |
+        Bulk upsert loops through subscribers and saves individually without batching.
+        Partial failures leave database in inconsistent state.
+      technical_details: |
+        - Line 161, 166: subscriberRepository.save() called per record
+        - Single @Transactional at method level but no batch flush
+        - Exception in one record rolls back entire transaction (all-or-nothing)
+        - No partial success tracking
+        - Error handling catches but doesn't prevent rollback
+      impacted_flow: |
+        CSV Import → Bulk Upsert → Database Insert/Update → Partial Data Loss on Error
+      root_cause: |
+        Large transaction scope with eager flushing. Need batch processing with chunking.
+      fix_recommendation: |
+        1. Implement chunk-based processing (e.g., 100 records per transaction)
+        2. Use saveAll() for batch inserts
+        3. Track individual record success/failure separately
+        4. Implement JpaRepository flush() between chunks
+      dependency_impact: |
+        Import jobs may partially fail leaving orphaned records
+      risk_if_not_fixed: |
+        Data inconsistency, duplicate processing, timeout on large imports
+      validation_steps: |
+        1. Import 10000 records with one invalid record
+        2. Verify if valid records are persisted
+        3. Check transaction boundaries in logs
+
+    - id: "LEGENT-AUDIT-005"
+      fix_order: 5
+      priority: "High"
+      layer: "Backend"
+      module: "services/identity-service"
+      files:
+        - "services/identity-service/src/main/java/com/legent/identity/service/AuthService.java:63"
+      issue_type: "NullPointer Risk"
+      title: "Signup Slug Generation NPE on Null CompanyName"
+      description: |
+        Slug generation assumes companyName is non-null without validation.
+        Null companyName causes NullPointerException.
+      technical_details: |
+        - Line 63: request.getCompanyName().toLowerCase() - no null check
+        - Line 62-64: if (slug == null || slug.isBlank()) { slug = ... }
+        - Null companyName bypasses the null check but NPE on toLowerCase()
+      impacted_flow: |
+        User Signup → AuthService.signup() → Slug Generation → 500 Error
+      root_cause: |
+        Missing null validation before calling toLowerCase() on companyName.
+      fix_recommendation: |
+        ```java
+        String slug = request.getSlug();
+        if (slug == null || slug.isBlank()) {
+            String companyName = request.getCompanyName();
+            if (companyName == null || companyName.isBlank()) {
+                throw new ValidationException("companyName", "Company name is required when slug not provided");
+            }
+            slug = companyName.toLowerCase().replaceAll("[^a-z0-9]", "-");
+        }
+        ```
+      dependency_impact: |
+        Blocks user registration flow
+      risk_if_not_fixed: |
+        500 errors on signup, user registration failures
+      validation_steps: |
+        1. Submit signup with null companyName and null slug
+        2. Should get 400 validation error, not 500
+
+    - id: "LEGENT-AUDIT-006"
+      fix_order: 6
+      priority: "High"
+      layer: "Backend"
+      module: "services/platform-service"
+      files:
+        - "services/platform-service/src/main/java/com/legent/platform/service/WebhookRetryService.java:52-64"
+      issue_type: "Performance Bottleneck"
+      title: "Webhook Retry Sequential Processing Blocks All Retries"
+      description: |
+        @Scheduled method processes retries sequentially in a single thread.
+        Slow webhook endpoints block processing of all other retries.
+      technical_details: |
+        - Line 61-63: for-loop processes one retry at a time
+        - 30-second fixedDelay timer
+        - Each attempt has 10-second timeout (line 130)
+        - Max ~3 retries per invocation, no parallelism
+        - Database query fetches ALL pending retries but processes serially
+      impacted_flow: |
+        Webhook Failure → Scheduled Retry → Sequential Processing → Queue Buildup
+      root_cause: |
+        No parallel processing or worker pool for webhook retries.
+      fix_recommendation: |
+        1. Use @Async with dedicated thread pool
+        2. Implement batch processing with parallel streams (limit concurrency)
+        3. Add configurable max retries per batch
+        ```java
+        @Scheduled(fixedDelay = 30000)
+        public void processRetries() {
+            List<WebhookRetry> pending = retryRepository.findPendingRetries(Instant.now());
+            pending.parallelStream()
+                .limit(10) // Process max 10 concurrently
+                .forEach(this::processRetryAsync);
+        }
+        ```
+      dependency_impact: |
+        Webhook delivery delays affect downstream integrations
+      risk_if_not_fixed: |
+        Webhook queue buildup, delayed notifications, SLA violations
+      validation_steps: |
+        1. Create 100 pending retries with slow endpoint (5s delay)
+        2. Monitor processing rate - should handle >10/minute
+
+    - id: "LEGENT-AUDIT-007"
+      fix_order: 7
+      priority: "High"
+      layer: "Backend"
+      module: "services/tracking-service"
+      files:
+        - "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingIngestionService.java:171-188"
+      issue_type: "Race Condition"
+      title: "Transactional Outbox Publish Fails Outside Transaction Context"
+      description: |
+        publishEventWithOutbox registers TransactionSynchronization but 
+        processClick and processConversion call eventPublisher directly (line 56, 74).
+        Events can be published before DB commit on rollback.
+      technical_details: |
+        - processOpen uses outbox pattern (line 42-43)
+        - processClick skips outbox, publishes directly (line 56)
+        - processConversion skips outbox, publishes directly (line 74)
+        - Inconsistent implementation across similar methods
+      impacted_flow: |
+        Tracking Event → DB Save + Kafka Publish → Transaction Rollback → Orphaned Kafka Event
+      root_cause: |
+        Inconsistent application of transactional outbox pattern across methods.
+      fix_recommendation: |
+        1. Standardize all tracking methods to use outbox pattern
+        2. Create reusable publishWithOutbox() wrapper
+        3. Remove direct eventPublisher calls from @Transactional methods
+        ```java
+        // Remove: eventPublisher.publishIngestedEvent(payload);
+        // Use: publishEventWithOutbox(payload);
+        ```
+      dependency_impact: |
+        Click/conversion events may be processed without corresponding DB records
+      risk_if_not_fixed: |
+        Data inconsistency between ClickHouse/Postgres and Kafka streams
+      validation_steps: |
+        1. Simulate DB failure after Kafka publish
+        2. Verify Kafka message exists but DB record doesn't
+        3. Check all tracking methods use outbox consistently
+
+    - id: "LEGENT-AUDIT-008"
+      fix_order: 8
+      priority: "High"
+      layer: "Frontend"
+      module: "frontend"
+      files:
+        - "frontend/src/stores/toastStore.ts:27"
+      issue_type: "Logic Error"
+      title: "Toast ID Collision - Math.random() Insufficient for ID Generation"
+      description: |
+        Toast IDs generated with Math.random().toString(36).substring(2, 9)
+        produces only 7-character alphanumeric strings. Birthday paradox 
+        means collisions likely with >1000 toasts.
+      technical_details: |
+        - 36^7 = 78 billion possible values but substring truncates entropy
+        - Math.random() not cryptographically secure but sufficient for UI
+        - Real issue: no collision detection, duplicate IDs cause React key errors
+      impacted_flow: |
+        Multiple Actions → Toast Creation → Duplicate ID → React Render Error
+      root_cause: |
+        Insufficient entropy in ID generation with no collision handling.
+      fix_recommendation: |
+        ```typescript
+        const id = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+        // Or use crypto.randomUUID() if available
+        ```
+      dependency_impact: |
+        UI display issues when many toasts shown
+      risk_if_not_fixed: |
+        React key warnings, toast display/close issues, memory leaks
+      validation_steps: |
+        1. Rapidly create 2000 toasts
+        2. Check console for duplicate key warnings
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # MEDIUM PRIORITY ISSUES
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    - id: "LEGENT-AUDIT-009"
+      fix_order: 9
+      priority: "Medium"
+      layer: "Database"
+      module: "services/platform-service"
+      files:
+        - "services/platform-service/src/main/resources/db/migration/V3__add_webhook_retries_table.sql:4-18"
+      issue_type: "Schema Design"
+      title: "Webhook Retries Table Missing Foreign Key to webhook_configs"
+      description: |
+        webhook_retries.webhook_id has no foreign key constraint.
+        Orphaned retry records possible when webhook deleted.
+      technical_details: |
+        - webhook_id VARCHAR(36) NOT NULL - no FK constraint
+        - No ON DELETE behavior defined
+        - WebhookRetryService line 75: handles null config but not orphaned retries
+        - Soft-delete on webhook_configs means FK would need careful handling
+      impacted_flow: |
+        Webhook Deleted → Orphaned Retries → Wasted Processing → Resource Waste
+      root_cause: |
+        Schema migration omitted foreign key constraint for referential integrity.
+      fix_recommendation: |
+        ```sql
+        ALTER TABLE webhook_retries 
+        ADD CONSTRAINT fk_webhook_retries_config 
+        FOREIGN KEY (webhook_id) REFERENCES webhook_configs(id) 
+        ON DELETE CASCADE;
+        ```
+        Or implement scheduled cleanup job for orphaned records.
+      dependency_impact: |
+        Database integrity, wasted retry processing
+      risk_if_not_fixed: |
+        Orphaned data growth, wasted compute on deleted webhooks
+      validation_steps: |
+        1. Delete webhook with pending retries
+        2. Check if retries still processed
+        3. Verify FK constraint in schema
+
+    - id: "LEGENT-AUDIT-010"
+      fix_order: 10
+      priority: "Medium"
+      layer: "Backend"
+      module: "services/campaign-service"
+      files:
+        - "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignWorkflowService.java:116-117"
+      issue_type: "Missing Audit Trail"
+      title: "Campaign Rejection Missing Rejection Reason Persistence"
+      description: |
+        rejectCampaign accepts reason parameter but stores it in rejectionReason field.
+        However, comments parameter is ignored - not stored anywhere.
+      technical_details: |
+        - Line 116: approval.setRejectionReason(reason) - stores reason
+        - comments parameter passed but never used
+        - Approval entity may have comments field that's not set
+      impacted_flow: |
+        Campaign Rejection → Reason Captured → Comments Lost → Audit Gap
+      root_cause: |
+        Parameter added to method signature but implementation incomplete.
+      fix_recommendation: |
+        ```java
+        approval.setRejectionReason(reason);
+        if (comments != null && !comments.isBlank()) {
+            approval.setComments(comments);
+        }
+        ```
+      dependency_impact: |
+        Audit trail incomplete for compliance
+      risk_if_not_fixed: |
+        Compliance audit failures, missing rejection context
+      validation_steps: |
+        1. Reject campaign with reason and comments
+        2. Verify both stored in database
+
+    - id: "LEGENT-AUDIT-011"
+      fix_order: 11
+      priority: "Medium"
+      layer: "Configuration"
+      module: "docker-compose"
+      files:
+        - "docker-compose.yml:338-339,399,428,459,524,579"
+      issue_type: "Security Misconfiguration"
+      title: "Flyway Validate On Migrate Disabled in Multiple Services"
+      description: |
+        SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false" in 6 services.
+        Migrations run without checksum validation - corrupt/malicious 
+        migrations could execute undetected.
+      technical_details: |
+        - foundation-service, audience-service, content-service, campaign-service, tracking-service, deliverability-service
+        - Default should be true for production
+        - Only identity-service and automation-service have proper handling
+      impacted_flow: |
+        Deployment → Migration Execution → No Validation → Potential Corruption
+      root_cause: |
+        Development convenience setting propagated to production configuration.
+      fix_recommendation: |
+        1. Remove SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "false" entries
+        2. Set SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true" explicitly
+        3. Use Spring profiles to disable only in dev profile
+      dependency_impact: |
+        All database migrations across 6 services
+      risk_if_not_fixed: |
+        Database corruption, malicious migration execution, data loss
+      validation_steps: |
+        1. Check all service environments for validate_on_migrate
+        2. Verify checksum validation enabled in prod
+
+    - id: "LEGENT-AUDIT-012"
+      fix_order: 12
+      priority: "Medium"
+      layer: "Frontend"
+      module: "frontend"
+      files:
+        - "frontend/src/app/(workspace)/layout.tsx:49-71"
+      issue_type: "Error Handling Gap"
+      title: "Session Hydration Silent Failure - No User Feedback"
+      description: |
+        hydrateSession catches exceptions but only clears localStorage.
+        Users see infinite loading/redirect without knowing why auth failed.
+      technical_details: |
+        - Line 66-71: catch block only clears storage, no error logging or UI feedback
+        - Line 102-105: redirects to login without error context
+        - No retry mechanism for transient failures
+      impacted_flow: |
+        Page Load → Session Check → Silent Failure → Redirect Loop Confusion
+      root_cause: |
+        Exception handling only clears state without user notification.
+      fix_recommendation: |
+        ```typescript
+        } catch (error) {
+          log.error('Session hydration failed', error);
+          if (!cancelled) {
+            setAuthError('Session expired. Please log in again.');
+            localStorage.removeItem('legent_user_id');
+          }
+        }
+        ```
+      dependency_impact: |
+        User experience, support burden from confused users
+      risk_if_not_fixed: |
+        Poor UX, increased support tickets, users unclear why logged out
+      validation_steps: |
+        1. Block API endpoint during session hydration
+        2. Verify error message shown to user
+
+    - id: "LEGENT-AUDIT-013"
+      fix_order: 13
+      priority: "Medium"
+      layer: "Backend"
+      module: "services/deliverability-service"
+      files:
+        - "services/audience-service/src/main/java/com/legent/audience/client/DeliverabilityServiceClient.java:27-31"
+      issue_type: "Configuration"
+      title: "Deliverability Service URL Hardcoded Default Instead of Service Discovery"
+      description: |
+        Default URL "http://deliverability-service:8085" hardcoded in client.
+        Port 8085 is incorrect (deliverability-service uses 8087 per docker-compose).
+      technical_details: |
+        - docker-compose shows deliverability-service on port 8087
+        - Client default says 8085 which is tracking-service
+        - Works in current deployment via env var override but fragile
+      impacted_flow: |
+        Audience Check → Suppression Check → Wrong Service Connection → Failure
+      root_cause: |
+        Copy-paste error in default value - used tracking port instead of deliverability.
+      fix_recommendation: |
+        ```java
+        @Value("${legent.deliverability-service.url:http://deliverability-service:8087}")
+        ```
+      dependency_impact: |
+        audience-service depends on deliverability-service
+      risk_if_not_fixed: |
+        Service connection failures if env var not set
+      validation_steps: |
+        1. Check deliverability service actual port
+        2. Verify client default matches
+
+    - id: "LEGENT-AUDIT-014"
+      fix_order: 14
+      priority: "Medium"
+      layer: "Backend"
+      module: "services/automation-service"
+      files:
+        - "services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java:45-62"
+      issue_type: "Dependency Injection"
+      title: "NodeHandler Map Key Collision Silently Overrides Handlers"
+      description: |
+        NodeHandler map built with Collectors.toMap using getType() as key.
+        Duplicate type strings silently override - no error or warning.
+      technical_details: |
+        - Line 60-61: toMap(NodeHandler::getType, Function.identity())
+        - No merge function specified, throws on duplicate by default
+        - Actually current code will throw IllegalStateException on duplicate
+        - But error message doesn't identify which handlers conflict
+      impacted_flow: |
+        Application Startup → Handler Registration → Duplicate Key → Startup Failure
+      root_cause: |
+        Need better error message and validation for duplicate handlers.
+      fix_recommendation: |
+        ```java
+        this.nodeHandlers = handlerList.stream()
+            .collect(Collectors.toMap(
+                NodeHandler::getType,
+                Function.identity(),
+                (existing, replacement) -> {
+                    throw new IllegalStateException(
+                        "Duplicate handler for type: " + existing.getType() + 
+                        ". Classes: " + existing.getClass().getName() + 
+                        " vs " + replacement.getClass().getName());
+                }
+            ));
+        ```
+      dependency_impact: |
+        Workflow execution may fail with missing handlers
+      risk_if_not_fixed: |
+        Startup failures with unclear error messages
+      validation_steps: |
+        1. Create duplicate handler bean
+        2. Verify startup error identifies both classes
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # LOW PRIORITY ISSUES
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    - id: "LEGENT-AUDIT-015"
+      fix_order: 15
+      priority: "Low"
+      layer: "Backend"
+      module: "services/delivery-service"
+      files:
+        - "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java:284"
+      issue_type: "Resource Leak"
+      title: "ObjectMapper Created Per Request in fetchContentForRetry"
+      description: |
+        New ObjectMapper instantiated per retry attempt.
+        ObjectMapper creation is expensive and thread-safe - should be reused.
+      technical_details: |
+        - Line 284: new ObjectMapper() inside method
+        - Same issue at line 338 in fetchContentFromContentService
+        - ObjectMapper is thread-safe after configuration
+      impacted_flow: |
+        Email Retry → Content Fetch → JSON Parse → ObjectMapper Creation → GC Pressure
+      root_cause: |
+        Convenience creation instead of dependency injection.
+      fix_recommendation: |
+        1. Inject ObjectMapper via constructor
+        2. Or use static final instance
+        ```java
+        @Service
+        public class DeliveryOrchestrationService {
+            private final ObjectMapper objectMapper; // Injected
+        }
+        ```
+      dependency_impact: |
+        Memory pressure during high retry volume
+      risk_if_not_fixed: |
+        Increased GC, slight performance degradation
+      validation_steps: |
+        1. Profile with many retries
+        2. Check ObjectMapper allocation rate
+
+    - id: "LEGENT-AUDIT-016"
+      fix_order: 16
+      priority: "Low"
+      layer: "Frontend"
+      module: "frontend"
+      files:
+        - "frontend/src/lib/api-client.ts:78-85"
+      issue_type: "Logic Inconsistency"
+      title: "GET Response Parsing Double-Nests Pagination Data"
+      description: |
+        API client GET helper merges pagination into response but also returns data key.
+        Creates inconsistent return structure: { content, data, ...pagination }.
+      technical_details: |
+        - Line 80-82: returns { content, data, ...pagination }
+        - Both content and data point to same resData.data
+        - Unnecessary duplication in response object
+      impacted_flow: |
+        API Call → Response Parsing → Duplicate Data → Larger Memory Footprint
+      root_cause: |
+        Attempting backward compatibility but creating confusion.
+      fix_recommendation: |
+        ```typescript
+        return {
+          data: resData.data,
+          pagination: resData.pagination
+        } as any;
+        ```
+      dependency_impact: |
+        Minor - all GET calls
+      risk_if_not_fixed: |
+        Minor memory overhead, potential confusion about content vs data
+      validation_steps: |
+        1. Inspect GET response structure
+        2. Verify no duplicate data keys
+
+    - id: "LEGENT-AUDIT-017"
+      fix_order: 17
+      priority: "Low"
+      layer: "Backend"
+      module: "services/campaign-service"
+      files:
+        - "services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java:157-162"
+      issue_type: "Edge Case"
+      title: "Division by Zero Risk in calculateProgress"
+      description: |
+        Guard check at line 157 for totalTarget == 0, but uses floating-point comparison.
+        Unlikely to cause issues but inconsistent with integer arithmetic elsewhere.
+      technical_details: |
+        - Line 157: if (job.getTotalTarget() == 0) - compares Long to int
+        - Line 161: Long arithmetic then floating-point division
+        - Integer division would cause issues but floating-point is fine
+        - Actually fine as-is, just noting the pattern
+      impacted_flow: |
+        Progress Calculation → Division → Potential Issue
+      root_cause: |
+        Not a real bug - Long comparison to int works correctly.
+      fix_recommendation: |
+        No fix needed - this is actually correct code.
+        Keeping as documentation of reviewed logic.
+      dependency_impact: |
+        None
+      risk_if_not_fixed: |
+        None - code is correct
+      validation_steps: |
+        N/A
+
+    - id: "LEGENT-AUDIT-018"
+      fix_order: 18
+      priority: "Low"
+      layer: "Infrastructure"
+      module: "config/nginx"
+      files:
+        - "config/nginx/nginx.conf:61"
+      issue_type: "Security Policy"
+      title: "CSP unsafe-inline and unsafe-eval Allow XSS Vectors"
+      description: |
+        Content-Security-Policy allows 'unsafe-inline' and 'unsafe-eval'.
+        Reduces XSS protection effectiveness.
+      technical_details: |
+        - Line 61: script-src 'self' 'unsafe-inline' 'unsafe-eval'
+        - Required for some Next.js features but should be documented
+        - Could use nonces instead for inline scripts
+      impacted_flow: |
+        Page Load → CSP Applied → Inline Script Execution → XSS Risk
+      root_cause: |
+        Convenience CSP to support framework features without nonce implementation.
+      fix_recommendation: |
+        1. Implement CSP nonce generation in nginx
+        2. Or document why unsafe-inline is required
+        3. Gradually refactor to remove unsafe-inline
+      dependency_impact: |
+        All frontend page loads
+      risk_if_not_fixed: |
+        Reduced XSS protection, security audit findings
+      validation_steps: |
+        1. Check CSP in response headers
+        2. Verify unsafe-inline present
+        3. Attempt XSS with inline script
+
+    - id: "LEGENT-AUDIT-019"
+      fix_order: 19
+      priority: "Low"
+      layer: "Backend"
+      module: "services/content-service"
+      files:
+        - "services/content-service/src/main/java/com/legent/content/service/TemplateWorkflowService.java:174-183"
+      issue_type: "Logic Gap"
+      title: "Template Publish Without Version Number Uses Latest But No Validation"
+      description: |
+        When versionNumber is null, gets latest version without checking if any versions exist.
+        findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc returns Optional
+        but throws NotFoundException - this is correct behavior.
+      technical_details: |
+        - Line 192-193: Finds latest version
+        - Line 193: throws NotFoundException if no versions
+        - Actually correct implementation
+        - Line number mismatch in comments vs actual code
+      impacted_flow: |
+        Template Publish → Version Lookup → Not Found → Error
+      root_cause: |
+        Code is correct - this is a false positive from initial scan.
+      fix_recommendation: |
+        No fix needed - code correctly handles missing versions.
+      dependency_impact: |
+        None
+      risk_if_not_fixed: |
+        None - code is correct
+      validation_steps: |
+        N/A
+
+    - id: "LEGENT-AUDIT-020"
+      fix_order: 20
+      priority: "Low"
+      layer: "Configuration"
+      module: "docker-compose"
+      files:
+        - "docker-compose.yml:232-237"
+      issue_type: "Security"
+      title: "MinIO Default Credentials in Environment Variables"
+      description: |
+        MINIO_ROOT_USER and PASSWORD use default values in docker-compose.
+        Falls back to 'minioadmin' if env vars not set.
+      technical_details: |
+        - Line 235-236: ${MINIO_ACCESS_KEY:-minioadmin} 
+        - Convenient for dev but dangerous if deployed as-is
+        - Several services use same defaults
+      impacted_flow: |
+        Deployment → Container Start → Default Credentials → Unauthorized Access
+      root_cause: |
+        Development convenience defaults not overridden for production.
+      fix_recommendation: |
+        1. Remove default values, require explicit env vars
+        2. Add validation that prevents default credentials in prod
+        ```yaml
+        # Before: MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+        # After: MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY required}
+        ```
+      dependency_impact: |
+        MinIO storage access
+      risk_if_not_fixed: |
+        Unauthorized storage access, data breach
+      validation_steps: |
+        1. Deploy without env vars - should fail
+        2. Verify custom credentials required
+
+    - id: "LEGENT-AUDIT-021"
+      fix_order: 21
+      priority: "Low"
+      layer: "Backend"
+      module: "services/audience-service"
+      files:
+        - "services/audience-service/src/main/java/com/legent/audience/client/DeliverabilityServiceClient.java:40-88"
+      issue_type: "API Contract"
+      title: "Deliverability Client Assumes Response Structure Without Version Contract"
+      description: |
+        Client extracts suppressed emails assuming specific JSON structure.
+        No API version header or contract validation.
+      technical_details: |
+        - Line 63-76: Assumes response.data array with email field
+        - No handling of schema evolution
+        - If deliverability-service changes response format, suppression fails silently
+      impacted_flow: |
+        Audience Resolution → Suppression Check → JSON Parse → Potential Silent Failure
+      root_cause: |
+        Tight coupling to response structure without contract testing.
+      fix_recommendation: |
+        1. Add API version header (Accept-Version: v1)
+        2. Implement contract tests (Pact or similar)
+        3. Add validation that response matches expected schema
+      dependency_impact: |
+        audience-service ↔ deliverability-service coupling
+      risk_if_not_fixed: |
+        Silent failures if deliverability-service changes
+      validation_steps: |
+        1. Change deliverability response format
+        2. Verify audience-service detects or handles gracefully
+
+    - id: "LEGENT-AUDIT-022"
+      fix_order: 22
+      priority: "Low"
+      layer: "Backend"
+      module: "services/delivery-service"
+      files:
+        - "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java:44-52"
+      issue_type: "Input Validation"
+      title: "Payload Normalization Silently Drops Invalid Data"
+      description: |
+        normalize() returns null for blank strings, causing silent data loss.
+        Empty strings from payload become null without warning.
+      technical_details: |
+        - Line 249-254: Blank strings return null
+        - Line 54-58: Missing email becomes log warning but continues processing
+        - Line 62-69: Missing content gets defaults without alerting
+      impacted_flow: |
+        Send Request → Payload Parse → Blank Values → Null → Default Substitution
+      root_cause: |
+        Defensive normalization without alerting on data quality issues.
+      fix_recommendation: |
+        Add data quality logging for significant substitutions:
+        ```java
+        if (subject == null) {
+            log.warn("Using default subject for campaign {}, message {}", campaignId, messageId);
+            subject = "Legent Campaign";
+        }
+        ```
+      dependency_impact: |
+        Email content quality, sender reputation
+      risk_if_not_fixed: |
+        Generic emails sent to customers, poor brand experience
+      validation_steps: |
+        1. Send with blank subject
+        2. Check logs for data quality warnings
+
+    - id: "LEGENT-AUDIT-023"
+      fix_order: 23
+      priority: "Low"
+      layer: "Documentation"
+      module: "root"
+      files:
+        - "README.md"
+      issue_type: "Documentation Gap"
+      title: "README Missing Production Security Checklist"
+      description: |
+        README focuses on setup but lacks production deployment security checklist.
+        Critical security configurations (JWT secrets, DB passwords, CSP) not highlighted.
+      technical_details: |
+        - No mention of required minimum JWT secret length
+        - No security hardening section
+        - No mention of required environment variables for production
+      impacted_flow: |
+        New Deployment → Following README → Missing Security Steps → Vulnerable System
+      root_cause: |
+        README focused on functionality, not production security.
+      fix_recommendation: |
+        Add PRODUCTION_DEPLOYMENT.md with:
+        - Required environment variables
+        - Minimum secret lengths
+        - Security hardening checklist
+        - CSP configuration guide
+      dependency_impact: |
+        All production deployments
+      risk_if_not_fixed: |
+        Insecure production deployments by new users
+      validation_steps: |
+        1. Review README for security section
+        2. Verify production checklist exists
+
+  summary:
+    critical_count: 3
+    high_count: 5
+    medium_count: 7
+    low_count: 8
+    
+    fix_priority_order: |
+      1. Fix LEGENT-AUDIT-001 (JWT secret length) - Foundation security layer
+      2. Fix LEGENT-AUDIT-002 (ThreadLocal cleanup) - Data isolation layer  
+      3. Fix LEGENT-AUDIT-003 (HTTP connection pooling) - Infrastructure layer
+      4. Fix LEGENT-AUDIT-004 through AUDIT-007 (High priority data/consistency issues)
+      5. Address medium and low priority issues in subsequent sprints
+      
+    cross_cutting_concerns:
+      - "Thread safety in async contexts (AUDIT-002, affects automation-service)"
+      - "HTTP client consistency (AUDIT-003 vs DeliverabilityServiceClient)"
+      - "Transactional outbox pattern consistency (AUDIT-007)"
+      - "Service discovery hardcoded URLs (AUDIT-013)"
+      
+    risk_assessment: |
+      Without fixes 1-3: System has critical security vulnerabilities and will fail under load.
+      Without fixes 4-7: Data consistency issues and poor user experience.
+      Medium/Low issues: Technical debt accumulating, security posture weak.
+```

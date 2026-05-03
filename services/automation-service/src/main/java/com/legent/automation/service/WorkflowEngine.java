@@ -18,6 +18,7 @@ import com.legent.automation.repository.WorkflowInstanceRepository;
 import com.legent.automation.repository.WorkflowRepository;
 import com.legent.automation.service.node.NodeHandler;
 import com.legent.automation.event.WorkflowEventPublisher;
+import com.legent.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -57,14 +58,32 @@ public class WorkflowEngine {
         this.objectMapper = objectMapper;
         this.cacheService = cacheService;
         this.eventPublisher = eventPublisher;
+        // LEGENT-HIGH-008: Use merge function to provide clear error message on duplicate handlers
         this.nodeHandlers = handlerList.stream()
-            .collect(Collectors.toMap(NodeHandler::getType, Function.identity()));
+            .collect(Collectors.toMap(
+                NodeHandler::getType,
+                Function.identity(),
+                (existing, replacement) -> {
+                    throw new IllegalStateException(
+                        "Duplicate node handler for type: " + existing.getType() +
+                        ". Classes: " + existing.getClass().getName() +
+                        " vs " + replacement.getClass().getName());
+                }
+            ));
         }
 
     @Async("workflowExecutor")
     @Transactional
     public void startWorkflow(String tenantId, String workflowId, Integer version, String subscriberId, Map<String, Object> initialContext) {
-        
+        TenantContext.setTenantId(tenantId);
+        try {
+            startWorkflowInternal(tenantId, workflowId, version, subscriberId, initialContext);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void startWorkflowInternal(String tenantId, String workflowId, Integer version, String subscriberId, Map<String, Object> initialContext) {
         com.legent.automation.domain.Workflow workflow = workflowRepository.findById(workflowId)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found"));
 
@@ -104,6 +123,20 @@ public class WorkflowEngine {
     @Async("workflowExecutor")
     @Transactional
     public void resumeInstance(String instanceId, String nextNodeId) {
+        try {
+            resumeInstanceInternal(instanceId, nextNodeId);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private void resumeInstanceInternal(String instanceId, String nextNodeId) {
+        WorkflowInstance instance = instanceRepository.findById(instanceId)
+                .orElseThrow(() -> new IllegalArgumentException("Instance missing"));
+
+        // Set tenant context from the instance
+        TenantContext.setTenantId(instance.getTenantId());
+
         String lockKey = "wf:lock:" + instanceId;
         if (cacheService.get(lockKey, String.class).isPresent()) {
             log.warn("Instance {} is currently locked/processing. Dropping concurrent resume call.", instanceId);
@@ -112,9 +145,6 @@ public class WorkflowEngine {
 
         try {
             cacheService.set(lockKey, "1", java.time.Duration.ofMinutes(5));
-
-            WorkflowInstance instance = instanceRepository.findById(instanceId)
-                    .orElseThrow(() -> new IllegalArgumentException("Instance missing"));
 
             WorkflowDefinition def = definitionRepository.findByWorkflowIdAndVersionAndTenantId(
                 instance.getWorkflowId(), instance.getVersion(), instance.getTenantId()

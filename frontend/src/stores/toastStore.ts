@@ -24,7 +24,8 @@ interface ToastState {
 export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
   addToast: (toast) => {
-    const id = Math.random().toString(36).substring(2, 9);
+    // LEGENT-HIGH-003: Use timestamp + random for sufficient entropy (prevents collision with >1000 toasts)
+    const id = `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     set((state) => ({
       toasts: [...state.toasts, { ...toast, id }],
     }));

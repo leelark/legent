@@ -52,8 +52,9 @@ public class TrackingIngestionService {
             return;
         }
         TrackingDto.RawEventPayload payload = buildPayload("CLICK", tenantId, campaignId, subscriberId, messageId, linkUrl, userAgentString, ipAddress, null);
+        // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
-        eventPublisher.publishIngestedEvent(payload);
+        publishEventWithOutbox(payload);
     }
 
     @Transactional
@@ -70,8 +71,9 @@ public class TrackingIngestionService {
         meta.put("currency", request.getCurrency());
 
         TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(), null, userAgentString, ipAddress, meta);
+        // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
-        eventPublisher.publishIngestedEvent(payload);
+        publishEventWithOutbox(payload);
     }
 
     /**

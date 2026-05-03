@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.Optional;
 
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.legent.audience.domain.Subscriber;
 import com.legent.audience.dto.SubscriberDto;
@@ -18,6 +20,8 @@ import com.legent.audience.event.SubscriberEventPublisher;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -41,6 +45,11 @@ public class SubscriberService {
     private final SubscriberEventPublisher eventPublisher;
 
     private static final Duration CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_SUBSCRIBER_TTL_SECONDS);
+    private static final int BULK_CHUNK_SIZE = 100; // LEGENT-HIGH-001: Process in chunks to avoid all-or-nothing rollback
+
+    @Lazy
+    @Autowired
+    private SubscriberService self;
 
     @Transactional(readOnly = true)
     public SubscriberDto.Response getById(String id) {
@@ -141,21 +150,78 @@ public class SubscriberService {
     }
 
     /**
-     * Bulk upsert with deduplication.
+     * LEGENT-HIGH-001: Bulk upsert with deduplication and chunk-based processing.
+     * Processes subscribers in chunks of 100 to prevent all-or-nothing transaction rollback.
+     * Each chunk is a separate transaction - failure in one chunk doesn't affect others.
      * Dedup order: subscriber_key → email → alternate key.
      */
-    @Transactional
     public SubscriberDto.BulkUpsertResponse bulkUpsert(SubscriberDto.BulkUpsertRequest request) {
         String tenantId = TenantContext.getTenantId();
+        int totalCreated = 0, totalUpdated = 0, totalErrors = 0;
+        List<SubscriberDto.BulkError> allErrorDetails = new ArrayList<>();
+
+        List<SubscriberDto.CreateRequest> subscribers = request.getSubscribers();
+        int totalSize = subscribers.size();
+
+        // Split into chunks of BULK_CHUNK_SIZE
+        List<List<SubscriberDto.CreateRequest>> chunks = IntStream.range(0, (totalSize + BULK_CHUNK_SIZE - 1) / BULK_CHUNK_SIZE)
+                .mapToObj(i -> subscribers.subList(i * BULK_CHUNK_SIZE, Math.min((i + 1) * BULK_CHUNK_SIZE, totalSize)))
+                .collect(Collectors.toList());
+
+        log.info("Bulk upsert: processing {} subscribers in {} chunks of max {} each",
+                totalSize, chunks.size(), BULK_CHUNK_SIZE);
+
+        int processedCount = 0;
+        for (int chunkIndex = 0; chunkIndex < chunks.size(); chunkIndex++) {
+            List<SubscriberDto.CreateRequest> chunk = chunks.get(chunkIndex);
+            try {
+                // Each chunk processed in separate transaction via self-proxy
+                ChunkResult result = self.processChunk(tenantId, chunk, request.getDeduplicationKey(), request.isUpdateExisting(), processedCount);
+                totalCreated += result.created;
+                totalUpdated += result.updated;
+                totalErrors += result.errors;
+                allErrorDetails.addAll(result.errorDetails);
+            } catch (Exception e) {
+                log.error("Chunk {} failed: {}", chunkIndex, e.getMessage());
+                // Mark all items in chunk as failed
+                for (int i = 0; i < chunk.size(); i++) {
+                    totalErrors++;
+                    allErrorDetails.add(SubscriberDto.BulkError.builder()
+                            .index(processedCount + i)
+                            .subscriberKey(chunk.get(i).getSubscriberKey())
+                            .message("Chunk processing failed: " + e.getMessage())
+                            .build());
+                }
+            }
+            processedCount += chunk.size();
+        }
+
+        log.info("Bulk upsert complete: created={}, updated={}, errors={}", totalCreated, totalUpdated, totalErrors);
+        return SubscriberDto.BulkUpsertResponse.builder()
+                .created(totalCreated)
+                .updated(totalUpdated)
+                .errors(totalErrors)
+                .errorDetails(allErrorDetails)
+                .build();
+    }
+
+    /**
+     * Process a single chunk within its own transaction.
+     * Called via self-proxy to ensure @Transactional boundary is respected.
+     */
+    @Transactional
+    public ChunkResult processChunk(String tenantId, List<SubscriberDto.CreateRequest> chunk,
+                                    String deduplicationKey, boolean updateExisting, int startIndex) {
         int created = 0, updated = 0, errors = 0;
         List<SubscriberDto.BulkError> errorDetails = new ArrayList<>();
 
-        for (int i = 0; i < request.getSubscribers().size(); i++) {
-            SubscriberDto.CreateRequest subReq = request.getSubscribers().get(i);
+        for (int i = 0; i < chunk.size(); i++) {
+            SubscriberDto.CreateRequest subReq = chunk.get(i);
+            int globalIndex = startIndex + i;
             try {
-                Optional<Subscriber> existing = resolveExisting(tenantId, subReq, request.getDeduplicationKey());
+                Optional<Subscriber> existing = resolveExisting(tenantId, subReq, deduplicationKey);
 
-                if (existing.isPresent() && request.isUpdateExisting()) {
+                if (existing.isPresent() && updateExisting) {
                     Subscriber entity = existing.get();
                     applyUpdate(entity, subReq);
                     subscriberRepository.save(entity);
@@ -169,14 +235,17 @@ public class SubscriberService {
             } catch (Exception e) {
                 errors++;
                 errorDetails.add(SubscriberDto.BulkError.builder()
-                        .index(i).subscriberKey(subReq.getSubscriberKey()).message(e.getMessage()).build());
+                        .index(globalIndex)
+                        .subscriberKey(subReq.getSubscriberKey())
+                        .message(e.getMessage())
+                        .build());
             }
         }
 
-        log.info("Bulk upsert: created={}, updated={}, errors={}", created, updated, errors);
-        return SubscriberDto.BulkUpsertResponse.builder()
-                .created(created).updated(updated).errors(errors).errorDetails(errorDetails).build();
+        return new ChunkResult(created, updated, errors, errorDetails);
     }
+
+    private record ChunkResult(int created, int updated, int errors, List<SubscriberDto.BulkError> errorDetails) {}
 
     @Transactional(readOnly = true)
     public long count() {

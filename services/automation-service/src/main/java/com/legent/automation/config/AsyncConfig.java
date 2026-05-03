@@ -1,12 +1,16 @@
 package com.legent.automation.config;
 
+import com.legent.security.TenantContext;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 
 @Configuration("automationAsyncConfig")
+@Slf4j
 public class AsyncConfig {
 
     @Bean(name = "workflowExecutor")
@@ -16,7 +20,33 @@ public class AsyncConfig {
         executor.setMaxPoolSize(50);
         executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("workflow-");
+        executor.setTaskDecorator(new TenantContextTaskDecorator());
         executor.initialize();
         return executor;
+    }
+
+    /**
+     * TaskDecorator that propagates TenantContext to async threads and ensures cleanup.
+     * Prevents cross-tenant data leaks in thread pool reuse scenarios.
+     */
+    public static class TenantContextTaskDecorator implements TaskDecorator {
+        @Override
+        public Runnable decorate(Runnable runnable) {
+            String tenantId = TenantContext.getTenantId();
+            String userId = TenantContext.getUserId();
+            return () -> {
+                try {
+                    if (tenantId != null) {
+                        TenantContext.setTenantId(tenantId);
+                    }
+                    if (userId != null) {
+                        TenantContext.setUserId(userId);
+                    }
+                    runnable.run();
+                } finally {
+                    TenantContext.clear();
+                }
+            };
+        }
     }
 }

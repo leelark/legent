@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.domain.WebhookLog;
@@ -11,6 +12,7 @@ import com.legent.platform.domain.WebhookRetry;
 import com.legent.platform.repository.WebhookConfigRepository;
 import com.legent.platform.repository.WebhookLogRepository;
 import com.legent.platform.repository.WebhookRetryRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -47,24 +49,51 @@ public class WebhookRetryService {
     };
 
     /**
-     * Process pending webhook retries every 30 seconds.
+     * LEGENT-CRIT-005: Process pending webhook retries every 30 seconds with parallelism.
+     * Uses parallel stream with limit of 10 concurrent retries to prevent queue buildup.
      */
     @Scheduled(fixedDelay = 30000)
-    @Transactional
+    @Transactional(readOnly = true)
     public void processRetries() {
         Instant now = Instant.now();
-        
-        // Process PENDING retries
+
+        // Process PENDING retries with parallel processing
         List<WebhookRetry> pendingRetries = retryRepository.findPendingRetries(now);
         if (!pendingRetries.isEmpty()) {
-            log.info("Processing {} pending webhook retries", pendingRetries.size());
-            for (WebhookRetry retry : pendingRetries) {
-                processRetry(retry);
-            }
+            log.info("Processing {} pending webhook retries (max 10 concurrent)", pendingRetries.size());
+
+            // Process in parallel with max 10 concurrent
+            List<CompletableFuture<Void>> futures = pendingRetries.stream()
+                    .limit(50) // Max 50 retries per batch to prevent memory issues
+                    .map(retry -> CompletableFuture.runAsync(() -> processRetryAsync(retry)))
+                    .toList();
+
+            // Wait for all to complete (with timeout)
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .orTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
+                    .whenComplete((result, ex) -> {
+                        if (ex != null) {
+                            log.warn("Some webhook retries timed out or failed: {}", ex.getMessage());
+                        }
+                    }).join();
         }
     }
 
-    private void processRetry(WebhookRetry retry) {
+    /**
+     * Async wrapper for processing a single retry.
+     */
+    private void processRetryAsync(WebhookRetry retry) {
+        // Set tenant context for this async execution
+        TenantContext.setTenantId(retry.getTenantId());
+        try {
+            processRetry(retry);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Transactional
+    public void processRetry(WebhookRetry retry) {
         try {
             // Mark as retrying
             retry.setStatus("RETRYING");

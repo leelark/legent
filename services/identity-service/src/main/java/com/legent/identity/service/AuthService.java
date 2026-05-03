@@ -60,7 +60,12 @@ public class AuthService {
     public String signup(SignupRequest request) {
         String slug = request.getSlug();
         if (slug == null || slug.isBlank()) {
-            slug = request.getCompanyName().toLowerCase().replaceAll("[^a-z0-9]", "-");
+            // LEGENT-HIGH-002: Validate companyName before using it for slug generation
+            String companyName = request.getCompanyName();
+            if (companyName == null || companyName.isBlank()) {
+                throw new IllegalArgumentException("Company name is required when slug is not provided");
+            }
+            slug = companyName.toLowerCase().replaceAll("[^a-z0-9]", "-");
         }
 
         // We use a temporary tenant ID for the user until Foundation provisions it

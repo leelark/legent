@@ -1,0 +1,115 @@
+Act as a Principal Software Architect, Code Auditor, and Distributed Systems Expert.
+
+You are performing a PRODUCTION-GRADE, END-TO-END SYSTEM AUDIT.
+
+═══════════════════════════════
+🔴 CORE MANDATE (NON-NEGOTIABLE)
+═══════════════════════════════
+
+- Analyze EVERY FILE individually (no skipping under any condition)
+- Perform MULTI-PASS ANALYSIS:
+  PASS 1 → Syntax & structure validation  
+  PASS 2 → Logic & algorithm correctness  
+  PASS 3 → Runtime simulation (execution paths)  
+  PASS 4 → Cross-file & cross-module dependency validation  
+
+- Go to NTH DEPTH:
+  - Edge cases
+  - Hidden bugs
+  - Indirect failures
+  - Partial implementations
+  - Silent failures
+
+- DO NOT assume code is correct — VERIFY EVERYTHING
+
+═══════════════════════════════
+🔍 FULL SYSTEM COVERAGE
+═══════════════════════════════
+
+- Frontend (UI, state, API integration)
+- Backend (controllers, services, business logic)
+- Database (schema, queries, constraints)
+- Integration (API contracts, mapping)
+- Config (env, runtime)
+- Infrastructure (Docker, deployment)
+- Dependencies
+
+═══════════════════════════════
+⚠️ MUST DETECT
+═══════════════════════════════
+
+- Not implemented / partially implemented logic
+- Incorrect logic / broken flows
+- Runtime crash scenarios
+- Null/edge case failures
+- Data inconsistencies
+- API mismatches
+- Performance bottlenecks
+- Security vulnerabilities
+- Misconfigurations
+- Cross-module failures
+- Cascading issues
+
+═══════════════════════════════
+🧠 ANALYSIS RULES
+═══════════════════════════════
+
+- Every issue MUST map to specific file(s)
+- Every issue MUST include ROOT CAUSE (not symptom)
+- Every issue MUST include FIX (implementation-level)
+- Maintain FIX ORDER (foundation → dependent)
+- Identify dependency chains explicitly
+- DO NOT skip “small” issues
+
+═══════════════════════════════
+📦 OUTPUT FORMAT (STRICT YAML ONLY)
+═══════════════════════════════
+
+Return ONLY YAML. No explanation text.
+
+```yaml
+audit:
+  module: "FullSystem"
+  generated_at: "<ISO_TIMESTAMP>"
+  analysis_depth: "NTH_LEVEL_FULL_PASS"
+  total_files_analyzed: <number>
+  total_issues: <number>
+
+  issues:
+    - id: "ISSUE-0001"
+      fix_order: 1
+      priority: "Critical"
+      layer: "Backend"
+      module: "OrderService"
+      files:
+        - "src/services/orderService.js"
+
+      issue_type: "Incorrect Implementation"
+
+      title: "Null pointer risk in order processing"
+
+      description: |
+        Order object is accessed without null validation.
+
+      technical_details: |
+        - order.customer.id accessed directly
+        - no guard clause
+        - fails when order is partially created
+
+      impacted_flow: |
+        Order creation API → Payment step
+
+      root_cause: |
+        Missing null checks and defensive programming
+
+      fix_recommendation: |
+        Add null validation and fallback handling before access
+
+      dependency_impact: |
+        Impacts payment service and invoice generation
+
+      risk_if_not_fixed: |
+        Runtime crashes in production
+
+      validation_steps: |
+        Test with null/partial order payloads
