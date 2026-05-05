@@ -1,14 +1,14 @@
 # ─── Foundation Service Dockerfile ───
-FROM eclipse-temurin:21-jre-alpine AS runtime
+FROM eclipse-temurin:21-jre-alpine
 
-LABEL maintainer="Legent Team"
-LABEL service="foundation-service"
+LABEL maintainer="Legent Team" service="foundation-service"
 
 RUN addgroup -S legent && adduser -S legent -G legent
 
 WORKDIR /app
 
-COPY target/foundation-service-*.jar app.jar
+# Copy only the specific JAR (smaller layer, deterministic)
+COPY target/foundation-service-1.0.0-SNAPSHOT.jar app.jar
 
 RUN chown -R legent:legent /app
 USER legent

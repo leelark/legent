@@ -7,7 +7,16 @@ export const USER_STORAGE_KEY = 'legent_user_id';
 export const ROLES_STORAGE_KEY = 'legent_roles';
 export const THEME_STORAGE_KEY = 'legent_theme';
 // AUDIT-021: Removed TOKEN_STORAGE_KEY - tokens are in HTTP-only cookies only
-// AUDIT-021: Removed TENANT_STORAGE_KEY - tenant is in HTTP-only cookies only
+// AUDIT-021: TENANT_STORAGE_KEY kept for backward compatibility (returns null - tenant is in HTTP-only cookies)
+export const TENANT_STORAGE_KEY = 'legent_tenant_id_legacy';
+
+/**
+ * Stub for backward compatibility. Tenant ID is now stored in HTTP-only cookies.
+ * @returns null - tenant must be retrieved from cookie via API call
+ */
+export function getStoredTenantId(): string | null {
+  return null;
+}
 
 export interface JwtClaims {
   sub?: string;

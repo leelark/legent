@@ -20,6 +20,7 @@
         <dependency>
             <groupId>com.legent</groupId>
             <artifactId>legent-common</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.kafka</groupId>

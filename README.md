@@ -31,11 +31,25 @@ This starts: PostgreSQL, Redis, Kafka, Zookeeper, OpenSearch, MinIO, ClickHouse,
 | MinIO        | 9001  | http://localhost:9001        |
 | ClickHouse   | 8123  | http://localhost:8123        |
 
-### 2. Build Backend
+### 2. Build Backend (Optimized)
 
 ```bash
-mvn clean install -DskipTests
+# Fastest - incremental build with caching
+make fast-build
+
+# Or PowerShell
+.\scripts\fast-build\fast-build.ps1
+
+# Full clean build
+mvn clean install -DskipTests -T 1C
 ```
+
+**One-time setup for new developers:**
+```batch
+.\scripts\setup\first-time-setup.bat
+```
+
+See `docs/build/QUICKSTART.md` for detailed build optimization guide.
 
 ### 3. Run Foundation Service
 
@@ -101,7 +115,15 @@ legent-email-studio/
 │   └── src/styles/             # Design tokens + globals
 ├── infrastructure/             # Docker + K8s manifests
 ├── config/                     # Nginx, Kafka topics, env configs
-└── docs/                       # Architecture documentation
+├── scripts/                    # Build and deployment scripts
+│   ├── fast-build/             # Fast development builds
+│   ├── cached-builds/          # Layered caching builds
+│   ├── infrastructure/         # Infrastructure image management
+│   ├── docker/                 # Docker-specific scripts
+│   └── setup/                  # One-time setup scripts
+├── docs/                       # Documentation
+│   └── build/                  # Build optimization guides
+└── .mvn/                       # Maven configuration
 ```
 
 ## API Conventions

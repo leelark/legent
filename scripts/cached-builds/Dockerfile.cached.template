@@ -1,0 +1,56 @@
+# TEMPLATE FILE - NOT A VALID DOCKERFILE
+# This template is used by setup-cached-builds.bat to generate Dockerfile.cached
+# for each service. It contains placeholders that get replaced.
+# 
+# DO NOT USE THIS FILE DIRECTLY - Use the generated files instead.
+#
+# To generate: .\setup-cached-builds.bat
+
+FROM legent-shared-base:latest AS builder
+
+USER root
+WORKDIR /build
+
+# Install Maven temporarily for build
+RUN apk add --no-cache maven
+
+# Copy parent pom first
+COPY pom.xml .
+
+# Copy service pom
+COPY services/SERVICE_NAME/pom.xml services/SERVICE_NAME/
+
+# Download service-specific dependencies using cached shared libs
+RUN mvn dependency:go-offline -B -q -pl services/SERVICE_NAME -am
+
+# Copy source code
+COPY services/SERVICE_NAME/src services/SERVICE_NAME/src/
+
+# Build only this service (shared libs already in ~/.m2)
+RUN mvn package -DskipTests -B -q -pl services/SERVICE_NAME
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+RUN addgroup -S legent && adduser -S legent -G legent
+
+# Copy only the built JAR from builder
+COPY --from=builder /build/services/SERVICE_NAME/target/SERVICE_NAME-1.0.0-SNAPSHOT.jar app.jar
+
+RUN chown legent:legent app.jar
+
+USER legent
+
+# NOTE: Replace SERVICE_PORT with actual port (8081, 8082, etc.)
+EXPOSE SERVICE_PORT
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:SERVICE_PORT/actuator/health || exit 1
+
+ENTRYPOINT ["java", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-jar", "app.jar"]

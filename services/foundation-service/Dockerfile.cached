@@ -1,0 +1,48 @@
+# Foundation Service - Cached Build Version
+# Uses legent-shared-base image to skip rebuilding shared modules
+
+FROM legent-shared-base:latest AS builder
+
+USER root
+WORKDIR /build
+
+# Install Maven temporarily for build
+RUN apk add --no-cache maven
+
+# Copy service pom and parent pom
+COPY pom.xml .
+COPY services/foundation-service/pom.xml services/foundation-service/
+
+# Download service-specific dependencies using cached shared libs
+RUN mvn dependency:go-offline -B -q -pl services/foundation-service -am
+
+# Copy source code
+COPY services/foundation-service/src services/foundation-service/src/
+
+# Build only this service (shared libs already in ~/.m2)
+RUN mvn package -DskipTests -B -q -pl services/foundation-service
+
+# Runtime stage
+FROM eclipse-temurin:21-jre-alpine
+
+WORKDIR /app
+
+RUN addgroup -S legent && adduser -S legent -G legent
+
+# Copy only the built JAR from builder
+COPY --from=builder /build/services/foundation-service/target/foundation-service-1.0.0-SNAPSHOT.jar app.jar
+
+RUN chown legent:legent app.jar
+
+USER legent
+
+EXPOSE 8081
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/actuator/health || exit 1
+
+ENTRYPOINT ["java", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-jar", "app.jar"]

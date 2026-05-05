@@ -2,10 +2,9 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-RUN addgroup --system --gid 1001 legent \
-    && adduser --system --uid 1001 legent
+RUN addgroup -S legent && adduser -S legent -G legent
 
-COPY target/*-SNAPSHOT.jar app.jar
+COPY target/identity-service-1.0.0-SNAPSHOT.jar app.jar
 
 RUN chown legent:legent app.jar
 
@@ -16,4 +15,8 @@ EXPOSE 8089
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8089/actuator/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar", "--spring.profiles.active=prod"]
+ENTRYPOINT ["java", \
+    "-XX:+UseContainerSupport", \
+    "-XX:MaxRAMPercentage=75.0", \
+    "-Djava.security.egd=file:/dev/./urandom", \
+    "-jar", "app.jar"]

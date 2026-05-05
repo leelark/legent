@@ -1,0 +1,70 @@
+# Docker Compose Override for Local Development
+# This file provides image caching optimizations for infrastructure services
+# Docker Compose automatically loads this file
+#
+# Benefits:
+# - Prevents re-downloading images on every compose up
+# - Uses pull_policy: if_not_present for faster startups
+# - Configures restart policies for development
+# - Adds volume optimizations
+
+services:
+  # Database - don't re-download if already present
+  postgres:
+    pull_policy: if_not_present
+    # Use volume driver opts for better performance on Windows
+    volumes:
+      - type: volume
+        source: legent_pgdata
+        target: /var/lib/postgresql/data
+        volume:
+          nocopy: true
+
+  # Cache - don't re-download
+  redis:
+    pull_policy: if_not_present
+
+  # Message Queue - don't re-download
+  zookeeper:
+    pull_policy: if_not_present
+
+  kafka:
+    pull_policy: if_not_present
+
+  kafka-setup:
+    pull_policy: if_not_present
+
+  # Search - don't re-download (large image)
+  opensearch:
+    pull_policy: if_not_present
+
+  # Analytics DB - don't re-download
+  clickhouse:
+    pull_policy: if_not_present
+
+  # Object Storage - don't re-download
+  minio:
+    pull_policy: if_not_present
+
+  # Email testing - don't re-download
+  mailhog:
+    pull_policy: if_not_present
+
+  # Kafka UI - don't re-download
+  kafka-ui:
+    pull_policy: if_not_present
+
+  # Gateway - don't re-download
+  gateway:
+    pull_policy: if_not_present
+
+  # Frontend - use cached build
+  frontend:
+    pull_policy: build
+
+volumes:
+  # Mark volumes as external so they persist between compose down/up
+  legent_pgdata:
+    driver: local
+  legent_minio_data:
+    driver: local

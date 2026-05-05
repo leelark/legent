@@ -52,12 +52,14 @@
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
+            <version>${mapstruct.version}</version>
         </dependency>
 
         <!-- ULID -->
         <dependency>
             <groupId>com.github.f4b6a3</groupId>
             <artifactId>ulid-creator</artifactId>
+            <version>${ulid.version}</version>
         </dependency>
 
         <!-- Jackson (JSON) -->

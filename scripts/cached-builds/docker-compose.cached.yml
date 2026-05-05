@@ -1,0 +1,67 @@
+# Docker Compose with Cached Base Image
+# Uses pre-built legent-shared-base for faster service builds
+#
+# Usage:
+#   1. First, build the base: .\build-shared-base.ps1
+#   2. Then use this compose: docker compose -f docker-compose.yml -f docker-compose.cached.yml build
+
+services:
+  foundation-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  identity-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  content-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  audience-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  campaign-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  delivery-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  tracking-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  automation-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  deliverability-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest
+
+  platform-service:
+    build:
+      dockerfile: Dockerfile.cached
+      additional_contexts:
+        - legent-shared-base=docker-image://legent-shared-base:latest

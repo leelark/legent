@@ -1,0 +1,21 @@
+{
+  "registry-mirrors": [
+    "https://mirror.gcr.io",
+    "https://docker.mirrors.ustc.edu.cn"
+  ],
+  "features": {
+    "buildkit": true
+  },
+  "builder": {
+    "gc": {
+      "defaultKeepStorage": "20GB",
+      "enabled": true
+    }
+  },
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "10m",
+    "max-file": "3"
+  },
+  "storage-driver": "overlay2"
+}

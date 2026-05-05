@@ -14,7 +14,6 @@ build/
 npm-debug.log*
 
 # Docker
-.dockerignore
 # (Optional: ignore local data volumes if any)
 docker_data/
 

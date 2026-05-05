@@ -1,0 +1,45 @@
+# Root-level Docker context exclusions
+# Prevents unnecessary files from being sent to Docker daemon during compose builds
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Infrastructure (not needed for app builds)
+infrastructure/
+
+# Issues folder
+Issues - fixed/
+
+# Logs
+docker-logs-last-run/
+*.log
+
+# Node modules (handled by frontend Dockerfile)
+frontend/node_modules/
+frontend/.next/
+
+# Maven target directories (handled by .dockerignore in each service)
+services/**/target/
+shared/**/target/
+
+# Scripts
+*.bat
+*.ps1
+
+# Environment files (except .env which might be needed)
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db

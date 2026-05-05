@@ -306,7 +306,7 @@ services:
           memory: 1G
 
   kafka-ui:
-    image: provectuslabs/kafka-ui:v1.0.0
+    image: kafbat/kafka-ui:latest
     container_name: legent-kafka-ui
     ports:
       - "8091:8080"

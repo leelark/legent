@@ -1,0 +1,81 @@
+# Docker Compose Build Optimizations
+# Use with: docker compose -f docker-compose.yml -f docker-compose.build.yml build
+# Or set: COMPOSE_FILE=docker-compose.yml:docker-compose.build.yml
+
+services:
+  foundation-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/foundation
+      cache_to:
+        - type=local,dest=.docker/cache/foundation,mode=max
+
+  identity-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/identity
+      cache_to:
+        - type=local,dest=.docker/cache/identity,mode=max
+
+  content-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/content
+      cache_to:
+        - type=local,dest=.docker/cache/content,mode=max
+
+  audience-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/audience
+      cache_to:
+        - type=local,dest=.docker/cache/audience,mode=max
+
+  campaign-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/campaign
+      cache_to:
+        - type=local,dest=.docker/cache/campaign,mode=max
+
+  delivery-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/delivery
+      cache_to:
+        - type=local,dest=.docker/cache/delivery,mode=max
+
+  tracking-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/tracking
+      cache_to:
+        - type=local,dest=.docker/cache/tracking,mode=max
+
+  automation-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/automation
+      cache_to:
+        - type=local,dest=.docker/cache/automation,mode=max
+
+  deliverability-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/deliverability
+      cache_to:
+        - type=local,dest=.docker/cache/deliverability,mode=max
+
+  platform-service:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/platform
+      cache_to:
+        - type=local,dest=.docker/cache/platform,mode=max
+
+  frontend:
+    build:
+      cache_from:
+        - type=local,src=.docker/cache/frontend
+      cache_to:
+        - type=local,dest=.docker/cache/frontend,mode=max

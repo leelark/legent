@@ -20,10 +20,12 @@
         <dependency>
             <groupId>com.legent</groupId>
             <artifactId>legent-common</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.legent</groupId>
             <artifactId>legent-kafka</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -45,6 +47,7 @@
         <dependency>
             <groupId>com.legent</groupId>
             <artifactId>legent-security</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.testcontainers</groupId>
