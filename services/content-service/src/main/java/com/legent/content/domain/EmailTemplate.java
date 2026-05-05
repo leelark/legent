@@ -42,7 +42,7 @@ public class EmailTemplate extends TenantAwareEntity {
     @Column(length = 50)
     private String category;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "template_tags", joinColumns = @JoinColumn(name = "template_id"))
     @Column(name = "tag")
     private List<String> tags;

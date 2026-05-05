@@ -15,4 +15,6 @@ public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByTenantIdAndId(String tenantId, String id);
     
     boolean existsByTenantIdAndEmailIgnoreCase(String tenantId, String email);
+
+    Optional<User> findFirstByEmailIgnoreCase(String email);
 }

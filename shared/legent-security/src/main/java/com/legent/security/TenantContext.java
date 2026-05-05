@@ -16,6 +16,10 @@ public final class TenantContext {
 
     private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
     private static final ThreadLocal<String> CURRENT_USER = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_WORKSPACE = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_ENVIRONMENT = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_REQUEST = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_CORRELATION = new ThreadLocal<>();
 
     private TenantContext() {
         // Utility class
@@ -49,8 +53,48 @@ public final class TenantContext {
         return CURRENT_USER.get();
     }
 
+    public static void setWorkspaceId(String workspaceId) {
+        CURRENT_WORKSPACE.set(workspaceId);
+    }
+
+    @Nullable
+    public static String getWorkspaceId() {
+        return CURRENT_WORKSPACE.get();
+    }
+
+    public static void setEnvironmentId(String environmentId) {
+        CURRENT_ENVIRONMENT.set(environmentId);
+    }
+
+    @Nullable
+    public static String getEnvironmentId() {
+        return CURRENT_ENVIRONMENT.get();
+    }
+
+    public static void setRequestId(String requestId) {
+        CURRENT_REQUEST.set(requestId);
+    }
+
+    @Nullable
+    public static String getRequestId() {
+        return CURRENT_REQUEST.get();
+    }
+
+    public static void setCorrelationId(String correlationId) {
+        CURRENT_CORRELATION.set(correlationId);
+    }
+
+    @Nullable
+    public static String getCorrelationId() {
+        return CURRENT_CORRELATION.get();
+    }
+
     public static void clear() {
         CURRENT_TENANT.remove();
         CURRENT_USER.remove();
+        CURRENT_WORKSPACE.remove();
+        CURRENT_ENVIRONMENT.remove();
+        CURRENT_REQUEST.remove();
+        CURRENT_CORRELATION.remove();
     }
 }

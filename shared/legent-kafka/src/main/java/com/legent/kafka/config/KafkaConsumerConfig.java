@@ -47,6 +47,8 @@ public class KafkaConsumerConfig {
         props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class.getName());
         props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
         props.put(JsonDeserializer.TRUSTED_PACKAGES, "com.legent.*");
+        props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, "com.legent.kafka.model.EventEnvelope");
+        props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, false);
         
         // Stability settings
         props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 45000);

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -27,9 +28,17 @@ public class AssetController {
 
     @GetMapping
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles)")
-    public PagedResponse<Asset> listAssets(Pageable pageable) {
+    public PagedResponse<Asset> listAssets(
+            Pageable pageable,
+            @RequestParam(required = false) String q,
+            @RequestParam(required = false) String contentType) {
         String tenantId = TenantContext.requireTenantId();
-        Page<Asset> page = assetService.listAssets(tenantId, pageable);
+        Page<Asset> page;
+        if ((q != null && !q.isBlank()) || (contentType != null && !contentType.isBlank())) {
+            page = assetService.searchAssets(tenantId, q, contentType, pageable);
+        } else {
+            page = assetService.listAssets(tenantId, pageable);
+        }
         return PagedResponse.from(page);
     }
 
@@ -50,6 +59,13 @@ public class AssetController {
                 .build();
         
         return ApiResponse.ok(assetService.createAsset(create));
+    }
+
+    @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles)")
+    public ApiResponse<List<Asset>> bulkUpload(@RequestParam("files") MultipartFile[] files) {
+        List<Asset> uploaded = assetService.uploadAssets(files == null ? List.of() : List.of(files));
+        return ApiResponse.ok(uploaded);
     }
 
     @DeleteMapping("/{id}")

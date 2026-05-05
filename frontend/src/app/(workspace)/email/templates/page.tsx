@@ -1,110 +1,214 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
+import { Star, Copy, Sparkle, Plus } from '@phosphor-icons/react';
 import { Card, CardHeader } from '@/components/ui/Card';
-import { EmptyState } from '@/components/ui/EmptyState';
+import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { Plus } from '@phosphor-icons/react/dist/ssr';
-import { get, post } from '@/lib/api-client';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Badge } from '@/components/ui/Badge';
+import { useToast } from '@/components/ui/Toast';
+import {
+  Template,
+  createTemplate,
+  getTemplate,
+  importTemplateHtml,
+  listTemplates,
+} from '@/lib/template-studio-api';
 
-interface TemplateSummary {
-  id: string;
+const PREBUILT_TEMPLATES: Array<{
+  key: string;
   name: string;
-  subject?: string;
-  status: string;
-  templateType: string;
-  category?: string;
-  createdAt?: string;
-}
+  category: string;
+  subject: string;
+  html: string;
+}> = [
+  { key: 'newsletter', name: 'Newsletter', category: 'Newsletter', subject: 'Weekly product digest', html: '<h1>Weekly Digest</h1><p>{{firstName}}, here are top updates.</p>' },
+  { key: 'promotion', name: 'Promotion', category: 'Promotion', subject: 'Limited-time offer for you', html: '<h1>Save 30% today</h1><p>Use code {{promoCode}}</p>' },
+  { key: 'product-launch', name: 'Product Launch', category: 'Announcement', subject: 'Meet our new release', html: '<h1>New launch</h1><p>Introducing {{productName}}</p>' },
+  { key: 'event-invite', name: 'Event Invite', category: 'Event', subject: 'You are invited to our event', html: '<h1>Event Invitation</h1><p>Join us on {{eventDate}}</p>' },
+  { key: 'onboarding', name: 'Onboarding', category: 'Lifecycle', subject: 'Let us get you set up', html: '<h1>Welcome aboard</h1><p>Complete step 1 to begin.</p>' },
+  { key: 'welcome', name: 'Welcome Email', category: 'Lifecycle', subject: 'Welcome to Legent', html: '<h1>Welcome {{firstName}}</h1><p>We are glad you are here.</p>' },
+  { key: 'abandoned-cart', name: 'Abandoned Cart', category: 'Ecommerce', subject: 'You left something behind', html: '<h1>Still interested?</h1><p>Your cart is waiting.</p>' },
+  { key: 'festival', name: 'Festival Campaign', category: 'Seasonal', subject: 'Festival specials are live', html: '<h1>Festival offers</h1><p>Celebrate with exclusive deals.</p>' },
+  { key: 'announcement', name: 'Announcement', category: 'Announcement', subject: 'Important platform update', html: '<h1>Platform announcement</h1><p>Read latest update details.</p>' },
+  { key: 'transactional', name: 'Transactional', category: 'Transactional', subject: 'Your receipt from {{companyName}}', html: '<h1>Receipt</h1><p>Order {{orderId}} confirmed.</p>' },
+];
 
-interface PagedResponse<T> {
-  success: boolean;
-  data: T[];
-  pagination?: {
-    page: number;
-    size: number;
-    totalElements: number;
-    totalPages: number;
-  };
-}
+type FilterMode = 'all' | 'favorites' | 'recent';
 
 export default function EmailTemplatesPage() {
-  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { addToast } = useToast();
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [mode, setMode] = useState<FilterMode>('all');
+
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
-  const [body, setBody] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [htmlBody, setHtmlBody] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+
+  const loadTemplates = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await listTemplates(0, 100);
+      const items: Template[] = Array.isArray(response) ? response : (response?.content ?? response?.data ?? []);
+      setTemplates(items);
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Failed to load templates',
+        message: error?.response?.data?.error?.message || 'Unable to load template library.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
 
   useEffect(() => {
-    loadTemplates();
-  }, []);
+    setFavoriteIds(JSON.parse(localStorage.getItem('template_favorites') ?? '[]'));
+    setRecentIds(JSON.parse(localStorage.getItem('template_recent') ?? '[]'));
+    void loadTemplates();
+  }, [loadTemplates]);
 
-  const loadTemplates = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const res = await get<any>('/templates?page=0&size=20');
-      if (Array.isArray(res)) {
-        setTemplates(res);
-      } else if (res?.content) {
-        setTemplates(res.content);
-      } else {
-        setError('Unable to load templates');
-      }
-    } catch (e: any) {
-      setError(e?.response?.data?.error?.message || 'Unable to load templates');
-    } finally {
-      setIsLoading(false);
+  const categories = useMemo(() => {
+    const values = Array.from(new Set(templates.map((template) => template.category).filter(Boolean)));
+    return ['all', ...values] as string[];
+  }, [templates]);
+
+  const filteredTemplates = useMemo(() => {
+    let results = [...templates];
+
+    if (categoryFilter !== 'all') {
+      results = results.filter((template) => (template.category || 'General') === categoryFilter);
+    }
+
+    if (query.trim()) {
+      const lower = query.toLowerCase();
+      results = results.filter((template) => {
+        const tags = template.tags?.join(' ').toLowerCase() ?? '';
+        return (
+          template.name.toLowerCase().includes(lower) ||
+          (template.subject || '').toLowerCase().includes(lower) ||
+          tags.includes(lower)
+        );
+      });
+    }
+
+    if (mode === 'favorites') {
+      results = results.filter((template) => favoriteIds.includes(template.id));
+    }
+
+    if (mode === 'recent') {
+      const ordering = new Map(recentIds.map((id, index) => [id, index]));
+      results = results.filter((template) => recentIds.includes(template.id));
+      results.sort((a, b) => (ordering.get(a.id) ?? 9999) - (ordering.get(b.id) ?? 9999));
+    }
+
+    return results;
+  }, [templates, query, categoryFilter, mode, favoriteIds, recentIds]);
+
+  const persistFavorites = (nextIds: string[]) => {
+    setFavoriteIds(nextIds);
+    localStorage.setItem('template_favorites', JSON.stringify(nextIds));
+  };
+
+  const toggleFavorite = (templateId: string) => {
+    if (favoriteIds.includes(templateId)) {
+      persistFavorites(favoriteIds.filter((id) => id !== templateId));
+    } else {
+      persistFavorites([...favoriteIds, templateId]);
     }
   };
 
-  const handleCreateTemplate = async () => {
-    if (!name.trim()) {
-      setError('Template name is required.');
-      return;
-    }
-    if (!subject.trim()) {
-      setError('Subject is required.');
-      return;
-    }
-    if (!body.trim()) {
-      setError('Body is required.');
-      return;
-    }
+  const markRecent = (templateId: string) => {
+    const next = [templateId, ...recentIds.filter((id) => id !== templateId)].slice(0, 20);
+    setRecentIds(next);
+    localStorage.setItem('template_recent', JSON.stringify(next));
+  };
 
-    setIsCreating(true);
-    setError(null);
-    setSuccessMessage(null);
-
+  const handleCreateBlank = async () => {
+    if (!name.trim() || !subject.trim() || !htmlBody.trim()) {
+      addToast({ type: 'warning', title: 'Validation', message: 'Name, subject, and HTML body are required.' });
+      return;
+    }
+    setCreating(true);
     try {
-      const res = await post<any>('/templates', {
-          name: name.trim(),
-          subject: subject.trim(),
-          body: body.trim(),
-          textContent: body.trim().replace(/<[^>]*>/g, ''),
-          category: 'General',
-          tags: [],
-          metadata: '{}',
+      const template = await createTemplate({
+        name: name.trim(),
+        subject: subject.trim(),
+        body: htmlBody,
+        textContent: htmlBody.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+        category: 'General',
+        tags: [],
+        metadata: '{}',
       });
-      if (res && res.id) {
-        setTemplates((current) => [res, ...current]);
-        setName('');
-        setSubject('');
-        setBody('');
-        setSuccessMessage('Template created successfully');
-      } else {
-        setError('Unable to create template');
-      }
-    } catch (e: any) {
-      const msg = e?.response?.data?.error?.message || e?.message || 'Unable to create template';
-      setError(msg);
+      setTemplates((current) => [template, ...current]);
+      setName('');
+      setSubject('');
+      setHtmlBody('');
+      addToast({ type: 'success', title: 'Template created', message: `Created ${template.name}` });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Create failed',
+        message: error?.response?.data?.error?.message || 'Unable to create template.',
+      });
     } finally {
-      setIsCreating(false);
+      setCreating(false);
+    }
+  };
+
+  const handleUsePrebuilt = async (preset: (typeof PREBUILT_TEMPLATES)[number]) => {
+    try {
+      const template = await importTemplateHtml({
+        name: `${preset.name} ${new Date().toLocaleDateString()}`,
+        subject: preset.subject,
+        htmlContent: preset.html,
+        textContent: preset.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+        category: preset.category,
+        tags: ['prebuilt'],
+        metadata: JSON.stringify({ source: 'prebuilt', templateKey: preset.key }),
+        publish: false,
+      });
+      setTemplates((current) => [template, ...current]);
+      addToast({ type: 'success', title: 'Prebuilt template added', message: `${preset.name} ready to edit.` });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Prebuilt import failed',
+        message: error?.response?.data?.error?.message || 'Unable to import prebuilt template.',
+      });
+    }
+  };
+
+  const handleDuplicate = async (templateId: string) => {
+    try {
+      const source = await getTemplate(templateId);
+      const clone = await importTemplateHtml({
+        name: `${source.name} Copy`,
+        subject: source.subject || 'Untitled template',
+        htmlContent: source.htmlContent || source.draftHtmlContent || '<p></p>',
+        textContent: source.textContent || '',
+        category: source.category,
+        tags: source.tags ?? [],
+        metadata: source.metadata ?? '{}',
+        publish: false,
+      });
+      setTemplates((current) => [clone, ...current]);
+      addToast({ type: 'success', title: 'Template duplicated', message: `${source.name} copied.` });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Duplicate failed',
+        message: error?.response?.data?.error?.message || 'Unable to duplicate template.',
+      });
     }
   };
 
@@ -112,10 +216,8 @@ export default function EmailTemplatesPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-content-primary">Email Templates</h1>
-          <p className="mt-1 text-sm text-content-secondary">
-            Manage reusable email templates for campaigns and automations.
-          </p>
+          <h1 className="text-2xl font-bold text-content-primary">Template Studio</h1>
+          <p className="mt-1 text-sm text-content-secondary">Build reusable, branded email templates with versioned workflows.</p>
         </div>
         <Link href="/email">
           <Button variant="secondary">Back to Email Studio</Button>
@@ -123,81 +225,125 @@ export default function EmailTemplatesPage() {
       </div>
 
       <Card>
-        <CardHeader title="Create a template" action={<Plus size={16} />} />
-        <div className="grid gap-4 p-6 sm:grid-cols-2">
-          <Input
-            label="Template name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Spring promotion"
-          />
-          <Input
-            label="Subject"
-            value={subject}
-            onChange={(event) => setSubject(event.target.value)}
-            placeholder="Your next campaign subject"
-          />
+        <CardHeader title="Quick Start Library" subtitle="Start from professionally designed templates." />
+        <div className="grid gap-3 p-6 sm:grid-cols-2 xl:grid-cols-5">
+          {PREBUILT_TEMPLATES.map((preset) => (
+            <div key={preset.key} className="rounded-xl border border-border-default bg-surface-secondary p-3">
+              <p className="font-medium text-content-primary">{preset.name}</p>
+              <p className="mt-1 text-xs text-content-secondary">{preset.category}</p>
+              <p className="mt-2 line-clamp-2 text-xs text-content-muted">{preset.subject}</p>
+              <Button size="sm" className="mt-3 w-full" onClick={() => handleUsePrebuilt(preset)}>
+                Use Template
+              </Button>
+            </div>
+          ))}
         </div>
-        <div className="p-6">
-          <label className="mb-1 block text-sm font-medium text-content-primary">Body (HTML)</label>
-          <textarea
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            placeholder="<p>Your email content here</p>"
-            rows={4}
-            className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30 transition-all"
-          />
-        </div>
-        <div className="flex flex-wrap gap-3 p-6">
-          <Button onClick={handleCreateTemplate} loading={isCreating} disabled={isCreating}>
-            Create Template
-          </Button>
-          <span className="text-sm text-content-muted">Create a draft template and edit it later.</span>
-        </div>
-        {error ? <p className="px-6 text-sm text-danger">{error}</p> : null}
-        {successMessage ? <p className="px-6 text-sm text-success">{successMessage}</p> : null}
       </Card>
 
       <Card>
-        <CardHeader title="Templates" action={<span className="text-sm text-content-secondary">{templates.length} items</span>} />
-        <div className="overflow-hidden border-t border-border-default">
-          {isLoading ? (
-            <div className="p-8 text-sm text-content-secondary">Loading templates…</div>
-          ) : templates.length === 0 ? (
-            <EmptyState
-              type="empty"
-              title="No templates yet"
-              description="Create your first email template to store the content for your campaigns."
-              action={
-                <Button onClick={handleCreateTemplate} loading={isCreating}>
-                  Create your first template
-                </Button>
-              }
-            />
-          ) : (
-            <div className="grid gap-0 divide-y divide-border-default">
-              {templates.map((template) => (
-                <Link
-                  key={template.id}
-                  href={`/email/templates/${template.id}`}
-                  className="block p-4 hover:bg-surface-secondary"
-                >
-                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="font-semibold text-content-primary">{template.name}</p>
-                      <p className="text-sm text-content-secondary">{template.subject || 'No subject yet'}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-content-secondary">
-                      <span>{template.status}</span>
-                      <span>{template.templateType}</span>
-                      <span>{template.createdAt ? new Date(template.createdAt).toLocaleDateString() : ''}</span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+        <CardHeader title="Create Blank Template" />
+        <div className="grid gap-4 p-6 md:grid-cols-3">
+          <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} placeholder="May Newsletter" />
+          <Input label="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Latest product updates" />
+          <Button icon={<Plus size={16} />} loading={creating} disabled={creating} onClick={handleCreateBlank}>
+            Create Blank
+          </Button>
         </div>
+        <div className="p-6 pt-0">
+          <label className="mb-1 block text-sm font-medium text-content-primary">HTML Body</label>
+          <textarea
+            value={htmlBody}
+            onChange={(event) => setHtmlBody(event.target.value)}
+            rows={4}
+            className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+            placeholder="<h1>Template content</h1>"
+          />
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader
+          title="Template Library"
+          action={<Badge variant="info">{filteredTemplates.length} templates</Badge>}
+        />
+        <div className="grid gap-3 border-t border-border-default p-4 md:grid-cols-4">
+          <div className="md:col-span-2">
+            <Input
+              label="Search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search by name, subject, tags"
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-content-primary">Category</label>
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+            >
+              {categories.map((category) => (
+                <option key={category} value={category}>
+                  {category === 'all' ? 'All categories' : category}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-content-primary">Filter</label>
+            <select
+              value={mode}
+              onChange={(event) => setMode(event.target.value as FilterMode)}
+              className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+            >
+              <option value="all">All</option>
+              <option value="favorites">Favorites</option>
+              <option value="recent">Recent</option>
+            </select>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="p-8 text-sm text-content-secondary">Loading template library...</div>
+        ) : filteredTemplates.length === 0 ? (
+          <EmptyState
+            type="empty"
+            title="No templates found"
+            description="Adjust filters or create a new template to begin."
+          />
+        ) : (
+          <div className="divide-y divide-border-default">
+            {filteredTemplates.map((template) => (
+              <div key={template.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                <Link href={`/email/templates/${template.id}`} className="block flex-1" onClick={() => markRecent(template.id)}>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-content-primary">{template.name}</p>
+                    <Badge variant={template.status === 'PUBLISHED' ? 'success' : 'default'}>{template.status}</Badge>
+                    {template.category && <Badge variant="info">{template.category}</Badge>}
+                  </div>
+                  <p className="mt-1 text-sm text-content-secondary">{template.subject || 'No subject set'}</p>
+                </Link>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant={favoriteIds.includes(template.id) ? 'primary' : 'secondary'}
+                    onClick={() => toggleFavorite(template.id)}
+                  >
+                    <Star size={14} weight={favoriteIds.includes(template.id) ? 'fill' : 'regular'} />
+                    Favorite
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={() => handleDuplicate(template.id)}>
+                    <Copy size={14} />
+                    Duplicate
+                  </Button>
+                  <Link href={`/email/templates/${template.id}`}>
+                    <Button size="sm" icon={<Sparkle size={14} />}>Open Studio</Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

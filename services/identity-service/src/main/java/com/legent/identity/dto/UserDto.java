@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.List;
 
 public class UserDto {
 
@@ -42,7 +43,9 @@ public class UserDto {
         private String firstName;
         private String lastName;
         private String role;
+        private List<String> roles;
         private boolean isActive;
+        private Instant lastLoginAt;
         private Instant createdAt;
         private Instant updatedAt;
     }

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { getStoredTenantId } from '@/lib/auth';
 
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -48,9 +49,29 @@ const apiClient: AxiosInstance = axios.create({
 apiClient.interceptors.request.use((config) => {
   config.url = resolveApiUrl(config.url);
 
-  // Note: Auth token and tenantId are now sent automatically via HTTP-only cookies
-  // set by the backend AuthController. No manual header injection needed.
-  // This prevents XSS attacks from stealing session tokens.
+  if (typeof window !== 'undefined') {
+    const tenantId = getStoredTenantId();
+    const workspaceId = localStorage.getItem('legent_workspace_id');
+    const environmentId = localStorage.getItem('legent_environment_id');
+    const requestId =
+      (window.crypto && 'randomUUID' in window.crypto)
+        ? window.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    config.headers = config.headers ?? {};
+    if (tenantId && !config.headers['X-Tenant-Id']) {
+      config.headers['X-Tenant-Id'] = tenantId;
+    }
+    if (workspaceId && !config.headers['X-Workspace-Id']) {
+      config.headers['X-Workspace-Id'] = workspaceId;
+    }
+    if (environmentId && !config.headers['X-Environment-Id']) {
+      config.headers['X-Environment-Id'] = environmentId;
+    }
+    if (!config.headers['X-Request-Id']) {
+      config.headers['X-Request-Id'] = requestId;
+    }
+  }
 
   return config;
 });

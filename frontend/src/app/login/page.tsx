@@ -38,21 +38,18 @@ export default function LoginPage() {
     event.preventDefault();
     setError(null);
 
-    if (!tenantId.trim()) {
-      setError('Tenant ID is required.');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      localStorage.setItem(TENANT_STORAGE_KEY, tenantId.trim());
+      if (tenantId.trim()) {
+        localStorage.setItem(TENANT_STORAGE_KEY, tenantId.trim());
+      }
 
       // Call login endpoint - token is set in HTTP-only cookie by backend
       const response = await post<{ status: string; userId: string; tenantId: string; roles: string[] }>(
         '/auth/login',
         { email, password },
-        { headers: { 'X-Tenant-Id': tenantId.trim() } }
+        tenantId.trim() ? { headers: { 'X-Tenant-Id': tenantId.trim() } } : undefined
       );
 
       const data = (response as any).data || response;
@@ -98,13 +95,13 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-content-secondary" htmlFor="tenantId">
-              Tenant ID
+              Organization/Tenant ID (Optional)
             </label>
             <input
               id="tenantId"
               value={tenantId}
               onChange={(event) => setTenantId(event.target.value)}
-              placeholder="Enter tenant ID"
+              placeholder="Optional when you have a default membership"
               className="mt-2 w-full rounded-2xl border border-border-default bg-surface-primary px-4 py-3 text-sm text-content-primary placeholder:text-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>

@@ -2,6 +2,7 @@ package com.legent.delivery.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import java.util.Map;
 
@@ -16,24 +17,47 @@ import org.springframework.stereotype.Service;
 import java.util.Locale;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 
 @Slf4j
 @Service
 public class ProviderSelectionStrategy {
+    private static final Set<String> SMTP_COMPATIBLE_PROVIDER_TYPES = Set.of(
+            "SMTP",
+            "AWS_SES",
+            "SENDGRID",
+            "MAILGUN",
+            "BREVO",
+            "POSTMARK",
+            "SPARKPOST",
+            "POSTAL",
+            "HARAKA",
+            "POSTFIX",
+            "MAILHOG",
+            "MAILPIT",
+            "DOCKER_MAIL_SERVER",
+            "CUSTOM_SMTP"
+    );
 
     private final RoutingRuleRepository routingRuleRepository;
     private final SmtpProviderRepository smtpProviderRepository;
     private final ProviderCircuitBreaker circuitBreaker;
     private final Map<String, ProviderAdapter> adapters;
+    private final String defaultProviderHost;
+    private final int defaultProviderPort;
 
     public ProviderSelectionStrategy(
             RoutingRuleRepository routingRuleRepository,
             SmtpProviderRepository smtpProviderRepository,
             ProviderCircuitBreaker circuitBreaker,
-            List<ProviderAdapter> adapterList) {
+            List<ProviderAdapter> adapterList,
+            @Value("${MAIL_HOST:mailhog}") String defaultProviderHost,
+            @Value("${MAIL_PORT:1025}") int defaultProviderPort) {
         this.routingRuleRepository = routingRuleRepository;
         this.smtpProviderRepository = smtpProviderRepository;
         this.circuitBreaker = circuitBreaker;
+        this.defaultProviderHost = defaultProviderHost;
+        this.defaultProviderPort = defaultProviderPort;
         this.adapters = adapterList.stream()
                 .filter(adapter -> normalizeType(adapter.getProviderType()) != null)
                 .collect(Collectors.toMap(
@@ -70,6 +94,8 @@ public class ProviderSelectionStrategy {
                     .findByTenantIdAndIsActiveTrueOrderByPriorityAsc(normalizedTenantId);
             if (!providers.isEmpty()) {
                 providerConfig = providers.get(0);
+            } else {
+                providerConfig = createDefaultProvider(normalizedTenantId);
             }
         }
 
@@ -92,6 +118,14 @@ public class ProviderSelectionStrategy {
         ProviderAdapter adapter = providerType != null ? adapters.get(providerType) : null;
         if (adapter != null) {
             return new ProviderSelectionResult(adapter, providerConfig);
+        }
+
+        if (providerType != null && SMTP_COMPATIBLE_PROVIDER_TYPES.contains(providerType)) {
+            ProviderAdapter smtpAdapter = adapters.get("SMTP");
+            if (smtpAdapter != null) {
+                log.info("Using SMTP adapter for SMTP-compatible provider type '{}'", providerType);
+                return new ProviderSelectionResult(smtpAdapter, providerConfig);
+            }
         }
 
         ProviderAdapter fallbackAdapter = adapters.get("MOCK");
@@ -164,5 +198,21 @@ public class ProviderSelectionStrategy {
     private String normalizeType(String value) {
         String normalized = normalizeIdentifier(value);
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private SmtpProvider createDefaultProvider(String tenantId) {
+        SmtpProvider provider = new SmtpProvider();
+        provider.setTenantId(tenantId);
+        provider.setName("Default MailHog SMTP");
+        provider.setType("SMTP");
+        provider.setHost(defaultProviderHost);
+        provider.setPort(defaultProviderPort);
+        provider.setPriority(1);
+        provider.setActive(true);
+        provider.setHealthCheckEnabled(false);
+        provider.setHealthStatus("HEALTHY");
+        SmtpProvider saved = smtpProviderRepository.save(provider);
+        log.info("Auto-created default provider {} for tenant {}", saved.getId(), tenantId);
+        return saved;
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SmtpProviderRepository extends JpaRepository<SmtpProvider, String> {
     List<SmtpProvider> findByTenantIdAndIsActiveTrueOrderByPriorityAsc(String tenantId);
+    List<SmtpProvider> findByTenantIdOrderByPriorityAsc(String tenantId);
 
     @Query("SELECT p FROM SmtpProvider p WHERE p.isActive = true AND p.deletedAt IS NULL")
     List<SmtpProvider> findAllActiveProviders();

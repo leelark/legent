@@ -49,11 +49,20 @@ public class TemplateDto {
         private String id;
         private String name;
         private String subject;
+        private String htmlContent;
+        private String textContent;
         private String status;
         private String templateType;
         private String category;
         private List<String> tags;
         private String metadata;
+        private String draftSubject;
+        private String draftHtmlContent;
+        private String draftTextContent;
+        private Boolean approvalRequired;
+        private String currentApprover;
+        private Integer lastPublishedVersion;
+        private String lastPublishedAt;
         private String createdAt;
         private String updatedAt;
     }

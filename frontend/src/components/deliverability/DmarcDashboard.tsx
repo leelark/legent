@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card';
 export const DmarcDashboard: React.FC<{ domain: string }> = ({ domain }) => {
   const [reports, setReports] = useState<any[]>([]);
   useEffect(() => {
-    getDmarcReports(domain).then(setReports);
+    getDmarcReports(domain).then(setReports).catch(() => setReports([]));
   }, [domain]);
 
   if (!reports.length) return null;

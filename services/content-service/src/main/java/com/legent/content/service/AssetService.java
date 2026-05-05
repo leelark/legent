@@ -25,6 +25,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import jakarta.annotation.PostConstruct;
@@ -42,6 +44,9 @@ public class AssetService {
 
     @Value("${minio.bucket:legent-assets}")
     private String defaultBucket;
+
+    @Value("${legent.assets.max-size-bytes:26214400}")
+    private long maxAssetSizeBytes;
 
     @Value("${minio.endpoint}")
     private String minioEndpoint;
@@ -139,6 +144,38 @@ public class AssetService {
         return assetRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
     }
 
+    public Page<Asset> searchAssets(String tenantId, String query, String contentType, Pageable pageable) {
+        String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
+        String normalizedContentType = contentType == null || contentType.isBlank() ? null : contentType.trim();
+        return assetRepository.searchAssets(tenantId, normalizedQuery, normalizedContentType, pageable);
+    }
+
+    @Transactional
+    public List<Asset> uploadAssets(List<MultipartFile> files) {
+        List<Asset> uploadedAssets = new ArrayList<>();
+        if (files == null || files.isEmpty()) {
+            return uploadedAssets;
+        }
+        String tenantId = TenantContext.requireTenantId();
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) {
+                continue;
+            }
+            validateUploadFile(file);
+            String objectName = tenantId + "/" + java.util.UUID.randomUUID() + "_" + file.getOriginalFilename();
+            String url = uploadToMinio(file, objectName);
+            AssetDto.Create create = AssetDto.Create.builder()
+                    .name(file.getOriginalFilename())
+                    .url(url)
+                    .contentType(file.getContentType())
+                    .size(file.getSize())
+                    .metadata(Map.of("source", "bulk-upload"))
+                    .build();
+            uploadedAssets.add(createAsset(create));
+        }
+        return uploadedAssets;
+    }
+
     @Transactional
     public void deleteAsset(@NonNull String tenantId, @NonNull String id) {
         Asset asset = getAsset(tenantId, id);
@@ -205,6 +242,20 @@ public class AssetService {
             return asset.getFileName();
         } catch (IllegalArgumentException ignored) {
             return asset.getFileName();
+        }
+    }
+
+    private void validateUploadFile(MultipartFile file) {
+        String contentType = file.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            throw new IllegalArgumentException("Asset content type is required");
+        }
+        long size = file.getSize();
+        if (size <= 0) {
+            throw new IllegalArgumentException("Asset file is empty");
+        }
+        if (size > maxAssetSizeBytes) {
+            throw new IllegalArgumentException("Asset exceeds max upload size of " + maxAssetSizeBytes + " bytes");
         }
     }
 }

@@ -17,6 +17,27 @@ public class TemplateVersionDto {
     }
 
     @Data
+    public static class RollbackRequest {
+        private String reason;
+        private Boolean publish = true;
+    }
+
+    @Data
+    public static class CompareResponse {
+        private Integer leftVersion;
+        private Integer rightVersion;
+        private Boolean subjectChanged;
+        private Boolean htmlChanged;
+        private Boolean textChanged;
+        private String leftSubject;
+        private String rightSubject;
+        private Integer leftHtmlLength;
+        private Integer rightHtmlLength;
+        private Integer leftTextLength;
+        private Integer rightTextLength;
+    }
+
+    @Data
     public static class Response {
         private String id;
         private Integer versionNumber;

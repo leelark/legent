@@ -16,6 +16,8 @@ public final class AppConstants {
 
     // ── Headers ──
     public static final String HEADER_TENANT_ID = "X-Tenant-Id";
+    public static final String HEADER_WORKSPACE_ID = "X-Workspace-Id";
+    public static final String HEADER_ENVIRONMENT_ID = "X-Environment-Id";
     public static final String HEADER_CORRELATION_ID = "X-Correlation-Id";
     public static final String HEADER_REQUEST_ID = "X-Request-Id";
     public static final String HEADER_AUTHORIZATION = "Authorization";

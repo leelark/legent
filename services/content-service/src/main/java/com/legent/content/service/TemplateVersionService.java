@@ -12,6 +12,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class TemplateVersionService {
@@ -26,22 +29,22 @@ public class TemplateVersionService {
         EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
 
-        int nextVersion = versionRepository.countByTemplate_IdAndTenantId(templateId, tenantId) + 1;
+        int nextVersion = nextVersionNumber(templateId, tenantId);
 
         TemplateVersion version = new TemplateVersion();
         version.setTenantId(tenantId);
         version.setTemplate(template);
         version.setVersionNumber(nextVersion);
-        version.setSubject(request.getSubject());
-        version.setHtmlContent(request.getHtmlContent());
-        version.setTextContent(request.getTextContent());
+        version.setSubject(request.getSubject() != null ? request.getSubject() : template.getSubject());
+        version.setHtmlContent(request.getHtmlContent() != null ? request.getHtmlContent() : template.getHtmlContent());
+        version.setTextContent(request.getTextContent() != null ? request.getTextContent() : template.getTextContent());
         version.setChanges(request.getChanges());
         version.setIsPublished(Boolean.TRUE.equals(request.getPublish()));
 
         version = versionRepository.save(version);
 
         if (Boolean.TRUE.equals(request.getPublish())) {
-            publishTemplateVersion(template, version);
+            publishTemplateVersion(template, version, tenantId);
         }
 
         return version;
@@ -58,10 +61,19 @@ public class TemplateVersionService {
 
         version.setIsPublished(true);
         versionRepository.save(version);
-        return publishTemplateVersion(template, version);
+        return publishTemplateVersion(template, version, tenantId);
     }
 
-    private TemplateVersion publishTemplateVersion(EmailTemplate template, TemplateVersion version) {
+    private TemplateVersion publishTemplateVersion(EmailTemplate template, TemplateVersion version, String tenantId) {
+        List<TemplateVersion> allVersions = versionRepository.findByTemplate_IdAndTenantIdOrderByVersionNumberDesc(template.getId(), tenantId);
+        for (TemplateVersion current : allVersions) {
+            boolean shouldBePublished = Objects.equals(current.getVersionNumber(), version.getVersionNumber());
+            if (!Objects.equals(current.getIsPublished(), shouldBePublished)) {
+                current.setIsPublished(shouldBePublished);
+                versionRepository.save(current);
+            }
+        }
+
         template.setSubject(version.getSubject());
         template.setHtmlContent(version.getHtmlContent());
         template.setTextContent(version.getTextContent());
@@ -82,5 +94,80 @@ public class TemplateVersionService {
         String tenantId = TenantContext.requireTenantId();
         return versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId)
                 .orElseThrow(() -> new NotFoundException("No versions found for template: " + templateId));
+    }
+
+    @Transactional(readOnly = true)
+    public TemplateVersion getLatestPublishedVersion(String templateId) {
+        String tenantId = TenantContext.requireTenantId();
+        return versionRepository.findFirstByTemplate_IdAndTenantIdAndIsPublishedTrueOrderByVersionNumberDesc(templateId, tenantId)
+                .orElseGet(() -> getLatestVersion(templateId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateVersion> listVersions(String templateId) {
+        String tenantId = TenantContext.requireTenantId();
+        templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Template not found"));
+        return versionRepository.findByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId);
+    }
+
+    @Transactional
+    public TemplateVersion rollbackVersion(String templateId, Integer versionNumber, String reason, boolean publish) {
+        String tenantId = TenantContext.requireTenantId();
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+                .orElseThrow(() -> new NotFoundException("Template not found"));
+        TemplateVersion sourceVersion = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, versionNumber, tenantId)
+                .orElseThrow(() -> new NotFoundException("Template version not found"));
+
+        TemplateVersion rollbackVersion = new TemplateVersion();
+        rollbackVersion.setTenantId(tenantId);
+        rollbackVersion.setTemplate(template);
+        rollbackVersion.setVersionNumber(nextVersionNumber(templateId, tenantId));
+        rollbackVersion.setSubject(sourceVersion.getSubject());
+        rollbackVersion.setHtmlContent(sourceVersion.getHtmlContent());
+        rollbackVersion.setTextContent(sourceVersion.getTextContent());
+        rollbackVersion.setChanges(reason != null && !reason.isBlank()
+                ? reason
+                : "Rollback from version " + versionNumber);
+        rollbackVersion.setIsPublished(publish);
+
+        rollbackVersion = versionRepository.save(rollbackVersion);
+        if (publish) {
+            return publishTemplateVersion(template, rollbackVersion, tenantId);
+        }
+        return rollbackVersion;
+    }
+
+    @Transactional(readOnly = true)
+    public TemplateVersionDto.CompareResponse compareVersions(String templateId, Integer leftVersionNumber, Integer rightVersionNumber) {
+        String tenantId = TenantContext.requireTenantId();
+        TemplateVersion left = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, leftVersionNumber, tenantId)
+                .orElseThrow(() -> new NotFoundException("Template version not found: " + leftVersionNumber));
+        TemplateVersion right = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, rightVersionNumber, tenantId)
+                .orElseThrow(() -> new NotFoundException("Template version not found: " + rightVersionNumber));
+
+        TemplateVersionDto.CompareResponse response = new TemplateVersionDto.CompareResponse();
+        response.setLeftVersion(leftVersionNumber);
+        response.setRightVersion(rightVersionNumber);
+        response.setLeftSubject(left.getSubject());
+        response.setRightSubject(right.getSubject());
+        response.setSubjectChanged(!Objects.equals(left.getSubject(), right.getSubject()));
+        response.setHtmlChanged(!Objects.equals(left.getHtmlContent(), right.getHtmlContent()));
+        response.setTextChanged(!Objects.equals(left.getTextContent(), right.getTextContent()));
+        response.setLeftHtmlLength(lengthOf(left.getHtmlContent()));
+        response.setRightHtmlLength(lengthOf(right.getHtmlContent()));
+        response.setLeftTextLength(lengthOf(left.getTextContent()));
+        response.setRightTextLength(lengthOf(right.getTextContent()));
+        return response;
+    }
+
+    private int nextVersionNumber(String templateId, String tenantId) {
+        return versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId)
+                .map(TemplateVersion::getVersionNumber)
+                .orElse(0) + 1;
+    }
+
+    private Integer lengthOf(String value) {
+        return value == null ? 0 : value.length();
     }
 }

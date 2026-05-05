@@ -38,7 +38,9 @@ class ProviderSelectionStrategyTest {
                 routingRuleRepository,
                 smtpProviderRepository,
                 circuitBreaker,
-                List.of(smtpAdapter, mockAdapter)
+                List.of(smtpAdapter, mockAdapter),
+                "mailhog",
+                1025
         );
     }
 
@@ -73,7 +75,7 @@ class ProviderSelectionStrategyTest {
     }
 
     @Test
-    void selectProvider_whenAdapterMissing_fallsBackToMock() {
+    void selectProvider_whenSmtpCompatibleType_usesSmtpAdapter() {
         SmtpProvider provider = activeProvider("AWS_SES");
         RoutingRule rule = new RoutingRule();
         rule.setProvider(provider);
@@ -83,13 +85,13 @@ class ProviderSelectionStrategyTest {
 
         ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider("tenant-1", "example.com");
 
-        assertSame(mockAdapter, result.adapter());
+        assertSame(smtpAdapter, result.adapter());
         assertSame(provider, result.dbRecord());
     }
 
     @Test
     void selectProvider_whenNoMatchingAdapterAndNoFallback_throws() {
-        SmtpProvider provider = activeProvider("AWS_SES");
+        SmtpProvider provider = activeProvider("UNKNOWN_VENDOR");
         RoutingRule rule = new RoutingRule();
         rule.setProvider(provider);
 
@@ -100,7 +102,9 @@ class ProviderSelectionStrategyTest {
                 routingRuleRepository,
                 smtpProviderRepository,
                 circuitBreaker,
-                List.of(smtpAdapter)
+                List.of(smtpAdapter),
+                "mailhog",
+                1025
         );
 
         assertThrows(IllegalStateException.class, () -> noFallbackStrategy.selectProvider("tenant-1", "example.com"));

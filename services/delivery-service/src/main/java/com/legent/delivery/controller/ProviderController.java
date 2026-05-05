@@ -9,6 +9,7 @@ import com.legent.delivery.adapter.impl.SmtpProviderAdapter;
 import com.legent.delivery.dto.SmtpProviderDto;
 import com.legent.delivery.repository.SmtpProviderRepository;
 import com.legent.delivery.service.CredentialEncryptionService;
+import com.legent.delivery.service.ProviderHealthMonitoringService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,15 +23,47 @@ public class ProviderController {
     private final SmtpProviderRepository repository;
     private final CredentialEncryptionService encryptionService;
     private final SmtpProviderAdapter smtpProviderAdapter;
+    private final ProviderHealthMonitoringService healthMonitoringService;
 
     @GetMapping
-    public ApiResponse<List<SmtpProviderDto.Response>> list() {
+    public ApiResponse<List<SmtpProviderDto.Response>> list(
+            @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive) {
         String tenantId = TenantContext.getTenantId();
-        List<SmtpProvider> providers = repository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc(tenantId);
+        List<SmtpProvider> providers = includeInactive
+            ? repository.findByTenantIdOrderByPriorityAsc(tenantId)
+            : repository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc(tenantId);
         List<SmtpProviderDto.Response> responses = providers.stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
         return ApiResponse.ok(responses);
+    }
+
+    @GetMapping("/health")
+    public ApiResponse<List<SmtpProviderDto.ProviderHealthResponse>> health() {
+        String tenantId = TenantContext.getTenantId();
+        List<SmtpProvider> providers = repository.findByTenantIdOrderByPriorityAsc(tenantId);
+        List<SmtpProviderDto.ProviderHealthResponse> responses = providers.stream()
+                .map(provider -> SmtpProviderDto.ProviderHealthResponse.builder()
+                        .id(provider.getId())
+                        .name(provider.getName())
+                        .type(provider.getType())
+                        .isActive(provider.isActive())
+                        .healthStatus(provider.getHealthStatus())
+                        .lastHealthCheckAt(provider.getLastHealthCheckAt())
+                        .priority(provider.getPriority())
+                        .build())
+                .toList();
+        return ApiResponse.ok(responses);
+    }
+
+    @PostMapping("/{id}/test")
+    public ApiResponse<SmtpProviderDto.Response> testProvider(@PathVariable String id) {
+        SmtpProvider provider = repository.findById(id)
+                .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
+                .orElseThrow(() -> new RuntimeException("Provider not found"));
+        healthMonitoringService.checkProviderHealth(provider);
+        SmtpProvider refreshed = repository.findById(id).orElse(provider);
+        return ApiResponse.ok(mapToResponse(refreshed));
     }
 
     @PostMapping
@@ -52,6 +85,14 @@ public class ProviderController {
         }
         provider.setPriority(request.getPriority() != null ? request.getPriority() : 1);
         provider.setMaxSendRate(request.getMaxSendRate());
+        provider.setActive(request.getIsActive() == null || request.getIsActive());
+        if (request.getHealthCheckEnabled() != null) {
+            provider.setHealthCheckEnabled(request.getHealthCheckEnabled());
+        }
+        provider.setHealthCheckUrl(request.getHealthCheckUrl());
+        if (request.getHealthCheckIntervalSeconds() != null) {
+            provider.setHealthCheckIntervalSeconds(request.getHealthCheckIntervalSeconds());
+        }
 
         provider = repository.save(provider);
         return ApiResponse.ok(mapToResponse(provider));
@@ -78,6 +119,16 @@ public class ProviderController {
             provider.setPriority(request.getPriority());
         }
         provider.setMaxSendRate(request.getMaxSendRate());
+        if (request.getIsActive() != null) {
+            provider.setActive(request.getIsActive());
+        }
+        if (request.getHealthCheckEnabled() != null) {
+            provider.setHealthCheckEnabled(request.getHealthCheckEnabled());
+        }
+        provider.setHealthCheckUrl(request.getHealthCheckUrl());
+        if (request.getHealthCheckIntervalSeconds() != null) {
+            provider.setHealthCheckIntervalSeconds(request.getHealthCheckIntervalSeconds());
+        }
 
         provider = repository.save(provider);
         
@@ -112,6 +163,11 @@ public class ProviderController {
             .isActive(p.isActive())
             .priority(p.getPriority())
             .maxSendRate(p.getMaxSendRate())
+            .healthCheckEnabled(p.isHealthCheckEnabled())
+            .healthCheckUrl(p.getHealthCheckUrl())
+            .healthCheckIntervalSeconds(p.getHealthCheckIntervalSeconds())
+            .healthStatus(p.getHealthStatus())
+            .lastHealthCheckAt(p.getLastHealthCheckAt())
             .createdAt(p.getCreatedAt())
             .build();
     }

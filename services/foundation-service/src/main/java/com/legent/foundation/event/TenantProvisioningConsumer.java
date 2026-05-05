@@ -2,11 +2,10 @@ package com.legent.foundation.event;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.common.event.UserSignedUpEvent;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.foundation.domain.Tenant;
 import com.legent.foundation.repository.TenantRepository;
 import com.legent.kafka.model.EventEnvelope;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -23,13 +22,19 @@ public class TenantProvisioningConsumer {
 
     @Transactional
     @KafkaListener(topics = AppConstants.TOPIC_IDENTITY_USER_SIGNUP, groupId = AppConstants.GROUP_FOUNDATION_PROVISIONING)
-    public void handleUserSignedUp(String message) {
+    public void handleUserSignedUp(EventEnvelope<?> envelope) {
         try {
-            EventEnvelope<UserSignedUpEvent> envelope = objectMapper.readValue(message, 
-                    new TypeReference<EventEnvelope<UserSignedUpEvent>>() {});
-            
-            UserSignedUpEvent event = envelope.getPayload();
+            if (envelope == null) {
+                log.warn("Invalid signup envelope received: null envelope");
+                return;
+            }
+
+            UserSignedUpEvent event = objectMapper.convertValue(envelope.getPayload(), UserSignedUpEvent.class);
             String tenantId = envelope.getTenantId();
+            if (event == null || tenantId == null || tenantId.isBlank()) {
+                log.warn("Invalid signup envelope received: eventId={}", envelope != null ? envelope.getEventId() : "unknown");
+                return;
+            }
 
             log.info("Provisioning tenant for signup: tenantId={}, company={}", tenantId, event.getCompanyName());
 
@@ -49,7 +54,7 @@ public class TenantProvisioningConsumer {
             log.info("Tenant provisioned successfully: {}", tenantId);
 
         } catch (Exception e) {
-            log.error("Failed to process tenant provisioning for message: {}", message, e);
+            log.error("Failed to process tenant provisioning for eventId={}", envelope != null ? envelope.getEventId() : "unknown", e);
         }
     }
 }

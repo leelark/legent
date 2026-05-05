@@ -16,5 +16,13 @@ public class UserPrincipal {
 
     private String userId;
     private String tenantId;
+    private String workspaceId;
+    private String environmentId;
     private Set<String> roles;
+
+    public UserPrincipal(String userId, String tenantId, Set<String> roles) {
+        this.userId = userId;
+        this.tenantId = tenantId;
+        this.roles = roles;
+    }
 }

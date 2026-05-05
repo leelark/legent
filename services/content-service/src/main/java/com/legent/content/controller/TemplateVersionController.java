@@ -7,6 +7,7 @@ import com.legent.content.dto.TemplateVersionDto;
 import com.legent.content.service.TemplateVersionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
@@ -34,10 +35,24 @@ public class TemplateVersionController {
         return ApiResponse.ok(mapToResponse(version));
     }
 
+    @GetMapping
+    public ApiResponse<List<TemplateVersionDto.Response>> listVersions(@PathVariable String templateId) {
+        List<TemplateVersion> versions = versionService.listVersions(templateId);
+        return ApiResponse.ok(versions.stream().map(this::mapToResponse).toList());
+    }
+
     @GetMapping("/latest")
     public ApiResponse<TemplateVersionDto.Response> getLatestVersion(@PathVariable String templateId) {
-        TemplateVersion version = versionService.getLatestVersion(templateId);
+        TemplateVersion version = versionService.getLatestPublishedVersion(templateId);
         return ApiResponse.ok(mapToResponse(version));
+    }
+
+    @GetMapping("/compare")
+    public ApiResponse<TemplateVersionDto.CompareResponse> compareVersions(
+            @PathVariable String templateId,
+            @RequestParam("left") Integer leftVersion,
+            @RequestParam("right") Integer rightVersion) {
+        return ApiResponse.ok(versionService.compareVersions(templateId, leftVersion, rightVersion));
     }
 
     private TemplateVersionDto.Response mapToResponse(TemplateVersion version) {

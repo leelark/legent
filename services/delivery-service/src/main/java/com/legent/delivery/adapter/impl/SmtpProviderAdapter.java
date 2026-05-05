@@ -43,23 +43,30 @@ public class SmtpProviderAdapter implements ProviderAdapter {
     }
 
     private JavaMailSender getJavaMailSender(SmtpProvider config) {
-        if (config.getHost() == null || config.getPort() == null || config.getUsername() == null) {
-            throw new IllegalArgumentException("Provider credentials are missing or invalid");
+        if (config.getHost() == null || config.getHost().isBlank() || config.getPort() == null) {
+            throw new IllegalArgumentException("Provider host/port are missing or invalid");
         }
         String cacheKey = buildCacheKey(config);
         return senderCache.computeIfAbsent(cacheKey, key -> {
             org.springframework.mail.javamail.JavaMailSenderImpl mailSender = new org.springframework.mail.javamail.JavaMailSenderImpl();
             mailSender.setHost(config.getHost());
             mailSender.setPort(config.getPort());
-            mailSender.setUsername(config.getUsername());
-            String password = resolvePassword(config);
-            if (password != null && !password.isBlank()) {
-                mailSender.setPassword(password);
+
+            boolean hasUsername = config.getUsername() != null && !config.getUsername().isBlank();
+            if (hasUsername) {
+                mailSender.setUsername(config.getUsername());
+                String password = resolvePassword(config);
+                if (password != null && !password.isBlank()) {
+                    mailSender.setPassword(password);
+                }
             }
+
             java.util.Properties props = mailSender.getJavaMailProperties();
             props.put("mail.transport.protocol", "smtp");
-            props.put("mail.smtp.auth", "true");
-            props.put("mail.smtp.starttls.enable", "true");
+            props.put("mail.smtp.auth", String.valueOf(hasUsername));
+            boolean startTls = config.getPort() != null && config.getPort() == 587;
+            props.put("mail.smtp.starttls.enable", String.valueOf(startTls));
+            props.put("mail.smtp.starttls.required", String.valueOf(startTls));
             return mailSender;
         });
     }

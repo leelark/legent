@@ -17,7 +17,7 @@ class TemplateServiceTest {
         StringTemplateResolver resolver = new StringTemplateResolver();
         engine.setTemplateResolver(resolver);
         
-        TemplateService service = new TemplateService(null, engine, null);
+        TemplateService service = new TemplateService(null, engine, null, null);
 
         EmailTemplate template = new EmailTemplate();
         template.setHtmlContent("Hello, [[${name}]]!");

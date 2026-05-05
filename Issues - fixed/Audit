@@ -1,0 +1,442 @@
+audit_meta:
+  mode: caveman
+  date: "2026-05-05"
+  repo: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2"
+  scope_scan:
+    services_file_count: 1279
+    frontend_route_files: 28
+    frontend_component_files: 36
+    shared_file_count: 164
+    backend_test_files: 29
+    frontend_test_files: 7
+    kafka_listeners: 15
+    kafka_publish_calls: 46
+  runtime_validation:
+    docker_compose_ps: "all core containers up, mostly healthy"
+    direct_service_health: "8081..8090 actuator health all 200"
+    gateway_health_path: "http://localhost:8080/api/v1/health => 502"
+    e2e_flow_script: "simulate_e2e_flow.py run twice: one fail(0 targets), one pass(1 target)"
+
+phase_1_current_architecture_map:
+  containers_services:
+    app_services:
+      - foundation-service:8081
+      - audience-service:8082
+      - campaign-service:8083
+      - delivery-service:8084
+      - tracking-service:8085
+      - automation-service:8086
+      - deliverability-service:8087
+      - platform-service:8088
+      - identity-service:8089
+      - content-service:8090
+      - frontend:3000
+      - gateway(nginx):8080
+    infra_services:
+      - postgres:5432
+      - redis:6379
+      - kafka:9092/29092
+      - zookeeper:2181
+      - clickhouse:8123/9009
+      - opensearch:9200
+      - minio:9000/9001
+      - mailhog:1025/8025
+      - kafka-ui:8091
+  data_stores:
+    postgres_dbs:
+      - legent_foundation
+      - legent_identity
+      - legent_audience
+      - legent_content
+      - legent_campaign
+      - legent_delivery
+      - legent_tracking
+      - legent_automation
+      - legent_deliverability
+      - legent_platform
+    redis_use: "cache + circuit-breaker counters + transient state"
+    clickhouse_use: "analytics store"
+    minio_use: "assets/import files"
+    opensearch_use: "search index infra present"
+  service_api_surface:
+    gateway_routes_config: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\config\\nginx\\nginx.conf"
+    major_api_domains:
+      - auth/users
+      - tenants/config/feature-flags/admin
+      - subscribers/lists/segments/imports/data-extensions/suppressions
+      - templates/content/assets/emails
+      - campaigns/send-jobs
+      - providers
+      - workflows/workflow-definitions
+      - tracking/analytics/events
+      - deliverability/reputation/dmarc
+      - platform webhooks/search/notifications/config
+  event_flow_map:
+    baseline_flows:
+      - "Campaign -> send.requested -> audience resolution -> batch created -> delivery -> tracking"
+      - "Automation trigger -> workflow engine -> send email action -> delivery"
+      - "Identity signup -> foundation tenant provisioning"
+      - "Delivery feedback(bounce/unsub) -> audience suppression/subscriber status"
+    kafka_topic_bootstrap: "large topic set pre-created in docker-compose"
+  schema_depth_from_migrations_create_table_count:
+    foundation-service: 15
+    identity-service: 3
+    audience-service: 16
+    content-service: 9
+    campaign-service: 10
+    delivery-service: 9
+    tracking-service: 7
+    automation-service: 4
+    deliverability-service: 6
+    platform-service: 6
+  critical_runtime_findings:
+    - id: RT-001
+      severity: critical
+      finding: "Gateway returns 502 for most API routes"
+      evidence:
+        - "docker logs legent-gateway: connect() failed (111: Connection refused) to upstream IPs"
+        - "frontend pages call /api/v1/* and receive 502"
+      likely_cause: "gateway started earlier, upstream IPs stale after service recreation; nginx static DNS resolution behavior"
+    - id: RT-002
+      severity: critical
+      finding: "Kafka message contract mismatch in consumers"
+      evidence:
+        - "foundation consumer cannot convert EventEnvelope to String for identity.user.signup"
+        - "audience consumer cannot convert EventEnvelope to String for email.bounced"
+        - "delivery failed-consumer same conversion mismatch"
+      impacted_files:
+        - "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\foundation-service\\src\\main\\java\\com\\legent\\foundation\\event\\TenantProvisioningConsumer.java"
+        - "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\audience-service\\src\\main\\java\\com\\legent\\audience\\event\\DeliveryEventConsumer.java"
+        - "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\delivery-service\\src\\main\\java\\com\\legent\\delivery\\event\\EmailFailedConsumer.java"
+    - id: RT-003
+      severity: high
+      finding: "Delivery failed-consumer requires manual ack but listener container not manual ack mode"
+      evidence:
+        - "No Acknowledgment available ... must have MANUAL AckMode"
+    - id: RT-004
+      severity: high
+      finding: "Audience suppression sync with deliverability failing auth"
+      evidence:
+        - "audience logs: Failed to fetch suppressions: 403 FORBIDDEN"
+    - id: RT-005
+      severity: medium
+      finding: "Topic partition mismatch warnings across services"
+      evidence:
+        - "Topic 'email.sent' exists with partition count 6 not 3"
+        - "Topic 'tracking.ingested' exists with partition count 6 not 3"
+    - id: RT-006
+      severity: medium
+      finding: "Provider setup missing by default breaks real sends"
+      evidence:
+        - "No active SMTP provider configured for tenant"
+
+phase_2_module_readiness_score:
+  platform_core:
+    readiness_pct: 46
+    production_readiness_score_10: 3.8
+    has:
+      - tenant model + lifecycle
+      - config + feature flags + audit + branding/admin configs
+      - auth + RBAC evaluator
+    missing:
+      - organizations/workspaces/teams hierarchy
+      - environment isolation model per tenant workspace
+      - usage quotas billing metering visibility
+      - strong service-isolation guardrails
+    major_design_issues:
+      - "single-role user model, no hierarchical membership graph"
+  email_provider_platform:
+    readiness_pct: 56
+    production_readiness_score_10: 4.5
+    has:
+      - provider CRUD + active/inactive + priority
+      - provider selection + failover + circuit breaker
+      - provider health records + endpoint
+      - SMTP and mock adapter
+    missing:
+      - true provider marketplace catalog
+      - paid-provider native adapters (SES/SendGrid/Mailgun/Postmark/Brevo/SparkPost)
+      - quota and spend/cost analytics
+      - robust credential validation and rotation UX
+    major_design_issues:
+      - "health check logic partially simulated"
+  template_builder:
+    readiness_pct: 41
+    production_readiness_score_10: 3.6
+    has:
+      - template CRUD
+      - versions + publish/latest
+      - content blocks + assets + HTML render
+      - template approval service code
+    missing:
+      - enterprise drag-drop editor
+      - reusable snippets library management
+      - autosave/rollback UX
+      - import/export ZIP/HTML flows
+      - inbox/spam/dark-mode preview matrix
+    major_design_issues:
+      - "approval workflow service exists but not API-exposed"
+  audience_crm:
+    readiness_pct: 57
+    production_readiness_score_10: 4.6
+    has:
+      - subscribers/lists/segments/tags-like via custom fields
+      - suppression list
+      - CSV import pipeline with chunk processing
+      - data extensions endpoints
+    missing:
+      - lifecycle stages/scoring engine
+      - preference center/unsubscribe center UX
+      - enrichment pipelines
+      - stronger dedupe policy controls
+    major_design_issues:
+      - "delivery feedback event type mapping inconsistent (EmailBounced vs email.bounced)"
+  campaign_management:
+    readiness_pct: 52
+    production_readiness_score_10: 4.3
+    has:
+      - campaign CRUD
+      - send job create/status
+      - batch/partial retry logic
+      - scheduling primitives
+      - approval service code
+    missing:
+      - full lifecycle controls (pause/resume/cancel/retry/resend endpoints)
+      - recurring + triggered orchestration UX/API completeness
+      - A/B and multivariate testing
+      - approval API/UI end-to-end
+    major_design_issues:
+      - "approval logic implemented but not controller-exposed"
+  automation_journey_builder:
+    readiness_pct: 38
+    production_readiness_score_10: 3.2
+    has:
+      - workflow entity + definition
+      - workflow engine with node execution
+      - delay/condition/send-email handlers
+      - trigger consumer
+    missing:
+      - full workflow CRUD/version/publish/rollback/simulation endpoints
+      - visual builder persistence contract completeness
+      - execution tracing UI
+    major_design_issues:
+      - "controller explicitly says omitted for brevity"
+  delivery_engine:
+    readiness_pct: 63
+    production_readiness_score_10: 5.0
+    has:
+      - queue-driven send pipeline
+      - retries + DLQ topics
+      - provider failover/circuit breaker
+      - idempotency key usage in orchestration
+    missing:
+      - proven replay tooling UX
+      - backpressure governance and queue storm controls
+      - throughput test proof for 500k/10h
+    major_design_issues:
+      - "failed-consumer broken by payload+ack config mismatch"
+  deliverability_reputation:
+    readiness_pct: 49
+    production_readiness_score_10: 4.0
+    has:
+      - domain endpoints
+      - suppression + DMARC/report endpoints
+      - reputation endpoint baseline
+    missing:
+      - real automated warm-up workflows
+      - blacklist detection + feedback loop integrations full stack
+      - inbox placement optimization intelligence
+    major_design_issues:
+      - "mock DNS toggle and partial simulation reduce production confidence"
+  tracking_analytics:
+    readiness_pct: 54
+    production_readiness_score_10: 4.4
+    has:
+      - open/click/conversion ingest
+      - analytics/funnel/segment endpoints
+      - clickhouse + postgres usage
+    missing:
+      - advanced attribution/revenue model
+      - enterprise dashboard/report builder
+      - near-real-time SLA monitoring
+    major_design_issues:
+      - "mixed/duplicate tracking endpoint styles add contract drift risk"
+  frontend_experience:
+    readiness_pct: 36
+    production_readiness_score_10: 2.9
+    has:
+      - modern Next.js shell/routes
+      - key module screens exist
+    missing:
+      - reliable API flow through gateway
+      - enterprise-grade journey/template UX depth
+      - consistent production polish across modules
+    major_design_issues:
+      - "many flows blocked by gateway 502"
+      - "hardcoded placeholders like yourdomain.com and template UUID entry"
+  local_runtime_devex:
+    readiness_pct: 47
+    production_readiness_score_10: 3.9
+    has:
+      - dockerized full stack
+      - health checks
+      - topic bootstrap
+    missing:
+      - stable gateway-to-service networking across restarts
+      - robust CI workflows
+      - load test and chaos validation suite
+    major_design_issues:
+      - "runtime says healthy but user-facing APIs fail via gateway"
+
+phase_3_gap_analysis_vs_salesforce_like_platform:
+  missing_features:
+    - "true multi-tenant org/workspace/team membership graph"
+    - "enterprise RBAC with custom roles + scoped permissions"
+    - "billing/subscription/quota metering and enforcement"
+    - "native paid-provider adapters and provider marketplace UX"
+    - "advanced template studio drag-drop + snippet marketplace + approvals UI"
+    - "campaign A/B and multivariate testing"
+    - "journey versioning/publish/simulate/rollback UX/API completeness"
+    - "deliverability warm-up, blacklist intelligence, inbox placement scoring"
+    - "attribution/revenue analytics and executive reporting"
+  weak_implementations:
+    - "approval services in code but not exposed in API flow"
+    - "event consumer payload contracts inconsistent"
+    - "health monitoring partly simulated"
+    - "gateway upstream resolution brittle"
+  ux_gaps:
+    - "manual UUID entry UX in campaign creation"
+    - "automation builder includes unrelated hardcoded domain widgets"
+    - "admin panels basic forms, not enterprise console workflow"
+  scalability_gaps:
+    - "no proven benchmark for 500k emails/10h"
+    - "no load/soak test suite"
+    - "partition/count config drift warnings"
+    - "error handler no retry backoff depth for critical consumer failures"
+  architectural_gaps:
+    - "domain model missing workspace/team boundaries"
+    - "event contracts not centrally enforced with schema registry-like checks"
+    - "gateway runtime coupling to container IP lifecycle"
+  operational_gaps:
+    - "no .github/workflows CI dir"
+    - "repo contains built artifacts in service target dirs"
+    - "default placeholder secrets in .env"
+    - "opensearch memory near limit (~990MiB/1GiB in sampled stats)"
+
+phase_4_code_quality_audit:
+  dead_or_unreachable_code:
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\campaign-service\\src\\main\\java\\com\\legent\\campaign\\service\\CampaignWorkflowService.java"
+      issue: "service exists, no controller wiring found"
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\content-service\\src\\main\\java\\com\\legent\\content\\service\\TemplateWorkflowService.java"
+      issue: "service exists, no controller wiring found"
+  duplicate_or_confusing_contracts:
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\tracking-service\\src\\main\\java\\com\\legent\\tracking\\controller\\TrackingController.java"
+      issue: "tracking route style /api/v1/track"
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\tracking-service\\src\\main\\java\\com\\legent\\tracking\\controller\\IngestionController.java"
+      issue: "tracking route style /api/v1/tracking, overlaps domain semantics"
+  broken_code_paths:
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\foundation-service\\src\\main\\java\\com\\legent\\foundation\\event\\TenantProvisioningConsumer.java"
+      issue: "listener signature String but runtime payload EventEnvelope object conversion fails"
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\audience-service\\src\\main\\java\\com\\legent\\audience\\event\\DeliveryEventConsumer.java"
+      issue: "listener conversion fails + eventType check expects EmailBounced/EmailUnsubscribed, runtime publishes email.bounced/email.unsubscribed style"
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\delivery-service\\src\\main\\java\\com\\legent\\delivery\\event\\EmailFailedConsumer.java"
+      issue: "manual ack arg without MANUAL ack mode + conversion mismatch"
+  partial_placeholder_implementation:
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\automation-service\\src\\main\\java\\com\\legent\\automation\\controller\\WorkflowController.java"
+      issue: "comment says versioning/upserts omitted for brevity"
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\services\\audience-service\\src\\main\\java\\com\\legent\\audience\\controller\\ImportController.java"
+      issue: "/mock import endpoint present in production API surface"
+  hardcoded_and_security_debt:
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.env"
+      issue: "placeholder secrets + local defaults"
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\frontend\\src\\app\\(workspace)\\automations\\builder\\page.tsx"
+      issue: "hardcoded domain value yourdomain.com"
+    - path: "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\frontend\\src\\app\\(workspace)\\campaigns\\new\\page.tsx"
+      issue: "template UUID manual placeholder hints incomplete UX"
+  repo_hygiene_debt:
+    - issue: "10 service target directories committed in workspace tree"
+    - issue: "large Issues - fixed audit dumps in repo tree increase noise"
+    - issue: "no .github/workflows pipeline directory"
+
+phase_5_priority_transformation_roadmap:
+  p0_blockers_now:
+    - "Fix gateway 502 (upstream resolution/network strategy); API traffic must stable via gateway"
+    - "Fix Kafka consumer contract mismatch (typed envelope deserialization + listener signatures)"
+    - "Fix delivery failed-consumer ack mode/config"
+    - "Fix audience<->deliverability auth/403 suppression sync"
+    - "Enforce provider bootstrap/default active path for non-mock send flows"
+    - "Add end-to-end regression test through gateway, not direct service ports"
+  p1_build_stability_capability:
+    - "Implement org/workspace/team/user membership model"
+    - "Expose campaign/template approval APIs + UI"
+    - "Complete campaign lifecycle endpoints: pause/resume/cancel/retry/resend/recurring"
+    - "Complete automation API for version/publish/rollback/simulation"
+    - "Implement paid provider adapters + credential validation + provider analytics"
+    - "Add quota/billing/metering + usage dashboards"
+    - "Remove /mock production paths or guard by profile/feature flag"
+    - "Add CI workflows: lint/test/build/container scan + migration checks"
+  p2_scale_polish_optimization:
+    - "Run load tests for 500k emails/10h with soak + chaos restarts"
+    - "Implement adaptive throttling with per-provider and per-domain limits backed by metrics"
+    - "Advanced attribution/revenue analytics + report builder"
+    - "Enterprise UX polish for template/journey/admin studios"
+    - "Observability pack: SLO dashboards, distributed tracing, alert rules, DLQ replay console"
+
+phase_6_module_build_order_recommended:
+  order:
+    - Template Studio
+    - Audience Studio
+    - Campaign Studio
+    - Delivery Studio
+    - Automation Studio
+    - Analytics Studio
+    - Admin Studio
+  rationale_per_stage:
+    template_studio:
+      why_first: "content quality foundation for all downstream sends"
+      must_finish:
+        - "drag-drop builder + version + approvals + previews + snippets/assets"
+    audience_studio:
+      why_next: "clean target data before orchestration scale"
+      must_finish:
+        - "imports/dedupe/preferences/suppressions/scoring/lifecycle"
+    campaign_studio:
+      why_next: "campaign orchestration uses template+audience primitives"
+      must_finish:
+        - "full lifecycle + approvals + A/B/multivariate + scheduling windows"
+    delivery_studio:
+      why_next: "execution reliability and provider economics"
+      must_finish:
+        - "provider marketplace/adapters/failover/throttle/replay/DLQ tooling"
+    automation_studio:
+      why_next: "journeys depend on stable campaign and delivery actions"
+      must_finish:
+        - "visual builder + publish/version/rollback/simulation + trace UI"
+    analytics_studio:
+      why_next: "needs event quality from all previous modules"
+      must_finish:
+        - "attribution/KPI/segment behavior/revenue dashboards"
+    admin_studio:
+      why_last: "cross-cutting controls after module contracts stable"
+      must_finish:
+        - "tenant ops, billing/quota, provider governance, audit/search/webhooks, system health"
+
+scalability_audit_500k_in_10h:
+  target_rate_math:
+    required_avg_msgs_per_sec: 13.9
+    required_total_per_hour: 50000
+  current_state_verdict: "not proven; high risk"
+  blockers:
+    - "no load evidence"
+    - "gateway unstable for real app path"
+    - "consumer failure loops on critical topics"
+    - "provider default config gaps trigger hard bounces"
+  immediate_validation_plan:
+    - "stabilize P0 items first"
+    - "run k6/gatling-style API and queue load tests"
+    - "chaos: restart service containers during send"
+    - "measure throughput, lag, retry, DLQ, duplicate rate, db contention"
+
+master_blueprint_verdict:
+  current_grade: "pre-production prototype with strong foundations but critical runtime and capability gaps"
+  transformation_confidence_after_roadmap: "high if P0->P2 executed with strict contract testing + load validation"

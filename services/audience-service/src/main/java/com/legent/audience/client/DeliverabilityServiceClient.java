@@ -22,13 +22,16 @@ import java.util.stream.StreamSupport;
 public class DeliverabilityServiceClient {
 
     private final WebClient webClient;
+    private final String internalApiToken;
 
     public DeliverabilityServiceClient(
             // LEGENT-HIGH-005: Fixed port from 8085 (tracking-service) to 8087 (deliverability-service)
-            @Value("${legent.deliverability-service.url:http://deliverability-service:8087}") String baseUrl) {
+            @Value("${legent.deliverability-service.url:http://deliverability-service:8087}") String baseUrl,
+            @Value("${legent.internal.api-token:legent-internal-dev-token}") String internalApiToken) {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
+        this.internalApiToken = internalApiToken;
     }
 
     /**
@@ -46,8 +49,9 @@ public class DeliverabilityServiceClient {
         try {
             // Call deliverability-service to get suppression list
             JsonNode response = webClient.get()
-                    .uri("/api/v1/deliverability/suppressions")
+                    .uri("/api/v1/deliverability/suppressions/internal")
                     .header("X-Tenant-Id", tenantId)
+                    .header("X-Internal-Token", internalApiToken)
                     .retrieve()
                     .onStatus(
                             status -> status.isError(),

@@ -24,6 +24,10 @@ public class EventEnvelope<T> {
     private String eventType;
     private Instant timestamp;
     private String tenantId;
+    private String workspaceId;
+    private String environmentId;
+    private String actorId;
+    private String ownershipScope;
     private String correlationId;
     private String source;
     private int schemaVersion;
@@ -44,6 +48,10 @@ public class EventEnvelope<T> {
                 .eventType(eventType)
                 .timestamp(Instant.now())
                 .tenantId(tenantId)
+                .workspaceId(null)
+                .environmentId(null)
+                .actorId(null)
+                .ownershipScope("TENANT")
                 .correlationId(IdGenerator.newCorrelationId())
                 .source(source)
                 .schemaVersion(1)
@@ -62,6 +70,10 @@ public class EventEnvelope<T> {
                 .eventType(this.eventType)
                 .timestamp(Instant.now())
                 .tenantId(this.tenantId)
+                .workspaceId(this.workspaceId)
+                .environmentId(this.environmentId)
+                .actorId(this.actorId)
+                .ownershipScope(this.ownershipScope)
                 .correlationId(this.correlationId)
                 .source(this.source)
                 .schemaVersion(this.schemaVersion)

@@ -16,7 +16,7 @@ public class KafkaTopicConfig {
     @Bean
     public NewTopic emailSentTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_EMAIL_SENT)
-                .partitions(3)
+                .partitions(6)
                 .replicas(1)
                 .build();
     }
@@ -48,7 +48,7 @@ public class KafkaTopicConfig {
     @Bean
     public NewTopic trackingIngestedTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_TRACKING_INGESTED)
-                .partitions(3)
+                .partitions(6)
                 .replicas(1)
                 .build();
     }

@@ -36,7 +36,7 @@ public class Asset extends TenantAwareEntity {
     @Column(length = 500)
     private String altText;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "asset_tags", joinColumns = @JoinColumn(name = "asset_id"))
     @Column(name = "tag")
     private List<String> tags;

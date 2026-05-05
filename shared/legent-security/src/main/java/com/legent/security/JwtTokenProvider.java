@@ -63,6 +63,28 @@ public class JwtTokenProvider {
     }
 
     /**
+     * Generates a token with workspace/environment scope claims.
+     */
+    public String generateToken(
+            String userId,
+            String tenantId,
+            String workspaceId,
+            String environmentId,
+            Map<String, Object> extraClaims) {
+        java.util.Map<String, Object> claims = new java.util.HashMap<>();
+        if (extraClaims != null) {
+            claims.putAll(extraClaims);
+        }
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            claims.put("workspaceId", workspaceId);
+        }
+        if (environmentId != null && !environmentId.isBlank()) {
+            claims.put("environmentId", environmentId);
+        }
+        return generateToken(userId, tenantId, claims);
+    }
+
+    /**
      * Validates a token and returns the parsed claims.
      * Enforces strict signature, expiration, and algorithm validation.
      */
@@ -117,6 +139,14 @@ public class JwtTokenProvider {
      */
     public Optional<String> getTenantId(String token) {
         return validateToken(token).map(c -> c.get("tenantId", String.class));
+    }
+
+    public Optional<String> getWorkspaceId(String token) {
+        return validateToken(token).map(c -> c.get("workspaceId", String.class));
+    }
+
+    public Optional<String> getEnvironmentId(String token) {
+        return validateToken(token).map(c -> c.get("environmentId", String.class));
     }
 
     /**

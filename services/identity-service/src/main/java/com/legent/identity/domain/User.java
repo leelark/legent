@@ -6,6 +6,8 @@ import lombok.*;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.time.Instant;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -38,4 +40,7 @@ public class User extends BaseEntity {
     @Builder.Default
     @Column(name = "is_active")
     private boolean isActive = true;
+
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
 }

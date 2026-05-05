@@ -431,6 +431,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: legent-imports
+      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:-legent-internal-dev-token}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -576,6 +577,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_deliverability
       LEGENT_DELIVERABILITY_MOCK_DNS: "false"
       LEGENT_DELIVERABILITY_FEEDBACK_LOOP_ENABLED: "false"
+      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:-legent-internal-dev-token}
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
     depends_on:

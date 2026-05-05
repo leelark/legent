@@ -6,8 +6,6 @@ import com.legent.audience.repository.SubscriberRepository;
 import com.legent.audience.repository.SuppressionRepository;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -24,32 +22,30 @@ public class DeliveryEventConsumer {
 
     private final SubscriberRepository subscriberRepository;
     private final SuppressionRepository suppressionRepository;
-    private final ObjectMapper objectMapper;
 
     @Transactional
     @KafkaListener(topics = {AppConstants.TOPIC_EMAIL_BOUNCED, AppConstants.TOPIC_EMAIL_UNSUBSCRIBED}, groupId = "audience-delivery-group")
-    public void handleDeliveryEvent(String message) {
+    public void handleDeliveryEvent(EventEnvelope<Map<String, Object>> envelope) {
         try {
-            EventEnvelope<Map<String, String>> envelope = objectMapper.readValue(message, 
-                    new TypeReference<EventEnvelope<Map<String, String>>>() {});
-            
             String tenantId = envelope.getTenantId();
             String eventType = envelope.getEventType();
-            Map<String, String> payload = envelope.getPayload();
-            String email = payload.get("email");
+            Map<String, Object> payload = envelope.getPayload();
+            String email = payload != null && payload.get("email") != null ? String.valueOf(payload.get("email")) : null;
 
             log.info("Processing delivery event: type={}, email={}, tenantId={}", eventType, email, tenantId);
 
             if (email == null) return;
 
-            if ("EmailBounced".equalsIgnoreCase(eventType)) {
-                handleBounce(tenantId, email, payload.get("reason"));
-            } else if ("EmailUnsubscribed".equalsIgnoreCase(eventType)) {
-                handleUnsubscribe(tenantId, email, payload.get("reason"));
+            if (AppConstants.TOPIC_EMAIL_BOUNCED.equalsIgnoreCase(eventType) || "EmailBounced".equalsIgnoreCase(eventType)) {
+                String reason = payload != null && payload.get("reason") != null ? String.valueOf(payload.get("reason")) : null;
+                handleBounce(tenantId, email, reason);
+            } else if (AppConstants.TOPIC_EMAIL_UNSUBSCRIBED.equalsIgnoreCase(eventType) || "EmailUnsubscribed".equalsIgnoreCase(eventType)) {
+                String reason = payload != null && payload.get("reason") != null ? String.valueOf(payload.get("reason")) : null;
+                handleUnsubscribe(tenantId, email, reason);
             }
 
         } catch (Exception e) {
-            log.error("Failed to process delivery event: {}", message, e);
+            log.error("Failed to process delivery event: {}", envelope != null ? envelope.getEventId() : "unknown", e);
         }
     }
 

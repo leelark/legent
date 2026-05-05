@@ -1,6 +1,7 @@
 package com.legent.security;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.common.util.IdGenerator;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,8 +47,19 @@ public class TenantFilter extends OncePerRequestFilter {
         try {
             String path = request.getRequestURI();
             String tenantId = request.getHeader(AppConstants.HEADER_TENANT_ID);
+            String workspaceId = request.getHeader(AppConstants.HEADER_WORKSPACE_ID);
+            String environmentId = request.getHeader(AppConstants.HEADER_ENVIRONMENT_ID);
+            String requestId = request.getHeader(AppConstants.HEADER_REQUEST_ID);
+            String correlationId = request.getHeader(AppConstants.HEADER_CORRELATION_ID);
             if (tenantId == null || tenantId.isBlank()) {
                 tenantId = request.getParameter("t");
+            }
+
+            if (requestId == null || requestId.isBlank()) {
+                requestId = IdGenerator.newId();
+            }
+            if (correlationId == null || correlationId.isBlank()) {
+                correlationId = requestId;
             }
 
             String currentTenantId = TenantContext.getTenantId();
@@ -81,6 +93,13 @@ public class TenantFilter extends OncePerRequestFilter {
             if ((currentTenantId == null || currentTenantId.isBlank()) && tenantId != null && !tenantId.isBlank()) {
                 TenantContext.setTenantId(tenantId);
             }
+            TenantContext.setWorkspaceId(workspaceId);
+            TenantContext.setEnvironmentId(environmentId);
+            TenantContext.setRequestId(requestId);
+            TenantContext.setCorrelationId(correlationId);
+
+            response.setHeader(AppConstants.HEADER_REQUEST_ID, requestId);
+            response.setHeader(AppConstants.HEADER_CORRELATION_ID, correlationId);
 
             filterChain.doFilter(request, response);
         } finally {

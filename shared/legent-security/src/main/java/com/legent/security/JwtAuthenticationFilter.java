@@ -61,11 +61,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         Claims claims = claimsOptional.get();
         String userId = claims.getSubject();
         String tenantId = claims.get("tenantId", String.class);
+        String workspaceId = claims.get("workspaceId", String.class);
+        String environmentId = claims.get("environmentId", String.class);
         Set<String> roles = extractRoles(claims);
 
         // Populate TenantContext if available
         if (tenantId != null && !tenantId.isBlank()) {
             TenantContext.setTenantId(tenantId);
+        }
+        if (userId != null && !userId.isBlank()) {
+            TenantContext.setUserId(userId);
+        }
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            TenantContext.setWorkspaceId(workspaceId);
+        }
+        if (environmentId != null && !environmentId.isBlank()) {
+            TenantContext.setEnvironmentId(environmentId);
         }
 
         UserPrincipal principal = new UserPrincipal(userId, tenantId, roles);
