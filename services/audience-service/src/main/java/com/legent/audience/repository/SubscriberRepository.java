@@ -52,6 +52,11 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, String> 
 
     List<Subscriber> findByTenantIdAndEmailInAndDeletedAtIsNull(String tenantId, List<String> emails);
 
+    List<Subscriber> findByTenantIdAndIdInAndDeletedAtIsNull(String tenantId, List<String> ids);
+
     @Query("SELECT s FROM Subscriber s WHERE s.tenantId = :tid AND s.id = :id AND s.deletedAt IS NULL")
     Optional<Subscriber> findByTenantIdAndId(@Param("tid") String tenantId, @Param("id") String id);
+
+    @Query("SELECT s.id FROM Subscriber s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
+    List<String> findIdsByTenantIdAndDeletedAtIsNull(@Param("tid") String tenantId);
 }

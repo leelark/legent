@@ -1,7 +1,9 @@
 package com.legent.identity.service;
 
 import com.legent.identity.domain.User;
+import com.legent.identity.repository.TenantRepository;
 import com.legent.identity.repository.UserRepository;
+import com.legent.identity.event.IdentityEventPublisher;
 import com.legent.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,6 +29,12 @@ class AuthServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private TenantRepository tenantRepository;
+
+    @Mock
+    private IdentityEventPublisher eventPublisher;
 
     @Mock
     private PasswordEncoder passwordEncoder;

@@ -4,6 +4,7 @@ import com.legent.common.dto.ApiResponse;
 import com.legent.common.exception.ConflictException;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.UnauthorizedException;
+import com.legent.common.exception.ValidationException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -43,6 +44,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("CONFLICT", "Resource conflict", ex.getMessage()));
+    }
+
+    /**
+     * Handles ValidationException - Returns 422 with validation details.
+     */
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidationException(ValidationException ex) {
+        log.debug("Business validation failed: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNPROCESSABLE_ENTITY)
+                .body(ApiResponse.error("VALIDATION_FAILED", "Validation failed", ex.getMessage()));
     }
 
     /**

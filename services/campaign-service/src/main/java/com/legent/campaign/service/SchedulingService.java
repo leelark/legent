@@ -5,6 +5,7 @@ import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.event.CampaignEventPublisher;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendJobRepository;
+import com.legent.common.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -47,8 +48,12 @@ public class SchedulingService {
                     campaignRepository.save(campaign);
 
                     List<Map<String, String>> audienceList = campaign.getAudiences().stream()
-                            .map(a -> Map.of("type", a.getAudienceType().name(), "id", a.getAudienceId()))
+                            .filter(a -> a != null && a.getAudienceType() != null && a.getAudienceId() != null && !a.getAudienceId().isBlank() && a.getAction() != null)
+                            .map(a -> Map.of("type", a.getAudienceType().name(), "id", a.getAudienceId(), "action", a.getAction().name()))
                             .collect(Collectors.toList());
+                    if (audienceList.isEmpty()) {
+                        throw new ValidationException("campaign.audiences", "Audience definitions are invalid");
+                    }
 
                     eventPublisher.publishAudienceResolutionRequested(
                             job.getTenantId(), campaign.getId(), job.getId(), audienceList);

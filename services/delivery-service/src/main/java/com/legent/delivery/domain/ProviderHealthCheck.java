@@ -39,7 +39,7 @@ public class ProviderHealthCheck extends TenantAwareEntity {
     @Column(name = "consecutive_failures")
     private Integer consecutiveFailures = 0;
 
-    @Column(name = "success_rate_24h", precision = 5, scale = 2)
+    @Column(name = "success_rate_24h", columnDefinition = "DECIMAL(5,2)")
     private BigDecimal successRate24h;
 
     @Column(name = "total_sent_24h")

@@ -2,6 +2,7 @@ package com.legent.audience.event;
 
 import com.legent.audience.client.DeliverabilityServiceClient;
 import com.legent.audience.domain.Subscriber;
+import com.legent.audience.repository.ListMembershipRepository;
 import com.legent.audience.repository.SubscriberRepository;
 import com.legent.audience.service.SegmentEvaluationService;
 import com.legent.common.constant.AppConstants;
@@ -28,6 +29,7 @@ public class AudienceResolutionConsumer {
 
     private final EventPublisher eventPublisher;
     private final SubscriberRepository subscriberRepository;
+    private final ListMembershipRepository listMembershipRepository;
     private final SegmentEvaluationService segmentEvaluationService;
     private final DeliverabilityServiceClient deliverabilityClient;
 
@@ -44,26 +46,51 @@ public class AudienceResolutionConsumer {
             
             @SuppressWarnings("unchecked")
             List<Map<String, String>> audiences = (List<Map<String, String>>) event.getPayload().get("audiences");
-            Set<String> subscriberIds = new HashSet<>();
+            log.debug("Audience resolution payload: tenant={}, campaign={}, audiences={}", tenantId, campaignId, audiences);
+            Set<String> includedSubscriberIds = new HashSet<>();
+            Set<String> excludedSubscriberIds = new HashSet<>();
+            boolean hasIncludeRule = false;
 
             if (audiences == null || audiences.isEmpty()) {
-                // Default: All subscribers if no audience specified
-                subscriberIds.addAll(subscriberRepository.findAll().stream()
-                        .map(Subscriber::getId).collect(Collectors.toSet()));
+                includedSubscriberIds.addAll(subscriberRepository.findIdsByTenantIdAndDeletedAtIsNull(tenantId));
+                hasIncludeRule = true;
             } else {
                 for (Map<String, String> aud : audiences) {
                     String type = aud.get("type");
                     String id = aud.get("id");
+                    String action = aud.getOrDefault("action", "INCLUDE");
+
+                    if (id == null || id.isBlank()) {
+                        continue;
+                    }
+
+                    Set<String> resolvedIds = new HashSet<>();
                     if ("SEGMENT".equalsIgnoreCase(type)) {
-                        subscriberIds.addAll(segmentEvaluationService.getSegmentMembers(id));
+                        resolvedIds.addAll(segmentEvaluationService.getSegmentMembers(id));
                     } else if ("LIST".equalsIgnoreCase(type)) {
-                        // Assuming list logic here, or just all for now
-                        // In a real app, lists would have a separate table or segment-like logic
+                        resolvedIds.addAll(listMembershipRepository.findActiveSubscriberIdsByTenantAndListId(tenantId, id));
+                    } else {
+                        log.warn("Unsupported audience type '{}' for audience id '{}'", type, id);
+                    }
+                    log.debug("Resolved audience type={}, id={}, action={} -> {} subscribers", type, id, action, resolvedIds.size());
+
+                    if ("EXCLUDE".equalsIgnoreCase(action)) {
+                        excludedSubscriberIds.addAll(resolvedIds);
+                    } else {
+                        hasIncludeRule = true;
+                        includedSubscriberIds.addAll(resolvedIds);
                     }
                 }
             }
 
-            List<Subscriber> audience = subscriberRepository.findAllById(subscriberIds);
+            if (!hasIncludeRule && !excludedSubscriberIds.isEmpty()) {
+                includedSubscriberIds.addAll(subscriberRepository.findIdsByTenantIdAndDeletedAtIsNull(tenantId));
+            }
+            includedSubscriberIds.removeAll(excludedSubscriberIds);
+
+            List<Subscriber> audience = includedSubscriberIds.isEmpty()
+                    ? List.of()
+                    : subscriberRepository.findByTenantIdAndIdInAndDeletedAtIsNull(tenantId, new ArrayList<>(includedSubscriberIds));
 
             // Check for suppressed subscribers (bounced, complained, unsubscribed)
             List<String> emailsToCheck = audience.stream()

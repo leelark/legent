@@ -1,7 +1,9 @@
 package com.legent.identity.service;
 
 import com.legent.identity.domain.User;
+import com.legent.identity.domain.Tenant;
 import com.legent.identity.repository.UserRepository;
+import com.legent.identity.repository.TenantRepository;
 import com.legent.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ import java.util.Map;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
     private final IdentityEventPublisher eventPublisher;
@@ -71,6 +74,13 @@ public class AuthService {
         // We use a temporary tenant ID for the user until Foundation provisions it
         // Or we generate the final tenant ID here
         String tenantId = IdGenerator.newId();
+
+        tenantRepository.save(Tenant.builder()
+                .id(tenantId)
+                .name(request.getCompanyName())
+                .status("ACTIVE")
+                .settings("{}")
+                .build());
 
         User user = User.builder()
                 .tenantId(tenantId)

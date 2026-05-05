@@ -6,7 +6,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Header } from '@/components/shell/Header';
 import { useAuthStore } from '@/stores/authStore';
 import { useTenantStore } from '@/stores/tenantStore';
-import { getStoredRoles, getStoredTenantId, THEME_STORAGE_KEY } from '@/lib/auth';
+import { getStoredRoles, getStoredTenantId, TENANT_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
 import { useUIStore } from '@/stores/uiStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -53,7 +53,7 @@ export default function WorkspaceLayout({
             login(session.userId, roles);
             localStorage.setItem('legent_user_id', session.userId);
             localStorage.setItem('legent_roles', JSON.stringify(roles));
-            localStorage.setItem('legent_tenant_id', session.tenantId);
+            localStorage.setItem(TENANT_STORAGE_KEY, session.tenantId);
             setCurrentTenant({
               id: session.tenantId,
               name: session.tenantId,

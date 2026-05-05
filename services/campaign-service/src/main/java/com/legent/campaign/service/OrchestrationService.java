@@ -68,8 +68,8 @@ public class OrchestrationService {
 
         if (job.getStatus() == SendJob.JobStatus.RESOLVING) {
             List<Map<String, String>> audienceList = campaign.getAudiences().stream()
-                    .filter(a -> a != null && a.getAudienceType() != null && a.getAudienceId() != null && !a.getAudienceId().isBlank())
-                    .map(a -> Map.of("type", a.getAudienceType().name(), "id", a.getAudienceId()))
+                    .filter(a -> a != null && a.getAudienceType() != null && a.getAudienceId() != null && !a.getAudienceId().isBlank() && a.getAction() != null)
+                    .map(a -> Map.of("type", a.getAudienceType().name(), "id", a.getAudienceId(), "action", a.getAction().name()))
                     .collect(Collectors.toList());
             if (audienceList.isEmpty()) {
                 throw new ValidationException("campaign.audiences", "Audience definitions are invalid");

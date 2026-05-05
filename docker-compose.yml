@@ -367,6 +367,7 @@ services:
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
       SPRING_FLYWAY_BASELINE_ON_MIGRATE: "true"
+      LEGENT_SECURITY_COOKIE_SECURE: "false"
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -514,10 +515,10 @@ services:
     environment:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_tracking
-      SPRING_DATASOURCE_CLICKHOUSE_URL: jdbc:clickhouse://clickhouse:8123/default
+      SPRING_DATASOURCE_CLICKHOUSE_URL: jdbc:clickhouse://clickhouse:8123/legent_analytics
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
-      CLICKHOUSE_DB: default
+      CLICKHOUSE_DB: legent_analytics
       CLICKHOUSE_USER: default
       SPRING_DATASOURCE_CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration

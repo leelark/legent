@@ -4,6 +4,8 @@ import com.legent.common.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.List;
@@ -46,6 +48,7 @@ public class EmailTemplate extends TenantAwareEntity {
     private List<String> tags;
 
     @Column(columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String metadata;
 
     // Draft mode fields

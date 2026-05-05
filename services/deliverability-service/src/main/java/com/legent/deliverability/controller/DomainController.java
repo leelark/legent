@@ -6,6 +6,7 @@ import com.legent.common.dto.ApiResponse;
 import com.legent.deliverability.domain.SenderDomain;
 import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.service.DomainVerificationService;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,14 +20,15 @@ public class DomainController {
     private final DomainVerificationService domainVerificationService;
 
     @GetMapping
-    public ApiResponse<List<SenderDomain>> listDomains(@RequestHeader("X-Tenant-Id") String tenantId) {
+    public ApiResponse<List<SenderDomain>> listDomains() {
+        String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(domainRepository.findByTenantId(tenantId));
     }
 
     @PostMapping
     public ApiResponse<SenderDomain> registerDomain(
-            @RequestHeader("X-Tenant-Id") String tenantId,
             @RequestBody SenderDomain request) {
+        String tenantId = TenantContext.requireTenantId();
         request.setTenantId(tenantId);
         request.setId(java.util.UUID.randomUUID().toString());
         return ApiResponse.ok(domainRepository.save(request));
@@ -34,8 +36,8 @@ public class DomainController {
 
     @PostMapping("/{domainId}/verify")
     public ApiResponse<SenderDomain> verifyDomain(
-            @RequestHeader("X-Tenant-Id") String tenantId,
             @PathVariable String domainId) {
+        String tenantId = TenantContext.requireTenantId();
         
         SenderDomain domain = domainRepository.findById(domainId)
                 .orElseThrow(() -> new com.legent.common.exception.NotFoundException("Domain", domainId));

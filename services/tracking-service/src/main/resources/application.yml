@@ -14,7 +14,7 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME:${DB_USER}}
     password: ${SPRING_DATASOURCE_PASSWORD}
     clickhouse:
-      url: ${SPRING_DATASOURCE_CLICKHOUSE_URL:jdbc:clickhouse://${CLICKHOUSE_HOST:clickhouse}:${CLICKHOUSE_PORT:8123}/${CLICKHOUSE_DB:default}}
+      url: ${SPRING_DATASOURCE_CLICKHOUSE_URL:jdbc:clickhouse://${CLICKHOUSE_HOST:clickhouse}:${CLICKHOUSE_PORT:8123}/${CLICKHOUSE_DB:legent_analytics}}
       username: ${SPRING_DATASOURCE_CLICKHOUSE_USERNAME:${CLICKHOUSE_USER:default}}
       password: ${SPRING_DATASOURCE_CLICKHOUSE_PASSWORD}
       driver-class-name: ${SPRING_DATASOURCE_CLICKHOUSE_DRIVER_CLASS_NAME:com.clickhouse.jdbc.ClickHouseDriver}

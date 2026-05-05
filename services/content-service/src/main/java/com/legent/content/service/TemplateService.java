@@ -7,6 +7,7 @@ import com.legent.content.repository.EmailTemplateRepository;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ConflictException;
 import com.legent.security.TenantContext;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -24,6 +25,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class TemplateService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final EmailTemplateRepository templateRepository;
     private final TemplateEngine stringTemplateEngine;
@@ -46,7 +49,7 @@ public class TemplateService {
         template.setTextContent(request.getTextContent());
         template.setCategory(request.getCategory());
         template.setTags(request.getTags());
-        template.setMetadata(request.getMetadata());
+        template.setMetadata(normalizeJsonMetadata(request.getMetadata()));
         if (request.getCreatedBy() != null && !request.getCreatedBy().isBlank()) {
             template.setCreatedBy(request.getCreatedBy());
         } else if (TenantContext.getUserId() != null) {
@@ -91,7 +94,7 @@ public class TemplateService {
             template.setTags(request.getTags());
         }
         if (request.getMetadata() != null) {
-            template.setMetadata(request.getMetadata());
+            template.setMetadata(normalizeJsonMetadata(request.getMetadata()));
         }
 
         boolean contentChanged = request.getHtmlContent() != null || request.getSubject() != null;
@@ -126,6 +129,18 @@ public class TemplateService {
 
     public List<EmailTemplate> searchTemplates(String tenantId, String query) {
         return templateRepository.searchByName(tenantId, query);
+    }
+
+    private String normalizeJsonMetadata(String metadata) {
+        if (metadata == null || metadata.isBlank()) {
+            return "{}";
+        }
+        try {
+            OBJECT_MAPPER.readTree(metadata);
+            return metadata;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("metadata must be a valid JSON object or array");
+        }
     }
 
     /**

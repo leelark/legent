@@ -4,6 +4,8 @@ import com.legent.common.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -21,9 +23,11 @@ public class ContentBlock extends TenantAwareEntity {
     private String content;
 
     @Column(columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String styles;
 
     @Column(columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String settings;
 
     @Column(nullable = false)

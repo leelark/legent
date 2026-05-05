@@ -23,17 +23,17 @@ CREATE TABLE IF NOT EXISTS legent_analytics.raw_events (
 ) ENGINE = MergeTree()
 PARTITION BY event_month
 ORDER BY (tenant_id, event_type, timestamp)
-TTL timestamp + INTERVAL 1 YEAR  -- Auto-delete data older than 1 year
+TTL toDateTime(timestamp) + INTERVAL 1 YEAR  -- Auto-delete data older than 1 year
 SETTINGS index_granularity = 8192;
 
 -- Materialized view for daily aggregations by campaign
 CREATE MATERIALIZED VIEW IF NOT EXISTS legent_analytics.daily_campaign_stats
 ENGINE = SummingMergeTree()
 PARTITION BY toStartOfMonth(event_date)
-ORDER BY (tenant_id, campaign_id, event_date)
+ORDER BY (tenant_id, campaign_id, event_date, event_type)
 AS SELECT
     tenant_id,
-    campaign_id,
+    assumeNotNull(campaign_id) as campaign_id,
     toDate(timestamp) as event_date,
     event_type,
     count() as event_count
@@ -45,10 +45,10 @@ GROUP BY tenant_id, campaign_id, toDate(timestamp), event_type;
 CREATE MATERIALIZED VIEW IF NOT EXISTS legent_analytics.daily_subscriber_activity
 ENGINE = SummingMergeTree()
 PARTITION BY toStartOfMonth(event_date)
-ORDER BY (tenant_id, subscriber_id, event_date)
+ORDER BY (tenant_id, subscriber_id, event_date, event_type)
 AS SELECT
     tenant_id,
-    subscriber_id,
+    assumeNotNull(subscriber_id) as subscriber_id,
     toDate(timestamp) as event_date,
     event_type,
     count() as event_count
