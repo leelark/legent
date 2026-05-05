@@ -19,6 +19,18 @@ import lombok.Setter;
 @NoArgsConstructor
 public class DoubleOptInToken extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", nullable = false, length = 36)
+    private String workspaceId;
+
+    @Column(name = "team_id", length = 36)
+    private String teamId;
+
+    @Column(name = "assigned_owner_id", length = 36)
+    private String assignedOwnerId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 30)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "subscriber_id", nullable = false, length = 36)
     private String subscriberId;
 

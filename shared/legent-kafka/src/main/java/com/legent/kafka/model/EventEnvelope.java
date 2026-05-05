@@ -1,6 +1,7 @@
 package com.legent.kafka.model;
 
 import com.legent.common.util.IdGenerator;
+import com.legent.security.TenantContext;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -43,19 +44,25 @@ public class EventEnvelope<T> {
             String tenantId,
             String source,
             T payload) {
+        String contextTenantId = TenantContext.getTenantId();
+        String resolvedTenantId = (tenantId != null && !tenantId.isBlank()) ? tenantId : contextTenantId;
+        String correlationId = TenantContext.getCorrelationId();
+        String requestId = TenantContext.getRequestId();
+        String idempotencyKey = (requestId != null && !requestId.isBlank()) ? requestId : IdGenerator.newIdempotencyKey();
+
         return EventEnvelope.<T>builder()
                 .eventId(IdGenerator.newId())
                 .eventType(eventType)
                 .timestamp(Instant.now())
-                .tenantId(tenantId)
-                .workspaceId(null)
-                .environmentId(null)
-                .actorId(null)
-                .ownershipScope("TENANT")
-                .correlationId(IdGenerator.newCorrelationId())
+                .tenantId(resolvedTenantId)
+                .workspaceId(TenantContext.getWorkspaceId())
+                .environmentId(TenantContext.getEnvironmentId())
+                .actorId(TenantContext.getUserId())
+                .ownershipScope(TenantContext.getWorkspaceId() == null ? "TENANT" : "WORKSPACE")
+                .correlationId((correlationId != null && !correlationId.isBlank()) ? correlationId : IdGenerator.newCorrelationId())
                 .source(source)
                 .schemaVersion(1)
-                .idempotencyKey(IdGenerator.newIdempotencyKey())
+                .idempotencyKey(idempotencyKey)
                 .retryCount(0)
                 .payload(payload)
                 .build();

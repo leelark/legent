@@ -62,6 +62,15 @@ public final class TenantContext {
         return CURRENT_WORKSPACE.get();
     }
 
+    @NonNull
+    public static String requireWorkspaceId() {
+        String workspaceId = CURRENT_WORKSPACE.get();
+        if (workspaceId == null || workspaceId.isBlank()) {
+            throw new IllegalStateException("Workspace context is not set");
+        }
+        return workspaceId;
+    }
+
     public static void setEnvironmentId(String environmentId) {
         CURRENT_ENVIRONMENT.set(environmentId);
     }

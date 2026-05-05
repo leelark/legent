@@ -14,8 +14,13 @@ import { MagnifyingGlass, Plus, Trash, PencilSimple } from '@phosphor-icons/reac
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   ACTIVE: 'success',
+  SUBSCRIBED: 'success',
+  PENDING: 'default',
   UNSUBSCRIBED: 'warning',
   BOUNCED: 'danger',
+  COMPLAINED: 'danger',
+  SUPPRESSED: 'warning',
+  INACTIVE: 'default',
   HELD: 'default',
   BLOCKED: 'danger',
 };
@@ -39,7 +44,7 @@ export default function SubscribersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { data, loading, refetch } = useApi<any>(
-    `/api/v1/subscribers?page=${page}&size=20${debouncedSearch ? `&query=${debouncedSearch}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`
+    `/api/v1/subscribers?page=${page}&size=20${debouncedSearch ? `&search=${debouncedSearch}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`
   );
   const rows = data?.content ?? [];
   const totalElements = data?.totalElements ?? 0;
@@ -85,10 +90,14 @@ export default function SubscribersPage() {
 
   const handleSave = async () => {
     try {
+      const payload = {
+        ...formData,
+        subscriberKey: formData.subscriberKey?.trim() ? formData.subscriberKey.trim() : undefined,
+      };
       if (editingId) {
-        await put(`/api/v1/subscribers/${editingId}`, formData);
+        await put(`/api/v1/subscribers/${editingId}`, payload);
       } else {
-        await post('/api/v1/subscribers', formData);
+        await post('/api/v1/subscribers', payload);
       }
       setIsModalOpen(false);
       refetch();
@@ -211,7 +220,7 @@ export default function SubscribersPage() {
       <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? 'Edit Subscriber' : 'Add Subscriber'}>
         <div className="space-y-4 pt-4">
           <Input label="Email *" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-          <Input label="Subscriber Key *" value={formData.subscriberKey} onChange={e => setFormData({...formData, subscriberKey: e.target.value})} />
+          <Input label="Subscriber Key (Optional)" value={formData.subscriberKey} onChange={e => setFormData({...formData, subscriberKey: e.target.value})} />
           <div className="grid grid-cols-2 gap-4">
             <Input label="First Name" value={formData.firstName} onChange={e => setFormData({...formData, firstName: e.target.value})} />
             <Input label="Last Name" value={formData.lastName} onChange={e => setFormData({...formData, lastName: e.target.value})} />
@@ -219,7 +228,7 @@ export default function SubscribersPage() {
           <Input label="Phone" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} />
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!formData.email || !formData.subscriberKey}>Save</Button>
+            <Button onClick={handleSave} disabled={!formData.email}>Save</Button>
           </div>
         </div>
       </Modal>

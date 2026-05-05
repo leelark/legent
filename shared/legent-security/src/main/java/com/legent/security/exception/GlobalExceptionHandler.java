@@ -10,9 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 
@@ -126,6 +128,30 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("ILLEGAL_STATE", "Operation cannot be performed", ex.getMessage()));
+    }
+
+    /**
+     * Preserves explicit HTTP status mappings raised from controllers/services.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatus(ResponseStatusException ex) {
+        HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
+        String reason = ex.getReason() != null && !ex.getReason().isBlank() ? ex.getReason() : status.getReasonPhrase();
+        log.debug("Response status exception: status={}, reason={}", status.value(), reason);
+        return ResponseEntity
+                .status(status)
+                .body(ApiResponse.error(status.name(), reason, null));
+    }
+
+    /**
+     * Handles malformed JSON payloads as 400 instead of 500.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMalformedJson(HttpMessageNotReadableException ex) {
+        log.debug("Malformed request payload: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("BAD_REQUEST", "Malformed request payload", "Request body is not valid JSON"));
     }
 
     /**

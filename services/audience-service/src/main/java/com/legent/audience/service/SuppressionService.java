@@ -9,7 +9,6 @@ import com.legent.audience.dto.SuppressionDto;
 import com.legent.audience.repository.SuppressionRepository;
 import com.legent.common.exception.ConflictException;
 import com.legent.common.exception.NotFoundException;
-import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -28,23 +27,27 @@ public class SuppressionService {
 
     @Transactional(readOnly = true)
     public Page<SuppressionDto.Response> list(Pageable pageable) {
-        String tenantId = TenantContext.getTenantId();
-        return suppressionRepository.findAllByTenant(tenantId, pageable)
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        return suppressionRepository.findAllByTenantAndWorkspace(tenantId, workspaceId, pageable)
                 .map(this::toResponse);
     }
 
     @Transactional
     public SuppressionDto.Response create(SuppressionDto.CreateRequest request) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
         Suppression.SuppressionType type = Suppression.SuppressionType.valueOf(request.getSuppressionType().toUpperCase());
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
 
-        if (suppressionRepository.existsByTenantIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(tenantId, request.getEmail(), type)) {
-            throw new ConflictException("Suppression", "email+type", request.getEmail() + ":" + request.getSuppressionType());
+        if (suppressionRepository.existsByTenantIdAndWorkspaceIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(tenantId, workspaceId, normalizedEmail, type)) {
+            throw new ConflictException("Suppression", "email+type", normalizedEmail + ":" + request.getSuppressionType());
         }
 
         Suppression entity = new Suppression();
         entity.setTenantId(tenantId);
-        entity.setEmail(request.getEmail().toLowerCase().trim());
+        entity.setWorkspaceId(workspaceId);
+        entity.setEmail(normalizedEmail);
         entity.setSuppressionType(type);
         entity.setReason(request.getReason());
         entity.setSource(request.getSource());
@@ -74,8 +77,9 @@ public class SuppressionService {
      */
     @Transactional(readOnly = true)
     public SuppressionDto.ComplianceCheck checkCompliance(String email) {
-        String tenantId = TenantContext.getTenantId();
-        List<Suppression> active = suppressionRepository.findActiveSuppression(tenantId, email.toLowerCase().trim());
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        List<Suppression> active = suppressionRepository.findActiveSuppression(tenantId, workspaceId, email.toLowerCase().trim());
 
         if (active.isEmpty()) {
             return SuppressionDto.ComplianceCheck.builder()

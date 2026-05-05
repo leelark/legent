@@ -22,6 +22,12 @@ public class ListMembership extends BaseEntity {
     @Column(name = "tenant_id", nullable = false, length = 36)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false, length = 36)
+    private String workspaceId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 30)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "list_id", nullable = false, length = 36)
     private String listId;
 

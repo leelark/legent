@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { clsx } from 'clsx';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -54,15 +54,64 @@ function newGroup(): RuleGroup {
 }
 
 interface Props {
-  onChange?: (rules: RuleGroup[]) => void;
+  initialRules?: any;
+  onChange?: (rules: any) => void;
 }
 
-export function SegmentRuleBuilder({ onChange }: Props) {
-  const [groups, setGroups] = useState<RuleGroup[]>([newGroup()]);
+function toBuilderGroups(rules: any): RuleGroup[] {
+  if (!rules || typeof rules !== 'object') {
+    return [newGroup()];
+  }
+
+  const mappedGroups = Array.isArray(rules.groups)
+    ? rules.groups
+    : Array.isArray(rules.conditions)
+      ? [{ operator: rules.operator || 'AND', conditions: rules.conditions }]
+      : [];
+
+  if (mappedGroups.length === 0) return [newGroup()];
+
+  return mappedGroups.map((group: any) => ({
+    id: newId(),
+    operator: group?.operator === 'OR' ? 'OR' : 'AND',
+    conditions: Array.isArray(group?.conditions) && group.conditions.length > 0
+      ? group.conditions.map((condition: any) => ({
+          id: newId(),
+          field: condition?.field || 'email',
+          op: condition?.op || 'EQUALS',
+          value: condition?.value == null ? '' : String(condition.value),
+        }))
+      : [newCondition()],
+  }));
+}
+
+function toApiRules(groups: RuleGroup[]) {
+  return {
+    operator: 'AND',
+    conditions: [],
+    groups: groups.map((group) => ({
+      operator: group.operator,
+      conditions: group.conditions.map((condition) => ({
+        field: condition.field,
+        op: condition.op,
+        value: condition.value,
+      })),
+      groups: [],
+    })),
+  };
+}
+
+export function SegmentRuleBuilder({ initialRules, onChange }: Props) {
+  const initialGroups = useMemo(() => toBuilderGroups(initialRules), [initialRules]);
+  const [groups, setGroups] = useState<RuleGroup[]>(initialGroups);
+
+  useEffect(() => {
+    setGroups(initialGroups);
+  }, [initialGroups]);
 
   const updateGroups = (updated: RuleGroup[]) => {
     setGroups(updated);
-    onChange?.(updated);
+    onChange?.(toApiRules(updated));
   };
 
   const addCondition = (groupId: string) => {

@@ -33,9 +33,13 @@ class SubscriberServiceTest {
     @InjectMocks private SubscriberService subscriberService;
 
     private static final String TENANT_ID = "tenant-001";
+    private static final String WORKSPACE_ID = "ws-001";
 
     @BeforeEach
-    void setUp() { TenantContext.setTenantId(TENANT_ID); }
+    void setUp() {
+        TenantContext.setTenantId(TENANT_ID);
+        TenantContext.setWorkspaceId(WORKSPACE_ID);
+    }
 
     @AfterEach
     void tearDown() { TenantContext.clear(); }
@@ -55,6 +59,8 @@ class SubscriberServiceTest {
 
         when(subscriberRepository.existsByTenantIdAndSubscriberKeyAndDeletedAtIsNull(TENANT_ID, "sub-001"))
                 .thenReturn(false);
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "test@example.com"))
+                .thenReturn(Optional.empty());
         when(subscriberMapper.toEntity(req)).thenReturn(entity);
         when(subscriberRepository.save(entity)).thenReturn(entity);
         when(subscriberMapper.toResponse(entity)).thenReturn(expected);
@@ -98,6 +104,7 @@ class SubscriberServiceTest {
     void delete_success() {
         Subscriber entity = new Subscriber();
         entity.setTenantId(TENANT_ID);
+        entity.setWorkspaceId(WORKSPACE_ID);
         entity.setSubscriberKey("sub-001");
 
         when(subscriberRepository.findById("id-1")).thenReturn(Optional.of(entity));

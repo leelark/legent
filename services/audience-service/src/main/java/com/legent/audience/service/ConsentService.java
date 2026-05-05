@@ -46,8 +46,9 @@ public class ConsentService {
                                         ConsentRecord.ConsentSource source,
                                         String ipAddress,
                                         String userAgent) {
+        String workspaceId = AudienceScope.workspaceId();
         Optional<ConsentRecord> existingOpt = consentRepository
-                .findByTenantIdAndSubscriberIdAndConsentType(tenantId, subscriberId, consentType);
+                .findByTenantIdAndWorkspaceIdAndSubscriberIdAndConsentType(tenantId, workspaceId, subscriberId, consentType);
 
         ConsentRecord record;
         if (existingOpt.isPresent()) {
@@ -62,6 +63,7 @@ public class ConsentService {
         } else {
             record = new ConsentRecord();
             record.setTenantId(tenantId);
+            record.setWorkspaceId(workspaceId);
             record.setSubscriberId(subscriberId);
             record.setConsentType(consentType);
             record.setConsentGiven(consentGiven);
@@ -89,8 +91,9 @@ public class ConsentService {
     public ConsentRecord withdrawConsent(String tenantId, String subscriberId,
                                           ConsentRecord.ConsentType consentType,
                                           String reason) {
+        String workspaceId = AudienceScope.workspaceId();
         ConsentRecord record = consentRepository
-                .findByTenantIdAndSubscriberIdAndConsentType(tenantId, subscriberId, consentType)
+                .findByTenantIdAndWorkspaceIdAndSubscriberIdAndConsentType(tenantId, workspaceId, subscriberId, consentType)
                 .orElseThrow(() -> new NotFoundException("ConsentRecord", subscriberId + "/" + consentType));
 
         record.setConsentGiven(false);
@@ -111,7 +114,7 @@ public class ConsentService {
      */
     @Transactional(readOnly = true)
     public List<ConsentRecord> getSubscriberConsents(String tenantId, String subscriberId) {
-        return consentRepository.findByTenantIdAndSubscriberId(tenantId, subscriberId);
+        return consentRepository.findByTenantIdAndWorkspaceIdAndSubscriberId(tenantId, AudienceScope.workspaceId(), subscriberId);
     }
 
     /**
@@ -120,7 +123,7 @@ public class ConsentService {
     @Transactional(readOnly = true)
     public boolean hasActiveConsent(String tenantId, String subscriberId,
                                       ConsentRecord.ConsentType consentType) {
-        return consentRepository.hasActiveConsent(tenantId, subscriberId, consentType);
+        return consentRepository.hasActiveConsent(tenantId, AudienceScope.workspaceId(), subscriberId, consentType);
     }
 
     /**
@@ -128,8 +131,8 @@ public class ConsentService {
      */
     @Transactional(readOnly = true)
     public boolean canSendMarketingEmail(String tenantId, String subscriberId) {
-        // Check subscriber status
-        Optional<Subscriber> subscriberOpt = subscriberRepository.findByTenantIdAndId(tenantId, subscriberId);
+        String workspaceId = AudienceScope.workspaceId();
+        Optional<Subscriber> subscriberOpt = subscriberRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, subscriberId);
         if (subscriberOpt.isEmpty()) {
             return false;
         }
@@ -156,8 +159,9 @@ public class ConsentService {
                                                     String email,
                                                     String ipAddress,
                                                     String userAgent) {
+        String workspaceId = AudienceScope.workspaceId();
         // Check if there's already a pending token
-        Optional<DoubleOptInToken> existingOpt = tokenRepository.findPendingTokenForSubscriber(tenantId, subscriberId);
+        Optional<DoubleOptInToken> existingOpt = tokenRepository.findPendingTokenForSubscriber(tenantId, workspaceId, subscriberId);
         if (existingOpt.isPresent()) {
             DoubleOptInToken existing = existingOpt.get();
             if (!existing.isExpired()) {
@@ -175,6 +179,7 @@ public class ConsentService {
 
         DoubleOptInToken token = new DoubleOptInToken();
         token.setTenantId(tenantId);
+        token.setWorkspaceId(workspaceId);
         token.setSubscriberId(subscriberId);
         token.setTokenHash(tokenHash);
         token.setEmail(email);
@@ -227,7 +232,7 @@ public class ConsentService {
 
         // Update subscriber
         Subscriber subscriber = subscriberRepository
-                .findByTenantIdAndId(tenantId, token.getSubscriberId())
+                .findByTenantIdAndWorkspaceIdAndId(tenantId, token.getWorkspaceId(), token.getSubscriberId())
                 .orElseThrow(() -> new NotFoundException("Subscriber", token.getSubscriberId()));
 
         subscriber.setDoubleOptInConfirmed(true);
@@ -252,7 +257,7 @@ public class ConsentService {
      */
     @Transactional
     public int cleanupExpiredTokens(String tenantId) {
-        int count = tokenRepository.markExpiredTokens(tenantId, Instant.now());
+        int count = tokenRepository.markExpiredTokens(tenantId, AudienceScope.workspaceId(), Instant.now());
         if (count > 0) {
             log.info("Cleaned up {} expired double opt-in tokens for tenant {}", count, tenantId);
         }

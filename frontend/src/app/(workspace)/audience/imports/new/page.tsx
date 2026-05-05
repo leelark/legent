@@ -186,7 +186,7 @@ export default function ImportWizardPage() {
               {TARGET_FIELDS.map((field) => (
                 <div key={field.key} className="flex items-center gap-4">
                   <span className="w-32 text-sm font-medium text-content-primary capitalize">
-                    {field.label} {field.key === 'email' || field.key === 'subscriberKey' ? '*' : ''}
+                    {field.label} {field.key === 'email' ? '*' : ''}
                   </span>
                   <span className="text-content-muted">→</span>
                   <select 
@@ -211,7 +211,7 @@ export default function ImportWizardPage() {
                  <>
                    <WarningCircle size={48} weight="duotone" className="text-red-500 mb-4" />
                    <p className="text-lg font-semibold text-content-primary">Missing Required Fields</p>
-                   <p className="text-sm text-content-secondary mt-1">You must map either Email or Subscriber Key.</p>
+                   <p className="text-sm text-content-secondary mt-1">You must map Email.</p>
                  </>
               ) : (
                  <>
@@ -274,7 +274,7 @@ export default function ImportWizardPage() {
           </Button>
           <Button
             onClick={handleNext}
-            disabled={currentStep === 2 && (!mapping['email'] && !mapping['subscriberKey'])}
+            disabled={currentStep === 2 && !mapping['email']}
             icon={<ArrowRight size={16} />}
           >
             {currentStep === 2 ? 'Start Import' : 'Next'}

@@ -54,12 +54,12 @@ export default function AudienceDashboard() {
         ]);
 
         setStats({
-          subscribers: subRes.data || 0,
-          lists: listRes.data?.totalElements || listRes.totalElements || 0,
-          dataExtensions: deRes.data?.totalElements || deRes.totalElements || 0,
-          segments: segRes.data?.totalElements || segRes.totalElements || 0
+          subscribers: (typeof subRes === 'number' ? subRes : subRes?.count) || 0,
+          lists: listRes?.totalElements || 0,
+          dataExtensions: deRes?.totalElements || 0,
+          segments: segRes?.totalElements || 0
         });
-        setRecentSubscribers(recentRes.data?.content || recentRes.content || []);
+        setRecentSubscribers(recentRes?.content || []);
       } catch (err) {
         console.error("Failed to fetch audience stats", err);
       } finally {

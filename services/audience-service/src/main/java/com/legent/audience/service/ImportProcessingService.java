@@ -29,6 +29,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.util.HashMap;
 
 import java.util.regex.Pattern;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Locale;
 
 /**
  * Async chunk-based import processor.
@@ -57,7 +60,9 @@ public class ImportProcessingService {
         if (job == null) return;
 
         String tenantId = job.getTenantId();
+        String workspaceId = job.getWorkspaceId();
         TenantContext.setTenantId(tenantId);
+        TenantContext.setWorkspaceId(workspaceId);
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         try {
@@ -96,7 +101,7 @@ public class ImportProcessingService {
                     currentChunk.add(record.toMap());
 
                     if (currentChunk.size() >= chunkSize) {
-                        ChunkResult result = processChunk(tenantId, currentChunk, job.getFieldMapping());
+                        ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job.getFieldMapping());
                         successCount += result.successCount;
                         errorCount += result.errorCount;
                         errors.addAll(result.errors);
@@ -112,7 +117,7 @@ public class ImportProcessingService {
                 }
 
                 if (!currentChunk.isEmpty()) {
-                    ChunkResult result = processChunk(tenantId, currentChunk, job.getFieldMapping());
+                    ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job.getFieldMapping());
                     successCount += result.successCount;
                     errorCount += result.errorCount;
                     errors.addAll(result.errors);
@@ -185,7 +190,7 @@ public class ImportProcessingService {
         List<Map<String, Object>> errors = new ArrayList<>();
     }
 
-    private ChunkResult processChunk(String tenantId, List<Map<String, String>> chunk, Map<String, String> mapping) {
+    private ChunkResult processChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk, Map<String, String> mapping) {
         ChunkResult result = new ChunkResult();
         List<Subscriber> toSave = new ArrayList<>();
 
@@ -193,24 +198,26 @@ public class ImportProcessingService {
             try {
                 String email = getMappedField(row, mapping, "email");
                 String subKeyRaw = getMappedField(row, mapping, "subscriberKey");
-                final String subKey = (subKeyRaw == null || subKeyRaw.isBlank()) ? email : subKeyRaw;
+                String normalizedEmail = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
+                final String subKey = (subKeyRaw == null || subKeyRaw.isBlank())
+                        ? generateDeterministicSubscriberKey(normalizedEmail, workspaceId)
+                        : subKeyRaw.trim();
                 
-                if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {
+                if (normalizedEmail == null || !EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
                     throw new IllegalArgumentException("Invalid email: " + email);
                 }
 
-                // Check for existing in this chunk or DB
-                // For simplicity and to avoid complex state, we still check DB
-                // But we could optimize further by pre-fetching all subKeys in the chunk
                 Optional<Subscriber> existing = subscriberRepository
-                        .findByTenantIdAndSubscriberKeyAndDeletedAtIsNull(tenantId, subKey);
+                        .findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(tenantId, workspaceId, normalizedEmail);
 
                 Subscriber sub = existing.orElseGet(() -> {
                     Subscriber s = new Subscriber();
                     s.setTenantId(tenantId);
+                    s.setWorkspaceId(workspaceId);
                     s.setSubscriberKey(subKey);
-                    s.setEmail(email.toLowerCase().trim());
+                    s.setEmail(normalizedEmail);
                     s.setSubscribedAt(Instant.now());
+                    s.setLifecycleStageAt(Instant.now());
                     return s;
                 });
 
@@ -268,8 +275,24 @@ public class ImportProcessingService {
     }
 
     private String getMappedField(Map<String, String> row, Map<String, String> mapping, String targetField) {
+        if (mapping == null) return null;
         String sourceField = mapping.get(targetField);
         if (sourceField == null) return null;
         return row.get(sourceField);
+    }
+
+    private String generateDeterministicSubscriberKey(String normalizedEmail, String workspaceId) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            String input = normalizedEmail + "|" + workspaceId;
+            byte[] bytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : bytes) {
+                hex.append(String.format("%02x", b));
+            }
+            return "sub-" + hex.substring(0, 24);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to generate subscriber key", e);
+        }
     }
 }

@@ -34,9 +34,13 @@ class SegmentEvaluationServiceTest {
     @InjectMocks private SegmentEvaluationService evaluationService;
 
     private static final String TENANT_ID = "tenant-001";
+    private static final String WORKSPACE_ID = "ws-001";
 
     @BeforeEach
-    void setUp() { TenantContext.setTenantId(TENANT_ID); }
+    void setUp() {
+        TenantContext.setTenantId(TENANT_ID);
+        TenantContext.setWorkspaceId(WORKSPACE_ID);
+    }
 
     @AfterEach
     void tearDown() { TenantContext.clear(); }
@@ -51,7 +55,7 @@ class SegmentEvaluationServiceTest {
         segment.setTenantId(TENANT_ID);
         segment.setRules(Map.of());
 
-        when(segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(TENANT_ID, "seg-1"))
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-1"))
                 .thenReturn(Optional.of(segment));
         when(cacheService.get(anyString(), eq(SegmentDto.CountPreview.class)))
                 .thenReturn(Optional.of(cached));
@@ -74,7 +78,7 @@ class SegmentEvaluationServiceTest {
         Query mockQuery = mock(Query.class);
         when(mockQuery.getSingleResult()).thenReturn(100L);
 
-        when(segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(TENANT_ID, "seg-2"))
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-2"))
                 .thenReturn(Optional.of(segment));
         when(cacheService.get(anyString(), eq(SegmentDto.CountPreview.class)))
                 .thenReturn(Optional.empty());

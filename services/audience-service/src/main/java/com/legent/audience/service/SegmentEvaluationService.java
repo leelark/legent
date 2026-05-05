@@ -57,17 +57,18 @@ public class SegmentEvaluationService {
      */
     @Transactional(readOnly = true)
     public SegmentDto.CountPreview evaluateCount(String segmentId) {
-        String tenantId = TenantContext.getTenantId();
-        Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        Segment segment = segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 
-        String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
+        String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + workspaceId + ":" + segmentId;
         Optional<SegmentDto.CountPreview> cached = cacheService.get(cacheKey, SegmentDto.CountPreview.class);
         if (cached.isPresent())
             return cached.get();
 
         long startMs = System.currentTimeMillis();
-        long count = executeCountQuery(tenantId, segment.getRules());
+        long count = executeCountQuery(tenantId, workspaceId, segment.getRules());
         long durationMs = System.currentTimeMillis() - startMs;
 
         SegmentDto.CountPreview preview = SegmentDto.CountPreview.builder()
@@ -83,19 +84,21 @@ public class SegmentEvaluationService {
      */
     @Transactional(readOnly = true)
     public List<String> getSegmentMembers(String segmentId) {
-        String tenantId = TenantContext.getTenantId();
-        return membershipRepository.findByTenantIdAndSegmentId(tenantId, segmentId).stream()
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        return membershipRepository.findByTenantIdAndWorkspaceIdAndSegmentId(tenantId, workspaceId, segmentId).stream()
                 .map(SegmentMembership::getSubscriberId)
                 .collect(Collectors.toList());
     }
 
     @Async("segmentExecutor")
     @Transactional
-    public void recompute(@org.springframework.lang.NonNull String segmentId, String tenantId) {
+    public void recompute(@org.springframework.lang.NonNull String segmentId, String tenantId, String workspaceId) {
         // Set tenant context for this async thread - crucial for multi-tenant data isolation
         TenantContext.setTenantId(tenantId);
+        TenantContext.setWorkspaceId(workspaceId);
         try {
-            Segment segment = segmentRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, segmentId)
+            Segment segment = segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, segmentId)
                     .orElseThrow(() -> new NotFoundException("Segment", segmentId));
 
             segment.setStatus(Segment.SegmentStatus.COMPUTING);
@@ -105,18 +108,24 @@ public class SegmentEvaluationService {
 
             try {
                 // Clear existing memberships
-                membershipRepository.deleteAllByTenantIdAndSegmentId(tenantId, segmentId);
+                membershipRepository.deleteAllByTenantIdAndWorkspaceIdAndSegmentId(tenantId, workspaceId, segmentId);
 
                 // Execute query and materialize using batch insert
-                List<String> subscriberIds = executeQuery(tenantId, segment.getRules());
+                List<String> subscriberIds = executeQuery(tenantId, workspaceId, segment.getRules());
                 if (!subscriberIds.isEmpty()) {
-                    String sqlInsert = "INSERT INTO segment_memberships (id, tenant_id, segment_id, subscriber_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)";
+                    String sqlInsert = """
+                            INSERT INTO segment_memberships
+                            (id, tenant_id, workspace_id, ownership_scope, segment_id, subscriber_id, created_at, updated_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """;
                     List<Object[]> batchArgs = new ArrayList<>();
                     Instant now = Instant.now();
                     for (String subId : subscriberIds) {
                         batchArgs.add(new Object[] {
                                 com.legent.common.util.IdGenerator.newId(),
                                 tenantId,
+                                workspaceId,
+                                "WORKSPACE",
                                 segmentId,
                                 subId,
                                 now,
@@ -134,7 +143,7 @@ public class SegmentEvaluationService {
                 segmentRepository.save(segment);
 
                 // Invalidate count cache
-                String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + segmentId;
+                String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + workspaceId + ":" + segmentId;
                 cacheService.delete(cacheKey);
 
                 eventPublisher.publishRecomputed(segment);
@@ -166,7 +175,7 @@ public class SegmentEvaluationService {
             try {
                 TenantContext.setTenantId(seg.getTenantId());
                 String segmentId = java.util.Objects.requireNonNull(seg.getId(), "Segment ID cannot be null");
-                selfProvider.getObject().recompute(segmentId, seg.getTenantId());
+                selfProvider.getObject().recompute(segmentId, seg.getTenantId(), seg.getWorkspaceId());
             } catch (Exception e) {
                 log.error("Failed to recompute segment {}: {}", seg.getId(), e.getMessage());
             } finally {
@@ -177,11 +186,12 @@ public class SegmentEvaluationService {
 
     // ── Query Generation Engine ──
 
-    private long executeCountQuery(String tenantId, Map<String, Object> rules) {
+    private long executeCountQuery(String tenantId, String workspaceId, Map<String, Object> rules) {
         StringBuilder sql = new StringBuilder(
-                "SELECT COUNT(s.id) FROM subscribers s WHERE s.tenant_id = :tid AND s.deleted_at IS NULL");
+                "SELECT COUNT(s.id) FROM subscribers s WHERE s.tenant_id = :tid AND s.workspace_id = :wid AND s.deleted_at IS NULL");
         Map<String, Object> params = new HashMap<>();
         params.put("tid", tenantId);
+        params.put("wid", workspaceId);
 
         appendRuleConditions(sql, params, rules, 0);
 
@@ -191,11 +201,12 @@ public class SegmentEvaluationService {
     }
 
     @SuppressWarnings("unchecked")
-    private List<String> executeQuery(String tenantId, Map<String, Object> rules) {
+    private List<String> executeQuery(String tenantId, String workspaceId, Map<String, Object> rules) {
         StringBuilder sql = new StringBuilder(
-                "SELECT s.id FROM subscribers s WHERE s.tenant_id = :tid AND s.deleted_at IS NULL");
+                "SELECT s.id FROM subscribers s WHERE s.tenant_id = :tid AND s.workspace_id = :wid AND s.deleted_at IS NULL");
         Map<String, Object> params = new HashMap<>();
         params.put("tid", tenantId);
+        params.put("wid", workspaceId);
 
         appendRuleConditions(sql, params, rules, 0);
 
@@ -291,17 +302,17 @@ public class SegmentEvaluationService {
             case "IS_NOT_NULL" -> column + " IS NOT NULL";
             case "IN_LIST" -> {
                 params.put(paramName, value);
-                yield "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :"
+                yield "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.workspace_id = :wid AND lm.subscriber_id = s.id AND lm.list_id = :"
                         + paramName + " AND lm.status = 'ACTIVE')";
             }
             case "NOT_IN_LIST" -> {
                 params.put(paramName, value);
-                yield "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.subscriber_id = s.id AND lm.list_id = :"
+                yield "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.workspace_id = :wid AND lm.subscriber_id = s.id AND lm.list_id = :"
                         + paramName + " AND lm.status = 'ACTIVE')";
             }
             case "IN_SEGMENT" -> {
                 params.put(paramName, value);
-                yield "EXISTS (SELECT 1 FROM segment_memberships sm WHERE sm.tenant_id = :tid AND sm.subscriber_id = s.id AND sm.segment_id = :"
+                yield "EXISTS (SELECT 1 FROM segment_memberships sm WHERE sm.tenant_id = :tid AND sm.workspace_id = :wid AND sm.subscriber_id = s.id AND sm.segment_id = :"
                         + paramName + ")";
             }
             default -> null;

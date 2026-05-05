@@ -41,7 +41,7 @@ public class DeliverabilityServiceClient {
      * @param emails   List of emails to check
      * @return Set of suppressed email addresses
      */
-    public Set<String> checkSuppressedEmails(String tenantId, List<String> emails) {
+    public Set<String> checkSuppressedEmails(String tenantId, String workspaceId, List<String> emails) {
         if (emails == null || emails.isEmpty()) {
             return Collections.emptySet();
         }
@@ -51,6 +51,7 @@ public class DeliverabilityServiceClient {
             JsonNode response = webClient.get()
                     .uri("/api/v1/deliverability/suppressions/internal")
                     .header("X-Tenant-Id", tenantId)
+                    .header("X-Workspace-Id", workspaceId)
                     .header("X-Internal-Token", internalApiToken)
                     .retrieve()
                     .onStatus(

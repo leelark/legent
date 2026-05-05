@@ -4,6 +4,7 @@ import com.legent.audience.client.DeliverabilityServiceClient;
 import com.legent.audience.domain.Subscriber;
 import com.legent.audience.repository.ListMembershipRepository;
 import com.legent.audience.repository.SubscriberRepository;
+import com.legent.audience.service.AudienceEventIdempotencyService;
 import com.legent.audience.service.SegmentEvaluationService;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
@@ -32,10 +33,14 @@ public class AudienceResolutionConsumer {
     private final ListMembershipRepository listMembershipRepository;
     private final SegmentEvaluationService segmentEvaluationService;
     private final DeliverabilityServiceClient deliverabilityClient;
+    private final AudienceEventIdempotencyService idempotencyService;
 
     @KafkaListener(topics = AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, groupId = AppConstants.GROUP_AUDIENCE)
     public void handleResolutionRequest(EventEnvelope<Map<String, Object>> event) {
         String tenantId = event.getTenantId();
+        String workspaceId = event.getWorkspaceId() == null || event.getWorkspaceId().isBlank()
+                ? "workspace-default"
+                : event.getWorkspaceId();
         String campaignId = (String) event.getPayload().get("campaignId");
         String jobId = (String) event.getPayload().get("jobId");
 
@@ -43,16 +48,28 @@ public class AudienceResolutionConsumer {
         
         try {
             TenantContext.setTenantId(tenantId);
+            TenantContext.setWorkspaceId(workspaceId);
+
+            boolean newEvent = idempotencyService.registerIfNew(
+                    tenantId,
+                    workspaceId,
+                    String.valueOf(event.getEventType()),
+                    event.getEventId(),
+                    event.getIdempotencyKey());
+            if (!newEvent) {
+                return;
+            }
             
             @SuppressWarnings("unchecked")
             List<Map<String, String>> audiences = (List<Map<String, String>>) event.getPayload().get("audiences");
-            log.debug("Audience resolution payload: tenant={}, campaign={}, audiences={}", tenantId, campaignId, audiences);
+            log.debug("Audience resolution payload: tenant={}, workspace={}, campaign={}, audiences={}",
+                    tenantId, workspaceId, campaignId, audiences);
             Set<String> includedSubscriberIds = new HashSet<>();
             Set<String> excludedSubscriberIds = new HashSet<>();
             boolean hasIncludeRule = false;
 
             if (audiences == null || audiences.isEmpty()) {
-                includedSubscriberIds.addAll(subscriberRepository.findIdsByTenantIdAndDeletedAtIsNull(tenantId));
+                includedSubscriberIds.addAll(subscriberRepository.findIdsByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId));
                 hasIncludeRule = true;
             } else {
                 for (Map<String, String> aud : audiences) {
@@ -68,7 +85,7 @@ public class AudienceResolutionConsumer {
                     if ("SEGMENT".equalsIgnoreCase(type)) {
                         resolvedIds.addAll(segmentEvaluationService.getSegmentMembers(id));
                     } else if ("LIST".equalsIgnoreCase(type)) {
-                        resolvedIds.addAll(listMembershipRepository.findActiveSubscriberIdsByTenantAndListId(tenantId, id));
+                        resolvedIds.addAll(listMembershipRepository.findActiveSubscriberIdsByTenantAndWorkspaceAndListId(tenantId, workspaceId, id));
                     } else {
                         log.warn("Unsupported audience type '{}' for audience id '{}'", type, id);
                     }
@@ -84,13 +101,13 @@ public class AudienceResolutionConsumer {
             }
 
             if (!hasIncludeRule && !excludedSubscriberIds.isEmpty()) {
-                includedSubscriberIds.addAll(subscriberRepository.findIdsByTenantIdAndDeletedAtIsNull(tenantId));
+                includedSubscriberIds.addAll(subscriberRepository.findIdsByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId));
             }
             includedSubscriberIds.removeAll(excludedSubscriberIds);
 
             List<Subscriber> audience = includedSubscriberIds.isEmpty()
                     ? List.of()
-                    : subscriberRepository.findByTenantIdAndIdInAndDeletedAtIsNull(tenantId, new ArrayList<>(includedSubscriberIds));
+                    : subscriberRepository.findByTenantIdAndWorkspaceIdAndIdInAndDeletedAtIsNull(tenantId, workspaceId, new ArrayList<>(includedSubscriberIds));
 
             // Check for suppressed subscribers (bounced, complained, unsubscribed)
             List<String> emailsToCheck = audience.stream()
@@ -98,7 +115,7 @@ public class AudienceResolutionConsumer {
                     .distinct()
                     .collect(Collectors.toList());
 
-            Set<String> suppressedEmails = deliverabilityClient.checkSuppressedEmails(tenantId, emailsToCheck);
+            Set<String> suppressedEmails = deliverabilityClient.checkSuppressedEmails(tenantId, workspaceId, emailsToCheck);
 
             // Filter out suppressed subscribers
             List<Subscriber> filteredAudience = audience.stream()

@@ -22,6 +22,18 @@ import org.hibernate.type.SqlTypes;
 @NoArgsConstructor
 public class SubscriberList extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", nullable = false, length = 36)
+    private String workspaceId;
+
+    @Column(name = "team_id", length = 36)
+    private String teamId;
+
+    @Column(name = "assigned_owner_id", length = 36)
+    private String assignedOwnerId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 30)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "name", nullable = false, length = 255)
     private String name;
 
@@ -39,9 +51,31 @@ public class SubscriberList extends TenantAwareEntity {
     @Column(name = "member_count", nullable = false)
     private long memberCount = 0;
 
+    @Column(name = "is_dynamic", nullable = false)
+    private boolean isDynamic = false;
+
+    @Column(name = "auto_refresh_enabled", nullable = false)
+    private boolean autoRefreshEnabled = false;
+
+    @Column(name = "visibility_scope", nullable = false, length = 30)
+    private String visibilityScope = "WORKSPACE";
+
+    @Column(name = "is_favorite", nullable = false)
+    private boolean favorite = false;
+
+    @Column(name = "folder", length = 255)
+    private String folder;
+
+    @Column(name = "category", length = 128)
+    private String category;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata", columnDefinition = "jsonb")
     private Map<String, Object> metadata;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tags", columnDefinition = "jsonb")
+    private java.util.List<String> tags;
 
     public enum ListType {
         PUBLICATION, SUPPRESSION, SEND

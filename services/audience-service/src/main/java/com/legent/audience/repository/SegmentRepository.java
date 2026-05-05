@@ -19,13 +19,16 @@ public interface SegmentRepository extends JpaRepository<Segment, String> {
     @Query("SELECT s FROM Segment s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
     Page<Segment> findAllByTenant(@Param("tid") String tenantId, Pageable pageable);
 
-    Optional<Segment> findByTenantIdAndIdAndDeletedAtIsNull(String tenantId, String id);
+    @Query("SELECT s FROM Segment s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
+    Page<Segment> findAllByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId, Pageable pageable);
 
-    boolean existsByTenantIdAndNameAndDeletedAtIsNull(String tenantId, String name);
+    Optional<Segment> findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(String tenantId, String workspaceId, String id);
+
+    boolean existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(String tenantId, String workspaceId, String name);
 
     @Query("SELECT s FROM Segment s WHERE s.scheduleEnabled = true AND s.status IN ('ACTIVE','DRAFT') AND s.deletedAt IS NULL")
     List<Segment> findScheduledSegments();
 
-    @Query("SELECT COUNT(s) FROM Segment s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
-    long countByTenant(@Param("tid") String tenantId);
+    @Query("SELECT COUNT(s) FROM Segment s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
+    long countByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId);
 }

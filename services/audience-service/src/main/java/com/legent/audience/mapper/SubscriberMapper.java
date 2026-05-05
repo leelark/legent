@@ -38,7 +38,6 @@ public interface SubscriberMapper {
     @Mapping(target = "bouncedAt", ignore = true)
     @Mapping(target = "emailFormat", ignore = true)
     @Mapping(target = "lastActivityAt", ignore = true)
-    @Mapping(target = "source", ignore = true)
     @Mapping(target = "subscribedAt", ignore = true)
     @Mapping(target = "unsubscribedAt", ignore = true)
     void updateEntity(SubscriberDto.UpdateRequest request, @MappingTarget Subscriber entity);

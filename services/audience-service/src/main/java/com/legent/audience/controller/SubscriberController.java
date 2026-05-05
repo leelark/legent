@@ -24,12 +24,14 @@ public class SubscriberController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search,
+            @RequestParam(required = false) String query,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
-        Page<SubscriberDto.Response> result = subscriberService.search(search, status, PageRequest.of(page, size, sort));
+        String resolvedSearch = (search != null && !search.isBlank()) ? search : query;
+        Page<SubscriberDto.Response> result = subscriberService.search(resolvedSearch, status, PageRequest.of(page, size, sort));
         return PagedResponse.of(result.getContent(), page, size, result.getTotalElements(), result.getTotalPages());
     }
 
@@ -64,6 +66,33 @@ public class SubscriberController {
     @PostMapping("/bulk")
     public ApiResponse<SubscriberDto.BulkUpsertResponse> bulkUpsert(@Valid @RequestBody SubscriberDto.BulkUpsertRequest request) {
         return ApiResponse.ok(subscriberService.bulkUpsert(request));
+    }
+
+    @PostMapping("/merge")
+    public ApiResponse<SubscriberDto.Response> merge(@Valid @RequestBody SubscriberDto.MergeRequest request) {
+        return ApiResponse.ok(subscriberService.merge(request));
+    }
+
+    @PostMapping("/bulk-actions")
+    public ApiResponse<Long> bulkActions(@Valid @RequestBody SubscriberDto.BulkActionRequest request) {
+        return ApiResponse.ok(subscriberService.bulkAction(request));
+    }
+
+    @PutMapping("/{id}/lifecycle")
+    public ApiResponse<SubscriberDto.Response> updateLifecycle(@PathVariable String id,
+                                                               @Valid @RequestBody SubscriberDto.LifecycleUpdateRequest request) {
+        return ApiResponse.ok(subscriberService.updateLifecycle(id, request));
+    }
+
+    @PutMapping("/{id}/score")
+    public ApiResponse<SubscriberDto.Response> updateScore(@PathVariable String id,
+                                                           @Valid @RequestBody SubscriberDto.ScoreUpdateRequest request) {
+        return ApiResponse.ok(subscriberService.updateScore(id, request));
+    }
+
+    @GetMapping("/{id}/activity")
+    public ApiResponse<SubscriberDto.ActivityTimelineResponse> activity(@PathVariable String id) {
+        return ApiResponse.ok(subscriberService.activity(id));
     }
 
     @GetMapping("/count")

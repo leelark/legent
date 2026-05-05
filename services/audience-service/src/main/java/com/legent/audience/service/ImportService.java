@@ -5,7 +5,6 @@ import com.legent.audience.dto.ImportDto;
 import com.legent.audience.event.ImportEventPublisher;
 import com.legent.audience.repository.ImportJobRepository;
 import com.legent.common.exception.NotFoundException;
-import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -64,10 +63,16 @@ public class ImportService {
 
     @Transactional
     public ImportDto.StatusResponse startImport(ImportDto.StartRequest request) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+
+        if (request.getFieldMapping() == null || request.getFieldMapping().get("email") == null || request.getFieldMapping().get("email").isBlank()) {
+            throw new IllegalArgumentException("Email mapping is required for subscriber imports");
+        }
 
         ImportJob job = new ImportJob();
         job.setTenantId(tenantId);
+        job.setWorkspaceId(workspaceId);
         job.setFileName(request.getFileName());
         job.setFileSize(request.getFileSize());
         job.setTargetType(request.getTargetType() != null ? request.getTargetType() : "SUBSCRIBER");
@@ -88,22 +93,25 @@ public class ImportService {
 
     @Transactional(readOnly = true)
     public ImportDto.StatusResponse getStatus(String jobId) {
-        String tenantId = TenantContext.getTenantId();
-        ImportJob job = importJobRepository.findByTenantIdAndId(tenantId, jobId)
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        ImportJob job = importJobRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, jobId)
                 .orElseThrow(() -> new NotFoundException("ImportJob", jobId));
         return toStatusResponse(job);
     }
 
     @Transactional(readOnly = true)
     public Page<ImportDto.StatusResponse> listImports(Pageable pageable) {
-        String tenantId = TenantContext.getTenantId();
-        return importJobRepository.findByTenant(tenantId, pageable).map(this::toStatusResponse);
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        return importJobRepository.findByTenantAndWorkspace(tenantId, workspaceId, pageable).map(this::toStatusResponse);
     }
 
     @Transactional
     public void cancelImport(String jobId) {
-        String tenantId = TenantContext.getTenantId();
-        ImportJob job = importJobRepository.findByTenantIdAndId(tenantId, jobId)
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        ImportJob job = importJobRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, jobId)
                 .orElseThrow(() -> new NotFoundException("ImportJob", jobId));
 
         if (job.getStatus() == ImportJob.ImportStatus.PENDING || job.getStatus() == ImportJob.ImportStatus.PROCESSING) {

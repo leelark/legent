@@ -16,25 +16,61 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ListMembershipRepository extends JpaRepository<ListMembership, String> {
 
-    @Query("SELECT m FROM ListMembership m WHERE m.listId = :listId AND m.status = 'ACTIVE'")
-    Page<ListMembership> findActiveByList(@Param("listId") String listId, Pageable pageable);
+    @Query("""
+        SELECT m FROM ListMembership m
+        WHERE m.tenantId = :tenantId AND m.workspaceId = :workspaceId
+          AND m.listId = :listId AND m.status = 'ACTIVE'
+    """)
+    Page<ListMembership> findActiveByList(@Param("tenantId") String tenantId,
+                                          @Param("workspaceId") String workspaceId,
+                                          @Param("listId") String listId,
+                                          Pageable pageable);
 
-    Optional<ListMembership> findByListIdAndSubscriberId(String listId, String subscriberId);
+    Optional<ListMembership> findByTenantIdAndWorkspaceIdAndListIdAndSubscriberId(String tenantId, String workspaceId, String listId, String subscriberId);
 
-    boolean existsByListIdAndSubscriberIdAndStatus(String listId, String subscriberId, ListMembership.MembershipStatus status);
+    boolean existsByTenantIdAndWorkspaceIdAndListIdAndSubscriberIdAndStatus(String tenantId, String workspaceId, String listId, String subscriberId, ListMembership.MembershipStatus status);
 
-    @Query("SELECT COUNT(m) FROM ListMembership m WHERE m.listId = :listId AND m.status = 'ACTIVE'")
-    long countActiveByList(@Param("listId") String listId);
+    @Query("""
+        SELECT COUNT(m) FROM ListMembership m
+        WHERE m.tenantId = :tenantId AND m.workspaceId = :workspaceId
+          AND m.listId = :listId AND m.status = 'ACTIVE'
+    """)
+    long countActiveByList(@Param("tenantId") String tenantId, @Param("workspaceId") String workspaceId, @Param("listId") String listId);
 
     @Query("""
         SELECT m.subscriberId FROM ListMembership m
         WHERE m.tenantId = :tenantId
+          AND m.workspaceId = :workspaceId
           AND m.listId = :listId
           AND m.status = 'ACTIVE'
     """)
-    java.util.List<String> findActiveSubscriberIdsByTenantAndListId(@Param("tenantId") String tenantId, @Param("listId") String listId);
+    java.util.List<String> findActiveSubscriberIdsByTenantAndWorkspaceAndListId(@Param("tenantId") String tenantId,
+                                                                                  @Param("workspaceId") String workspaceId,
+                                                                                  @Param("listId") String listId);
 
     @Modifying
-    @Query("DELETE FROM ListMembership m WHERE m.listId = :listId AND m.subscriberId IN :subIds")
-    void removeMembers(@Param("listId") String listId, @Param("subIds") java.util.List<String> subscriberIds);
+    @Query("""
+        DELETE FROM ListMembership m
+        WHERE m.tenantId = :tenantId
+          AND m.workspaceId = :workspaceId
+          AND m.listId = :listId
+          AND m.subscriberId IN :subIds
+    """)
+    void removeMembers(@Param("tenantId") String tenantId,
+                       @Param("workspaceId") String workspaceId,
+                       @Param("listId") String listId,
+                       @Param("subIds") java.util.List<String> subscriberIds);
+
+    @Modifying
+    @Query("""
+        UPDATE ListMembership m
+        SET m.subscriberId = :targetSubscriberId
+        WHERE m.tenantId = :tenantId
+          AND m.workspaceId = :workspaceId
+          AND m.subscriberId = :sourceSubscriberId
+    """)
+    void reassignSubscriber(@Param("tenantId") String tenantId,
+                            @Param("workspaceId") String workspaceId,
+                            @Param("sourceSubscriberId") String sourceSubscriberId,
+                            @Param("targetSubscriberId") String targetSubscriberId);
 }

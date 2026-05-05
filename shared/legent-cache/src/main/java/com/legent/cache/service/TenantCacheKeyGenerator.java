@@ -18,10 +18,14 @@ public final class TenantCacheKeyGenerator {
      */
     public static String key(String prefix, String key) {
         String tenantId = TenantContext.getTenantId();
+        String workspaceId = TenantContext.getWorkspaceId();
         if (tenantId == null) {
             return prefix + "global:" + key;
         }
-        return prefix + tenantId + ":" + key;
+        if (workspaceId == null || workspaceId.isBlank()) {
+            return prefix + tenantId + ":" + key;
+        }
+        return prefix + tenantId + ":" + workspaceId + ":" + key;
     }
 
     /**

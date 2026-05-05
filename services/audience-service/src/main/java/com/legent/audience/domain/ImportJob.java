@@ -29,6 +29,18 @@ public class ImportJob extends BaseEntity {
     @Column(name = "tenant_id", nullable = false, length = 36)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false, length = 36)
+    private String workspaceId;
+
+    @Column(name = "team_id", length = 36)
+    private String teamId;
+
+    @Column(name = "assigned_owner_id", length = 36)
+    private String assignedOwnerId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 30)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "file_name", nullable = false, length = 255)
     private String fileName;
 
@@ -42,8 +54,17 @@ public class ImportJob extends BaseEntity {
     @Column(name = "target_type", nullable = false, length = 30)
     private String targetType = "SUBSCRIBER";
 
+    @Column(name = "import_type", nullable = false, length = 30)
+    private String importType = "CSV";
+
     @Column(name = "target_id", length = 36)
     private String targetId;
+
+    @Column(name = "resume_token", length = 128)
+    private String resumeToken;
+
+    @Column(name = "started_by", length = 36)
+    private String startedBy;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "field_mapping", nullable = false, columnDefinition = "jsonb")

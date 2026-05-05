@@ -16,47 +16,74 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SubscriberRepository extends JpaRepository<Subscriber, String> {
 
-    Optional<Subscriber> findByTenantIdAndSubscriberKeyAndDeletedAtIsNull(String tenantId, String subscriberKey);
+    Optional<Subscriber> findByTenantIdAndWorkspaceIdAndSubscriberKeyAndDeletedAtIsNull(String tenantId, String workspaceId, String subscriberKey);
 
-    Optional<Subscriber> findByTenantIdAndEmailAndDeletedAtIsNull(String tenantId, String email);
+    Optional<Subscriber> findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(String tenantId, String workspaceId, String email);
 
     boolean existsByTenantIdAndSubscriberKeyAndDeletedAtIsNull(String tenantId, String subscriberKey);
 
     @Query("SELECT s FROM Subscriber s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
     Page<Subscriber> findAllByTenant(@Param("tid") String tenantId, Pageable pageable);
 
+    @Query("SELECT s FROM Subscriber s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
+    Page<Subscriber> findAllByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId, Pageable pageable);
+
     @Query("""
         SELECT s FROM Subscriber s
-        WHERE s.tenantId = :tid AND s.deletedAt IS NULL
+        WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL
           AND s.status = :status
     """)
     Page<Subscriber> findByTenantAndStatus(@Param("tid") String tenantId,
+                                            @Param("wid") String workspaceId,
                                             @Param("status") Subscriber.SubscriberStatus status,
                                             Pageable pageable);
 
     @Query("""
         SELECT s FROM Subscriber s
-        WHERE s.tenantId = :tid AND s.deletedAt IS NULL
+        WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL
           AND (LOWER(s.email) LIKE LOWER(CONCAT('%', :q, '%'))
                OR LOWER(s.firstName) LIKE LOWER(CONCAT('%', :q, '%'))
                OR LOWER(s.lastName) LIKE LOWER(CONCAT('%', :q, '%'))
                OR LOWER(s.subscriberKey) LIKE LOWER(CONCAT('%', :q, '%')))
     """)
-    Page<Subscriber> searchByTenant(@Param("tid") String tenantId, @Param("q") String query, Pageable pageable);
+    Page<Subscriber> searchByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId, @Param("q") String query, Pageable pageable);
 
-    @Query("SELECT COUNT(s) FROM Subscriber s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
-    long countByTenant(@Param("tid") String tenantId);
+    @Query("SELECT COUNT(s) FROM Subscriber s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
+    long countByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId);
 
-    @Query("SELECT COUNT(s) FROM Subscriber s WHERE s.tenantId = :tid AND s.status = :status AND s.deletedAt IS NULL")
-    long countByTenantAndStatus(@Param("tid") String tenantId, @Param("status") Subscriber.SubscriberStatus status);
+    @Query("SELECT COUNT(s) FROM Subscriber s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.status = :status AND s.deletedAt IS NULL")
+    long countByTenantAndWorkspaceAndStatus(@Param("tid") String tenantId, @Param("wid") String workspaceId, @Param("status") Subscriber.SubscriberStatus status);
 
-    List<Subscriber> findByTenantIdAndEmailInAndDeletedAtIsNull(String tenantId, List<String> emails);
+    List<Subscriber> findByTenantIdAndWorkspaceIdAndEmailInAndDeletedAtIsNull(String tenantId, String workspaceId, List<String> emails);
 
-    List<Subscriber> findByTenantIdAndIdInAndDeletedAtIsNull(String tenantId, List<String> ids);
+    List<Subscriber> findByTenantIdAndWorkspaceIdAndIdInAndDeletedAtIsNull(String tenantId, String workspaceId, List<String> ids);
 
-    @Query("SELECT s FROM Subscriber s WHERE s.tenantId = :tid AND s.id = :id AND s.deletedAt IS NULL")
-    Optional<Subscriber> findByTenantIdAndId(@Param("tid") String tenantId, @Param("id") String id);
+    @Query("SELECT s FROM Subscriber s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.id = :id AND s.deletedAt IS NULL")
+    Optional<Subscriber> findByTenantIdAndWorkspaceIdAndId(@Param("tid") String tenantId, @Param("wid") String workspaceId, @Param("id") String id);
 
-    @Query("SELECT s.id FROM Subscriber s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
-    List<String> findIdsByTenantIdAndDeletedAtIsNull(@Param("tid") String tenantId);
+    @Query("SELECT s.id FROM Subscriber s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
+    List<String> findIdsByTenantIdAndWorkspaceIdAndDeletedAtIsNull(@Param("tid") String tenantId, @Param("wid") String workspaceId);
+
+    @Query("""
+        SELECT LOWER(s.email), COUNT(s.id)
+        FROM Subscriber s
+        WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL
+        GROUP BY LOWER(s.email)
+        HAVING COUNT(s.id) > 1
+    """)
+    List<Object[]> findDuplicateEmailsByScope(@Param("tid") String tenantId, @Param("wid") String workspaceId);
+
+    @Query("""
+        SELECT s FROM Subscriber s
+        WHERE s.tenantId = :tid AND s.workspaceId = :wid AND LOWER(s.email) = LOWER(:email) AND s.deletedAt IS NULL
+        ORDER BY s.updatedAt DESC
+    """)
+    List<Subscriber> findDuplicatesByScopedEmail(@Param("tid") String tenantId, @Param("wid") String workspaceId, @Param("email") String email);
+
+    @Query("""
+        SELECT DISTINCT s.tenantId, s.workspaceId
+        FROM Subscriber s
+        WHERE s.deletedAt IS NULL
+    """)
+    List<Object[]> findDistinctTenantWorkspaceScopes();
 }

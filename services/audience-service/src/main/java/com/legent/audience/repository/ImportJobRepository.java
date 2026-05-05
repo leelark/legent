@@ -17,5 +17,8 @@ public interface ImportJobRepository extends JpaRepository<ImportJob, String> {
     @Query("SELECT j FROM ImportJob j WHERE j.tenantId = :tid ORDER BY j.createdAt DESC")
     Page<ImportJob> findByTenant(@Param("tid") String tenantId, Pageable pageable);
 
-    Optional<ImportJob> findByTenantIdAndId(String tenantId, String id);
+    @Query("SELECT j FROM ImportJob j WHERE j.tenantId = :tid AND j.workspaceId = :wid ORDER BY j.createdAt DESC")
+    Page<ImportJob> findByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId, Pageable pageable);
+
+    Optional<ImportJob> findByTenantIdAndWorkspaceIdAndId(String tenantId, String workspaceId, String id);
 }

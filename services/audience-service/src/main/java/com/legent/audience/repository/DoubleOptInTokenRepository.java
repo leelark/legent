@@ -20,19 +20,57 @@ public interface DoubleOptInTokenRepository extends JpaRepository<DoubleOptInTok
 
     Optional<DoubleOptInToken> findByTokenHash(String tokenHash);
 
-    List<DoubleOptInToken> findByTenantIdAndSubscriberId(String tenantId, String subscriberId);
+    List<DoubleOptInToken> findByTenantIdAndWorkspaceIdAndSubscriberId(String tenantId, String workspaceId, String subscriberId);
 
-    @Query("SELECT t FROM DoubleOptInToken t WHERE t.tenantId = :tenantId AND t.status = 'PENDING' AND t.expiresAt < :now")
-    List<DoubleOptInToken> findExpiredTokens(@Param("tenantId") String tenantId, @Param("now") Instant now);
+    @Query("""
+        SELECT t FROM DoubleOptInToken t
+        WHERE t.tenantId = :tenantId
+          AND t.workspaceId = :workspaceId
+          AND t.status = 'PENDING'
+          AND t.expiresAt < :now
+    """)
+    List<DoubleOptInToken> findExpiredTokens(@Param("tenantId") String tenantId,
+                                             @Param("workspaceId") String workspaceId,
+                                             @Param("now") Instant now);
 
-    @Query("SELECT t FROM DoubleOptInToken t WHERE t.tenantId = :tenantId AND t.subscriberId = :subscriberId AND t.status = 'PENDING'")
+    @Query("""
+        SELECT t FROM DoubleOptInToken t
+        WHERE t.tenantId = :tenantId
+          AND t.workspaceId = :workspaceId
+          AND t.subscriberId = :subscriberId
+          AND t.status = 'PENDING'
+    """)
     Optional<DoubleOptInToken> findPendingTokenForSubscriber(@Param("tenantId") String tenantId,
+                                                              @Param("workspaceId") String workspaceId,
                                                               @Param("subscriberId") String subscriberId);
 
     @Modifying
     @Transactional
-    @Query("UPDATE DoubleOptInToken t SET t.status = 'EXPIRED' WHERE t.tenantId = :tenantId AND t.expiresAt < :now AND t.status = 'PENDING'")
-    int markExpiredTokens(@Param("tenantId") String tenantId, @Param("now") Instant now);
+    @Query("""
+        UPDATE DoubleOptInToken t
+        SET t.status = 'EXPIRED'
+        WHERE t.tenantId = :tenantId
+          AND t.workspaceId = :workspaceId
+          AND t.expiresAt < :now
+          AND t.status = 'PENDING'
+    """)
+    int markExpiredTokens(@Param("tenantId") String tenantId,
+                          @Param("workspaceId") String workspaceId,
+                          @Param("now") Instant now);
 
-    long countByTenantIdAndStatus(String tenantId, DoubleOptInToken.TokenStatus status);
+    long countByTenantIdAndWorkspaceIdAndStatus(String tenantId, String workspaceId, DoubleOptInToken.TokenStatus status);
+
+    @Modifying
+    @Transactional
+    @Query("""
+        UPDATE DoubleOptInToken t
+        SET t.subscriberId = :targetSubscriberId
+        WHERE t.tenantId = :tenantId
+          AND t.workspaceId = :workspaceId
+          AND t.subscriberId = :sourceSubscriberId
+    """)
+    void reassignSubscriber(@Param("tenantId") String tenantId,
+                            @Param("workspaceId") String workspaceId,
+                            @Param("sourceSubscriberId") String sourceSubscriberId,
+                            @Param("targetSubscriberId") String targetSubscriberId);
 }

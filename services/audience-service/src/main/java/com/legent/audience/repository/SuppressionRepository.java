@@ -17,16 +17,22 @@ public interface SuppressionRepository extends JpaRepository<Suppression, String
     @Query("SELECT s FROM Suppression s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
     Page<Suppression> findAllByTenant(@Param("tid") String tenantId, Pageable pageable);
 
+    @Query("SELECT s FROM Suppression s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
+    Page<Suppression> findAllByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId, Pageable pageable);
+
     @Query("""
         SELECT s FROM Suppression s
-        WHERE s.tenantId = :tid AND s.email = :email AND s.deletedAt IS NULL
+        WHERE s.tenantId = :tid AND s.workspaceId = :wid AND LOWER(s.email) = LOWER(:email) AND s.deletedAt IS NULL
           AND (s.expiresAt IS NULL OR s.expiresAt > CURRENT_TIMESTAMP)
     """)
-    List<Suppression> findActiveSuppression(@Param("tid") String tenantId, @Param("email") String email);
+    List<Suppression> findActiveSuppression(@Param("tid") String tenantId, @Param("wid") String workspaceId, @Param("email") String email);
 
-    boolean existsByTenantIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(
-            String tenantId, String email, Suppression.SuppressionType type);
+    boolean existsByTenantIdAndWorkspaceIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(
+            String tenantId, String workspaceId, String email, Suppression.SuppressionType type);
 
-    @Query("SELECT COUNT(s) FROM Suppression s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
-    long countByTenant(@Param("tid") String tenantId);
+    java.util.Optional<Suppression> findByTenantIdAndWorkspaceIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(
+            String tenantId, String workspaceId, String email, Suppression.SuppressionType type);
+
+    @Query("SELECT COUNT(s) FROM Suppression s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
+    long countByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId);
 }

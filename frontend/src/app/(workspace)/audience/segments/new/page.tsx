@@ -12,7 +12,11 @@ export default function NewSegmentPage() {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    rules: undefined as any,
+    rules: {
+      operator: "AND",
+      conditions: [],
+      groups: []
+    } as any,
   });
   const [saving, setSaving] = useState(false);
 
@@ -48,7 +52,7 @@ export default function NewSegmentPage() {
           />
           <div>
             <label className="block text-sm font-medium mb-1">Rules *</label>
-            <SegmentRuleBuilder onChange={rules => setForm(f => ({ ...f, rules }))} />
+            <SegmentRuleBuilder initialRules={form.rules} onChange={rules => setForm(f => ({ ...f, rules }))} />
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="secondary" onClick={() => router.push("/audience/segments")}>Cancel</Button>

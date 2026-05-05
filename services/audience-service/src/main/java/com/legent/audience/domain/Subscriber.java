@@ -20,7 +20,7 @@ import org.hibernate.type.SqlTypes;
 @Entity
 @Table(name = "subscribers", 
        uniqueConstraints = {
-           @UniqueConstraint(name = "uk_subscriber_tenant_email", columnNames = {"tenant_id", "email"}),
+           @UniqueConstraint(name = "uk_subscriber_tenant_workspace_email", columnNames = {"tenant_id", "workspace_id", "email"}),
            @UniqueConstraint(name = "uk_subscriber_tenant_key", columnNames = {"tenant_id", "subscriber_key"})
        })
 @Getter
@@ -30,6 +30,18 @@ public class Subscriber extends TenantAwareEntity {
 
     @Column(name = "subscriber_key", nullable = false, length = 255)
     private String subscriberKey;
+
+    @Column(name = "workspace_id", nullable = false, length = 36)
+    private String workspaceId;
+
+    @Column(name = "team_id", length = 36)
+    private String teamId;
+
+    @Column(name = "assigned_owner_id", length = 36)
+    private String assignedOwnerId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 30)
+    private String ownershipScope = "WORKSPACE";
 
     @Column(name = "email", nullable = false, length = 320)
     private String email;
@@ -59,6 +71,51 @@ public class Subscriber extends TenantAwareEntity {
     @Column(name = "source", length = 50)
     private String source;
 
+    @Column(name = "lead_source", length = 128)
+    private String leadSource;
+
+    @Column(name = "acquisition_channel", length = 128)
+    private String acquisitionChannel;
+
+    @Column(name = "campaign_source", length = 128)
+    private String campaignSource;
+
+    @Column(name = "date_of_birth")
+    private java.time.LocalDate dateOfBirth;
+
+    @Column(name = "gender", length = 32)
+    private String gender;
+
+    @Column(name = "company", length = 255)
+    private String company;
+
+    @Column(name = "job_title", length = 255)
+    private String jobTitle;
+
+    @Column(name = "industry", length = 255)
+    private String industry;
+
+    @Column(name = "department", length = 255)
+    private String department;
+
+    @Column(name = "country", length = 128)
+    private String country;
+
+    @Column(name = "state", length = 128)
+    private String state;
+
+    @Column(name = "city", length = 128)
+    private String city;
+
+    @Column(name = "language", length = 64)
+    private String language;
+
+    @Column(name = "profile_image_url", length = 1024)
+    private String profileImageUrl;
+
+    @Column(name = "internal_notes", columnDefinition = "text")
+    private String internalNotes;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "custom_fields", columnDefinition = "jsonb")
     private Map<String, Object> customFields;
@@ -85,7 +142,49 @@ public class Subscriber extends TenantAwareEntity {
     @Column(name = "double_opt_in_confirmed_at")
     private Instant doubleOptInConfirmedAt;
 
+    @Column(name = "lifecycle_stage", nullable = false, length = 64)
+    private String lifecycleStage = "PROSPECT";
+
+    @Column(name = "lifecycle_stage_at")
+    private Instant lifecycleStageAt;
+
+    @Column(name = "open_score", nullable = false)
+    private int openScore = 0;
+
+    @Column(name = "click_score", nullable = false)
+    private int clickScore = 0;
+
+    @Column(name = "conversion_score", nullable = false)
+    private int conversionScore = 0;
+
+    @Column(name = "recency_score", nullable = false)
+    private int recencyScore = 0;
+
+    @Column(name = "frequency_score", nullable = false)
+    private int frequencyScore = 0;
+
+    @Column(name = "engagement_score", nullable = false)
+    private int engagementScore = 0;
+
+    @Column(name = "activity_score", nullable = false)
+    private int activityScore = 0;
+
+    @Column(name = "total_score", nullable = false)
+    private int totalScore = 0;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "timeline", columnDefinition = "jsonb")
+    private java.util.List<Map<String, Object>> timeline;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "tags", columnDefinition = "jsonb")
+    private java.util.List<String> tags;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "categories", columnDefinition = "jsonb")
+    private java.util.List<String> categories;
+
     public enum SubscriberStatus {
-        ACTIVE, UNSUBSCRIBED, BOUNCED, HELD, BLOCKED, PENDING_CONFIRMATION
+        ACTIVE, PENDING, SUBSCRIBED, UNSUBSCRIBED, BOUNCED, COMPLAINED, SUPPRESSED, BLOCKED, INACTIVE, HELD, PENDING_CONFIRMATION
     }
 }

@@ -21,6 +21,7 @@ import java.util.*;
 @Service
 @RequiredArgsConstructor
 public class AuthService {
+    private static final String DEFAULT_WORKSPACE_ID = "workspace-default";
 
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
@@ -71,7 +72,7 @@ public class AuthService {
         return tokenProvider.generateToken(
                 user.getId(),
                 user.getTenantId(),
-                membership.getWorkspaceId(),
+                normalizeWorkspaceId(membership.getWorkspaceId()),
                 null,
                 Map.of(
                         "roles", roles,
@@ -122,7 +123,7 @@ public class AuthService {
         return tokenProvider.generateToken(
                 savedUser.getId(),
                 savedUser.getTenantId(),
-                membership.getWorkspaceId(),
+                normalizeWorkspaceId(membership.getWorkspaceId()),
                 null,
                 Map.of(
                         "roles", resolveMembershipRoles(account.getId(), membership.getId(), "ADMIN"),
@@ -239,7 +240,7 @@ public class AuthService {
         return tokenProvider.generateToken(
                 user.getId(),
                 user.getTenantId(),
-                membership.getWorkspaceId(),
+                normalizeWorkspaceId(membership.getWorkspaceId()),
                 null,
                 Map.of(
                         "roles", resolveMembershipRoles(account.getId(), membership.getId(), user.getRole()),
@@ -259,7 +260,7 @@ public class AuthService {
         if (accountOpt.isEmpty()) {
             return List.of(Map.of(
                     "tenantId", userOpt.get().getTenantId(),
-                    "workspaceId", null,
+                    "workspaceId", DEFAULT_WORKSPACE_ID,
                     "roles", List.of(userOpt.get().getRole()),
                     "status", userOpt.get().isActive() ? "ACTIVE" : "INACTIVE"
             ));
@@ -272,7 +273,7 @@ public class AuthService {
             List<String> roles = resolveMembershipRoles(account.getId(), membership.getId(), "USER");
             Map<String, Object> ctx = new LinkedHashMap<>();
             ctx.put("tenantId", membership.getTenantId());
-            ctx.put("workspaceId", membership.getWorkspaceId());
+            ctx.put("workspaceId", normalizeWorkspaceId(membership.getWorkspaceId()));
             ctx.put("roles", roles);
             ctx.put("status", membership.getStatus());
             ctx.put("default", membership.isDefaultMembership());
@@ -291,7 +292,7 @@ public class AuthService {
             return tokenProvider.generateToken(
                     userId,
                     request.getTenantId(),
-                    request.getWorkspaceId(),
+                    normalizeWorkspaceId(request.getWorkspaceId()),
                     request.getEnvironmentId(),
                     Map.of("roles", List.of(user.getRole()))
             );
@@ -303,15 +304,18 @@ public class AuthService {
                 .orElseThrow(() -> new IllegalArgumentException("Membership not found for target tenant"));
 
         List<String> roles = resolveMembershipRoles(account.getId(), membership.getId(), user.getRole());
+        String selectedWorkspace = blankToNull(request.getWorkspaceId()) != null
+                ? request.getWorkspaceId()
+                : membership.getWorkspaceId();
         return tokenProvider.generateToken(
                 userId,
                 request.getTenantId(),
-                blankToNull(request.getWorkspaceId()),
+                normalizeWorkspaceId(selectedWorkspace),
                 blankToNull(request.getEnvironmentId()),
                 Map.of(
-                        "roles", roles,
-                        "email", user.getEmail(),
-                        "accountId", account.getId()
+                "roles", roles,
+                "email", user.getEmail(),
+                "accountId", account.getId()
                 )
         );
     }
@@ -335,7 +339,7 @@ public class AuthService {
         return tokenProvider.generateToken(
                 request.getDelegatedUserId(),
                 tenantId,
-                blankToNull(request.getWorkspaceId()),
+                normalizeWorkspaceId(request.getWorkspaceId()),
                 null,
                 extraClaims
         );
@@ -395,18 +399,26 @@ public class AuthService {
             membership.setAccountId(account.getId());
             membership.setUserId(user.getId());
             membership.setTenantId(tenantId);
-            membership.setWorkspaceId(blankToNull(workspaceId));
+            membership.setWorkspaceId(normalizeWorkspaceId(workspaceId));
             membership.setStatus("ACTIVE");
             membership.setDefaultMembership(true);
             return membership;
         }
         return accountMembershipRepository.findByAccountIdAndTenantId(account.getId(), tenantId)
+                .map(existing -> {
+                    String normalizedWorkspace = normalizeWorkspaceId(existing.getWorkspaceId());
+                    if (!Objects.equals(existing.getWorkspaceId(), normalizedWorkspace)) {
+                        existing.setWorkspaceId(normalizedWorkspace);
+                        return accountMembershipRepository.save(existing);
+                    }
+                    return existing;
+                })
                 .orElseGet(() -> {
                     AccountMembership membership = new AccountMembership();
                     membership.setAccountId(account.getId());
                     membership.setUserId(user.getId());
                     membership.setTenantId(tenantId);
-                    membership.setWorkspaceId(blankToNull(workspaceId));
+                    membership.setWorkspaceId(normalizeWorkspaceId(workspaceId));
                     membership.setStatus("ACTIVE");
                     membership.setDefaultMembership(true);
                     membership.setMetadata(Map.of("legacyUserId", user.getId()));
@@ -463,5 +475,10 @@ public class AuthService {
             return null;
         }
         return value;
+    }
+
+    private String normalizeWorkspaceId(String workspaceId) {
+        String normalized = blankToNull(workspaceId);
+        return normalized != null ? normalized : DEFAULT_WORKSPACE_ID;
     }
 }

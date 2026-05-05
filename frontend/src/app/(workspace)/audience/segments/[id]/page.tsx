@@ -14,7 +14,11 @@ export default function EditSegmentPage() {
   const [form, setForm] = useState({
     name: "",
     description: "",
-    rules: undefined as any,
+    rules: {
+      operator: "AND",
+      conditions: [],
+      groups: []
+    } as any,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,12 +27,11 @@ export default function EditSegmentPage() {
     const fetchSegment = async () => {
       setLoading(true);
       try {
-        const res = await get<{ data?: { name?: string; description?: string; rules?: any } }>(`/segments/${segmentId}`);
-        const segment = res.data || {};
+        const segment = await get<{ name?: string; description?: string; rules?: any }>(`/segments/${segmentId}`);
         setForm({
-          name: segment.name || "",
-          description: segment.description || "",
-          rules: segment.rules || undefined,
+          name: segment?.name || "",
+          description: segment?.description || "",
+          rules: segment?.rules || { operator: "AND", conditions: [], groups: [] },
         });
       } catch (e) {
         alert("Failed to load segment");
@@ -73,7 +76,7 @@ export default function EditSegmentPage() {
           />
           <div>
             <label className="block text-sm font-medium mb-1">Rules *</label>
-            <SegmentRuleBuilder onChange={rules => setForm(f => ({ ...f, rules }))} />
+            <SegmentRuleBuilder initialRules={form.rules} onChange={rules => setForm(f => ({ ...f, rules }))} />
           </div>
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="secondary" onClick={() => router.push("/audience/segments")}>Cancel</Button>
