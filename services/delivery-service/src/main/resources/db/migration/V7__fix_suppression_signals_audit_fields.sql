@@ -1,0 +1,7 @@
+-- V7: Add missing BaseEntity audit/version fields for suppression signals
+
+ALTER TABLE suppression_signals
+    ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ADD COLUMN IF NOT EXISTS created_by VARCHAR(36),
+    ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP WITH TIME ZONE,
+    ADD COLUMN IF NOT EXISTS version BIGINT NOT NULL DEFAULT 0;

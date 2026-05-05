@@ -11,7 +11,6 @@ import javax.crypto.spec.SecretKeySpec;
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.Optional;
@@ -41,8 +40,6 @@ public class TrackingUrlSigner {
     private static final String SIGNING_KEY_PREFIX = "tracking:signing-key:";
     private static final String KEY_VERSION_PREFIX = "tracking:key-version:";
     private static final Duration KEY_OVERLAP_WINDOW = Duration.ofHours(24); // Accept old keys for 24h after rotation
-
-    private final SecureRandom secureRandom = new SecureRandom();
 
     @PostConstruct
     void validateConfiguration() {
@@ -230,12 +227,7 @@ public class TrackingUrlSigner {
      */
     private String generateSigningKey(String tenantId, int version) {
         try {
-            // Include random entropy along with global key and tenant
-            byte[] randomEntropy = new byte[16];
-            secureRandom.nextBytes(randomEntropy);
-            String entropy = Base64.getEncoder().encodeToString(randomEntropy);
-            
-            String seed = globalSigningKey + ":" + normalize(tenantId) + ":" + version + ":" + entropy;
+            String seed = globalSigningKey + ":" + normalize(tenantId) + ":" + version;
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(seed.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);

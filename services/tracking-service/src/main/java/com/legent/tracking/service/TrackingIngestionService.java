@@ -171,6 +171,11 @@ public class TrackingIngestionService {
      * Ensures DB and Kafka stay consistent by using transaction synchronization.
      */
     private void publishEventWithOutbox(TrackingDto.RawEventPayload payload) {
+        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            eventPublisher.publishIngestedEvent(payload);
+            return;
+        }
+
         // Register a transaction synchronization to publish after successful commit
         org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
             new org.springframework.transaction.support.TransactionSynchronization() {

@@ -98,6 +98,7 @@ class WebhookDispatcherServiceTest {
         config.setTenantId("t1");
         config.setEventsSubscribed(eventsSubscribed);
         config.setEndpointUrl("https://example.com/webhook");
+        config.setSecretKey("test-webhook-secret");
         return config;
     }
 }
