@@ -19,17 +19,25 @@ public class SendJobDto {
     public static class Response {
         private String id;
         private String tenantId;
+        private String workspaceId;
+        private String teamId;
+        private String ownershipScope;
         private String campaignId;
         private JobStatus status;
         private Instant scheduledAt;
         private Instant startedAt;
         private Instant completedAt;
+        private Instant pausedAt;
+        private Instant cancelledAt;
         private Long totalTarget;
         private Long totalSent;
         private Long totalFailed;
         private Long totalBounced;
         private Long totalSuppressed;
         private String errorMessage;
+        private String triggerSource;
+        private String triggerReference;
+        private String idempotencyKey;
         private Instant createdAt;
         private Instant updatedAt;
     }
@@ -40,6 +48,9 @@ public class SendJobDto {
     @AllArgsConstructor
     public static class TriggerRequest {
         private Instant scheduledAt;
+        private String triggerSource;
+        private String triggerReference;
+        private String idempotencyKey;
     }
 
     @Data
@@ -49,6 +60,7 @@ public class SendJobDto {
     public static class BatchResponse {
         private String id;
         private String tenantId;
+        private String workspaceId;
         private String jobId;
         private BatchStatus status;
         private String domain;
@@ -56,6 +68,8 @@ public class SendJobDto {
         private Integer processedCount;
         private Integer successCount;
         private Integer failureCount;
+        private Integer retryCount;
+        private String lastError;
         private Instant createdAt;
         private Instant updatedAt;
     }

@@ -8,6 +8,7 @@ import org.mockito.ArgumentCaptor;
 
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.deliverability.domain.SuppressionList;
+import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.deliverability.service.ReputationEngine;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,7 @@ import static org.mockito.Mockito.*;
 class FeedbackLoopConsumerTest {
 
     @Mock private SuppressionListRepository suppressionRepository;
+    @Mock private SenderDomainRepository senderDomainRepository;
     @Mock private ReputationEngine reputationEngine;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -33,7 +35,7 @@ class FeedbackLoopConsumerTest {
 
     @BeforeEach
     void setup() {
-        consumer = new FeedbackLoopConsumer(objectMapper, suppressionRepository, reputationEngine);
+        consumer = new FeedbackLoopConsumer(objectMapper, suppressionRepository, senderDomainRepository, reputationEngine);
     }
 
     @Test

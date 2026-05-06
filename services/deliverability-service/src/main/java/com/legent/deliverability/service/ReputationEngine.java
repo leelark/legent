@@ -57,11 +57,12 @@ public class ReputationEngine {
         String luaScript = """
             local key = KEYS[1]
             local now = tonumber(ARGV[1])
-            local window = tonumber(ARGV[2])
+            local window = tonumber(ARGV[2] or "86400")
+            local eventId = ARGV[3] or tostring(now)
             local cutoff = now - (window * 1000)
             
             -- Add current event
-            redis.call('ZADD', key, now, ARGV[3])
+            redis.call('ZADD', key, now, eventId)
             -- Remove events outside the window
             redis.call('ZREMRANGEBYSCORE', key, 0, cutoff)
             -- Set expiry on the key
@@ -72,12 +73,19 @@ public class ReputationEngine {
             """;
 
         RedisScript<Long> redisScript = new DefaultRedisScript<>(luaScript, Long.class);
-        String eventId = tenantId + ":" + now + ":" + java.util.UUID.randomUUID().toString();
-        Long eventCount = cacheService.executeScript(redisScript,
-                Arrays.asList(windowKey),
-                String.valueOf(now),
-                String.valueOf(WINDOW_SECONDS),
-                eventId);
+        String eventId = tenantId + ":" + now + ":" + java.util.UUID.randomUUID();
+        Long eventCount;
+        try {
+            eventCount = cacheService.executeScript(redisScript,
+                    Arrays.asList(windowKey),
+                    String.valueOf(now),
+                    String.valueOf(WINDOW_SECONDS),
+                    eventId);
+        } catch (Exception e) {
+            // Feedback ingestion must stay resilient even if Redis window script fails.
+            log.warn("Sliding-window cache update failed for domain {} eventType {}: {}", domainId, eventType, e.getMessage());
+            eventCount = 1L;
+        }
 
         int countInWindow = eventCount != null ? eventCount.intValue() : 0;
         if (eventCount == null) {

@@ -75,7 +75,7 @@ public class SubscriberList extends TenantAwareEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "tags", columnDefinition = "jsonb")
-    private java.util.List<String> tags;
+    private java.util.List<String> tags = new java.util.ArrayList<>();
 
     public enum ListType {
         PUBLICATION, SUPPRESSION, SEND

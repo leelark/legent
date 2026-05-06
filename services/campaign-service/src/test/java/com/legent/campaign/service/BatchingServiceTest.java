@@ -11,6 +11,7 @@ import java.util.Map;
 import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.event.CampaignEventPublisher;
+import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -33,9 +34,11 @@ class BatchingServiceTest {
 
     @Mock private SendBatchRepository batchRepository;
     @Mock private SendJobRepository jobRepository;
+    @Mock private CampaignRepository campaignRepository;
     @Mock private CampaignEventPublisher eventPublisher;
     @Mock private ObjectMapper objectMapper;
     @Mock private ThrottlingService throttlingService;
+    @Mock private CampaignStateMachineService stateMachine;
 
     @InjectMocks private BatchingService batchingService;
 
@@ -49,8 +52,15 @@ class BatchingServiceTest {
         job.setCampaignId("camp-1");
         job.setStatus(SendJob.JobStatus.RESOLVING);
         job.setTotalTarget(0L);
+        job.setWorkspaceId("workspace-test");
 
         when(jobRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, jobId)).thenReturn(Optional.of(job));
+        doAnswer(invocation -> {
+            SendJob target = invocation.getArgument(0);
+            SendJob.JobStatus next = invocation.getArgument(1);
+            target.setStatus(next);
+            return null;
+        }).when(stateMachine).transitionJob(any(SendJob.class), any(SendJob.JobStatus.class), anyString());
         
         SendBatch mockSavedBatch = new SendBatch();
         mockSavedBatch.setId("batch-1");
@@ -80,7 +90,7 @@ class BatchingServiceTest {
         assertThat(captured).allMatch(b -> "camp-1".equals(b.getCampaignId()));
 
         assertThat(job.getTotalTarget()).isEqualTo(3L);
-        assertThat(job.getStatus()).isEqualTo(SendJob.JobStatus.BATCHING);
+        assertThat(job.getStatus()).isEqualTo(SendJob.JobStatus.SENDING);
         verify(jobRepository).save(job);
         
         verify(eventPublisher, times(2)).publishBatchCreated(eq(tenantId), eq(jobId), anyString());
@@ -90,6 +100,7 @@ class BatchingServiceTest {
     void processResolvedAudienceChunk_InvalidJobStatus() {
         SendJob job = new SendJob();
         job.setStatus(SendJob.JobStatus.PENDING); // Not Resolving
+        job.setWorkspaceId("workspace-test");
 
         when(jobRepository.findByTenantIdAndIdAndDeletedAtIsNull(anyString(), anyString())).thenReturn(Optional.of(job));
 

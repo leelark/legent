@@ -1,6 +1,7 @@
 package com.legent.campaign.event;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.security.TenantContext;
 
 import java.util.Map;
 
@@ -26,6 +27,7 @@ public class CampaignEventPublisher {
                 Map.of(
                         "campaignId", campaignId,
                         "jobId", jobId,
+                        "workspaceId", TenantContext.getWorkspaceId() != null ? TenantContext.getWorkspaceId() : "workspace-default",
                         "scheduledAt", scheduledAt != null ? scheduledAt.toString() : ""
                 )
         );
@@ -38,6 +40,7 @@ public class CampaignEventPublisher {
                 Map.of(
                         "campaignId", campaignId,
                         "jobId", jobId,
+                        "workspaceId", TenantContext.getWorkspaceId() != null ? TenantContext.getWorkspaceId() : "workspace-default",
                         "audiences", audiences
                 )
         );
@@ -47,7 +50,11 @@ public class CampaignEventPublisher {
     public void publishBatchCreated(String tenantId, String jobId, String batchId) {
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_BATCH_CREATED, tenantId, SOURCE,
-                Map.of("jobId", jobId, "batchId", batchId)
+                Map.of(
+                        "jobId", jobId,
+                        "batchId", batchId,
+                        "workspaceId", TenantContext.getWorkspaceId() != null ? TenantContext.getWorkspaceId() : "workspace-default"
+                )
         );
         eventPublisher.publish(AppConstants.TOPIC_BATCH_CREATED, envelope);
     }

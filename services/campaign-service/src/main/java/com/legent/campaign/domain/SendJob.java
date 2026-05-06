@@ -15,11 +15,20 @@ import lombok.Setter;
 public class SendJob extends TenantAwareEntity {
 
     public enum JobStatus {
-        PENDING, RESOLVING, BATCHING, SENDING, COMPLETED, FAILED, CANCELLED
+        PENDING, RESOLVING, BATCHING, SENDING, PAUSED, RETRYING, COMPLETED, FAILED, CANCELLED
     }
 
     @Column(name = "campaign_id", nullable = false)
     private String campaignId;
+
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId;
+
+    @Column(name = "team_id", length = 64)
+    private String teamId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 32)
+    private String ownershipScope = "WORKSPACE";
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -33,6 +42,12 @@ public class SendJob extends TenantAwareEntity {
 
     @Column(name = "completed_at")
     private Instant completedAt;
+
+    @Column(name = "paused_at")
+    private Instant pausedAt;
+
+    @Column(name = "cancelled_at")
+    private Instant cancelledAt;
 
     @Column(name = "total_target")
     private Long totalTarget = 0L;
@@ -51,6 +66,15 @@ public class SendJob extends TenantAwareEntity {
 
     @Column(name = "error_message")
     private String errorMessage;
+
+    @Column(name = "trigger_source", length = 128)
+    private String triggerSource;
+
+    @Column(name = "trigger_reference", length = 128)
+    private String triggerReference;
+
+    @Column(name = "idempotency_key", length = 128)
+    private String idempotencyKey;
 
     // Checkpointing fields
     @Column(name = "last_checkpoint_at")

@@ -26,6 +26,7 @@ public class CampaignWorkflowService {
 
     private final CampaignRepository campaignRepository;
     private final CampaignApprovalRepository approvalRepository;
+    private final CampaignStateMachineService stateMachine;
 
     /**
      * Submit a campaign for approval.
@@ -33,8 +34,9 @@ public class CampaignWorkflowService {
     @Transactional
     public CampaignApproval submitForApproval(String tenantId, String campaignId, String comments) {
         String userId = TenantContext.getUserId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
-        Campaign campaign = campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, campaignId)
+        Campaign campaign = campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, campaignId)
                 .orElseThrow(() -> new NotFoundException("Campaign", campaignId));
 
         // Check if there's already a pending approval
@@ -43,8 +45,9 @@ public class CampaignWorkflowService {
         }
 
         // Check if campaign is in a valid state for approval
-        if (campaign.getStatus() != Campaign.CampaignStatus.DRAFT) {
-            throw new ValidationException("status", "Campaign must be in DRAFT state to submit for approval");
+        if (campaign.getStatus() != Campaign.CampaignStatus.DRAFT
+                && campaign.getStatus() != Campaign.CampaignStatus.APPROVED) {
+            throw new ValidationException("status", "Campaign must be in DRAFT or APPROVED state to submit for approval");
         }
 
         // Create approval request
@@ -56,6 +59,9 @@ public class CampaignWorkflowService {
         approval.setComments(comments);
 
         approvalRepository.save(approval);
+        stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.REVIEW_PENDING, comments);
+        campaign.setCurrentApprover(null);
+        campaignRepository.save(campaign);
 
         log.info("Campaign submitted for approval: tenant={}, campaign={}", tenantId, campaignId);
 
@@ -68,6 +74,7 @@ public class CampaignWorkflowService {
     @Transactional
     public CampaignApproval approveCampaign(String tenantId, String approvalId, String comments) {
         String userId = TenantContext.getUserId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
         CampaignApproval approval = approvalRepository.findById(approvalId)
                 .orElseThrow(() -> new NotFoundException("CampaignApproval", approvalId));
@@ -80,7 +87,7 @@ public class CampaignWorkflowService {
             throw new ValidationException("status", "Approval is not in PENDING state");
         }
 
-        Campaign campaign = campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, approval.getCampaignId())
+        Campaign campaign = campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, approval.getCampaignId())
                 .orElseThrow(() -> new NotFoundException("Campaign", approval.getCampaignId()));
 
         // Update approval
@@ -93,6 +100,7 @@ public class CampaignWorkflowService {
         campaign.setApprovedBy(userId);
         campaign.setApprovedAt(Instant.now());
         campaign.setCurrentApprover(userId);
+        stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.APPROVED, comments);
 
         approvalRepository.save(approval);
         campaignRepository.save(campaign);
@@ -109,6 +117,7 @@ public class CampaignWorkflowService {
     @Transactional
     public CampaignApproval rejectCampaign(String tenantId, String approvalId, String reason, String comments) {
         String userId = TenantContext.getUserId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
         CampaignApproval approval = approvalRepository.findById(approvalId)
                 .orElseThrow(() -> new NotFoundException("CampaignApproval", approvalId));
@@ -121,7 +130,7 @@ public class CampaignWorkflowService {
             throw new ValidationException("status", "Approval is not in PENDING state");
         }
 
-        Campaign campaign = campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, approval.getCampaignId())
+        Campaign campaign = campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, approval.getCampaignId())
                 .orElseThrow(() -> new NotFoundException("Campaign", approval.getCampaignId()));
 
         // Update approval
@@ -136,6 +145,7 @@ public class CampaignWorkflowService {
 
         // Keep campaign in DRAFT state for editing
         campaign.setCurrentApprover(userId);
+        stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.DRAFT, reason != null ? reason : comments);
         campaignRepository.save(campaign);
 
         log.info("Campaign rejected: tenant={}, campaign={}, reason={}",
@@ -149,7 +159,12 @@ public class CampaignWorkflowService {
      */
     @Transactional(readOnly = true)
     public List<CampaignApproval> getPendingApprovals(String tenantId) {
-        return approvalRepository.findByTenantIdAndStatus(tenantId, CampaignApproval.ApprovalStatus.PENDING);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return approvalRepository.findByTenantIdAndStatus(tenantId, CampaignApproval.ApprovalStatus.PENDING).stream()
+                .filter(approval -> campaignRepository
+                        .findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, approval.getCampaignId())
+                        .isPresent())
+                .toList();
     }
 
     /**
@@ -157,6 +172,9 @@ public class CampaignWorkflowService {
      */
     @Transactional(readOnly = true)
     public List<CampaignApproval> getCampaignApprovalHistory(String tenantId, String campaignId) {
+        String workspaceId = TenantContext.requireWorkspaceId();
+        campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, campaignId)
+                .orElseThrow(() -> new NotFoundException("Campaign", campaignId));
         return approvalRepository.findByTenantIdAndCampaignIdOrderByRequestedAtDesc(tenantId, campaignId);
     }
 
@@ -166,6 +184,7 @@ public class CampaignWorkflowService {
     @Transactional
     public CampaignApproval cancelApproval(String tenantId, String approvalId) {
         String userId = TenantContext.getUserId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
         CampaignApproval approval = approvalRepository.findById(approvalId)
                 .orElseThrow(() -> new NotFoundException("CampaignApproval", approvalId));
@@ -183,8 +202,15 @@ public class CampaignWorkflowService {
             throw new ValidationException("user", "Only the requester can cancel this approval");
         }
 
+        Campaign campaign = campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, approval.getCampaignId())
+                .orElseThrow(() -> new NotFoundException("Campaign", approval.getCampaignId()));
+
         approval.setStatus(CampaignApproval.ApprovalStatus.CANCELLED);
         approvalRepository.save(approval);
+        if (campaign.getStatus() == Campaign.CampaignStatus.REVIEW_PENDING) {
+            stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.DRAFT, "Approval cancelled");
+            campaignRepository.save(campaign);
+        }
 
         log.info("Campaign approval cancelled: tenant={}, campaign={}", tenantId, approval.getCampaignId());
 

@@ -24,6 +24,18 @@ public class DeliveryEventConsumer {
     public void handleSendRequest(EventEnvelope<Map<String, Object>> event) {
         try {
             TenantContext.setTenantId(event.getTenantId());
+            if (event.getWorkspaceId() != null && !event.getWorkspaceId().isBlank()) {
+                TenantContext.setWorkspaceId(event.getWorkspaceId());
+            }
+            if (event.getEnvironmentId() != null && !event.getEnvironmentId().isBlank()) {
+                TenantContext.setEnvironmentId(event.getEnvironmentId());
+            }
+            if (event.getActorId() != null && !event.getActorId().isBlank()) {
+                TenantContext.setUserId(event.getActorId());
+            }
+            if (event.getIdempotencyKey() != null && !event.getIdempotencyKey().isBlank()) {
+                TenantContext.setRequestId(event.getIdempotencyKey());
+            }
             orchestrationService.processSendRequest(event.getPayload(), event.getTenantId(), event.getEventId());
         } catch (Exception e) {
             log.error("Error processing text send request {}", event.getEventId(), e);

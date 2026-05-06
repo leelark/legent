@@ -46,13 +46,19 @@ class DeliveryOrchestrationServiceTest {
         
         when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
+        when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
+            MessageLog log = invocation.getArgument(0, MessageLog.class);
+            log.setId("log-1");
+            return log;
+        });
+        when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(any(), any(), any(), any(), any())).thenReturn("Processed HTML");
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
         verify(mockAdapter).sendEmail(eq("test@example.com"), anyString(), anyString(), anyMap(), eq(mockProvider));
-        verify(eventPublisher).publishEmailSent("tenant-1", "evt-123", "camp-1", "sub-1");
+        verify(eventPublisher).publishEmailSent(eq("tenant-1"), anyString(), eq("evt-123"), eq("camp-1"), any(), any(), eq("sub-1"));
     }
 
     @Test
@@ -71,12 +77,18 @@ class DeliveryOrchestrationServiceTest {
         
         when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
+        when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
+            MessageLog log = invocation.getArgument(0, MessageLog.class);
+            log.setId("log-1");
+            return log;
+        });
+        when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(any(), any(), any(), any(), any())).thenReturn("Processed HTML");
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
-        verify(eventPublisher).publishEmailFailed(eq("tenant-1"), eq("evt-123"), any(), any(), anyString());
+        verify(eventPublisher).publishEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString());
         verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("bounce@example.com"), anyString(), eq("example.com"));
     }
 
@@ -96,6 +108,12 @@ class DeliveryOrchestrationServiceTest {
         
         when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
+        when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
+            MessageLog log = invocation.getArgument(0, MessageLog.class);
+            log.setId("log-1");
+            return log;
+        });
+        when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(any(), any(), any(), any(), any())).thenReturn("Processed HTML");
 
@@ -112,11 +130,17 @@ class DeliveryOrchestrationServiceTest {
 
         when(messageLogRepository.findByTenantIdAndMessageId("tenant-1", "evt-123")).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
+        when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
+            MessageLog log = invocation.getArgument(0, MessageLog.class);
+            log.setId("log-1");
+            return log;
+        });
+        when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
         verify(providerStrategy, never()).selectProvider(anyString(), anyString());
-        verify(eventPublisher).publishEmailFailed(eq("tenant-1"), eq("evt-123"), any(), any(), anyString());
+        verify(eventPublisher).publishEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString());
         verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("invalid-email"), anyString(), isNull());
     }
 
@@ -130,7 +154,7 @@ class DeliveryOrchestrationServiceTest {
         orchestrationService.processSendRequest(Map.of("email", "test@example.com"), "tenant-1", "evt-123");
 
         verify(providerStrategy, never()).selectProvider(anyString(), anyString());
-        verify(eventPublisher, never()).publishEmailSent(anyString(), anyString(), any(), any());
+        verify(eventPublisher, never()).publishEmailSent(anyString(), anyString(), anyString(), any(), any(), any(), any());
         verify(messageLogRepository, never()).save(any(MessageLog.class));
     }
 }

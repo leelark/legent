@@ -5,6 +5,11 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.math.BigDecimal;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.net.URL;
+import java.util.Locale;
 
 import com.legent.delivery.domain.ProviderHealthCheck;
 import com.legent.delivery.domain.ProviderHealthStatus;
@@ -116,14 +121,65 @@ public class ProviderHealthMonitoringService {
      * Perform actual connection test to provider.
      */
     private boolean performConnectionTest(SmtpProvider provider) {
-        // In real implementation, this would attempt a connection to the SMTP server
-        // For now, we simulate based on provider configuration
-        if (provider.getHost() == null || provider.getHost().isBlank()) {
+        if (!provider.isActive()) {
             return false;
         }
 
-        // Simulate health check - in production this would actually connect
-        return provider.isActive();
+        String healthUrl = normalize(provider.getHealthCheckUrl());
+        if (healthUrl != null) {
+            return checkHttpEndpoint(healthUrl);
+        }
+
+        String host = normalize(provider.getHost());
+        Integer port = provider.getPort();
+        if (host == null || port == null || port <= 0) {
+            return false;
+        }
+
+        String providerType = normalize(provider.getType());
+        if (providerType != null && providerType.contains("MOCK")) {
+            return true;
+        }
+
+        return checkSocket(host, port);
+    }
+
+    private boolean checkHttpEndpoint(String healthUrl) {
+        HttpURLConnection connection = null;
+        try {
+            URL url = new URL(healthUrl);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            connection.setRequestMethod("GET");
+            int code = connection.getResponseCode();
+            return code >= 200 && code < 400;
+        } catch (Exception e) {
+            log.debug("Provider health URL check failed for {}: {}", healthUrl, e.getMessage());
+            return false;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    private boolean checkSocket(String host, int port) {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(host, port), 5000);
+            return true;
+        } catch (Exception e) {
+            log.debug("Provider socket health check failed for {}:{}: {}", host, port, e.getMessage());
+            return false;
+        }
+    }
+
+    private String normalize(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized.toUpperCase(Locale.ROOT).equals("NULL") ? null : normalized;
     }
 
     /**

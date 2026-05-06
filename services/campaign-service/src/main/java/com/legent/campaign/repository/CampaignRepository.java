@@ -20,4 +20,15 @@ public interface CampaignRepository extends JpaRepository<Campaign, String> {
             String name,
             Pageable pageable
     );
+
+    Optional<Campaign> findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(String tenantId, String workspaceId, String id);
+
+    Page<Campaign> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId, Pageable pageable);
+
+    Page<Campaign> findByTenantIdAndWorkspaceIdAndDeletedAtIsNullAndNameContainingIgnoreCase(
+            String tenantId,
+            String workspaceId,
+            String name,
+            Pageable pageable
+    );
 }

@@ -17,6 +17,7 @@ import com.legent.delivery.event.DeliveryEventPublisher;
 import com.legent.delivery.repository.MessageLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +64,15 @@ public class DeliveryOrchestrationService {
 
         String subscriberId = normalize(payload.get("subscriberId"));
         String campaignId = normalize(payload.get("campaignId"));
+        String workspaceId = normalize(payload.get("workspaceId"));
+        if (workspaceId == null) {
+            workspaceId = com.legent.security.TenantContext.getWorkspaceId();
+        }
+        if (workspaceId == null) {
+            workspaceId = "workspace-default";
+        }
+        String jobId = normalize(payload.get("jobId"));
+        String batchId = normalize(payload.get("batchId"));
         String htmlBody = normalize(payload.get("htmlBody"));
         String subject = normalize(payload.get("subject"));
         if (htmlBody == null) {
@@ -82,7 +92,7 @@ public class DeliveryOrchestrationService {
             messageId = UUID.randomUUID().toString();
         }
 
-        // Idempotency check
+        // Idempotency check + race-safe create
         Optional<MessageLog> existingLog = messageLogRepository.findByTenantIdAndMessageId(normalizedTenantId, messageId);
         if (existingLog.isPresent()
                 && !MessageLog.DeliveryStatus.PENDING.name().equals(existingLog.get().getStatus())) {
@@ -90,18 +100,59 @@ public class DeliveryOrchestrationService {
             return;
         }
 
-        MessageLog logEntry = existingLog.orElse(new MessageLog());
-        if (logEntry.getId() == null) {
-            logEntry.setTenantId(normalizedTenantId);
-            logEntry.setMessageId(messageId);
-            logEntry.setCampaignId(campaignId);
-            logEntry.setSubscriberId(subscriberId);
-            logEntry.setEmail(email);
+        MessageLog logEntry = existingLog.orElse(null);
+        if (logEntry == null) {
+            MessageLog newLog = new MessageLog();
+            newLog.setTenantId(normalizedTenantId);
+            newLog.setMessageId(messageId);
+            newLog.setCampaignId(campaignId);
+            newLog.setWorkspaceId(workspaceId);
+            newLog.setJobId(jobId);
+            newLog.setBatchId(batchId);
+            newLog.setSubscriberId(subscriberId);
+            newLog.setEmail(email);
             // Fix 31: Don't store full HTML body in message_logs - only store references
             // Content is fetched from content-service at retry time if needed
-            logEntry.setContentReference(generateContentReference(campaignId, messageId));
-            logEntry.setAttemptCount(0);
-            logEntry = messageLogRepository.save(logEntry);
+            newLog.setContentReference(generateContentReference(campaignId, messageId));
+            newLog.setAttemptCount(0);
+            try {
+                logEntry = messageLogRepository.saveAndFlush(newLog);
+            } catch (DataIntegrityViolationException duplicateInsert) {
+                Optional<MessageLog> winner = messageLogRepository.findByTenantIdAndMessageId(normalizedTenantId, messageId);
+                if (winner.isEmpty()) {
+                    throw duplicateInsert;
+                }
+                logEntry = winner.get();
+                if (!MessageLog.DeliveryStatus.PENDING.name().equals(logEntry.getStatus())) {
+                    log.info("Message {} claimed by concurrent worker with status {}", messageId, logEntry.getStatus());
+                    return;
+                }
+            }
+        }
+        if (logEntry.getStatus() == null || logEntry.getStatus().isBlank()) {
+            logEntry.setStatus(MessageLog.DeliveryStatus.PENDING.name());
+        }
+        if (MessageLog.DeliveryStatus.PROCESSING.name().equals(logEntry.getStatus())) {
+            log.info("Message {} already being processed", messageId);
+            return;
+        }
+        int claimed = messageLogRepository.claimForProcessing(
+                logEntry.getId(),
+                MessageLog.DeliveryStatus.PENDING.name(),
+                MessageLog.DeliveryStatus.PROCESSING.name());
+        if (claimed == 0) {
+            log.info("Message {} already claimed by another worker", messageId);
+            return;
+        }
+        logEntry.setStatus(MessageLog.DeliveryStatus.PROCESSING.name());
+        if (logEntry.getWorkspaceId() == null || logEntry.getWorkspaceId().isBlank()) {
+            logEntry.setWorkspaceId(workspaceId);
+        }
+        if (logEntry.getJobId() == null || logEntry.getJobId().isBlank()) {
+            logEntry.setJobId(jobId);
+        }
+        if (logEntry.getBatchId() == null || logEntry.getBatchId().isBlank()) {
+            logEntry.setBatchId(batchId);
         }
         // Note: For retries, content is re-fetched from the original event or content-service
         // This prevents 20-100GB/day storage growth from storing full HTML bodies
@@ -143,28 +194,36 @@ public class DeliveryOrchestrationService {
             logEntry.setProviderResponse("250 OK");
             logEntry.setNextRetryAt(null);
 
-            eventPublisher.publishEmailSent(normalizedTenantId, messageId, campaignId, subscriberId);
+            eventPublisher.publishEmailSent(normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId);
 
         } catch (ProviderDispatchException e) {
             // Record failure with circuit breaker for non-transient failures
             if (e.isPermanent() && logEntry.getProviderId() != null) {
                 providerStrategy.recordProviderFailure(logEntry.getProviderId());
             }
-            handleDispatchFailure(logEntry, normalizedTenantId, messageId, campaignId, subscriberId, e);
+            handleDispatchFailure(logEntry, normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e);
         } catch (Exception e) {
             // General hard failure - record with circuit breaker
             if (logEntry.getProviderId() != null) {
                 providerStrategy.recordProviderFailure(logEntry.getProviderId());
             }
             String reason = e.getMessage() != null ? e.getMessage() : "Unexpected delivery failure";
-            handleDispatchFailure(logEntry, normalizedTenantId, messageId, campaignId, subscriberId,
+            handleDispatchFailure(logEntry, normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId,
                     new ProviderDispatchException(reason, true, e));
         } finally {
             messageLogRepository.save(logEntry);
         }
     }
 
-    private void handleDispatchFailure(MessageLog logEntry, String tenantId, String messageId, String campaignId, String subscriberId, ProviderDispatchException e) {
+    private void handleDispatchFailure(MessageLog logEntry,
+                                       String tenantId,
+                                       String workspaceId,
+                                       String messageId,
+                                       String campaignId,
+                                       String jobId,
+                                       String batchId,
+                                       String subscriberId,
+                                       ProviderDispatchException e) {
         log.warn("Dispatch failed for message {}: {}", messageId, e.getMessage());
         logEntry.setProviderResponse(e.getMessage());
         int attempts = logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0;
@@ -172,7 +231,7 @@ public class DeliveryOrchestrationService {
         if (e.isPermanent() || attempts >= MAX_RETRIES) {
             logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
             logEntry.setNextRetryAt(null);
-            eventPublisher.publishEmailFailed(tenantId, messageId, campaignId, subscriberId, e.getMessage());
+            eventPublisher.publishEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e.getMessage());
             
             if (e.isPermanent()) {
                 // Synthesize a bounce event for audience/suppression
@@ -209,6 +268,9 @@ public class DeliveryOrchestrationService {
             payload.put("email", logEntry.getEmail());
             payload.put("subscriberId", logEntry.getSubscriberId() != null ? logEntry.getSubscriberId() : "");
             payload.put("campaignId", logEntry.getCampaignId() != null ? logEntry.getCampaignId() : "");
+            payload.put("workspaceId", logEntry.getWorkspaceId() != null ? logEntry.getWorkspaceId() : "workspace-default");
+            payload.put("jobId", logEntry.getJobId() != null ? logEntry.getJobId() : "");
+            payload.put("batchId", logEntry.getBatchId() != null ? logEntry.getBatchId() : "");
             payload.put("messageId", logEntry.getMessageId());
             // Use content from content-service or fallback defaults
             payload.put("subject", content.getOrDefault("subject", "Legent Campaign"));

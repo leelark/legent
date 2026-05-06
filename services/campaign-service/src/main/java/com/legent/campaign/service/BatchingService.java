@@ -8,8 +8,10 @@ import java.util.Map;
 import java.util.ArrayList;
 
 import com.legent.campaign.domain.SendBatch;
+import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.event.CampaignEventPublisher;
+import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +30,10 @@ public class BatchingService {
 
     private final SendBatchRepository batchRepository;
     private final SendJobRepository jobRepository;
+    private final CampaignRepository campaignRepository;
     private final CampaignEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final CampaignStateMachineService stateMachine;
 
     @Transactional
     public void processResolvedAudienceChunk(String tenantId, String jobId, List<Map<String, String>> subscribers, boolean isLastChunk) {
@@ -55,6 +59,9 @@ public class BatchingService {
                     
                     SendBatch batch = new SendBatch();
                     batch.setTenantId(tenantId);
+                    batch.setWorkspaceId(job.getWorkspaceId());
+                    batch.setTeamId(job.getTeamId());
+                    batch.setOwnershipScope(job.getOwnershipScope());
                     batch.setJobId(jobId);
                     batch.setCampaignId(job.getCampaignId());
                     batch.setDomain(domain);
@@ -71,7 +78,19 @@ public class BatchingService {
             }
 
             if (isLastChunk) {
-                job.setStatus(SendJob.JobStatus.BATCHING); // Will transition to SENDING when ready
+                if (job.getTotalTarget() == 0L) {
+                    stateMachine.transitionJob(job, SendJob.JobStatus.COMPLETED, "No recipients matched audiences");
+                    campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, job.getWorkspaceId(), job.getCampaignId())
+                            .ifPresent(campaign -> {
+                                if (campaign.getStatus() == Campaign.CampaignStatus.SENDING) {
+                                    stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.COMPLETED, "No recipients matched audiences");
+                                    campaignRepository.save(campaign);
+                                }
+                            });
+                } else {
+                    stateMachine.transitionJob(job, SendJob.JobStatus.BATCHING, "Audience resolution finished");
+                    stateMachine.transitionJob(job, SendJob.JobStatus.SENDING, "Batches created and queued");
+                }
                 jobRepository.save(job);
                 log.info("Batching complete for job {}. Total targets: {}", jobId, job.getTotalTarget());
             } else {

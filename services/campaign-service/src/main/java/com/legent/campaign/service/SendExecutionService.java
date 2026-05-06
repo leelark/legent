@@ -41,7 +41,7 @@ public class SendExecutionService {
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
         try {
-            SendBatch batch = findBatchWithRetry(batchId);
+            SendBatch batch = findBatchWithRetry(tenantId, batchId);
             if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) return;
             if (batch.getCampaignId() == null || batch.getCampaignId().isBlank()) {
                 throw new ValidationException("campaignId", "Batch campaignId is required");
@@ -104,9 +104,15 @@ public class SendExecutionService {
                     emailPayload.put("email", sub.get("email"));
                     emailPayload.put("subscriberId", sub.get("subscriberId"));
                     emailPayload.put("campaignId", batch.getCampaignId());
+                    emailPayload.put("jobId", batch.getJobId());
                     emailPayload.put("batchId", batchId);
+                    emailPayload.put("workspaceId", batch.getWorkspaceId());
                     emailPayload.put("subject", subject);
                     emailPayload.put("htmlBody", htmlBody);
+                    String subscriberIdentity = sub.get("subscriberId") != null ? sub.get("subscriberId") : sub.get("email");
+                    if (subscriberIdentity != null) {
+                        emailPayload.put("messageId", batch.getJobId() + ":" + batchId + ":" + subscriberIdentity);
+                    }
                     if (sub.get("firstName") != null) {
                         emailPayload.put("firstName", sub.get("firstName"));
                     }
@@ -144,7 +150,9 @@ public class SendExecutionService {
                             AppConstants.TOPIC_SEND_FAILED, tenantId, "campaign-service",
                             Map.of(
                                 "batchId", batchId,
+                                "jobId", batch.getJobId(),
                                 "campaignId", batch.getCampaignId(),
+                                "workspaceId", batch.getWorkspaceId(),
                                 "reason", "RATE_LIMIT_EXCEEDED",
                                 "unprocessedCount", remaining.size()
                             )
@@ -162,11 +170,17 @@ public class SendExecutionService {
         }
     }
 
-    private SendBatch findBatchWithRetry(String batchId) {
+    private SendBatch findBatchWithRetry(String tenantId, String batchId) {
         // BatchingService uses TransactionSynchronization.afterCommit() to ensure
         // batch is persisted before publishing batch.created event.
         // No polling needed - batch should exist when this method is called.
+        String workspaceId = com.legent.security.TenantContext.getWorkspaceId();
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            return batchRepository.findByTenantWorkspaceAndId(tenantId, workspaceId, batchId)
+                    .orElseThrow(() -> new com.legent.common.exception.NotFoundException("SendBatch", batchId));
+        }
         return batchRepository.findById(batchId)
+                .filter(batch -> tenantId.equals(batch.getTenantId()))
                 .orElseThrow(() -> new com.legent.common.exception.NotFoundException("SendBatch", batchId));
     }
 
@@ -193,6 +207,7 @@ public class SendExecutionService {
                         Map.of(
                             "batchId", batch.getId(),
                             "jobId", batch.getJobId(),
+                            "workspaceId", batch.getWorkspaceId(),
                             "campaignId", batch.getCampaignId(),
                             "retry", true,
                             "retryCount", batch.getRetryCount()

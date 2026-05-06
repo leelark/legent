@@ -24,6 +24,15 @@ public class SendBatch extends TenantAwareEntity {
     @Column(name = "campaign_id")
     private String campaignId;
 
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId;
+
+    @Column(name = "team_id", length = 64)
+    private String teamId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 32)
+    private String ownershipScope = "WORKSPACE";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BatchStatus status = BatchStatus.PENDING;
@@ -48,4 +57,7 @@ public class SendBatch extends TenantAwareEntity {
 
     @Column(name = "retry_count")
     private Integer retryCount = 0;
+
+    @Column(name = "last_error")
+    private String lastError;
 }

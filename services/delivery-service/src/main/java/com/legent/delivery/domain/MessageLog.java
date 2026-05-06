@@ -17,7 +17,7 @@ import lombok.Setter;
 public class MessageLog extends BaseEntity {
 
     public enum DeliveryStatus {
-        PENDING, SENT, FAILED, BOUNCED, COMPLAINED
+        PENDING, PROCESSING, SENT, FAILED, BOUNCED, COMPLAINED
     }
 
     @Column(name = "tenant_id", nullable = false)
@@ -28,6 +28,15 @@ public class MessageLog extends BaseEntity {
 
     @Column(name = "campaign_id")
     private String campaignId;
+
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId = "workspace-default";
+
+    @Column(name = "job_id", length = 64)
+    private String jobId;
+
+    @Column(name = "batch_id", length = 64)
+    private String batchId;
 
     @Column(name = "subscriber_id")
     private String subscriberId;

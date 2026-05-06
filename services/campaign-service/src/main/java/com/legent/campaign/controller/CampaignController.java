@@ -58,4 +58,57 @@ public class CampaignController {
         campaignService.delete(id);
     }
 
+    @PostMapping("/{id}/clone")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
+    public ApiResponse<CampaignDto.Response> cloneCampaign(@PathVariable String id) {
+        return ApiResponse.ok(campaignService.cloneCampaign(id));
+    }
+
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
+    public ApiResponse<CampaignDto.Response> archive(@PathVariable String id,
+                                                     @RequestBody(required = false) CampaignDto.LifecycleActionRequest request) {
+        String reason = request != null ? request.getReason() : null;
+        return ApiResponse.ok(campaignService.archive(id, reason));
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
+    public ApiResponse<CampaignDto.Response> restore(@PathVariable String id,
+                                                     @RequestBody(required = false) CampaignDto.LifecycleActionRequest request) {
+        String comments = request != null ? request.getComments() : null;
+        return ApiResponse.ok(campaignService.restore(id, comments));
+    }
+
+    @PostMapping("/{id}/pause")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
+    public ApiResponse<CampaignDto.Response> pause(@PathVariable String id,
+                                                   @RequestBody(required = false) CampaignDto.LifecycleActionRequest request) {
+        String comments = request != null ? request.getComments() : null;
+        return ApiResponse.ok(campaignService.pause(id, comments));
+    }
+
+    @PostMapping("/{id}/resume")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
+    public ApiResponse<CampaignDto.Response> resume(@PathVariable String id,
+                                                    @RequestBody(required = false) CampaignDto.LifecycleActionRequest request) {
+        String comments = request != null ? request.getComments() : null;
+        return ApiResponse.ok(campaignService.resume(id, comments));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
+    public ApiResponse<CampaignDto.Response> cancel(@PathVariable String id,
+                                                    @RequestBody(required = false) CampaignDto.LifecycleActionRequest request) {
+        String reason = request != null ? request.getReason() : null;
+        return ApiResponse.ok(campaignService.cancel(id, reason));
+    }
+
+    @PostMapping("/{id}/schedule")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER')")
+    public ApiResponse<CampaignDto.Response> schedule(@PathVariable String id,
+                                                      @Valid @RequestBody CampaignDto.ScheduleRequest request) {
+        return ApiResponse.ok(campaignService.schedule(id, request));
+    }
+
 }

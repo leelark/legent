@@ -4,6 +4,7 @@ import com.legent.common.constant.AppConstants;
 import com.legent.automation.domain.WorkflowInstance;
 import com.legent.automation.dto.WorkflowGraphDto;
 import com.legent.automation.event.WorkflowEventPublisher;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -37,12 +38,17 @@ public class SendEmailNodeHandler implements NodeHandler {
         String traceJobId = UUID.randomUUID().toString();
 
         Map<String, Object> payload = new HashMap<>();
-        payload.put("subscriberId", instance.getSubscriberId());
         payload.put("campaignId", campaignId);
+        payload.put("triggerSource", "AUTOMATION");
+        payload.put("triggerReference", instance.getId());
+        payload.put("idempotencyKey", traceJobId);
         payload.put("instanceId", instance.getId());
+        if (TenantContext.getWorkspaceId() != null && !TenantContext.getWorkspaceId().isBlank()) {
+            payload.put("workspaceId", TenantContext.getWorkspaceId());
+        }
 
-        // Emit to delivery-service directly, bypassing batching orchestrator
-        eventPublisher.publishAction(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, instance.getTenantId(), traceJobId, payload);
+        // Emit campaign trigger request. Campaign service remains the send lifecycle owner.
+        eventPublisher.publishAction(AppConstants.TOPIC_SEND_REQUESTED, instance.getTenantId(), traceJobId, payload);
 
         return node.getNextNodeId();
     }

@@ -17,26 +17,32 @@ public class DeliveryEventPublisher {
     private final EventPublisher eventPublisher;
     private static final String SOURCE = "delivery-service";
 
-    public void publishEmailSent(String tenantId, String messageId, String campaignId, String subscriberId) {
+    public void publishEmailSent(String tenantId, String workspaceId, String messageId, String campaignId, String jobId, String batchId, String subscriberId) {
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_SENT, tenantId, SOURCE,
                 Map.of(
-                        "messageId", messageId,
-                        "campaignId", campaignId != null ? campaignId : "",
-                        "subscriberId", subscriberId != null ? subscriberId : ""
+                        "workspaceId", safe(workspaceId, "workspace-default"),
+                        "messageId", safe(messageId, ""),
+                        "campaignId", safe(campaignId, ""),
+                        "jobId", safe(jobId, ""),
+                        "batchId", safe(batchId, ""),
+                        "subscriberId", safe(subscriberId, "")
                 )
         );
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_SENT, envelope);
     }
 
-    public void publishEmailFailed(String tenantId, String messageId, String campaignId, String subscriberId, String reason) {
+    public void publishEmailFailed(String tenantId, String workspaceId, String messageId, String campaignId, String jobId, String batchId, String subscriberId, String reason) {
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_FAILED, tenantId, SOURCE,
                 Map.of(
-                        "messageId", messageId,
-                        "campaignId", campaignId != null ? campaignId : "",
-                        "subscriberId", subscriberId != null ? subscriberId : "",
-                        "reason", reason
+                        "workspaceId", safe(workspaceId, "workspace-default"),
+                        "messageId", safe(messageId, ""),
+                        "campaignId", safe(campaignId, ""),
+                        "jobId", safe(jobId, ""),
+                        "batchId", safe(batchId, ""),
+                        "subscriberId", safe(subscriberId, ""),
+                        "reason", safe(reason, "unknown")
                 )
         );
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_FAILED, envelope);
@@ -46,9 +52,9 @@ public class DeliveryEventPublisher {
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, tenantId, SOURCE,
                 Map.of(
-                        "messageId", messageId,
+                        "messageId", safe(messageId, ""),
                         "attemptCount", String.valueOf(attemptCount),
-                        "nextRetryAt", nextRetryAt
+                        "nextRetryAt", safe(nextRetryAt, "")
                 )
         );
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, envelope);
@@ -58,12 +64,20 @@ public class DeliveryEventPublisher {
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_BOUNCED, tenantId, SOURCE,
                 Map.of(
-                        "email", email,
-                        "reason", reason,
+                        "email", safe(email, ""),
+                        "reason", safe(reason, "unknown"),
                         "type", "HARD_BOUNCE",
-                        "senderDomain", senderDomain != null ? senderDomain : ""
+                        "senderDomain", safe(senderDomain, "")
                 )
         );
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_BOUNCED, envelope);
+    }
+
+    private String safe(String value, String fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? fallback : normalized;
     }
 }

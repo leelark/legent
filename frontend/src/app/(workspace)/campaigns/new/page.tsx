@@ -1,230 +1,385 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Badge } from '@/components/ui/Badge';
+import { useToast } from '@/components/ui/Toast';
+import { ArrowRight, ArrowLeft, CheckCircle, CircleNotch, PaperPlaneTilt } from '@phosphor-icons/react';
+import { get } from '@/lib/api-client';
 import {
-  ArrowRight, ArrowLeft, CheckCircle, Megaphone, Users, PaperPlaneTilt, RocketLaunch, CircleNotch
-} from '@phosphor-icons/react';
-import Link from 'next/link';
-import { get, post } from '@/lib/api-client';
-import { useRouter } from 'next/navigation';
+  createCampaign,
+  getCampaign,
+  submitCampaignApproval,
+  triggerCampaignSend,
+} from '@/lib/campaign-studio-api';
 
-const STEPS = ['Properties', 'Audience', 'Delivery', 'Review'];
+const STEPS = ['Basics', 'Targeting', 'Delivery', 'Review'];
 
-interface AudienceItem {
+type AudienceItem = {
   id: string;
   name: string;
   type: 'LIST' | 'SEGMENT';
-}
+};
+
+type TemplateItem = {
+  id: string;
+  name: string;
+  subject?: string;
+};
 
 export default function CampaignWizardPage() {
   const router = useRouter();
-  const [currentStep, setCurrentStep] = useState(0);
+  const searchParams = useSearchParams();
+  const cloneId = searchParams.get('clone');
+  const { addToast } = useToast();
+
+  const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [campaign, setCampaign] = useState({
+  const [bootLoading, setBootLoading] = useState(true);
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [audiences, setAudiences] = useState<AudienceItem[]>([]);
+  const [selectedAudienceId, setSelectedAudienceId] = useState('');
+
+  const [form, setForm] = useState({
     name: '',
     subject: '',
     preheader: '',
+    senderName: '',
+    senderEmail: '',
+    replyToEmail: '',
     templateId: '',
-    audiences: [] as { audienceType: 'LIST' | 'SEGMENT'; audienceId: string; action: 'INCLUDE' }[],
+    providerId: '',
+    sendingDomain: '',
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    frequencyCap: 0,
+    approvalRequired: true,
+    trackingEnabled: true,
+    complianceEnabled: true,
     scheduleType: 'NOW' as 'NOW' | 'LATER',
-    scheduleTime: ''
+    scheduleTime: '',
+    audiences: [] as { audienceType: 'LIST' | 'SEGMENT'; audienceId: string; action: 'INCLUDE' | 'EXCLUDE' }[],
   });
-  const [availableAudiences, setAvailableAudiences] = useState<AudienceItem[]>([]);
-  const [showAudiencePicker, setShowAudiencePicker] = useState(false);
 
   useEffect(() => {
-    get<any>('/lists').then((res) => {
-      const lists = (Array.isArray(res) ? res : res?.content || []).map((l: any) => ({ id: l.id, name: l.name || l.id, type: 'LIST' as const }));
-      get<any>('/segments').then((segRes) => {
-        const segments = (Array.isArray(segRes) ? segRes : segRes?.content || []).map((s: any) => ({ id: s.id, name: s.name || s.id, type: 'SEGMENT' as const }));
-        setAvailableAudiences([...lists, ...segments]);
-      }).catch(() => setAvailableAudiences(lists));
-    }).catch(() => {});
-  }, []);
+    const load = async () => {
+      setBootLoading(true);
+      try {
+        const [templateRes, listsRes, segmentsRes] = await Promise.all([
+          get<any>('/templates?page=0&size=100'),
+          get<any>('/lists?page=0&size=100'),
+          get<any>('/segments?page=0&size=100'),
+        ]);
 
-  const handleCreateAndSend = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-        const created = await post<any>('/campaigns', {
-            name: campaign.name,
-            subject: campaign.subject,
-            preheader: campaign.preheader,
-            templateId: campaign.templateId || undefined,
-            type: 'STANDARD',
-            audiences: campaign.audiences
-        });
+        const templateItems = (templateRes?.content ?? templateRes?.data ?? templateRes ?? []).map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          subject: item.subject,
+        }));
+        setTemplates(templateItems);
 
-        if (!created || !created.id) {
-          throw new Error('Campaign creation failed');
+        const listItems = (listsRes?.content ?? listsRes?.data ?? listsRes ?? []).map((item: any) => ({
+          id: item.id,
+          name: item.name || item.id,
+          type: 'LIST' as const,
+        }));
+        const segmentItems = (segmentsRes?.content ?? segmentsRes?.data ?? segmentsRes ?? []).map((item: any) => ({
+          id: item.id,
+          name: item.name || item.id,
+          type: 'SEGMENT' as const,
+        }));
+        setAudiences([...listItems, ...segmentItems]);
+
+        if (cloneId) {
+          const campaign = await getCampaign(cloneId);
+          setForm((current) => ({
+            ...current,
+            name: `${campaign.name} Copy`,
+            subject: campaign.subject || '',
+            preheader: campaign.preheader || '',
+            senderName: campaign.senderName || '',
+            senderEmail: campaign.senderEmail || '',
+            replyToEmail: campaign.replyToEmail || '',
+            templateId: (campaign as any).contentId || '',
+            providerId: campaign.providerId || '',
+            sendingDomain: campaign.sendingDomain || '',
+            timezone: campaign.timezone || current.timezone,
+            frequencyCap: campaign.frequencyCap || 0,
+            approvalRequired: campaign.approvalRequired ?? true,
+            trackingEnabled: campaign.trackingEnabled ?? true,
+            complianceEnabled: campaign.complianceEnabled ?? true,
+            audiences: (campaign.audiences || []).map((audience) => ({
+              audienceType: audience.audienceType,
+              audienceId: audience.audienceId,
+              action: audience.action,
+            })),
+          }));
         }
-
-        const scheduleAt = campaign.scheduleType === 'LATER' && campaign.scheduleTime ? new Date(campaign.scheduleTime).toISOString() : null;
-        await post<any>(`/campaigns/${created.id}/send`, { scheduledAt: scheduleAt });
-
-        router.push('/campaigns');
-    } catch (error: any) {
-        const msg = error?.response?.data?.error?.message || error?.message || 'Failed to send campaign';
-        setError(msg);
-        console.error("Failed to send campaign", error);
-    } finally {
-        setLoading(false);
-    }
-  };
-
-  const handleSaveDraft = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-        await post<any>('/campaigns', {
-            name: campaign.name,
-            subject: campaign.subject,
-            preheader: campaign.preheader,
-            templateId: campaign.templateId || undefined,
-            type: 'STANDARD',
-            audiences: campaign.audiences
+      } catch (error: any) {
+        addToast({
+          type: 'error',
+          title: 'Failed to initialize wizard',
+          message: error?.response?.data?.error?.message || 'Unable to load templates and audiences.',
         });
-        router.push('/campaigns');
+      } finally {
+        setBootLoading(false);
+      }
+    };
+
+    void load();
+  }, [addToast, cloneId]);
+
+  const selectedAudienceNames = useMemo(() => {
+    const map = new Map(audiences.map((item) => [item.id, item]));
+    return form.audiences.map((audience) => map.get(audience.audienceId)?.name || audience.audienceId);
+  }, [audiences, form.audiences]);
+
+  const toggleAudience = (audience: AudienceItem, action: 'INCLUDE' | 'EXCLUDE') => {
+    const exists = form.audiences.find((item) => item.audienceId === audience.id && item.action === action);
+    if (exists) {
+      setForm((current) => ({
+        ...current,
+        audiences: current.audiences.filter((item) => !(item.audienceId === audience.id && item.action === action)),
+      }));
+      return;
+    }
+    setForm((current) => ({
+      ...current,
+      audiences: [...current.audiences, { audienceType: audience.type, audienceId: audience.id, action }],
+    }));
+  };
+
+  const handleCreate = async (mode: 'DRAFT' | 'SEND' | 'APPROVAL') => {
+    setLoading(true);
+    try {
+      const created = await createCampaign({
+        name: form.name,
+        subject: form.subject,
+        preheader: form.preheader,
+        senderName: form.senderName || undefined,
+        senderEmail: form.senderEmail || undefined,
+        replyToEmail: form.replyToEmail || undefined,
+        providerId: form.providerId || undefined,
+        sendingDomain: form.sendingDomain || undefined,
+        timezone: form.timezone || 'UTC',
+        frequencyCap: form.frequencyCap || 0,
+        approvalRequired: form.approvalRequired,
+        trackingEnabled: form.trackingEnabled,
+        complianceEnabled: form.complianceEnabled,
+        templateId: form.templateId || undefined,
+        audiences: form.audiences,
+      } as any);
+
+      if (mode === 'APPROVAL') {
+        await submitCampaignApproval(created.id, 'Approval requested from campaign wizard');
+        addToast({ type: 'success', title: 'Submitted for approval', message: `${created.name} moved to review.` });
+      }
+
+      if (mode === 'SEND') {
+        const scheduledAt =
+          form.scheduleType === 'LATER' && form.scheduleTime
+            ? new Date(form.scheduleTime).toISOString()
+            : undefined;
+        await triggerCampaignSend(created.id, {
+          scheduledAt,
+          triggerSource: 'MANUAL',
+          triggerReference: 'campaign-wizard',
+          idempotencyKey: `wizard-${created.id}-${Date.now()}`,
+        });
+        addToast({ type: 'success', title: 'Campaign launched', message: `${created.name} send job queued.` });
+      }
+
+      if (mode === 'DRAFT') {
+        addToast({ type: 'success', title: 'Draft saved', message: `${created.name} saved as draft.` });
+      }
+      router.push('/campaigns');
     } catch (error: any) {
-        const msg = error?.response?.data?.error?.message || error?.message || 'Failed to save campaign';
-        setError(msg);
-        console.error("Failed to save campaign", error);
+      addToast({
+        type: 'error',
+        title: 'Campaign action failed',
+        message: error?.response?.data?.error?.message || 'Unable to complete campaign action.',
+      });
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
-  const toggleAudience = (item: AudienceItem) => {
-    const exists = campaign.audiences.find(a => a.audienceId === item.id);
-    if (exists) {
-      setCampaign({ ...campaign, audiences: campaign.audiences.filter(a => a.audienceId !== item.id) });
-    } else {
-      setCampaign({ ...campaign, audiences: [...campaign.audiences, { audienceType: item.type, audienceId: item.id, action: 'INCLUDE' as const }] });
-    }
-  };
+  if (bootLoading) {
+    return <div className="p-8 text-sm text-content-secondary">Loading campaign wizard...</div>;
+  }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-content-primary">New Campaign</h1>
-        <p className="mt-1 text-sm text-content-secondary">Configure and schedule your email send</p>
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-content-primary">Campaign Wizard</h1>
+          <p className="mt-1 text-sm text-content-secondary">Plan campaign setup, targeting, approvals, and delivery in one flow.</p>
+        </div>
+        <Link href="/campaigns">
+          <Button variant="secondary">Back to Campaigns</Button>
+        </Link>
       </div>
 
-      {error && (
-        <div className="rounded-lg bg-danger/10 border border-danger/20 p-3 text-sm text-danger">
-          {error}
-        </div>
-      )}
-
-      <div className="flex items-center justify-center gap-2">
-        {STEPS.map((step, i) => (
-          <div key={step} className="flex items-center gap-2">
-            <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
-              i < currentStep
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        {STEPS.map((label, index) => (
+          <div key={label} className="flex items-center gap-2">
+            <div className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-semibold ${
+              index < step
                 ? 'bg-brand-500 text-white'
-                : i === currentStep
-                  ? 'bg-brand-100 text-brand-700 border-2 border-brand-500 dark:bg-brand-900/30 dark:text-brand-400'
+                : index === step
+                  ? 'bg-brand-100 text-brand-700 border border-brand-400'
                   : 'bg-surface-secondary text-content-muted'
             }`}>
-              {i < currentStep ? <CheckCircle size={16} weight="fill" /> : i + 1}
+              {index < step ? <CheckCircle size={14} weight="fill" /> : index + 1}
             </div>
-            <span className={`text-sm font-medium ${i === currentStep ? 'text-content-primary' : 'text-content-muted'}`}>
-              {step}
+            <span className={`text-sm ${index === step ? 'text-content-primary font-medium' : 'text-content-muted'}`}>
+              {label}
             </span>
-            {i < STEPS.length - 1 && (
-              <div className={`h-px w-8 sm:w-16 ${i < currentStep ? 'bg-brand-500' : 'bg-border-default'}`} />
-            )}
           </div>
         ))}
       </div>
 
       <Card>
-        {currentStep === 0 && (
+        {step === 0 && (
           <div className="space-y-6">
-            <CardHeader title="Properties" subtitle="Basic campaign details" />
-            <div className="space-y-4">
-               <div>
-                  <label className="mb-1 block text-sm font-medium text-content-primary">Campaign Name *</label>
-                  <Input 
-                    placeholder="e.g., Spring Sale 2026" 
-                    fullWidth 
-                    value={campaign.name}
-                    onChange={(e) => setCampaign({...campaign, name: e.target.value})}
-                  />
-               </div>
-               <div>
-                  <label className="mb-1 block text-sm font-medium text-content-primary">Email Subject *</label>
-                  <Input 
-                    placeholder="Don't miss our biggest sale!" 
-                    fullWidth 
-                    value={campaign.subject}
-                    onChange={(e) => setCampaign({...campaign, subject: e.target.value})}
-                  />
-               </div>
-               <div>
-                  <label className="mb-1 block text-sm font-medium text-content-primary">Preheader</label>
-                  <Input 
-                    placeholder="Short preview text..." 
-                    fullWidth 
-                    value={campaign.preheader}
-                    onChange={(e) => setCampaign({...campaign, preheader: e.target.value})}
-                  />
-               </div>
-               <div>
-                  <label className="mb-1 block text-sm font-medium text-content-primary">Template ID</label>
-                  <Input 
-                    placeholder="UUID of the template" 
-                    fullWidth 
-                    value={campaign.templateId}
-                    onChange={(e) => setCampaign({...campaign, templateId: e.target.value})}
-                  />
-               </div>
+            <CardHeader title="Campaign Basics" subtitle="Define message identity and template." />
+            <div className="grid gap-4 p-6 pt-0 md:grid-cols-2">
+              <Input
+                label="Campaign Name *"
+                value={form.name}
+                onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+                placeholder="Product Launch - APAC"
+              />
+              <Input
+                label="Subject Line *"
+                value={form.subject}
+                onChange={(event) => setForm((current) => ({ ...current, subject: event.target.value }))}
+                placeholder="Introducing our latest release"
+              />
+              <Input
+                label="Preview Text"
+                value={form.preheader}
+                onChange={(event) => setForm((current) => ({ ...current, preheader: event.target.value }))}
+                placeholder="See what is new this week"
+              />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-content-primary">Template</label>
+                <select
+                  value={form.templateId}
+                  onChange={(event) => {
+                    const template = templates.find((item) => item.id === event.target.value);
+                    setForm((current) => ({
+                      ...current,
+                      templateId: event.target.value,
+                      subject: current.subject || template?.subject || '',
+                    }));
+                  }}
+                  className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                >
+                  <option value="">Select template</option>
+                  {templates.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Input
+                label="Sender Name"
+                value={form.senderName}
+                onChange={(event) => setForm((current) => ({ ...current, senderName: event.target.value }))}
+                placeholder="Legent Team"
+              />
+              <Input
+                label="Sender Email"
+                value={form.senderEmail}
+                onChange={(event) => setForm((current) => ({ ...current, senderEmail: event.target.value }))}
+                placeholder="updates@company.com"
+              />
+              <Input
+                label="Reply-to Email"
+                value={form.replyToEmail}
+                onChange={(event) => setForm((current) => ({ ...current, replyToEmail: event.target.value }))}
+                placeholder="support@company.com"
+              />
+              <Input
+                label="Provider ID"
+                value={form.providerId}
+                onChange={(event) => setForm((current) => ({ ...current, providerId: event.target.value }))}
+                placeholder="primary-smtp-provider"
+              />
+              <Input
+                label="Sending Domain"
+                value={form.sendingDomain}
+                onChange={(event) => setForm((current) => ({ ...current, sendingDomain: event.target.value }))}
+                placeholder="mail.company.com"
+              />
+              <Input
+                label="Timezone"
+                value={form.timezone}
+                onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))}
+                placeholder="UTC"
+              />
             </div>
           </div>
         )}
 
-        {currentStep === 1 && (
+        {step === 1 && (
           <div className="space-y-6">
-            <CardHeader title="Audience Selection" subtitle="Who should receive this email?" />
-            <div className="rounded-xl border border-border-default p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-content-primary">Included Segments & Lists</h3>
-                  <p className="text-sm text-content-muted">Target audience for this send</p>
-                </div>
-                <Button variant="ghost" size="sm" icon={<Users size={16} />} onClick={() => setShowAudiencePicker(!showAudiencePicker)}>
-                  {showAudiencePicker ? 'Done' : 'Add Inclusion'}
-                </Button>
-              </div>
-              {showAudiencePicker && (
-                <div className="max-h-60 overflow-auto rounded border border-border-default bg-surface-secondary p-2 space-y-1">
-                  {availableAudiences.length === 0 && <p className="text-sm text-content-muted p-2">No audiences available</p>}
-                  {availableAudiences.map((item) => (
-                    <label key={item.id} className="flex items-center gap-2 p-2 hover:bg-surface-tertiary rounded cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={!!campaign.audiences.find(a => a.audienceId === item.id)}
-                        onChange={() => toggleAudience(item)}
-                      />
-                      <span className="text-sm text-content-primary">{item.name}</span>
-                      <span className="text-xs text-content-muted uppercase">{item.type}</span>
-                    </label>
+            <CardHeader title="Audience Targeting" subtitle="Select include and exclusion audiences." />
+            <div className="grid gap-4 p-6 pt-0 md:grid-cols-[1fr_auto_auto]">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-content-primary">Audience</label>
+                <select
+                  value={selectedAudienceId}
+                  onChange={(event) => setSelectedAudienceId(event.target.value)}
+                  className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                >
+                  <option value="">Select list or segment</option>
+                  {audiences.map((audience) => (
+                    <option key={audience.id} value={audience.id}>
+                      {audience.name} ({audience.type})
+                    </option>
                   ))}
-                </div>
-              )}
-              <div className="rounded border border-dashed border-border-default p-4 text-center text-sm text-content-muted">
-                {campaign.audiences.length > 0 ? `${campaign.audiences.length} Selected` : "No audience selected."}
+                </select>
               </div>
-              {campaign.audiences.length > 0 && (
+              <Button
+                className="mt-6"
+                variant="secondary"
+                onClick={() => {
+                  const audience = audiences.find((item) => item.id === selectedAudienceId);
+                  if (audience) {
+                    toggleAudience(audience, 'INCLUDE');
+                  }
+                }}
+              >
+                Include
+              </Button>
+              <Button
+                className="mt-6"
+                variant="secondary"
+                onClick={() => {
+                  const audience = audiences.find((item) => item.id === selectedAudienceId);
+                  if (audience) {
+                    toggleAudience(audience, 'EXCLUDE');
+                  }
+                }}
+              >
+                Exclude
+              </Button>
+            </div>
+            <div className="px-6 pb-6">
+              {form.audiences.length === 0 ? (
+                <p className="text-sm text-content-muted">No audiences selected yet.</p>
+              ) : (
                 <div className="flex flex-wrap gap-2">
-                  {campaign.audiences.map((a) => (
-                    <span key={a.audienceId} className="inline-flex items-center gap-1 rounded bg-brand-50 px-2 py-1 text-xs text-brand-700">
-                      {a.audienceType}: {a.audienceId}
-                    </span>
+                  {form.audiences.map((audience, index) => (
+                    <Badge key={`${audience.audienceId}-${audience.action}-${index}`} variant={audience.action === 'INCLUDE' ? 'success' : 'danger'}>
+                      {audience.action}: {selectedAudienceNames[index]}
+                    </Badge>
                   ))}
                 </div>
               )}
@@ -232,104 +387,153 @@ export default function CampaignWizardPage() {
           </div>
         )}
 
-        {currentStep === 2 && (
+        {step === 2 && (
           <div className="space-y-6">
-            <CardHeader title="Delivery Configuration" subtitle="When should this be sent?" />
-            <div className="grid grid-cols-2 gap-4">
-                <div 
-                  className={`rounded-xl border-2 p-6 flex flex-col items-center cursor-pointer transition-colors ${campaign.scheduleType === 'NOW' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/10' : 'border-border-default hover:border-brand-300'}`}
-                  onClick={() => setCampaign({...campaign, scheduleType: 'NOW'})}
-                >
-                    <PaperPlaneTilt size={32} weight="duotone" className={`mb-2 ${campaign.scheduleType === 'NOW' ? 'text-brand-500' : 'text-content-muted'}`} />
-                    <span className="font-semibold text-content-primary">Send Immediately</span>
-                    <span className="text-sm text-content-muted text-center mt-1">Dispatches as soon as audience resolves</span>
-                </div>
-                <div 
-                  className={`rounded-xl border-2 p-6 flex flex-col items-center cursor-pointer transition-colors ${campaign.scheduleType === 'LATER' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/10' : 'border-border-default hover:border-brand-300'}`}
-                  onClick={() => setCampaign({...campaign, scheduleType: 'LATER'})}
-                >
-                    <RocketLaunch size={32} weight="duotone" className={`mb-2 ${campaign.scheduleType === 'LATER' ? 'text-brand-500' : 'text-content-muted'}`} />
-                    <span className="font-semibold text-content-primary">Schedule for Later</span>
-                    <span className="text-sm text-content-muted text-center mt-1">Pick a precise date and time</span>
-                </div>
-            </div>
-            {campaign.scheduleType === 'LATER' && (
+            <CardHeader title="Delivery Rules" subtitle="Configure compliance, cadence, and scheduling." />
+            <div className="grid gap-4 p-6 pt-0 md:grid-cols-2">
+              <Input
+                type="number"
+                label="Frequency Cap"
+                value={String(form.frequencyCap)}
+                onChange={(event) => setForm((current) => ({ ...current, frequencyCap: Number(event.target.value || '0') }))}
+              />
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-content-primary">Schedule Time</label>
-                <input
-                  type="datetime-local"
-                  value={campaign.scheduleTime}
-                  onChange={(e) => setCampaign({...campaign, scheduleTime: e.target.value})}
-                  className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30 transition-all"
-                />
+                <label className="block text-sm font-medium text-content-primary">Send Timing</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 text-sm text-content-primary">
+                    <input
+                      type="radio"
+                      checked={form.scheduleType === 'NOW'}
+                      onChange={() => setForm((current) => ({ ...current, scheduleType: 'NOW' }))}
+                    />
+                    Send now
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-content-primary">
+                    <input
+                      type="radio"
+                      checked={form.scheduleType === 'LATER'}
+                      onChange={() => setForm((current) => ({ ...current, scheduleType: 'LATER' }))}
+                    />
+                    Schedule
+                  </label>
+                </div>
+                {form.scheduleType === 'LATER' && (
+                  <input
+                    type="datetime-local"
+                    value={form.scheduleTime}
+                    onChange={(event) => setForm((current) => ({ ...current, scheduleTime: event.target.value }))}
+                    className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                  />
+                )}
               </div>
-            )}
+              <label className="flex items-center gap-2 text-sm text-content-primary">
+                <input
+                  type="checkbox"
+                  checked={form.approvalRequired}
+                  onChange={(event) => setForm((current) => ({ ...current, approvalRequired: event.target.checked }))}
+                />
+                Approval required
+              </label>
+              <label className="flex items-center gap-2 text-sm text-content-primary">
+                <input
+                  type="checkbox"
+                  checked={form.trackingEnabled}
+                  onChange={(event) => setForm((current) => ({ ...current, trackingEnabled: event.target.checked }))}
+                />
+                Tracking enabled
+              </label>
+              <label className="flex items-center gap-2 text-sm text-content-primary">
+                <input
+                  type="checkbox"
+                  checked={form.complianceEnabled}
+                  onChange={(event) => setForm((current) => ({ ...current, complianceEnabled: event.target.checked }))}
+                />
+                Compliance checks enabled
+              </label>
+            </div>
           </div>
         )}
 
-        {currentStep === 3 && (
+        {step === 3 && (
           <div className="space-y-6">
-            <CardHeader title="Review & Confirm" subtitle="Double check your settings before dispatch" />
-            <div className="space-y-4 divide-y divide-border-default text-sm">
-               <div className="flex justify-between py-2">
-                   <span className="text-content-secondary">Campaign Name</span>
-                   <span className="font-medium text-content-primary">{campaign.name || 'Untitled'}</span>
-               </div>
-               <div className="flex justify-between py-2">
-                   <span className="text-content-secondary">Subject</span>
-                   <span className="font-medium text-content-primary">{campaign.subject || 'No Subject'}</span>
-               </div>
-               <div className="flex justify-between py-2">
-                   <span className="text-content-secondary">Audiences</span>
-                   <span className="font-medium text-content-primary">{campaign.audiences.length} selected</span>
-               </div>
-               <div className="flex justify-between py-2">
-                   <span className="text-content-secondary">Delivery</span>
-                   <span className="font-medium text-content-primary">{campaign.scheduleType === 'NOW' ? 'Immediate' : campaign.scheduleTime ? `Scheduled: ${campaign.scheduleTime}` : 'Schedule not set'}</span>
-               </div>
+            <CardHeader title="Review and Launch" subtitle="Validate setup before creating campaign." />
+            <div className="space-y-3 px-6 pb-6 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Campaign</span>
+                <span className="font-medium text-content-primary">{form.name || 'Unnamed campaign'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Subject</span>
+                <span className="font-medium text-content-primary">{form.subject || 'No subject'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Template</span>
+                <span className="font-medium text-content-primary">
+                  {templates.find((template) => template.id === form.templateId)?.name || 'Not selected'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Audience Rules</span>
+                <span className="font-medium text-content-primary">{form.audiences.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Delivery</span>
+                <span className="font-medium text-content-primary">
+                  {form.scheduleType === 'LATER' && form.scheduleTime ? `Scheduled ${new Date(form.scheduleTime).toLocaleString()}` : 'Send immediately'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Approval Policy</span>
+                <span className="font-medium text-content-primary">{form.approvalRequired ? 'Required' : 'Optional'}</span>
+              </div>
             </div>
           </div>
         )}
       </Card>
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <Button
           variant="secondary"
-          onClick={() => setCurrentStep(Math.max(0, currentStep - 1))}
-          disabled={currentStep === 0 || loading}
           icon={<ArrowLeft size={16} />}
+          onClick={() => setStep((current) => Math.max(0, current - 1))}
+          disabled={step === 0 || loading}
         >
           Back
         </Button>
-        <div className="flex gap-3">
-          {currentStep === 3 && (
+        {step < STEPS.length - 1 ? (
+          <Button
+            icon={<ArrowRight size={16} />}
+            onClick={() => setStep((current) => Math.min(STEPS.length - 1, current + 1))}
+            disabled={!form.name || !form.subject || (step === 1 && form.audiences.length === 0)}
+          >
+            Next
+          </Button>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="secondary"
-              onClick={handleSaveDraft}
-              disabled={loading || !campaign.name}
+              onClick={() => void handleCreate('DRAFT')}
+              disabled={loading}
+              icon={loading ? <CircleNotch size={16} className="animate-spin" /> : undefined}
             >
-              Save as Draft
+              Save Draft
             </Button>
-          )}
-          {currentStep < 3 ? (
-              <Button
-                onClick={() => setCurrentStep(Math.min(STEPS.length - 1, currentStep + 1))}
-                disabled={loading}
-                icon={<ArrowRight size={16} />}
-              >
-                Next
-              </Button>
-          ) : (
-              <Button
-                onClick={handleCreateAndSend}
-                disabled={loading || !campaign.name || !campaign.subject || campaign.audiences.length === 0 || (campaign.scheduleType === 'LATER' && !campaign.scheduleTime)}
-                icon={loading ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneTilt size={16} />}
-              >
-                {loading ? 'Processing...' : 'Confirm & Launch'}
-              </Button>
-          )}
-        </div>
+            <Button
+              variant="secondary"
+              onClick={() => void handleCreate('APPROVAL')}
+              disabled={loading}
+            >
+              Submit Approval
+            </Button>
+            <Button
+              onClick={() => void handleCreate('SEND')}
+              disabled={loading || (form.scheduleType === 'LATER' && !form.scheduleTime)}
+              icon={loading ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneTilt size={16} />}
+            >
+              Launch Campaign
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

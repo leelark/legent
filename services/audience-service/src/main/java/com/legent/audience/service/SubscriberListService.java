@@ -59,6 +59,9 @@ public class SubscriberListService {
         if (request.getListType() != null) {
             entity.setListType(SubscriberList.ListType.valueOf(request.getListType().toUpperCase()));
         }
+        if (entity.getTags() == null) {
+            entity.setTags(new java.util.ArrayList<>());
+        }
 
         SubscriberList saved = listRepository.save(entity);
         log.info("List created: name={}, id={}", saved.getName(), saved.getId());
@@ -75,6 +78,7 @@ public class SubscriberListService {
         if (request.getName() != null) existing.setName(request.getName());
         if (request.getDescription() != null) existing.setDescription(request.getDescription());
         if (request.getStatus() != null) existing.setStatus(SubscriberList.ListStatus.valueOf(request.getStatus().toUpperCase()));
+        if (existing.getTags() == null) existing.setTags(new java.util.ArrayList<>());
 
         SubscriberList saved = listRepository.save(existing);
         return listMapper.toResponse(saved);
