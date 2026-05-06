@@ -83,6 +83,11 @@
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
         </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sesv2</artifactId>
+            <version>2.25.59</version>
+        </dependency>
 
         <!-- Testing -->
         <dependency>

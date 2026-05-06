@@ -1,7 +1,4 @@
 "use client";
-import { DomainManager } from '@/components/deliverability/DomainManager';
-import { ReputationDashboard } from '@/components/deliverability/ReputationDashboard';
-import { DmarcDashboard } from '@/components/deliverability/DmarcDashboard';
 import JourneyBuilder, { JourneyNode } from '@/components/automation/JourneyBuilder';
 import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -26,9 +23,6 @@ export default function AutomationBuilder() {
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Journey Builder</h2>
                     <p className="text-sm text-muted-foreground mt-1">Design and automate your customer journey</p>
-                                        <DomainManager />
-                                        <ReputationDashboard domain="yourdomain.com" />
-                                        <DmarcDashboard domain="yourdomain.com" />
                                     </div>
                 <div className="flex space-x-2">
                         <Button variant="outline"><Settings className="w-4 h-4 mr-2"/> Settings</Button>

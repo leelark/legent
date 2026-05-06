@@ -35,6 +35,7 @@ class DeliveryOrchestrationServiceTest {
                 "email", "test@example.com",
                 "subscriberId", "sub-1",
                 "campaignId", "camp-1",
+                "workspaceId", "workspace-1",
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
@@ -44,7 +45,7 @@ class DeliveryOrchestrationServiceTest {
         mockProvider.setId("prov-1");
         ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
         
-        when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(any(), any(), any())).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
         when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
             MessageLog log = invocation.getArgument(0, MessageLog.class);
@@ -65,6 +66,7 @@ class DeliveryOrchestrationServiceTest {
     void processSendRequest_PermanentFailure() throws Exception {
         Map<String, Object> payload = Map.of(
                 "email", "bounce@example.com",
+                "workspaceId", "workspace-1",
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
@@ -75,7 +77,7 @@ class DeliveryOrchestrationServiceTest {
         
         ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
         
-        when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(any(), any(), any())).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
         when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
             MessageLog log = invocation.getArgument(0, MessageLog.class);
@@ -89,13 +91,14 @@ class DeliveryOrchestrationServiceTest {
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
         verify(eventPublisher).publishEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString());
-        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("bounce@example.com"), anyString(), eq("example.com"));
+        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("workspace-1"), eq("bounce@example.com"), anyString(), eq("example.com"));
     }
 
     @Test
     void processSendRequest_TransientFailure_SchedulesRetry() throws Exception {
         Map<String, Object> payload = Map.of(
                 "email", "delay@example.com",
+                "workspaceId", "workspace-1",
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
@@ -106,7 +109,7 @@ class DeliveryOrchestrationServiceTest {
         
         ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
         
-        when(messageLogRepository.findByTenantIdAndMessageId(any(), any())).thenReturn(Optional.empty());
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(any(), any(), any())).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
         when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
             MessageLog log = invocation.getArgument(0, MessageLog.class);
@@ -119,16 +122,17 @@ class DeliveryOrchestrationServiceTest {
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
-        verify(eventPublisher).publishRetryScheduled(eq("tenant-1"), eq("evt-123"), eq(1L), anyString());
+        verify(eventPublisher).publishRetryScheduled(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), eq(1L), anyString());
     }
 
     @Test
     void processSendRequest_InvalidEmail_DoesNotSelectProviderAndMarksFailed() {
         Map<String, Object> payload = Map.of(
-                "email", "invalid-email"
+                "email", "invalid-email",
+                "workspaceId", "workspace-1"
         );
 
-        when(messageLogRepository.findByTenantIdAndMessageId("tenant-1", "evt-123")).thenReturn(Optional.empty());
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId("tenant-1", "workspace-1", "evt-123")).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
         when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
             MessageLog log = invocation.getArgument(0, MessageLog.class);
@@ -141,7 +145,7 @@ class DeliveryOrchestrationServiceTest {
 
         verify(providerStrategy, never()).selectProvider(anyString(), anyString());
         verify(eventPublisher).publishEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString());
-        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("invalid-email"), anyString(), isNull());
+        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("workspace-1"), eq("invalid-email"), anyString(), isNull());
     }
 
     @Test
@@ -149,9 +153,9 @@ class DeliveryOrchestrationServiceTest {
         MessageLog messageLog = new MessageLog();
         messageLog.setStatus(MessageLog.DeliveryStatus.SENT.name());
 
-        when(messageLogRepository.findByTenantIdAndMessageId("tenant-1", "evt-123")).thenReturn(Optional.of(messageLog));
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId("tenant-1", "workspace-1", "evt-123")).thenReturn(Optional.of(messageLog));
 
-        orchestrationService.processSendRequest(Map.of("email", "test@example.com"), "tenant-1", "evt-123");
+        orchestrationService.processSendRequest(Map.of("email", "test@example.com", "workspaceId", "workspace-1"), "tenant-1", "evt-123");
 
         verify(providerStrategy, never()).selectProvider(anyString(), anyString());
         verify(eventPublisher, never()).publishEmailSent(anyString(), anyString(), anyString(), any(), any(), any(), any());

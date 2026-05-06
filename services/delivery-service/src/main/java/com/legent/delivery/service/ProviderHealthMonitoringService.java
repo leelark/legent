@@ -17,6 +17,7 @@ import com.legent.delivery.domain.SmtpProvider;
 import com.legent.delivery.repository.ProviderHealthCheckRepository;
 import com.legent.delivery.repository.ProviderHealthStatusRepository;
 import com.legent.delivery.repository.SmtpProviderRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -88,6 +89,7 @@ public class ProviderHealthMonitoringService {
         // Record health check
         ProviderHealthCheck check = new ProviderHealthCheck();
         check.setTenantId(provider.getTenantId());
+        check.setWorkspaceId(resolveWorkspaceId());
         check.setProviderId(provider.getId());
         check.setStatus(status);
         check.setResponseTimeMs(responseTimeMs);
@@ -192,6 +194,7 @@ public class ProviderHealthMonitoringService {
         ProviderHealthStatus status = existingStatus.orElseGet(() -> {
             ProviderHealthStatus newStatus = new ProviderHealthStatus();
             newStatus.setTenantId(provider.getTenantId());
+            newStatus.setWorkspaceId(resolveWorkspaceId());
             newStatus.setProviderId(provider.getId());
             return newStatus;
         });
@@ -228,6 +231,14 @@ public class ProviderHealthMonitoringService {
         provider.setLastHealthCheckAt(Instant.now());
         provider.setHealthStatus(currentStatus.name());
         providerRepository.save(provider);
+    }
+
+    private String resolveWorkspaceId() {
+        String workspaceId = TenantContext.getWorkspaceId();
+        if (workspaceId == null || workspaceId.isBlank()) {
+            return "workspace-default";
+        }
+        return workspaceId;
     }
 
     /**

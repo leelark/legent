@@ -23,6 +23,15 @@ public class DomainReputation {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId = "workspace-default";
+
+    @Column(name = "team_id", length = 64)
+    private String teamId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 32)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "domain_id", nullable = false)
     private String domainId;
 

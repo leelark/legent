@@ -109,6 +109,9 @@ public class SendExecutionService {
                     emailPayload.put("workspaceId", batch.getWorkspaceId());
                     emailPayload.put("subject", subject);
                     emailPayload.put("htmlBody", htmlBody);
+                    emailPayload.put("fromEmail", campaign.getSenderEmail());
+                    emailPayload.put("fromName", campaign.getSenderName());
+                    emailPayload.put("replyToEmail", campaign.getReplyToEmail());
                     String subscriberIdentity = sub.get("subscriberId") != null ? sub.get("subscriberId") : sub.get("email");
                     if (subscriberIdentity != null) {
                         emailPayload.put("messageId", batch.getJobId() + ":" + batchId + ":" + subscriberIdentity);

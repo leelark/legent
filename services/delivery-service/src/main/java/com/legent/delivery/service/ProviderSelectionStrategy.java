@@ -7,14 +7,17 @@ import java.util.Set;
 import java.util.Map;
 
 import com.legent.delivery.adapter.ProviderAdapter;
+import com.legent.delivery.domain.ProviderHealthStatus;
 import com.legent.delivery.domain.RoutingRule;
 import com.legent.delivery.domain.SmtpProvider;
+import com.legent.delivery.repository.ProviderHealthStatusRepository;
 import com.legent.delivery.repository.RoutingRuleRepository;
 import com.legent.delivery.repository.SmtpProviderRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
+import java.util.Comparator;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +44,7 @@ public class ProviderSelectionStrategy {
 
     private final RoutingRuleRepository routingRuleRepository;
     private final SmtpProviderRepository smtpProviderRepository;
+    private final ProviderHealthStatusRepository providerHealthStatusRepository;
     private final ProviderCircuitBreaker circuitBreaker;
     private final Map<String, ProviderAdapter> adapters;
     private final String defaultProviderHost;
@@ -49,12 +53,14 @@ public class ProviderSelectionStrategy {
     public ProviderSelectionStrategy(
             RoutingRuleRepository routingRuleRepository,
             SmtpProviderRepository smtpProviderRepository,
+            ProviderHealthStatusRepository providerHealthStatusRepository,
             ProviderCircuitBreaker circuitBreaker,
             List<ProviderAdapter> adapterList,
             @Value("${MAIL_HOST:mailhog}") String defaultProviderHost,
             @Value("${MAIL_PORT:1025}") int defaultProviderPort) {
         this.routingRuleRepository = routingRuleRepository;
         this.smtpProviderRepository = smtpProviderRepository;
+        this.providerHealthStatusRepository = providerHealthStatusRepository;
         this.circuitBreaker = circuitBreaker;
         this.defaultProviderHost = defaultProviderHost;
         this.defaultProviderPort = defaultProviderPort;
@@ -84,57 +90,33 @@ public class ProviderSelectionStrategy {
         Optional<RoutingRule> ruleOpt = routingRuleRepository
                 .findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue(normalizedTenantId, normalizedDomain);
 
-        SmtpProvider providerConfig = null;
-
-        if (ruleOpt.isPresent() && ruleOpt.get().getProvider() != null) {
-            providerConfig = ruleOpt.get().getProvider();
-        } else {
-            // Fall back to best priority default provider
-            List<SmtpProvider> providers = smtpProviderRepository
-                    .findByTenantIdAndIsActiveTrueOrderByPriorityAsc(normalizedTenantId);
-            if (!providers.isEmpty()) {
-                providerConfig = providers.get(0);
-            } else {
-                providerConfig = createDefaultProvider(normalizedTenantId);
-            }
+        List<SmtpProvider> providers = smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc(normalizedTenantId);
+        if (providers.isEmpty()) {
+            providers = List.of(createDefaultProvider(normalizedTenantId));
         }
 
-        if (providerConfig == null || !providerConfig.isActive()) {
+        if (providers.isEmpty()) {
             throw new IllegalStateException("No active SMTP provider configured for tenant " + normalizedTenantId);
         }
 
-        // Check circuit breaker before selecting provider
-        String providerId = providerConfig.getId();
-        if (!circuitBreaker.isCircuitClosed(providerId)) {
-            log.warn("Circuit breaker OPEN for provider {}, attempting failover to fallback provider", providerId);
-            providerConfig = selectFallbackProvider(normalizedTenantId, ruleOpt.orElse(null), providerConfig);
-            if (providerConfig == null) {
-                throw new IllegalStateException("Primary provider circuit open and no fallback available for tenant " + normalizedTenantId);
-            }
-            providerId = providerConfig.getId();
-        }
+        Map<String, ProviderHealthStatus> healthStatusByProvider = providerHealthStatusRepository.findByTenantId(normalizedTenantId)
+                .stream()
+                .collect(Collectors.toMap(ProviderHealthStatus::getProviderId, Function.identity(), (left, right) -> left));
 
-        String providerType = normalizeType(providerConfig.getType());
-        ProviderAdapter adapter = providerType != null ? adapters.get(providerType) : null;
-        if (adapter != null) {
-            return new ProviderSelectionResult(adapter, providerConfig);
-        }
+        RoutingRule rule = ruleOpt.orElse(null);
 
-        if (providerType != null && SMTP_COMPATIBLE_PROVIDER_TYPES.contains(providerType)) {
-            ProviderAdapter smtpAdapter = adapters.get("SMTP");
-            if (smtpAdapter != null) {
-                log.info("Using SMTP adapter for SMTP-compatible provider type '{}'", providerType);
-                return new ProviderSelectionResult(smtpAdapter, providerConfig);
-            }
-        }
+        SmtpProvider selectedProvider = providers.stream()
+                .filter(SmtpProvider::isActive)
+                .filter(provider -> resolveAdapter(provider) != null)
+                .filter(provider -> circuitBreaker.isCircuitClosed(provider.getId()))
+                .max(Comparator.comparingInt(provider -> providerScore(provider, healthStatusByProvider.get(provider.getId()), rule)))
+                .orElseThrow(() -> new IllegalStateException("No healthy provider adapter available for tenant " + normalizedTenantId));
 
-        ProviderAdapter fallbackAdapter = adapters.get("MOCK");
-        if (fallbackAdapter != null) {
-            log.warn("No adapter found for provider type '{}', falling back to MOCK adapter", providerConfig.getType());
-            return new ProviderSelectionResult(fallbackAdapter, providerConfig);
+        ProviderAdapter adapter = resolveAdapter(selectedProvider);
+        if (adapter == null) {
+            throw new IllegalStateException("No provider adapter registered for provider type " + selectedProvider.getType());
         }
-
-        throw new IllegalStateException("No provider adapter registered for provider type " + providerConfig.getType());
+        return new ProviderSelectionResult(adapter, selectedProvider);
     }
 
     /**
@@ -180,6 +162,64 @@ public class ProviderSelectionStrategy {
      */
     public boolean recordProviderFailure(String providerId) {
         return circuitBreaker.recordFailure(providerId);
+    }
+
+    private ProviderAdapter resolveAdapter(SmtpProvider providerConfig) {
+        String providerType = normalizeType(providerConfig.getType());
+        ProviderAdapter adapter = providerType != null ? adapters.get(providerType) : null;
+        if (adapter != null) {
+            return adapter;
+        }
+        if (providerType != null && SMTP_COMPATIBLE_PROVIDER_TYPES.contains(providerType)) {
+            ProviderAdapter smtpAdapter = adapters.get("SMTP");
+            if (smtpAdapter != null) {
+                log.debug("Using SMTP adapter for SMTP-compatible provider type '{}'", providerType);
+                return smtpAdapter;
+            }
+        }
+        return null;
+    }
+
+    private int providerScore(SmtpProvider provider, ProviderHealthStatus healthStatus, RoutingRule rule) {
+        int score = 0;
+        int priority = provider.getPriority() != null ? provider.getPriority() : 100;
+        score += Math.max(0, 25 - Math.min(priority, 25));
+        int maxSendRate = provider.getMaxSendRate() != null ? provider.getMaxSendRate() : 0;
+        score += Math.min(20, Math.max(0, maxSendRate / 25));
+
+        if (healthStatus != null) {
+            score += healthStatus.getHealthScore() != null ? healthStatus.getHealthScore() : 60;
+            if (healthStatus.getCurrentStatus() == ProviderHealthStatus.HealthStatus.DEGRADED) {
+                score -= 15;
+            } else if (healthStatus.getCurrentStatus() == ProviderHealthStatus.HealthStatus.UNHEALTHY) {
+                score -= 40;
+            }
+            if (healthStatus.isCircuitBreakerOpen()) {
+                score -= 60;
+            }
+        } else {
+            score += 50;
+        }
+
+        score -= providerCostPenalty(normalizeType(provider.getType()));
+
+        if (rule != null && rule.getProvider() != null && provider.getId().equals(rule.getProvider().getId())) {
+            score += 25;
+        } else if (rule != null && rule.getFallbackProvider() != null && provider.getId().equals(rule.getFallbackProvider().getId())) {
+            score += 10;
+        }
+        return score;
+    }
+
+    private int providerCostPenalty(String providerType) {
+        if (providerType == null) {
+            return 0;
+        }
+        return switch (providerType) {
+            case "SMTP", "POSTAL", "HARAKA", "POSTFIX", "MAILHOG", "MAILPIT", "DOCKER_MAIL_SERVER", "CUSTOM_SMTP" -> 0;
+            case "CUSTOM_API" -> 2;
+            default -> 5;
+        };
     }
 
     private String normalizeIdentifier(String value) {

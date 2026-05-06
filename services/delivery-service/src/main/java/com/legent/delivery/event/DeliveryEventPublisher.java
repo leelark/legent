@@ -18,10 +18,11 @@ public class DeliveryEventPublisher {
     private static final String SOURCE = "delivery-service";
 
     public void publishEmailSent(String tenantId, String workspaceId, String messageId, String campaignId, String jobId, String batchId, String subscriberId) {
+        String requiredWorkspace = requireWorkspace(workspaceId);
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_SENT, tenantId, SOURCE,
                 Map.of(
-                        "workspaceId", safe(workspaceId, "workspace-default"),
+                        "workspaceId", requiredWorkspace,
                         "messageId", safe(messageId, ""),
                         "campaignId", safe(campaignId, ""),
                         "jobId", safe(jobId, ""),
@@ -33,10 +34,11 @@ public class DeliveryEventPublisher {
     }
 
     public void publishEmailFailed(String tenantId, String workspaceId, String messageId, String campaignId, String jobId, String batchId, String subscriberId, String reason) {
+        String requiredWorkspace = requireWorkspace(workspaceId);
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_FAILED, tenantId, SOURCE,
                 Map.of(
-                        "workspaceId", safe(workspaceId, "workspace-default"),
+                        "workspaceId", requiredWorkspace,
                         "messageId", safe(messageId, ""),
                         "campaignId", safe(campaignId, ""),
                         "jobId", safe(jobId, ""),
@@ -48,10 +50,12 @@ public class DeliveryEventPublisher {
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_FAILED, envelope);
     }
 
-    public void publishRetryScheduled(String tenantId, String messageId, long attemptCount, String nextRetryAt) {
+    public void publishRetryScheduled(String tenantId, String workspaceId, String messageId, long attemptCount, String nextRetryAt) {
+        String requiredWorkspace = requireWorkspace(workspaceId);
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, tenantId, SOURCE,
                 Map.of(
+                        "workspaceId", requiredWorkspace,
                         "messageId", safe(messageId, ""),
                         "attemptCount", String.valueOf(attemptCount),
                         "nextRetryAt", safe(nextRetryAt, "")
@@ -60,10 +64,12 @@ public class DeliveryEventPublisher {
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, envelope);
     }
 
-    public void publishEmailBounced(String tenantId, String email, String reason, String senderDomain) {
+    public void publishEmailBounced(String tenantId, String workspaceId, String email, String reason, String senderDomain) {
+        String requiredWorkspace = requireWorkspace(workspaceId);
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_BOUNCED, tenantId, SOURCE,
                 Map.of(
+                        "workspaceId", requiredWorkspace,
                         "email", safe(email, ""),
                         "reason", safe(reason, "unknown"),
                         "type", "HARD_BOUNCE",
@@ -79,5 +85,13 @@ public class DeliveryEventPublisher {
         }
         String normalized = value.trim();
         return normalized.isEmpty() ? fallback : normalized;
+    }
+
+    private String requireWorkspace(String workspaceId) {
+        String normalized = safe(workspaceId, null);
+        if (normalized == null) {
+            throw new IllegalArgumentException("workspaceId is required for delivery events");
+        }
+        return normalized;
     }
 }

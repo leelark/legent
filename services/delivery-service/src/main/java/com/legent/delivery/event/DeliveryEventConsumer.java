@@ -5,6 +5,7 @@ import com.legent.common.constant.AppConstants;
 import java.util.Map;
 
 import com.legent.delivery.service.DeliveryOrchestrationService;
+import com.legent.delivery.service.DeliveryEventIdempotencyService;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -19,14 +20,24 @@ import org.springframework.stereotype.Component;
 public class DeliveryEventConsumer {
 
     private final DeliveryOrchestrationService orchestrationService;
+    private final DeliveryEventIdempotencyService idempotencyService;
 
     @KafkaListener(topics = AppConstants.TOPIC_EMAIL_SEND_REQUESTED, groupId = AppConstants.GROUP_DELIVERY, concurrency = "5")
     public void handleSendRequest(EventEnvelope<Map<String, Object>> event) {
         try {
-            TenantContext.setTenantId(event.getTenantId());
-            if (event.getWorkspaceId() != null && !event.getWorkspaceId().isBlank()) {
-                TenantContext.setWorkspaceId(event.getWorkspaceId());
+            Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Map.of();
+            String workspaceId = resolveWorkspaceId(event, payload);
+            String eventType = event.getEventType() != null ? event.getEventType() : AppConstants.TOPIC_EMAIL_SEND_REQUESTED;
+            if (!idempotencyService.registerIfNew(
+                    event.getTenantId(),
+                    workspaceId,
+                    eventType,
+                    event.getEventId(),
+                    event.getIdempotencyKey())) {
+                return;
             }
+            TenantContext.setTenantId(event.getTenantId());
+            TenantContext.setWorkspaceId(workspaceId);
             if (event.getEnvironmentId() != null && !event.getEnvironmentId().isBlank()) {
                 TenantContext.setEnvironmentId(event.getEnvironmentId());
             }
@@ -36,11 +47,25 @@ public class DeliveryEventConsumer {
             if (event.getIdempotencyKey() != null && !event.getIdempotencyKey().isBlank()) {
                 TenantContext.setRequestId(event.getIdempotencyKey());
             }
-            orchestrationService.processSendRequest(event.getPayload(), event.getTenantId(), event.getEventId());
+            orchestrationService.processSendRequest(payload, event.getTenantId(), event.getEventId());
         } catch (Exception e) {
             log.error("Error processing text send request {}", event.getEventId(), e);
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private String resolveWorkspaceId(EventEnvelope<Map<String, Object>> event, Map<String, Object> payload) {
+        if (event.getWorkspaceId() != null && !event.getWorkspaceId().isBlank()) {
+            return event.getWorkspaceId();
+        }
+        Object fromPayload = payload.get("workspaceId");
+        if (fromPayload != null) {
+            String parsed = String.valueOf(fromPayload).trim();
+            if (!parsed.isEmpty()) {
+                return parsed;
+            }
+        }
+        throw new IllegalArgumentException("Missing workspaceId in event envelope/payload for event " + event.getEventId());
     }
 }

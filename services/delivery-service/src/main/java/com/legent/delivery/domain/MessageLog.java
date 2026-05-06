@@ -32,6 +32,12 @@ public class MessageLog extends BaseEntity {
     @Column(name = "workspace_id", nullable = false, length = 64)
     private String workspaceId = "workspace-default";
 
+    @Column(name = "team_id", length = 64)
+    private String teamId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 32)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "job_id", length = 64)
     private String jobId;
 
@@ -58,6 +64,18 @@ public class MessageLog extends BaseEntity {
 
     @Column(name = "provider_response", columnDefinition = "TEXT")
     private String providerResponse;
+
+    @Column(name = "failure_class", length = 64)
+    private String failureClass;
+
+    @Column(name = "from_email", length = 320)
+    private String fromEmail;
+
+    @Column(name = "from_name", length = 255)
+    private String fromName;
+
+    @Column(name = "reply_to_email", length = 320)
+    private String replyToEmail;
 
     // Fix 31: Removed subject and htmlBody fields to prevent storage bloat
     // (20-100KB per email * 1M emails/day = 20-100GB/day)

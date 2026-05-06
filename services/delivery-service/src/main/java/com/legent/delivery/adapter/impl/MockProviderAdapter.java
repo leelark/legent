@@ -6,12 +6,14 @@ import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.adapter.ProviderDispatchException;
 import com.legent.delivery.domain.SmtpProvider;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.util.Random;
 
 @Slf4j
 @Component
+@Profile("test")
 public class MockProviderAdapter implements ProviderAdapter {
 
     private final Random random = new Random();

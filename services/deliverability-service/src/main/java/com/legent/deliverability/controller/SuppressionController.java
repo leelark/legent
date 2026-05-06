@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
 
 @RestController
 @RequestMapping("/api/v1/deliverability/suppressions")
@@ -28,7 +32,8 @@ public class SuppressionController {
     @GetMapping
     public ApiResponse<List<SuppressionList>> listSuppressions() {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(suppressionRepository.findByTenantId(tenantId));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(suppressionRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId));
     }
 
     @GetMapping("/internal")
@@ -38,6 +43,25 @@ public class SuppressionController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(suppressionRepository.findByTenantId(tenantId));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(suppressionRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId));
+    }
+
+    @GetMapping("/history")
+    public ApiResponse<Map<String, Object>> suppressionHistory() {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        long complaints = suppressionRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "COMPLAINT");
+        long hardBounces = suppressionRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "HARD_BOUNCE");
+        long unsubscribes = suppressionRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "UNSUBSCRIBE");
+        long total = suppressionRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId).size();
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("total", total);
+        result.put("complaints", complaints);
+        result.put("hardBounces", hardBounces);
+        result.put("unsubscribes", unsubscribes);
+        result.put("generatedAt", Instant.now());
+        return ApiResponse.ok(result);
     }
 }

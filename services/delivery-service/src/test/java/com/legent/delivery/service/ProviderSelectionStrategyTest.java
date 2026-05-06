@@ -3,6 +3,7 @@ package com.legent.delivery.service;
 import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.domain.RoutingRule;
 import com.legent.delivery.domain.SmtpProvider;
+import com.legent.delivery.repository.ProviderHealthStatusRepository;
 import com.legent.delivery.repository.RoutingRuleRepository;
 import com.legent.delivery.repository.SmtpProviderRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -16,6 +17,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -23,22 +25,23 @@ class ProviderSelectionStrategyTest {
 
     @Mock private RoutingRuleRepository routingRuleRepository;
     @Mock private SmtpProviderRepository smtpProviderRepository;
+    @Mock private ProviderHealthStatusRepository providerHealthStatusRepository;
     @Mock private ProviderCircuitBreaker circuitBreaker;
     @Mock private ProviderAdapter smtpAdapter;
-    @Mock private ProviderAdapter mockAdapter;
 
     private ProviderSelectionStrategy strategy;
 
     @BeforeEach
     void setUp() {
         when(smtpAdapter.getProviderType()).thenReturn("SMTP");
-        when(mockAdapter.getProviderType()).thenReturn("MOCK");
-        when(circuitBreaker.isCircuitClosed("provider-1")).thenReturn(true);
+        lenient().when(circuitBreaker.isCircuitClosed("provider-1")).thenReturn(true);
+        when(providerHealthStatusRepository.findByTenantId("tenant-1")).thenReturn(List.of());
         strategy = new ProviderSelectionStrategy(
                 routingRuleRepository,
                 smtpProviderRepository,
+                providerHealthStatusRepository,
                 circuitBreaker,
-                List.of(smtpAdapter, mockAdapter),
+                List.of(smtpAdapter),
                 "mailhog",
                 1025
         );
@@ -52,6 +55,8 @@ class ProviderSelectionStrategyTest {
 
         when(routingRuleRepository.findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue("tenant-1", "example.com"))
                 .thenReturn(Optional.of(rule));
+        when(smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc("tenant-1"))
+                .thenReturn(List.of(provider));
 
         ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider(" tenant-1 ", "EXAMPLE.COM");
 
@@ -82,6 +87,8 @@ class ProviderSelectionStrategyTest {
 
         when(routingRuleRepository.findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue("tenant-1", "example.com"))
                 .thenReturn(Optional.of(rule));
+        when(smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc("tenant-1"))
+                .thenReturn(List.of(provider));
 
         ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider("tenant-1", "example.com");
 
@@ -97,10 +104,13 @@ class ProviderSelectionStrategyTest {
 
         when(routingRuleRepository.findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue("tenant-1", "example.com"))
                 .thenReturn(Optional.of(rule));
+        when(smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc("tenant-1"))
+                .thenReturn(List.of(provider));
 
         ProviderSelectionStrategy noFallbackStrategy = new ProviderSelectionStrategy(
                 routingRuleRepository,
                 smtpProviderRepository,
+                providerHealthStatusRepository,
                 circuitBreaker,
                 List.of(smtpAdapter),
                 "mailhog",

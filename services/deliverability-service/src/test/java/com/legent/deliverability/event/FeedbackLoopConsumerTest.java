@@ -10,6 +10,7 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.deliverability.domain.SuppressionList;
 import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.repository.SuppressionListRepository;
+import com.legent.deliverability.service.DeliverabilityEventIdempotencyService;
 import com.legent.deliverability.service.ReputationEngine;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,7 @@ class FeedbackLoopConsumerTest {
     @Mock private SuppressionListRepository suppressionRepository;
     @Mock private SenderDomainRepository senderDomainRepository;
     @Mock private ReputationEngine reputationEngine;
+    @Mock private DeliverabilityEventIdempotencyService idempotencyService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -35,17 +37,19 @@ class FeedbackLoopConsumerTest {
 
     @BeforeEach
     void setup() {
-        consumer = new FeedbackLoopConsumer(objectMapper, suppressionRepository, senderDomainRepository, reputationEngine);
+        consumer = new FeedbackLoopConsumer(objectMapper, suppressionRepository, senderDomainRepository, reputationEngine, idempotencyService);
+        when(idempotencyService.registerIfNew(anyString(), anyString(), anyString(), anyString(), anyString())).thenReturn(true);
     }
 
     @Test
     void consumeDeliveryFailedEvents_HardBounce_AddsToSuppression() throws Exception {
         String jsonPayload = "{\"email\":\"bad@example.com\", \"bounceType\":\"HARD\", \"domainId\":\"d1\"}";
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId("w1");
 
-        when(suppressionRepository.findByTenantIdAndEmail("t1", "bad@example.com")).thenReturn(Optional.empty());
+        when(suppressionRepository.findByTenantIdAndWorkspaceIdAndEmail("t1", "w1", "bad@example.com")).thenReturn(Optional.empty());
 
-        consumer.consumeDeliveryFailedEvents(envelope);
+        consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED);
 
         ArgumentCaptor<SuppressionList> captor = ArgumentCaptor.forClass(SuppressionList.class);
         verify(suppressionRepository, times(1)).save(captor.capture());
@@ -54,31 +58,33 @@ class FeedbackLoopConsumerTest {
         assertEquals("bad@example.com", saved.getEmail());
         assertEquals("HARD_BOUNCE", saved.getReason());
 
-        verify(reputationEngine).recordNegativeSignal("t1", "d1", "HARD_BOUNCE");
+        verify(reputationEngine).recordNegativeSignal("t1", "w1", "d1", "HARD_BOUNCE");
     }
 
     @Test
     void consumeDeliveryFailedEvents_Complaint_AddsToSuppression() {
         String jsonPayload = "{\"email\":\"complaint@example.com\", \"type\":\"SOFT\", \"domainId\":\"d2\"}";
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_COMPLAINT, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId("w1");
 
-        when(suppressionRepository.findByTenantIdAndEmail("t1", "complaint@example.com"))
+        when(suppressionRepository.findByTenantIdAndWorkspaceIdAndEmail("t1", "w1", "complaint@example.com"))
                 .thenReturn(Optional.empty());
 
-        consumer.consumeDeliveryFailedEvents(envelope);
+        consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_COMPLAINT);
 
         ArgumentCaptor<SuppressionList> captor = ArgumentCaptor.forClass(SuppressionList.class);
         verify(suppressionRepository, times(1)).save(captor.capture());
         assertEquals("COMPLAINT", captor.getValue().getReason());
-        verify(reputationEngine).recordNegativeSignal("t1", "d2", "COMPLAINT");
+        verify(reputationEngine).recordNegativeSignal("t1", "w1", "d2", "COMPLAINT");
     }
 
     @Test
     void consumeDeliveryFailedEvents_SoftBounce_DoesNotSuppress() {
         String jsonPayload = "{\"email\":\"soft@example.com\", \"bounceType\":\"SOFT\", \"domainId\":\"d1\"}";
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId("w1");
 
-        consumer.consumeDeliveryFailedEvents(envelope);
+        consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED);
 
         verifyNoInteractions(suppressionRepository, reputationEngine);
     }

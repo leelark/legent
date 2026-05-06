@@ -16,6 +16,15 @@ public class DmarcReport {
     @Column(nullable = false)
     private String domain;
 
+    @Column(name = "tenant_id")
+    private String tenantId;
+
+    @Column(name = "workspace_id")
+    private String workspaceId;
+
+    @Column(name = "ownership_scope")
+    private String ownershipScope = "WORKSPACE";
+
     @Column(nullable = false)
     private String reportType; // AGGREGATE, FORENSIC
 

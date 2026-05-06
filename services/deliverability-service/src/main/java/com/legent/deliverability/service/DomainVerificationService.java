@@ -32,8 +32,12 @@ public class DomainVerificationService {
 
     public SenderDomain verifyDomain(String domainId) {
         String tenantId = TenantContext.getTenantId();
+        String workspaceId = TenantContext.getWorkspaceId();
         SenderDomain domain = domainRepository.findByTenantIdAndId(tenantId, domainId)
                 .orElseThrow(() -> new NotFoundException("Domain", domainId));
+        if (workspaceId != null && !workspaceId.isBlank() && !workspaceId.equals(domain.getWorkspaceId())) {
+            throw new org.springframework.security.access.AccessDeniedException("Domain does not belong to active workspace");
+        }
 
         if (mockDns) {
             // Short-circuit for MVP local testing

@@ -12,8 +12,11 @@ import java.time.Instant;
 public class DmarcReportService {
     private final DmarcReportRepository repo;
 
-    public DmarcReport ingestReport(String domain, String xml, String summary, String type) {
+    public DmarcReport ingestReport(String tenantId, String workspaceId, String domain, String xml, String summary, String type) {
         DmarcReport report = new DmarcReport();
+        report.setTenantId(tenantId);
+        report.setWorkspaceId(workspaceId);
+        report.setOwnershipScope("WORKSPACE");
         report.setDomain(domain);
         report.setXmlContent(xml);
         report.setParsedSummary(summary);

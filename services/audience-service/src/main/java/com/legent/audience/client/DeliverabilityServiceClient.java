@@ -8,6 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -52,6 +53,7 @@ public class DeliverabilityServiceClient {
                     .uri("/api/v1/deliverability/suppressions/internal")
                     .header("X-Tenant-Id", tenantId)
                     .header("X-Workspace-Id", workspaceId)
+                    .header("X-Request-Id", java.util.UUID.randomUUID().toString())
                     .header("X-Internal-Token", internalApiToken)
                     .retrieve()
                     .onStatus(
@@ -60,10 +62,6 @@ public class DeliverabilityServiceClient {
                     )
                     .bodyToMono(JsonNode.class)
                     .timeout(Duration.ofSeconds(5))
-                    .onErrorResume(e -> {
-                        log.warn("Failed to fetch suppression list from deliverability-service: {}", e.getMessage());
-                        return Mono.empty();
-                    })
                     .block();
 
             if (response == null || !response.has("data")) {
@@ -88,7 +86,11 @@ public class DeliverabilityServiceClient {
 
         } catch (Exception e) {
             log.error("Error checking suppressed emails: {}", e.getMessage(), e);
-            // Fail open - if we can't check, don't suppress anyone
+            if (e.getMessage() != null && e.getMessage().contains("403")) {
+                log.error("Suppression sync auth failed with 403. Failing closed for tenant {} workspace {} and suppressing {} recipients",
+                        tenantId, workspaceId, emails.size());
+                return new HashSet<>(emails);
+            }
             return Collections.emptySet();
         }
     }

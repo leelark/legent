@@ -8,5 +8,5 @@ import java.util.List;
 
 @Repository
 public interface DmarcReportRepository extends JpaRepository<DmarcReport, Long> {
-    List<DmarcReport> findByDomain(String domain);
+    List<DmarcReport> findByTenantIdAndWorkspaceIdAndDomain(String tenantId, String workspaceId, String domain);
 }

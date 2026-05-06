@@ -120,6 +120,19 @@ public class SmtpProviderAdapter implements ProviderAdapter {
             JavaMailSender sender = getJavaMailSender(config);
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            String fromEmail = metadata != null ? metadata.get("From-Email") : null;
+            String fromName = metadata != null ? metadata.get("From-Name") : null;
+            String replyTo = metadata != null ? metadata.get("Reply-To") : null;
+            if (fromEmail != null && !fromEmail.isBlank()) {
+                if (fromName != null && !fromName.isBlank()) {
+                    helper.setFrom(fromEmail, fromName);
+                } else {
+                    helper.setFrom(fromEmail);
+                }
+            }
+            if (replyTo != null && !replyTo.isBlank()) {
+                helper.setReplyTo(replyTo);
+            }
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(htmlBody, true);

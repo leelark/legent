@@ -45,7 +45,7 @@ const PROVIDER_TYPES = [
   "MAILPIT",
   "DOCKER_MAIL_SERVER",
   "CUSTOM_SMTP",
-  "MOCK"
+  "CUSTOM_API"
 ];
 
 export default function PlatformSettings() {

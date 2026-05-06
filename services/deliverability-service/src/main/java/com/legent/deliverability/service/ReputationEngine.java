@@ -49,8 +49,9 @@ public class ReputationEngine {
      * Uses Redis sorted sets for sliding window event tracking.
      */
     @Transactional
-    public void recordNegativeSignal(String tenantId, String domainId, String eventType) {
-        String windowKey = "reputation:events:" + tenantId + ":" + domainId + ":" + eventType;
+    public void recordNegativeSignal(String tenantId, String workspaceId, String domainId, String eventType) {
+        String normalizedWorkspaceId = requireWorkspace(workspaceId);
+        String windowKey = "reputation:events:" + tenantId + ":" + normalizedWorkspaceId + ":" + domainId + ":" + eventType;
         long now = System.currentTimeMillis();
 
         // Add event to sliding window in Redis
@@ -73,7 +74,7 @@ public class ReputationEngine {
             """;
 
         RedisScript<Long> redisScript = new DefaultRedisScript<>(luaScript, Long.class);
-        String eventId = tenantId + ":" + now + ":" + java.util.UUID.randomUUID();
+        String eventId = tenantId + ":" + normalizedWorkspaceId + ":" + now + ":" + java.util.UUID.randomUUID();
         Long eventCount;
         try {
             eventCount = cacheService.executeScript(redisScript,
@@ -93,7 +94,7 @@ public class ReputationEngine {
         }
 
         // AUDIT-017: Get actual total sent count from cache for accurate rate calculation
-        String sentKey = "reputation:sent:" + tenantId + ":" + domainId;
+        String sentKey = "reputation:sent:" + tenantId + ":" + normalizedWorkspaceId + ":" + domainId;
         Long totalSent = getTotalSentFromCache(sentKey);
         
         // Calculate actual rate using real denominator
@@ -107,8 +108,8 @@ public class ReputationEngine {
         }
 
         // Update reputation with time-windowed calculation
-        DomainReputation reputation = reputationRepository.findByDomainId(domainId)
-                .orElseGet(() -> createNewReputation(tenantId, domainId));
+        DomainReputation reputation = reputationRepository.findByTenantIdAndWorkspaceIdAndDomainId(tenantId, normalizedWorkspaceId, domainId)
+                .orElseGet(() -> createNewReputation(tenantId, normalizedWorkspaceId, domainId));
 
         // Apply penalty based on time-windowed rate (not cumulative)
         double penalty = calculatePenalty(eventType, actualRate);
@@ -145,11 +146,17 @@ public class ReputationEngine {
 
         for (DomainReputation reputation : allReputations) {
             String tenantId = reputation.getTenantId();
+            String workspaceId = reputation.getWorkspaceId();
+            if (workspaceId == null || workspaceId.isBlank()) {
+                log.warn("Skipping reputation recovery for domain {} due to missing workspace context", reputation.getDomainId());
+                continue;
+            }
+            workspaceId = workspaceId.trim();
             String domainId = reputation.getDomainId();
 
             // Check if no negative events in the last recovery window
-            String bounceKey = "reputation:events:" + tenantId + ":" + domainId + ":HARD_BOUNCE";
-            String complaintKey = "reputation:events:" + tenantId + ":" + domainId + ":COMPLAINT";
+            String bounceKey = "reputation:events:" + tenantId + ":" + workspaceId + ":" + domainId + ":HARD_BOUNCE";
+            String complaintKey = "reputation:events:" + tenantId + ":" + workspaceId + ":" + domainId + ":COMPLAINT";
 
             Long bounceCount = countEventsInLastHour(bounceKey, now);
             Long complaintCount = countEventsInLastHour(complaintKey, now);
@@ -206,10 +213,12 @@ public class ReputationEngine {
         }
     }
 
-    private DomainReputation createNewReputation(String tenantId, String domainId) {
+    private DomainReputation createNewReputation(String tenantId, String workspaceId, String domainId) {
         DomainReputation dr = new DomainReputation();
         dr.setId(java.util.UUID.randomUUID().toString());
         dr.setTenantId(tenantId);
+        dr.setWorkspaceId(requireWorkspace(workspaceId));
+        dr.setOwnershipScope("WORKSPACE");
         dr.setDomainId(domainId);
         dr.setReputationScore(100); // Start with perfect reputation
         dr.setHardBounceRate(BigDecimal.ZERO);
@@ -230,7 +239,14 @@ public class ReputationEngine {
     /**
      * Gets current reputation for a domain, calculating from time window if needed.
      */
-    public Optional<DomainReputation> getReputation(String domainId) {
-        return reputationRepository.findByDomainId(domainId);
+    public Optional<DomainReputation> getReputation(String tenantId, String workspaceId, String domainId) {
+        return reputationRepository.findByTenantIdAndWorkspaceIdAndDomainId(tenantId, requireWorkspace(workspaceId), domainId);
+    }
+
+    private String requireWorkspace(String workspaceId) {
+        if (workspaceId == null || workspaceId.isBlank()) {
+            throw new IllegalArgumentException("workspaceId is required for deliverability reputation operations");
+        }
+        return workspaceId.trim();
     }
 }

@@ -19,6 +19,15 @@ import org.hibernate.annotations.UpdateTimestamp;
 @NoArgsConstructor
 public class ProviderHealthStatus extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId = "workspace-default";
+
+    @Column(name = "team_id", length = 64)
+    private String teamId;
+
+    @Column(name = "ownership_scope", nullable = false, length = 32)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "provider_id", nullable = false, length = 36, unique = true)
     private String providerId;
 

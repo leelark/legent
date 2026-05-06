@@ -38,7 +38,7 @@ public class SmtpProviderDto {
     @AllArgsConstructor
     public static class CreateRequest {
         private String name;
-        private String type; // SMTP, AWS_SES, MOCK
+        private String type; // SMTP, AWS_SES, SENDGRID, MAILGUN, CUSTOM_API
         private String host;
         private Integer port;
         private String username;

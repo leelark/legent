@@ -22,14 +22,18 @@ public class DomainController {
     @GetMapping
     public ApiResponse<List<SenderDomain>> listDomains() {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(domainRepository.findByTenantId(tenantId));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(domainRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId));
     }
 
     @PostMapping
     public ApiResponse<SenderDomain> registerDomain(
             @RequestBody SenderDomain request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         request.setTenantId(tenantId);
+        request.setWorkspaceId(workspaceId);
+        request.setOwnershipScope("WORKSPACE");
         request.setId(java.util.UUID.randomUUID().toString());
         return ApiResponse.ok(domainRepository.save(request));
     }
@@ -38,11 +42,12 @@ public class DomainController {
     public ApiResponse<SenderDomain> verifyDomain(
             @PathVariable String domainId) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         
-        SenderDomain domain = domainRepository.findById(domainId)
+        SenderDomain domain = domainRepository.findByTenantIdAndId(tenantId, domainId)
                 .orElseThrow(() -> new com.legent.common.exception.NotFoundException("Domain", domainId));
         
-        if (!tenantId.equals(domain.getTenantId())) {
+        if (!tenantId.equals(domain.getTenantId()) || !workspaceId.equals(domain.getWorkspaceId())) {
             throw new org.springframework.security.access.AccessDeniedException("You do not have permission to verify this domain");
         }
 

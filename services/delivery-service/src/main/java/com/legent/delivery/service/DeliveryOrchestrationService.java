@@ -15,6 +15,7 @@ import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.adapter.ProviderDispatchException;
 import com.legent.delivery.event.DeliveryEventPublisher;
 import com.legent.delivery.repository.MessageLogRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -66,15 +67,19 @@ public class DeliveryOrchestrationService {
         String campaignId = normalize(payload.get("campaignId"));
         String workspaceId = normalize(payload.get("workspaceId"));
         if (workspaceId == null) {
-            workspaceId = com.legent.security.TenantContext.getWorkspaceId();
+            workspaceId = TenantContext.getWorkspaceId();
         }
         if (workspaceId == null) {
-            workspaceId = "workspace-default";
+            throw new IllegalArgumentException("workspaceId is required for delivery execution");
         }
+        String teamId = normalize(payload.get("teamId"));
         String jobId = normalize(payload.get("jobId"));
         String batchId = normalize(payload.get("batchId"));
         String htmlBody = normalize(payload.get("htmlBody"));
         String subject = normalize(payload.get("subject"));
+        String fromEmail = normalize(payload.get("fromEmail"));
+        String fromName = normalize(payload.get("fromName"));
+        String replyToEmail = normalize(payload.get("replyToEmail"));
         if (htmlBody == null) {
             htmlBody = "<html><body>Email content</body></html>";
         }
@@ -92,11 +97,21 @@ public class DeliveryOrchestrationService {
             messageId = UUID.randomUUID().toString();
         }
 
+        String previousTenant = TenantContext.getTenantId();
+        String previousWorkspace = TenantContext.getWorkspaceId();
+        String previousRequest = TenantContext.getRequestId();
+        TenantContext.setTenantId(normalizedTenantId);
+        TenantContext.setWorkspaceId(workspaceId);
+        if (eventId != null && !eventId.isBlank()) {
+            TenantContext.setRequestId(eventId);
+        }
+
         // Idempotency check + race-safe create
-        Optional<MessageLog> existingLog = messageLogRepository.findByTenantIdAndMessageId(normalizedTenantId, messageId);
+        Optional<MessageLog> existingLog = messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(normalizedTenantId, workspaceId, messageId);
         if (existingLog.isPresent()
                 && !MessageLog.DeliveryStatus.PENDING.name().equals(existingLog.get().getStatus())) {
             log.warn("Message {} already processed with status {}", messageId, existingLog.get().getStatus());
+            restoreContext(previousTenant, previousWorkspace, previousRequest);
             return;
         }
 
@@ -107,10 +122,15 @@ public class DeliveryOrchestrationService {
             newLog.setMessageId(messageId);
             newLog.setCampaignId(campaignId);
             newLog.setWorkspaceId(workspaceId);
+            newLog.setTeamId(teamId);
+            newLog.setOwnershipScope("WORKSPACE");
             newLog.setJobId(jobId);
             newLog.setBatchId(batchId);
             newLog.setSubscriberId(subscriberId);
             newLog.setEmail(email);
+            newLog.setFromEmail(fromEmail);
+            newLog.setFromName(fromName);
+            newLog.setReplyToEmail(replyToEmail);
             // Fix 31: Don't store full HTML body in message_logs - only store references
             // Content is fetched from content-service at retry time if needed
             newLog.setContentReference(generateContentReference(campaignId, messageId));
@@ -118,13 +138,14 @@ public class DeliveryOrchestrationService {
             try {
                 logEntry = messageLogRepository.saveAndFlush(newLog);
             } catch (DataIntegrityViolationException duplicateInsert) {
-                Optional<MessageLog> winner = messageLogRepository.findByTenantIdAndMessageId(normalizedTenantId, messageId);
+                Optional<MessageLog> winner = messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(normalizedTenantId, workspaceId, messageId);
                 if (winner.isEmpty()) {
                     throw duplicateInsert;
                 }
                 logEntry = winner.get();
                 if (!MessageLog.DeliveryStatus.PENDING.name().equals(logEntry.getStatus())) {
                     log.info("Message {} claimed by concurrent worker with status {}", messageId, logEntry.getStatus());
+                    restoreContext(previousTenant, previousWorkspace, previousRequest);
                     return;
                 }
             }
@@ -134,6 +155,7 @@ public class DeliveryOrchestrationService {
         }
         if (MessageLog.DeliveryStatus.PROCESSING.name().equals(logEntry.getStatus())) {
             log.info("Message {} already being processed", messageId);
+            restoreContext(previousTenant, previousWorkspace, previousRequest);
             return;
         }
         int claimed = messageLogRepository.claimForProcessing(
@@ -142,17 +164,33 @@ public class DeliveryOrchestrationService {
                 MessageLog.DeliveryStatus.PROCESSING.name());
         if (claimed == 0) {
             log.info("Message {} already claimed by another worker", messageId);
+            restoreContext(previousTenant, previousWorkspace, previousRequest);
             return;
         }
         logEntry.setStatus(MessageLog.DeliveryStatus.PROCESSING.name());
         if (logEntry.getWorkspaceId() == null || logEntry.getWorkspaceId().isBlank()) {
             logEntry.setWorkspaceId(workspaceId);
         }
+        if (logEntry.getOwnershipScope() == null || logEntry.getOwnershipScope().isBlank()) {
+            logEntry.setOwnershipScope("WORKSPACE");
+        }
+        if (logEntry.getTeamId() == null || logEntry.getTeamId().isBlank()) {
+            logEntry.setTeamId(teamId);
+        }
         if (logEntry.getJobId() == null || logEntry.getJobId().isBlank()) {
             logEntry.setJobId(jobId);
         }
         if (logEntry.getBatchId() == null || logEntry.getBatchId().isBlank()) {
             logEntry.setBatchId(batchId);
+        }
+        if (logEntry.getFromEmail() == null || logEntry.getFromEmail().isBlank()) {
+            logEntry.setFromEmail(fromEmail);
+        }
+        if (logEntry.getFromName() == null || logEntry.getFromName().isBlank()) {
+            logEntry.setFromName(fromName);
+        }
+        if (logEntry.getReplyToEmail() == null || logEntry.getReplyToEmail().isBlank()) {
+            logEntry.setReplyToEmail(replyToEmail);
         }
         // Note: For retries, content is re-fetched from the original event or content-service
         // This prevents 20-100GB/day storage growth from storing full HTML bodies
@@ -173,11 +211,19 @@ public class DeliveryOrchestrationService {
             logEntry.setAttemptCount(previousAttempts + 1);
             
             // Build metadata headers
-            Map<String, String> metadata = Map.of(
-                "Message-Id", messageId,
-                "Campaign-Id", campaignId != null ? campaignId : "none",
-                "Tenant-Id", normalizedTenantId
-            );
+            Map<String, String> metadata = new java.util.HashMap<>();
+            metadata.put("Message-Id", messageId);
+            metadata.put("Campaign-Id", campaignId != null ? campaignId : "none");
+            metadata.put("Tenant-Id", normalizedTenantId);
+            if (fromEmail != null) {
+                metadata.put("From-Email", fromEmail);
+            }
+            if (fromName != null) {
+                metadata.put("From-Name", fromName);
+            }
+            if (replyToEmail != null) {
+                metadata.put("Reply-To", replyToEmail);
+            }
 
             // Process content for tracking
             String processedHtml = contentProcessingService.processContent(htmlBody, normalizedTenantId, campaignId, subscriberId, messageId);
@@ -212,6 +258,7 @@ public class DeliveryOrchestrationService {
                     new ProviderDispatchException(reason, true, e));
         } finally {
             messageLogRepository.save(logEntry);
+            restoreContext(previousTenant, previousWorkspace, previousRequest);
         }
     }
 
@@ -226,6 +273,7 @@ public class DeliveryOrchestrationService {
                                        ProviderDispatchException e) {
         log.warn("Dispatch failed for message {}: {}", messageId, e.getMessage());
         logEntry.setProviderResponse(e.getMessage());
+        logEntry.setFailureClass(classifyFailure(e));
         int attempts = logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0;
 
         if (e.isPermanent() || attempts >= MAX_RETRIES) {
@@ -236,7 +284,7 @@ public class DeliveryOrchestrationService {
             if (e.isPermanent()) {
                 // Synthesize a bounce event for audience/suppression
                 String senderDomain = extractDomain(logEntry.getEmail());
-                eventPublisher.publishEmailBounced(tenantId, logEntry.getEmail(), e.getMessage(), senderDomain);
+                eventPublisher.publishEmailBounced(tenantId, workspaceId, logEntry.getEmail(), e.getMessage(), senderDomain);
             }
         } else {
             // Transient -> Schedule Retry
@@ -246,7 +294,7 @@ public class DeliveryOrchestrationService {
             Instant nextRetry = Instant.now().plus(delayMins, ChronoUnit.MINUTES);
             logEntry.setNextRetryAt(nextRetry);
             
-            eventPublisher.publishRetryScheduled(tenantId, messageId, attempts, nextRetry.toString());
+            eventPublisher.publishRetryScheduled(tenantId, workspaceId, messageId, attempts, nextRetry.toString());
         }
     }
 
@@ -256,6 +304,10 @@ public class DeliveryOrchestrationService {
         for (MessageLog logEntry : retries) {
             if (normalize(logEntry.getEmail()) == null || normalize(logEntry.getMessageId()) == null) {
                 log.warn("Skipping scheduled retry for malformed message log {}", logEntry.getId());
+                continue;
+            }
+            if (normalize(logEntry.getWorkspaceId()) == null) {
+                log.warn("Skipping scheduled retry for message {} due to missing workspace", logEntry.getMessageId());
                 continue;
             }
 
@@ -268,10 +320,13 @@ public class DeliveryOrchestrationService {
             payload.put("email", logEntry.getEmail());
             payload.put("subscriberId", logEntry.getSubscriberId() != null ? logEntry.getSubscriberId() : "");
             payload.put("campaignId", logEntry.getCampaignId() != null ? logEntry.getCampaignId() : "");
-            payload.put("workspaceId", logEntry.getWorkspaceId() != null ? logEntry.getWorkspaceId() : "workspace-default");
+            payload.put("workspaceId", logEntry.getWorkspaceId());
             payload.put("jobId", logEntry.getJobId() != null ? logEntry.getJobId() : "");
             payload.put("batchId", logEntry.getBatchId() != null ? logEntry.getBatchId() : "");
             payload.put("messageId", logEntry.getMessageId());
+            payload.put("fromEmail", logEntry.getFromEmail() != null ? logEntry.getFromEmail() : "");
+            payload.put("fromName", logEntry.getFromName() != null ? logEntry.getFromName() : "");
+            payload.put("replyToEmail", logEntry.getReplyToEmail() != null ? logEntry.getReplyToEmail() : "");
             // Use content from content-service or fallback defaults
             payload.put("subject", content.getOrDefault("subject", "Legent Campaign"));
             payload.put("htmlBody", content.getOrDefault("htmlBody", "<html><body>Email content</body></html>"));
@@ -318,6 +373,40 @@ public class DeliveryOrchestrationService {
         }
         String normalized = String.valueOf(value).trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private String classifyFailure(ProviderDispatchException e) {
+        if (e == null) {
+            return "UNKNOWN";
+        }
+        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
+        if (e.isPermanent()) {
+            if (msg.contains("mailbox") || msg.contains("user unknown") || msg.contains("550")) {
+                return "HARD_BOUNCE";
+            }
+            return "PERMANENT";
+        }
+        if (msg.contains("throttle") || msg.contains("rate")) {
+            return "THROTTLED";
+        }
+        if (msg.contains("timeout") || msg.contains("connect")) {
+            return "NETWORK";
+        }
+        return "TRANSIENT";
+    }
+
+    private void restoreContext(String tenantId, String workspaceId, String requestId) {
+        TenantContext.clear();
+        if (tenantId == null || tenantId.isBlank()) {
+            return;
+        }
+        TenantContext.setTenantId(tenantId);
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            TenantContext.setWorkspaceId(workspaceId);
+        }
+        if (requestId != null && !requestId.isBlank()) {
+            TenantContext.setRequestId(requestId);
+        }
     }
 
     /**
