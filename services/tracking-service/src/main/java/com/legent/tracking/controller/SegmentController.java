@@ -21,6 +21,7 @@ public class SegmentController {
     @GetMapping
     public ApiResponse<List<Map<String, Object>>> getSegment(@RequestParam @NotBlank String field, @RequestParam @NotBlank String value) {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(segmentService.getSegment(tenantId, field, value));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(segmentService.getSegment(tenantId, workspaceId, field, value));
     }
 }

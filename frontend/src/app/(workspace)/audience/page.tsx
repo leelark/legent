@@ -80,10 +80,10 @@ export default function AudienceDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link href="/audience/imports/new">
+          <Link href="/app/audience/imports/new">
             <Button variant="secondary" icon={<Upload size={16} />}>Import</Button>
           </Link>
-          <Link href="/audience/subscribers?action=create">
+          <Link href="/app/audience/subscribers?action=create">
             <Button icon={<Plus size={16} />}>Add Subscriber</Button>
           </Link>
         </div>
@@ -91,10 +91,10 @@ export default function AudienceDashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Subscribers" value={loading ? "—" : stats.subscribers} icon={Users} href="/audience/subscribers" color="bg-gradient-to-br from-brand-500 to-brand-700" />
-        <StatCard label="Lists" value={loading ? "—" : stats.lists} icon={ListBullets} href="/audience/lists" color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
-        <StatCard label="Data Extensions" value={loading ? "—" : stats.dataExtensions} icon={Database} href="/audience/data-extensions" color="bg-gradient-to-br from-amber-500 to-amber-700" />
-        <StatCard label="Segments" value={loading ? "—" : stats.segments} icon={Funnel} href="/audience/segments" color="bg-gradient-to-br from-violet-500 to-violet-700" />
+        <StatCard label="Total Subscribers" value={loading ? "—" : stats.subscribers} icon={Users} href="/app/audience/subscribers" color="bg-gradient-to-br from-brand-500 to-brand-700" />
+        <StatCard label="Lists" value={loading ? "—" : stats.lists} icon={ListBullets} href="/app/audience/lists" color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard label="Data Extensions" value={loading ? "—" : stats.dataExtensions} icon={Database} href="/app/audience/data-extensions" color="bg-gradient-to-br from-amber-500 to-amber-700" />
+        <StatCard label="Segments" value={loading ? "—" : stats.segments} icon={Funnel} href="/app/audience/segments" color="bg-gradient-to-br from-violet-500 to-violet-700" />
       </div>
 
       {/* Quick Access Tabs */}
@@ -127,7 +127,7 @@ export default function AudienceDashboard() {
                   {tab === 'segments' && <p className="text-sm text-content-muted">Active segments with computed counts will appear here.</p>}
                 </>
               )}
-              <Link href={tab === 'recent' ? '/audience/subscribers' : tab === 'imports' ? '/audience/imports' : '/audience/segments'}>
+              <Link href={tab === 'recent' ? '/app/audience/subscribers' : tab === 'imports' ? '/app/audience/imports' : '/app/audience/segments'}>
                 <Button variant="ghost" size="sm" className="mt-3">View All →</Button>
               </Link>
             </div>

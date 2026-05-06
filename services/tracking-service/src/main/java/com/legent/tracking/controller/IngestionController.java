@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 
 import java.net.URI;
+import java.util.UUID;
 
 @Slf4j
 @RestController
@@ -44,15 +45,24 @@ public class IngestionController {
             @RequestParam @NotBlank String s, // subscriberId
             @RequestParam @NotBlank String m, // messageId
             @RequestParam @NotBlank String sig, // HMAC signature
+            @RequestParam(name = "w", required = false) String workspaceId,
             HttpServletRequest request) {
 
         // Verify HMAC signature to prevent event forgery
-        if (!trackingUrlVerifier.verifySignature(sig, t, c, s, m)) {
+        if (!trackingUrlVerifier.verifySignature(sig, t, c, s, m, workspaceId)) {
             log.warn("Invalid tracking signature for open event: t={}, c={}, s={}, m={}", t, c, s, m);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
-        ingestionService.processOpen(t, c, s, m, request.getHeader("User-Agent"), getClientIp(request));
+        ingestionService.processOpen(
+                t,
+                c,
+                s,
+                m,
+                workspaceId,
+                resolveIdempotencyKey(request),
+                request.getHeader("User-Agent"),
+                getClientIp(request));
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.IMAGE_GIF);
@@ -71,10 +81,11 @@ public class IngestionController {
             @RequestParam @NotBlank String s, // subscriberId
             @RequestParam @NotBlank String m, // messageId
             @RequestParam @NotBlank String sig, // HMAC signature
+            @RequestParam(name = "w", required = false) String workspaceId,
             HttpServletRequest request) {
 
         // Verify HMAC signature to prevent event forgery
-        if (!trackingUrlVerifier.verifyClickSignature(sig, t, c, s, m, url)) {
+        if (!trackingUrlVerifier.verifyClickSignature(sig, t, c, s, m, workspaceId, url)) {
             log.warn("Invalid tracking signature for click event: t={}, c={}, s={}, m={}", t, c, s, m);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
@@ -90,7 +101,16 @@ public class IngestionController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
-        ingestionService.processClick(t, c, s, m, url, request.getHeader("User-Agent"), getClientIp(request));
+        ingestionService.processClick(
+                t,
+                c,
+                s,
+                m,
+                workspaceId,
+                resolveIdempotencyKey(request),
+                url,
+                request.getHeader("User-Agent"),
+                getClientIp(request));
 
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create(url))
@@ -101,10 +121,17 @@ public class IngestionController {
     @ResponseStatus(HttpStatus.ACCEPTED)
     public ApiResponse<Void> trackConversion(
             @RequestHeader("X-Tenant-Id") @NotBlank String tenantId,
+            @RequestHeader("X-Workspace-Id") @NotBlank String workspaceId,
             @RequestBody @Valid TrackingDto.ConversionRequest requestPayload,
             HttpServletRequest request) {
-        
-        ingestionService.processConversion(tenantId, requestPayload, request.getHeader("User-Agent"), getClientIp(request));
+
+        ingestionService.processConversion(
+                tenantId,
+                workspaceId,
+                resolveIdempotencyKey(request),
+                requestPayload,
+                request.getHeader("User-Agent"),
+                getClientIp(request));
         return ApiResponse.ok(null);
     }
 
@@ -114,5 +141,10 @@ public class IngestionController {
             return request.getRemoteAddr();
         }
         return xfHeader.split(",")[0].trim();
+    }
+
+    private String resolveIdempotencyKey(HttpServletRequest request) {
+        String requestId = request.getHeader("X-Request-Id");
+        return (requestId == null || requestId.isBlank()) ? UUID.randomUUID().toString() : requestId.trim();
     }
 }

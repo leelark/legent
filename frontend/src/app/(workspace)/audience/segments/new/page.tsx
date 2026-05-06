@@ -28,7 +28,7 @@ export default function NewSegmentPage() {
         description: form.description,
         rules: form.rules,
       });
-      router.push("/audience/segments");
+      router.push("/app/audience/segments");
     } catch (e) {
       alert("Failed to create segment");
     }
@@ -55,7 +55,7 @@ export default function NewSegmentPage() {
             <SegmentRuleBuilder initialRules={form.rules} onChange={rules => setForm(f => ({ ...f, rules }))} />
           </div>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => router.push("/audience/segments")}>Cancel</Button>
+            <Button variant="secondary" onClick={() => router.push("/app/audience/segments")}>Cancel</Button>
             <Button onClick={handleSave} disabled={!form.name || !form.rules || saving}>Save</Button>
           </div>
         </div>

@@ -27,16 +27,16 @@ class TrackingUrlVerifierTest {
         TrackingUrlVerifier verifier = new TrackingUrlVerifier(cacheService);
         ReflectionTestUtils.setField(verifier, "globalSigningKey", "test-signing-key-that-is-long-enough");
 
-        String valid = sign("test-signing-key-that-is-long-enough", "tenant-1", "campaign-1", "subscriber-1", "message-1", "https://example.com/a");
+        String valid = sign("test-signing-key-that-is-long-enough", "tenant-1", "campaign-1", "subscriber-1", "message-1", "workspace-1", "https://example.com/a");
 
-        assertTrue(verifier.verifyClickSignature(valid, "tenant-1", "campaign-1", "subscriber-1", "message-1", "https://example.com/a"));
-        assertFalse(verifier.verifyClickSignature(valid, "tenant-1", "campaign-1", "subscriber-1", "message-1", "https://example.com/b"));
+        assertTrue(verifier.verifyClickSignature(valid, "tenant-1", "campaign-1", "subscriber-1", "message-1", "workspace-1", "https://example.com/a"));
+        assertFalse(verifier.verifyClickSignature(valid, "tenant-1", "campaign-1", "subscriber-1", "message-1", "workspace-1", "https://example.com/b"));
     }
 
-    private String sign(String globalKey, String tenantId, String campaignId, String subscriberId, String messageId, String url) throws Exception {
+    private String sign(String globalKey, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         String signingKey = Base64.getEncoder().encodeToString(digest.digest((globalKey + ":" + tenantId).getBytes(StandardCharsets.UTF_8)));
-        String data = String.join(":", tenantId, campaignId, subscriberId, messageId, url);
+        String data = String.join(":", tenantId, campaignId, subscriberId, messageId, workspaceId, url);
 
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));

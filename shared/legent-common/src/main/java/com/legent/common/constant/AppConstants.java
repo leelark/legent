@@ -34,6 +34,8 @@ public final class AppConstants {
     // ── Kafka Topics ──
     public static final String TOPIC_SYSTEM_INITIALIZED = "system.initialized";
     public static final String TOPIC_CONFIG_UPDATED = "config.updated";
+    public static final String TOPIC_TENANT_BOOTSTRAP_REQUESTED = "tenant.bootstrap.requested";
+    public static final String TOPIC_TENANT_BOOTSTRAP_COMPLETED = "tenant.bootstrap.completed";
 
     // Audience Topics
     public static final String TOPIC_SUBSCRIBER_CREATED = "subscriber.created";
@@ -110,6 +112,7 @@ public final class AppConstants {
     public static final String GROUP_DELIVERABILITY = "deliverability-service";
     public static final String GROUP_PLATFORM = "platform-service";
     public static final String GROUP_FOUNDATION_PROVISIONING = "foundation-provisioning-group";
+    public static final String GROUP_FOUNDATION_BOOTSTRAP = "foundation-bootstrap-group";
 
     // ── Cache (Audience & Campaign) ──
     public static final String CACHE_SUBSCRIBER_PREFIX = "subscriber:";

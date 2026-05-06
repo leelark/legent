@@ -12,8 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
@@ -128,6 +130,35 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.CONFLICT)
                 .body(ApiResponse.error("ILLEGAL_STATE", "Operation cannot be performed", ex.getMessage()));
+    }
+
+    /**
+     * Handles missing required request headers as 400.
+     */
+    @ExceptionHandler(MissingRequestHeaderException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingRequestHeader(MissingRequestHeaderException ex) {
+        String header = ex.getHeaderName();
+        String errorCode = "MISSING_HEADER";
+        String message = "Missing required header";
+        if ("X-Workspace-Id".equalsIgnoreCase(header)) {
+            errorCode = "MISSING_WORKSPACE";
+            message = "Workspace context is required";
+        }
+        log.debug("Missing request header: {}", header);
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(errorCode, message, header));
+    }
+
+    /**
+     * Handles generic request binding errors as 400.
+     */
+    @ExceptionHandler(ServletRequestBindingException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRequestBinding(ServletRequestBindingException ex) {
+        log.debug("Request binding failed: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error("BAD_REQUEST", "Invalid request headers", ex.getMessage()));
     }
 
     /**

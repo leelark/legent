@@ -9,6 +9,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface CampaignSummaryRepository extends JpaRepository<CampaignSummary, String> {
-    Optional<CampaignSummary> findByTenantIdAndCampaignId(String tenantId, String campaignId);
-    java.util.List<CampaignSummary> findAllByTenantId(String tenantId);
+    Optional<CampaignSummary> findByTenantIdAndWorkspaceIdAndCampaignId(String tenantId, String workspaceId, String campaignId);
+    java.util.List<CampaignSummary> findAllByTenantIdAndWorkspaceId(String tenantId, String workspaceId);
 }

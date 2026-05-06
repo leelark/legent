@@ -257,7 +257,7 @@ export default function EmailTemplatesPage() {
           <h1 className="text-2xl font-bold text-content-primary">Template Studio</h1>
           <p className="mt-1 text-sm text-content-secondary">Build reusable, branded email templates with versioned workflows.</p>
         </div>
-        <Link href="/email">
+        <Link href="/app/email">
           <Button variant="secondary">Back to Email Studio</Button>
         </Link>
       </div>
@@ -353,7 +353,7 @@ export default function EmailTemplatesPage() {
           <div className="divide-y divide-border-default">
             {filteredTemplates.map((template) => (
               <div key={template.id} className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-                <Link href={`/email/templates/${template.id}`} className="block flex-1" onClick={() => markRecent(template.id)}>
+                <Link href={`/app/email/templates/${template.id}`} className="block flex-1" onClick={() => markRecent(template.id)}>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-content-primary">{template.name}</p>
                     <Badge variant={template.status === 'PUBLISHED' ? 'success' : 'default'}>{template.status}</Badge>
@@ -389,7 +389,7 @@ export default function EmailTemplatesPage() {
                     <Trash size={14} />
                     Delete
                   </Button>
-                  <Link href={`/email/templates/${template.id}`}>
+                  <Link href={`/app/email/templates/${template.id}`}>
                     <Button size="sm" icon={<Sparkle size={14} />}>Open Studio</Button>
                   </Link>
                 </div>

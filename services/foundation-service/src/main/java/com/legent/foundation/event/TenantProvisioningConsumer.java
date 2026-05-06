@@ -5,6 +5,7 @@ import com.legent.common.event.UserSignedUpEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.foundation.domain.Tenant;
 import com.legent.foundation.repository.TenantRepository;
+import com.legent.foundation.service.TenantBootstrapService;
 import com.legent.kafka.model.EventEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ public class TenantProvisioningConsumer {
 
     private final TenantRepository tenantRepository;
     private final ObjectMapper objectMapper;
+    private final TenantBootstrapService tenantBootstrapService;
 
     @Transactional
     @KafkaListener(topics = AppConstants.TOPIC_IDENTITY_USER_SIGNUP, groupId = AppConstants.GROUP_FOUNDATION_PROVISIONING)
@@ -59,6 +61,7 @@ public class TenantProvisioningConsumer {
                 tenantRepository.save(tenant);
             }
             log.info("Tenant provisioned successfully: {}", tenantId);
+            tenantBootstrapService.requestBootstrap(tenantId, tenant.getName(), tenant.getSlug(), false);
 
         } catch (Exception e) {
             log.error("Failed to process tenant provisioning for eventId={}", envelope != null ? envelope.getEventId() : "unknown", e);

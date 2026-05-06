@@ -106,7 +106,7 @@ export default function EmailPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/email/templates">
+          <Link href="/app/email/templates">
             <Button variant="secondary">Manage Templates</Button>
           </Link>
           <Button icon={<Plus size={16} />} onClick={() => setShowCreate(!showCreate)}>

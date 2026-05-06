@@ -182,10 +182,10 @@ export default function CampaignsPage() {
         const canRestore = row.status === 'ARCHIVED' || row.status === 'CANCELLED';
         return (
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Link href={`/campaigns/${row.id}/tracking`}>
+            <Link href={`/app/campaigns/${row.id}/tracking`}>
               <Button variant="ghost" size="sm">Tracking</Button>
             </Link>
-            <Link href={`/campaigns/new?clone=${row.id}`}>
+            <Link href={`/app/campaigns/new?clone=${row.id}`}>
               <Button variant="ghost" size="sm">Edit</Button>
             </Link>
             <Button variant="ghost" size="sm" onClick={() => handleClone(row)} disabled={busy}>Clone</Button>
@@ -235,7 +235,7 @@ export default function CampaignsPage() {
           <Button variant="secondary" icon={<ClockClockwise size={16} />} onClick={() => void loadCampaigns()}>
             Refresh
           </Button>
-          <Link href="/campaigns/new">
+          <Link href="/app/campaigns/new">
             <Button icon={<Plus size={16} />}>Create Campaign</Button>
           </Link>
         </div>
@@ -271,7 +271,7 @@ export default function CampaignsPage() {
             title="Create your first campaign"
             description="Start with campaign wizard, then launch or schedule directly from this workspace."
             action={
-              <Link href="/campaigns/new">
+              <Link href="/app/campaigns/new">
                 <Button icon={<Megaphone size={16} />}>Create Campaign</Button>
               </Link>
             }

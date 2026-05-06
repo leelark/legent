@@ -60,10 +60,10 @@ public class TrackingUrlSigner {
      * @param messageId    The message ID
      * @return Base64-encoded HMAC signature
      */
-    public String generateSignature(String tenantId, String campaignId, String subscriberId, String messageId) {
+    public String generateSignature(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId) {
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, null);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, null);
 
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -78,10 +78,10 @@ public class TrackingUrlSigner {
         }
     }
 
-    public String generateClickSignature(String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+    public String generateClickSignature(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) {
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, url);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, url);
 
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -106,7 +106,7 @@ public class TrackingUrlSigner {
      * @param messageId    The message ID
      * @return true if signature is valid, false otherwise
      */
-    public boolean verifySignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId) {
+    public boolean verifySignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId) {
         if (signature == null || signature.isBlank()) {
             return false;
         }
@@ -114,7 +114,7 @@ public class TrackingUrlSigner {
         // Try current key first
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            if (verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, null, signingKey)) {
+            if (verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, workspaceId, null, signingKey)) {
                 return true;
             }
         } catch (Exception e) {
@@ -124,7 +124,7 @@ public class TrackingUrlSigner {
         // Try previous key version if within overlap window
         try {
             String previousKey = getPreviousKeyIfValid(tenantId);
-            if (previousKey != null && verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, null, previousKey)) {
+            if (previousKey != null && verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, workspaceId, null, previousKey)) {
                 return true;
             }
         } catch (Exception e) {
@@ -134,7 +134,7 @@ public class TrackingUrlSigner {
         return false;
     }
 
-    public boolean verifyClickSignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+    public boolean verifyClickSignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) {
         if (signature == null || signature.isBlank()) {
             return false;
         }
@@ -142,7 +142,7 @@ public class TrackingUrlSigner {
         // Try current key first
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            if (verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, url, signingKey)) {
+            if (verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, workspaceId, url, signingKey)) {
                 return true;
             }
         } catch (Exception e) {
@@ -152,7 +152,7 @@ public class TrackingUrlSigner {
         // Try previous key version if within overlap window
         try {
             String previousKey = getPreviousKeyIfValid(tenantId);
-            if (previousKey != null && verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, url, previousKey)) {
+            if (previousKey != null && verifyWithKey(signature, tenantId, campaignId, subscriberId, messageId, workspaceId, url, previousKey)) {
                 return true;
             }
         } catch (Exception e) {
@@ -162,8 +162,8 @@ public class TrackingUrlSigner {
         return false;
     }
 
-    private boolean verifyWithKey(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String url, String signingKey) throws Exception {
-        String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, url);
+    private boolean verifyWithKey(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url, String signingKey) throws Exception {
+        String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, url);
 
         Mac mac = Mac.getInstance("HmacSHA256");
         SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -236,12 +236,13 @@ public class TrackingUrlSigner {
         }
     }
 
-    private String signaturePayload(String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+    private String signaturePayload(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) {
         return String.join(":",
                 normalize(tenantId),
                 normalize(campaignId),
                 normalize(subscriberId),
                 normalize(messageId),
+                normalize(workspaceId),
                 normalize(url));
     }
 

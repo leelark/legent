@@ -211,7 +211,7 @@ export default function CampaignTrackingPage() {
           <Button variant="secondary" onClick={() => void withAction(() => resendCampaign(campaign.id, 'Resend from tracking page'), 'Resend job created')} disabled={actionLoading}>
             Resend
           </Button>
-          <Link href="/campaigns">
+          <Link href="/app/campaigns">
             <Button variant="secondary">Back</Button>
           </Link>
         </div>

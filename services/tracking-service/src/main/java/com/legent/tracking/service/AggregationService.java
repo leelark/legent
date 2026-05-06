@@ -22,6 +22,7 @@ public class AggregationService {
     @Transactional
     public void aggregateEvent(RawEvent event) {
         if (event == null || event.getTenantId() == null || event.getTenantId().isBlank()
+                || event.getWorkspaceId() == null || event.getWorkspaceId().isBlank()
                 || event.getEventType() == null || event.getEventType().isBlank()) {
             log.warn("Skipping invalid tracking event aggregation");
             return;
@@ -35,10 +36,14 @@ public class AggregationService {
     }
 
     private void aggregateCampaign(RawEvent event) {
-        CampaignSummary summary = campaignSummaryRepository.findByTenantIdAndCampaignId(event.getTenantId(), event.getCampaignId())
+        CampaignSummary summary = campaignSummaryRepository.findByTenantIdAndWorkspaceIdAndCampaignId(
+                        event.getTenantId(), event.getWorkspaceId(), event.getCampaignId())
                 .orElse(new CampaignSummary());
         if (summary.getId() == null) {
             summary.setTenantId(event.getTenantId());
+            summary.setWorkspaceId(event.getWorkspaceId());
+            summary.setTeamId(event.getTeamId());
+            summary.setOwnershipScope(event.getOwnershipScope() == null ? "WORKSPACE" : event.getOwnershipScope());
             summary.setCampaignId(event.getCampaignId());
         }
 
@@ -65,10 +70,14 @@ public class AggregationService {
     }
 
     private void aggregateSubscriber(RawEvent event) {
-        SubscriberSummary summary = subscriberSummaryRepository.findByTenantIdAndSubscriberId(event.getTenantId(), event.getSubscriberId())
+        SubscriberSummary summary = subscriberSummaryRepository.findByTenantIdAndWorkspaceIdAndSubscriberId(
+                        event.getTenantId(), event.getWorkspaceId(), event.getSubscriberId())
                 .orElse(new SubscriberSummary());
         if (summary.getId() == null) {
             summary.setTenantId(event.getTenantId());
+            summary.setWorkspaceId(event.getWorkspaceId());
+            summary.setTeamId(event.getTeamId());
+            summary.setOwnershipScope(event.getOwnershipScope() == null ? "WORKSPACE" : event.getOwnershipScope());
             summary.setSubscriberId(event.getSubscriberId());
         }
 

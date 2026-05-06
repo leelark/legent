@@ -22,13 +22,15 @@ public class AnalyticsController {
     @GetMapping("/campaigns")
     public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries() {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(campaignSummaryRepository.findAllByTenantId(tenantId));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(campaignSummaryRepository.findAllByTenantIdAndWorkspaceId(tenantId, workspaceId));
     }
 
     @GetMapping("/campaigns/{id}")
     public ApiResponse<CampaignSummary> getCampaignSummary(@PathVariable String id) {
         String tenantId = TenantContext.getTenantId();
-        CampaignSummary summary = campaignSummaryRepository.findByTenantIdAndCampaignId(tenantId, id)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        CampaignSummary summary = campaignSummaryRepository.findByTenantIdAndWorkspaceIdAndCampaignId(tenantId, workspaceId, id)
                 .orElse(new CampaignSummary());
         return ApiResponse.ok(summary);
     }
@@ -36,12 +38,14 @@ public class AnalyticsController {
     @GetMapping("/events/counts")
     public ApiResponse<List<Map<String, Object>>> getEventCounts() {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(analyticsService.getEventCounts(tenantId));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(analyticsService.getEventCounts(tenantId, workspaceId));
     }
 
     @GetMapping("/events/timeline")
     public ApiResponse<List<Map<String, Object>>> getEventTimeline(@RequestParam String eventType) {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(analyticsService.getEventTimeline(tenantId, eventType));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(analyticsService.getEventTimeline(tenantId, workspaceId, eventType));
     }
 }

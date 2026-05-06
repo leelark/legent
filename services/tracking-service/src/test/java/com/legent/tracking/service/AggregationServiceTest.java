@@ -36,6 +36,7 @@ class AggregationServiceTest {
     void aggregateEvent_IncrementsCampaignOpen() {
         RawEvent event = new RawEvent();
         event.setTenantId("t1");
+        event.setWorkspaceId("workspace-default");
         event.setCampaignId("c1");
         event.setSubscriberId("s1");
         event.setEventType("OPEN");
@@ -44,9 +45,9 @@ class AggregationServiceTest {
         CampaignSummary existingSummary = new CampaignSummary();
         existingSummary.setTotalOpens(5L);
 
-        when(campaignSummaryRepository.findByTenantIdAndCampaignId("t1", "c1"))
+        when(campaignSummaryRepository.findByTenantIdAndWorkspaceIdAndCampaignId("t1", "workspace-default", "c1"))
                 .thenReturn(Optional.of(existingSummary));
-        when(subscriberSummaryRepository.findByTenantIdAndSubscriberId("t1", "s1"))
+        when(subscriberSummaryRepository.findByTenantIdAndWorkspaceIdAndSubscriberId("t1", "workspace-default", "s1"))
                 .thenReturn(Optional.empty());
         when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
                 .thenReturn(Optional.empty());

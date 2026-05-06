@@ -55,7 +55,7 @@ export default function ImportDetailsPage() {
           <h1 className="text-2xl font-bold text-content-primary">Import Details</h1>
           <p className="mt-1 text-sm text-content-secondary">Track import job progress and outcomes</p>
         </div>
-        <Link href="/audience/imports">
+        <Link href="/app/audience/imports">
           <Button variant="secondary">Back to Imports</Button>
         </Link>
       </div>

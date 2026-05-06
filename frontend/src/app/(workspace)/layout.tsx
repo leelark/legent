@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Header } from '@/components/shell/Header';
 import { useAuthStore } from '@/stores/authStore';
 import { useTenantStore } from '@/stores/tenantStore';
-import { getStoredRoles, getStoredTenantId, TENANT_STORAGE_KEY, WORKSPACE_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
+import { getStoredRoles, TENANT_STORAGE_KEY, WORKSPACE_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
 import { useUIStore } from '@/stores/uiStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { get } from '@/lib/api-client';
 import { showToast } from '@/stores/toastStore';
 import { ensureActiveContext } from '@/lib/context-bootstrap';
+import { getUserPreferences } from '@/lib/user-preferences-api';
 
 /**
  * Workspace layout — provides the app shell with sidebar + header + workspace area.
@@ -31,8 +32,17 @@ export default function WorkspaceLayout({
   const logout = useAuthStore((state) => state.logout);
   const setCurrentTenant = useTenantStore((state) => state.setCurrentTenant);
   const setTheme = useUIStore((state) => state.setTheme);
+  const setUiMode = useUIStore((state) => state.setUiMode);
+  const setDensity = useUIStore((state) => state.setDensity);
+  const setSidebarCollapsed = useUIStore((state) => state.setSidebarCollapsed);
+  const hydrationStartedRef = useRef(false);
 
   useEffect(() => {
+    if (hydrationStartedRef.current) {
+      return;
+    }
+    hydrationStartedRef.current = true;
+
     let cancelled = false;
 
     const hydrateSession = async () => {
@@ -43,85 +53,77 @@ export default function WorkspaceLayout({
         return;
       }
 
-      const storedTenantId = getStoredTenantId();
       const storedRoles = getStoredRoles();
       const storedUserId = localStorage.getItem('legent_user_id');
-      let contextResolved = Boolean(localStorage.getItem(WORKSPACE_STORAGE_KEY));
+      let contextResolved = false;
+      let sessionUser = false;
 
-      if (!isAuthenticated) {
-        try {
-          const session = await get<{
-            status: string;
-            userId: string;
-            tenantId: string;
-            roles: string[];
-            workspaceId?: string | null;
-            environmentId?: string | null;
-          }>('/auth/session');
-          if (!cancelled && session?.status === 'success' && session.userId) {
-            const roles = Array.isArray(session.roles) ? session.roles : storedRoles;
-            login(session.userId, roles);
-            localStorage.setItem('legent_user_id', session.userId);
-            localStorage.setItem('legent_roles', JSON.stringify(roles));
-            localStorage.setItem(TENANT_STORAGE_KEY, session.tenantId);
-            setCurrentTenant({
-              id: session.tenantId,
-              name: session.tenantId,
-              slug: session.tenantId,
-              status: 'ACTIVE',
-              plan: 'STARTER',
-            });
-            try {
-              const activeContext = await ensureActiveContext({
-                preferredTenantId: session.tenantId,
-                preferredWorkspaceId: session.workspaceId ?? null,
-                preferredEnvironmentId: session.environmentId ?? null,
-              });
-              contextResolved = Boolean(activeContext?.workspaceId);
-            } catch (contextError) {
-              console.error('Context bootstrap failed:', contextError);
-            }
-          } else if (!cancelled && storedUserId && storedRoles.length > 0) {
-            login(storedUserId, storedRoles);
-            try {
-              const activeContext = await ensureActiveContext({
-                preferredTenantId: storedTenantId,
-              });
-              contextResolved = Boolean(activeContext?.workspaceId);
-            } catch (contextError) {
-              console.error('Stored context bootstrap failed:', contextError);
-            }
-          }
-        } catch (error) {
-          // LEGENT-HIGH-006: Log error and show user feedback for session hydration failures
-          console.error('Session hydration failed:', error);
-          if (!cancelled) {
-            localStorage.removeItem('legent_user_id');
-            localStorage.removeItem('legent_roles');
-            showToast.error('Session expired', 'Please log in again to continue.', 5000);
-          }
-        }
-      }
+      try {
+        const session = await get<{
+          status: string;
+          userId: string;
+          tenantId: string;
+          roles: string[];
+          workspaceId?: string | null;
+          environmentId?: string | null;
+        }>('/auth/session');
 
-      if (storedTenantId) {
-        setCurrentTenant({
-          id: storedTenantId,
-          name: storedTenantId,
-          slug: storedTenantId,
-          status: 'ACTIVE',
-          plan: 'STARTER',
-        });
-      }
-
-      if (!cancelled && (isAuthenticated || storedUserId)) {
-        try {
-          const activeContext = await ensureActiveContext({
-            preferredTenantId: storedTenantId,
+        if (!cancelled && session?.status === 'success' && session.userId) {
+          sessionUser = true;
+          const roles = Array.isArray(session.roles) ? session.roles : storedRoles;
+          login(session.userId, roles);
+          localStorage.setItem('legent_user_id', session.userId);
+          localStorage.setItem('legent_roles', JSON.stringify(roles));
+          localStorage.setItem(TENANT_STORAGE_KEY, session.tenantId);
+          setCurrentTenant({
+            id: session.tenantId,
+            name: session.tenantId,
+            slug: session.tenantId,
+            status: 'ACTIVE',
+            plan: 'STARTER',
           });
-          contextResolved = Boolean(activeContext?.workspaceId);
-        } catch (contextError) {
-          console.error('Context bootstrap verification failed:', contextError);
+          try {
+            const activeContext = await ensureActiveContext({
+              preferredTenantId: session.tenantId,
+              preferredWorkspaceId: session.workspaceId ?? null,
+              preferredEnvironmentId: session.environmentId ?? null,
+            });
+            contextResolved = Boolean(activeContext?.workspaceId);
+          } catch (contextError) {
+            console.error('Context bootstrap failed:', contextError);
+          }
+          if (contextResolved) {
+            try {
+              const prefs = await getUserPreferences();
+              if (prefs?.theme === 'dark' || prefs?.theme === 'light') {
+                setTheme(prefs.theme);
+              }
+              if (prefs?.uiMode === 'BASIC' || prefs?.uiMode === 'ADVANCED') {
+                setUiMode(prefs.uiMode);
+              }
+              if (prefs?.density) {
+                setDensity(prefs.density);
+              }
+              if (typeof prefs?.sidebarCollapsed === 'boolean') {
+                setSidebarCollapsed(prefs.sidebarCollapsed);
+              }
+            } catch (preferenceError) {
+              console.error('Preference hydration failed:', preferenceError);
+            }
+          }
         }
+      } catch (error) {
+        console.error('Session hydration failed:', error);
+      }
+
+      if (!sessionUser && !cancelled && (isAuthenticated || storedUserId)) {
+        logout();
+        localStorage.removeItem('legent_user_id');
+        localStorage.removeItem('legent_roles');
+        localStorage.removeItem(TENANT_STORAGE_KEY);
+        localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+        localStorage.removeItem('legent_environment_id');
+        showToast.error('Session expired', 'Please log in again to continue.', 5000);
       }
 
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -130,7 +132,7 @@ export default function WorkspaceLayout({
       }
 
       if (!cancelled) {
-        const hasSessionUser = Boolean(localStorage.getItem('legent_user_id'));
+        const hasSessionUser = sessionUser && Boolean(localStorage.getItem('legent_user_id'));
         const activeWorkspace = localStorage.getItem(WORKSPACE_STORAGE_KEY);
         if (hasSessionUser && (!contextResolved || !activeWorkspace)) {
           logout();
@@ -145,7 +147,7 @@ export default function WorkspaceLayout({
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, login, logout, setCurrentTenant, setTheme]);
+  }, [isAuthenticated, login, logout, setCurrentTenant, setTheme, setUiMode, setDensity, setSidebarCollapsed]);
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {

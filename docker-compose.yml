@@ -161,6 +161,8 @@ services:
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic system.initialized --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic identity.user.signup --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic config.updated --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic tenant.bootstrap.requested --partitions 3 --replication-factor 1 &&
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic tenant.bootstrap.completed --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.created --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.updated --partitions 3 --replication-factor 1 &&
         kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.deleted --partitions 3 --replication-factor 1 &&

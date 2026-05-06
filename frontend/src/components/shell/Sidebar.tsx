@@ -16,21 +16,32 @@ import {
 } from '@phosphor-icons/react';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
+import { updateUserPreferences } from '@/lib/user-preferences-api';
 
 const NAV_ITEMS = [
-  { label: 'Email',          href: '/email',          icon: EnvelopeSimple },
-  { label: 'Audience',       href: '/audience',       icon: Users },
-  { label: 'Campaigns',      href: '/campaigns',      icon: Megaphone },
-  { label: 'Automation',     href: '/automation',     icon: Lightning },
-  { label: 'Tracking',       href: '/tracking',       icon: ChartLine },
-  { label: 'Deliverability', href: '/deliverability', icon: Shield },
-  { label: 'Admin',          href: '/admin',          icon: GearSix, admin: true },
+  { label: 'Email',          href: '/app/email',          icon: EnvelopeSimple },
+  { label: 'Audience',       href: '/app/audience',       icon: Users },
+  { label: 'Campaigns',      href: '/app/campaigns',      icon: Megaphone },
+  { label: 'Automation',     href: '/app/automation',     icon: Lightning },
+  { label: 'Tracking',       href: '/app/tracking',       icon: ChartLine },
+  { label: 'Deliverability', href: '/app/deliverability', icon: Shield },
+  { label: 'Admin',          href: '/app/admin',          icon: GearSix, admin: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { sidebarCollapsed, toggleSidebar } = useUIStore();
+  const { sidebarCollapsed, setSidebarCollapsed } = useUIStore();
   const { isAdmin } = useAuth();
+
+  const toggleSidebar = async () => {
+    const next = !sidebarCollapsed;
+    setSidebarCollapsed(next);
+    try {
+      await updateUserPreferences({ sidebarCollapsed: next });
+    } catch {
+      // Keep local collapse state when persistence fails.
+    }
+  };
 
   return (
     <aside

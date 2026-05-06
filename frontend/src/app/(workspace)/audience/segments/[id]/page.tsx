@@ -35,7 +35,7 @@ export default function EditSegmentPage() {
         });
       } catch (e) {
         alert("Failed to load segment");
-        router.push("/audience/segments");
+        router.push("/app/audience/segments");
       }
       setLoading(false);
     };
@@ -50,7 +50,7 @@ export default function EditSegmentPage() {
         description: form.description,
         rules: form.rules,
       });
-      router.push("/audience/segments");
+      router.push("/app/audience/segments");
     } catch (e) {
       alert("Failed to update segment");
     }
@@ -79,7 +79,7 @@ export default function EditSegmentPage() {
             <SegmentRuleBuilder initialRules={form.rules} onChange={rules => setForm(f => ({ ...f, rules }))} />
           </div>
           <div className="flex justify-end gap-2 pt-4">
-            <Button variant="secondary" onClick={() => router.push("/audience/segments")}>Cancel</Button>
+            <Button variant="secondary" onClick={() => router.push("/app/audience/segments")}>Cancel</Button>
             <Button onClick={handleSave} disabled={!form.name || !form.rules || saving}>Save</Button>
           </div>
         </div>

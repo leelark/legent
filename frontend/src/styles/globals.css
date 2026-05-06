@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,19 +5,19 @@
 /* ── Design Tokens ── */
 :root {
   /* Brand Palette — Deep Indigo */
-  --color-brand-50:  #EEF2FF;
-  --color-brand-100: #E0E7FF;
-  --color-brand-200: #C7D2FE;
-  --color-brand-300: #A5B4FC;
-  --color-brand-400: #818CF8;
-  --color-brand-500: #6366F1;
-  --color-brand-600: #4F46E5;
-  --color-brand-700: #4338CA;
-  --color-brand-800: #3730A3;
-  --color-brand-900: #312E81;
+  --color-brand-50:  #ECFDF5;
+  --color-brand-100: #D1FAE5;
+  --color-brand-200: #A7F3D0;
+  --color-brand-300: #6EE7B7;
+  --color-brand-400: #34D399;
+  --color-brand-500: #10B981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-brand-800: #065F46;
+  --color-brand-900: #064E3B;
   
   /* Brand triplets for opacity support */
-  --color-brand-900-rgb: 49 46 129;
+  --color-brand-900-rgb: 6 78 59;
 
   /* Semantic */
   --color-success: #10B981;
@@ -28,16 +26,16 @@
   --color-info:    #3B82F6;
 
   /* Light Theme (default) */
-  --bg-primary:    #FFFFFF;
-  --bg-secondary:  #F8FAFC;
+  --bg-primary:    #FAFCFB;
+  --bg-secondary:  #F3F8F6;
   --bg-surface:    #FFFFFF;
   --bg-surface-rgb: 255 255 255;
-  --text-primary:  #0F172A;
-  --text-secondary:#475569;
-  --text-muted:    #94A3B8;
-  --border-default:#E2E8F0;
-  --border-strong: #CBD5E1;
-  --accent:        #4F46E5;
+  --text-primary:  #0D1714;
+  --text-secondary:#43564F;
+  --text-muted:    #7A8F86;
+  --border-default:#DCE7E1;
+  --border-strong: #BFD0C7;
+  --accent:        #047857;
 
   /* Spacing */
   --space-0:  0;
@@ -60,8 +58,8 @@
   --right-panel-width: 320px;
 
   /* Typography */
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  --font-sans: 'Sora', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
   --text-xs:   0.75rem;
   --text-sm:   0.875rem;
   --text-base: 1rem;
@@ -88,16 +86,16 @@
 }
 
 .dark {
-  --bg-primary:    #0B1120;
-  --bg-secondary:  #111827;
-  --bg-surface:    #1E293B;
-  --bg-surface-rgb: 30 41 59;
-  --text-primary:  #F1F5F9;
-  --text-secondary:#94A3B8;
-  --text-muted:    #64748B;
-  --border-default:#1E293B;
-  --border-strong: #334155;
-  --accent:        #818CF8;
+  --bg-primary:    #08110E;
+  --bg-secondary:  #0C1915;
+  --bg-surface:    #13231D;
+  --bg-surface-rgb: 19 35 29;
+  --text-primary:  #EAF5F0;
+  --text-secondary:#A4C0B3;
+  --text-muted:    #78968A;
+  --border-default:#1A2D26;
+  --border-strong: #244137;
+  --accent:        #34D399;
 
   --shadow-xs:  0 1px 2px 0 rgba(0, 0, 0, 0.2);
   --shadow-sm:  0 1px 3px 0 rgba(0, 0, 0, 0.3);
@@ -110,9 +108,10 @@
 /* ── Base Styles ── */
 @layer base {
   html {
-    font-family: var(--font-sans), 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans), 'Sora', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -122,6 +121,11 @@
 
   * {
     @apply border-border-default;
+  }
+
+  *:focus-visible {
+    outline: 2px solid rgba(16, 185, 129, 0.55);
+    outline-offset: 2px;
   }
 
   /* Scrollbar styling */

@@ -41,7 +41,14 @@ function isTenantFreeEndpoint(url: string | undefined): boolean {
   if (!url) {
     return false;
   }
-  return /\/api\/v1\/(?:health|track\/open\.gif|track\/click|tracking\/o\.gif|tracking\/c)/.test(url);
+  return /\/api\/v1\/(?:health|public|tracking\/o\.gif|tracking\/c)/.test(url);
+}
+
+function isWorkspaceOptionalEndpoint(url: string | undefined): boolean {
+  if (!url) {
+    return false;
+  }
+  return /\/api\/v1\/users\/preferences(?:\/|$)/.test(url);
 }
 
 function parseApiError(error: any) {
@@ -69,69 +76,7 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true, // Important: sends HTTP-only cookies with requests
 });
 
-const contextBootstrapClient: AxiosInstance = axios.create({
-  timeout: 15000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-  withCredentials: true,
-});
-
-type AuthContextRecord = {
-  tenantId: string;
-  workspaceId?: string | null;
-  environmentId?: string | null;
-  default?: boolean;
-};
-
-async function bootstrapWorkspaceContext(preferredTenantId?: string | null): Promise<{
-  tenantId: string;
-  workspaceId: string;
-  environmentId?: string | null;
-} | null> {
-  if (typeof window === 'undefined') {
-    return null;
-  }
-
-  const contextsUrl = resolveApiUrl('/auth/contexts');
-  const switchUrl = resolveApiUrl('/auth/context/switch');
-  const contextsResponse = await contextBootstrapClient.get<any>(contextsUrl);
-  const contexts = contextsResponse?.data?.data;
-  if (!Array.isArray(contexts) || contexts.length === 0) {
-    return null;
-  }
-
-  const records = contexts as AuthContextRecord[];
-  const target =
-    records.find((ctx) => ctx.tenantId === preferredTenantId && Boolean(ctx.workspaceId)) ??
-    records.find((ctx) => Boolean(ctx.default) && Boolean(ctx.workspaceId)) ??
-    records.find((ctx) => Boolean(ctx.workspaceId));
-  if (!target?.tenantId || !target.workspaceId) {
-    return null;
-  }
-
-  await contextBootstrapClient.post(switchUrl, {
-    tenantId: target.tenantId,
-    workspaceId: target.workspaceId,
-    environmentId: target.environmentId ?? null,
-  });
-
-  localStorage.setItem(TENANT_STORAGE_KEY, target.tenantId);
-  localStorage.setItem(WORKSPACE_STORAGE_KEY, target.workspaceId);
-  if (target.environmentId) {
-    localStorage.setItem(ENVIRONMENT_STORAGE_KEY, target.environmentId);
-  } else {
-    localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
-  }
-
-  return {
-    tenantId: target.tenantId,
-    workspaceId: target.workspaceId,
-    environmentId: target.environmentId ?? null,
-  };
-}
-
-// ── Request Interceptor ──
+// -- Request Interceptor --
 apiClient.interceptors.request.use(async (config) => {
   const resolvedUrl = resolveApiUrl(config.url);
   config.url = resolvedUrl;
@@ -140,33 +85,25 @@ apiClient.interceptors.request.use(async (config) => {
     let tenantId = getStoredTenantId();
     let workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
     let environmentId = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
+    const isAuthRequest = isAuthEndpoint(resolvedUrl);
     const requestId =
       (window.crypto && 'randomUUID' in window.crypto)
         ? window.crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    const needsWorkspaceContext = !isAuthEndpoint(resolvedUrl) && !isTenantFreeEndpoint(resolvedUrl);
-    if (needsWorkspaceContext && !workspaceId) {
-      try {
-        const activeContext = await bootstrapWorkspaceContext(tenantId);
-        if (activeContext) {
-          tenantId = activeContext.tenantId;
-          workspaceId = activeContext.workspaceId;
-          environmentId = activeContext.environmentId ?? null;
-        }
-      } catch {
-        // Explicit missing context error below.
-      }
-    }
+    const needsWorkspaceContext =
+      !isAuthRequest &&
+      !isTenantFreeEndpoint(resolvedUrl) &&
+      !isWorkspaceOptionalEndpoint(resolvedUrl);
 
     config.headers = config.headers ?? {};
-    if (tenantId && !config.headers['X-Tenant-Id']) {
+    if (!isAuthRequest && tenantId && !config.headers['X-Tenant-Id']) {
       config.headers['X-Tenant-Id'] = tenantId;
     }
-    if (workspaceId && !config.headers['X-Workspace-Id']) {
+    if (!isAuthRequest && workspaceId && !config.headers['X-Workspace-Id']) {
       config.headers['X-Workspace-Id'] = workspaceId;
     }
-    if (environmentId && !config.headers['X-Environment-Id']) {
+    if (!isAuthRequest && environmentId && !config.headers['X-Environment-Id']) {
       config.headers['X-Environment-Id'] = environmentId;
     }
     if (!config.headers['X-Request-Id']) {
@@ -174,6 +111,10 @@ apiClient.interceptors.request.use(async (config) => {
     }
 
     if (needsWorkspaceContext && !workspaceId) {
+      console.warn('[context-check] Missing workspace header', {
+        url: resolvedUrl,
+        tenantId,
+      });
       const contextError: any = new Error('Workspace context is required. Please select a workspace.');
       contextError.response = {
         status: 400,
@@ -193,13 +134,13 @@ apiClient.interceptors.request.use(async (config) => {
   return config;
 });
 
-// ── Response Interceptor ──
+// -- Response Interceptor --
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     error.normalized = parseApiError(error);
     if (error.response?.status === 401 && !isAuthEndpoint(error.config?.url)) {
-      // Handle unauthorized — redirect to login
+      // Handle unauthorized - redirect to login
       if (typeof window !== 'undefined') {
         window.location.href = '/login';
       }
@@ -211,7 +152,7 @@ apiClient.interceptors.response.use(
 export default apiClient;
 export const getApiError = parseApiError;
 
-// ── Convenience helpers ──
+// -- Convenience helpers --
 export async function get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.get<any>(url, config);
   const resData = response.data;

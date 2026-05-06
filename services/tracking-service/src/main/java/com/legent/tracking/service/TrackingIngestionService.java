@@ -9,6 +9,7 @@ import com.legent.tracking.domain.RawEvent;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.event.TrackingEventPublisher;
 import com.legent.tracking.repository.RawEventRepository;
+import com.legent.security.TenantContext;
 import eu.bitwalker.useragentutils.UserAgent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,14 +30,15 @@ public class TrackingIngestionService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public void processOpen(String tenantId, String campaignId, String subscriberId, String messageId, String userAgentString, String ipAddress) {
+    public void processOpen(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String idempotencyKey, String userAgentString, String ipAddress) {
         requireTenantAndMessage(tenantId, messageId);
-        if (isDuplicateInDatabase(tenantId, "OPEN", messageId, subscriberId) ||
+        String resolvedWorkspaceId = resolveWorkspaceId(tenantId, messageId, workspaceId);
+        if (isDuplicateInDatabase(tenantId, resolvedWorkspaceId, "OPEN", messageId, subscriberId) ||
             isDuplicateInRedis(tenantId, "OPEN", messageId, subscriberId, "")) {
             log.debug("Duplicate OPEN event detected for message {} subscriber {}", messageId, subscriberId);
             return;
         }
-        TrackingDto.RawEventPayload payload = buildPayload("OPEN", tenantId, campaignId, subscriberId, messageId, null, userAgentString, ipAddress, null);
+        TrackingDto.RawEventPayload payload = buildPayload("OPEN", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId, idempotencyKey, null, userAgentString, ipAddress, null);
         // AUDIT-016: Outbox pattern - save to DB first, then publish within same transaction
         saveEventToDatabase(payload);
         // Publish event using transactional outbox pattern
@@ -44,23 +46,27 @@ public class TrackingIngestionService {
     }
 
     @Transactional
-    public void processClick(String tenantId, String campaignId, String subscriberId, String messageId, String linkUrl, String userAgentString, String ipAddress) {
+    public void processClick(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String idempotencyKey, String linkUrl, String userAgentString, String ipAddress) {
         requireTenantAndMessage(tenantId, messageId);
-        if (isDuplicateInDatabase(tenantId, "CLICK", messageId, subscriberId) ||
+        String resolvedWorkspaceId = resolveWorkspaceId(tenantId, messageId, workspaceId);
+        if (isDuplicateInDatabase(tenantId, resolvedWorkspaceId, "CLICK", messageId, subscriberId) ||
             isDuplicateInRedis(tenantId, "CLICK", messageId, subscriberId, linkUrl)) {
             log.debug("Duplicate CLICK event detected for message {} subscriber {}", messageId, subscriberId);
             return;
         }
-        TrackingDto.RawEventPayload payload = buildPayload("CLICK", tenantId, campaignId, subscriberId, messageId, linkUrl, userAgentString, ipAddress, null);
+        TrackingDto.RawEventPayload payload = buildPayload("CLICK", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId, idempotencyKey, linkUrl, userAgentString, ipAddress, null);
         // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
         publishEventWithOutbox(payload);
     }
 
     @Transactional
-    public void processConversion(String tenantId, TrackingDto.ConversionRequest request, String userAgentString, String ipAddress) {
+    public void processConversion(String tenantId, String workspaceId, String idempotencyKey, TrackingDto.ConversionRequest request, String userAgentString, String ipAddress) {
         if (tenantId == null || tenantId.isBlank()) {
             throw new IllegalArgumentException("tenantId is required");
+        }
+        if (workspaceId == null || workspaceId.isBlank()) {
+            throw new IllegalArgumentException("workspaceId is required");
         }
         if (request == null || request.getEventName() == null || request.getEventName().isBlank()) {
             throw new IllegalArgumentException("eventName is required");
@@ -70,7 +76,7 @@ public class TrackingIngestionService {
         meta.put("value", request.getValue());
         meta.put("currency", request.getCurrency());
 
-        TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(), null, userAgentString, ipAddress, meta);
+        TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, workspaceId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(), idempotencyKey, null, userAgentString, ipAddress, meta);
         // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
         publishEventWithOutbox(payload);
@@ -120,14 +126,14 @@ public class TrackingIngestionService {
      * Checks database for existing event (slower but persistent).
      * Uses the last 24 hours as the deduplication window.
      */
-    private boolean isDuplicateInDatabase(String tenantId, String type, String msgId, String subId) {
+    private boolean isDuplicateInDatabase(String tenantId, String workspaceId, String type, String msgId, String subId) {
         if (msgId == null || subId == null) {
             return false; // Cannot deduplicate without both IDs
         }
         // Check if we already have this event in the database within last 24 hours
         Instant since = Instant.now().minusSeconds(86400); // 24 hours ago
-        return rawEventRepository.findTopByTenantIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
-                tenantId, type, msgId, subId, since).isPresent();
+        return rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
+                tenantId, workspaceId, type, msgId, subId, since).isPresent();
     }
 
     private void requireTenantAndMessage(String tenantId, String messageId) {
@@ -147,6 +153,9 @@ public class TrackingIngestionService {
             RawEvent event = new RawEvent();
             event.setId(payload.getId());
             event.setTenantId(payload.getTenantId());
+            event.setWorkspaceId(payload.getWorkspaceId());
+            event.setTeamId(payload.getTeamId());
+            event.setOwnershipScope(payload.getOwnershipScope() == null ? "WORKSPACE" : payload.getOwnershipScope());
             event.setEventType(payload.getEventType());
             event.setCampaignId(payload.getCampaignId());
             event.setSubscriberId(payload.getSubscriberId());
@@ -195,8 +204,8 @@ public class TrackingIngestionService {
         );
     }
 
-    private TrackingDto.RawEventPayload buildPayload(String eventType, String tenantId, String campaignId, String subscriberId, 
-                                                     String messageId, String linkUrl, String uaString, String ip, Map<String, Object> customMeta) {
+    private TrackingDto.RawEventPayload buildPayload(String eventType, String tenantId, String workspaceId, String campaignId, String subscriberId,
+                                                     String messageId, String idempotencyKey, String linkUrl, String uaString, String ip, Map<String, Object> customMeta) {
         
         Map<String, Object> metadata = customMeta != null ? customMeta : new HashMap<>();
         
@@ -210,6 +219,12 @@ public class TrackingIngestionService {
         return TrackingDto.RawEventPayload.builder()
                 .id(UUID.randomUUID().toString())
                 .tenantId(tenantId)
+                .workspaceId(workspaceId)
+                .teamId(null)
+                .environmentId(TenantContext.getEnvironmentId())
+                .actorId(TenantContext.getUserId())
+                .ownershipScope("WORKSPACE")
+                .idempotencyKey(idempotencyKey)
                 .eventType(eventType)
                 .campaignId(campaignId)
                 .subscriberId(subscriberId)
@@ -220,5 +235,18 @@ public class TrackingIngestionService {
                 .timestamp(Instant.now())
                 .metadata(metadata)
                 .build();
+    }
+
+    private String resolveWorkspaceId(String tenantId, String messageId, String workspaceId) {
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            return workspaceId.trim();
+        }
+        return rawEventRepository.findTopByTenantIdAndMessageIdAndWorkspaceIdIsNotNullOrderByTimestampDesc(tenantId, messageId)
+                .map(RawEvent::getWorkspaceId)
+                .filter(existing -> existing != null && !existing.isBlank())
+                .orElseGet(() -> {
+                    log.warn("Missing workspace on tracking event, fallback workspace-default. tenantId={}, messageId={}", tenantId, messageId);
+                    return "workspace-default";
+                });
     }
 }

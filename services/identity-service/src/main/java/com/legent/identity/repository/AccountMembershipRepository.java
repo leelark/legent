@@ -10,4 +10,5 @@ public interface AccountMembershipRepository extends JpaRepository<AccountMember
     List<AccountMembership> findByAccountIdAndStatus(String accountId, String status);
     Optional<AccountMembership> findByAccountIdAndTenantId(String accountId, String tenantId);
     Optional<AccountMembership> findByUserIdAndTenantId(String userId, String tenantId);
+    List<AccountMembership> findAllByUserIdAndTenantId(String userId, String tenantId);
 }

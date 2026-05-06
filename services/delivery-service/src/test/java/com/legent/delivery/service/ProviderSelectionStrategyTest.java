@@ -43,7 +43,8 @@ class ProviderSelectionStrategyTest {
                 circuitBreaker,
                 List.of(smtpAdapter),
                 "mailhog",
-                1025
+                1025,
+                false
         );
     }
 
@@ -114,7 +115,8 @@ class ProviderSelectionStrategyTest {
                 circuitBreaker,
                 List.of(smtpAdapter),
                 "mailhog",
-                1025
+                1025,
+                false
         );
 
         assertThrows(IllegalStateException.class, () -> noFallbackStrategy.selectProvider("tenant-1", "example.com"));

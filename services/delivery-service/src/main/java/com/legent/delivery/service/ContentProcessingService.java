@@ -43,25 +43,25 @@ public class ContentProcessingService {
 
     private static final Pattern LINK_PATTERN = Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1", Pattern.CASE_INSENSITIVE);
 
-    public String processContent(String htmlContent, String tenantId, String campaignId, String subscriberId, String messageId) {
+    public String processContent(String htmlContent, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId) {
         if (htmlContent == null || htmlContent.isBlank()) {
             throw new IllegalArgumentException("HTML content cannot be null or empty");
         }
 
-        String processed = injectTrackingPixel(htmlContent, tenantId, campaignId, subscriberId, messageId);
-        processed = rewriteLinks(processed, tenantId, campaignId, subscriberId, messageId);
+        String processed = injectTrackingPixel(htmlContent, tenantId, campaignId, subscriberId, messageId, workspaceId);
+        processed = rewriteLinks(processed, tenantId, campaignId, subscriberId, messageId, workspaceId);
 
         return processed;
     }
 
-    private String injectTrackingPixel(String html, String t, String c, String s, String m) {
+    private String injectTrackingPixel(String html, String t, String c, String s, String m, String w) {
         if (trackingBaseUrl == null || trackingBaseUrl.isBlank()) {
             throw new IllegalStateException("Tracking base URL not configured");
         }
         // Generate HMAC signature to prevent URL tampering
-        String sig = trackingUrlSigner.generateSignature(t, c, s, m);
-        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s&sig=%s",
-                trackingBaseUrl, encode(t), encode(c), encode(s), encode(m), encode(sig));
+        String sig = trackingUrlSigner.generateSignature(t, c, s, m, w);
+        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s&sig=%s&w=%s",
+                trackingBaseUrl, encode(t), encode(c), encode(s), encode(m), encode(sig), encode(w));
         String pixelTag = String.format("<img src=\"%s\" width=\"1\" height=\"1\" border=\"0\" style=\"display:none;\" />", pixelUrl);
 
         if (html.toLowerCase().contains("</body>")) {
@@ -71,7 +71,7 @@ public class ContentProcessingService {
         }
     }
 
-    private String rewriteLinks(String html, String t, String c, String s, String m) {
+    private String rewriteLinks(String html, String t, String c, String s, String m, String w) {
         StringBuilder sb = new StringBuilder();
         Matcher matcher = LINK_PATTERN.matcher(html);
         int lastEnd = 0;
@@ -85,9 +85,9 @@ public class ContentProcessingService {
                 sb.append(matcher.group(0));
             } else {
                 // Generate HMAC signature to prevent URL tampering
-                String sig = trackingUrlSigner.generateClickSignature(t, c, s, m, originalUrl);
-                String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s&sig=%s",
-                        trackingBaseUrl, encode(originalUrl), encode(t), encode(c), encode(s), encode(m), encode(sig));
+                String sig = trackingUrlSigner.generateClickSignature(t, c, s, m, w, originalUrl);
+                String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s&sig=%s&w=%s",
+                        trackingBaseUrl, encode(originalUrl), encode(t), encode(c), encode(s), encode(m), encode(sig), encode(w));
                 
                 String fullTag = matcher.group(0).replace(originalUrl, trackedUrl);
                 sb.append(fullTag);

@@ -49,27 +49,22 @@ export async function ensureActiveContext(
     return null;
   }
 
-  const tenantId = normalize(options.preferredTenantId) ?? normalize(localStorage.getItem(TENANT_STORAGE_KEY));
-  const workspaceId = normalize(options.preferredWorkspaceId) ?? normalize(localStorage.getItem(WORKSPACE_STORAGE_KEY));
-  const environmentId = normalize(options.preferredEnvironmentId) ?? normalize(localStorage.getItem(ENVIRONMENT_STORAGE_KEY));
-
-  if (tenantId && workspaceId) {
-    const active = { tenantId, workspaceId, environmentId };
-    persistContext(active);
-    return active;
-  }
-
+  const preferredTenantId = normalize(options.preferredTenantId) ?? normalize(localStorage.getItem(TENANT_STORAGE_KEY));
+  const preferredWorkspaceId =
+    normalize(options.preferredWorkspaceId) ?? normalize(localStorage.getItem(WORKSPACE_STORAGE_KEY));
+  const preferredEnvironmentId =
+    normalize(options.preferredEnvironmentId) ?? normalize(localStorage.getItem(ENVIRONMENT_STORAGE_KEY));
   const contexts = await get<AccountContext[]>('/auth/contexts');
   if (!Array.isArray(contexts) || contexts.length === 0) {
     return null;
   }
 
   const matched = contexts.find((ctx) => {
-    if (!tenantId || ctx.tenantId !== tenantId) {
+    if (!preferredTenantId || ctx.tenantId !== preferredTenantId) {
       return false;
     }
-    if (workspaceId) {
-      return normalize(ctx.workspaceId) === workspaceId;
+    if (preferredWorkspaceId) {
+      return normalize(ctx.workspaceId) === preferredWorkspaceId;
     }
     return true;
   });
@@ -80,11 +75,10 @@ export async function ensureActiveContext(
 
   const targetTenantId = target.tenantId;
   const targetWorkspaceId = normalize(target.workspaceId);
-  const targetEnvironmentId = normalize(target.environmentId) ?? environmentId;
+  const targetEnvironmentId = normalize(target.environmentId) ?? preferredEnvironmentId;
   if (!targetWorkspaceId) {
     return null;
   }
-
   await post('/auth/context/switch', {
     tenantId: targetTenantId,
     workspaceId: targetWorkspaceId,

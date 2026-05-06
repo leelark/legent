@@ -38,7 +38,15 @@ class TrackingIngestionServiceTest {
         String ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
         org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
                 .thenReturn(java.util.Optional.empty());
-        ingestionService.processOpen("t1", "c1", "s1", "m1", ua, "192.168.1.1");
+        org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.Optional.empty());
+        ingestionService.processOpen("t1", "c1", "s1", "m1", "workspace-default", "idem-1", ua, "192.168.1.1");
 
         ArgumentCaptor<TrackingDto.RawEventPayload> captor = ArgumentCaptor.forClass(TrackingDto.RawEventPayload.class);
         verify(eventPublisher).publishIngestedEvent(captor.capture());
@@ -46,6 +54,7 @@ class TrackingIngestionServiceTest {
         TrackingDto.RawEventPayload payload = captor.getValue();
         assertEquals("OPEN", payload.getEventType());
         assertEquals("t1", payload.getTenantId());
+        assertEquals("workspace-default", payload.getWorkspaceId());
         assertEquals("c1", payload.getCampaignId());
         assertEquals("192.168.1.1", payload.getIpAddress());
         assertNotNull(payload.getMetadata().get("browser")); // User-Agent utils should pick this up
@@ -56,7 +65,15 @@ class TrackingIngestionServiceTest {
         String url = "https://example.com/promo";
         org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
                 .thenReturn(java.util.Optional.empty());
-        ingestionService.processClick("t1", "c1", "s1", "m1", url, null, "10.0.0.1");
+        org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.Optional.empty());
+        ingestionService.processClick("t1", "c1", "s1", "m1", "workspace-default", "idem-2", url, null, "10.0.0.1");
 
         ArgumentCaptor<TrackingDto.RawEventPayload> captor = ArgumentCaptor.forClass(TrackingDto.RawEventPayload.class);
         verify(eventPublisher).publishIngestedEvent(captor.capture());

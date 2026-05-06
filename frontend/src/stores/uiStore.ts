@@ -2,22 +2,31 @@ import { create } from 'zustand';
 import { THEME_STORAGE_KEY } from '@/lib/auth';
 
 type Theme = 'light' | 'dark';
+type UiMode = 'BASIC' | 'ADVANCED';
 
 interface UIState {
   theme: Theme;
+  uiMode: UiMode;
+  density: string;
   sidebarCollapsed: boolean;
   rightPanelOpen: boolean;
   globalLoading: boolean;
 
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
+  toggleUiMode: () => void;
+  setUiMode: (mode: UiMode) => void;
+  setDensity: (density: string) => void;
   toggleSidebar: () => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   toggleRightPanel: () => void;
   setGlobalLoading: (loading: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
   theme: 'light',
+  uiMode: 'BASIC',
+  density: 'comfortable',
   sidebarCollapsed: false,
   rightPanelOpen: false,
   globalLoading: false,
@@ -39,7 +48,12 @@ export const useUIStore = create<UIState>((set, get) => ({
     set({ theme });
   },
 
+  toggleUiMode: () => set((s) => ({ uiMode: s.uiMode === 'BASIC' ? 'ADVANCED' : 'BASIC' })),
+  setUiMode: (mode) => set({ uiMode: mode }),
+  setDensity: (density) => set({ density }),
+
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
   toggleRightPanel: () => set((s) => ({ rightPanelOpen: !s.rightPanelOpen })),
   setGlobalLoading: (loading) => set({ globalLoading: loading }),
 }));

@@ -2,11 +2,15 @@ package com.legent.identity.controller;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
+import com.legent.identity.dto.ExperienceDto;
 import com.legent.identity.dto.UserDto;
+import com.legent.identity.security.UserPrincipal;
+import com.legent.identity.service.IdentityExperienceService;
 import com.legent.identity.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +22,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final IdentityExperienceService identityExperienceService;
 
     @GetMapping
     @PreAuthorize("@rbacEvaluator.hasPermission('user:read', principal.roles)")
@@ -49,5 +54,26 @@ public class UserController {
     @PreAuthorize("@rbacEvaluator.hasPermission('user:delete', principal.roles)")
     public void deleteUser(@PathVariable String id) {
         userService.deleteUser(id);
+    }
+
+    @GetMapping("/preferences")
+    public ApiResponse<ExperienceDto.UserPreferenceResponse> getPreferences(Authentication authentication) {
+        UserPrincipal principal = requirePrincipal(authentication);
+        return ApiResponse.ok(identityExperienceService.getPreferences(principal.getUserId(), principal.getTenantId()));
+    }
+
+    @PutMapping("/preferences")
+    public ApiResponse<ExperienceDto.UserPreferenceResponse> updatePreferences(
+            Authentication authentication,
+            @Valid @RequestBody ExperienceDto.UserPreferenceRequest request) {
+        UserPrincipal principal = requirePrincipal(authentication);
+        return ApiResponse.ok(identityExperienceService.updatePreferences(principal.getUserId(), principal.getTenantId(), request));
+    }
+
+    private UserPrincipal requirePrincipal(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new IllegalArgumentException("Invalid user session");
+        }
+        return principal;
     }
 }

@@ -1,8 +1,5 @@
-import { redirect } from 'next/navigation';
+import { PublicPageView } from '@/components/marketing/PublicPageView';
 
-/**
- * Root page redirects to the workspace dashboard.
- */
 export default function RootPage() {
-  redirect('/email');
+  return <PublicPageView pageKey="home" titleFallback="Enterprise Email Marketing. Reimagined." />;
 }

@@ -29,6 +29,13 @@ public class TrackingEventPublisher {
                     SOURCE,
                     objectMapper.writeValueAsString(payload)
             );
+            envelope.setWorkspaceId(payload.getWorkspaceId());
+            envelope.setEnvironmentId(payload.getEnvironmentId());
+            envelope.setActorId(payload.getActorId());
+            envelope.setOwnershipScope(payload.getOwnershipScope() == null ? "WORKSPACE" : payload.getOwnershipScope());
+            if (payload.getIdempotencyKey() != null && !payload.getIdempotencyKey().isBlank()) {
+                envelope.setIdempotencyKey(payload.getIdempotencyKey());
+            }
             eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, payload.getMessageId(), envelope);
         } catch (Exception e) {
             log.error("Failed to publish tracking ingestion for mid={}", payload.getMessageId(), e);

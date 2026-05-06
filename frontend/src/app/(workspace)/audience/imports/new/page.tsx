@@ -153,7 +153,7 @@ export default function ImportWizardPage() {
           <p className="mt-1 text-sm text-content-secondary">Upload a CSV file to import subscribers</p>
         </div>
         {currentStep === 3 && (jobStatus?.status === 'COMPLETED' || jobStatus?.status === 'COMPLETED_WITH_ERRORS') && (
-            <Button onClick={() => router.push('/audience/subscribers')}>View Subscribers</Button>
+            <Button onClick={() => router.push('/app/audience/subscribers')}>View Subscribers</Button>
         )}
       </div>
 

@@ -2,10 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { post } from '@/lib/api-client';
+import Link from 'next/link';
+import { get, post } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenantStore } from '@/stores/tenantStore';
-import { TENANT_STORAGE_KEY, USER_STORAGE_KEY, ROLES_STORAGE_KEY } from '@/lib/auth';
+import {
+  TENANT_STORAGE_KEY,
+  WORKSPACE_STORAGE_KEY,
+  ENVIRONMENT_STORAGE_KEY,
+  USER_STORAGE_KEY,
+  ROLES_STORAGE_KEY,
+} from '@/lib/auth';
 import { ROUTES } from '@/lib/constants';
 import { ensureActiveContext } from '@/lib/context-bootstrap';
 
@@ -31,9 +38,42 @@ export default function LoginPage() {
     }
 
     if (isAuthenticated) {
-      router.replace(ROUTES.EMAIL);
+      get<{
+        status: string;
+        userId?: string;
+        tenantId?: string;
+        workspaceId?: string | null;
+        environmentId?: string | null;
+      }>('/auth/session')
+        .then((session) => {
+          if (session?.status === 'success' && session.userId) {
+            ensureActiveContext({
+              preferredTenantId: session.tenantId ?? null,
+              preferredWorkspaceId: session.workspaceId ?? null,
+              preferredEnvironmentId: session.environmentId ?? null,
+            })
+              .then((activeContext) => {
+                if (activeContext?.workspaceId) {
+                  router.replace(ROUTES.EMAIL);
+                  return;
+                }
+                logout();
+              })
+              .catch(() => {
+                logout();
+              });
+          } else {
+            logout();
+          }
+        })
+        .catch(() => {
+          logout();
+          localStorage.removeItem(TENANT_STORAGE_KEY);
+          localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+          localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
+        });
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, logout, router]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -169,6 +209,14 @@ export default function LoginPage() {
           >
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
+          <div className="flex items-center justify-between text-sm">
+            <Link href="/forgot-password" className="text-brand-600 hover:text-brand-700">
+              Forgot password?
+            </Link>
+            <Link href="/signup" className="text-brand-600 hover:text-brand-700">
+              Create account
+            </Link>
+          </div>
         </form>
       </div>
     </div>

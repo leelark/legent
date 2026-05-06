@@ -37,8 +37,8 @@ module.exports = {
         danger: 'var(--color-danger)',
       },
       fontFamily: {
-        sans: ['var(--font-sans)', 'Inter', 'system-ui', 'sans-serif'],
-        mono: ['var(--font-mono)', 'JetBrains Mono', 'monospace'],
+        sans: ['var(--font-sans)', 'Sora', 'system-ui', 'sans-serif'],
+        mono: ['var(--font-mono)', 'IBM Plex Mono', 'monospace'],
       },
       fontSize: {
         '2xs': ['0.625rem', { lineHeight: '0.875rem' }],

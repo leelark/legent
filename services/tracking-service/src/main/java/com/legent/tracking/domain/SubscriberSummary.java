@@ -19,6 +19,15 @@ public class SubscriberSummary extends BaseEntity {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false)
+    private String workspaceId;
+
+    @Column(name = "team_id")
+    private String teamId;
+
+    @Column(name = "ownership_scope", nullable = false)
+    private String ownershipScope = "WORKSPACE";
+
     @Column(name = "subscriber_id", nullable = false)
     private String subscriberId;
 

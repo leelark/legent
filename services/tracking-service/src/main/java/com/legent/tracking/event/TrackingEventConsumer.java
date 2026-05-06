@@ -7,6 +7,7 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.ClickHouseWriter;
 import com.legent.tracking.service.AggregationService;
+import com.legent.tracking.service.TrackingEventIdempotencyService;
 import com.legent.tracking.domain.RawEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ public class TrackingEventConsumer {
 
     private final ClickHouseWriter clickHouseWriter;
     private final AggregationService aggregationService;
+    private final TrackingEventIdempotencyService idempotencyService;
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = "tracking-clickhouse-group")
@@ -46,9 +48,36 @@ public class TrackingEventConsumer {
                         event.getPayload(),
                         new TypeReference<TrackingDto.RawEventPayload>() {}
                 );
+                String workspaceId = payload.getWorkspaceId();
+                if (workspaceId == null || workspaceId.isBlank()) {
+                    workspaceId = event.getWorkspaceId();
+                }
+                if (workspaceId == null || workspaceId.isBlank()) {
+                    workspaceId = "workspace-default";
+                }
+
                 if (payload.getTenantId() == null || payload.getTenantId().isBlank()
                         || payload.getEventType() == null || payload.getEventType().isBlank()) {
                     log.warn("Skipping tracking event with missing tenantId or eventType");
+                    continue;
+                }
+                payload.setWorkspaceId(workspaceId);
+                if (payload.getOwnershipScope() == null || payload.getOwnershipScope().isBlank()) {
+                    payload.setOwnershipScope("WORKSPACE");
+                }
+                if (payload.getIdempotencyKey() == null || payload.getIdempotencyKey().isBlank()) {
+                    payload.setIdempotencyKey(event.getIdempotencyKey());
+                }
+                if (payload.getId() == null || payload.getId().isBlank()) {
+                    payload.setId(event.getEventId());
+                }
+
+                if (!idempotencyService.registerIfNew(
+                        payload.getTenantId(),
+                        workspaceId,
+                        event.getEventType(),
+                        event.getEventId(),
+                        event.getIdempotencyKey())) {
                     continue;
                 }
                 batch.add(payload);
@@ -75,6 +104,9 @@ public class TrackingEventConsumer {
         RawEvent e = new RawEvent();
         e.setId(p.getId());
         e.setTenantId(p.getTenantId());
+        e.setWorkspaceId(p.getWorkspaceId());
+        e.setTeamId(p.getTeamId());
+        e.setOwnershipScope(p.getOwnershipScope() == null ? "WORKSPACE" : p.getOwnershipScope());
         e.setCampaignId(p.getCampaignId());
         e.setSubscriberId(p.getSubscriberId());
         e.setMessageId(p.getMessageId());

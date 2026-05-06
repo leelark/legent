@@ -47,6 +47,8 @@ management:
         enabled: true
 
 legent:
+  frontend:
+    base-url: ${LEGENT_FRONTEND_BASE_URL:http://localhost:3000}
   security:
     jwt:
       secret: ${LEGENT_SECURITY_JWT_SECRET}

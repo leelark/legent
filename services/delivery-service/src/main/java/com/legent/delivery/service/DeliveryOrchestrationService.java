@@ -226,7 +226,8 @@ public class DeliveryOrchestrationService {
             }
 
             // Process content for tracking
-            String processedHtml = contentProcessingService.processContent(htmlBody, normalizedTenantId, campaignId, subscriberId, messageId);
+            String processedHtml = contentProcessingService.processContent(
+                    htmlBody, normalizedTenantId, campaignId, subscriberId, messageId, workspaceId);
 
             // Dispatch
             adapter.sendEmail(java.util.Objects.requireNonNull(email), java.util.Objects.requireNonNull(subject), java.util.Objects.requireNonNull(processedHtml), metadata, strategyResult.dbRecord());

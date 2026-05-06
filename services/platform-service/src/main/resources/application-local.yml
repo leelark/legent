@@ -10,3 +10,7 @@ spring:
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+
+legent:
+  foundation:
+    base-url: ${FOUNDATION_BASE_URL:http://localhost:8081/api/v1}

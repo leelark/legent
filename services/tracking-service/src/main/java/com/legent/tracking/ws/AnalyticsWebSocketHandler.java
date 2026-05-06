@@ -36,9 +36,10 @@ public class AnalyticsWebSocketHandler extends TextWebSocketHandler {
         for (WebSocketSession session : sessions) {
             if (session.isOpen()) {
                 String tenantId = (String) session.getAttributes().get(AppConstants.HEADER_TENANT_ID);
-                if (tenantId != null) {
+                String workspaceId = (String) session.getAttributes().get(AppConstants.HEADER_WORKSPACE_ID);
+                if (tenantId != null && workspaceId != null) {
                     try {
-                        List<java.util.Map<String, Object>> counts = analyticsService.getEventCounts(tenantId);
+                        List<java.util.Map<String, Object>> counts = analyticsService.getEventCounts(tenantId, workspaceId);
                         session.sendMessage(new TextMessage(objectMapper.writeValueAsString(counts)));
                     } catch (IOException e) {
                         log.error("Failed to send analytics message to session {}", session.getId(), e);

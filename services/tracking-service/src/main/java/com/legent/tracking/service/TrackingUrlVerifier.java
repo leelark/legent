@@ -48,7 +48,7 @@ public class TrackingUrlVerifier {
      * @param messageId    The message ID
      * @return true if signature is valid, false otherwise
      */
-    public boolean verifySignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId) {
+    public boolean verifySignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId) {
         if (signature == null || signature.isBlank()) {
             log.warn("Empty signature provided for tracking event");
             return false;
@@ -61,7 +61,7 @@ public class TrackingUrlVerifier {
                 return false;
             }
 
-            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, null);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, null);
 
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -70,14 +70,21 @@ public class TrackingUrlVerifier {
             String expectedSignature = Base64.getUrlEncoder().withoutPadding().encodeToString(expectedSignatureBytes);
 
             // Constant-time comparison to prevent timing attacks
-            return constantTimeEquals(signature, expectedSignature);
+            if (constantTimeEquals(signature, expectedSignature)) {
+                return true;
+            }
+            // Legacy compatibility for previously-signed URLs without workspace.
+            String legacyData = signaturePayload(tenantId, campaignId, subscriberId, messageId, null, null);
+            byte[] legacySignatureBytes = mac.doFinal(legacyData.getBytes(StandardCharsets.UTF_8));
+            String legacySignature = Base64.getUrlEncoder().withoutPadding().encodeToString(legacySignatureBytes);
+            return constantTimeEquals(signature, legacySignature);
         } catch (Exception e) {
             log.error("Failed to verify tracking URL signature", e);
             return false;
         }
     }
 
-    public boolean verifyClickSignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+    public boolean verifyClickSignature(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) {
         if (signature == null || signature.isBlank()) {
             log.warn("Empty signature provided for tracking click event");
             return false;
@@ -90,7 +97,7 @@ public class TrackingUrlVerifier {
                 return false;
             }
 
-            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, url);
+            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, url);
 
             Mac mac = Mac.getInstance("HmacSHA256");
             SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
@@ -98,7 +105,14 @@ public class TrackingUrlVerifier {
             byte[] expectedSignatureBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
             String expectedSignature = Base64.getUrlEncoder().withoutPadding().encodeToString(expectedSignatureBytes);
 
-            return constantTimeEquals(signature, expectedSignature);
+            if (constantTimeEquals(signature, expectedSignature)) {
+                return true;
+            }
+            // Legacy compatibility for previously-signed URLs without workspace.
+            String legacyData = signaturePayload(tenantId, campaignId, subscriberId, messageId, null, url);
+            byte[] legacySignatureBytes = mac.doFinal(legacyData.getBytes(StandardCharsets.UTF_8));
+            String legacySignature = Base64.getUrlEncoder().withoutPadding().encodeToString(legacySignatureBytes);
+            return constantTimeEquals(signature, legacySignature);
         } catch (Exception e) {
             log.error("Failed to verify tracking click URL signature", e);
             return false;
@@ -125,12 +139,13 @@ public class TrackingUrlVerifier {
         }
     }
 
-    private String signaturePayload(String tenantId, String campaignId, String subscriberId, String messageId, String url) {
+    private String signaturePayload(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) {
         return String.join(":",
                 normalize(tenantId),
                 normalize(campaignId),
                 normalize(subscriberId),
                 normalize(messageId),
+                normalize(workspaceId),
                 normalize(url));
     }
 

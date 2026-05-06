@@ -195,7 +195,7 @@ export default function CampaignWizardPage() {
       if (mode === 'DRAFT') {
         addToast({ type: 'success', title: 'Draft saved', message: `${created.name} saved as draft.` });
       }
-      router.push('/campaigns');
+      router.push('/app/campaigns');
     } catch (error: any) {
       addToast({
         type: 'error',
@@ -218,7 +218,7 @@ export default function CampaignWizardPage() {
           <h1 className="text-2xl font-bold text-content-primary">Campaign Wizard</h1>
           <p className="mt-1 text-sm text-content-secondary">Plan campaign setup, targeting, approvals, and delivery in one flow.</p>
         </div>
-        <Link href="/campaigns">
+        <Link href="/app/campaigns">
           <Button variant="secondary">Back to Campaigns</Button>
         </Link>
       </div>

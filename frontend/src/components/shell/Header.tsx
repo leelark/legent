@@ -14,6 +14,7 @@ import { useUIStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { get, post } from '@/lib/api-client';
+import { updateUserPreferences } from '@/lib/user-preferences-api';
 import {
   TENANT_STORAGE_KEY,
   WORKSPACE_STORAGE_KEY,
@@ -22,7 +23,7 @@ import {
 
 export function Header() {
   const router = useRouter();
-  const { theme, toggleTheme } = useUIStore();
+  const { theme, toggleTheme, uiMode, toggleUiMode } = useUIStore();
   const { logout, isAuthenticated } = useAuth();
   const { tenantName, switchTenant } = useTenant();
   const [contexts, setContexts] = useState<Array<{ tenantId: string; workspaceId?: string | null }>>([]);
@@ -40,6 +41,16 @@ export function Header() {
       } else {
         router.push('/login');
       }
+    }
+  };
+
+  const handleToggleMode = async () => {
+    const next = uiMode === 'BASIC' ? 'ADVANCED' : 'BASIC';
+    toggleUiMode();
+    try {
+      await updateUserPreferences({ uiMode: next });
+    } catch {
+      // Keep local mode for continuity even if persistence fails.
     }
   };
 
@@ -171,6 +182,14 @@ export function Header() {
         >
           <Bell size={18} />
           <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger" />
+        </button>
+
+        <button
+          onClick={handleToggleMode}
+          className="rounded-lg border border-border-default px-3 py-2 text-xs font-semibold text-content-secondary hover:bg-surface-secondary transition-colors"
+          aria-label="Toggle mode"
+        >
+          {uiMode}
         </button>
 
         <button

@@ -134,7 +134,7 @@ export default function AutomationPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant={wf.status === 'ACTIVE' ? 'success' : 'default'}>{wf.status}</Badge>
-                  <Link href={`/automations/builder?id=${wf.id}`}>
+                  <Link href={`/app/automations/builder?id=${wf.id}`}>
                     <Button variant="secondary" size="sm">Open Builder</Button>
                   </Link>
                   <Button size="sm" variant="secondary" onClick={() => transitionWorkflow(wf.id, 'clone')}>Clone</Button>

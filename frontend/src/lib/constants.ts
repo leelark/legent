@@ -7,14 +7,18 @@ export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
 export const ROUTES = {
-  EMAIL: '/email',
-  AUDIENCE: '/audience',
-  CAMPAIGNS: '/campaigns',
-  AUTOMATION: '/automation',
-  TRACKING: '/tracking',
-  DELIVERABILITY: '/deliverability',
-  ADMIN: '/admin',
+  EMAIL: '/app/email',
+  AUDIENCE: '/app/audience',
+  CAMPAIGNS: '/app/campaigns',
+  AUTOMATION: '/app/automation',
+  TRACKING: '/app/tracking',
+  DELIVERABILITY: '/app/deliverability',
+  ADMIN: '/app/admin',
   LOGIN: '/login',
+  SIGNUP: '/signup',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
+  ONBOARDING: '/onboarding',
 } as const;
 
 export const HEADER_TENANT_ID = 'X-Tenant-Id';

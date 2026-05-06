@@ -48,7 +48,7 @@ const columns = [
     key: 'actions',
     header: '',
     render: (row: any) => (
-      <Link href={`/audience/imports/${row.id}`} className="text-xs text-brand-600 hover:underline">
+      <Link href={`/app/audience/imports/${row.id}`} className="text-xs text-brand-600 hover:underline">
         Details
       </Link>
     ),
@@ -82,7 +82,7 @@ export default function ImportsPage() {
           <h1 className="text-2xl font-bold text-content-primary">Imports</h1>
           <p className="mt-1 text-sm text-content-secondary">Import subscriber data from CSV files</p>
         </div>
-        <Link href="/audience/imports/new">
+        <Link href="/app/audience/imports/new">
           <Button icon={<Upload size={16} />}>New Import</Button>
         </Link>
       </div>

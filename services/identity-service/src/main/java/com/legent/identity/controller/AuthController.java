@@ -3,10 +3,12 @@ package com.legent.identity.controller;
 import com.legent.common.dto.ApiResponse;
 import com.legent.identity.domain.AuthInvitation;
 import com.legent.identity.dto.AuthBridgeDto;
+import com.legent.identity.dto.ExperienceDto;
 import com.legent.identity.dto.LoginRequest;
 import com.legent.identity.dto.LoginResponse;
 import com.legent.identity.dto.SignupRequest;
 import com.legent.identity.service.AuthService;
+import com.legent.identity.service.IdentityExperienceService;
 import com.legent.identity.service.RefreshTokenService;
 import com.legent.security.JwtTokenProvider;
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,6 +29,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final IdentityExperienceService identityExperienceService;
     private final RefreshTokenService refreshTokenService;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -243,6 +246,44 @@ public class AuthController {
         clearCookie(response, REFRESH_COOKIE_NAME, REFRESH_COOKIE_PATH);
         clearCookie(response, TENANT_COOKIE_NAME, "/");
         return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/forgot-password")
+    public ApiResponse<Map<String, String>> forgotPassword(@Valid @RequestBody ExperienceDto.ForgotPasswordRequest request) {
+        identityExperienceService.requestPasswordReset(request.getEmail());
+        return ApiResponse.ok(Map.of(
+                "status", "accepted",
+                "message", "If account exists, reset instructions were sent."
+        ));
+    }
+
+    @PostMapping("/reset-password")
+    public ApiResponse<Map<String, String>> resetPassword(@Valid @RequestBody ExperienceDto.ResetPasswordRequest request) {
+        identityExperienceService.resetPassword(request.getToken(), request.getNewPassword());
+        return ApiResponse.ok(Map.of(
+                "status", "success",
+                "message", "Password reset completed"
+        ));
+    }
+
+    @PostMapping("/onboarding/start")
+    public ApiResponse<Map<String, Object>> startOnboarding(
+            @CookieValue(name = TOKEN_COOKIE_NAME, required = false) String token,
+            @Valid @RequestBody ExperienceDto.OnboardingStartRequest request) {
+        String userId = resolveUserId(token);
+        String tenantId = jwtTokenProvider.getTenantId(token)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid session"));
+        return ApiResponse.ok(identityExperienceService.startOnboarding(userId, tenantId, request));
+    }
+
+    @PostMapping("/onboarding/complete")
+    public ApiResponse<Map<String, Object>> completeOnboarding(
+            @CookieValue(name = TOKEN_COOKIE_NAME, required = false) String token,
+            @Valid @RequestBody ExperienceDto.OnboardingCompleteRequest request) {
+        String userId = resolveUserId(token);
+        String tenantId = jwtTokenProvider.getTenantId(token)
+                .orElseThrow(() -> new IllegalArgumentException("Invalid session"));
+        return ApiResponse.ok(identityExperienceService.completeOnboarding(userId, tenantId, request));
     }
 
     private void setAuthCookies(HttpServletResponse response, String token, String tenantId, String refreshToken) {

@@ -9,5 +9,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SubscriberSummaryRepository extends JpaRepository<SubscriberSummary, String> {
-    Optional<SubscriberSummary> findByTenantIdAndSubscriberId(String tenantId, String subscriberId);
+    Optional<SubscriberSummary> findByTenantIdAndWorkspaceIdAndSubscriberId(String tenantId, String workspaceId, String subscriberId);
 }

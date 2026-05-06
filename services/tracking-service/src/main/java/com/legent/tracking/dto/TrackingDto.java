@@ -21,6 +21,12 @@ public class TrackingDto {
     public static class RawEventPayload {
         private String id;
         private String tenantId;
+        private String workspaceId;
+        private String teamId;
+        private String environmentId;
+        private String actorId;
+        private String ownershipScope;
+        private String idempotencyKey;
         private String eventType;
         private String campaignId;
         private String subscriberId;

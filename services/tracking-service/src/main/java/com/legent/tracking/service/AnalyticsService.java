@@ -16,27 +16,29 @@ import java.util.Map;
 public class AnalyticsService {
     private final JdbcTemplate jdbcTemplate;
 
-    public List<Map<String, Object>> getEventCounts(String tenantId) {
-        if (tenantId == null || tenantId.isBlank()) {
-            log.warn("TenantId is null or blank; returning empty event counts");
+    public List<Map<String, Object>> getEventCounts(String tenantId, String workspaceId) {
+        if (tenantId == null || tenantId.isBlank() || workspaceId == null || workspaceId.isBlank()) {
+            log.warn("Tenant/workspace context missing; returning empty event counts");
             return new ArrayList<>();
         }
         try {
             return jdbcTemplate.queryForList("""
                 SELECT event_type, COALESCE(count(*), 0) AS count
                 FROM raw_events
-                WHERE tenant_id = ?
+                WHERE tenant_id = ? AND workspace_id = ?
                 GROUP BY event_type
-            """, tenantId);
+            """, tenantId, workspaceId);
         } catch (DataAccessException e) {
-            log.error("Failed to query event counts for tenant {}", tenantId, e);
+            log.error("Failed to query event counts for tenant {} workspace {}", tenantId, workspaceId, e);
             return new ArrayList<>();
         }
     }
 
-    public List<Map<String, Object>> getEventTimeline(String tenantId, String eventType) {
-        if (tenantId == null || tenantId.isBlank() || eventType == null || eventType.isBlank()) {
-            log.warn("TenantId or eventType is null/blank; returning empty timeline");
+    public List<Map<String, Object>> getEventTimeline(String tenantId, String workspaceId, String eventType) {
+        if (tenantId == null || tenantId.isBlank()
+                || workspaceId == null || workspaceId.isBlank()
+                || eventType == null || eventType.isBlank()) {
+            log.warn("Tenant/workspace/eventType missing; returning empty timeline");
             return new ArrayList<>();
         }
         String normalizedEventType = eventType.trim().toUpperCase(java.util.Locale.ROOT);
@@ -44,12 +46,13 @@ public class AnalyticsService {
             return jdbcTemplate.queryForList("""
                 SELECT date_trunc('hour', "timestamp") AS hour, COALESCE(count(*), 0) AS count
                 FROM raw_events
-                WHERE tenant_id = ? AND event_type = ?
+                WHERE tenant_id = ? AND workspace_id = ? AND event_type = ?
                 GROUP BY hour
                 ORDER BY hour
-            """, tenantId, normalizedEventType);
+            """, tenantId, workspaceId, normalizedEventType);
         } catch (DataAccessException e) {
-            log.error("Failed to query event timeline for tenant {} and eventType {}", tenantId, eventType, e);
+            log.error("Failed to query event timeline for tenant {} workspace {} and eventType {}",
+                    tenantId, workspaceId, eventType, e);
             return new ArrayList<>();
         }
     }

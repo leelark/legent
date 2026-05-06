@@ -7,6 +7,8 @@ import { WebhookPanel } from '@/components/admin/WebhookPanel';
 import { SearchPanel } from '@/components/admin/SearchPanel';
 import { PlatformCorePanel } from '@/components/admin/PlatformCorePanel';
 import { useAuth } from '@/hooks/useAuth';
+import { BootstrapStatusPanel } from '@/components/admin/BootstrapStatusPanel';
+import { PublicContentPanel } from '@/components/admin/PublicContentPanel';
 
 // Removed export const metadata
 
@@ -17,7 +19,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!admin) {
-      router.replace('/email');
+      router.replace('/app/email');
     }
   }, [admin, router]);
 
@@ -35,16 +37,19 @@ export default function AdminPage() {
 
   return (
     <div className="space-y-6 p-8">
-      <h1 className="text-3xl font-bold mb-4">Admin Console</h1>
+      <h1 className="text-3xl font-bold mb-1">Admin Studio</h1>
+      <p className="text-sm text-content-secondary">Central settings, governance, bootstrap, and runtime controls.</p>
       <PlatformCorePanel />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-6">
+          <BootstrapStatusPanel />
           <AdminConfigPanel />
           <BrandingPanel />
         </div>
         <div className="space-y-6">
           <WebhookPanel />
           <SearchPanel />
+          <PublicContentPanel />
         </div>
       </div>
     </div>

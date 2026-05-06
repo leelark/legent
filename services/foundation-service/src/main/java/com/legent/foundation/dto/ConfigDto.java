@@ -31,6 +31,13 @@ public class ConfigDto {
 
         private String valueType;
         private String category;
+        private String moduleKey;
+        private String scopeType;
+        private String workspaceId;
+        private String environmentId;
+        private String dependencyKeys;
+        private String validationSchema;
+        private String metadata;
 
         @Size(max = 500)
         private String description;
@@ -46,6 +53,11 @@ public class ConfigDto {
 
         @Size(max = 500)
         private String description;
+        private String category;
+        private String moduleKey;
+        private String dependencyKeys;
+        private String validationSchema;
+        private String metadata;
     }
 
     @Data
@@ -59,6 +71,13 @@ public class ConfigDto {
         private String configValue;
         private String valueType;
         private String category;
+        private String moduleKey;
+        private String scopeType;
+        private String workspaceId;
+        private String environmentId;
+        private String dependencyKeys;
+        private String validationSchema;
+        private String metadata;
         private String description;
         private boolean encrypted;
         private boolean system;

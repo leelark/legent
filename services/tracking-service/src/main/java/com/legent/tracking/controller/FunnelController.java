@@ -21,6 +21,7 @@ public class FunnelController {
     @GetMapping
     public ApiResponse<List<Map<String, Object>>> getFunnel(@RequestParam @NotBlank String campaignId) {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(funnelService.getFunnel(tenantId, campaignId));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(funnelService.getFunnel(tenantId, workspaceId, campaignId));
     }
 }

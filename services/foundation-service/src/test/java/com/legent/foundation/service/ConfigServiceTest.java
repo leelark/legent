@@ -10,6 +10,7 @@ import com.legent.foundation.domain.SystemConfig;
 import com.legent.foundation.dto.ConfigDto;
 import com.legent.foundation.mapper.ConfigMapper;
 import com.legent.foundation.repository.ConfigRepository;
+import com.legent.foundation.repository.ConfigVersionHistoryRepository;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +33,8 @@ class ConfigServiceTest {
 
         @Mock
         private ConfigRepository configRepository;
+        @Mock
+        private ConfigVersionHistoryRepository configVersionHistoryRepository;
         @Mock
         private ConfigMapper configMapper;
         @Mock
@@ -70,7 +73,7 @@ class ConfigServiceTest {
 
                 when(cacheService.get(anyString(), eq(ConfigDto.Response.class)))
                                 .thenReturn(Optional.empty());
-                when(configRepository.findByKeyWithFallback("smtp.provider", TENANT_ID))
+                when(configRepository.findByKeyWithFallback("smtp.provider", TENANT_ID, null, null))
                                 .thenReturn(List.of(tenantConfig));
                 when(configMapper.toResponse(tenantConfig)).thenReturn(expected);
 
@@ -95,7 +98,7 @@ class ConfigServiceTest {
                 ConfigDto.Response result = configService.resolveConfig("smtp.provider");
 
                 assertThat(result.getConfigValue()).isEqualTo("postal");
-                verify(configRepository, never()).findByKeyWithFallback(any(), any());
+                verify(configRepository, never()).findByKeyWithFallback(anyString(), any(), any(), any());
         }
 
         @Test
@@ -103,7 +106,7 @@ class ConfigServiceTest {
         void resolveConfig_throwsNotFound() {
                 when(cacheService.get(anyString(), eq(ConfigDto.Response.class)))
                                 .thenReturn(Optional.empty());
-                when(configRepository.findByKeyWithFallback("nonexistent", TENANT_ID))
+                when(configRepository.findByKeyWithFallback("nonexistent", TENANT_ID, null, null))
                                 .thenReturn(List.of());
 
                 assertThatThrownBy(() -> configService.resolveConfig("nonexistent"))
@@ -118,7 +121,7 @@ class ConfigServiceTest {
                                 .configValue("value")
                                 .build();
 
-                when(configRepository.existsByTenantIdAndConfigKeyAndDeletedAtIsNull(TENANT_ID, "existing.key"))
+                when(configRepository.existsByScope(TENANT_ID, null, null, "existing.key"))
                                 .thenReturn(true);
 
                 assertThatThrownBy(() -> configService.createConfig(TENANT_ID, request))
@@ -131,6 +134,7 @@ class ConfigServiceTest {
                 ConfigDto.CreateRequest request = ConfigDto.CreateRequest.builder()
                                 .configKey("new.key")
                                 .configValue("new.value")
+                                .category("SYSTEM")
                                 .build();
 
                 SystemConfig entity = new SystemConfig();
@@ -142,16 +146,18 @@ class ConfigServiceTest {
                                 .configValue("new.value")
                                 .build();
 
-                when(configRepository.existsByTenantIdAndConfigKeyAndDeletedAtIsNull(TENANT_ID, "new.key"))
+                when(configRepository.existsByScope(TENANT_ID, null, null, "new.key"))
                                 .thenReturn(false);
                 when(configMapper.toEntity(request)).thenReturn(entity);
                 when(configRepository.save(entity)).thenReturn(entity);
                 when(configMapper.toResponse(entity)).thenReturn(expected);
+                when(configVersionHistoryRepository.findMaxVersionByTenantIdAndConfigKey(TENANT_ID, "new.key"))
+                                .thenReturn(0);
 
                 ConfigDto.Response result = configService.createConfig(TENANT_ID, request);
 
                 assertThat(result.getConfigKey()).isEqualTo("new.key");
                 verify(eventPublisher).publish(anyString(), any());
-                verify(cacheService, times(2)).delete(anyString());
+                verify(cacheService, atLeastOnce()).deleteByPattern(anyString());
         }
 }

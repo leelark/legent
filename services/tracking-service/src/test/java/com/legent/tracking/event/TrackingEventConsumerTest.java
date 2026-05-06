@@ -6,6 +6,7 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.ClickHouseWriter;
 import com.legent.tracking.service.AggregationService;
+import com.legent.tracking.service.TrackingEventIdempotencyService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -22,6 +23,7 @@ class TrackingEventConsumerTest {
 
     @Mock private ClickHouseWriter clickHouseWriter;
     @Mock private AggregationService aggregationService;
+    @Mock private TrackingEventIdempotencyService idempotencyService;
     @Mock private ObjectMapper objectMapper;
 
     @InjectMocks private TrackingEventConsumer consumer;
@@ -30,6 +32,11 @@ class TrackingEventConsumerTest {
     @SuppressWarnings("unchecked")
     void handleIngestedEvents_Success() throws Exception {
         EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setTenantId("tenant-1");
+        envelope.setWorkspaceId("workspace-1");
+        envelope.setEventType("tracking.ingested");
+        envelope.setEventId("evt-1");
+        envelope.setIdempotencyKey("idem-1");
         envelope.setPayload("{\"tenantId\":\"tenant-1\",\"campaignId\":\"campaign-1\",\"subscriberId\":\"subscriber-1\",\"eventType\":\"OPEN\",\"timestamp\":\"2026-01-01T00:00:00Z\"}");
         List<EventEnvelope<String>> messages = List.of(envelope);
 
@@ -43,6 +50,8 @@ class TrackingEventConsumerTest {
 
         when(objectMapper.readValue(anyString(), any(TypeReference.class)))
                 .thenReturn(payload);
+        when(idempotencyService.registerIfNew(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(true);
 
         consumer.handleIngestedEvents(messages);
 

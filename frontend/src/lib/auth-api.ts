@@ -22,10 +22,10 @@ export interface LoginResponse {
 }
 
 export const authApi = {
-  login: (tenantId: string, request: LoginRequest) => 
-    post<LoginResponse>('/auth/login', request, {
+  login: (request: LoginRequest, tenantId?: string | null) =>
+    post<LoginResponse>('/auth/login', request, tenantId ? {
       headers: { 'X-Tenant-Id': tenantId }
-    }),
+    } : undefined),
     
   signup: (request: SignupRequest) => 
     post<LoginResponse>('/auth/signup', request),
@@ -35,6 +35,18 @@ export const authApi = {
 
   refresh: () =>
     post<LoginResponse>('/auth/refresh'),
+
+  forgotPassword: (email: string) =>
+    post<{ status: string; message: string }>('/auth/forgot-password', { email }),
+
+  resetPassword: (token: string, newPassword: string) =>
+    post<{ status: string; message: string }>('/auth/reset-password', { token, newPassword }),
+
+  startOnboarding: (payload: { workspaceId?: string; stepKey?: string; payload?: Record<string, unknown> }) =>
+    post<Record<string, unknown>>('/auth/onboarding/start', payload),
+
+  completeOnboarding: (payload: { workspaceId?: string; payload?: Record<string, unknown> }) =>
+    post<Record<string, unknown>>('/auth/onboarding/complete', payload),
 };
 
 interface ApiResponse<T> {

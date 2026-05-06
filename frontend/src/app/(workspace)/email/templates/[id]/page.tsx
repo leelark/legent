@@ -420,7 +420,7 @@ export default function TemplateStudioPage() {
         type="error"
         title="Template not found"
         description="This template does not exist or was deleted."
-        action={<Link href="/email/templates"><Button variant="secondary">Back to Templates</Button></Link>}
+        action={<Link href="/app/email/templates"><Button variant="secondary">Back to Templates</Button></Link>}
       />
     );
   }
@@ -435,7 +435,7 @@ export default function TemplateStudioPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/email/templates">
+          <Link href="/app/email/templates">
             <Button variant="secondary">Back</Button>
           </Link>
           <Button variant="secondary" onClick={handleExport}>Export HTML</Button>

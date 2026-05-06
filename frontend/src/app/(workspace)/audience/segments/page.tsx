@@ -59,7 +59,7 @@ export default function SegmentsPage() {
       key: 'actions', header: '',
       render: (row: any) => (
         <div className="flex justify-end gap-2">
-          <button onClick={() => router.push(`/audience/segments/${row.id}`)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
+          <button onClick={() => router.push(`/app/audience/segments/${row.id}`)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
           <button onClick={() => handleDelete(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
         </div>
       )
@@ -73,7 +73,7 @@ export default function SegmentsPage() {
           <h1 className="text-2xl font-bold text-content-primary">Segments</h1>
           <p className="mt-1 text-sm text-content-secondary">Define audience segments using rules</p>
         </div>
-        <Button icon={<Plus size={16} />} onClick={() => router.push('/audience/segments/new')}>Create Segment</Button>
+        <Button icon={<Plus size={16} />} onClick={() => router.push('/app/audience/segments/new')}>Create Segment</Button>
       </div>
 
       <Card className="!p-0 overflow-hidden">
@@ -82,7 +82,7 @@ export default function SegmentsPage() {
             type="empty"
             title="No segments yet"
             description="Create your first segment to target specific subscriber groups."
-            action={<Button icon={<Plus size={16} />} onClick={() => router.push('/audience/segments/new')}>Create Segment</Button>}
+            action={<Button icon={<Plus size={16} />} onClick={() => router.push('/app/audience/segments/new')}>Create Segment</Button>}
           />
         ) : (
           <Table

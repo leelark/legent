@@ -12,13 +12,13 @@ import java.util.Map;
 public class FunnelService {
     private final JdbcTemplate jdbcTemplate;
 
-    public List<Map<String, Object>> getFunnel(String tenantId, String campaignId) {
+    public List<Map<String, Object>> getFunnel(String tenantId, String workspaceId, String campaignId) {
         // Example: open, click, conversion counts for a campaign
         return jdbcTemplate.queryForList("""
             SELECT event_type, count(*) AS count
             FROM raw_events
-            WHERE tenant_id = ? AND campaign_id = ?
+            WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?
             GROUP BY event_type
-        """, tenantId, campaignId);
+        """, tenantId, workspaceId, campaignId);
     }
 }
