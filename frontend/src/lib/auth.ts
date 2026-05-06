@@ -8,6 +8,8 @@ export const ROLES_STORAGE_KEY = 'legent_roles';
 export const THEME_STORAGE_KEY = 'legent_theme';
 // AUDIT-021: Removed TOKEN_STORAGE_KEY - tokens are in HTTP-only cookies only
 export const TENANT_STORAGE_KEY = 'legent_tenant_id';
+export const WORKSPACE_STORAGE_KEY = 'legent_workspace_id';
+export const ENVIRONMENT_STORAGE_KEY = 'legent_environment_id';
 const LEGACY_TENANT_STORAGE_KEY = 'legent_tenant_id_legacy';
 
 /**
@@ -84,6 +86,8 @@ export function clearStoredAuth(): void {
   localStorage.removeItem(USER_STORAGE_KEY);
   localStorage.removeItem(ROLES_STORAGE_KEY);
   localStorage.removeItem(TENANT_STORAGE_KEY);
+  localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+  localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
   localStorage.removeItem(LEGACY_TENANT_STORAGE_KEY);
   // AUDIT-020: Sync with Zustand store to ensure state consistency
   // Note: HTTP-only cookies cannot be cleared from JavaScript

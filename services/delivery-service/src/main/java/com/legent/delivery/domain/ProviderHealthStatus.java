@@ -20,7 +20,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 public class ProviderHealthStatus extends TenantAwareEntity {
 
     @Column(name = "workspace_id", nullable = false, length = 64)
-    private String workspaceId = "workspace-default";
+    private String workspaceId;
 
     @Column(name = "team_id", length = 64)
     private String teamId;
@@ -81,3 +81,4 @@ public class ProviderHealthStatus extends TenantAwareEntity {
         }
     }
 }
+

@@ -7,10 +7,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTenantStore } from '@/stores/tenantStore';
 import { TENANT_STORAGE_KEY, USER_STORAGE_KEY, ROLES_STORAGE_KEY } from '@/lib/auth';
 import { ROUTES } from '@/lib/constants';
+import { ensureActiveContext } from '@/lib/context-bootstrap';
 
 export default function LoginPage() {
   const router = useRouter();
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, logout } = useAuth();
   const setCurrentTenant = useTenantStore((state) => state.setCurrentTenant);
 
   const [email, setEmail] = useState('');
@@ -46,7 +47,14 @@ export default function LoginPage() {
       }
 
       // Call login endpoint - token is set in HTTP-only cookie by backend
-      const response = await post<{ status: string; userId: string; tenantId: string; roles: string[] }>(
+      const response = await post<{
+        status: string;
+        userId: string;
+        tenantId: string;
+        roles: string[];
+        workspaceId?: string | null;
+        environmentId?: string | null;
+      }>(
         '/auth/login',
         { email, password },
         tenantId.trim() ? { headers: { 'X-Tenant-Id': tenantId.trim() } } : undefined
@@ -72,6 +80,20 @@ export default function LoginPage() {
         status: 'ACTIVE',
         plan: 'STARTER',
       });
+
+      try {
+        const activeContext = await ensureActiveContext({
+          preferredTenantId: data.tenantId || tenantId.trim(),
+          preferredWorkspaceId: data.workspaceId ?? null,
+          preferredEnvironmentId: data.environmentId ?? null,
+        });
+        if (!activeContext?.workspaceId) {
+          throw new Error('Workspace context unavailable for this account.');
+        }
+      } catch {
+        logout();
+        throw new Error('Workspace context setup failed. Please sign in again.');
+      }
 
       router.push(ROUTES.EMAIL);
     } catch (err: any) {

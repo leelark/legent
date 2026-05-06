@@ -6,13 +6,14 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Header } from '@/components/shell/Header';
 import { useAuthStore } from '@/stores/authStore';
 import { useTenantStore } from '@/stores/tenantStore';
-import { getStoredRoles, getStoredTenantId, TENANT_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
+import { getStoredRoles, getStoredTenantId, TENANT_STORAGE_KEY, WORKSPACE_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
 import { useUIStore } from '@/stores/uiStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { get } from '@/lib/api-client';
 import { showToast } from '@/stores/toastStore';
+import { ensureActiveContext } from '@/lib/context-bootstrap';
 
 /**
  * Workspace layout — provides the app shell with sidebar + header + workspace area.
@@ -27,6 +28,7 @@ export default function WorkspaceLayout({
   const [hydrated, setHydrated] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const login = useAuthStore((state) => state.login);
+  const logout = useAuthStore((state) => state.logout);
   const setCurrentTenant = useTenantStore((state) => state.setCurrentTenant);
   const setTheme = useUIStore((state) => state.setTheme);
 
@@ -44,10 +46,18 @@ export default function WorkspaceLayout({
       const storedTenantId = getStoredTenantId();
       const storedRoles = getStoredRoles();
       const storedUserId = localStorage.getItem('legent_user_id');
+      let contextResolved = Boolean(localStorage.getItem(WORKSPACE_STORAGE_KEY));
 
       if (!isAuthenticated) {
         try {
-          const session = await get<{ status: string; userId: string; tenantId: string; roles: string[] }>('/auth/session');
+          const session = await get<{
+            status: string;
+            userId: string;
+            tenantId: string;
+            roles: string[];
+            workspaceId?: string | null;
+            environmentId?: string | null;
+          }>('/auth/session');
           if (!cancelled && session?.status === 'success' && session.userId) {
             const roles = Array.isArray(session.roles) ? session.roles : storedRoles;
             login(session.userId, roles);
@@ -61,8 +71,26 @@ export default function WorkspaceLayout({
               status: 'ACTIVE',
               plan: 'STARTER',
             });
+            try {
+              const activeContext = await ensureActiveContext({
+                preferredTenantId: session.tenantId,
+                preferredWorkspaceId: session.workspaceId ?? null,
+                preferredEnvironmentId: session.environmentId ?? null,
+              });
+              contextResolved = Boolean(activeContext?.workspaceId);
+            } catch (contextError) {
+              console.error('Context bootstrap failed:', contextError);
+            }
           } else if (!cancelled && storedUserId && storedRoles.length > 0) {
             login(storedUserId, storedRoles);
+            try {
+              const activeContext = await ensureActiveContext({
+                preferredTenantId: storedTenantId,
+              });
+              contextResolved = Boolean(activeContext?.workspaceId);
+            } catch (contextError) {
+              console.error('Stored context bootstrap failed:', contextError);
+            }
           }
         } catch (error) {
           // LEGENT-HIGH-006: Log error and show user feedback for session hydration failures
@@ -85,12 +113,29 @@ export default function WorkspaceLayout({
         });
       }
 
+      if (!cancelled && (isAuthenticated || storedUserId)) {
+        try {
+          const activeContext = await ensureActiveContext({
+            preferredTenantId: storedTenantId,
+          });
+          contextResolved = Boolean(activeContext?.workspaceId);
+        } catch (contextError) {
+          console.error('Context bootstrap verification failed:', contextError);
+        }
+      }
+
       const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
       if (storedTheme === 'dark' || storedTheme === 'light') {
         setTheme(storedTheme as 'light' | 'dark');
       }
 
       if (!cancelled) {
+        const hasSessionUser = Boolean(localStorage.getItem('legent_user_id'));
+        const activeWorkspace = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+        if (hasSessionUser && (!contextResolved || !activeWorkspace)) {
+          logout();
+          showToast.error('Workspace required', 'No workspace context available. Please sign in again.', 5000);
+        }
         setHydrated(true);
       }
     };
@@ -100,7 +145,7 @@ export default function WorkspaceLayout({
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, login, setCurrentTenant, setTheme]);
+  }, [isAuthenticated, login, logout, setCurrentTenant, setTheme]);
 
   useEffect(() => {
     if (hydrated && !isAuthenticated) {

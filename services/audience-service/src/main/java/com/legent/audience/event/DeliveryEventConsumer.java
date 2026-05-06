@@ -34,9 +34,11 @@ public class DeliveryEventConsumer {
     public void handleDeliveryEvent(EventEnvelope<Map<String, Object>> envelope) {
         try {
             String tenantId = envelope.getTenantId();
-            String workspaceId = (envelope.getWorkspaceId() == null || envelope.getWorkspaceId().isBlank())
-                    ? "workspace-default"
-                    : envelope.getWorkspaceId();
+            String workspaceId = envelope.getWorkspaceId();
+            if (workspaceId == null || workspaceId.isBlank()) {
+                log.error("Dropping delivery event without workspaceId. eventId={}", envelope.getEventId());
+                return;
+            }
             String eventType = envelope.getEventType();
             Map<String, Object> payload = envelope.getPayload();
             String email = payload != null && payload.get("email") != null ? String.valueOf(payload.get("email")).toLowerCase().trim() : null;

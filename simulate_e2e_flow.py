@@ -18,6 +18,7 @@ PORTS = {
 }
 
 BASE_URLS = {svc: f"http://localhost:{port}/api/v1" for svc, port in PORTS.items()}
+GATEWAY_BASE_URL = "http://localhost:8080/api/v1"
 
 
 def bootstrap_authenticated_session() -> Optional[Tuple[requests.Session, Dict[str, str]]]:
@@ -42,18 +43,47 @@ def bootstrap_authenticated_session() -> Optional[Tuple[requests.Session, Dict[s
         print(f"[FAIL] Session bootstrap failed: {res.text}")
         return None
 
-    tenant_id = res.json().get('data', {}).get('tenantId')
+    session_payload = res.json().get('data', {})
+    tenant_id = session_payload.get('tenantId')
+    workspace_id = session_payload.get('workspaceId')
     token = session.cookies.get("legent_token")
     if not tenant_id or not token:
         print("[FAIL] Missing tenant or auth token after signup/session")
         return None
 
+    if not workspace_id:
+        context_res = session.get(f"{BASE_URLS['identity']}/auth/contexts", timeout=10)
+        if not context_res.ok:
+            print(f"[FAIL] Failed to fetch auth contexts: {context_res.text}")
+            return None
+        contexts = context_res.json().get("data", [])
+        default_context = next((ctx for ctx in contexts if ctx.get("default")), contexts[0] if contexts else None)
+        if not default_context:
+            print("[FAIL] No auth contexts available for workspace bootstrap")
+            return None
+        workspace_id = default_context.get("workspaceId")
+        switch_payload = {
+            "tenantId": default_context.get("tenantId") or tenant_id,
+            "workspaceId": workspace_id,
+            "environmentId": default_context.get("environmentId"),
+        }
+        switch_res = session.post(f"{BASE_URLS['identity']}/auth/context/switch", json=switch_payload, timeout=10)
+        if not switch_res.ok:
+            print(f"[FAIL] Context switch failed: {switch_res.text}")
+            return None
+
+    if not workspace_id:
+        print("[FAIL] Missing workspace context after bootstrap")
+        return None
+
     headers = {
         "X-Tenant-Id": tenant_id,
+        "X-Workspace-Id": workspace_id,
+        "X-Request-Id": f"smoke-{uuid.uuid4().hex}",
         "Content-Type": "application/json",
         "Authorization": f"Bearer {token}"
     }
-    print(f"[OK] Auth session ready. Tenant: {tenant_id}")
+    print(f"[OK] Auth session ready. Tenant: {tenant_id}, Workspace: {workspace_id}")
     return session, headers
 
 def check_services_health():
@@ -180,6 +210,61 @@ def simulate_journey():
 
     print(f"[OK] Send job resolved with target count: {target_count}")
     
+    # 2.F - Automation graph contract + lifecycle smoke (workspace-strict, graph-v2)
+    print("[*] Creating workflow and validating graph-v2 contract...")
+    wf_payload = {
+        "name": f"Smoke WF {uuid.uuid4().hex[:6]}",
+        "description": "Smoke automation flow",
+        "status": "DRAFT"
+    }
+    wf_res = session.post(f"{BASE_URLS['automation']}/workflows", json=wf_payload, headers=headers, timeout=10)
+    if not wf_res.ok:
+        print(f"[FAIL] Creating workflow failed: {wf_res.text}")
+        return
+    workflow_id = wf_res.json().get("data", {}).get("id")
+    graph = {
+        "graphVersion": 2,
+        "initialNodeId": "node-1",
+        "nodes": {
+            "node-1": {"id": "node-1", "type": "ENTRY_TRIGGER", "configuration": {}, "nextNodeId": "node-2", "branches": []},
+            "node-2": {"id": "node-2", "type": "DELAY", "configuration": {"delayMinutes": 0}, "nextNodeId": "node-3", "branches": []},
+            "node-3": {"id": "node-3", "type": "END", "configuration": {}, "branches": []}
+        },
+        "edges": [],
+        "entryPolicy": {"requireConsent": False, "checkSuppression": True, "frequencyCapPerDay": 10},
+        "reentryPolicy": {"allowReentry": False, "cooldownMinutes": 1440}
+    }
+
+    for endpoint, payload in [
+        (f"{BASE_URLS['automation']}/workflows/{workflow_id}/validate", graph),
+        (f"{BASE_URLS['automation']}/workflows/{workflow_id}/definitions", graph),
+        (f"{BASE_URLS['automation']}/workflows/{workflow_id}/publish", {}),
+        (f"{BASE_URLS['automation']}/workflows/{workflow_id}/simulate", {"graph": graph, "context": {}}),
+        (f"{BASE_URLS['automation']}/workflows/{workflow_id}/trigger", {"subscriberId": sub_id, "idempotencyKey": f"smoke-{uuid.uuid4().hex}"})
+    ]:
+        flow_res = session.post(endpoint, json=payload, headers=headers, timeout=10)
+        if not flow_res.ok:
+            print(f"[FAIL] Automation flow step failed ({endpoint}): {flow_res.text}")
+            return
+
+    # 2.G - Gateway contract smoke with strict context headers
+    print("[*] Running gateway contract smoke checks...")
+    gateway_checks = [
+        ("GET", "/subscribers?page=0&size=5", None),
+        ("GET", "/templates?page=0&size=5", None),
+        ("GET", "/campaigns?page=0&size=5", None),
+        ("GET", "/workflows", None),
+        ("GET", "/delivery/queue/stats", None),
+        ("GET", "/deliverability/domains", None),
+    ]
+    for method, path, payload in gateway_checks:
+        url = f"{GATEWAY_BASE_URL}{path}"
+        req = session.get if method == "GET" else session.post
+        gw_res = req(url, headers=headers, json=payload, timeout=10)
+        if not gw_res.ok:
+            print(f"[FAIL] Gateway check failed [{method} {path}]: {gw_res.text}")
+            return
+
     print("\n--- Journey successfully initiated on the backend! ---")
     print("Monitor the logs of `campaign-service`, `delivery-service`, and `tracking-service` to observe Kafka events firing:")
     print("1 -> campaign.send.requested")

@@ -103,7 +103,7 @@ export default function CampaignWizardPage() {
             senderName: campaign.senderName || '',
             senderEmail: campaign.senderEmail || '',
             replyToEmail: campaign.replyToEmail || '',
-            templateId: (campaign as any).contentId || '',
+            templateId: campaign.templateId || (campaign as any).contentId || '',
             providerId: campaign.providerId || '',
             sendingDomain: campaign.sendingDomain || '',
             timezone: campaign.timezone || current.timezone,

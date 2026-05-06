@@ -49,6 +49,7 @@ public class ProviderSelectionStrategy {
     private final Map<String, ProviderAdapter> adapters;
     private final String defaultProviderHost;
     private final int defaultProviderPort;
+    private final boolean allowMockProviders;
 
     public ProviderSelectionStrategy(
             RoutingRuleRepository routingRuleRepository,
@@ -57,13 +58,15 @@ public class ProviderSelectionStrategy {
             ProviderCircuitBreaker circuitBreaker,
             List<ProviderAdapter> adapterList,
             @Value("${MAIL_HOST:mailhog}") String defaultProviderHost,
-            @Value("${MAIL_PORT:1025}") int defaultProviderPort) {
+            @Value("${MAIL_PORT:1025}") int defaultProviderPort,
+            @Value("${legent.delivery.allow-mock-provider:false}") boolean allowMockProviders) {
         this.routingRuleRepository = routingRuleRepository;
         this.smtpProviderRepository = smtpProviderRepository;
         this.providerHealthStatusRepository = providerHealthStatusRepository;
         this.circuitBreaker = circuitBreaker;
         this.defaultProviderHost = defaultProviderHost;
         this.defaultProviderPort = defaultProviderPort;
+        this.allowMockProviders = allowMockProviders;
         this.adapters = adapterList.stream()
                 .filter(adapter -> normalizeType(adapter.getProviderType()) != null)
                 .collect(Collectors.toMap(
@@ -107,6 +110,7 @@ public class ProviderSelectionStrategy {
 
         SmtpProvider selectedProvider = providers.stream()
                 .filter(SmtpProvider::isActive)
+                .filter(this::isProviderTypeAllowed)
                 .filter(provider -> resolveAdapter(provider) != null)
                 .filter(provider -> circuitBreaker.isCircuitClosed(provider.getId()))
                 .max(Comparator.comparingInt(provider -> providerScore(provider, healthStatusByProvider.get(provider.getId()), rule)))
@@ -166,6 +170,9 @@ public class ProviderSelectionStrategy {
 
     private ProviderAdapter resolveAdapter(SmtpProvider providerConfig) {
         String providerType = normalizeType(providerConfig.getType());
+        if (!allowMockProviders && "MOCK".equals(providerType)) {
+            return null;
+        }
         ProviderAdapter adapter = providerType != null ? adapters.get(providerType) : null;
         if (adapter != null) {
             return adapter;
@@ -178,6 +185,11 @@ public class ProviderSelectionStrategy {
             }
         }
         return null;
+    }
+
+    private boolean isProviderTypeAllowed(SmtpProvider provider) {
+        String providerType = normalizeType(provider.getType());
+        return allowMockProviders || !"MOCK".equals(providerType);
     }
 
     private int providerScore(SmtpProvider provider, ProviderHealthStatus healthStatus, RoutingRule rule) {

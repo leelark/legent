@@ -52,6 +52,29 @@ public class TemplateController {
         templateService.deleteTemplate(tenantId, id);
     }
 
+    @PostMapping("/{id}/clone")
+    public ApiResponse<TemplateDto.Response> cloneTemplate(@PathVariable String id) {
+        String tenantId = TenantContext.requireTenantId();
+        EmailTemplate template = templateService.cloneTemplate(tenantId, id);
+        return ApiResponse.ok(mapToResponse(template));
+    }
+
+    @PostMapping("/{id}/archive")
+    public ApiResponse<TemplateDto.Response> archiveTemplate(@PathVariable String id,
+                                                             @RequestBody(required = false) Map<String, Object> request) {
+        String tenantId = TenantContext.requireTenantId();
+        EmailTemplate template = templateService.archiveTemplate(tenantId, id);
+        return ApiResponse.ok(mapToResponse(template));
+    }
+
+    @PostMapping("/{id}/restore")
+    public ApiResponse<TemplateDto.Response> restoreTemplate(@PathVariable String id,
+                                                             @RequestBody(required = false) Map<String, Object> request) {
+        String tenantId = TenantContext.requireTenantId();
+        EmailTemplate template = templateService.restoreTemplate(tenantId, id);
+        return ApiResponse.ok(mapToResponse(template));
+    }
+
     @GetMapping
     public PagedResponse<TemplateDto.Response> listTemplates(
             @RequestParam(defaultValue = "0") int page,

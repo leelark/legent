@@ -30,7 +30,11 @@ export function useApi<T>(url: string, options: UseApiOptions = {}): UseApiRetur
       const result = await get<T>(url);
       setData(result);
     } catch (err: any) {
-      const message = err.response?.data?.error?.message || err.message || 'An error occurred';
+      const message =
+        err?.normalized?.message ||
+        err?.response?.data?.error?.message ||
+        err?.message ||
+        'An error occurred';
       setError(message);
     } finally {
       setLoading(false);

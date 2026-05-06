@@ -6,17 +6,19 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
-import { get, post } from '@/lib/api-client';
+import {
+  archiveWorkflow,
+  cloneWorkflow,
+  createWorkflow,
+  listWorkflows,
+  pauseWorkflow,
+  publishWorkflow,
+  resumeWorkflow,
+  stopWorkflow,
+  Workflow,
+} from '@/lib/automation-api';
 import { Plus } from '@phosphor-icons/react';
 import Link from 'next/link';
-
-interface Workflow {
-  id: string;
-  name: string;
-  description?: string;
-  status: string;
-  createdBy?: string;
-}
 
 export default function AutomationPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -30,11 +32,10 @@ export default function AutomationPage() {
   const loadWorkflows = async () => {
     setLoading(true);
     try {
-      const res = await get<any>('/workflows');
-      const data = Array.isArray(res) ? res : (res?.data || []);
+      const data = await listWorkflows();
       setWorkflows(data);
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message || 'Failed to load workflows');
+      setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to load workflows');
     } finally {
       setLoading(false);
     }
@@ -52,24 +53,29 @@ export default function AutomationPage() {
     setCreating(true);
     setError(null);
     try {
-      await post('/workflows', { name: newName.trim(), description: newDescription.trim(), status: 'DRAFT' });
+      await createWorkflow({ name: newName.trim(), description: newDescription.trim(), status: 'DRAFT' });
       setNewName('');
       setNewDescription('');
       setShowCreate(false);
       loadWorkflows();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message || 'Failed to create workflow');
+      setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to create workflow');
     } finally {
       setCreating(false);
     }
   };
 
-  const transitionWorkflow = async (workflowId: string, action: 'publish' | 'pause' | 'resume' | 'archive') => {
+  const transitionWorkflow = async (workflowId: string, action: 'publish' | 'pause' | 'resume' | 'archive' | 'stop' | 'clone') => {
     try {
-      await post(`/workflows/${workflowId}/${action}`, {});
+      if (action === 'publish') await publishWorkflow(workflowId);
+      if (action === 'pause') await pauseWorkflow(workflowId);
+      if (action === 'resume') await resumeWorkflow(workflowId);
+      if (action === 'archive') await archiveWorkflow(workflowId);
+      if (action === 'stop') await stopWorkflow(workflowId);
+      if (action === 'clone') await cloneWorkflow(workflowId);
       await loadWorkflows();
     } catch (e: any) {
-      setError(e?.response?.data?.error?.message || `Failed to ${action} workflow`);
+      setError(e?.normalized?.message || e?.response?.data?.error?.message || `Failed to ${action} workflow`);
     }
   };
 
@@ -131,6 +137,7 @@ export default function AutomationPage() {
                   <Link href={`/automations/builder?id=${wf.id}`}>
                     <Button variant="secondary" size="sm">Open Builder</Button>
                   </Link>
+                  <Button size="sm" variant="secondary" onClick={() => transitionWorkflow(wf.id, 'clone')}>Clone</Button>
                   {wf.status === 'DRAFT' && (
                     <Button size="sm" onClick={() => transitionWorkflow(wf.id, 'publish')}>Publish</Button>
                   )}
@@ -139,6 +146,9 @@ export default function AutomationPage() {
                   )}
                   {wf.status === 'PAUSED' && (
                     <Button size="sm" onClick={() => transitionWorkflow(wf.id, 'resume')}>Resume</Button>
+                  )}
+                  {(wf.status === 'ACTIVE' || wf.status === 'PAUSED' || wf.status === 'SCHEDULED') && (
+                    <Button size="sm" variant="secondary" onClick={() => transitionWorkflow(wf.id, 'stop')}>Stop</Button>
                   )}
                   {wf.status !== 'ARCHIVED' && (
                     <Button size="sm" variant="outline" onClick={() => transitionWorkflow(wf.id, 'archive')}>Archive</Button>

@@ -89,7 +89,7 @@ public class ProviderHealthMonitoringService {
         // Record health check
         ProviderHealthCheck check = new ProviderHealthCheck();
         check.setTenantId(provider.getTenantId());
-        check.setWorkspaceId(resolveWorkspaceId());
+        check.setWorkspaceId(resolveWorkspaceId(provider));
         check.setProviderId(provider.getId());
         check.setStatus(status);
         check.setResponseTimeMs(responseTimeMs);
@@ -194,7 +194,7 @@ public class ProviderHealthMonitoringService {
         ProviderHealthStatus status = existingStatus.orElseGet(() -> {
             ProviderHealthStatus newStatus = new ProviderHealthStatus();
             newStatus.setTenantId(provider.getTenantId());
-            newStatus.setWorkspaceId(resolveWorkspaceId());
+            newStatus.setWorkspaceId(resolveWorkspaceId(provider));
             newStatus.setProviderId(provider.getId());
             return newStatus;
         });
@@ -233,12 +233,15 @@ public class ProviderHealthMonitoringService {
         providerRepository.save(provider);
     }
 
-    private String resolveWorkspaceId() {
+    private String resolveWorkspaceId(SmtpProvider provider) {
         String workspaceId = TenantContext.getWorkspaceId();
-        if (workspaceId == null || workspaceId.isBlank()) {
-            return "workspace-default";
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            return workspaceId;
         }
-        return workspaceId;
+        return healthStatusRepository.findByProviderId(provider.getId())
+                .map(ProviderHealthStatus::getWorkspaceId)
+                .filter(existing -> existing != null && !existing.isBlank())
+                .orElseThrow(() -> new IllegalStateException("Workspace context is required for provider health monitoring"));
     }
 
     /**

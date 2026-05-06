@@ -34,6 +34,7 @@ public class CampaignDto {
         private String subject;
         private String preheader;
         private String senderProfileId;
+        private String templateId;
         private String senderName;
         private String senderEmail;
         private String replyToEmail;

@@ -14,6 +14,11 @@ import { useUIStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTenant } from '@/hooks/useTenant';
 import { get, post } from '@/lib/api-client';
+import {
+  TENANT_STORAGE_KEY,
+  WORKSPACE_STORAGE_KEY,
+  ENVIRONMENT_STORAGE_KEY,
+} from '@/lib/auth';
 
 export function Header() {
   const router = useRouter();
@@ -49,11 +54,17 @@ export function Header() {
           return;
         }
         setContexts(items ?? []);
-        const currentTenant = typeof window !== 'undefined' ? localStorage.getItem('legent_tenant_id') : null;
+        const currentTenant = typeof window !== 'undefined' ? localStorage.getItem(TENANT_STORAGE_KEY) : null;
         const matched = (items ?? []).find((ctx) => ctx.tenantId === currentTenant) ?? items?.[0];
         if (matched) {
           const value = `${matched.tenantId}::${matched.workspaceId ?? ''}`;
           setSelectedContext(value);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(TENANT_STORAGE_KEY, matched.tenantId);
+            if (matched.workspaceId) {
+              localStorage.setItem(WORKSPACE_STORAGE_KEY, matched.workspaceId);
+            }
+          }
         }
       })
       .catch(() => {
@@ -77,12 +88,13 @@ export function Header() {
         workspaceId,
       });
       if (typeof window !== 'undefined') {
-        localStorage.setItem('legent_tenant_id', tenantId);
+        localStorage.setItem(TENANT_STORAGE_KEY, tenantId);
         if (workspaceId) {
-          localStorage.setItem('legent_workspace_id', workspaceId);
+          localStorage.setItem(WORKSPACE_STORAGE_KEY, workspaceId);
         } else {
-          localStorage.removeItem('legent_workspace_id');
+          localStorage.removeItem(WORKSPACE_STORAGE_KEY);
         }
+        localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
       }
       switchTenant({
         id: tenantId,

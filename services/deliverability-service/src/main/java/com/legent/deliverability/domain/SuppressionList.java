@@ -23,7 +23,7 @@ public class SuppressionList {
     private String tenantId;
 
     @Column(name = "workspace_id", nullable = false, length = 64)
-    private String workspaceId = "workspace-default";
+    private String workspaceId;
 
     @Column(name = "team_id", length = 64)
     private String teamId;
@@ -45,3 +45,4 @@ public class SuppressionList {
     @Column(name = "created_at", insertable = false, updatable = false)
     private Instant createdAt;
 }
+

@@ -21,7 +21,7 @@ import org.hibernate.annotations.CreationTimestamp;
 public class ProviderHealthCheck extends TenantAwareEntity {
 
     @Column(name = "workspace_id", nullable = false, length = 64)
-    private String workspaceId = "workspace-default";
+    private String workspaceId;
 
     @Column(name = "team_id", length = 64)
     private String teamId;
@@ -69,3 +69,4 @@ public class ProviderHealthCheck extends TenantAwareEntity {
         return status == HealthStatus.HEALTHY;
     }
 }
+

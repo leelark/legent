@@ -22,12 +22,13 @@ public class CampaignEventPublisher {
     private static final String SOURCE = "campaign-service";
 
     public void publishSendRequested(String tenantId, String campaignId, String jobId, Instant scheduledAt) {
+        String workspaceId = TenantContext.requireWorkspaceId();
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_SEND_REQUESTED, tenantId, SOURCE,
                 Map.of(
                         "campaignId", campaignId,
                         "jobId", jobId,
-                        "workspaceId", TenantContext.getWorkspaceId() != null ? TenantContext.getWorkspaceId() : "workspace-default",
+                        "workspaceId", workspaceId,
                         "scheduledAt", scheduledAt != null ? scheduledAt.toString() : ""
                 )
         );
@@ -35,12 +36,13 @@ public class CampaignEventPublisher {
     }
 
     public void publishAudienceResolutionRequested(String tenantId, String campaignId, String jobId, List<Map<String, String>> audiences) {
+        String workspaceId = TenantContext.requireWorkspaceId();
         EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, tenantId, SOURCE,
                 Map.of(
                         "campaignId", campaignId,
                         "jobId", jobId,
-                        "workspaceId", TenantContext.getWorkspaceId() != null ? TenantContext.getWorkspaceId() : "workspace-default",
+                        "workspaceId", workspaceId,
                         "audiences", audiences
                 )
         );
@@ -48,12 +50,13 @@ public class CampaignEventPublisher {
     }
 
     public void publishBatchCreated(String tenantId, String jobId, String batchId) {
+        String workspaceId = TenantContext.requireWorkspaceId();
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_BATCH_CREATED, tenantId, SOURCE,
                 Map.of(
                         "jobId", jobId,
                         "batchId", batchId,
-                        "workspaceId", TenantContext.getWorkspaceId() != null ? TenantContext.getWorkspaceId() : "workspace-default"
+                        "workspaceId", workspaceId
                 )
         );
         eventPublisher.publish(AppConstants.TOPIC_BATCH_CREATED, envelope);

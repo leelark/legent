@@ -22,6 +22,7 @@ export type Campaign = {
   subject?: string;
   preheader?: string;
   senderProfileId?: string;
+  templateId?: string;
   senderName?: string;
   senderEmail?: string;
   replyToEmail?: string;

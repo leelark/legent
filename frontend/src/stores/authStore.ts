@@ -1,5 +1,12 @@
 import { create } from 'zustand';
-import { USER_STORAGE_KEY, ROLES_STORAGE_KEY, initializeAuthState } from '@/lib/auth';
+import {
+  USER_STORAGE_KEY,
+  ROLES_STORAGE_KEY,
+  TENANT_STORAGE_KEY,
+  WORKSPACE_STORAGE_KEY,
+  ENVIRONMENT_STORAGE_KEY,
+  initializeAuthState,
+} from '@/lib/auth';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -34,6 +41,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (typeof window !== 'undefined') {
       localStorage.removeItem(USER_STORAGE_KEY);
       localStorage.removeItem(ROLES_STORAGE_KEY);
+      localStorage.removeItem(TENANT_STORAGE_KEY);
+      localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+      localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
     }
     set({ isAuthenticated: false, userId: null, token: null, roles: [] });
   },

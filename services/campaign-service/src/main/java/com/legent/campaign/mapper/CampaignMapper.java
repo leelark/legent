@@ -11,6 +11,7 @@ import org.mapstruct.MappingTarget;
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface CampaignMapper {
 
+    @Mapping(target = "templateId", source = "contentId")
     CampaignDto.Response toResponse(Campaign entity);
 
     @Mapping(target = "id", ignore = true)

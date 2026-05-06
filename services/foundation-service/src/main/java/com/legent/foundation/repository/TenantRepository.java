@@ -15,6 +15,8 @@ public interface TenantRepository extends JpaRepository<Tenant, String> {
 
     Optional<Tenant> findBySlugAndDeletedAtIsNull(String slug);
 
+    boolean existsBySlug(String slug);
+
     boolean existsBySlugAndDeletedAtIsNull(String slug);
 
     @Query("SELECT t FROM Tenant t WHERE t.deletedAt IS NULL")

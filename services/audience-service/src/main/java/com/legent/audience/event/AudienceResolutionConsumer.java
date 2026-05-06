@@ -38,9 +38,11 @@ public class AudienceResolutionConsumer {
     @KafkaListener(topics = AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, groupId = AppConstants.GROUP_AUDIENCE)
     public void handleResolutionRequest(EventEnvelope<Map<String, Object>> event) {
         String tenantId = event.getTenantId();
-        String workspaceId = event.getWorkspaceId() == null || event.getWorkspaceId().isBlank()
-                ? "workspace-default"
-                : event.getWorkspaceId();
+        String workspaceId = event.getWorkspaceId();
+        if (workspaceId == null || workspaceId.isBlank()) {
+            log.error("Dropping audience resolution request without workspaceId. eventId={}", event.getEventId());
+            return;
+        }
         String campaignId = (String) event.getPayload().get("campaignId");
         String jobId = (String) event.getPayload().get("jobId");
 

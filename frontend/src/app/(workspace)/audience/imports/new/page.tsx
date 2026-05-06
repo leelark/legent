@@ -207,7 +207,7 @@ export default function ImportWizardPage() {
           <div className="space-y-6">
             <CardHeader title="Validation" subtitle="Checking your mapping configuration" />
             <div className="flex flex-col items-center py-8">
-              {(!mapping['email'] && !mapping['subscriberKey']) ? (
+              {!mapping['email'] ? (
                  <>
                    <WarningCircle size={48} weight="duotone" className="text-red-500 mb-4" />
                    <p className="text-lg font-semibold text-content-primary">Missing Required Fields</p>

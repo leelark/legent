@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Star, Copy, Sparkle, Plus } from '@phosphor-icons/react';
+import { Star, Copy, Sparkle, Plus, Trash, Archive, ArrowCounterClockwise } from '@phosphor-icons/react';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,10 +11,13 @@ import { Badge } from '@/components/ui/Badge';
 import { useToast } from '@/components/ui/Toast';
 import {
   Template,
+  archiveTemplate,
+  cloneTemplate,
   createTemplate,
-  getTemplate,
+  deleteTemplate,
   importTemplateHtml,
   listTemplates,
+  restoreTemplate,
 } from '@/lib/template-studio-api';
 
 const PREBUILT_TEMPLATES: Array<{
@@ -190,24 +193,59 @@ export default function EmailTemplatesPage() {
 
   const handleDuplicate = async (templateId: string) => {
     try {
-      const source = await getTemplate(templateId);
-      const clone = await importTemplateHtml({
-        name: `${source.name} Copy`,
-        subject: source.subject || 'Untitled template',
-        htmlContent: source.htmlContent || source.draftHtmlContent || '<p></p>',
-        textContent: source.textContent || '',
-        category: source.category,
-        tags: source.tags ?? [],
-        metadata: source.metadata ?? '{}',
-        publish: false,
-      });
+      const clone = await cloneTemplate(templateId);
       setTemplates((current) => [clone, ...current]);
-      addToast({ type: 'success', title: 'Template duplicated', message: `${source.name} copied.` });
+      addToast({ type: 'success', title: 'Template duplicated', message: `${clone.name} created.` });
     } catch (error: any) {
       addToast({
         type: 'error',
         title: 'Duplicate failed',
         message: error?.response?.data?.error?.message || 'Unable to duplicate template.',
+      });
+    }
+  };
+
+  const handleArchive = async (templateId: string) => {
+    try {
+      const updated = await archiveTemplate(templateId, 'Archived from template library');
+      setTemplates((current) => current.map((item) => (item.id === templateId ? updated : item)));
+      addToast({ type: 'success', title: 'Template archived', message: `${updated.name} moved to archive.` });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Archive failed',
+        message: error?.response?.data?.error?.message || 'Unable to archive template.',
+      });
+    }
+  };
+
+  const handleRestore = async (templateId: string) => {
+    try {
+      const updated = await restoreTemplate(templateId, 'Restored from template library');
+      setTemplates((current) => current.map((item) => (item.id === templateId ? updated : item)));
+      addToast({ type: 'success', title: 'Template restored', message: `${updated.name} restored.` });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Restore failed',
+        message: error?.response?.data?.error?.message || 'Unable to restore template.',
+      });
+    }
+  };
+
+  const handleDelete = async (templateId: string) => {
+    if (!window.confirm('Delete this template?')) {
+      return;
+    }
+    try {
+      await deleteTemplate(templateId);
+      setTemplates((current) => current.filter((item) => item.id !== templateId));
+      addToast({ type: 'success', title: 'Template deleted', message: 'Template removed.' });
+    } catch (error: any) {
+      addToast({
+        type: 'error',
+        title: 'Delete failed',
+        message: error?.response?.data?.error?.message || 'Unable to delete template.',
       });
     }
   };
@@ -335,6 +373,21 @@ export default function EmailTemplatesPage() {
                   <Button size="sm" variant="secondary" onClick={() => handleDuplicate(template.id)}>
                     <Copy size={14} />
                     Duplicate
+                  </Button>
+                  {template.status === 'ARCHIVED' ? (
+                    <Button size="sm" variant="secondary" onClick={() => handleRestore(template.id)}>
+                      <ArrowCounterClockwise size={14} />
+                      Restore
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="secondary" onClick={() => handleArchive(template.id)}>
+                      <Archive size={14} />
+                      Archive
+                    </Button>
+                  )}
+                  <Button size="sm" variant="danger" onClick={() => handleDelete(template.id)}>
+                    <Trash size={14} />
+                    Delete
                   </Button>
                   <Link href={`/email/templates/${template.id}`}>
                     <Button size="sm" icon={<Sparkle size={14} />}>Open Studio</Button>

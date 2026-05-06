@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Clock, Download, Edit, GitBranch, GripVertical, Plus, Send, Upload } from 'lucide-react';
 import { NodeEditorModal } from './NodeEditorModal';
-import apiClient from '@/lib/api-client';
+import { getLatestWorkflowDefinition, saveWorkflowDefinition } from '@/lib/automation-api';
 
 export interface JourneyNode {
   id: string;
@@ -100,10 +100,7 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
     setLoading(true);
     try {
       const graph = toGraph(nodes);
-      await apiClient.post('/workflow-definitions', {
-        workflowId: resolveWorkflowId(),
-        definition: graph,
-      });
+      await saveWorkflowDefinition(resolveWorkflowId(), graph);
     } catch {
       // Keep the builder responsive even if backend save fails.
     } finally {
@@ -114,10 +111,10 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
   const handleLoadFromBackend = async () => {
     setLoading(true);
     try {
-      const response = await apiClient.get(`/workflow-definitions/${resolveWorkflowId()}/latest`);
-      const definition = response?.data?.data?.definition;
-      if (definition) {
-        const parsed = typeof definition === 'string' ? JSON.parse(definition) : definition;
+      const workflowId = resolveWorkflowId();
+      const latest = await getLatestWorkflowDefinition(workflowId);
+      const parsed = toDefinition(latest);
+      if (parsed) {
         onNodesChange(fromGraph(parsed));
       }
     } catch {
@@ -236,16 +233,6 @@ function toGraph(nodes: JourneyNode[]): WorkflowGraph {
 }
 
 function fromGraph(graph: any): JourneyNode[] {
-  if (Array.isArray(graph)) {
-    return graph.map((node: any, index: number) => ({
-      id: node.id ?? `node-${index + 1}`,
-      type: node.type ?? 'SEND_EMAIL',
-      label: node.label ?? defaultLabel(node.type ?? 'SEND_EMAIL'),
-      config: node.config ?? {},
-      next: node.next,
-      branches: node.branches ?? [],
-    }));
-  }
   if (!graph || !graph.nodes || typeof graph.nodes !== 'object') {
     return [];
   }
@@ -312,3 +299,11 @@ function defaultLabel(type: JourneyNode['type']) {
 }
 
 export default JourneyBuilder;
+
+function toDefinition(latestVersion: any) {
+  const rawDefinition = latestVersion?.definition ?? latestVersion?.graph ?? latestVersion;
+  if (!rawDefinition) {
+    return null;
+  }
+  return typeof rawDefinition === 'string' ? JSON.parse(rawDefinition) : rawDefinition;
+}

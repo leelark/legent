@@ -137,6 +137,49 @@ public class TemplateService {
         templateRepository.save(template);
     }
 
+    @Transactional
+    public EmailTemplate cloneTemplate(String tenantId, String id) {
+        EmailTemplate source = getTemplate(tenantId, id);
+
+        EmailTemplate clone = new EmailTemplate();
+        clone.setTenantId(tenantId);
+        clone.setName(resolveCloneName(tenantId, source.getName()));
+        clone.setSubject(source.getSubject());
+        clone.setHtmlContent(source.getHtmlContent());
+        clone.setTextContent(source.getTextContent());
+        clone.setTemplateType(source.getTemplateType());
+        clone.setCategory(source.getCategory());
+        clone.setTags(source.getTags() == null ? null : new ArrayList<>(source.getTags()));
+        clone.setMetadata(source.getMetadata());
+        clone.setDraftSubject(source.getDraftSubject());
+        clone.setDraftHtmlContent(source.getDraftHtmlContent());
+        clone.setDraftTextContent(source.getDraftTextContent());
+        clone.setApprovalRequired(source.isApprovalRequired());
+        clone.setStatus(EmailTemplate.TemplateStatus.DRAFT);
+        clone.setCurrentApprover(null);
+        clone.setLastPublishedVersion(null);
+        clone.setLastPublishedAt(null);
+        clone.setCreatedBy(TenantContext.getUserId());
+
+        return templateRepository.save(clone);
+    }
+
+    @Transactional
+    public EmailTemplate archiveTemplate(String tenantId, String id) {
+        EmailTemplate template = getTemplate(tenantId, id);
+        template.setStatus(EmailTemplate.TemplateStatus.ARCHIVED);
+        return templateRepository.save(template);
+    }
+
+    @Transactional
+    public EmailTemplate restoreTemplate(String tenantId, String id) {
+        EmailTemplate template = getTemplate(tenantId, id);
+        if (template.getStatus() == EmailTemplate.TemplateStatus.ARCHIVED) {
+            template.setStatus(EmailTemplate.TemplateStatus.DRAFT);
+        }
+        return templateRepository.save(template);
+    }
+
     public Page<EmailTemplate> listTemplates(String tenantId, Pageable pageable) {
         return templateRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
     }
@@ -287,6 +330,17 @@ public class TemplateService {
         } catch (Exception ex) {
             throw new IllegalArgumentException("metadata must be a valid JSON object or array");
         }
+    }
+
+    private String resolveCloneName(String tenantId, String baseName) {
+        String seed = (baseName == null || baseName.isBlank()) ? "Template" : baseName.trim();
+        String candidate = seed + " Copy";
+        int index = 2;
+        while (templateRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, candidate)) {
+            candidate = seed + " Copy " + index;
+            index++;
+        }
+        return candidate;
     }
 
     /**

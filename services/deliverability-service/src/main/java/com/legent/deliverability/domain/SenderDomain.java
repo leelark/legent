@@ -24,7 +24,7 @@ public class SenderDomain extends BaseEntity {
     private String tenantId;
 
     @Column(name = "workspace_id", nullable = false, length = 64)
-    private String workspaceId = "workspace-default";
+    private String workspaceId;
 
     @Column(name = "team_id", length = 64)
     private String teamId;
@@ -57,3 +57,4 @@ public class SenderDomain extends BaseEntity {
     @Column(name = "last_verified_at")
     private Instant lastVerifiedAt;
 }
+

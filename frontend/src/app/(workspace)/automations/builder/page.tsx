@@ -4,13 +4,18 @@ import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { PlayCircle } from 'lucide-react';
-import apiClient from '@/lib/api-client';
+import { pauseWorkflow, publishWorkflow, resumeWorkflow, triggerWorkflow } from '@/lib/automation-api';
+import { useToast } from '@/components/ui/Toast';
 
 export default function AutomationBuilder() {
     const searchParams = useSearchParams();
     const workflowId = searchParams.get('id');
     const [nodes, setNodes] = useState<JourneyNode[]>([]);
     const [activating, setActivating] = useState(false);
+    const [pausing, setPausing] = useState(false);
+    const [resuming, setResuming] = useState(false);
+    const [triggering, setTriggering] = useState(false);
+    const { addToast } = useToast();
 
     if (!workflowId) {
         return <div className="p-8 text-center text-red-500">Workflow ID is required in the URL (?id=...)</div>;
@@ -19,9 +24,52 @@ export default function AutomationBuilder() {
     const handleActivate = async () => {
       setActivating(true);
       try {
-        await apiClient.post(`/workflows/${workflowId}/publish`, {});
+        await publishWorkflow(workflowId);
+        addToast({ type: 'success', title: 'Workflow published', message: 'Workflow is now active.' });
+      } catch (error: any) {
+        addToast({ type: 'error', title: 'Publish failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to publish workflow.' });
       } finally {
         setActivating(false);
+      }
+    };
+
+    const handlePause = async () => {
+      setPausing(true);
+      try {
+        await pauseWorkflow(workflowId);
+        addToast({ type: 'success', title: 'Workflow paused', message: 'Execution paused.' });
+      } catch (error: any) {
+        addToast({ type: 'error', title: 'Pause failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to pause workflow.' });
+      } finally {
+        setPausing(false);
+      }
+    };
+
+    const handleResume = async () => {
+      setResuming(true);
+      try {
+        await resumeWorkflow(workflowId);
+        addToast({ type: 'success', title: 'Workflow resumed', message: 'Execution resumed.' });
+      } catch (error: any) {
+        addToast({ type: 'error', title: 'Resume failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to resume workflow.' });
+      } finally {
+        setResuming(false);
+      }
+    };
+
+    const handleManualTrigger = async () => {
+      setTriggering(true);
+      try {
+        await triggerWorkflow(workflowId, {
+          subscriberId: `manual-${Date.now()}`,
+          triggerSource: 'MANUAL',
+          idempotencyKey: `manual-${workflowId}-${Date.now()}`,
+        });
+        addToast({ type: 'success', title: 'Workflow triggered', message: 'Manual run started.' });
+      } catch (error: any) {
+        addToast({ type: 'error', title: 'Trigger failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to trigger workflow.' });
+      } finally {
+        setTriggering(false);
       }
     };
 
@@ -35,6 +83,15 @@ export default function AutomationBuilder() {
                 <div className="flex space-x-2">
                         <Button className="bg-green-600 hover:bg-green-700" onClick={handleActivate} disabled={activating}>
                           <PlayCircle className="w-4 h-4 mr-2"/> {activating ? 'Activating...' : 'Activate Workflow'}
+                        </Button>
+                        <Button variant="secondary" onClick={handlePause} disabled={pausing}>
+                          {pausing ? 'Pausing...' : 'Pause'}
+                        </Button>
+                        <Button variant="secondary" onClick={handleResume} disabled={resuming}>
+                          {resuming ? 'Resuming...' : 'Resume'}
+                        </Button>
+                        <Button onClick={handleManualTrigger} disabled={triggering}>
+                          {triggering ? 'Triggering...' : 'Trigger'}
                         </Button>
                 </div>
             </div>

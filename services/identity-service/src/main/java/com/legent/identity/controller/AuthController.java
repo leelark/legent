@@ -66,7 +66,7 @@ public class AuthController {
         );
 
         setAuthCookies(response, token, resolvedTenant, refreshToken);
-        return ApiResponse.ok(new LoginResponse("success", userId, resolvedTenant, jwtTokenProvider.extractRoles(token)));
+        return ApiResponse.ok(buildLoginResponse("success", userId, resolvedTenant, jwtTokenProvider.extractRoles(token), token));
     }
 
     @PostMapping("/signup")
@@ -86,7 +86,7 @@ public class AuthController {
         );
 
         setAuthCookies(response, token, tenantId, refreshToken);
-        return ApiResponse.ok(new LoginResponse("success", userId, tenantId, jwtTokenProvider.extractRoles(token)));
+        return ApiResponse.ok(buildLoginResponse("success", userId, tenantId, jwtTokenProvider.extractRoles(token), token));
     }
 
     @PostMapping("/logout")
@@ -130,7 +130,7 @@ public class AuthController {
                 getClientIp(httpRequest)
         );
         setAuthCookies(response, newToken, result.tenantId(), newRefreshToken);
-        return ApiResponse.ok(new LoginResponse("success", result.userId(), result.tenantId(), roles));
+        return ApiResponse.ok(buildLoginResponse("success", result.userId(), result.tenantId(), roles, newToken));
     }
 
     @GetMapping("/session")
@@ -150,7 +150,9 @@ public class AuthController {
                 "success",
                 claims.getSubject(),
                 claims.get("tenantId", String.class),
-                jwtTokenProvider.extractRoles(token)
+                jwtTokenProvider.extractRoles(token),
+                claims.get("workspaceId", String.class),
+                claims.get("environmentId", String.class)
         ));
     }
 
@@ -170,7 +172,7 @@ public class AuthController {
         String switchedToken = authService.switchContext(userId, request);
         List<String> roles = jwtTokenProvider.extractRoles(switchedToken);
         setAuthCookies(response, switchedToken, request.getTenantId(), null);
-        return ApiResponse.ok(new LoginResponse("success", userId, request.getTenantId(), roles));
+        return ApiResponse.ok(buildLoginResponse("success", userId, request.getTenantId(), roles, switchedToken));
     }
 
     @PostMapping("/invitations")
@@ -202,7 +204,7 @@ public class AuthController {
                 getClientIp(httpRequest)
         );
         setAuthCookies(response, token, tenantId, refreshToken);
-        return ApiResponse.ok(new LoginResponse("success", userId, tenantId, jwtTokenProvider.extractRoles(token)));
+        return ApiResponse.ok(buildLoginResponse("success", userId, tenantId, jwtTokenProvider.extractRoles(token), token));
     }
 
     @PostMapping("/delegation/exchange")
@@ -216,7 +218,7 @@ public class AuthController {
         String delegatedUserId = jwtTokenProvider.getUserId(delegatedToken).orElseThrow();
         List<String> roles = jwtTokenProvider.extractRoles(delegatedToken);
         setAuthCookies(response, delegatedToken, tenantId, null);
-        return ApiResponse.ok(new LoginResponse("success", delegatedUserId, tenantId, roles));
+        return ApiResponse.ok(buildLoginResponse("success", delegatedUserId, tenantId, roles, delegatedToken));
     }
 
     @GetMapping("/sessions")
@@ -300,5 +302,11 @@ public class AuthController {
         }
         return jwtTokenProvider.getUserId(token)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid session"));
+    }
+
+    private LoginResponse buildLoginResponse(String status, String userId, String tenantId, List<String> roles, String token) {
+        String workspaceId = jwtTokenProvider.getWorkspaceId(token).orElse(null);
+        String environmentId = jwtTokenProvider.getEnvironmentId(token).orElse(null);
+        return new LoginResponse(status, userId, tenantId, roles, workspaceId, environmentId);
     }
 }

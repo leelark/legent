@@ -50,6 +50,9 @@ public class CampaignEventConsumer {
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
+            if (workspaceId == null) {
+                return;
+            }
             if (!registerEvent(event, AppConstants.TOPIC_AUDIENCE_RESOLVED, workspaceId)) {
                 return;
             }
@@ -81,6 +84,9 @@ public class CampaignEventConsumer {
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
+            if (workspaceId == null) {
+                return;
+            }
             if (!registerEvent(event, AppConstants.TOPIC_SEND_PROCESSING, workspaceId)) {
                 return;
             }
@@ -105,6 +111,9 @@ public class CampaignEventConsumer {
         try {
             Map<String, String> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
+            if (workspaceId == null) {
+                return;
+            }
             if (!registerEvent(event, AppConstants.TOPIC_BATCH_CREATED, workspaceId)) {
                 return;
             }
@@ -141,6 +150,10 @@ public class CampaignEventConsumer {
                         .map(Campaign::getWorkspaceId)
                         .orElse(workspaceId);
             }
+            if (workspaceId == null || workspaceId.isBlank()) {
+                log.error("Dropping send.requested event without workspaceId. eventId={}, campaignId={}", event.getEventId(), campaignId);
+                return;
+            }
             if (!registerEvent(event, AppConstants.TOPIC_SEND_REQUESTED, workspaceId)) {
                 return;
             }
@@ -176,6 +189,9 @@ public class CampaignEventConsumer {
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
+            if (workspaceId == null) {
+                return;
+            }
             String topic = failed ? AppConstants.TOPIC_EMAIL_FAILED : AppConstants.TOPIC_EMAIL_SENT;
             if (!registerEvent(event, topic, workspaceId)) {
                 return;
@@ -315,7 +331,8 @@ public class CampaignEventConsumer {
                 return fromPayload;
             }
         }
-        return "workspace-default";
+        log.error("Dropping campaign event without workspaceId. eventId={}, eventType={}", event.getEventId(), event.getEventType());
+        return null;
     }
 
     private String stringValue(Object value) {

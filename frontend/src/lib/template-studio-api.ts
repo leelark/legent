@@ -131,6 +131,9 @@ export const updateTemplate = async (
 ) => put<Template>(`/templates/${id}`, payload);
 
 export const deleteTemplate = async (id: string) => del<void>(`/templates/${id}`);
+export const cloneTemplate = async (id: string) => post<Template>(`/templates/${id}/clone`);
+export const archiveTemplate = async (id: string, reason?: string) => post<Template>(`/templates/${id}/archive`, { reason });
+export const restoreTemplate = async (id: string, comments?: string) => post<Template>(`/templates/${id}/restore`, { comments });
 
 export const previewTemplate = async (
   id: string,
