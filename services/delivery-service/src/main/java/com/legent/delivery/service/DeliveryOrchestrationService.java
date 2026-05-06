@@ -37,12 +37,14 @@ public class DeliveryOrchestrationService {
     private final CacheService cacheService;
     private final ContentServiceClient contentServiceClient;
     private final ObjectMapper objectMapper;
+    private final InboxSafetyService inboxSafetyService;
+    private final SendRateControlService sendRateControlService;
+    private final WarmupService warmupService;
+    private final RetryPolicyService retryPolicyService;
 
     @org.springframework.context.annotation.Lazy
     @org.springframework.beans.factory.annotation.Autowired
     private DeliveryOrchestrationService self;
-
-    private static final int MAX_RETRIES = 3;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void processSendRequest(Map<String, Object> payload, String tenantId, String eventId) {
@@ -76,6 +78,9 @@ public class DeliveryOrchestrationService {
         String jobId = normalize(payload.get("jobId"));
         String batchId = normalize(payload.get("batchId"));
         String htmlBody = normalize(payload.get("htmlBody"));
+        if (htmlBody == null) {
+            htmlBody = normalize(payload.get("htmlContent"));
+        }
         String subject = normalize(payload.get("subject"));
         String fromEmail = normalize(payload.get("fromEmail"));
         String fromName = normalize(payload.get("fromName"));
@@ -196,16 +201,63 @@ public class DeliveryOrchestrationService {
         // This prevents 20-100GB/day storage growth from storing full HTML bodies
 
         try {
-            // Determine domain
-            String domain = extractDomain(email);
-            if (domain == null) {
+            String recipientDomain = extractDomain(email);
+            String senderDomain = extractDomain(fromEmail);
+            if (recipientDomain == null) {
                 throw new ProviderDispatchException("Invalid recipient email", true);
+            }
+            if (senderDomain == null) {
+                senderDomain = recipientDomain;
+            }
+
+            InboxSafetyService.InboxSafetyResult safety = inboxSafetyService.evaluate(new InboxSafetyService.InboxSafetyRequest(
+                    normalizedTenantId,
+                    workspaceId,
+                    campaignId,
+                    jobId,
+                    batchId,
+                    messageId,
+                    subscriberId,
+                    email,
+                    fromEmail,
+                    senderDomain,
+                    null,
+                    subject,
+                    htmlBody,
+                    parseInteger(payload.get("engagementScore")),
+                    logEntry.getAttemptCount(),
+                    null,
+                    null));
+            applySafetyResult(logEntry, safety, null, null);
+            if (safety.decision() == InboxSafetyService.SafetyDecision.BLOCK) {
+                blockUnsafeSend(logEntry, normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, safety);
+                return;
+            }
+            if (safety.decision() == InboxSafetyService.SafetyDecision.DEFER) {
+                deferUnsafeSend(logEntry, normalizedTenantId, workspaceId, messageId, safety, Instant.now().plus(30, ChronoUnit.MINUTES));
+                return;
             }
 
             // Select provider
-            var strategyResult = providerStrategy.selectProvider(normalizedTenantId, domain);
+            var strategyResult = providerStrategy.selectProvider(normalizedTenantId, senderDomain);
             ProviderAdapter adapter = strategyResult.adapter();
             logEntry.setProviderId(strategyResult.dbRecord().getId());
+
+            SendRateControlService.RateLimitDecision rateLimit = sendRateControlService.reserve(
+                    normalizedTenantId,
+                    workspaceId,
+                    senderDomain,
+                    strategyResult.dbRecord().getId(),
+                    recipientDomain,
+                    strategyResult.dbRecord().getMaxSendRate(),
+                    safety.riskScore());
+            String warmupStage = warmupService.getOrCreate(normalizedTenantId, workspaceId, senderDomain, strategyResult.dbRecord().getId()).getStage();
+            applySafetyResult(logEntry, safety, rateLimit.rateLimitKey(), warmupStage);
+            if (!rateLimit.allowed()) {
+                deferUnsafeSend(logEntry, normalizedTenantId, workspaceId, messageId, safety,
+                        rateLimit.retryAfter() != null ? rateLimit.retryAfter() : Instant.now().plus(1, ChronoUnit.MINUTES));
+                return;
+            }
 
             int previousAttempts = logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0;
             logEntry.setAttemptCount(previousAttempts + 1);
@@ -237,23 +289,27 @@ public class DeliveryOrchestrationService {
 
             // Success - record with circuit breaker
             providerStrategy.recordProviderSuccess(strategyResult.dbRecord().getId());
+            warmupService.recordSent(normalizedTenantId, workspaceId, senderDomain, strategyResult.dbRecord().getId());
             logEntry.setStatus(MessageLog.DeliveryStatus.SENT.name());
             logEntry.setProviderResponse("250 OK");
             logEntry.setNextRetryAt(null);
 
-            eventPublisher.publishEmailSent(normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId);
+            eventPublisher.publishEmailSent(normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId,
+                    safetyMetadata(logEntry));
 
         } catch (ProviderDispatchException e) {
             // Record failure with circuit breaker for non-transient failures
             if (e.isPermanent() && logEntry.getProviderId() != null) {
                 providerStrategy.recordProviderFailure(logEntry.getProviderId());
             }
+            recordWarmupFailure(normalizedTenantId, workspaceId, logEntry, e);
             handleDispatchFailure(logEntry, normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e);
         } catch (Exception e) {
             // General hard failure - record with circuit breaker
             if (logEntry.getProviderId() != null) {
                 providerStrategy.recordProviderFailure(logEntry.getProviderId());
             }
+            recordWarmupFailure(normalizedTenantId, workspaceId, logEntry, e);
             String reason = e.getMessage() != null ? e.getMessage() : "Unexpected delivery failure";
             handleDispatchFailure(logEntry, normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId,
                     new ProviderDispatchException(reason, true, e));
@@ -274,28 +330,152 @@ public class DeliveryOrchestrationService {
                                        ProviderDispatchException e) {
         log.warn("Dispatch failed for message {}: {}", messageId, e.getMessage());
         logEntry.setProviderResponse(e.getMessage());
-        logEntry.setFailureClass(classifyFailure(e));
+        RetryPolicyService.RetryDecision retryDecision = retryPolicyService.decide(e, logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0);
+        logEntry.setFailureClass(retryDecision.failureClass());
         int attempts = logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0;
 
-        if (e.isPermanent() || attempts >= MAX_RETRIES) {
+        if (!retryDecision.shouldRetry()) {
             logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
             logEntry.setNextRetryAt(null);
-            eventPublisher.publishEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e.getMessage());
+            eventPublisher.publishEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e.getMessage(),
+                    safetyMetadata(logEntry));
             
             if (e.isPermanent()) {
                 // Synthesize a bounce event for audience/suppression
                 String senderDomain = extractDomain(logEntry.getEmail());
-                eventPublisher.publishEmailBounced(tenantId, workspaceId, logEntry.getEmail(), e.getMessage(), senderDomain);
+                eventPublisher.publishEmailBounced(tenantId, workspaceId, logEntry.getEmail(), e.getMessage(), senderDomain,
+                        safetyMetadata(logEntry));
             }
         } else {
-            // Transient -> Schedule Retry
             logEntry.setStatus(MessageLog.DeliveryStatus.PENDING.name());
-            // Progressive backoff: attempt 1 = +2m, attempt 2 = +10m, attempt 3+ = +30m.
-            long delayMins = calculateRetryDelayMinutes(attempts);
-            Instant nextRetry = Instant.now().plus(delayMins, ChronoUnit.MINUTES);
+            Instant nextRetry = retryDecision.nextRetryAt();
             logEntry.setNextRetryAt(nextRetry);
             
-            eventPublisher.publishRetryScheduled(tenantId, workspaceId, messageId, attempts, nextRetry.toString());
+            eventPublisher.publishRetryScheduled(tenantId, workspaceId, messageId, attempts, nextRetry.toString(), safetyMetadata(logEntry));
+        }
+    }
+
+    private void applySafetyResult(MessageLog logEntry,
+                                   InboxSafetyService.InboxSafetyResult safety,
+                                   String rateLimitKey,
+                                   String warmupStage) {
+        logEntry.setSafetyDecision(safety.decision().name());
+        logEntry.setRiskScore(safety.riskScore());
+        if (rateLimitKey != null && !rateLimitKey.isBlank()) {
+            logEntry.setRateLimitKey(rateLimitKey);
+        }
+        if (warmupStage != null && !warmupStage.isBlank()) {
+            logEntry.setWarmupStage(warmupStage);
+        }
+        if (!safety.reasonCodes().isEmpty()) {
+            logEntry.setSuppressionReason(String.join(",", safety.reasonCodes()));
+        }
+    }
+
+    private void blockUnsafeSend(MessageLog logEntry,
+                                 String tenantId,
+                                 String workspaceId,
+                                 String messageId,
+                                 String campaignId,
+                                 String jobId,
+                                 String batchId,
+                                 String subscriberId,
+                                 InboxSafetyService.InboxSafetyResult safety) {
+        String reason = "Inbox safety blocked: " + String.join(",", safety.reasonCodes());
+        log.warn("{} for message {}", reason, messageId);
+        logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
+        logEntry.setFailureClass(resolveSafetyFailureClass(safety));
+        logEntry.setProviderResponse(reason);
+        logEntry.setNextRetryAt(null);
+        eventPublisher.publishEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, reason,
+                safetyMetadata(logEntry));
+    }
+
+    private void deferUnsafeSend(MessageLog logEntry,
+                                 String tenantId,
+                                 String workspaceId,
+                                 String messageId,
+                                 InboxSafetyService.InboxSafetyResult safety,
+                                 Instant retryAt) {
+        String reason = "Inbox safety deferred: " + String.join(",", safety.reasonCodes());
+        log.warn("{} for message {}", reason, messageId);
+        logEntry.setStatus(MessageLog.DeliveryStatus.PENDING.name());
+        logEntry.setFailureClass("REPUTATION_DEFERRED");
+        logEntry.setProviderResponse(reason);
+        logEntry.setNextRetryAt(retryAt);
+        eventPublisher.publishRetryScheduled(tenantId, workspaceId, messageId,
+                logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0,
+                retryAt.toString(), safetyMetadata(logEntry));
+    }
+
+    private String resolveSafetyFailureClass(InboxSafetyService.InboxSafetyResult safety) {
+        if (safety.reasonCodes().contains("RECIPIENT_SUPPRESSED")) {
+            return "SUPPRESSED";
+        }
+        if (safety.reasonCodes().contains("CONTENT_PLACEHOLDER") || safety.reasonCodes().contains("SPAM_PATTERN")) {
+            return "CONTENT_BLOCKED";
+        }
+        if (safety.reasonCodes().contains("MISSING_UNSUBSCRIBE") || safety.reasonCodes().contains("AUTH_OR_COMPLIANCE_BLOCK")) {
+            return "COMPLIANCE_BLOCKED";
+        }
+        return "REPUTATION_BLOCKED";
+    }
+
+    private Map<String, String> safetyMetadata(MessageLog logEntry) {
+        Map<String, String> metadata = new java.util.HashMap<>();
+        if (logEntry.getSafetyDecision() != null) {
+            metadata.put("safetyDecision", logEntry.getSafetyDecision());
+        }
+        if (logEntry.getRiskScore() != null) {
+            metadata.put("riskScore", String.valueOf(logEntry.getRiskScore()));
+        }
+        if (logEntry.getProviderScore() != null) {
+            metadata.put("providerScore", String.valueOf(logEntry.getProviderScore()));
+        }
+        if (logEntry.getRateLimitKey() != null) {
+            metadata.put("rateLimitKey", logEntry.getRateLimitKey());
+        }
+        if (logEntry.getWarmupStage() != null) {
+            metadata.put("warmupStage", logEntry.getWarmupStage());
+        }
+        if (logEntry.getFailureClass() != null) {
+            metadata.put("failureClass", logEntry.getFailureClass());
+        }
+        if (logEntry.getSuppressionReason() != null) {
+            metadata.put("suppressionReason", logEntry.getSuppressionReason());
+        }
+        return metadata;
+    }
+
+    private void recordWarmupFailure(String tenantId, String workspaceId, MessageLog logEntry, Exception exception) {
+        if (logEntry.getProviderId() == null) {
+            return;
+        }
+        String senderDomain = extractDomain(logEntry.getFromEmail());
+        if (senderDomain == null) {
+            senderDomain = extractDomain(logEntry.getEmail());
+        }
+        if (senderDomain == null) {
+            return;
+        }
+        ProviderDispatchException dispatchException = exception instanceof ProviderDispatchException pde
+                ? pde
+                : new ProviderDispatchException(exception.getMessage(), true, exception);
+        warmupService.recordNegativeSignal(tenantId, workspaceId, senderDomain, logEntry.getProviderId(),
+                retryPolicyService.classify(dispatchException));
+    }
+
+    private Integer parseInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
         }
     }
 
@@ -340,19 +520,6 @@ public class DeliveryOrchestrationService {
         }
     }
 
-    private static final java.util.Random JITTER_RANDOM = new java.util.Random();
-
-    private long calculateRetryDelayMinutes(int attemptCount) {
-        long baseDelay = switch (attemptCount) {
-            case 1 -> 2;
-            case 2 -> 10;
-            default -> 30;
-        };
-        // Add jitter: +/- 20% randomization to prevent thundering herd
-        double jitterFactor = 0.8 + (JITTER_RANDOM.nextDouble() * 0.4); // 0.8 to 1.2
-        return Math.max(1, Math.round(baseDelay * jitterFactor));
-    }
-
     private String extractDomain(String email) {
         String normalizedEmail = normalize(email);
         if (normalizedEmail == null) {
@@ -374,26 +541,6 @@ public class DeliveryOrchestrationService {
         }
         String normalized = String.valueOf(value).trim();
         return normalized.isBlank() ? null : normalized;
-    }
-
-    private String classifyFailure(ProviderDispatchException e) {
-        if (e == null) {
-            return "UNKNOWN";
-        }
-        String msg = e.getMessage() != null ? e.getMessage().toLowerCase() : "";
-        if (e.isPermanent()) {
-            if (msg.contains("mailbox") || msg.contains("user unknown") || msg.contains("550")) {
-                return "HARD_BOUNCE";
-            }
-            return "PERMANENT";
-        }
-        if (msg.contains("throttle") || msg.contains("rate")) {
-            return "THROTTLED";
-        }
-        if (msg.contains("timeout") || msg.contains("connect")) {
-            return "NETWORK";
-        }
-        return "TRANSIENT";
     }
 
     private void restoreContext(String tenantId, String workspaceId, String requestId) {

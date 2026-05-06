@@ -7,13 +7,17 @@ import java.util.Set;
 import java.util.Map;
 
 import com.legent.delivery.adapter.ProviderAdapter;
+import com.legent.delivery.domain.ProviderDecisionTrace;
 import com.legent.delivery.domain.ProviderHealthStatus;
 import com.legent.delivery.domain.RoutingRule;
 import com.legent.delivery.domain.SmtpProvider;
+import com.legent.delivery.repository.ProviderDecisionTraceRepository;
 import com.legent.delivery.repository.ProviderHealthStatusRepository;
 import com.legent.delivery.repository.RoutingRuleRepository;
 import com.legent.delivery.repository.SmtpProviderRepository;
+import com.legent.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Locale;
@@ -50,6 +54,9 @@ public class ProviderSelectionStrategy {
     private final String defaultProviderHost;
     private final int defaultProviderPort;
     private final boolean allowMockProviders;
+
+    @Autowired(required = false)
+    private ProviderDecisionTraceRepository providerDecisionTraceRepository;
 
     public ProviderSelectionStrategy(
             RoutingRuleRepository routingRuleRepository,
@@ -108,13 +115,21 @@ public class ProviderSelectionStrategy {
 
         RoutingRule rule = ruleOpt.orElse(null);
 
-        SmtpProvider selectedProvider = providers.stream()
+        List<ScoredProvider> candidates = providers.stream()
                 .filter(SmtpProvider::isActive)
                 .filter(this::isProviderTypeAllowed)
                 .filter(provider -> resolveAdapter(provider) != null)
                 .filter(provider -> circuitBreaker.isCircuitClosed(provider.getId()))
-                .max(Comparator.comparingInt(provider -> providerScore(provider, healthStatusByProvider.get(provider.getId()), rule)))
+                .map(provider -> scoreProvider(provider, healthStatusByProvider.get(provider.getId()), rule))
+                .toList();
+        if (candidates.isEmpty()) {
+            throw new IllegalStateException("No healthy provider adapter available for tenant " + normalizedTenantId);
+        }
+        ScoredProvider selected = candidates.stream()
+                .max(Comparator.comparingInt(ScoredProvider::score))
                 .orElseThrow(() -> new IllegalStateException("No healthy provider adapter available for tenant " + normalizedTenantId));
+        SmtpProvider selectedProvider = selected.provider();
+        persistDecisionTrace(normalizedTenantId, normalizedDomain, candidates, selectedProvider);
 
         ProviderAdapter adapter = resolveAdapter(selectedProvider);
         if (adapter == null) {
@@ -192,35 +207,76 @@ public class ProviderSelectionStrategy {
         return allowMockProviders || !"MOCK".equals(providerType);
     }
 
-    private int providerScore(SmtpProvider provider, ProviderHealthStatus healthStatus, RoutingRule rule) {
+    private ScoredProvider scoreProvider(SmtpProvider provider, ProviderHealthStatus healthStatus, RoutingRule rule) {
         int score = 0;
+        StringBuilder factors = new StringBuilder();
         int priority = provider.getPriority() != null ? provider.getPriority() : 100;
-        score += Math.max(0, 25 - Math.min(priority, 25));
+        int priorityScore = Math.max(0, 25 - Math.min(priority, 25));
+        score += priorityScore;
+        factors.append("priority=").append(priorityScore);
         int maxSendRate = provider.getMaxSendRate() != null ? provider.getMaxSendRate() : 0;
-        score += Math.min(20, Math.max(0, maxSendRate / 25));
+        int rateScore = Math.min(20, Math.max(0, maxSendRate / 25));
+        score += rateScore;
+        factors.append(",rate=").append(rateScore);
 
         if (healthStatus != null) {
-            score += healthStatus.getHealthScore() != null ? healthStatus.getHealthScore() : 60;
+            int healthScore = healthStatus.getHealthScore() != null ? healthStatus.getHealthScore() : 60;
+            score += healthScore;
+            factors.append(",health=").append(healthScore);
             if (healthStatus.getCurrentStatus() == ProviderHealthStatus.HealthStatus.DEGRADED) {
                 score -= 15;
+                factors.append(",degraded=-15");
             } else if (healthStatus.getCurrentStatus() == ProviderHealthStatus.HealthStatus.UNHEALTHY) {
                 score -= 40;
+                factors.append(",unhealthy=-40");
             }
             if (healthStatus.isCircuitBreakerOpen()) {
                 score -= 60;
+                factors.append(",circuit=-60");
             }
         } else {
             score += 50;
+            factors.append(",health=50");
         }
 
-        score -= providerCostPenalty(normalizeType(provider.getType()));
+        int costPenalty = providerCostPenalty(normalizeType(provider.getType()));
+        score -= costPenalty;
+        factors.append(",cost=-").append(costPenalty);
 
         if (rule != null && rule.getProvider() != null && provider.getId().equals(rule.getProvider().getId())) {
             score += 25;
+            factors.append(",domainAffinity=25");
         } else if (rule != null && rule.getFallbackProvider() != null && provider.getId().equals(rule.getFallbackProvider().getId())) {
             score += 10;
+            factors.append(",fallbackAffinity=10");
         }
-        return score;
+        return new ScoredProvider(provider, score, factors.toString());
+    }
+
+    private void persistDecisionTrace(String tenantId, String senderDomain, List<ScoredProvider> candidates, SmtpProvider selectedProvider) {
+        if (providerDecisionTraceRepository == null) {
+            return;
+        }
+        String workspaceId = TenantContext.getWorkspaceId();
+        if (workspaceId == null || workspaceId.isBlank()) {
+            return;
+        }
+        try {
+            for (ScoredProvider candidate : candidates) {
+                ProviderDecisionTrace trace = new ProviderDecisionTrace();
+                trace.setTenantId(tenantId);
+                trace.setWorkspaceId(workspaceId);
+                trace.setProviderId(candidate.provider().getId());
+                trace.setSenderDomain(senderDomain);
+                trace.setRecipientDomain(null);
+                trace.setScore(candidate.score());
+                trace.setSelected(candidate.provider().getId().equals(selectedProvider.getId()));
+                trace.setFactors(candidate.factors());
+                providerDecisionTraceRepository.save(trace);
+            }
+        } catch (Exception e) {
+            log.debug("Failed to persist provider decision trace: {}", e.getMessage());
+        }
     }
 
     private int providerCostPenalty(String providerType) {
@@ -267,4 +323,6 @@ public class ProviderSelectionStrategy {
         log.info("Auto-created default provider {} for tenant {}", saved.getId(), tenantId);
         return saved;
     }
+
+    private record ScoredProvider(SmtpProvider provider, int score, String factors) {}
 }

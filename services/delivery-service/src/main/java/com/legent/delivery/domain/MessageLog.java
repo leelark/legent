@@ -68,6 +68,24 @@ public class MessageLog extends BaseEntity {
     @Column(name = "failure_class", length = 64)
     private String failureClass;
 
+    @Column(name = "safety_decision", length = 32)
+    private String safetyDecision;
+
+    @Column(name = "risk_score")
+    private Integer riskScore;
+
+    @Column(name = "provider_score")
+    private Integer providerScore;
+
+    @Column(name = "rate_limit_key", length = 500)
+    private String rateLimitKey;
+
+    @Column(name = "warmup_stage", length = 64)
+    private String warmupStage;
+
+    @Column(name = "suppression_reason", columnDefinition = "TEXT")
+    private String suppressionReason;
+
     @Column(name = "from_email", length = 320)
     private String fromEmail;
 

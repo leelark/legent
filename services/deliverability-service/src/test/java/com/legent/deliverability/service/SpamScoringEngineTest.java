@@ -10,7 +10,8 @@ class SpamScoringEngineTest {
 
     @Test
     void calculateSpamScore_HealthyEmail_ReturnsZero() {
-        int score = engine.calculateSpamScore("Welcome to Legent", "We are glad you are here.");
+        int score = engine.calculateSpamScore("Welcome to Legent",
+                "<html><body>We are glad you are here. <a href=\"https://example.com/unsubscribe\">unsubscribe</a></body></html>");
         assertEquals(0, score);
     }
 
@@ -24,7 +25,8 @@ class SpamScoringEngineTest {
 
     @Test
     void calculateSpamScore_CapsSubject_AddsPenalty() {
-        int score = engine.calculateSpamScore("WELCOME TO LEGENT", "We are glad you are here.");
+        int score = engine.calculateSpamScore("WELCOME TO LEGENT",
+                "<html><body>We are glad you are here. <a href=\"https://example.com/unsubscribe\">unsubscribe</a></body></html>");
         assertEquals(34, score);
     }
 }

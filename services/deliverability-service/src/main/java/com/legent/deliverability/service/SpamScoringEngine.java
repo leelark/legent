@@ -23,11 +23,16 @@ public class SpamScoringEngine {
             if (isAllUpperCase(subject)) {
                 score += 30; // Shouting subject line is huge red flag
             }
+            if (subject.chars().filter(ch -> ch == '!').count() > 2) {
+                score += 10;
+            }
         }
 
         if (htmlBody != null) {
             score += analyzeText(htmlBody, 5);
             score += analyzeHtmlHeuristics(htmlBody);
+        } else {
+            score += 30;
         }
 
         // Bayesian probability cap
@@ -43,6 +48,21 @@ public class SpamScoringEngine {
         
         // Unencoded sketchy domains
         if (htmlBody.contains("bit.ly") || htmlBody.contains("tinyurl")) {
+            penalty += 20;
+        }
+
+        String lower = htmlBody.toLowerCase();
+        if (!lower.contains("unsubscribe")) {
+            penalty += 25;
+        }
+        if (!lower.contains("<body") || !lower.contains("</html>")) {
+            penalty += 10;
+        }
+        if (lower.contains("email content</body>")) {
+            penalty += 60;
+        }
+        int imageCount = lower.split("(?i)<img").length - 1;
+        if (imageCount > 0 && linkCount == 0 && lower.replaceAll("<[^>]+>", "").trim().length() < 80) {
             penalty += 20;
         }
         return penalty;
