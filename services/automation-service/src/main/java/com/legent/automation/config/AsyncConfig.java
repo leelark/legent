@@ -34,6 +34,10 @@ public class AsyncConfig {
         public Runnable decorate(Runnable runnable) {
             String tenantId = TenantContext.getTenantId();
             String userId = TenantContext.getUserId();
+            String workspaceId = TenantContext.getWorkspaceId();
+            String environmentId = TenantContext.getEnvironmentId();
+            String requestId = TenantContext.getRequestId();
+            String correlationId = TenantContext.getCorrelationId();
             return () -> {
                 try {
                     if (tenantId != null) {
@@ -41,6 +45,18 @@ public class AsyncConfig {
                     }
                     if (userId != null) {
                         TenantContext.setUserId(userId);
+                    }
+                    if (workspaceId != null) {
+                        TenantContext.setWorkspaceId(workspaceId);
+                    }
+                    if (environmentId != null) {
+                        TenantContext.setEnvironmentId(environmentId);
+                    }
+                    if (requestId != null) {
+                        TenantContext.setRequestId(requestId);
+                    }
+                    if (correlationId != null) {
+                        TenantContext.setCorrelationId(correlationId);
                     }
                     runnable.run();
                 } finally {

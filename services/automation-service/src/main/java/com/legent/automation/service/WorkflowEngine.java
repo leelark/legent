@@ -3,6 +3,7 @@ package com.legent.automation.service;
 import com.legent.cache.service.CacheService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.common.constant.AppConstants;
 import java.util.List;
 
 import java.util.Map;
@@ -42,6 +43,7 @@ public class WorkflowEngine {
     private final CacheService cacheService;
 
     private final WorkflowEventPublisher eventPublisher;
+    private final AutomationEventIdempotencyService idempotencyService;
 
         public WorkflowEngine(WorkflowInstanceRepository instanceRepository,
                   WorkflowDefinitionRepository definitionRepository,
@@ -50,7 +52,8 @@ public class WorkflowEngine {
                   ObjectMapper objectMapper,
                   List<NodeHandler> handlerList,
                   CacheService cacheService,
-                  WorkflowEventPublisher eventPublisher) {
+                  WorkflowEventPublisher eventPublisher,
+                  AutomationEventIdempotencyService idempotencyService) {
         this.instanceRepository = instanceRepository;
         this.definitionRepository = definitionRepository;
         this.workflowRepository = workflowRepository;
@@ -58,6 +61,7 @@ public class WorkflowEngine {
         this.objectMapper = objectMapper;
         this.cacheService = cacheService;
         this.eventPublisher = eventPublisher;
+        this.idempotencyService = idempotencyService;
         // LEGENT-HIGH-008: Use merge function to provide clear error message on duplicate handlers
         this.nodeHandlers = handlerList.stream()
             .collect(Collectors.toMap(
@@ -74,24 +78,48 @@ public class WorkflowEngine {
 
     @Async("workflowExecutor")
     @Transactional
-    public void startWorkflow(String tenantId, String workflowId, Integer version, String subscriberId, Map<String, Object> initialContext) {
+    public void startWorkflow(String tenantId,
+                              String workspaceId,
+                              String workflowId,
+                              Integer version,
+                              String subscriberId,
+                              Map<String, Object> initialContext,
+                              String environmentId,
+                              String actorId,
+                              String requestId,
+                              String correlationId) {
         TenantContext.setTenantId(tenantId);
+        TenantContext.setWorkspaceId(workspaceId);
+        TenantContext.setEnvironmentId(environmentId);
+        TenantContext.setUserId(actorId);
+        TenantContext.setRequestId(requestId);
+        TenantContext.setCorrelationId(correlationId);
         try {
-            startWorkflowInternal(tenantId, workflowId, version, subscriberId, initialContext);
+            startWorkflowInternal(tenantId, workspaceId, workflowId, version, subscriberId, initialContext);
         } finally {
             TenantContext.clear();
         }
     }
 
-    private void startWorkflowInternal(String tenantId, String workflowId, Integer version, String subscriberId, Map<String, Object> initialContext) {
-        com.legent.automation.domain.Workflow workflow = workflowRepository.findById(workflowId)
+    private void startWorkflowInternal(String tenantId,
+                                       String workspaceId,
+                                       String workflowId,
+                                       Integer version,
+                                       String subscriberId,
+                                       Map<String, Object> initialContext) {
+        com.legent.automation.domain.Workflow workflow = workflowRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(workflowId, tenantId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Workflow not found"));
 
-        if (!"ACTIVE".equals(workflow.getStatus())) {
+        if (!"ACTIVE".equals(workflow.getStatus()) && !"SCHEDULED".equals(workflow.getStatus())) {
             throw new IllegalStateException("Cannot start workflow. Current status: " + workflow.getStatus());
         }
 
-        WorkflowDefinition def = definitionRepository.findByWorkflowIdAndVersionAndTenantId(workflowId, version, tenantId)
+        Integer effectiveVersion = version != null ? version : workflow.getActiveDefinitionVersion();
+        if (effectiveVersion == null) {
+            effectiveVersion = 1;
+        }
+
+        WorkflowDefinition def = definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId(workflowId, effectiveVersion, tenantId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Definition not found"));
 
         WorkflowGraphDto graph;
@@ -104,9 +132,16 @@ public class WorkflowEngine {
         WorkflowInstance instance = new WorkflowInstance();
         instance.setId(UUID.randomUUID().toString());
         instance.setTenantId(tenantId);
+        instance.setWorkspaceId(workspaceId);
+        instance.setTeamId(workflow.getTeamId());
+        instance.setOwnershipScope(workflow.getOwnershipScope());
+        instance.setEnvironmentId(TenantContext.getEnvironmentId());
+        instance.setRequestId(TenantContext.getRequestId());
+        instance.setCorrelationId(TenantContext.getCorrelationId());
         instance.setWorkflowId(workflowId);
-        instance.setVersion(version);
+        instance.setVersion(effectiveVersion);
         instance.setSubscriberId(subscriberId);
+        instance.setStatus("RUNNING");
         
         try {
             instance.setContext(objectMapper.writeValueAsString(initialContext));
@@ -117,25 +152,53 @@ public class WorkflowEngine {
         instance.setCurrentNodeId(graph.getInitialNodeId());
         instance = instanceRepository.save(instance);
 
+        eventPublisher.publishAction(
+                AppConstants.TOPIC_WORKFLOW_STARTED,
+                tenantId,
+                instance.getId(),
+                Map.of(
+                        "instanceId", instance.getId(),
+                        "workflowId", workflowId,
+                        "workflowVersion", effectiveVersion,
+                        "subscriberId", subscriberId,
+                        "workspaceId", workspaceId
+                )
+        );
+
         executeFlowLoop(instance, graph);
     }
 
     @Async("workflowExecutor")
     @Transactional
-    public void resumeInstance(String instanceId, String nextNodeId) {
+    public void resumeInstance(String instanceId, String nextNodeId, String wakeId) {
         try {
-            resumeInstanceInternal(instanceId, nextNodeId);
+            resumeInstanceInternal(instanceId, nextNodeId, wakeId);
         } finally {
             TenantContext.clear();
         }
     }
 
-    private void resumeInstanceInternal(String instanceId, String nextNodeId) {
+    private void resumeInstanceInternal(String instanceId, String nextNodeId, String wakeId) {
         WorkflowInstance instance = instanceRepository.findById(instanceId)
                 .orElseThrow(() -> new IllegalArgumentException("Instance missing"));
 
-        // Set tenant context from the instance
+        // Set context from the instance
         TenantContext.setTenantId(instance.getTenantId());
+        TenantContext.setWorkspaceId(instance.getWorkspaceId());
+        TenantContext.setEnvironmentId(instance.getEnvironmentId());
+        TenantContext.setRequestId(instance.getRequestId());
+        TenantContext.setCorrelationId(instance.getCorrelationId());
+
+        if (wakeId != null && !wakeId.isBlank()
+                && !idempotencyService.registerIfNew(
+                instance.getTenantId(),
+                instance.getWorkspaceId(),
+                "workflow.delay.wake",
+                wakeId,
+                wakeId)) {
+            log.info("Skipping duplicate workflow wake {}", wakeId);
+            return;
+        }
 
         String lockKey = "wf:lock:" + instanceId;
         if (cacheService.get(lockKey, String.class).isPresent()) {
@@ -146,8 +209,8 @@ public class WorkflowEngine {
         try {
             cacheService.set(lockKey, "1", java.time.Duration.ofMinutes(5));
 
-            WorkflowDefinition def = definitionRepository.findByWorkflowIdAndVersionAndTenantId(
-                instance.getWorkflowId(), instance.getVersion(), instance.getTenantId()
+            WorkflowDefinition def = definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId(
+                instance.getWorkflowId(), instance.getVersion(), instance.getTenantId(), instance.getWorkspaceId()
             ).orElseThrow();
 
             WorkflowGraphDto graph;
@@ -178,6 +241,18 @@ public class WorkflowEngine {
                 instance.setCurrentNodeId(null);
                 instanceRepository.save(instance);
                 log.info("Workflow instance {} COMPLETED", instance.getId());
+                eventPublisher.publishAction(
+                        AppConstants.TOPIC_WORKFLOW_COMPLETED,
+                        instance.getTenantId(),
+                        instance.getId(),
+                        Map.of(
+                                "instanceId", instance.getId(),
+                                "workflowId", instance.getWorkflowId(),
+                                "subscriberId", instance.getSubscriberId(),
+                                "workspaceId", instance.getWorkspaceId(),
+                                "status", "COMPLETED"
+                        )
+                );
                 break;
             }
 
@@ -185,15 +260,32 @@ public class WorkflowEngine {
                 // Execute Step
                 NodeHandler handler = nodeHandlers.get(node.getType());
                 if (handler == null) {
+                    handler = nodeHandlers.get("*");
+                }
+                if (handler == null) {
                     throw new IllegalStateException("Unknown node type: " + node.getType());
                 }
 
+                eventPublisher.publishAction(
+                        AppConstants.TOPIC_WORKFLOW_STEP_STARTED,
+                        instance.getTenantId(),
+                        instance.getId(),
+                        Map.of(
+                                "instanceId", instance.getId(),
+                                "workflowId", instance.getWorkflowId(),
+                                "nodeId", currId,
+                                "nodeType", node.getType(),
+                                "subscriberId", instance.getSubscriberId(),
+                                "workspaceId", instance.getWorkspaceId()
+                        )
+                );
+
                 String nextId = handler.execute(instance, node);
 
-                logHistory(instance, currId, "SUCCESS", null);
+                logHistory(instance, currId, "SUCCESS", AppConstants.TOPIC_WORKFLOW_STEP_COMPLETED, null);
                 // Emit workflow.step.completed event
                 eventPublisher.publishAction(
-                    "workflow.step.completed",
+                    AppConstants.TOPIC_WORKFLOW_STEP_COMPLETED,
                     instance.getTenantId(),
                     instance.getId(),
                     Map.of(
@@ -202,6 +294,7 @@ public class WorkflowEngine {
                         "nodeId", currId,
                         "nodeType", node.getType(),
                         "subscriberId", instance.getSubscriberId(),
+                        "workspaceId", instance.getWorkspaceId(),
                         "status", "SUCCESS"
                     )
                 );
@@ -218,20 +311,39 @@ public class WorkflowEngine {
                 instanceRepository.save(instance);
             } catch (Exception e) {
                 log.error("Error executing node {} in instance {}", currId, instance.getId(), e);
-                logHistory(instance, currId, "ERROR", e.getMessage());
+                logHistory(instance, currId, "ERROR", AppConstants.TOPIC_WORKFLOW_STEP_FAILED, e.getMessage());
                 instance.setStatus("FAILED");
                 instanceRepository.save(instance);
+                eventPublisher.publishAction(
+                        AppConstants.TOPIC_WORKFLOW_STEP_FAILED,
+                        instance.getTenantId(),
+                        instance.getId(),
+                        Map.of(
+                                "instanceId", instance.getId(),
+                                "workflowId", instance.getWorkflowId(),
+                                "nodeId", currId,
+                                "nodeType", node.getType(),
+                                "subscriberId", instance.getSubscriberId(),
+                                "workspaceId", instance.getWorkspaceId(),
+                                "status", "FAILED",
+                                "error", e.getMessage() == null ? "Unknown workflow step failure" : e.getMessage()
+                        )
+                );
                 break;
             }
         }
     }
 
-    private void logHistory(WorkflowInstance instance, String nodeId, String status, String errorMsg) {
+    private void logHistory(WorkflowInstance instance, String nodeId, String status, String eventType, String errorMsg) {
         InstanceHistory hist = new InstanceHistory();
         hist.setTenantId(instance.getTenantId());
+        hist.setWorkspaceId(instance.getWorkspaceId());
         hist.setInstanceId(instance.getId());
         hist.setNodeId(nodeId);
         hist.setStatus(status);
+        hist.setEventType(eventType);
+        hist.setCorrelationId(TenantContext.getCorrelationId());
+        hist.setDetails("{}");
         hist.setErrorMessage(errorMsg);
         historyRepository.save(hist);
     }

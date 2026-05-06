@@ -46,6 +46,7 @@ class WorkflowEngineTest {
     @Mock private DelayNodeHandler delayHandler;
     @Mock private CacheService cacheService;
     @Mock private WorkflowEventPublisher eventPublisher;
+    @Mock private AutomationEventIdempotencyService idempotencyService;
 
     private WorkflowEngine workflowEngine;
     private ObjectMapper objectMapper = new ObjectMapper();
@@ -56,7 +57,7 @@ class WorkflowEngineTest {
         when(delayHandler.getType()).thenReturn("DELAY");
         
         List<NodeHandler> handlers = List.of(sendEmailHandler, delayHandler);
-        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, workflowRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher);
+        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, workflowRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher, idempotencyService);
     }
 
     @Test
@@ -82,9 +83,10 @@ class WorkflowEngineTest {
 
         com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
         workflow.setStatus("ACTIVE");
-        when(workflowRepository.findById("flow-1")).thenReturn(Optional.of(workflow));
+        workflow.setWorkspaceId("workspace-1");
+        when(workflowRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("flow-1", "tenant-1", "workspace-1")).thenReturn(Optional.of(workflow));
 
-        when(definitionRepository.findByWorkflowIdAndVersionAndTenantId("flow-1", 1, "tenant-1"))
+        when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
                 .thenReturn(Optional.of(def));
                 
         // Return same instance object on save to capture state changes
@@ -92,7 +94,7 @@ class WorkflowEngineTest {
         
         when(sendEmailHandler.execute(any(), any())).thenReturn("node-2");
 
-        workflowEngine.startWorkflow("tenant-1", "flow-1", 1, "sub-1", Map.of());
+        workflowEngine.startWorkflow("tenant-1", "workspace-1", "flow-1", 1, "sub-1", Map.of(), "prod", "user-1", "req-1", "corr-1");
 
         verify(sendEmailHandler, times(1)).execute(any(), any());
         
@@ -122,9 +124,10 @@ class WorkflowEngineTest {
 
         com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
         workflow.setStatus("ACTIVE");
-        when(workflowRepository.findById("flow-1")).thenReturn(Optional.of(workflow));
+        workflow.setWorkspaceId("workspace-1");
+        when(workflowRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("flow-1", "tenant-1", "workspace-1")).thenReturn(Optional.of(workflow));
 
-        when(definitionRepository.findByWorkflowIdAndVersionAndTenantId("flow-1", 1, "tenant-1"))
+        when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
                 .thenReturn(Optional.of(def));
                 
         when(instanceRepository.save(any(WorkflowInstance.class))).thenAnswer(i -> i.getArguments()[0]);
@@ -136,7 +139,7 @@ class WorkflowEngineTest {
             return null; 
         });
 
-        workflowEngine.startWorkflow("tenant-1", "flow-1", 1, "sub-1", Map.of());
+        workflowEngine.startWorkflow("tenant-1", "workspace-1", "flow-1", 1, "sub-1", Map.of(), "prod", "user-1", "req-1", "corr-1");
 
         ArgumentCaptor<WorkflowInstance> captor = ArgumentCaptor.forClass(WorkflowInstance.class);
         verify(instanceRepository, atLeast(2)).save(captor.capture());

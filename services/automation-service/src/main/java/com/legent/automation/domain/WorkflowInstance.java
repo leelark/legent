@@ -24,6 +24,24 @@ public class WorkflowInstance {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false)
+    private String workspaceId;
+
+    @Column(name = "team_id")
+    private String teamId;
+
+    @Column(name = "ownership_scope", nullable = false)
+    private String ownershipScope = "WORKSPACE";
+
+    @Column(name = "environment_id")
+    private String environmentId;
+
+    @Column(name = "request_id")
+    private String requestId;
+
+    @Column(name = "correlation_id")
+    private String correlationId;
+
     @Column(name = "workflow_id", nullable = false)
     private String workflowId;
 

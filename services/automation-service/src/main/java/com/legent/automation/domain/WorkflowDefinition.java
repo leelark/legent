@@ -28,6 +28,15 @@ public class WorkflowDefinition {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false)
+    private String workspaceId;
+
+    @Column(name = "graph_version", nullable = false)
+    private Integer graphVersion = 2;
+
+    @Column(name = "published", nullable = false)
+    private boolean published;
+
     @Type(JsonBinaryType.class)
     @Column(columnDefinition = "jsonb", nullable = false)
     private String definition; // The serialized JSON Node Map

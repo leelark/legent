@@ -21,10 +21,11 @@ public class WorkflowQuartzJob extends QuartzJobBean {
     protected void executeInternal(@org.springframework.lang.NonNull JobExecutionContext context) throws JobExecutionException {
         String instanceId = context.getJobDetail().getJobDataMap().getString("instanceId");
         String nextNodeId = context.getJobDetail().getJobDataMap().getString("nextNodeId");
+        String wakeId = context.getJobDetail().getJobDataMap().getString("wakeId");
         
         WorkflowEngine engine = applicationContext.getBean(WorkflowEngine.class);
         
         // Resume engine execution asynchronously
-        engine.resumeInstance(instanceId, nextNodeId);
+        engine.resumeInstance(instanceId, nextNodeId, wakeId);
     }
 }

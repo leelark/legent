@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import com.legent.automation.domain.WorkflowInstance;
 import com.legent.automation.dto.WorkflowGraphDto;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.*;
@@ -29,17 +30,23 @@ public class DelayNodeHandler implements NodeHandler {
         int waitMinutes = resolveWaitMinutes(node);
 
         Instant fireTime = Instant.now().plus(waitMinutes, ChronoUnit.MINUTES);
+        String wakeId = instance.getId() + ":" + node.getId() + ":" + fireTime.toEpochMilli();
 
         try {
             JobDetail job = JobBuilder.newJob(WorkflowQuartzJob.class)
-                    .withIdentity(instance.getId(), "workflow-delay")
+                    .withIdentity(wakeId, "workflow-delay")
                     .usingJobData("instanceId", instance.getId())
                     .usingJobData("nextNodeId", node.getNextNodeId())
                     .usingJobData("tenantId", instance.getTenantId())
+                    .usingJobData("workspaceId", instance.getWorkspaceId())
+                    .usingJobData("environmentId", instance.getEnvironmentId())
+                    .usingJobData("requestId", TenantContext.getRequestId())
+                    .usingJobData("correlationId", TenantContext.getCorrelationId())
+                    .usingJobData("wakeId", wakeId)
                     .build();
 
             Trigger trigger = TriggerBuilder.newTrigger()
-                    .withIdentity(instance.getId() + "-trigger", "workflow-delay")
+                    .withIdentity(wakeId + "-trigger", "workflow-delay")
                     .startAt(Date.from(fireTime))
                     .build();
 

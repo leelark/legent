@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { get, post } from '@/lib/api-client';
-import { Plus, Gear } from '@phosphor-icons/react';
+import { Plus } from '@phosphor-icons/react';
+import Link from 'next/link';
 
 interface Workflow {
   id: string;
@@ -60,6 +61,15 @@ export default function AutomationPage() {
       setError(e?.response?.data?.error?.message || 'Failed to create workflow');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const transitionWorkflow = async (workflowId: string, action: 'publish' | 'pause' | 'resume' | 'archive') => {
+    try {
+      await post(`/workflows/${workflowId}/${action}`, {});
+      await loadWorkflows();
+    } catch (e: any) {
+      setError(e?.response?.data?.error?.message || `Failed to ${action} workflow`);
     }
   };
 
@@ -118,6 +128,21 @@ export default function AutomationPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <Badge variant={wf.status === 'ACTIVE' ? 'success' : 'default'}>{wf.status}</Badge>
+                  <Link href={`/automations/builder?id=${wf.id}`}>
+                    <Button variant="secondary" size="sm">Open Builder</Button>
+                  </Link>
+                  {wf.status === 'DRAFT' && (
+                    <Button size="sm" onClick={() => transitionWorkflow(wf.id, 'publish')}>Publish</Button>
+                  )}
+                  {wf.status === 'ACTIVE' && (
+                    <Button size="sm" variant="secondary" onClick={() => transitionWorkflow(wf.id, 'pause')}>Pause</Button>
+                  )}
+                  {wf.status === 'PAUSED' && (
+                    <Button size="sm" onClick={() => transitionWorkflow(wf.id, 'resume')}>Resume</Button>
+                  )}
+                  {wf.status !== 'ARCHIVED' && (
+                    <Button size="sm" variant="outline" onClick={() => transitionWorkflow(wf.id, 'archive')}>Archive</Button>
+                  )}
                 </div>
               </div>
             ))}

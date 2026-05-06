@@ -11,6 +11,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WorkflowRepository extends JpaRepository<Workflow, String> {
-    List<Workflow> findByTenantId(String tenantId);
-    Optional<Workflow> findByIdAndTenantId(String id, String tenantId);
+    List<Workflow> findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(String tenantId, String workspaceId);
+    Optional<Workflow> findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(String id, String tenantId, String workspaceId);
 }

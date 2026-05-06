@@ -9,5 +9,5 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface InstanceHistoryRepository extends JpaRepository<InstanceHistory, String> {
-    List<InstanceHistory> findByInstanceIdOrderByExecutedAtDesc(String instanceId);
+    List<InstanceHistory> findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(String tenantId, String workspaceId, String instanceId);
 }

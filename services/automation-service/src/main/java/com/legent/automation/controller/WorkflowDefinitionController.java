@@ -1,33 +1,80 @@
 package com.legent.automation.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.automation.domain.WorkflowDefinition;
-import com.legent.automation.repository.WorkflowDefinitionRepository;
+import com.legent.automation.dto.WorkflowGraphDto;
+import com.legent.automation.service.WorkflowStudioService;
 import com.legent.common.dto.ApiResponse;
-import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/workflow-definitions")
 @RequiredArgsConstructor
 public class WorkflowDefinitionController {
-    private final WorkflowDefinitionRepository workflowDefinitionRepository;
+    private final WorkflowStudioService workflowStudioService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping("/{workflowId}/latest")
     public ApiResponse<WorkflowDefinition> getLatestDefinition(@PathVariable String workflowId) {
-        String tenantId = TenantContext.getTenantId();
-        Optional<WorkflowDefinition> latest = workflowDefinitionRepository.findTopByTenantIdAndWorkflowIdOrderByVersionDesc(tenantId, workflowId);
-        return latest.map(ApiResponse::ok)
-            .orElseGet(() -> ApiResponse.error("NOT_FOUND", "No definition found", null));
+        return ApiResponse.ok(workflowStudioService.getLatestDefinition(workflowId));
     }
 
     @PostMapping
-    public ApiResponse<WorkflowDefinition> saveDefinition(@RequestBody WorkflowDefinition definition) {
-        String tenantId = TenantContext.getTenantId();
-        definition.setTenantId(tenantId);
-        WorkflowDefinition saved = workflowDefinitionRepository.save(definition);
-        return ApiResponse.ok(saved);
+    public ApiResponse<WorkflowDefinition> saveDefinition(@RequestBody Map<String, Object> request) {
+        String workflowId = asString(request.get("workflowId"));
+        if (workflowId == null) {
+            return ApiResponse.error("INVALID_REQUEST", "workflowId is required", null);
+        }
+
+        Integer version = asInteger(request.get("version"));
+        boolean published = Boolean.TRUE.equals(request.get("published"));
+
+        WorkflowGraphDto graph = null;
+        Object definition = request.get("definition");
+        if (definition instanceof String json && !json.isBlank()) {
+            try {
+                graph = objectMapper.readValue(json, WorkflowGraphDto.class);
+            } catch (Exception e) {
+                return ApiResponse.error("INVALID_GRAPH", "definition JSON is invalid", e.getMessage());
+            }
+        } else if (definition != null) {
+            graph = objectMapper.convertValue(definition, WorkflowGraphDto.class);
+        } else if (request.get("graph") != null) {
+            graph = objectMapper.convertValue(request.get("graph"), WorkflowGraphDto.class);
+        } else {
+            graph = objectMapper.convertValue(request, WorkflowGraphDto.class);
+        }
+
+        return ApiResponse.ok(workflowStudioService.saveDefinition(workflowId, version, graph, published));
+    }
+
+    @GetMapping("/{workflowId}/versions/{version}")
+    public ApiResponse<WorkflowDefinition> getDefinitionVersion(@PathVariable String workflowId, @PathVariable Integer version) {
+        return ApiResponse.ok(workflowStudioService.getDefinitionVersion(workflowId, version));
+    }
+
+    private String asString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private Integer asInteger(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
     }
 }

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WorkflowDefinitionRepository extends JpaRepository<WorkflowDefinition, WorkflowDefinition.WorkflowDefinitionId> {
-    Optional<WorkflowDefinition> findByWorkflowIdAndVersionAndTenantId(String workflowId, Integer version, String tenantId);
-    Optional<WorkflowDefinition> findTopByTenantIdAndWorkflowIdOrderByVersionDesc(String tenantId, String workflowId);
+    Optional<WorkflowDefinition> findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId(String workflowId, Integer version, String tenantId, String workspaceId);
+    Optional<WorkflowDefinition> findTopByTenantIdAndWorkspaceIdAndWorkflowIdOrderByVersionDesc(String tenantId, String workspaceId, String workflowId);
+    java.util.List<WorkflowDefinition> findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByVersionDesc(String tenantId, String workspaceId, String workflowId);
 }
