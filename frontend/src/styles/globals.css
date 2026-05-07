@@ -258,6 +258,24 @@
     contain: layout;
   }
 
+  .public-home-hero-shell {
+    min-height: min(690px, calc(100svh - 4.4rem));
+    padding-block: clamp(0.75rem, 2svh, 1.15rem);
+  }
+
+  .public-home-hero-grid {
+    display: grid;
+    align-items: center;
+    gap: clamp(1rem, 2.2vw, 2rem);
+  }
+
+  .public-home-theater {
+    min-height: clamp(430px, 58svh, 560px);
+    height: clamp(430px, 58svh, 560px);
+    overflow: visible;
+    contain: layout;
+  }
+
   .public-art-glow {
     background:
       radial-gradient(circle at 20% 15%, rgba(16, 185, 129, 0.22), transparent 30%),
@@ -406,6 +424,20 @@
 
     .public-hero-visual {
       min-height: 300px;
+    }
+
+    .public-home-hero-shell {
+      min-height: auto;
+      padding-block: 1rem 1.4rem;
+    }
+
+    .public-home-hero-grid {
+      gap: 1rem;
+    }
+
+    .public-home-theater {
+      min-height: 320px;
+      height: 320px;
     }
   }
 }

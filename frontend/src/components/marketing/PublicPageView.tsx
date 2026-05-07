@@ -116,28 +116,24 @@ function HomePage() {
   return (
     <div ref={scope}>
       <section className="relative overflow-hidden">
-        <div className="public-hero-shell public-hero-grid mx-auto max-w-7xl px-4 sm:px-6 lg:grid-cols-[0.92fr_1.08fr]">
-          <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.55 }}>
+        <div className="public-home-hero-shell public-home-hero-grid mx-auto max-w-7xl px-4 sm:px-6 lg:grid-cols-[0.92fr_1.08fr]">
+          <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.55 }} className="min-w-0">
             <Pill icon={Sparkles}>{page.eyebrow}</Pill>
-            <h1 className="public-heading mt-5 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] sm:text-5xl lg:text-7xl">
+            <h1 className="public-heading mt-4 max-w-3xl text-balance text-[clamp(2.65rem,8vw,4.8rem)] font-semibold leading-[0.98] tracking-normal lg:text-[clamp(3.1rem,4.2vw,4.8rem)]">
               {page.title}
             </h1>
-            <p className="public-muted mt-6 max-w-2xl text-base leading-8 sm:text-lg">{page.subtitle}</p>
-            <div className="mt-6 flex flex-wrap gap-3">
+            <p className="public-muted mt-5 max-w-2xl text-base leading-7 sm:text-lg">{page.subtitle}</p>
+            <div className="mt-5 flex flex-wrap gap-3">
               <PublicLinkButton href="/signup" icon={<ArrowRight size={18} />}>{page.primaryCta}</PublicLinkButton>
               <PublicLinkButton href="/modules" variant="secondary">{page.secondaryCta}</PublicLinkButton>
-            </div>
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              {page.highlights.map((item) => (
-                <div key={item} className="public-panel rounded-2xl px-4 py-3 text-sm font-medium">
-                  <CheckCircle2 className="mb-2 text-[var(--public-accent)]" size={16} />
-                  {item}
-                </div>
-              ))}
             </div>
           </motion.div>
           <HomeDashboardTheater active={activeScenario} setActive={setActiveScenario} />
         </div>
+      </section>
+
+      <section className="mx-auto max-w-7xl px-4 pb-6 sm:px-6 md:pb-8" data-gsap-reveal>
+        <HomeProofRail highlights={[...page.highlights]} scenario={scenario} />
       </section>
 
       <MarketingSection eyebrow="Operating proof" title="Measurable lift across launch, delivery, and team velocity.">
@@ -496,133 +492,166 @@ function VisualTexture() {
   );
 }
 
+function HomeProofRail({ highlights, scenario }: { highlights: string[]; scenario: (typeof homeScenarios)[number] }) {
+  return (
+    <div className="public-panel grid gap-3 rounded-[1.35rem] p-3 md:grid-cols-[1.1fr_0.9fr_0.9fr_0.8fr] md:items-center">
+      {highlights.map((item, index) => (
+        <motion.div key={item} whileHover={{ y: -3 }} className="flex min-h-16 items-center gap-3 rounded-2xl bg-[var(--public-panel-strong)] px-4 py-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fuchsia-400/12 text-[var(--public-accent)]">
+            <CheckCircle2 size={16} />
+          </span>
+          <p className="public-heading text-sm font-semibold leading-5">{item}</p>
+        </motion.div>
+      ))}
+      <motion.div animate={{ opacity: [0.78, 1, 0.78] }} transition={{ duration: 3.5, repeat: Infinity }} className="flex min-h-16 items-center justify-between gap-3 rounded-2xl bg-[var(--public-text)] px-4 py-3 text-[var(--public-bg)]">
+        <span>
+          <span className="block text-xs uppercase opacity-70">Active scenario</span>
+          <span className="block text-sm font-semibold">{scenario.eyebrow}</span>
+        </span>
+        <span className="text-lg font-semibold">{scenario.metric}</span>
+      </motion.div>
+    </div>
+  );
+}
+
 function HomeDashboardTheater({ active, setActive }: { active: number; setActive: (index: number) => void }) {
   const scenario = homeScenarios[active];
   return (
-    <div className="public-hero-visual relative" data-gsap-parallax="-7">
-      <motion.div className="public-panel absolute -left-4 bottom-20 z-20 hidden w-44 rounded-2xl p-4 shadow-2xl md:block" animate={{ y: [0, 14, 0] }} transition={{ duration: 6, repeat: Infinity }}>
+    <div className="public-home-theater relative" data-gsap-parallax="-3">
+      <motion.div className="public-panel absolute bottom-4 left-3 z-20 hidden w-40 rounded-2xl p-3 shadow-2xl xl:block" animate={{ y: [0, 10, 0] }} transition={{ duration: 6, repeat: Infinity }}>
         <p className="public-muted text-xs uppercase">Live activity</p>
-        <p className="public-heading mt-2 text-xl font-semibold">{scenario.metric}</p>
+        <p className="public-heading mt-1 text-lg font-semibold">{scenario.metric}</p>
       </motion.div>
-      <motion.div className="public-panel absolute -right-4 top-14 z-20 hidden w-40 rounded-2xl p-4 shadow-2xl sm:block" animate={{ y: [0, -12, 0] }} transition={{ duration: 7, repeat: Infinity }}>
+      <motion.div className="public-panel absolute right-3 top-14 z-20 hidden w-36 rounded-2xl p-3 shadow-2xl xl:block" animate={{ y: [0, -10, 0] }} transition={{ duration: 7, repeat: Infinity }}>
         <p className="public-muted text-xs uppercase">Status</p>
-        <p className="public-heading mt-2 text-lg font-semibold">{scenario.status}</p>
+        <p className="public-heading mt-1 text-base font-semibold">{scenario.status}</p>
       </motion.div>
-      <MacFrame>
+      <MacFrame className="h-full">
         <VisualTexture />
-        <div className="relative grid min-h-[430px] lg:grid-cols-[170px_1fr]">
-          <aside className="public-border hidden border-r bg-[var(--public-panel-strong)] p-4 lg:block">
+        <div className="relative grid h-[calc(100%-57px)] min-h-0 lg:grid-cols-[132px_1fr]">
+          <aside className="public-border hidden min-h-0 border-r bg-[var(--public-panel-strong)] p-3 lg:block">
             {scenario.modules.map((module) => (
               <div key={module} className="mb-2 rounded-xl bg-[var(--public-panel)] px-3 py-2 text-xs font-semibold text-[var(--public-text)]">
                 {module}
               </div>
             ))}
           </aside>
-          <div className="p-5">
+          <div className="min-h-0 overflow-hidden p-4">
             <AnimatePresence mode="wait">
-              <motion.div key={scenario.title} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }}>
-                <p className="public-muted text-xs uppercase tracking-[0.22em]">{scenario.eyebrow}</p>
-                <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <h3 className="public-heading text-2xl font-semibold">{scenario.title}</h3>
-                  <span className="rounded-full bg-emerald-400/12 px-3 py-1 text-xs font-semibold text-emerald-500">{scenario.status}</span>
+              <motion.div key={scenario.title} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} className="flex h-full min-h-0 flex-col">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="public-muted text-xs uppercase tracking-[0.18em]">{scenario.eyebrow}</p>
+                    <h3 className="public-heading mt-1 text-xl font-semibold leading-tight sm:text-2xl">{scenario.title}</h3>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-emerald-400/12 px-3 py-1 text-xs font-semibold text-emerald-500">{scenario.status}</span>
                 </div>
-                <p className="public-muted mt-3 max-w-xl text-sm leading-6">{scenario.narrative}</p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                <p className="public-muted mt-2 hidden max-w-xl text-sm leading-6 sm:block">{scenario.narrative}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {scenario.stages.map((stage, index) => (
                     <button
                       key={stage}
                       type="button"
                       onClick={() => setActive(index % homeScenarios.length)}
-                      className="public-border rounded-2xl border bg-[var(--public-panel-strong)] p-3 text-left transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]"
+                      className="public-border rounded-xl border bg-[var(--public-panel-strong)] p-2 text-left transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]"
                     >
-                      <span className="text-xs font-semibold text-[var(--public-accent)]">0{index + 1}</span>
-                      <p className="public-heading mt-2 text-sm font-semibold">{stage}</p>
+                      <span className="text-[11px] font-semibold text-[var(--public-accent)]">0{index + 1}</span>
+                      <p className="public-heading mt-1 text-xs font-semibold leading-4">{stage}</p>
                     </button>
                   ))}
                 </div>
-                <div className="public-border mt-4 rounded-2xl border bg-[var(--public-bg-soft)] p-4">
-                  <div className="mb-4 flex items-center justify-between gap-3">
-                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--public-panel)]">
-                      <motion.div key={scenario.metric} initial={{ width: '18%' }} animate={{ width: scenario.metric.includes('%') ? scenario.metric : '82%' }} className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-violet-400 to-fuchsia-400" />
+                <div className="mt-3 hidden min-h-0 flex-1 gap-3 sm:grid sm:grid-cols-[1.05fr_0.95fr]">
+                  <div className="public-border rounded-2xl border bg-[var(--public-bg-soft)] p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3">
+                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--public-panel)]">
+                        <motion.div key={scenario.metric} initial={{ width: '18%' }} animate={{ width: scenario.metric.includes('%') ? scenario.metric : '82%' }} className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-violet-400 to-fuchsia-400" />
+                      </div>
+                      <span className="text-xs font-semibold text-[var(--public-accent)]">{scenario.metric}</span>
                     </div>
-                    <span className="text-xs font-semibold text-[var(--public-accent)]">{scenario.metric}</span>
+                    <div className="flex h-24 items-end gap-2">
+                      {scenario.bars.map((height, index) => (
+                        <motion.div key={index} initial={{ height: 12 }} animate={{ height: `${height}%` }} transition={{ duration: 0.6, delay: index * 0.04 }} className="flex-1 rounded-t-lg bg-gradient-to-t from-violet-800 via-fuchsia-500 to-emerald-300" />
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex h-28 items-end gap-2 sm:h-36">
-                    {scenario.bars.map((height, index) => (
-                      <motion.div key={index} initial={{ height: 12 }} animate={{ height: `${height}%` }} transition={{ duration: 0.6, delay: index * 0.04 }} className="flex-1 rounded-t-xl bg-gradient-to-t from-violet-800 via-fuchsia-500 to-emerald-300" />
+                  <div className="grid content-start gap-2">
+                    {scenario.activity.slice(0, 2).map((item) => (
+                      <div key={item} className="rounded-2xl bg-[var(--public-panel-strong)] p-3 text-xs leading-5">
+                        <CheckCircle2 className="mb-1 text-emerald-500" size={15} />
+                        {item}
+                      </div>
                     ))}
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  {scenario.activity.slice(0, 4).map((item) => (
-                    <div key={item} className="rounded-2xl bg-[var(--public-panel-strong)] p-4 text-sm">
-                      <CheckCircle2 className="mb-2 text-emerald-500" size={17} />
-                      {item}
+                    <div className="hidden gap-2 sm:flex">
+                      {homeScenarios.map((item, index) => (
+                        <button
+                          key={item.title}
+                          type="button"
+                          aria-label={`Show ${item.title}`}
+                          onClick={() => setActive(index)}
+                          className={`public-border grid h-8 flex-1 place-items-center rounded-xl border text-xs font-semibold transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'bg-[var(--public-panel-strong)] text-[var(--public-accent)]' : 'bg-[var(--public-panel)] text-[var(--public-text)]'}`}
+                        >
+                          {index + 1}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </motion.div>
             </AnimatePresence>
           </div>
         </div>
       </MacFrame>
-      <div className="mt-4 grid gap-2 sm:grid-cols-3">
-        {homeScenarios.map((item, index) => (
-          <button
-            key={item.title}
-            type="button"
-            onClick={() => setActive(index)}
-            className={`public-border rounded-2xl border px-4 py-3 text-left text-sm transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'bg-[var(--public-panel-strong)]' : 'bg-[var(--public-panel)]'}`}
-          >
-            <span className="public-muted text-xs uppercase">{item.eyebrow}</span>
-            <p className="public-heading mt-1 font-semibold">{item.title}</p>
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
 
 function FeatureArchitecture({ active, setActive }: { active: number; setActive: (index: number) => void }) {
   const features = marketingPages.features.features;
+  const activeFeature = features[active];
+  const ActiveIcon = activeFeature.icon;
   return (
     <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-5">
       <VisualTexture />
       <WindowHeader label="Interactive architecture" />
-      <div className="relative mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-        <div className="public-panel relative min-h-[250px] rounded-[1.4rem] p-5">
-          <div className="absolute inset-6 rounded-full border border-dashed border-[var(--public-accent)]/35" />
-          <motion.div animate={{ scale: [1, 1.05, 1], rotate: [0, 4, 0] }} transition={{ duration: 7, repeat: Infinity }} className="absolute inset-12 rounded-full bg-gradient-to-br from-emerald-400/20 via-fuchsia-400/15 to-blue-400/20" />
-          <div className="relative grid h-full min-h-[210px] place-items-center text-center">
-            <div className="rounded-[1.5rem] bg-[var(--public-panel-strong)] p-5 shadow-2xl">
-              <ShieldCheck className="mx-auto text-[var(--public-accent)]" size={30} />
-              <p className="public-heading mt-3 text-sm font-semibold">Governed runtime</p>
-              <p className="public-muted mt-1 text-xs">policy, context, evidence</p>
-            </div>
+      <div className="relative mt-5 grid gap-4">
+        <div className="public-panel relative rounded-[1.4rem] p-4">
+          <div className="absolute left-8 right-8 top-1/2 hidden h-px bg-gradient-to-r from-emerald-400/40 via-[var(--public-accent)] to-blue-400/40 sm:block" />
+          <div className="relative grid gap-3 sm:grid-cols-3">
+            {features.map((feature, index) => {
+              const Icon = feature.icon;
+              const selected = active === index;
+              return (
+                <button
+                  key={feature.title}
+                  type="button"
+                  onClick={() => setActive(index)}
+                  className={`public-border relative min-h-24 rounded-2xl border p-3 text-left transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${selected ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'bg-[var(--public-panel-strong)] text-[var(--public-text)]'}`}
+                >
+                  <motion.span animate={{ scaleX: selected ? [0.32, 1, 0.52] : 0.22 }} transition={{ duration: 3, repeat: Infinity, delay: index * 0.08 }} className="absolute inset-x-3 bottom-2 h-1 origin-left rounded-full bg-gradient-to-r from-emerald-400 via-fuchsia-500 to-blue-400" />
+                  <Icon className={selected ? 'text-[var(--public-bg)]' : 'text-[var(--public-accent)]'} size={18} />
+                  <p className={`mt-3 text-sm font-semibold leading-5 ${selected ? '' : 'public-heading'}`}>{feature.title}</p>
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="relative grid gap-2">
-          {features.map((feature, index) => {
-            const Icon = feature.icon;
-            return (
-              <button
-                key={feature.title}
-                type="button"
-                onClick={() => setActive(index)}
-                className={`public-border group relative overflow-hidden rounded-2xl border bg-[var(--public-panel-strong)] p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'border-[var(--public-accent)] bg-[var(--public-panel)] shadow-lg' : ''}`}
-              >
-                <motion.span animate={{ scaleX: active === index ? [0.2, 1, 0.45] : 0.28 }} transition={{ duration: 2.8, repeat: Infinity, delay: index * 0.08 }} className="absolute bottom-0 left-0 h-1 w-full origin-left bg-gradient-to-r from-emerald-400 via-[var(--public-accent)] to-blue-400" />
-                <span className="flex items-center gap-3">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={17} /></span>
-                  <span>
-                    <span className="public-heading block text-sm font-semibold">{feature.title}</span>
-                    <span className="public-muted block text-xs">Connected to launch state</span>
-                  </span>
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <motion.div key={activeFeature.title} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="public-panel rounded-[1.4rem] p-5">
+          <div className="flex items-start gap-4">
+            <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-fuchsia-400/12 text-[var(--public-accent)]"><ActiveIcon size={22} /></span>
+            <div>
+              <p className="public-muted text-xs uppercase tracking-[0.18em]">Signal spine</p>
+              <h3 className="public-heading mt-1 text-2xl font-semibold">{activeFeature.title}</h3>
+              <p className="public-muted mt-2 text-sm leading-6">{activeFeature.body}</p>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            {['Policy', 'Evidence', 'Outcome'].map((item, index) => (
+              <motion.div key={item} animate={{ opacity: [0.7, 1, 0.7] }} transition={{ duration: 3.4, repeat: Infinity, delay: index * 0.16 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-3 text-sm font-semibold text-[var(--public-text)]">
+                {item}
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
       </div>
     </div>
   );
@@ -635,28 +664,52 @@ function StudioFabricVisual({ active, setActive }: { active: number; setActive: 
       <VisualTexture />
       <WindowHeader label="Studio fabric" />
       <div className="relative mt-5 grid gap-4">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {studios.map((studio, index) => {
-            const Icon = studio.icon;
-            const selectedState = active === index;
-            return (
-              <button
-                key={studio.name}
-                type="button"
-                onClick={() => setActive(index)}
-                className={`public-border relative overflow-hidden rounded-2xl border bg-[var(--public-panel-strong)] p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${selectedState ? 'border-[var(--public-accent)] bg-[var(--public-panel)]' : ''}`}
-              >
-                <motion.span animate={{ scaleX: selectedState ? [0.4, 1, 0.65] : [0.2, 0.42, 0.2] }} transition={{ duration: 3.2, repeat: Infinity, delay: index * 0.12 }} className="absolute bottom-0 left-0 h-1 w-full origin-left bg-gradient-to-r from-emerald-400 via-fuchsia-500 to-blue-400" />
-                <div className="flex items-center gap-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={18} /></span>
-                  <div>
-                    <p className="public-heading text-sm font-semibold">{studio.short}</p>
-                    <p className="public-muted text-xs">{studio.proof}</p>
+        <div className="public-panel relative rounded-[1.35rem] p-4">
+          <svg className="pointer-events-none absolute inset-0 h-full w-full text-[var(--public-accent)]" viewBox="0 0 640 220" aria-hidden="true" preserveAspectRatio="none">
+            {[
+              'M 70 62 C 250 96, 280 110, 320 110',
+              'M 145 62 C 250 96, 280 110, 320 110',
+              'M 220 62 C 250 96, 280 110, 320 110',
+              'M 420 158 C 390 124, 360 110, 320 110',
+              'M 495 158 C 390 124, 360 110, 320 110',
+              'M 570 158 C 390 124, 360 110, 320 110',
+            ].map((path, index) => (
+              <motion.path
+                key={path}
+                d={path}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeDasharray="7 8"
+                initial={{ pathLength: 0.2, opacity: 0.18 }}
+                animate={{ pathLength: [0.25, 1, 0.45], opacity: [0.18, 0.52, 0.24] }}
+                transition={{ duration: 4.2, repeat: Infinity, delay: index * 0.14 }}
+              />
+            ))}
+          </svg>
+          <div className="relative grid gap-2 sm:grid-cols-3">
+            {studios.map((studio, index) => {
+              const Icon = studio.icon;
+              const selectedState = active === index;
+              return (
+                <button
+                  key={studio.name}
+                  type="button"
+                  onClick={() => setActive(index)}
+                  className={`public-border relative overflow-hidden rounded-2xl border bg-[var(--public-panel-strong)] p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${selectedState ? 'border-[var(--public-accent)] bg-[var(--public-panel)]' : ''}`}
+                >
+                  <motion.span animate={{ scaleX: selectedState ? [0.4, 1, 0.65] : [0.2, 0.42, 0.2] }} transition={{ duration: 3.2, repeat: Infinity, delay: index * 0.12 }} className="absolute bottom-0 left-0 h-1 w-full origin-left bg-gradient-to-r from-emerald-400 via-fuchsia-500 to-blue-400" />
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={18} /></span>
+                    <div>
+                      <p className="public-heading text-sm font-semibold">{studio.short}</p>
+                      <p className="public-muted text-xs">{studio.proof}</p>
+                    </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </button>
+              );
+            })}
+          </div>
         </div>
         <div className="public-panel rounded-[1.4rem] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -689,26 +742,31 @@ function ModuleRelationshipExplorer({ active, setActive }: { active: number; set
       <VisualTexture />
       <WindowHeader label="Relationship explorer" />
       <div className="relative mt-5 grid gap-4">
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-          {[before, selected, after].map((studio, index) => {
-            const Icon = studio.icon;
-            const center = index === 1;
-            return (
-              <motion.button
-                key={studio.name}
-                type="button"
-                onClick={() => setActive(studios.findIndex((item) => item.name === studio.name))}
-                whileHover={{ y: -4 }}
-                className={`public-border rounded-2xl border p-3 text-center focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${center ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'bg-[var(--public-panel-strong)] text-[var(--public-text)]'}`}
-              >
-                <Icon className={`mx-auto ${center ? 'text-[var(--public-bg)]' : 'text-[var(--public-accent)]'}`} size={20} />
-                <p className={`mt-2 text-xs font-semibold ${center ? '' : 'public-heading'}`}>{studio.short}</p>
-              </motion.button>
-            );
-          })}
-        </div>
-        <div className="relative h-3 overflow-hidden rounded-full bg-[var(--public-panel-strong)]">
-          <motion.div animate={{ x: ['-20%', '110%'] }} transition={{ duration: 2.6, repeat: Infinity, ease: 'linear' }} className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-gradient-to-r from-transparent via-[var(--public-accent)] to-transparent" />
+        <div className="public-panel relative rounded-[1.35rem] p-4">
+          <svg className="pointer-events-none absolute inset-0 h-full w-full text-[var(--public-accent)]" viewBox="0 0 640 180" aria-hidden="true" preserveAspectRatio="none">
+            <motion.path d="M 70 90 C 190 30, 250 30, 320 90 C 390 150, 450 150, 570 90" fill="none" stroke="currentColor" strokeWidth="1.6" strokeDasharray="9 8" animate={{ pathLength: [0.2, 1, 0.4], opacity: [0.2, 0.58, 0.25] }} transition={{ duration: 3.8, repeat: Infinity }} />
+          </svg>
+          <div className="relative grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+            {[before, selected, after].map((studio, index) => {
+              const Icon = studio.icon;
+              const center = index === 1;
+              return (
+                <motion.button
+                  key={studio.name}
+                  type="button"
+                  onClick={() => setActive(studios.findIndex((item) => item.name === studio.name))}
+                  whileHover={{ y: -4 }}
+                  className={`public-border rounded-2xl border p-3 text-center focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${center ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'bg-[var(--public-panel-strong)] text-[var(--public-text)]'}`}
+                >
+                  <Icon className={`mx-auto ${center ? 'text-[var(--public-bg)]' : 'text-[var(--public-accent)]'}`} size={20} />
+                  <p className={`mt-2 text-xs font-semibold ${center ? '' : 'public-heading'}`}>{studio.short}</p>
+                </motion.button>
+              );
+            })}
+          </div>
+          <div className="relative mt-4 h-3 overflow-hidden rounded-full bg-[var(--public-panel-strong)]">
+            <motion.div animate={{ x: ['-20%', '110%'] }} transition={{ duration: 2.6, repeat: Infinity, ease: 'linear' }} className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-gradient-to-r from-transparent via-[var(--public-accent)] to-transparent" />
+          </div>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {selected.capabilities.slice(0, 4).map((capability, index) => (
@@ -774,24 +832,27 @@ function AboutStoryVisual() {
     <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-6">
       <VisualTexture />
       <WindowHeader label="Company story" />
-      <div className="relative mt-5 grid gap-4">
-        <div className="public-panel rounded-[1.4rem] p-5">
+      <div className="relative mt-5">
+        <div className="rounded-[1.4rem] bg-[var(--public-panel-strong)] p-5">
           <p className="public-muted text-xs uppercase tracking-[0.18em]">Mission line</p>
           <h3 className="public-heading mt-2 text-2xl font-semibold">Make messaging operations visible, governed, and measurable.</h3>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="relative mt-6">
+          <div className="absolute left-4 right-4 top-5 hidden h-px bg-gradient-to-r from-emerald-400 via-[var(--public-accent)] to-blue-400 sm:block" />
+          <div className="relative grid gap-3 sm:grid-cols-4">
           {marketingPages.about.timeline.map((item, index) => (
             <motion.div
               key={item.title}
-              animate={{ y: [0, index % 2 ? -6 : 6, 0] }}
+              animate={{ y: [0, index % 2 ? -5 : 5, 0] }}
               transition={{ duration: 5.2, repeat: Infinity, delay: index * 0.18 }}
-              className="rounded-2xl bg-[var(--public-panel-strong)] p-4"
+              className="rounded-2xl bg-[var(--public-panel)] p-4"
             >
               <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--public-accent)] text-xs font-semibold text-white">{item.year}</span>
-              <h3 className="public-heading mt-3 font-semibold">{item.title}</h3>
-              <p className="public-muted mt-1 text-sm leading-6">{item.body}</p>
+              <h3 className="public-heading mt-3 text-sm font-semibold leading-5">{item.title}</h3>
+              <p className="public-muted mt-1 text-xs leading-5">{item.body}</p>
             </motion.div>
           ))}
+          </div>
         </div>
       </div>
     </div>
@@ -803,23 +864,30 @@ function ContactRoutingVisual() {
     <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-5">
       <VisualTexture />
       <WindowHeader label="Support routing" />
-      <div className="relative mt-5 grid gap-4">
-        <div className="public-panel grid min-h-32 place-items-center rounded-[1.4rem] p-5 text-center">
-          <MousePointerClick className="text-[var(--public-accent)]" size={28} />
-          <h3 className="public-heading mt-3 text-2xl font-semibold">Route request to right operator</h3>
-          <p className="public-muted mt-1 text-sm">Architecture, delivery, migration, or security review.</p>
+      <div className="relative mt-5 grid gap-4 sm:grid-cols-[0.9fr_1.1fr] sm:items-center">
+        <div className="public-panel relative grid min-h-64 place-items-center overflow-hidden rounded-[1.4rem] p-5 text-center">
+          <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 5.5, repeat: Infinity }} className="absolute h-40 w-40 rounded-full border border-[var(--public-accent)]/30" />
+          <motion.div animate={{ rotate: [0, 360] }} transition={{ duration: 16, repeat: Infinity, ease: 'linear' }} className="absolute h-52 w-52 rounded-full border border-dashed border-emerald-400/35" />
+          <div className="relative">
+            <MousePointerClick className="mx-auto text-[var(--public-accent)]" size={28} />
+            <h3 className="public-heading mt-3 text-2xl font-semibold">Route request to right operator</h3>
+            <p className="public-muted mt-1 text-sm">Architecture, delivery, migration, or security review.</p>
+          </div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
         {contactRoutes.map((route, index) => {
           const Icon = route.icon;
           return (
-            <motion.div key={route.label} animate={{ y: [0, index % 2 ? 7 : -7, 0] }} transition={{ duration: 5 + index * 0.3, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
-              <div className="flex items-center gap-3">
-                <span className="grid h-11 w-11 place-items-center rounded-2xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={20} /></span>
-                <div>
-                  <p className="public-heading font-semibold">{route.label}</p>
-                  <p className="public-muted text-sm">{route.path}</p>
+            <motion.div key={route.label} animate={{ x: [0, index % 2 ? 7 : -7, 0] }} transition={{ duration: 5 + index * 0.3, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 place-items-center rounded-2xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={20} /></span>
+                  <div>
+                    <p className="public-heading font-semibold">{route.label}</p>
+                    <p className="public-muted text-sm">{route.path}</p>
+                  </div>
                 </div>
+                <ChevronRight className="text-[var(--public-accent)]" size={16} />
               </div>
             </motion.div>
           );
@@ -832,11 +900,11 @@ function ContactRoutingVisual() {
 
 function MetricPanel({ metric, index }: { metric: { label: string; value: string; detail: string }; index: number }) {
   return (
-    <motion.div whileHover={{ y: -8 }} className="public-panel flex h-full min-h-[220px] flex-col rounded-[1.35rem] p-6">
+    <motion.div whileHover={{ y: -8 }} className="public-panel flex h-full min-h-[196px] flex-col rounded-[1.35rem] p-6">
       <div>
         <p className="public-heading flex min-h-12 items-end text-4xl font-semibold leading-none">{metric.value}</p>
         <p className="public-heading mt-4 min-h-6 font-semibold">{metric.label}</p>
-        <p className="public-muted mt-2 text-sm leading-6">{metric.detail}</p>
+        <p className="public-muted mt-2 text-sm leading-5">{metric.detail}</p>
       </div>
       <motion.div style={{ originX: 0 }} animate={{ scaleX: [0.28, 0.86, 0.42] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-auto h-1 w-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
     </motion.div>
@@ -848,25 +916,41 @@ function ScenarioLayerGrid() {
   const [active, setActive] = useState(0);
   const selected = layers[active];
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <div className="grid gap-3">
+    <div className="grid gap-6 lg:grid-cols-[0.86fr_1.14fr] lg:items-stretch">
+      <div className="public-panel relative rounded-[1.5rem] p-5">
+        <div className="absolute bottom-8 left-[2.05rem] top-8 w-px bg-gradient-to-b from-emerald-400 via-[var(--public-accent)] to-blue-400" />
         {layers.map((layer, index) => (
-          <button key={layer.title} type="button" onClick={() => setActive(index)} className={`public-border rounded-2xl border p-5 text-left transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'bg-[var(--public-panel-strong)]' : 'bg-[var(--public-panel)]'}`}>
-            <div className="flex items-end justify-between gap-3">
-              <h3 className="public-heading text-lg font-semibold">{layer.title}</h3>
-              <span className="text-2xl font-semibold text-[var(--public-accent)]">{layer.metric}</span>
-            </div>
-            <p className="public-muted mt-2 text-sm leading-6">{layer.body}</p>
+          <button key={layer.title} type="button" onClick={() => setActive(index)} className="relative mb-5 flex w-full gap-4 text-left last:mb-0 focus:outline-none">
+            <span className={`relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full border text-sm font-semibold transition ${active === index ? 'border-[var(--public-accent)] bg-[var(--public-accent)] text-white' : 'public-border bg-[var(--public-panel-strong)] text-[var(--public-accent)]'}`}>
+              {index + 1}
+            </span>
+            <span className={`public-border block flex-1 rounded-2xl border px-4 py-3 transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'bg-[var(--public-panel-strong)]' : 'bg-[var(--public-panel)]'}`}>
+              <span className="flex items-center justify-between gap-3">
+                <span className="public-heading font-semibold">{layer.title}</span>
+                <span className="text-lg font-semibold text-[var(--public-accent)]">{layer.metric}</span>
+              </span>
+              <span className="public-muted mt-1 block text-sm leading-6">{layer.body}</span>
+            </span>
           </button>
         ))}
       </div>
-      <motion.div key={selected.title} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="public-panel relative min-h-[360px] overflow-hidden rounded-[1.5rem] p-6">
-        <Pill icon={Target}>Expanded operating detail</Pill>
-        <h3 className="public-heading mt-5 text-3xl font-semibold">{selected.title}</h3>
-        <p className="public-muted mt-4 leading-7">{selected.body}</p>
-        <div className="mt-8 grid grid-cols-2 gap-3">
+      <motion.div key={selected.title} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="public-panel public-art-glow relative overflow-hidden rounded-[1.5rem] p-6">
+        <VisualTexture />
+        <div className="relative">
+          <Pill icon={Target}>Operating model</Pill>
+          <div className="mt-5 grid gap-5 md:grid-cols-[1fr_auto] md:items-start">
+            <div>
+              <h3 className="public-heading text-3xl font-semibold">{selected.title}</h3>
+              <p className="public-muted mt-4 max-w-2xl leading-7">{selected.body}</p>
+            </div>
+            <motion.div animate={{ rotate: [0, 4, -3, 0] }} transition={{ duration: 7, repeat: Infinity }} className="grid h-24 w-24 place-items-center rounded-full bg-[var(--public-text)] text-center text-sm font-semibold text-[var(--public-bg)]">
+              {selected.metric}
+            </motion.div>
+          </div>
+        </div>
+        <div className="relative mt-8 grid gap-3 sm:grid-cols-3">
           {selected.items.map((item, index) => (
-            <motion.div key={item} whileHover={{ rotate: index % 2 ? -2 : 2, scale: 1.04 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+            <motion.div key={item} whileHover={{ y: -6 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
               <CheckCircle2 className="text-emerald-500" size={18} />
               <p className="public-heading mt-3 text-sm font-semibold">{item}</p>
             </motion.div>
@@ -879,33 +963,38 @@ function ScenarioLayerGrid() {
 
 function SurfaceLoop({ scenario }: { scenario: (typeof homeScenarios)[number] }) {
   return (
-    <div className="grid gap-5 lg:grid-cols-2">
-      <div className="public-panel overflow-hidden rounded-[1.4rem] p-5">
-        <WindowHeader label="Auto-loop surfaces" />
-        <div className="mt-6 overflow-hidden">
-          <motion.div animate={{ x: ['0%', '-50%'] }} transition={{ duration: 18, repeat: Infinity, ease: 'linear' }} className="flex w-max gap-4 will-change-transform">
-          {[...scenario.modules, ...scenario.modules].map((module, index) => (
-            <div key={`${module}-${index}`} className="public-border min-w-[220px] rounded-2xl border bg-[var(--public-panel-strong)] p-4">
-              <Sparkles className="text-[var(--public-accent)]" size={20} />
-              <p className="public-heading mt-4 text-lg font-semibold">{module}</p>
-              <p className="public-muted mt-1 text-sm">State changes with launch progress.</p>
-            </div>
-          ))}
-          </motion.div>
+    <div className="public-panel public-art-glow relative overflow-hidden rounded-[1.5rem] p-5">
+      <VisualTexture />
+      <WindowHeader label="Connected product surfaces" />
+      <div className="relative mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+        <div className="relative rounded-[1.4rem] bg-[var(--public-panel-strong)] p-4">
+          <div className="absolute left-8 right-8 top-1/2 h-px bg-gradient-to-r from-emerald-400 via-[var(--public-accent)] to-blue-400" />
+          <div className="relative grid gap-3 sm:grid-cols-4">
+            {scenario.modules.map((module, index) => (
+              <motion.div key={module} animate={{ y: [0, index % 2 ? 8 : -8, 0] }} transition={{ duration: 5 + index * 0.25, repeat: Infinity }} className="public-border min-h-28 rounded-2xl border bg-[var(--public-panel)] p-4">
+                <Sparkles className="text-[var(--public-accent)]" size={18} />
+                <p className="public-heading mt-4 text-sm font-semibold">{module}</p>
+                <p className="public-muted mt-1 text-xs">live state</p>
+              </motion.div>
+            ))}
+          </div>
         </div>
-      </div>
-      <div className="public-panel rounded-[1.4rem] p-6">
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="relative">
+          <Pill icon={LineChart}>Outcome panel</Pill>
+          <h3 className="public-heading mt-4 text-2xl font-semibold">{scenario.title}</h3>
+          <p className="public-muted mt-3 text-sm leading-6">{scenario.narrative}</p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
           {proofCards.slice(0, 4).map((card, index) => {
             const Icon = card.icon;
             return (
-              <motion.div key={card.label} animate={{ y: [0, index % 2 ? 12 : -12, 0] }} transition={{ duration: 5 + index * 0.3, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+              <motion.div key={card.label} whileHover={{ x: 6 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
                 <Icon className="text-[var(--public-accent)]" size={20} />
                 <p className="public-heading mt-3 text-xl font-semibold">{card.value}</p>
                 <p className="public-muted mt-1 text-sm">{card.label}</p>
               </motion.div>
             );
           })}
+          </div>
         </div>
       </div>
     </div>
@@ -1113,9 +1202,9 @@ function ComparisonTable({ rows }: { rows: ReadonlyArray<{ feature: string; laun
   );
 }
 
-function MacFrame({ children }: { children: ReactNode }) {
+function MacFrame({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className="public-panel relative overflow-hidden rounded-[1.7rem] shadow-[0_28px_100px_rgba(55,18,105,0.20)]">
+    <div className={`public-panel relative overflow-hidden rounded-[1.7rem] shadow-[0_28px_100px_rgba(55,18,105,0.20)] ${className}`}>
       <WindowHeader label="Live workspace" />
       {children}
     </div>

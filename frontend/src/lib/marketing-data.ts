@@ -129,7 +129,7 @@ export const homeScenarios = [
 export const marketingPages = {
   home: {
     eyebrow: 'Enterprise lifecycle intelligence',
-    title: 'Operate email growth like a real-time command system.',
+    title: 'Command every email workflow in real time.',
     subtitle:
       'Legent connects audience intelligence, governed creative, AI-assisted automation, inbox-safe delivery, and revenue feedback in one collaborative operating layer.',
     primaryCta: 'Start Free',
