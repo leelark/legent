@@ -1,0 +1,35 @@
+groups:
+  - name: legent-platform
+    rules:
+      - alert: LegentServiceHighErrorRate
+        expr: sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (application) / sum(rate(http_server_requests_seconds_count[5m])) by (application) > 0.02
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 5xx rate for {{ $labels.application }}"
+          description: "{{ $labels.application }} has served more than 2% 5xx responses for 10 minutes."
+      - alert: LegentServiceP95LatencyHigh
+        expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application)) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High p95 latency for {{ $labels.application }}"
+          description: "{{ $labels.application }} p95 latency is above 1.5 seconds."
+      - alert: LegentKafkaConsumerLagHigh
+        expr: kafka_consumer_fetch_manager_records_lag_max > 10000
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Kafka consumer lag high"
+          description: "Consumer lag is above 10000 records."
+      - alert: LegentPodRestarting
+        expr: increase(kube_pod_container_status_restarts_total{namespace="legent"}[15m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Legent pod restart loop"
+          description: "{{ $labels.pod }} restarted repeatedly."

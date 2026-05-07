@@ -44,6 +44,7 @@ class ProviderSelectionStrategyTest {
                 List.of(smtpAdapter),
                 "mailhog",
                 1025,
+                false,
                 false
         );
     }
@@ -116,6 +117,7 @@ class ProviderSelectionStrategyTest {
                 List.of(smtpAdapter),
                 "mailhog",
                 1025,
+                false,
                 false
         );
 

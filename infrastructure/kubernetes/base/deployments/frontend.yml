@@ -17,6 +17,9 @@ spec:
         app: frontend
         tier: frontend
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: frontend
           image: legent/frontend:latest

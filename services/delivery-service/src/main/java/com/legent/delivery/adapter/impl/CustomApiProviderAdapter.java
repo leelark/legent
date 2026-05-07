@@ -4,6 +4,7 @@ import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.adapter.ProviderDispatchException;
 import com.legent.delivery.domain.SmtpProvider;
 import com.legent.delivery.service.CredentialEncryptionService;
+import com.legent.common.security.OutboundUrlGuard;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -35,7 +36,7 @@ public class CustomApiProviderAdapter extends ApiProviderAdapterSupport implemen
     public void sendEmail(String to, String subject, String htmlBody, Map<String, String> metadata, SmtpProvider config)
             throws ProviderDispatchException {
         String token = resolveSecret(config);
-        URI endpoint = resolveBaseUri(config, "https://localhost.invalid/api/send");
+        URI endpoint = OutboundUrlGuard.requirePublicHttpsUri(resolveConfiguredBaseUri(config).toString(), "custom API provider endpoint");
         String fromEmail = resolveFromEmail(metadata, config, to);
 
         Map<String, Object> payload = Map.of(
@@ -69,4 +70,3 @@ public class CustomApiProviderAdapter extends ApiProviderAdapterSupport implemen
         }
     }
 }
-

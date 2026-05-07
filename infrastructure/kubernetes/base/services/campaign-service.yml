@@ -21,6 +21,9 @@ spec:
         prometheus.io/port: "8083"
         prometheus.io/path: "/actuator/prometheus"
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: campaign-service
           image: legent/campaign-service:latest

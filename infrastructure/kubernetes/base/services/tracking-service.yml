@@ -21,6 +21,9 @@ spec:
         prometheus.io/port: "8085"
         prometheus.io/path: "/actuator/prometheus"
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: tracking-service
           image: legent/tracking-service:latest

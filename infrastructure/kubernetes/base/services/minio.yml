@@ -13,6 +13,9 @@ spec:
       labels:
         app: minio
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: minio
           image: minio/minio

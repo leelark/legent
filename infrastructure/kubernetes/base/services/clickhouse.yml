@@ -13,6 +13,9 @@ spec:
       labels:
         app: clickhouse
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: clickhouse
           image: clickhouse/clickhouse-server:23.8-alpine

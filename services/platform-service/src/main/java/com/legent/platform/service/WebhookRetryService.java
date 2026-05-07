@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
+import com.legent.common.security.OutboundUrlGuard;
 import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.domain.WebhookLog;
 import com.legent.platform.domain.WebhookRetry;
@@ -25,6 +26,7 @@ import reactor.core.publisher.Mono;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.util.Base64;
 
 /**
@@ -108,9 +110,11 @@ public class WebhookRetryService {
                 return;
             }
 
-            // Validate endpoint
-            if (config.getEndpointUrl() == null || config.getEndpointUrl().isBlank()) {
-                markRetryFailed(retry, "Webhook endpoint URL is missing");
+            URI endpoint;
+            try {
+                endpoint = OutboundUrlGuard.requirePublicHttpsUri(config.getEndpointUrl(), "webhook endpoint");
+            } catch (IllegalArgumentException e) {
+                markRetryFailed(retry, e.getMessage());
                 return;
             }
 
@@ -124,7 +128,7 @@ public class WebhookRetryService {
             }
 
             // Attempt delivery
-            boolean success = attemptDelivery(retry, config, signature);
+            boolean success = attemptDelivery(retry, config, endpoint, signature);
             
             if (success) {
                 markRetrySuccess(retry);
@@ -138,10 +142,10 @@ public class WebhookRetryService {
         }
     }
 
-    private boolean attemptDelivery(WebhookRetry retry, WebhookConfig config, String signature) {
+    private boolean attemptDelivery(WebhookRetry retry, WebhookConfig config, URI endpoint, String signature) {
         try {
             Mono<Boolean> dispatchMono = webClient.post()
-                    .uri(config.getEndpointUrl())
+                    .uri(endpoint)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-Legent-Event", retry.getEventType())
                     .header("X-Legent-Signature", signature)

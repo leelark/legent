@@ -573,7 +573,7 @@ issues:
     category: Security
     short_description: JWT secret committed to .env in repository — weak key for production
     technical_details: >
-      .env contains LEGENT_SECURITY_JWT_SECRET=legent_prod_jwt_secret_2026_x9K4mP8vR2tN7qL5cB1dF6hJ3sW0yU4zG8aH2kM9pT.
+      .env contains a redacted JWT secret value.
       This value is committed to the repository. While the key is 64+ chars, its public exposure allows anyone
       with repository access to forge valid JWTs for any userId and tenantId. The JJWT library is configured
       with HMAC-SHA (HS256/HS512) which requires only this single shared secret.

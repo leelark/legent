@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
+import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
@@ -85,7 +86,7 @@ class WebhookDispatcherServiceTest {
 
     private void mockPostChain() {
         when(webClient.post()).thenReturn(requestBodyUriSpec);
-        when(requestBodyUriSpec.uri(anyString())).thenReturn(requestBodySpec);
+        when(requestBodyUriSpec.uri(any(URI.class))).thenReturn(requestBodySpec);
         when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
         when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);

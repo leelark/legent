@@ -21,6 +21,9 @@ spec:
         prometheus.io/port: "8088"
         prometheus.io/path: "/actuator/prometheus"
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: platform-service
           image: legent/platform-service:latest

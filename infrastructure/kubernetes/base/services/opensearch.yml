@@ -13,6 +13,9 @@ spec:
       labels:
         app: opensearch
     spec:
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: opensearch
           image: opensearchproject/opensearch:2.11.0

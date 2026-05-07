@@ -35,6 +35,15 @@ abstract class ApiProviderAdapterSupport {
         return URI.create(fallbackUrl);
     }
 
+    protected URI resolveConfiguredBaseUri(SmtpProvider config) {
+        String host = config.getHost();
+        if (host == null || host.isBlank()) {
+            throw new IllegalStateException("Provider endpoint host is required for provider " + config.getId());
+        }
+        String normalized = host.startsWith("http://") || host.startsWith("https://") ? host : "https://" + host;
+        return URI.create(normalized);
+    }
+
     protected String resolveFromEmail(Map<String, String> metadata, SmtpProvider config, String recipient) {
         String fromMetadata = metadata != null ? metadata.get("From-Email") : null;
         if (fromMetadata != null && !fromMetadata.isBlank()) {
@@ -60,4 +69,3 @@ abstract class ApiProviderAdapterSupport {
         return new ProviderDispatchException(message, permanent, cause);
     }
 }
-

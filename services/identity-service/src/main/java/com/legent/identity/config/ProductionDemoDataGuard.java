@@ -3,6 +3,7 @@ package com.legent.identity.config;
 import com.legent.identity.repository.UserRepository;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
@@ -11,17 +12,24 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ProductionDemoDataGuard {
 
-    private static final String DEMO_EMAIL = "admin@legent.com";
-    private static final String DEMO_PASSWORD_HASH = "$2b$10$uljUCrJIHC0EFF8t4ZMkUeClESdARKImtgPJKniwGmQ1Yj2lwDLee";
-
     private final UserRepository userRepository;
+
+    @Value("${legent.security.legacy-demo-admin-email:}")
+    private String legacyDemoAdminEmail;
+
+    @Value("${legent.security.legacy-demo-admin-password-hash:}")
+    private String legacyDemoAdminPasswordHash;
 
     @PostConstruct
     public void rejectDemoAdmin() {
-        userRepository.findFirstByEmailIgnoreCase(DEMO_EMAIL)
-                .filter(user -> user.isActive() && DEMO_PASSWORD_HASH.equals(user.getPasswordHash()))
+        if (legacyDemoAdminEmail == null || legacyDemoAdminEmail.isBlank()
+                || legacyDemoAdminPasswordHash == null || legacyDemoAdminPasswordHash.isBlank()) {
+            return;
+        }
+        userRepository.findFirstByEmailIgnoreCase(legacyDemoAdminEmail)
+                .filter(user -> user.isActive() && legacyDemoAdminPasswordHash.equals(user.getPasswordHash()))
                 .ifPresent(user -> {
-                    throw new IllegalStateException("Production cannot start with the seeded demo admin credential. Disable or rotate admin@legent.com before enabling prod profile.");
+                    throw new IllegalStateException("Production cannot start with a configured legacy demo admin credential.");
                 });
     }
 }

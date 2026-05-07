@@ -7,10 +7,11 @@ import java.util.Optional;
 import java.math.BigDecimal;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.net.Socket;
-import java.net.URL;
 import java.util.Locale;
 
+import com.legent.common.security.OutboundUrlGuard;
 import com.legent.delivery.domain.ProviderHealthCheck;
 import com.legent.delivery.domain.ProviderHealthStatus;
 import com.legent.delivery.domain.SmtpProvider;
@@ -149,8 +150,9 @@ public class ProviderHealthMonitoringService {
     private boolean checkHttpEndpoint(String healthUrl) {
         HttpURLConnection connection = null;
         try {
-            URL url = new URL(healthUrl);
-            connection = (HttpURLConnection) url.openConnection();
+            URI uri = OutboundUrlGuard.requirePublicHttpsUri(healthUrl, "provider health URL");
+            connection = (HttpURLConnection) uri.toURL().openConnection();
+            connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(5000);
             connection.setReadTimeout(5000);
             connection.setRequestMethod("GET");

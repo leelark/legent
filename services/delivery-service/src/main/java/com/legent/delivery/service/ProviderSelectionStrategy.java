@@ -54,6 +54,7 @@ public class ProviderSelectionStrategy {
     private final String defaultProviderHost;
     private final int defaultProviderPort;
     private final boolean allowMockProviders;
+    private final boolean allowDefaultProvider;
 
     @Autowired(required = false)
     private ProviderDecisionTraceRepository providerDecisionTraceRepository;
@@ -66,7 +67,8 @@ public class ProviderSelectionStrategy {
             List<ProviderAdapter> adapterList,
             @Value("${MAIL_HOST:mailhog}") String defaultProviderHost,
             @Value("${MAIL_PORT:1025}") int defaultProviderPort,
-            @Value("${legent.delivery.allow-mock-provider:false}") boolean allowMockProviders) {
+            @Value("${legent.delivery.allow-mock-provider:false}") boolean allowMockProviders,
+            @Value("${legent.delivery.allow-default-provider:false}") boolean allowDefaultProvider) {
         this.routingRuleRepository = routingRuleRepository;
         this.smtpProviderRepository = smtpProviderRepository;
         this.providerHealthStatusRepository = providerHealthStatusRepository;
@@ -74,6 +76,7 @@ public class ProviderSelectionStrategy {
         this.defaultProviderHost = defaultProviderHost;
         this.defaultProviderPort = defaultProviderPort;
         this.allowMockProviders = allowMockProviders;
+        this.allowDefaultProvider = allowDefaultProvider;
         this.adapters = adapterList.stream()
                 .filter(adapter -> normalizeType(adapter.getProviderType()) != null)
                 .collect(Collectors.toMap(
@@ -101,7 +104,7 @@ public class ProviderSelectionStrategy {
                 .findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue(normalizedTenantId, normalizedDomain);
 
         List<SmtpProvider> providers = smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc(normalizedTenantId);
-        if (providers.isEmpty()) {
+        if (providers.isEmpty() && allowDefaultProvider) {
             providers = List.of(createDefaultProvider(normalizedTenantId));
         }
 

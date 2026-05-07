@@ -42,7 +42,6 @@ const BLOCK_LIBRARY: Array<{ type: string; label: string; defaultContent: string
   { type: 'SOCIAL', label: 'Social Icons', defaultContent: '<div><a href="https://x.com">X</a> · <a href="https://linkedin.com">LinkedIn</a> · <a href="https://instagram.com">Instagram</a></div>' },
   { type: 'PRODUCT', label: 'Product Card', defaultContent: '<table role="presentation" width="100%"><tr><td><img src="https://placehold.co/280x160" alt="Product"/></td></tr><tr><td><h3>Product name</h3><p>Short product description.</p></td></tr></table>' },
   { type: 'CTA', label: 'CTA', defaultContent: '<div><h3>Ready to get started?</h3><p>Use this CTA block to drive conversion.</p></div>' },
-  { type: 'FORM', label: 'Form', defaultContent: '<form><label>Email</label><input type="email" placeholder="you@company.com"/></form>' },
   { type: 'COUNTDOWN', label: 'Countdown', defaultContent: '<div>Offer ends in: <strong>03d 10h 25m</strong></div>' },
   { type: 'HTML', label: 'HTML Block', defaultContent: '<!-- custom HTML -->' },
   { type: 'DYNAMIC', label: 'Dynamic Content', defaultContent: '<div>{{firstName}}, recommended for you: {{productName}}</div>' },

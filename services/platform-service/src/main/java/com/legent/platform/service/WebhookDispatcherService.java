@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.legent.common.security.OutboundUrlGuard;
 import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.domain.WebhookLog;
 import com.legent.platform.domain.WebhookRetry;
@@ -26,6 +27,7 @@ import reactor.util.retry.Retry;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -78,8 +80,11 @@ public class WebhookDispatcherService {
                 continue;
             }
 
-            if (normalize(config.getEndpointUrl()) == null) {
-                log.warn("Skipping webhook {} due to missing endpoint URL", config.getId());
+            URI endpoint;
+            try {
+                endpoint = OutboundUrlGuard.requirePublicHttpsUri(config.getEndpointUrl(), "webhook endpoint");
+            } catch (IllegalArgumentException e) {
+                log.warn("Skipping webhook {} due to unsafe endpoint URL: {}", config.getId(), e.getMessage());
                 continue;
             }
 
@@ -87,7 +92,7 @@ public class WebhookDispatcherService {
             
             // AUDIT-014: Build reactive chain without blocking
             Mono<Boolean> dispatchMono = webClient.post()
-                    .uri(config.getEndpointUrl())
+                    .uri(endpoint)
                     .contentType(MediaType.APPLICATION_JSON)
                     .header("X-Legent-Event", normalizedEventType)
                     .header("X-Legent-Signature", signature)
