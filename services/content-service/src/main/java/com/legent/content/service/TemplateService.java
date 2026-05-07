@@ -206,7 +206,7 @@ public class TemplateService {
         version.setHtmlContent(template.getHtmlContent());
         version.setTextContent(template.getTextContent());
         version.setChanges("Imported from HTML");
-        version.setPublish(Boolean.TRUE.equals(request.getPublish()));
+        version.setPublish(false);
         versionService.createVersion(template.getId(), version);
 
         return templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(template.getId(), template.getTenantId())

@@ -4,7 +4,9 @@ import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import com.legent.content.domain.ContentBlock;
+import com.legent.content.domain.ContentBlockVersion;
 import com.legent.content.dto.ContentBlockDto;
+import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.service.ContentBlockService;
 import com.legent.security.TenantContext;
 import jakarta.validation.Valid;
@@ -76,6 +78,38 @@ public class ContentBlockController {
         return ApiResponse.ok(blocks.stream().map(this::mapToResponse).toList());
     }
 
+    @PostMapping("/{id}/versions")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<EmailStudioDto.ContentBlockVersionResponse> createVersion(
+            @PathVariable String id,
+            @Valid @RequestBody EmailStudioDto.ContentBlockVersionRequest request) {
+        String tenantId = TenantContext.requireTenantId();
+        ContentBlockVersion version = blockService.createVersion(tenantId, id, request);
+        return ApiResponse.ok(mapVersion(version));
+    }
+
+    @GetMapping("/{id}/versions")
+    public ApiResponse<List<EmailStudioDto.ContentBlockVersionResponse>> listVersions(@PathVariable String id) {
+        String tenantId = TenantContext.requireTenantId();
+        return ApiResponse.ok(blockService.listVersions(tenantId, id).stream().map(this::mapVersion).toList());
+    }
+
+    @PostMapping("/{id}/versions/{versionNumber}/publish")
+    public ApiResponse<EmailStudioDto.ContentBlockVersionResponse> publishVersion(
+            @PathVariable String id,
+            @PathVariable Integer versionNumber) {
+        String tenantId = TenantContext.requireTenantId();
+        return ApiResponse.ok(mapVersion(blockService.publishVersion(tenantId, id, versionNumber)));
+    }
+
+    @PostMapping("/{id}/rollback/{versionNumber}")
+    public ApiResponse<EmailStudioDto.ContentBlockVersionResponse> rollbackVersion(
+            @PathVariable String id,
+            @PathVariable Integer versionNumber) {
+        String tenantId = TenantContext.requireTenantId();
+        return ApiResponse.ok(mapVersion(blockService.rollbackVersion(tenantId, id, versionNumber)));
+    }
+
     private ContentBlockDto.Response mapToResponse(ContentBlock block) {
         ContentBlockDto.Response response = new ContentBlockDto.Response();
         response.setId(block.getId());
@@ -85,6 +119,21 @@ public class ContentBlockController {
         response.setStyles(block.getStyles());
         response.setSettings(block.getSettings());
         response.setIsGlobal(block.getIsGlobal());
+        return response;
+    }
+
+    private EmailStudioDto.ContentBlockVersionResponse mapVersion(ContentBlockVersion version) {
+        EmailStudioDto.ContentBlockVersionResponse response = new EmailStudioDto.ContentBlockVersionResponse();
+        response.setId(version.getId());
+        response.setBlockId(version.getBlock() != null ? version.getBlock().getId() : null);
+        response.setVersionNumber(version.getVersionNumber());
+        response.setContent(version.getContent());
+        response.setStyles(version.getStyles());
+        response.setSettings(version.getSettings());
+        response.setChanges(version.getChanges());
+        response.setIsPublished(version.getIsPublished());
+        response.setCreatedAt(version.getCreatedAt() != null ? version.getCreatedAt().toString() : null);
+        response.setUpdatedAt(version.getUpdatedAt() != null ? version.getUpdatedAt().toString() : null);
         return response;
     }
 }

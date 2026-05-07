@@ -101,7 +101,9 @@ public class TemplateWorkflowController {
             @RequestBody(required = false) TemplateWorkflowDto.PublishRequest request) {
         String tenantId = TenantContext.requireTenantId();
         Integer versionNumber = request != null ? request.getVersionNumber() : null;
-        TemplateVersion version = workflowService.publishTemplate(tenantId, templateId, versionNumber);
+        boolean adminBypass = request != null && Boolean.TRUE.equals(request.getAdminBypass());
+        String bypassReason = request != null ? request.getBypassReason() : null;
+        TemplateVersion version = workflowService.publishTemplate(tenantId, templateId, versionNumber, adminBypass, bypassReason);
         return ApiResponse.ok(mapVersion(version));
     }
 
@@ -115,7 +117,7 @@ public class TemplateWorkflowController {
                 templateId,
                 versionNumber,
                 safeRequest.getReason(),
-                safeRequest.getPublish() == null || safeRequest.getPublish()
+                false
         );
         return ApiResponse.ok(mapVersion(version));
     }

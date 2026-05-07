@@ -4,6 +4,8 @@ import com.legent.common.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Data
 @EqualsAndHashCode(callSuper = true)
@@ -32,4 +34,11 @@ public class TemplateVersion extends TenantAwareEntity {
 
     @Column(name = "is_published", nullable = false)
     private Boolean isPublished = false;
+
+    @Column(name = "validation_status", length = 32)
+    private String validationStatus = "NOT_VALIDATED";
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "validation_report", columnDefinition = "JSONB")
+    private String validationReport = "{}";
 }

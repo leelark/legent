@@ -25,4 +25,8 @@ public interface TemplateApprovalRepository extends JpaRepository<TemplateApprov
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM TemplateApproval a " +
            "WHERE a.tenantId = :tid AND a.templateId = :templateId AND a.versionNumber = :version AND a.status = 'PENDING'")
     boolean hasPendingApproval(@Param("tid") String tenantId, @Param("templateId") String templateId, @Param("version") int version);
+
+    @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM TemplateApproval a " +
+           "WHERE a.tenantId = :tid AND a.templateId = :templateId AND a.versionNumber = :version AND a.status = 'APPROVED'")
+    boolean hasApprovedApproval(@Param("tid") String tenantId, @Param("templateId") String templateId, @Param("version") int version);
 }

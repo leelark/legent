@@ -2,9 +2,9 @@ package com.legent.content.controller;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
-import com.legent.content.domain.EmailTemplate;
 import com.legent.content.domain.TemplateVersion;
-import com.legent.content.service.TemplateService;
+import com.legent.content.dto.EmailStudioDto;
+import com.legent.content.service.EmailRenderService;
 import com.legent.content.service.TemplateVersionService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ContentController {
 
-    private final TemplateService templateService;
+    private final EmailRenderService renderService;
     private final TemplateVersionService versionService;
 
     /**
@@ -35,10 +35,11 @@ public class ContentController {
             @PathVariable String templateId,
             @RequestBody Map<String, Object> variables) {
         String tenantId = TenantContext.requireTenantId();
-
-        EmailTemplate template = templateService.getTemplate(tenantId, templateId);
-        TemplateService.RenderedParts rendered = templateService.renderTemplateParts(template, variables);
-        return ApiResponse.ok(new RenderedContent(rendered.subject(), rendered.htmlContent(), rendered.textContent()));
+        EmailStudioDto.RenderRequest request = new EmailStudioDto.RenderRequest();
+        request.setVariables(variables);
+        request.setPublishedOnly(true);
+        EmailStudioDto.RenderResponse rendered = renderService.render(tenantId, templateId, request);
+        return ApiResponse.ok(new RenderedContent(rendered.getSubject(), rendered.getHtmlContent(), rendered.getTextContent()));
     }
 
     /**

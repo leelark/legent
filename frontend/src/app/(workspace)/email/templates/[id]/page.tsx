@@ -16,30 +16,44 @@ import { AssetUploader } from '@/components/content/AssetUploader';
 import { PersonalizationTester } from '@/components/content/PersonalizationTester';
 import {
   Asset,
+  BrandKit,
+  ContentSnippet,
+  DynamicContentRule,
+  PersonalizationToken,
   Template,
   TemplateApproval,
+  TestSendRecord,
   TemplateVersion,
   ValidationResponse,
   approveTemplateApproval,
   cancelTemplateApproval,
   compareTemplateVersions,
+  createBrandKit,
+  createContentSnippet,
+  createDynamicContentRule,
+  createPersonalizationToken,
+  createTemplateTestSend,
   exportTemplateHtml,
   getTemplate,
   getTemplateApprovals,
   listAssets,
+  listBrandKits,
+  listContentSnippets,
+  listDynamicContentRules,
+  listPersonalizationTokens,
+  listTemplateTestSends,
   listTemplateVersions,
-  previewTemplate,
   publishTemplate,
   publishTemplateVersion,
   rejectTemplateApproval,
+  renderTemplateEnterprise,
   rollbackTemplate,
   saveTemplateDraft,
-  sendTemplateTestEmail,
   submitTemplateApproval,
   updateTemplate,
   uploadAsset,
   uploadAssetsBulk,
-  validateTemplate,
+  validateTemplateEnterprise,
 } from '@/lib/template-studio-api';
 
 const toText = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
@@ -110,6 +124,11 @@ export default function TemplateStudioPage() {
   const [versions, setVersions] = useState<TemplateVersion[]>([]);
   const [approvals, setApprovals] = useState<TemplateApproval[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [snippets, setSnippets] = useState<ContentSnippet[]>([]);
+  const [tokens, setTokens] = useState<PersonalizationToken[]>([]);
+  const [dynamicRules, setDynamicRules] = useState<DynamicContentRule[]>([]);
+  const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
+  const [testSendRecords, setTestSendRecords] = useState<TestSendRecord[]>([]);
 
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewSubject, setPreviewSubject] = useState('');
@@ -124,9 +143,25 @@ export default function TemplateStudioPage() {
   const [compareResult, setCompareResult] = useState<any>(null);
 
   const [testEmail, setTestEmail] = useState('');
+  const [recipientGroup, setRecipientGroup] = useState('QA');
   const [approvalComment, setApprovalComment] = useState('');
   const [rejectReason, setRejectReason] = useState('');
   const [assetQuery, setAssetQuery] = useState('');
+  const [snippetKey, setSnippetKey] = useState('footer.disclaimer');
+  const [snippetName, setSnippetName] = useState('Footer Disclaimer');
+  const [snippetContent, setSnippetContent] = useState('<p>Manage your preferences or unsubscribe.</p>');
+  const [tokenKey, setTokenKey] = useState('firstName');
+  const [tokenName, setTokenName] = useState('First name');
+  const [tokenPath, setTokenPath] = useState('firstName');
+  const [tokenDefault, setTokenDefault] = useState('there');
+  const [dynamicSlot, setDynamicSlot] = useState('main');
+  const [dynamicName, setDynamicName] = useState('Default dynamic block');
+  const [dynamicField, setDynamicField] = useState('segment');
+  const [dynamicValue, setDynamicValue] = useState('vip');
+  const [dynamicHtml, setDynamicHtml] = useState('<p>Exclusive content for this audience.</p>');
+  const [brandName, setBrandName] = useState('Default Brand Kit');
+  const [brandPrimary, setBrandPrimary] = useState('#2563eb');
+  const [brandFooter, setBrandFooter] = useState('<p style="font-size:12px;color:#64748b">You are receiving this email from Legent.</p>');
   const [isBusy, setIsBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -136,11 +171,16 @@ export default function TemplateStudioPage() {
     if (!templateId) return;
     setLoading(true);
     try {
-      const [templateRes, versionsRes, approvalsRes, assetsRes] = await Promise.all([
+      const [templateRes, versionsRes, approvalsRes, assetsRes, snippetsRes, tokensRes, rulesRes, brandKitsRes, testSendsRes] = await Promise.all([
         getTemplate(templateId),
         listTemplateVersions(templateId),
         getTemplateApprovals(templateId),
         listAssets({ page: 0, size: 40 }),
+        listContentSnippets(0, 50),
+        listPersonalizationTokens(0, 100),
+        listDynamicContentRules(templateId),
+        listBrandKits(0, 50),
+        listTemplateTestSends(templateId),
       ]);
 
       const parsedMetadata = parseMetadata(templateRes.metadata);
@@ -158,6 +198,11 @@ export default function TemplateStudioPage() {
       setApprovals(Array.isArray(approvalsRes) ? approvalsRes : []);
       const assetItems = Array.isArray(assetsRes) ? assetsRes : (assetsRes?.content ?? assetsRes?.data ?? []);
       setAssets(assetItems);
+      setSnippets(Array.isArray(snippetsRes) ? snippetsRes : (snippetsRes?.content ?? snippetsRes?.data ?? []));
+      setTokens(Array.isArray(tokensRes) ? tokensRes : (tokensRes?.content ?? tokensRes?.data ?? []));
+      setDynamicRules(Array.isArray(rulesRes) ? rulesRes : []);
+      setBrandKits(Array.isArray(brandKitsRes) ? brandKitsRes : (brandKitsRes?.content ?? brandKitsRes?.data ?? []));
+      setTestSendRecords(Array.isArray(testSendsRes) ? testSendsRes : []);
 
       if (versionsRes.length >= 2) {
         setCompareLeft(versionsRes[0].versionNumber);
@@ -231,15 +276,17 @@ export default function TemplateStudioPage() {
   const handlePreview = async () => {
     if (!template) return;
     try {
-      const preview = await previewTemplate(template.id, {
+      const preview = await renderTemplateEnterprise(template.id, {
         variables: personalizationVars,
-        mode: previewMode,
-        darkMode: darkModePreview,
+        publishedOnly: false,
       });
       setPreviewHtml(preview.htmlContent);
       setPreviewSubject(preview.subject);
-      setPreviewWarnings(preview.warnings ?? []);
-      const validationResult = await validateTemplate(htmlFromBlocks);
+      setPreviewWarnings([...(preview.warnings ?? []), ...(preview.compatibilityWarnings ?? [])]);
+      const validationResult = await validateTemplateEnterprise(template.id, {
+        variables: personalizationVars,
+        publishedOnly: false,
+      });
       setValidation(validationResult);
     } catch (error: any) {
       addToast({
@@ -340,10 +387,12 @@ export default function TemplateStudioPage() {
     }
     await withBusy(async () => {
       await persistTemplate();
-      await sendTemplateTestEmail(template.id, {
+      await createTemplateTestSend(template.id, {
         email: testEmail.trim(),
+        recipientGroup: recipientGroup.trim() || undefined,
         variables: personalizationVars,
       });
+      setTestSendRecords(await listTemplateTestSends(template.id));
       addToast({ type: 'success', title: 'Test queued', message: `Test email queued for ${testEmail.trim()}.` });
     });
   };
@@ -410,6 +459,69 @@ export default function TemplateStudioPage() {
     }
   };
 
+  const handleCreateSnippet = async () => {
+    await withBusy(async () => {
+      await createContentSnippet({
+        snippetKey: snippetKey.trim(),
+        name: snippetName.trim(),
+        snippetType: 'HTML',
+        content: snippetContent,
+        isGlobal: true,
+      });
+      const response = await listContentSnippets(0, 50);
+      setSnippets(Array.isArray(response) ? response : (response?.content ?? response?.data ?? []));
+      addToast({ type: 'success', title: 'Snippet saved', message: `{{snippet.${snippetKey.trim()}}} is available.` });
+    });
+  };
+
+  const handleCreateToken = async () => {
+    await withBusy(async () => {
+      await createPersonalizationToken({
+        tokenKey: tokenKey.trim(),
+        displayName: tokenName.trim(),
+        dataPath: tokenPath.trim(),
+        defaultValue: tokenDefault,
+        sampleValue: tokenDefault,
+        required: false,
+      });
+      const response = await listPersonalizationTokens(0, 100);
+      setTokens(Array.isArray(response) ? response : (response?.content ?? response?.data ?? []));
+      addToast({ type: 'success', title: 'Token registered', message: `{{${tokenKey.trim()}}} can now render safely.` });
+    });
+  };
+
+  const handleCreateDynamicRule = async () => {
+    if (!template) return;
+    await withBusy(async () => {
+      const rule = await createDynamicContentRule(template.id, {
+        slotKey: dynamicSlot.trim(),
+        name: dynamicName.trim(),
+        priority: dynamicRules.length + 1,
+        conditionField: dynamicField.trim(),
+        operator: dynamicField.trim() ? 'EQUALS' : 'ALWAYS',
+        conditionValue: dynamicValue.trim(),
+        htmlContent: dynamicHtml,
+        textContent: toText(dynamicHtml),
+        active: true,
+      });
+      setDynamicRules((current) => [...current, rule].sort((a, b) => a.priority - b.priority));
+      addToast({ type: 'success', title: 'Dynamic rule saved', message: `{{dynamic.${rule.slotKey}}} is ready.` });
+    });
+  };
+
+  const handleCreateBrandKit = async () => {
+    await withBusy(async () => {
+      const brand = await createBrandKit({
+        name: brandName.trim(),
+        primaryColor: brandPrimary.trim(),
+        footerHtml: brandFooter,
+        isDefault: brandKits.length === 0,
+      });
+      setBrandKits((current) => [brand, ...current.filter((item) => item.id !== brand.id)]);
+      addToast({ type: 'success', title: 'Brand kit saved', message: `${brand.name} is available for rendering.` });
+    });
+  };
+
   if (loading) {
     return <div className="p-8 text-sm text-content-secondary">Loading Template Studio...</div>;
   }
@@ -463,11 +575,15 @@ export default function TemplateStudioPage() {
           defaultTab="builder"
           tabs={[
             { key: 'builder', label: 'Builder' },
+            { key: 'blocks', label: 'Blocks/Snippets' },
+            { key: 'dynamic', label: 'Dynamic Rules' },
+            { key: 'tokens', label: 'Tokens' },
             { key: 'preview', label: 'Preview & QA' },
             { key: 'versions', label: 'Versions' },
             { key: 'approvals', label: 'Approvals' },
             { key: 'assets', label: 'Assets' },
-            { key: 'personalization', label: 'Personalization' },
+            { key: 'brand', label: 'Brand Kit' },
+            { key: 'tests', label: 'Test Sends' },
           ]}
         >
           {(tab) => {
@@ -485,6 +601,104 @@ export default function TemplateStudioPage() {
                       />
                     </div>
                   </Card>
+                </div>
+              );
+            }
+
+            if (tab === 'blocks') {
+              return (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader title="Reusable Snippets" subtitle="Insert with {{snippet.key}} in templates and dynamic rules." />
+                    <div className="grid gap-3 p-4 md:grid-cols-3">
+                      <Input label="Key" value={snippetKey} onChange={(event) => setSnippetKey(event.target.value)} />
+                      <Input label="Name" value={snippetName} onChange={(event) => setSnippetName(event.target.value)} />
+                      <Button className="mt-6" onClick={handleCreateSnippet} loading={isBusy}>Save Snippet</Button>
+                    </div>
+                    <div className="p-4 pt-0">
+                      <textarea
+                        value={snippetContent}
+                        onChange={(event) => setSnippetContent(event.target.value)}
+                        rows={4}
+                        className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 font-mono text-xs"
+                      />
+                    </div>
+                  </Card>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {snippets.map((snippet) => (
+                      <div key={snippet.id} className="rounded-lg border border-border-default p-3">
+                        <p className="font-medium text-content-primary">{snippet.name}</p>
+                        <p className="mt-1 font-mono text-xs text-content-secondary">{`{{snippet.${snippet.snippetKey}}}`}</p>
+                        <p className="mt-2 line-clamp-2 text-xs text-content-muted">{snippet.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            if (tab === 'dynamic') {
+              return (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader title="Dynamic Content Rules" subtitle="Rules resolve slots like {{dynamic.main}} by priority." />
+                    <div className="grid gap-3 p-4 md:grid-cols-5">
+                      <Input label="Slot" value={dynamicSlot} onChange={(event) => setDynamicSlot(event.target.value)} />
+                      <Input label="Name" value={dynamicName} onChange={(event) => setDynamicName(event.target.value)} />
+                      <Input label="Field" value={dynamicField} onChange={(event) => setDynamicField(event.target.value)} />
+                      <Input label="Value" value={dynamicValue} onChange={(event) => setDynamicValue(event.target.value)} />
+                      <Button className="mt-6" onClick={handleCreateDynamicRule} loading={isBusy}>Save Rule</Button>
+                    </div>
+                    <div className="p-4 pt-0">
+                      <textarea
+                        value={dynamicHtml}
+                        onChange={(event) => setDynamicHtml(event.target.value)}
+                        rows={4}
+                        className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 font-mono text-xs"
+                      />
+                    </div>
+                  </Card>
+                  <div className="divide-y divide-border-default rounded-lg border border-border-default">
+                    {dynamicRules.length === 0 ? (
+                      <div className="p-4 text-sm text-content-secondary">No dynamic rules configured.</div>
+                    ) : dynamicRules.map((rule) => (
+                      <div key={rule.id} className="flex flex-col gap-2 p-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-medium text-content-primary">{rule.name}</p>
+                          <p className="text-xs text-content-secondary">
+                            {`{{dynamic.${rule.slotKey}}}`} - {rule.operator} {rule.conditionField} {rule.conditionValue}
+                          </p>
+                        </div>
+                        <Badge variant={rule.active ? 'success' : 'default'}>{rule.active ? 'Active' : 'Disabled'}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            if (tab === 'tokens') {
+              return (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader title="Personalization Token Registry" subtitle="Only registered tokens are allowed in production renders." />
+                    <div className="grid gap-3 p-4 md:grid-cols-5">
+                      <Input label="Token" value={tokenKey} onChange={(event) => setTokenKey(event.target.value)} />
+                      <Input label="Name" value={tokenName} onChange={(event) => setTokenName(event.target.value)} />
+                      <Input label="Data Path" value={tokenPath} onChange={(event) => setTokenPath(event.target.value)} />
+                      <Input label="Default" value={tokenDefault} onChange={(event) => setTokenDefault(event.target.value)} />
+                      <Button className="mt-6" onClick={handleCreateToken} loading={isBusy}>Register</Button>
+                    </div>
+                  </Card>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {tokens.map((token) => (
+                      <div key={token.id} className="rounded-lg border border-border-default p-3">
+                        <p className="font-medium text-content-primary">{token.displayName}</p>
+                        <p className="mt-1 font-mono text-xs text-content-secondary">{`{{${token.tokenKey}}}`}</p>
+                        <p className="mt-1 text-xs text-content-muted">{token.dataPath || token.tokenKey}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             }
@@ -532,13 +746,16 @@ export default function TemplateStudioPage() {
                         ))}
                         {validation && (
                           <>
-                            <p>Links: {validation.linkCount} · Broken: {validation.brokenLinkCount}</p>
-                            <p>Images: {validation.imageCount} · Missing alt: {validation.imagesMissingAlt}</p>
-                            {validation.brokenLinks.length > 0 && (
-                              <p className="text-danger">Broken links: {validation.brokenLinks.join(', ')}</p>
+                            <p>Links: {validation.linkCount} - Broken: {validation.brokenLinkCount ?? 0}</p>
+                            <p>Images: {validation.imageCount} - Missing alt: {validation.imagesMissingAlt}</p>
+                            {(validation.brokenLinks ?? []).length > 0 && (
+                              <p className="text-danger">Broken links: {(validation.brokenLinks ?? []).join(', ')}</p>
                             )}
-                            {validation.warnings.length > 0 && (
-                              <p className="text-warning">{validation.warnings.join(' | ')}</p>
+                            {(validation.errors ?? []).length > 0 && (
+                              <p className="text-danger">{(validation.errors ?? []).join(' | ')}</p>
+                            )}
+                            {(validation.warnings ?? []).length > 0 && (
+                              <p className="text-warning">{(validation.warnings ?? []).join(' | ')}</p>
                             )}
                           </>
                         )}
@@ -639,7 +856,7 @@ export default function TemplateStudioPage() {
                             <div>
                               <p className="font-medium text-content-primary">Version v{approval.versionNumber}</p>
                               <p className="text-xs text-content-secondary">
-                                Requested by {approval.requestedBy || 'unknown'} · {approval.requestedAt ? new Date(approval.requestedAt).toLocaleString() : 'n/a'}
+                                Requested by {approval.requestedBy || 'unknown'} - {approval.requestedAt ? new Date(approval.requestedAt).toLocaleString() : 'n/a'}
                               </p>
                               {approval.comments && <p className="mt-1 text-sm text-content-secondary">{approval.comments}</p>}
                               {approval.rejectionReason && <p className="mt-1 text-sm text-danger">Reason: {approval.rejectionReason}</p>}
@@ -729,33 +946,96 @@ export default function TemplateStudioPage() {
               );
             }
 
+            if (tab === 'brand') {
+              return (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader title="Brand Kit" subtitle="Reusable fonts, colors, footer, and legal blocks for renderer output." />
+                    <div className="grid gap-3 p-4 md:grid-cols-4">
+                      <Input label="Name" value={brandName} onChange={(event) => setBrandName(event.target.value)} />
+                      <Input label="Primary Color" value={brandPrimary} onChange={(event) => setBrandPrimary(event.target.value)} />
+                      <Button className="mt-6" onClick={handleCreateBrandKit} loading={isBusy}>Save Brand Kit</Button>
+                    </div>
+                    <div className="p-4 pt-0">
+                      <label className="mb-1 block text-sm font-medium text-content-primary">Footer HTML</label>
+                      <textarea
+                        value={brandFooter}
+                        onChange={(event) => setBrandFooter(event.target.value)}
+                        rows={4}
+                        className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 font-mono text-xs"
+                      />
+                    </div>
+                  </Card>
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {brandKits.map((brand) => (
+                      <div key={brand.id} className="rounded-lg border border-border-default p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="font-medium text-content-primary">{brand.name}</p>
+                          {brand.isDefault && <Badge variant="success">Default</Badge>}
+                        </div>
+                        <div className="mt-3 h-3 rounded" style={{ backgroundColor: brand.primaryColor || '#64748b' }} />
+                        <p className="mt-2 text-xs text-content-secondary">{brand.defaultFromEmail || 'No default sender'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            if (tab === 'tests') {
+              return (
+                <div className="space-y-4">
+                  <Card>
+                    <CardHeader title="Personalization Variables" subtitle="Values are used by preview validation and test sends." />
+                    <div className="p-4">
+                      <PersonalizationTester
+                        onTest={(vars) => {
+                          setPersonalizationVars(vars);
+                          addToast({ type: 'success', title: 'Variables updated', message: 'Preview variables applied.' });
+                        }}
+                      />
+                    </div>
+                  </Card>
+                  <Card>
+                    <CardHeader title="Test Send" />
+                    <div className="grid gap-3 p-4 md:grid-cols-[1fr_220px_auto]">
+                      <Input
+                        label="Recipient Email"
+                        value={testEmail}
+                        onChange={(event) => setTestEmail(event.target.value)}
+                        placeholder="qa-team@company.com"
+                      />
+                      <Input
+                        label="Recipient Group"
+                        value={recipientGroup}
+                        onChange={(event) => setRecipientGroup(event.target.value)}
+                      />
+                      <Button className="mt-6" onClick={handleTestSend} loading={isBusy}>
+                        Send Test Email
+                      </Button>
+                    </div>
+                  </Card>
+                  <div className="divide-y divide-border-default rounded-lg border border-border-default">
+                    {testSendRecords.length === 0 ? (
+                      <div className="p-4 text-sm text-content-secondary">No test sends recorded.</div>
+                    ) : testSendRecords.map((record) => (
+                      <div key={record.id} className="flex flex-col gap-1 p-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-medium text-content-primary">{record.recipientEmail}</p>
+                          <p className="text-xs text-content-secondary">{record.subject || 'No subject'} - {record.createdAt ? new Date(record.createdAt).toLocaleString() : 'n/a'}</p>
+                          {record.errorMessage && <p className="text-xs text-danger">{record.errorMessage}</p>}
+                        </div>
+                        <Badge variant={record.status === 'QUEUED' ? 'success' : record.status === 'FAILED' ? 'danger' : 'default'}>{record.status}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
             return (
               <div className="space-y-4">
-                <Card>
-                  <CardHeader title="Personalization Variables" subtitle="Add merge tag values for preview and test sends." />
-                  <div className="p-4">
-                    <PersonalizationTester
-                      onTest={(vars) => {
-                        setPersonalizationVars(vars);
-                        addToast({ type: 'success', title: 'Variables updated', message: 'Preview variables applied.' });
-                      }}
-                    />
-                  </div>
-                </Card>
-                <Card>
-                  <CardHeader title="Test Send" />
-                  <div className="grid gap-3 p-4 md:grid-cols-[1fr_auto]">
-                    <Input
-                      label="Recipient Email"
-                      value={testEmail}
-                      onChange={(event) => setTestEmail(event.target.value)}
-                      placeholder="qa-team@company.com"
-                    />
-                    <Button className="mt-6" onClick={handleTestSend} loading={isBusy}>
-                      Send Test Email
-                    </Button>
-                  </div>
-                </Card>
+                <div className="p-4 text-sm text-content-secondary">Select a studio tab.</div>
               </div>
             );
           }}

@@ -4,9 +4,12 @@ import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import com.legent.content.domain.EmailTemplate;
+import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.dto.TemplateDto;
 import com.legent.content.dto.TemplateWorkflowDto;
+import com.legent.content.service.EmailRenderService;
 import com.legent.content.service.TemplateService;
+import com.legent.content.service.TemplateTestSendService;
 import com.legent.security.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,8 @@ import org.springframework.web.bind.annotation.*;
 public class TemplateController {
 
     private final TemplateService templateService;
+    private final TemplateTestSendService testSendService;
+    private final EmailRenderService renderService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -116,13 +121,16 @@ public class TemplateController {
             @RequestBody(required = false) TemplateWorkflowDto.PreviewRequest request) {
         String tenantId = TenantContext.requireTenantId();
         TemplateWorkflowDto.PreviewRequest safeRequest = request != null ? request : new TemplateWorkflowDto.PreviewRequest();
-        return ApiResponse.ok(templateService.previewTemplate(
-                tenantId,
-                id,
-                safeRequest.getVariables(),
-                safeRequest.getMode(),
-                safeRequest.getDarkMode()
-        ));
+        EmailStudioDto.RenderRequest renderRequest = new EmailStudioDto.RenderRequest();
+        renderRequest.setVariables(safeRequest.getVariables());
+        renderRequest.setPublishedOnly(false);
+        EmailStudioDto.RenderResponse rendered = renderService.render(tenantId, id, renderRequest);
+        TemplateWorkflowDto.PreviewResponse response = new TemplateWorkflowDto.PreviewResponse();
+        response.setSubject(rendered.getSubject());
+        response.setHtmlContent(rendered.getHtmlContent());
+        response.setTextContent(rendered.getTextContent());
+        response.setWarnings(rendered.getWarnings());
+        return ApiResponse.ok(response);
     }
 
     @PostMapping("/validate")
@@ -137,7 +145,11 @@ public class TemplateController {
             @PathVariable String id,
             @Valid @RequestBody TemplateWorkflowDto.TestSendRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        templateService.sendTestEmail(tenantId, id, request.getEmail(), request.getSubjectOverride(), request.getVariables());
+        EmailStudioDto.TestSendRequest testSendRequest = new EmailStudioDto.TestSendRequest();
+        testSendRequest.setEmail(request.getEmail());
+        testSendRequest.setSubjectOverride(request.getSubjectOverride());
+        testSendRequest.setVariables(request.getVariables());
+        testSendService.send(tenantId, id, testSendRequest);
         return ApiResponse.ok(Map.of(
                 "status", "queued",
                 "message", "Test email queued for delivery"

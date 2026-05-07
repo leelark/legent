@@ -32,7 +32,11 @@ public class TemplateWorkflowService {
     private final TemplateApprovalRepository approvalRepository;
     private final TemplateVersionRepository versionRepository;
     private final TemplateVersionService versionService;
+    private final EmailRenderService renderService;
     private final ContentEventPublisher eventPublisher;
+
+    @org.springframework.beans.factory.annotation.Value("${legent.content.approval-required-by-default:true}")
+    private boolean approvalRequiredByDefault = true;
 
     /**
      * Submit a template for approval.
@@ -189,14 +193,18 @@ public class TemplateWorkflowService {
      */
     @Transactional
     public TemplateVersion publishTemplate(String tenantId, String templateId, Integer versionNumber) {
+        return publishTemplate(tenantId, templateId, versionNumber, false, null);
+    }
+
+    /**
+     * Publish an approved template, with an auditable admin bypass for controlled bootstrap or emergency use.
+     */
+    @Transactional
+    public TemplateVersion publishTemplate(String tenantId, String templateId, Integer versionNumber,
+                                           boolean adminBypass, String bypassReason) {
         EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
                 .orElseThrow(() -> new NotFoundException("Template", templateId));
         String userId = resolveActor(TenantContext.getUserId(), template.getCurrentApprover(), template.getCreatedBy(), "system");
-
-        // Check if approval is required and template is approved
-        if (template.isApprovalRequired() && template.getStatus() != EmailTemplate.TemplateStatus.APPROVED) {
-            throw new ValidationException("status", "Template must be approved before publishing");
-        }
 
         TemplateVersion version;
         if (versionNumber != null) {
@@ -216,6 +224,20 @@ public class TemplateWorkflowService {
                         return versionService.createVersion(templateId, initialVersion);
                     });
         }
+
+        boolean approvalRequired = approvalRequiredByDefault || template.isApprovalRequired();
+        boolean approvedForVersion = template.getStatus() == EmailTemplate.TemplateStatus.APPROVED
+                && approvalRepository.hasApprovedApproval(tenantId, templateId, version.getVersionNumber());
+        if (approvalRequired && !approvedForVersion) {
+            if (!adminBypass) {
+                throw new ValidationException("status", "Template version must be approved before publishing");
+            }
+            requireAdminBypassAllowed(bypassReason);
+            log.warn("Template publish admin bypass: tenant={}, template={}, version={}, actor={}, reason={}",
+                    tenantId, templateId, version.getVersionNumber(), userId, bypassReason);
+        }
+
+        renderService.requirePublishable(tenantId, templateId, version.getVersionNumber());
 
         // Publish the version
         versionService.publishVersion(templateId, version.getVersionNumber());
@@ -318,6 +340,27 @@ public class TemplateWorkflowService {
         log.info("Template approval cancelled: tenant={}, template={}", tenantId, template.getId());
 
         return approvalRepository.findById(approval.getId()).orElse(approval);
+    }
+
+    private void requireAdminBypassAllowed(String bypassReason) {
+        if (bypassReason == null || bypassReason.isBlank()) {
+            throw new ValidationException("bypassReason", "Admin bypass requires a reason");
+        }
+        org.springframework.security.core.Authentication authentication =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getAuthorities() == null) {
+            throw new ValidationException("adminBypass", "Admin bypass requires an authenticated admin");
+        }
+        boolean allowed = authentication.getAuthorities().stream()
+                .map(org.springframework.security.core.GrantedAuthority::getAuthority)
+                .anyMatch(authority -> authority.equals("ROLE_ADMIN")
+                        || authority.equals("ROLE_SUPER_ADMIN")
+                        || authority.equals("ROLE_CONTENT_ADMIN")
+                        || authority.equals("CONTENT_APPROVE")
+                        || authority.equals("content:approve"));
+        if (!allowed) {
+            throw new ValidationException("adminBypass", "Admin bypass requires content approval permission");
+        }
     }
 
     private String resolveActor(String... candidates) {

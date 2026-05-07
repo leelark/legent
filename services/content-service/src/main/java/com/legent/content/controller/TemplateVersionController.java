@@ -5,6 +5,8 @@ import com.legent.common.dto.ApiResponse;
 import com.legent.content.domain.TemplateVersion;
 import com.legent.content.dto.TemplateVersionDto;
 import com.legent.content.service.TemplateVersionService;
+import com.legent.content.service.TemplateWorkflowService;
+import com.legent.security.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 public class TemplateVersionController {
 
     private final TemplateVersionService versionService;
+    private final TemplateWorkflowService workflowService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -31,7 +34,7 @@ public class TemplateVersionController {
     public ApiResponse<TemplateVersionDto.Response> publishVersion(
             @PathVariable String templateId,
             @PathVariable Integer versionNumber) {
-        TemplateVersion version = versionService.publishVersion(templateId, versionNumber);
+        TemplateVersion version = workflowService.publishTemplate(TenantContext.requireTenantId(), templateId, versionNumber);
         return ApiResponse.ok(mapToResponse(version));
     }
 

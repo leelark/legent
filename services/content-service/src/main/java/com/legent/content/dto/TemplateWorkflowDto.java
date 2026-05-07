@@ -32,6 +32,8 @@ public class TemplateWorkflowDto {
     @Data
     public static class PublishRequest {
         private Integer versionNumber;
+        private Boolean adminBypass = false;
+        private String bypassReason;
     }
 
     @Data

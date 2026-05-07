@@ -1,6 +1,7 @@
 package com.legent.content.service;
 
 import com.legent.common.exception.NotFoundException;
+import com.legent.common.exception.ValidationException;
 import com.legent.content.domain.EmailTemplate;
 import com.legent.content.domain.TemplateVersion;
 import com.legent.content.dto.TemplateVersionDto;
@@ -39,13 +40,12 @@ public class TemplateVersionService {
         version.setHtmlContent(request.getHtmlContent() != null ? request.getHtmlContent() : template.getHtmlContent());
         version.setTextContent(request.getTextContent() != null ? request.getTextContent() : template.getTextContent());
         version.setChanges(request.getChanges());
-        version.setIsPublished(Boolean.TRUE.equals(request.getPublish()));
+        if (Boolean.TRUE.equals(request.getPublish())) {
+            throw new ValidationException("publish", "Use the approval-aware publish workflow instead of publishing during version creation");
+        }
+        version.setIsPublished(false);
 
         version = versionRepository.save(version);
-
-        if (Boolean.TRUE.equals(request.getPublish())) {
-            publishTemplateVersion(template, version, tenantId);
-        }
 
         return version;
     }
@@ -100,7 +100,7 @@ public class TemplateVersionService {
     public TemplateVersion getLatestPublishedVersion(String templateId) {
         String tenantId = TenantContext.requireTenantId();
         return versionRepository.findFirstByTemplate_IdAndTenantIdAndIsPublishedTrueOrderByVersionNumberDesc(templateId, tenantId)
-                .orElseGet(() -> getLatestVersion(templateId));
+                .orElseThrow(() -> new NotFoundException("Published template version not found"));
     }
 
     @Transactional(readOnly = true)
@@ -129,12 +129,12 @@ public class TemplateVersionService {
         rollbackVersion.setChanges(reason != null && !reason.isBlank()
                 ? reason
                 : "Rollback from version " + versionNumber);
-        rollbackVersion.setIsPublished(publish);
+        if (publish) {
+            throw new ValidationException("publish", "Rollback creates a draft version; use the approval-aware publish workflow after approval");
+        }
+        rollbackVersion.setIsPublished(false);
 
         rollbackVersion = versionRepository.save(rollbackVersion);
-        if (publish) {
-            return publishTemplateVersion(template, rollbackVersion, tenantId);
-        }
         return rollbackVersion;
     }
 

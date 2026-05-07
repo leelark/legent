@@ -257,9 +257,14 @@ export default function EmailTemplatesPage() {
           <h1 className="text-2xl font-bold text-content-primary">Template Studio</h1>
           <p className="mt-1 text-sm text-content-secondary">Build reusable, branded email templates with versioned workflows.</p>
         </div>
-        <Link href="/app/email">
-          <Button variant="secondary">Back to Email Studio</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/app/email/landing-pages">
+            <Button variant="secondary">Landing Pages</Button>
+          </Link>
+          <Link href="/app/email">
+            <Button variant="secondary">Back to Email Studio</Button>
+          </Link>
+        </div>
       </div>
 
       <Card>
