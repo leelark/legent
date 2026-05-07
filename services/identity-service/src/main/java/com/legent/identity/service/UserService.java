@@ -47,6 +47,9 @@ public class UserService {
         if (userRepository.existsByTenantIdAndEmailIgnoreCase(tenantId, request.getEmail())) {
             throw new ConflictException("User", "email", request.getEmail());
         }
+        if (request.getPassword() == null || request.getPassword().isBlank()) {
+            throw new IllegalArgumentException("Password is required when creating a user");
+        }
 
         User user = User.builder()
                 .tenantId(tenantId)

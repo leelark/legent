@@ -21,7 +21,10 @@ public class RbacEvaluator {
 
     private static final Map<String, Set<String>> ROLE_PERMISSION_MATRIX = Map.of(
             ADMIN, Set.of("*"),
-            "PLATFORM_ADMIN", Set.of("platform:*", "webhook:*", "notification:*", "search:*", "tenant:*"),
+            "PLATFORM_ADMIN", Set.of("platform:*", "webhook:*", "notification:*", "search:*", "tenant:*", "config:*", "audit:*", "user:*", "role:*", "admin:*"),
+            "ORG_ADMIN", Set.of("tenant:*", "workspace:*", "team:*", "role:*", "user:*", "config:*", "audit:*", "feature:*"),
+            "SECURITY_ADMIN", Set.of("audit:*", "user:*", "role:*", "config:read", "tenant:read", "security:*"),
+            "WORKSPACE_OWNER", Set.of("workspace:*", "team:*", "campaign:*", "audience:*", "template:*", "workflow:*", "analytics:read", "tenant:read"),
             "CAMPAIGN_MANAGER", Set.of("campaign:*", "audience:*", "template:*", "workflow:*"),
             "DELIVERY_OPERATOR", Set.of("delivery:*", "deliverability:*", "tracking:read"),
             "ANALYST", Set.of("campaign:read", "audience:read", "deliverability:read", "tracking:read", "report:*"),

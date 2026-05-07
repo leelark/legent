@@ -24,6 +24,7 @@ public class CorePlatformService {
 
     private final CorePlatformRepository repository;
     private final ObjectMapper objectMapper;
+    private final AdminOperationsService adminOperationsService;
 
     @Transactional
     public Map<String, Object> createOrganization(CorePlatformDto.OrganizationRequest request) {
@@ -176,6 +177,7 @@ public class CorePlatformService {
         values.put("metadata", toJson(request.getMetadata()));
         Map<String, Object> saved = repository.insert("membership_links", values, List.of("metadata"));
         recordAudit("MEMBERSHIP_CREATE", "Membership", saved.get("id"), saved);
+        recordAccessSync("MEMBERSHIP_CHANGED", "Membership", saved, List.of("identity", "admin", "campaign", "automation", "delivery", "analytics"));
         return saved;
     }
 
@@ -196,6 +198,7 @@ public class CorePlatformService {
         values.put("metadata", toJson(request.getMetadata()));
         Map<String, Object> saved = repository.insert("role_definitions", values, List.of("permissions", "metadata"));
         recordAudit("ROLE_DEFINITION_CREATE", "RoleDefinition", saved.get("id"), saved);
+        recordAccessSync("ROLE_DEFINITION_CHANGED", "RoleDefinition", saved, List.of("identity", "admin", "navigation", "api-gateway", "workflow"));
         return saved;
     }
 
@@ -217,6 +220,7 @@ public class CorePlatformService {
         values.put("metadata", toJson(request.getMetadata()));
         Map<String, Object> saved = repository.insert("permission_groups", values, List.of("permissions", "metadata"));
         recordAudit("PERMISSION_GROUP_CREATE", "PermissionGroup", saved.get("id"), saved);
+        recordAccessSync("PERMISSION_GROUP_CHANGED", "PermissionGroup", saved, List.of("identity", "admin", "api-gateway", "workflow"));
         return saved;
     }
 
@@ -242,6 +246,7 @@ public class CorePlatformService {
         values.put("approved_at", null);
         Map<String, Object> saved = repository.insert("delegated_access_grants", values, List.of("permissions"));
         recordAudit("ACCESS_GRANT_CREATE", "DelegatedAccessGrant", saved.get("id"), saved);
+        recordAccessSync("ACCESS_GRANT_CHANGED", "DelegatedAccessGrant", saved, List.of("identity", "admin", "api-gateway", "navigation"));
         return saved;
     }
 
@@ -513,6 +518,7 @@ public class CorePlatformService {
         params.put("createdBy", currentActor());
         Map<String, Object> saved = repository.queryForMap(sql, params);
         recordAudit("FEATURE_CONTROL_UPSERT", "FeatureControl", saved.get("id"), saved);
+        recordAccessSync("FEATURE_CONTROL_CHANGED", "FeatureControl", saved, List.of("admin", "navigation", "campaign", "automation", "delivery", "analytics"));
         return saved;
     }
 
@@ -570,6 +576,20 @@ public class CorePlatformService {
         values.put("deleted_at", null);
         values.put("version", 0L);
         repository.insert("core_audit_events", values, List.of("details"));
+    }
+
+    private void recordAccessSync(String eventType, String resourceType, Map<String, Object> saved, List<String> targetModules) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("resourceType", resourceType);
+        payload.put("resourceId", saved.get("id"));
+        payload.put("workspaceId", saved.get("workspace_id"));
+        payload.put("status", saved.get("status"));
+        payload.put("roleKey", saved.get("role_key"));
+        payload.put("groupKey", saved.get("group_key"));
+        payload.put("featureKey", saved.get("feature_key"));
+        payload.put("permissions", saved.get("permissions"));
+        payload.put("version", saved.get("version"));
+        adminOperationsService.recordSyncEvent(eventType, "core-platform", targetModules, payload);
     }
 
     private Map<String, Object> baseValues(String tenantId) {

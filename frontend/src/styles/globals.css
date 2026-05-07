@@ -99,6 +99,7 @@
   body {
     @apply bg-surface-primary text-content-primary;
     min-width: 320px;
+    overflow-x: hidden;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
@@ -197,8 +198,9 @@
     --public-accent: #e879f9;
     --public-accent-2: #c4b5fd;
     background:
-      radial-gradient(circle at 20% 8%, rgba(168, 85, 247, 0.28), transparent 34%),
-      radial-gradient(circle at 78% 2%, rgba(236, 72, 153, 0.18), transparent 30%),
+      radial-gradient(circle at 14% 10%, rgba(16, 185, 129, 0.16), transparent 28%),
+      radial-gradient(circle at 48% 6%, rgba(168, 85, 247, 0.24), transparent 34%),
+      radial-gradient(circle at 88% 12%, rgba(236, 72, 153, 0.16), transparent 30%),
       linear-gradient(180deg, var(--public-bg) 0%, var(--public-bg-soft) 45%, var(--public-bg) 100%);
     color: var(--public-text);
   }
@@ -217,9 +219,17 @@
     --public-accent: #7e22ce;
     --public-accent-2: #a855f7;
     background:
-      radial-gradient(circle at 20% 8%, rgba(168, 85, 247, 0.16), transparent 34%),
-      radial-gradient(circle at 78% 2%, rgba(236, 72, 153, 0.10), transparent 30%),
+      radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.12), transparent 26%),
+      radial-gradient(circle at 40% 3%, rgba(168, 85, 247, 0.16), transparent 34%),
+      radial-gradient(circle at 82% 6%, rgba(236, 72, 153, 0.10), transparent 30%),
       linear-gradient(180deg, #ffffff 0%, #f7f2ff 48%, #ffffff 100%);
+  }
+
+  .public-atmosphere {
+    background:
+      radial-gradient(circle at 12% 8%, rgba(16, 185, 129, 0.12), transparent 28%),
+      radial-gradient(circle at 46% 4%, rgba(168, 85, 247, 0.16), transparent 34%),
+      radial-gradient(circle at 84% 10%, rgba(236, 72, 153, 0.10), transparent 30%);
   }
 
   .public-panel {
@@ -269,6 +279,41 @@
 
   .public-button-ghost:hover {
     background: var(--public-panel) !important;
+  }
+
+  .public-field {
+    height: 3rem;
+    width: 100%;
+    border-radius: 1rem;
+    border: 1px solid var(--public-border);
+    background: var(--public-button-soft);
+    padding-left: 1rem;
+    padding-right: 1rem;
+    color: var(--public-text);
+    outline: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+
+  .public-field::placeholder {
+    color: var(--public-soft);
+  }
+
+  .public-field:hover {
+    border-color: rgba(168, 85, 247, 0.35);
+  }
+
+  .public-field:focus {
+    border-color: rgba(168, 85, 247, 0.72);
+    box-shadow: 0 0 0 4px rgba(168, 85, 247, 0.16);
+  }
+
+  .public-float-soft {
+    animation: publicFloatSoft 7s ease-in-out infinite;
+  }
+
+  @keyframes publicFloatSoft {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(0, -10px, 0); }
   }
 
   .premium-panel {

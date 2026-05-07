@@ -31,6 +31,7 @@ public class AdminSettingsService {
     private final ConfigService configService;
     private final ConfigRepository configRepository;
     private final ConfigVersioningService configVersioningService;
+    private final AdminOperationsService adminOperationsService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -134,7 +135,9 @@ public class AdminSettingsService {
                 .build();
 
         ConfigDto.Response saved = configService.upsertConfig(tenantId, workspaceId, environmentId, upsert);
-        return toEntry(saved);
+        AdminSettingsDto.Entry entry = toEntry(saved);
+        recordConfigSync("CONFIG_APPLIED", entry, impact(request).getImpactedModules());
+        return entry;
     }
 
     @Transactional
@@ -156,7 +159,9 @@ public class AdminSettingsService {
 
         configService.deleteConfig(existing.getId());
         ConfigDto.Response resolved = configService.resolveConfig(request.getKey());
-        return toEntry(resolved);
+        AdminSettingsDto.Entry entry = toEntry(resolved);
+        recordConfigSync("CONFIG_RESET", entry, List.of(entry.getModule(), "system"));
+        return entry;
     }
 
     @Transactional(readOnly = true)
@@ -199,7 +204,27 @@ public class AdminSettingsService {
     public AdminSettingsDto.Entry rollback(String key, int version) {
         String tenantId = TenantContext.getTenantId();
         ConfigDto.Response rolled = configVersioningService.rollbackConfig(tenantId, key, version);
-        return toEntry(rolled);
+        AdminSettingsDto.Entry entry = toEntry(rolled);
+        recordConfigSync("CONFIG_ROLLED_BACK", entry, List.of(entry.getModule(), "system"));
+        return entry;
+    }
+
+    private void recordConfigSync(String eventType, AdminSettingsDto.Entry entry, List<String> impactedModules) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("key", entry.getKey());
+        payload.put("module", entry.getModule());
+        payload.put("category", entry.getCategory());
+        payload.put("scope", entry.getScope());
+        payload.put("workspaceId", entry.getWorkspaceId());
+        payload.put("environmentId", entry.getEnvironmentId());
+        payload.put("version", entry.getVersion());
+        payload.put("updatedBy", entry.getUpdatedBy());
+        adminOperationsService.recordSyncEvent(
+                eventType,
+                "admin-settings",
+                impactedModules == null ? List.of("system") : impactedModules,
+                payload
+        );
     }
 
     private AdminSettingsDto.Entry toEntry(SystemConfig config) {

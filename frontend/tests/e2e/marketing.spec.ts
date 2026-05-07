@@ -1,22 +1,36 @@
 import { expect, test } from '@playwright/test';
 
-test('marketing navigation and auth entry points', async ({ page }) => {
+test('premium public navigation, theme persistence, and mobile menu', async ({ page }) => {
   await page.goto('/');
+  await expect(page.getByRole('heading', { name: /Operate email growth/i })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Toggle public theme' }).first().click();
+  await page.reload();
+  await expect(page.locator('.public-site.public-dark')).toBeVisible();
+
   const featuresLink = page.getByRole('link', { name: 'Features', exact: true }).first();
-  await expect(featuresLink).toBeVisible();
-  await Promise.all([
-    page.waitForURL(/\/features$/, { timeout: 15000 }),
-    featuresLink.click(),
-  ]);
-  const startFreeLink = page.getByRole('link', { name: 'Start Free' }).first();
-  await expect(startFreeLink).toBeVisible();
-  await Promise.all([
-    page.waitForURL(/\/signup$/, { timeout: 15000 }),
-    startFreeLink.click(),
-  ]);
+  await Promise.all([page.waitForURL(/\/features$/), featuresLink.click()]);
+  await expect(page.getByRole('heading', { name: /Every capability works/i })).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.goto('/modules');
+  await page.getByLabel('Toggle navigation').click();
+  await expect(page.getByRole('link', { name: 'Pricing', exact: true })).toBeVisible();
 });
 
-test('public pages have differentiated content and contact submit state', async ({ page }) => {
+test('homepage scenarios and pricing yearly toggle work', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /Inbox intelligence/i }).click();
+  await expect(page.getByText('Provider-aware delivery room')).toBeVisible();
+
+  await page.goto('/pricing');
+  await expect(page.getByRole('heading', { name: /Pricing responds/i })).toBeVisible();
+  await page.getByRole('button', { name: 'Yearly' }).first().click();
+  await expect(page.getByText(/INR 47,990\/yr/)).toBeVisible();
+  await expect(page.getByText(/20% annual savings/i).first()).toBeVisible();
+});
+
+test('public pages are differentiated and contact submit succeeds', async ({ page }) => {
   await page.route('**/api/v1/public/contact', async (route) => {
     await route.fulfill({
       status: 200,
@@ -32,21 +46,17 @@ test('public pages have differentiated content and contact submit state', async 
     });
   });
 
-  await page.goto('/');
-  await expect(page.getByRole('heading', { name: /premium command center/i })).toBeVisible();
-  await expect(page.getByRole('heading', { name: /Solution operating layers|Summary cards aligned/i })).toBeVisible();
-
   await page.goto('/features');
-  await expect(page.getByRole('heading', { name: /practical operators/i })).toBeVisible();
-  await expect(page.getByText('Security and governance')).toBeVisible();
+  await expect(page.getByText('Interactive architecture')).toBeVisible();
 
   await page.goto('/modules');
-  await expect(page.getByRole('heading', { name: /Dedicated spaces/i })).toBeVisible();
-  await expect(page.getByText('How studios work together')).toBeVisible();
+  await expect(page.getByText('Runtime system map').first()).toBeVisible();
 
-  await page.goto('/pricing');
-  await expect(page.getByText('INR 4,999')).toBeVisible();
-  await expect(page.getByRole('heading', { name: /What changes as your program scales/i })).toBeVisible();
+  await page.goto('/about');
+  await expect(page.getByRole('heading', { name: /production infrastructure/i })).toBeVisible();
+
+  await page.goto('/blog');
+  await expect(page.getByRole('heading', { name: /Operating essays/i })).toBeVisible();
 
   await page.goto('/contact');
   await page.getByLabel('Work email').fill('operator@example.com');
@@ -54,9 +64,25 @@ test('public pages have differentiated content and contact submit state', async 
   await page.getByLabel('Message').fill('We need a governed rollout plan.');
   await page.getByRole('button', { name: /Request Consultation/i }).click();
   await expect(page.getByText('Request received. A Legent specialist will follow up shortly.')).toBeVisible();
+});
 
-  await page.setViewportSize({ width: 390, height: 760 });
-  await page.goto('/modules');
-  await page.getByLabel('Toggle navigation').click();
-  await expect(page.getByRole('link', { name: 'Pricing', exact: true })).toBeVisible();
+test('auth and onboarding public surfaces preserve required fields', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.getByRole('heading', { name: /Welcome back/i })).toBeVisible();
+  await expect(page.getByLabel('Email address')).toBeVisible();
+  await expect(page.getByLabel('Password')).toBeVisible();
+
+  await page.goto('/signup');
+  await expect(page.getByRole('heading', { name: /Create your operating workspace/i })).toBeVisible();
+  await expect(page.getByLabel('Company name')).toBeVisible();
+  await expect(page.getByLabel('Work email')).toBeVisible();
+
+  await page.goto('/forgot-password');
+  await expect(page.getByLabel('Email address')).toBeVisible();
+
+  await page.goto('/reset-password?token=test-token');
+  await expect(page.getByLabel('New password')).toBeVisible();
+
+  await page.goto('/onboarding');
+  await expect(page.getByLabel('Workspace setup')).toBeVisible();
 });

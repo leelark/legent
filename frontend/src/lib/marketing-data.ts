@@ -1,18 +1,26 @@
 import {
   BarChart3,
   Bot,
+  Boxes,
+  BrainCircuit,
+  Building2,
   CheckCircle2,
+  Clock3,
   Database,
+  FileCheck2,
   GitBranch,
   Globe2,
   Headphones,
   LayoutTemplate,
+  LineChart,
   LockKeyhole,
   MailCheck,
   Megaphone,
+  Network,
   RadioTower,
   ShieldCheck,
   Sparkles,
+  Target,
   Users,
   Zap,
 } from 'lucide-react';
@@ -20,153 +28,208 @@ import {
 export type MarketingPageKey = 'home' | 'features' | 'modules' | 'pricing' | 'about' | 'contact';
 
 export const studios = [
-  { name: 'Audience Studio', desc: 'Unify contacts, segments, imports, suppression, preferences, and lifecycle signals.', icon: Users },
-  { name: 'Template Studio', desc: 'Build responsive templates with blocks, previews, versions, assets, and test sends.', icon: LayoutTemplate },
-  { name: 'Campaign Studio', desc: 'Plan launches, approval, A/B tests, schedules, retries, pause, resume, and resend.', icon: Megaphone },
-  { name: 'Automation Studio', desc: 'Create journeys, triggers, simulations, execution traces, and reusable playbooks.', icon: Bot },
-  { name: 'Delivery Studio', desc: 'Monitor queues, providers, replay, retry, warm-up, reputation, and delivery history.', icon: RadioTower },
-  { name: 'Analytics Studio', desc: 'Track attribution, funnels, SLA health, reporting, and live engagement metrics.', icon: BarChart3 },
-];
+  {
+    name: 'Audience Studio',
+    short: 'Audience',
+    desc: 'Unify subscribers, lists, imports, preferences, suppression, and lifecycle readiness.',
+    outcome: 'Clean, compliant customer reach.',
+    proof: '42.8k ready contacts',
+    color: 'emerald',
+    icon: Users,
+    capabilities: ['Subscriber intelligence', 'Segment rules', 'Import validation', 'Preference health'],
+  },
+  {
+    name: 'Template Studio',
+    short: 'Template',
+    desc: 'Build responsive templates with reusable blocks, previews, assets, versions, and tests.',
+    outcome: 'Approved creative with fewer production loops.',
+    proof: '12 active versions',
+    color: 'amber',
+    icon: LayoutTemplate,
+    capabilities: ['Block library', 'HTML QA', 'Version control', 'Test sends'],
+  },
+  {
+    name: 'Campaign Studio',
+    short: 'Campaign',
+    desc: 'Plan launches, approvals, schedules, experiments, retries, pause, resume, and resend.',
+    outcome: 'Launch control without disconnected handoffs.',
+    proof: '18 governed launches',
+    color: 'violet',
+    icon: Megaphone,
+    capabilities: ['Approval queue', 'A/B paths', 'Schedule locks', 'Rollback posture'],
+  },
+  {
+    name: 'Automation Studio',
+    short: 'Automation',
+    desc: 'Create journeys, triggers, simulations, execution traces, and reusable lifecycle playbooks.',
+    outcome: 'Always-on automation teams can understand.',
+    proof: '64% journey complete',
+    color: 'blue',
+    icon: Bot,
+    capabilities: ['Journey map', 'Trigger rules', 'Simulation', 'Execution trace'],
+  },
+  {
+    name: 'Delivery Studio',
+    short: 'Delivery',
+    desc: 'Monitor queues, providers, replay, retry, warm-up, reputation, and delivery history.',
+    outcome: 'Inbox-first execution under real load.',
+    proof: '99.2% safe route',
+    color: 'rose',
+    icon: RadioTower,
+    capabilities: ['Provider health', 'Queue SLA', 'Replay safety', 'Warm-up state'],
+  },
+  {
+    name: 'Analytics Studio',
+    short: 'Analytics',
+    desc: 'Track attribution, funnels, SLA health, reporting, and live engagement metrics.',
+    outcome: 'Feedback loops that improve every send.',
+    proof: 'Live funnel signal',
+    color: 'cyan',
+    icon: BarChart3,
+    capabilities: ['Realtime events', 'Funnel view', 'Attribution', 'Reports'],
+  },
+] as const;
+
+export const homeScenarios = [
+  {
+    eyebrow: 'Launch readiness',
+    title: 'Board-level launch command',
+    metric: '76%',
+    status: 'Approved',
+    narrative: 'Audience, creative, approvals, delivery safety, and analytics readiness move together before the campaign enters queue.',
+    modules: ['Audience', 'Template', 'Campaign', 'Delivery'],
+    stages: ['Audience fit', 'Template QA', 'Approval path', 'Provider route'],
+    activity: ['Segment health refreshed', 'Variant B approved', 'Suppression check passed', 'Provider route locked'],
+    bars: [46, 62, 54, 78, 72, 86, 81, 94],
+  },
+  {
+    eyebrow: 'AI orchestration',
+    title: 'Lifecycle automation control',
+    metric: '38k',
+    status: 'Learning',
+    narrative: 'AI-assisted journey suggestions stay governed by explicit trigger logic, audit state, and human approval.',
+    modules: ['Audience', 'Automation', 'Template', 'Analytics'],
+    stages: ['Signal detected', 'Journey branch', 'Content match', 'Feedback loop'],
+    activity: ['Dormant cohort detected', 'Next-best branch simulated', 'Personalization tokens verified', 'Lift report updating'],
+    bars: [28, 42, 61, 58, 74, 69, 88, 92],
+  },
+  {
+    eyebrow: 'Inbox intelligence',
+    title: 'Provider-aware delivery room',
+    metric: '99.2%',
+    status: 'Healthy',
+    narrative: 'Queue depth, provider health, warm-up state, retries, replay, and suppression safety remain visible during send.',
+    modules: ['Campaign', 'Delivery', 'Analytics', 'Admin'],
+    stages: ['Queue watch', 'Provider score', 'Retry policy', 'Live outcome'],
+    activity: ['SES route stable', 'Retry budget normal', 'Replay guard active', 'Open event stream live'],
+    bars: [55, 68, 64, 83, 79, 91, 87, 96],
+  },
+] as const;
 
 export const marketingPages = {
   home: {
-    eyebrow: 'Enterprise lifecycle messaging',
-    title: 'The premium command center for email growth teams.',
+    eyebrow: 'Enterprise lifecycle intelligence',
+    title: 'Operate email growth like a real-time command system.',
     subtitle:
-      'Legent connects audience data, templates, campaigns, automation, delivery, analytics, and governance in one controlled workspace.',
+      'Legent connects audience intelligence, governed creative, AI-assisted automation, inbox-safe delivery, and revenue feedback in one collaborative operating layer.',
     primaryCta: 'Start Free',
-    secondaryCta: 'Explore Modules',
-    highlights: ['Live workspace context', 'Provider-aware delivery', 'Governed campaign operations'],
+    secondaryCta: 'Explore Architecture',
+    highlights: ['AI-assisted orchestration', 'Realtime operating visibility', 'Enterprise collaboration'],
     metrics: [
-      { label: 'Faster launches', value: '42%' },
-      { label: 'Studios unified', value: '8' },
-      { label: 'Queue visibility', value: 'Live' },
+      { label: 'Launch cycle reduction', value: '42%', detail: 'from fewer approval and delivery handoffs' },
+      { label: 'Connected studios', value: '8', detail: 'sharing workspace, roles, config, and analytics context' },
+      { label: 'Inbox safety signal', value: 'Live', detail: 'provider, queue, reputation, and suppression state' },
     ],
-    sections: [
-      {
-        title: 'From idea to inbox without handoff drag.',
-        body: 'Move from segment selection to template approval, scheduled delivery, suppression checks, and analytics without leaving the workspace.',
-      },
-      {
-        title: 'Built for teams that need control.',
-        body: 'Every action keeps tenant, workspace, role, audit, and runtime configuration in view.',
-      },
-    ],
-    signalFlow: ['Audience signal', 'Template fit', 'Approval path', 'Delivery guardrail', 'Analytics loop'],
+    signalFlow: ['Customer signal', 'AI recommendation', 'Human approval', 'Inbox guardrail', 'Revenue feedback'],
     solutionLayers: [
-      { title: 'Data readiness', metric: '42.8k', body: 'Know which contacts, segments, suppressions, and preferences are ready before launch.', items: ['Segment fit', 'Preference health', 'Import quality'] },
-      { title: 'Campaign control', metric: '18', body: 'Approval, variants, schedules, and retry posture stay visible in one launch workspace.', items: ['Approval queue', 'Variant status', 'Schedule lock'] },
-      { title: 'Delivery confidence', metric: '99.2%', body: 'Provider health, queue depth, warm-up state, and replay safety are built into the decision view.', items: ['Provider stable', 'Queue below SLA', 'Replay ready'] },
+      { title: 'Operational intelligence', metric: 'Live', body: 'Every send starts with data quality, audience readiness, approval state, provider risk, and performance history in one view.', items: ['Audience fit', 'Risk posture', 'Launch confidence'] },
+      { title: 'Workflow orchestration', metric: '18', body: 'Teams plan journeys, campaigns, approvals, experiments, retries, and recovery paths without losing ownership context.', items: ['Approval rail', 'Variant control', 'Recovery path'] },
+      { title: 'Business transformation', metric: '42%', body: 'Marketing operations move from reactive send management to repeatable lifecycle systems tied to measurable outcomes.', items: ['Revenue signal', 'Cycle time', 'Team velocity'] },
     ],
   },
   features: {
-    eyebrow: 'Platform features',
-    title: 'Modern email operations with enterprise guardrails.',
+    eyebrow: 'Platform intelligence',
+    title: 'Every capability works inside one governed operating model.',
     subtitle:
-      'Design, approve, send, observe, and improve every customer message with consistent state, configuration, and ownership.',
+      'Legent turns fragmented email tooling into a shared command system for data, creative, automation, delivery, analytics, and runtime control.',
     primaryCta: 'Create Workspace',
     secondaryCta: 'View Pricing',
-    highlights: ['RBAC-ready flows', 'Config-driven runtime', 'Full workflow visibility'],
+    highlights: ['Governed by design', 'Observable by default', 'Fast under pressure'],
     features: [
-      { title: 'Governed audience operations', body: 'Lists, segments, tags, imports, suppression, preferences, scoring, and bulk actions.', icon: ShieldCheck },
-      { title: 'Composable campaign launch', body: 'Lifecycle status, approvals, scheduling, experiments, and rollback-friendly controls.', icon: GitBranch },
-      { title: 'Inbox-aware delivery', body: 'Provider readiness, queue depth, warm-up, retries, replay, and feedback loops.', icon: MailCheck },
-      { title: 'Real-time analytics', body: 'Funnels, attribution, dashboards, reporting, SLA monitoring, and live metrics.', icon: BarChart3 },
-      { title: 'Admin runtime control', body: 'Branding, feature flags, quotas, providers, themes, audit logs, and advanced setup.', icon: LockKeyhole },
-      { title: 'Fast operator UX', body: 'Search, activity, toasts, tables, forms, loading states, empty states, and responsive layouts.', icon: Zap },
+      { title: 'Audience intelligence', body: 'Contacts, segments, imports, suppression, preferences, scoring, and consent signals stay visible before launch.', icon: Users },
+      { title: 'Composable campaign launch', body: 'Approvals, variants, schedules, experiments, retries, pause, resume, and rollback-friendly controls in one flow.', icon: GitBranch },
+      { title: 'AI journey assistance', body: 'Suggested next-best branches, timing windows, and personalization checks remain explainable and operator-approved.', icon: BrainCircuit },
+      { title: 'Inbox-aware delivery', body: 'Provider readiness, queue depth, warm-up, retries, replay, reputation, and feedback loops become launch inputs.', icon: MailCheck },
+      { title: 'Realtime analytics', body: 'Funnels, attribution, live engagement, SLA health, and reporting feed operational decisions, not only dashboards.', icon: LineChart },
+      { title: 'Admin runtime control', body: 'Branding, feature flags, quotas, providers, themes, audit logs, and advanced setup shape live behavior.', icon: LockKeyhole },
     ],
-    bands: [
-      { title: 'Security and governance', body: 'Roles, tenant scope, workspace scope, approval controls, and audit trails remain visible across every action.', icon: ShieldCheck },
-      { title: 'Runtime configuration', body: 'Provider, theme, quota, flag, and delivery settings shape live behavior instead of becoming static admin records.', icon: LockKeyhole },
-      { title: 'Operational telemetry', body: 'Dashboards, funnel views, SLA status, and delivery health help teams act before risk reaches customers.', icon: BarChart3 },
-    ],
-    operatorWorkflows: [
-      { title: 'Approve with context', body: 'Review audience fit, template version, provider readiness, and campaign risk together.' },
-      { title: 'Recover without chaos', body: 'Retry, replay, pause, resume, and provider switching expose state before action.' },
-      { title: 'Improve every send', body: 'Attribution, funnels, reports, and engagement history feed back into the next launch.' },
-    ],
+    process: ['Ingest signal', 'Assess risk', 'Compose workflow', 'Approve action', 'Deliver safely', 'Learn'],
   },
   modules: {
-    eyebrow: 'Connected studios',
-    title: 'Every messaging workflow has a dedicated studio.',
+    eyebrow: 'Product architecture',
+    title: 'Six operating studios, one shared runtime fabric.',
     subtitle:
-      'Each studio owns its workflow while sharing tenant, workspace, permissions, configuration, activity, and analytics context.',
+      'Each module owns a deep workflow while tenant, workspace, permissions, configuration, activity, and analytics context stay connected.',
     primaryCta: 'Open Workspace',
     secondaryCta: 'See Features',
-    highlights: ['Audience to analytics', 'Template to send', 'Automation to delivery'],
+    highlights: ['Shared runtime', 'Visible handoffs', 'Expandable depth'],
     flow: ['Audience', 'Template', 'Campaign', 'Automation', 'Delivery', 'Analytics'],
-    drilldowns: [
-      { title: 'Audience Studio', body: 'Contacts, lists, imports, tags, preferences, suppression, scoring, and merge workflows.', proof: 'Data ready' },
-      { title: 'Template Studio', body: 'Blocks, previews, versions, rollback, HTML import/export, assets, and test sends.', proof: 'Versioned' },
-      { title: 'Campaign Studio', body: 'Scheduling, approval, lifecycle controls, cloning, retry, resend, and experiments.', proof: 'Launch safe' },
-      { title: 'Automation Studio', body: 'Triggers, recurring journeys, simulation, execution trace, templates, and rollback.', proof: 'Traceable' },
-      { title: 'Delivery Studio', body: 'Send jobs, queue health, replay, provider switching, warm-up, and delivery history.', proof: 'Inbox-aware' },
-      { title: 'Analytics Studio', body: 'Tracking, attribution, funnels, reports, SLA monitoring, and real-time metrics.', proof: 'Live' },
-    ],
   },
   pricing: {
-    eyebrow: 'Pricing',
-    title: 'Plans for teams scaling from first sends to global programs.',
+    eyebrow: 'Pricing workspace',
+    title: 'Choose the operating model your team can grow into.',
     subtitle:
-      'Start with a focused workspace, then add orchestration, delivery governance, automation, and platform controls as you grow.',
+      'Start with launch discipline, then add orchestration, delivery governance, automation depth, and enterprise controls as your program matures.',
     primaryCta: 'Start Free',
     secondaryCta: 'Talk to Sales',
     plans: [
-      { name: 'Launch', price: 'INR 4,999', desc: 'For first lifecycle programs.', features: ['1 workspace', 'Template and campaign studios', 'MailHog/local delivery setup', 'Basic analytics'] },
-      { name: 'Scale', price: 'INR 24,999', desc: 'For growing marketing teams.', featured: true, features: ['5 workspaces', 'Automation and delivery studios', 'Provider switching', 'Advanced segmentation'] },
-      { name: 'Enterprise', price: 'Custom INR', desc: 'For governed multi-team programs.', features: ['Unlimited workspaces', 'SLA and audit controls', 'Dedicated provider strategy', 'Security review support'] },
+      { name: 'Launch', monthly: 4999, desc: 'For first lifecycle programs.', fit: 'Founder-led and early marketing teams', features: ['1 workspace', 'Template and campaign studios', 'Local delivery setup', 'Basic analytics'] },
+      { name: 'Scale', monthly: 24999, desc: 'For growing lifecycle teams.', featured: true, fit: 'Teams running repeated launches', features: ['5 workspaces', 'Automation and delivery studios', 'Provider switching', 'Advanced segmentation'] },
+      { name: 'Enterprise', monthly: null, desc: 'For governed multi-team programs.', fit: 'Security, SLA, and procurement needs', features: ['Unlimited workspaces', 'SLA and audit controls', 'Dedicated provider strategy', 'Security review support'] },
     ],
     comparison: [
       { feature: 'Workspaces', launch: '1', scale: '5', enterprise: 'Unlimited' },
-      { feature: 'Automation Studio', launch: 'Basic', scale: 'Advanced', enterprise: 'Custom governance' },
+      { feature: 'Automation Studio', launch: 'Basic journeys', scale: 'Advanced branching', enterprise: 'Governed playbooks' },
       { feature: 'Provider switching', launch: 'Local-ready', scale: 'Included', enterprise: 'Dedicated strategy' },
       { feature: 'Audit and SLA controls', launch: 'Core logs', scale: 'Advanced', enterprise: 'Enterprise review' },
+      { feature: 'Support model', launch: 'Product support', scale: 'Architecture review', enterprise: 'Success plan' },
     ],
-    addons: [
-      { title: 'Deliverability advisory', body: 'Domain warm-up, provider strategy, reputation posture, and recovery planning.' },
-      { title: 'Migration support', body: 'Template, audience, suppression, automation, and campaign migration planning.' },
-      { title: 'Security review', body: 'Architecture walkthrough, data handling review, and enterprise procurement support.' },
-    ],
-    faqs: [
-      { q: 'Can we use our own providers?', a: 'Yes. Local defaults stay simple while paid providers are configurable through admin controls.' },
-      { q: 'Is the public site tied to backend content?', a: 'No. These public pages render from static frontend data for speed and resilience.' },
-      { q: 'Can teams work in dark and light mode?', a: 'Yes. The product keeps theme support while the public brand defaults to dark purple.' },
+    roi: [
+      { label: 'Launch hours saved', value: '42%' },
+      { label: 'Recovery clarity', value: '3x' },
+      { label: 'Workflow visibility', value: 'Live' },
     ],
   },
   about: {
     eyebrow: 'About Legent',
-    title: 'Built for operators who care about message quality at scale.',
+    title: 'Built for teams that treat messaging as production infrastructure.',
     subtitle:
-      'Legent treats email as a production system: data contracts, approvals, provider health, attribution, and governance belong in the same workspace.',
+      'Legent is shaped around operators who need beautiful interfaces, but also demand state, ownership, safety, and measurable outcomes.',
     primaryCta: 'Explore Platform',
     secondaryCta: 'Contact Team',
     principles: [
-      { title: 'Operational clarity', body: 'Every workflow should show state, ownership, risk, and next action clearly.' },
-      { title: 'Premium speed', body: 'Beautiful interfaces must still help busy teams move faster under real pressure.' },
-      { title: 'Runtime discipline', body: 'Configuration, security, delivery, and analytics must stay connected at execution time.' },
+      { title: 'Operational clarity', body: 'Every workflow should expose state, ownership, risk, and the next action without extra tools.', icon: Target },
+      { title: 'Human control over automation', body: 'AI should accelerate decisions while keeping approval, evidence, and rollback posture explicit.', icon: BrainCircuit },
+      { title: 'Runtime discipline', body: 'Configuration, security, delivery, and analytics must stay connected when work actually executes.', icon: ShieldCheck },
     ],
     timeline: [
-      { title: 'Foundation', body: 'Tenant, workspace, roles, providers, and defaults created with clear ownership.' },
-      { title: 'Launch control', body: 'Audience, template, campaign, approval, delivery, and analytics flow through one workspace.' },
-      { title: 'Operational maturity', body: 'Teams add governance, reporting, deliverability posture, and audit-ready execution.' },
-    ],
-    quality: [
-      { title: 'No disconnected studio', body: 'Every visible workflow should have a real runtime path and clear state.' },
-      { title: 'No invisible risk', body: 'Suppression, provider health, permissions, and config context are first-class UI signals.' },
-      { title: 'No generic SaaS feel', body: 'Dense operational surfaces still need premium hierarchy, motion, and calm spacing.' },
+      { year: '01', title: 'Foundation', body: 'Tenant, workspace, roles, providers, and defaults created with clear ownership.' },
+      { year: '02', title: 'Launch control', body: 'Audience, template, campaign, approval, delivery, and analytics run through one workspace.' },
+      { year: '03', title: 'Automation maturity', body: 'Teams add journey intelligence, simulations, recovery paths, and AI-assisted workflow design.' },
+      { year: '04', title: 'Enterprise readiness', body: 'Governance, reporting, deliverability posture, and audit-ready execution become the default.' },
     ],
   },
   contact: {
     eyebrow: 'Contact',
-    title: 'Talk with product and solution architects.',
+    title: 'Bring a real launch problem. We will map the operating path.',
     subtitle:
-      'Use the form to plan a workspace rollout, provider setup, deliverability strategy, migration, or enterprise review.',
+      'Use the form to plan workspace rollout, provider setup, deliverability posture, migration, onboarding, or enterprise review.',
     primaryCta: 'Enter Workspace',
     secondaryCta: 'Read Blog',
     contactCards: [
-      { title: 'Sales architecture', body: 'Plan team structure, modules, quotas, and launch path.', icon: Globe2 },
-      { title: 'Delivery review', body: 'Discuss provider switching, warm-up, replay, and reputation.', icon: MailCheck },
-      { title: 'Support', body: 'Get help with configuration, onboarding, and workspace setup.', icon: Headphones },
+      { title: 'Solution architecture', body: 'Plan team structure, workspaces, modules, quotas, and launch governance.', icon: Globe2 },
+      { title: 'Delivery review', body: 'Discuss provider switching, warm-up, replay, reputation, and failure recovery.', icon: MailCheck },
+      { title: 'Customer support', body: 'Get help with onboarding, configuration, migration, and workspace setup.', icon: Headphones },
     ],
     formInterests: ['Workspace rollout', 'Provider and deliverability', 'Migration planning', 'Security review'],
     expectations: [
@@ -177,13 +240,20 @@ export const marketingPages = {
   },
 } as const;
 
-export const blogCategories = ['Operations', 'Delivery', 'UX'] as const;
+export const contactRoutes = [
+  { label: 'Workspace rollout', icon: Building2, path: 'Product + solution architecture' },
+  { label: 'Provider review', icon: RadioTower, path: 'Deliverability and routing' },
+  { label: 'Migration', icon: Boxes, path: 'Templates, audiences, automation' },
+  { label: 'Security', icon: FileCheck2, path: 'Architecture and procurement' },
+] as const;
+
+export const blogCategories = ['Operations', 'Delivery', 'Automation', 'UX'] as const;
 
 export const blogPosts = [
   {
     slug: 'audience-to-inbox-operating-model',
     title: 'Designing an audience-to-inbox operating model',
-    summary: 'How high-growth teams connect segmentation, approvals, provider health, and analytics.',
+    summary: 'How high-growth teams connect segmentation, approvals, provider health, and analytics into one accountable workflow.',
     readTime: '6 min read',
     category: 'Operations',
     body:
@@ -199,6 +269,15 @@ export const blogPosts = [
       '<p>Retry systems fail when they hide state. Replay should expose idempotency, provider health, suppression checks, and audit trail before an operator acts.</p><p>The result is faster recovery without accidental duplicate sends.</p>',
   },
   {
+    slug: 'ai-automation-with-human-control',
+    title: 'AI automation with human control',
+    summary: 'How lifecycle teams can use AI recommendations without losing approval clarity, evidence, or rollback posture.',
+    readTime: '7 min read',
+    category: 'Automation',
+    body:
+      '<p>AI can accelerate lifecycle work when it explains why a branch, segment, or timing window matters. The operator still needs clear evidence, approval state, and recovery options.</p><p>Automation becomes valuable when it remains inspectable.</p>',
+  },
+  {
     slug: 'premium-campaign-workflows',
     title: 'What makes campaign workflow feel premium',
     summary: 'Premium UX is not decoration. It is speed, hierarchy, confidence, and controlled action.',
@@ -210,7 +289,10 @@ export const blogPosts = [
 ];
 
 export const proofCards = [
-  { label: 'API-backed studios', value: '8', icon: Database },
+  { label: 'Runtime-connected studios', value: '8', icon: Database },
   { label: 'Launch status clarity', value: 'Live', icon: CheckCircle2 },
-  { label: 'Premium operator flow', value: 'Fast', icon: Sparkles },
-];
+  { label: 'Operator acceleration', value: '42%', icon: Sparkles },
+  { label: 'Governed automation', value: 'AI', icon: Network },
+  { label: 'Queue recovery', value: 'Safe', icon: Zap },
+  { label: 'Approval evidence', value: 'Ready', icon: ShieldCheck },
+] as const;

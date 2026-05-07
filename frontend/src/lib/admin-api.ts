@@ -1,4 +1,4 @@
-import { get, post } from './api-client';
+import { get, post, put } from './api-client';
 
 export type AdminConfig = {
   id?: string;
@@ -57,6 +57,31 @@ export type AdminContactRequest = {
   status: ContactRequestStatus;
   createdAt?: string | null;
   updatedAt?: string | null;
+};
+
+export type AdminUser = {
+  id: string;
+  tenantId?: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  role: string;
+  roles?: string[];
+  isActive: boolean;
+  lastLoginAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+export type AdminOperationsDashboard = {
+  generatedAt: string;
+  health: Record<string, unknown>;
+  stats: Record<string, number>;
+  modules: Array<Record<string, unknown>>;
+  jobs: Array<Record<string, unknown>>;
+  alerts: Array<Record<string, unknown>>;
+  activity: Array<Record<string, unknown>>;
+  syncEvents: Array<Record<string, unknown>>;
 };
 
 type PagedResult<T> = {
@@ -227,3 +252,36 @@ export const updateContactRequestStatus = async (id: string, status: ContactRequ
 
 export const listAdminAuditEvents = async (params?: { workspaceId?: string; action?: string; limit?: number }) =>
   get<Array<Record<string, unknown>>>('/core/audit', { params });
+
+export const getAdminOperationsDashboard = async () =>
+  get<AdminOperationsDashboard>('/admin/operations/dashboard');
+
+export const getAdminAccessOverview = async () =>
+  get<Record<string, Array<Record<string, unknown>>>>('/admin/operations/access');
+
+export const listAdminSyncEvents = async (params?: { status?: string; limit?: number }) =>
+  get<Array<Record<string, unknown>>>('/admin/operations/sync-events', { params });
+
+export const listAdminUsers = async () =>
+  get<AdminUser[]>('/users');
+
+export const createAdminUser = async (payload: {
+  email: string;
+  password: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  isActive?: boolean;
+}) => post<AdminUser>('/users', payload);
+
+export const updateAdminUser = async (id: string, payload: {
+  email: string;
+  password?: string;
+  firstName?: string;
+  lastName?: string;
+  role: string;
+  isActive: boolean;
+}) => put<AdminUser>(`/users/${encodeURIComponent(id)}`, payload);
+
+export const requestUserPasswordReset = async (email: string) =>
+  post<{ status: string; message: string }>('/auth/forgot-password', { email });

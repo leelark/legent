@@ -211,7 +211,7 @@ public class IdentityExperienceService {
         preference.setTenantId(tenantId);
         preference.setUserId(userId);
         preference.setUiMode("BASIC");
-        preference.setTheme("dark");
+        preference.setTheme("light");
         preference.setDensity("comfortable");
         preference.setSidebarCollapsed(false);
         preference.setMetadata(null);
