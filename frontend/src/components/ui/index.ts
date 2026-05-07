@@ -9,3 +9,4 @@ export { Tabs } from './Tabs';
 export { EmptyState } from './EmptyState';
 export { LoadingOverlay, Spinner } from './LoadingOverlay';
 export { ToastProvider, useToast } from './Toast';
+export { PageHeader, MetricCard, Panel, ActionBar, ResponsiveTableShell } from './PageChrome';

@@ -198,7 +198,7 @@ export default function WorkspaceLayout({
           <Header />
           <main className="app-surface flex-1 overflow-auto p-4 pb-24 md:p-6">
             <ErrorBoundary>
-              <div className="mx-auto w-full max-w-[1440px] animate-fade-in">{children}</div>
+              <div className="mx-auto w-full max-w-[1480px] animate-fade-in">{children}</div>
             </ErrorBoundary>
           </main>
         </div>

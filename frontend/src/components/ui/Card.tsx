@@ -13,9 +13,9 @@ export function Card({ children, className, hover = false, onClick, ...props }: 
   return (
     <div
       className={clsx(
-        'rounded-lg border border-border-default bg-surface-elevated p-5 shadow-soft',
-        'transition-all duration-200',
-        hover && 'cursor-pointer hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-elevated dark:hover:border-brand-800',
+        'rounded-xl border border-border-default bg-surface-elevated/95 p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl',
+        'transition-all duration-200 dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]',
+        hover && 'cursor-pointer hover:-translate-y-0.5 hover:border-brand-300/70 hover:shadow-[0_22px_56px_rgba(76,29,149,0.14)] dark:hover:border-brand-500/50',
         className
       )}
       onClick={onClick}
@@ -46,7 +46,7 @@ export function CardHeader({ title, subtitle, action, children, className }: Car
   }
 
   return (
-    <div className={clsx('flex items-start justify-between mb-4', className)}>
+    <div className={clsx('mb-4 flex items-start justify-between gap-4', className)}>
       <div>
         <h3 className="text-base font-semibold text-content-primary">{title}</h3>
         {subtitle && (

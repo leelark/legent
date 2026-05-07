@@ -50,7 +50,7 @@ export function Sidebar() {
   return (
     <aside
       className={clsx(
-        'hidden shrink-0 flex-col border-r border-border-default bg-surface-primary/95 transition-all duration-200 md:flex',
+        'hidden shrink-0 flex-col border-r border-border-default bg-surface-primary/92 shadow-[12px_0_40px_rgba(0,0,0,0.12)] backdrop-blur-xl transition-all duration-200 md:flex',
         sidebarCollapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -91,7 +91,7 @@ export function MobileNav() {
   const items = NAV_ITEMS.filter((item) => !item.admin || isAdmin()).slice(0, 5);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border-default bg-surface-primary/95 px-2 py-2 backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border-default bg-surface-primary/95 px-2 py-2 shadow-[0_-16px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl md:hidden">
       {items.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
         const Icon = item.icon;
@@ -116,7 +116,7 @@ export function MobileNav() {
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <Link href="/app/email" className="flex h-14 items-center gap-3 border-b border-border-default px-4">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-500 to-brand-800 text-sm font-bold text-white shadow-sm">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 via-brand-600 to-fuchsia-600 text-sm font-bold text-white shadow-[0_0_28px_rgba(147,51,234,0.35)]">
         L
       </span>
       {!collapsed && (

@@ -24,7 +24,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
-  theme: 'dark',
+  theme: 'light',
   uiMode: 'BASIC',
   density: 'comfortable',
   sidebarCollapsed: false,

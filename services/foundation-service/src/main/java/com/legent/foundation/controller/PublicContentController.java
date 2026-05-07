@@ -1,11 +1,16 @@
 package com.legent.foundation.controller;
 
 import com.legent.common.dto.ApiResponse;
+import com.legent.foundation.dto.PublicContactDto;
 import com.legent.foundation.dto.PublicContentDto;
+import com.legent.foundation.service.PublicContactService;
 import com.legent.foundation.service.PublicContentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,6 +23,7 @@ import java.util.List;
 public class PublicContentController {
 
     private final PublicContentService publicContentService;
+    private final PublicContactService publicContactService;
 
     @GetMapping("/content/{page}")
     public ApiResponse<PublicContentDto.Response> contentByPage(
@@ -48,5 +54,9 @@ public class PublicContentController {
             @RequestParam(value = "workspaceId", required = false) String workspaceId) {
         return ApiResponse.ok(publicContentService.getPublishedBlogBySlug(tenantId, workspaceId, slug));
     }
-}
 
+    @PostMapping("/contact")
+    public ApiResponse<PublicContactDto.Response> contact(@Valid @RequestBody PublicContactDto.Request request) {
+        return ApiResponse.ok(publicContactService.submit(request));
+    }
+}

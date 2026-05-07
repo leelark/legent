@@ -181,7 +181,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border-default bg-surface-primary/90 px-4 backdrop-blur-xl md:px-6">
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border-default bg-surface-primary/88 px-4 shadow-[0_12px_34px_rgba(0,0,0,0.10)] backdrop-blur-xl md:px-6">
       <div className="min-w-0">
         <p className="truncate text-sm font-semibold text-content-primary">{activeModule}</p>
         <p className="hidden truncate text-xs text-content-secondary sm:block">{tenantName || 'Workspace'}</p>
@@ -189,7 +189,7 @@ export function Header() {
 
       <button
         onClick={() => setSearchOpen(true)}
-        className="mx-3 hidden h-9 w-full max-w-md items-center gap-2 rounded-lg border border-border-default bg-surface-secondary px-3 text-left text-sm text-content-muted transition hover:border-border-strong hover:text-content-primary md:flex"
+        className="mx-3 hidden h-9 w-full max-w-md items-center gap-2 rounded-xl border border-border-default bg-surface-elevated/78 px-3 text-left text-sm text-content-muted shadow-sm transition hover:border-border-strong hover:text-content-primary md:flex"
       >
         <Search size={16} />
         <span className="flex-1 truncate">Search campaigns, subscribers, templates...</span>
@@ -229,8 +229,8 @@ export function Header() {
         <button
           onClick={handleToggleMode}
           className={clsx(
-            'rounded-lg border border-border-default px-3 py-2 text-xs font-semibold transition-colors',
-            uiMode === 'ADVANCED' ? 'bg-brand-900/20 text-brand-300' : 'text-content-secondary hover:bg-surface-secondary'
+            'rounded-xl border border-border-default px-3 py-2 text-xs font-semibold transition-colors',
+            uiMode === 'ADVANCED' ? 'bg-brand-500/15 text-brand-300' : 'text-content-secondary hover:bg-surface-secondary'
           )}
           aria-label="Toggle Basic or Advanced mode"
         >
@@ -245,7 +245,7 @@ export function Header() {
       </div>
 
       {notificationsOpen && (
-        <div className="absolute right-4 top-14 z-50 w-[min(360px,calc(100vw-2rem))] rounded-lg border border-border-default bg-surface-elevated p-2 shadow-2xl">
+        <div className="absolute right-4 top-14 z-50 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-border-default bg-surface-elevated/95 p-2 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center justify-between px-2 py-1">
             <p className="text-sm font-semibold">Notifications</p>
             <button onClick={() => setNotificationsOpen(false)} className="rounded p-1 text-content-secondary hover:bg-surface-secondary" aria-label="Close notifications">
@@ -276,7 +276,7 @@ export function Header() {
 
       {searchOpen && (
         <div className="fixed inset-0 z-50 bg-black/45 p-4 backdrop-blur-sm" onClick={() => setSearchOpen(false)}>
-          <div className="mx-auto mt-20 w-full max-w-2xl rounded-lg border border-border-default bg-surface-elevated shadow-2xl" onClick={(event) => event.stopPropagation()}>
+          <div className="mx-auto mt-20 w-full max-w-2xl rounded-xl border border-border-default bg-surface-elevated/96 shadow-2xl backdrop-blur-xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center gap-2 border-b border-border-default px-4 py-3">
               <Search size={18} className="text-content-muted" />
               <input

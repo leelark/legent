@@ -10,7 +10,7 @@ export function ThemeInitializer() {
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(THEME_STORAGE_KEY);
-    setTheme(storedTheme === 'light' ? 'light' : 'dark');
+    setTheme(storedTheme === 'dark' ? 'dark' : 'light');
 
     const storedMode = localStorage.getItem('legent_ui_mode');
     setUiMode(storedMode === 'ADVANCED' ? 'ADVANCED' : 'BASIC');

@@ -38,7 +38,7 @@ export function Table<T>({
 }: TableProps<T> & { children?: React.ReactNode; className?: string }) {
   if (children) {
     return (
-      <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-elevated">
+      <div className="overflow-x-auto rounded-xl border border-border-default bg-surface-elevated/92 shadow-soft backdrop-blur-xl">
         <table className={clsx('w-full text-sm', className)}>
           {children}
         </table>
@@ -88,10 +88,10 @@ export function Table<T>({
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-elevated">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-surface-elevated/92 shadow-soft backdrop-blur-xl">
       <table className={clsx('w-full text-sm', className)}>
         <thead>
-          <tr className="border-b border-border-default bg-surface-secondary/80">
+          <tr className="border-b border-border-default bg-surface-secondary/85">
             {selectable && (
               <th className="w-10 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-secondary">
                 <input
@@ -122,9 +122,7 @@ export function Table<T>({
                   key={currentRowKey}
                   className={clsx(
                     'transition-colors',
-                    onRowClick
-                      ? 'cursor-pointer hover:bg-surface-secondary/80'
-                      : ''
+                    onRowClick ? 'cursor-pointer hover:bg-brand-500/5' : 'hover:bg-surface-secondary/50'
                   )}
                   onClick={() => onRowClick?.(row)}
                 >

@@ -16,9 +16,9 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-sm hover:from-brand-700 hover:to-brand-600 active:from-brand-800',
+    'bg-gradient-to-r from-brand-700 via-brand-600 to-fuchsia-500 text-white shadow-[0_12px_32px_rgba(126,34,206,0.24)] hover:from-brand-800 hover:via-brand-700 hover:to-fuchsia-600 active:from-brand-900',
   secondary:
-    'border border-border-default bg-surface-secondary text-content-primary hover:bg-surface-elevated active:bg-surface-secondary',
+    'border border-border-default bg-surface-elevated/80 text-content-primary shadow-sm hover:border-border-strong hover:bg-surface-secondary active:bg-surface-elevated',
   ghost:
     'text-content-secondary hover:bg-surface-secondary hover:text-content-primary',
   danger:
@@ -49,8 +49,8 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex min-w-0 items-center justify-center whitespace-nowrap rounded-lg font-medium',
-        'transition-all duration-150 hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-1',
+        'inline-flex min-w-0 items-center justify-center whitespace-nowrap rounded-xl font-semibold',
+        'transition-all duration-150 hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-1 focus:ring-offset-surface-primary',
         'disabled:cursor-not-allowed disabled:opacity-50',
         variantStyles[variant],
         sizeStyles[size],
