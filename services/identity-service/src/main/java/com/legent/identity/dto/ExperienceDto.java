@@ -2,6 +2,7 @@ package com.legent.identity.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -23,6 +24,7 @@ public class ExperienceDto {
         @NotBlank
         private String token;
         @NotBlank
+        @Size(min = 12, max = 128, message = "Password must be between 12 and 128 characters")
         private String newPassword;
     }
 
@@ -63,4 +65,3 @@ public class ExperienceDto {
         private Map<String, Object> metadata;
     }
 }
-

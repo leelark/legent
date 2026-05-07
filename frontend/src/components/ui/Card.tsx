@@ -13,9 +13,9 @@ export function Card({ children, className, hover = false, onClick, ...props }: 
   return (
     <div
       className={clsx(
-        'rounded-xl border border-border-default bg-surface-primary p-5 shadow-soft',
+        'rounded-lg border border-border-default bg-surface-elevated p-5 shadow-soft',
         'transition-all duration-200',
-        hover && 'hover:shadow-elevated hover:border-brand-200 dark:hover:border-brand-800 cursor-pointer',
+        hover && 'cursor-pointer hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-elevated dark:hover:border-brand-800',
         className
       )}
       onClick={onClick}
@@ -60,7 +60,7 @@ export function CardHeader({ title, subtitle, action, children, className }: Car
 
 export function CardTitle({ className, children }: { className?: string; children?: ReactNode }) {
   return (
-    <h3 className={clsx('text-lg font-semibold leading-none tracking-tight', className)}>
+    <h3 className={clsx('text-base font-semibold leading-tight tracking-normal text-content-primary', className)}>
       {children}
     </h3>
   );

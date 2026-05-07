@@ -204,7 +204,7 @@ export default function PlatformSettings() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Platform Integrations</h2>
-          <p className="text-muted-foreground mt-1">Manage API Keys, Webhooks, and Global Branding Settings</p>
+          <p className="text-content-secondary mt-1">Manage API Keys, Webhooks, and Global Branding Settings</p>
         </div>
         <Button onClick={handleSaveConfig} loading={saving} icon={<Save className="w-4 h-4" />}>
           Save All Changes
@@ -234,7 +234,7 @@ export default function PlatformSettings() {
               <TableBody>
                 {webhooks.length > 0 ? webhooks.map((hook) => (
                   <TableRow key={hook.id}>
-                    <TableCell className="font-medium text-xs text-muted-foreground break-all max-w-[200px]">
+                    <TableCell className="font-medium text-xs text-content-secondary break-all max-w-[200px]">
                       {hook.url}
                     </TableCell>
                     <TableCell className="text-xs">

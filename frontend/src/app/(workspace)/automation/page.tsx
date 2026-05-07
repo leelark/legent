@@ -28,6 +28,7 @@ export default function AutomationPage() {
   const [newDescription, setNewDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
 
   const loadWorkflows = async () => {
     setLoading(true);
@@ -66,6 +67,7 @@ export default function AutomationPage() {
   };
 
   const transitionWorkflow = async (workflowId: string, action: 'publish' | 'pause' | 'resume' | 'archive' | 'stop' | 'clone') => {
+    setActionBusy(`${workflowId}:${action}`);
     try {
       if (action === 'publish') await publishWorkflow(workflowId);
       if (action === 'pause') await pauseWorkflow(workflowId);
@@ -76,14 +78,17 @@ export default function AutomationPage() {
       await loadWorkflows();
     } catch (e: any) {
       setError(e?.normalized?.message || e?.response?.data?.error?.message || `Failed to ${action} workflow`);
+    } finally {
+      setActionBusy(null);
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-content-primary">Automation</h1>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Journey orchestration</p>
+          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Automation</h1>
           <p className="mt-1 text-sm text-content-secondary">Build and manage customer journeys</p>
         </div>
         <Button icon={<Plus size={16} />} onClick={() => setShowCreate(!showCreate)}>New Workflow</Button>
@@ -105,7 +110,7 @@ export default function AutomationPage() {
                 className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30 transition-all"
               />
             </div>
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button onClick={handleCreate} loading={creating} disabled={creating}>Create</Button>
               <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
             </div>
@@ -115,6 +120,7 @@ export default function AutomationPage() {
 
       <Card>
         <CardHeader title="Workflows" action={<Badge variant="info">{workflows.length} items</Badge>} />
+        {error && <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
         {loading ? (
           <div className="p-8 text-sm text-content-secondary">Loading workflows...</div>
         ) : workflows.length === 0 ? (
@@ -127,31 +133,31 @@ export default function AutomationPage() {
         ) : (
           <div className="grid gap-0 divide-y divide-border-default">
             {workflows.map((wf) => (
-              <div key={wf.id} className="flex items-center justify-between p-4 hover:bg-surface-secondary">
-                <div>
+              <div key={wf.id} className="flex flex-col gap-3 p-4 hover:bg-surface-secondary xl:flex-row xl:items-center xl:justify-between">
+                <div className="min-w-0">
                   <p className="font-semibold text-content-primary">{wf.name}</p>
-                  <p className="text-sm text-content-secondary">{wf.description || 'No description'}</p>
+                  <p className="truncate text-sm text-content-secondary">{wf.description || 'No description'}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
                   <Badge variant={wf.status === 'ACTIVE' ? 'success' : 'default'}>{wf.status}</Badge>
                   <Link href={`/app/automations/builder?id=${wf.id}`}>
                     <Button variant="secondary" size="sm">Open Builder</Button>
                   </Link>
-                  <Button size="sm" variant="secondary" onClick={() => transitionWorkflow(wf.id, 'clone')}>Clone</Button>
+                  <Button size="sm" variant="secondary" loading={actionBusy === `${wf.id}:clone`} onClick={() => transitionWorkflow(wf.id, 'clone')}>Clone</Button>
                   {wf.status === 'DRAFT' && (
-                    <Button size="sm" onClick={() => transitionWorkflow(wf.id, 'publish')}>Publish</Button>
+                    <Button size="sm" loading={actionBusy === `${wf.id}:publish`} onClick={() => transitionWorkflow(wf.id, 'publish')}>Publish</Button>
                   )}
                   {wf.status === 'ACTIVE' && (
-                    <Button size="sm" variant="secondary" onClick={() => transitionWorkflow(wf.id, 'pause')}>Pause</Button>
+                    <Button size="sm" variant="secondary" loading={actionBusy === `${wf.id}:pause`} onClick={() => transitionWorkflow(wf.id, 'pause')}>Pause</Button>
                   )}
                   {wf.status === 'PAUSED' && (
-                    <Button size="sm" onClick={() => transitionWorkflow(wf.id, 'resume')}>Resume</Button>
+                    <Button size="sm" loading={actionBusy === `${wf.id}:resume`} onClick={() => transitionWorkflow(wf.id, 'resume')}>Resume</Button>
                   )}
                   {(wf.status === 'ACTIVE' || wf.status === 'PAUSED' || wf.status === 'SCHEDULED') && (
-                    <Button size="sm" variant="secondary" onClick={() => transitionWorkflow(wf.id, 'stop')}>Stop</Button>
+                    <Button size="sm" variant="secondary" loading={actionBusy === `${wf.id}:stop`} onClick={() => transitionWorkflow(wf.id, 'stop')}>Stop</Button>
                   )}
                   {wf.status !== 'ARCHIVED' && (
-                    <Button size="sm" variant="outline" onClick={() => transitionWorkflow(wf.id, 'archive')}>Archive</Button>
+                    <Button size="sm" variant="outline" loading={actionBusy === `${wf.id}:archive`} onClick={() => transitionWorkflow(wf.id, 'archive')}>Archive</Button>
                   )}
                 </div>
               </div>

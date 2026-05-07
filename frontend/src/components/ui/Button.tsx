@@ -18,7 +18,7 @@ const variantStyles: Record<ButtonVariant, string> = {
   primary:
     'bg-gradient-to-r from-brand-600 to-brand-500 text-white shadow-sm hover:from-brand-700 hover:to-brand-600 active:from-brand-800',
   secondary:
-    'bg-surface-secondary border border-border-default text-content-primary hover:bg-surface-elevated active:bg-surface-secondary',
+    'border border-border-default bg-surface-secondary text-content-primary hover:bg-surface-elevated active:bg-surface-secondary',
   ghost:
     'text-content-secondary hover:bg-surface-secondary hover:text-content-primary',
   danger:
@@ -49,8 +49,8 @@ export function Button({
   return (
     <button
       className={clsx(
-        'inline-flex items-center justify-center rounded-lg font-medium',
-        'transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-1',
+        'inline-flex min-w-0 items-center justify-center whitespace-nowrap rounded-lg font-medium',
+        'transition-all duration-150 hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-accent/40 focus:ring-offset-1',
         'disabled:cursor-not-allowed disabled:opacity-50',
         variantStyles[variant],
         sizeStyles[size],
@@ -69,7 +69,7 @@ export function Button({
       ) : icon ? (
         <span className="flex-shrink-0">{icon}</span>
       ) : null}
-      {children}
+      <span className="truncate">{children}</span>
     </button>
   );
 }

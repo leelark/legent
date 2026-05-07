@@ -1,5 +1,6 @@
 import '@/styles/globals.css';
 import type { Metadata } from 'next';
+import { ThemeInitializer } from '@/components/shared/ThemeInitializer';
 
 export const metadata: Metadata = {
   title: 'Legent: Email Studio',
@@ -15,8 +16,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body className="min-h-screen bg-surface-primary text-content-primary antialiased">
+        <ThemeInitializer />
         {children}
       </body>
     </html>

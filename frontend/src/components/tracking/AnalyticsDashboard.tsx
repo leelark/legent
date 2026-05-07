@@ -44,7 +44,7 @@ export const AnalyticsDashboard: React.FC = () => {
           {counts.map((c) => (
             <div key={c.event_type} className="flex flex-col items-center">
               <span className="text-2xl font-bold">{c.count}</span>
-              <span className="text-xs uppercase text-muted-foreground">{c.event_type}</span>
+              <span className="text-xs uppercase text-content-secondary">{c.event_type}</span>
             </div>
           ))}
         </div>

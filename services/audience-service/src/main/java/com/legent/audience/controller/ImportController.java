@@ -26,12 +26,6 @@ public class ImportController {
         return ApiResponse.ok(importService.uploadAndStartImport(file, request));
     }
 
-    @PostMapping("/mock")
-    @ResponseStatus(HttpStatus.ACCEPTED)
-    public ApiResponse<ImportDto.StatusResponse> startImport(@Valid @RequestBody ImportDto.StartRequest request) {
-        return ApiResponse.ok(importService.startImport(request));
-    }
-
     @GetMapping("/{id}")
     public ApiResponse<ImportDto.StatusResponse> getStatus(@PathVariable String id) {
         return ApiResponse.ok(importService.getStatus(id));

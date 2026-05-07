@@ -41,16 +41,20 @@ export default function AudienceDashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [recentSubscribers, setRecentSubscribers] = useState<any[]>([]);
+  const [recentImports, setRecentImports] = useState<any[]>([]);
+  const [activeSegments, setActiveSegments] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [subRes, listRes, deRes, segRes, recentRes] = await Promise.all([
+        const [subRes, listRes, deRes, segRes, recentRes, importRes, activeSegmentRes] = await Promise.all([
           get<any>('/subscribers/count'),
           get<any>('/lists?size=1'),
           get<any>('/data-extensions?size=1'),
           get<any>('/segments?size=1'),
-          get<any>('/subscribers?size=5&sortDir=desc')
+          get<any>('/subscribers?size=5&sortDir=desc'),
+          get<any>('/imports?page=0&size=5'),
+          get<any>('/segments?page=0&size=5')
         ]);
 
         setStats({
@@ -60,6 +64,8 @@ export default function AudienceDashboard() {
           segments: segRes?.totalElements || 0
         });
         setRecentSubscribers(recentRes?.content || []);
+        setRecentImports(importRes?.content || importRes?.data || []);
+        setActiveSegments(activeSegmentRes?.content || activeSegmentRes?.data || []);
       } catch (err) {
         console.error("Failed to fetch audience stats", err);
       } finally {
@@ -72,14 +78,15 @@ export default function AudienceDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-content-primary">Audience</h1>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Customer data layer</p>
+          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Audience</h1>
           <p className="mt-1 text-sm text-content-secondary">
             Manage subscribers, lists, data extensions, and segments
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/app/audience/imports/new">
             <Button variant="secondary" icon={<Upload size={16} />}>Import</Button>
           </Link>
@@ -116,15 +123,33 @@ export default function AudienceDashboard() {
                     <div className="space-y-2">
                       {recentSubscribers.length > 0 ? (
                         recentSubscribers.map(sub => (
-                          <div key={sub.id} className="text-sm text-content-primary">{sub.email}</div>
+                          <div key={sub.id} className="rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-left text-sm text-content-primary">{sub.email}</div>
                         ))
                       ) : (
                         <p className="text-sm text-content-muted">No recent subscribers.</p>
                       )}
                     </div>
                   )}
-                  {tab === 'imports' && <p className="text-sm text-content-muted">Import history will appear here.</p>}
-                  {tab === 'segments' && <p className="text-sm text-content-muted">Active segments with computed counts will appear here.</p>}
+                  {tab === 'imports' && (
+                    <div className="space-y-2">
+                      {recentImports.length > 0 ? recentImports.map((job) => (
+                        <div key={job.id} className="rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-left text-sm">
+                          <span className="font-medium text-content-primary">{job.fileName || job.source || job.id}</span>
+                          <span className="ml-2 text-content-secondary">{job.status || 'QUEUED'}</span>
+                        </div>
+                      )) : <p className="text-sm text-content-muted">No import jobs yet.</p>}
+                    </div>
+                  )}
+                  {tab === 'segments' && (
+                    <div className="space-y-2">
+                      {activeSegments.length > 0 ? activeSegments.map((segment) => (
+                        <div key={segment.id} className="rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-left text-sm">
+                          <span className="font-medium text-content-primary">{segment.name}</span>
+                          <span className="ml-2 text-content-secondary">{segment.status || 'ACTIVE'}</span>
+                        </div>
+                      )) : <p className="text-sm text-content-muted">No active segments yet.</p>}
+                    </div>
+                  )}
                 </>
               )}
               <Link href={tab === 'recent' ? '/app/audience/subscribers' : tab === 'imports' ? '/app/audience/imports' : '/app/audience/segments'}>

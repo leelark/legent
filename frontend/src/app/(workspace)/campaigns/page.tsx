@@ -226,12 +226,13 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-content-primary">Campaign Studio</h1>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Launch operations</p>
+          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Campaign Studio</h1>
           <p className="mt-1 text-sm text-content-secondary">Create, approve, schedule, and orchestrate enterprise email campaigns.</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" icon={<ClockClockwise size={16} />} onClick={() => void loadCampaigns()}>
             Refresh
           </Button>

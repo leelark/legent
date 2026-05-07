@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/shell/Sidebar';
+import { MobileNav, Sidebar } from '@/components/shell/Sidebar';
 import { Header } from '@/components/shell/Header';
 import { useAuthStore } from '@/stores/authStore';
 import { useTenantStore } from '@/stores/tenantStore';
@@ -196,12 +196,13 @@ export default function WorkspaceLayout({
         <Sidebar />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-auto bg-surface-secondary p-6">
+          <main className="app-surface flex-1 overflow-auto p-4 pb-24 md:p-6">
             <ErrorBoundary>
-              <div className="animate-fade-in">{children}</div>
+              <div className="mx-auto w-full max-w-[1440px] animate-fade-in">{children}</div>
             </ErrorBoundary>
           </main>
         </div>
+        <MobileNav />
       </div>
     </ToastProvider>
   );

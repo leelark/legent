@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { get, post } from '@/lib/api-client';
@@ -26,9 +26,13 @@ export default function LoginPage() {
   const [tenantId, setTenantId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const redirectingRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
+      return;
+    }
+    if (redirectingRef.current) {
       return;
     }
 
@@ -82,8 +86,13 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (tenantId.trim()) {
-        localStorage.setItem(TENANT_STORAGE_KEY, tenantId.trim());
+      const formData = new FormData(event.currentTarget);
+      const submittedTenantId = String(formData.get('tenantId') ?? tenantId).trim();
+      const submittedEmail = String(formData.get('email') ?? email).trim();
+      const submittedPassword = String(formData.get('password') ?? password);
+
+      if (submittedTenantId) {
+        localStorage.setItem(TENANT_STORAGE_KEY, submittedTenantId);
       }
 
       // Call login endpoint - token is set in HTTP-only cookie by backend
@@ -96,8 +105,8 @@ export default function LoginPage() {
         environmentId?: string | null;
       }>(
         '/auth/login',
-        { email, password },
-        tenantId.trim() ? { headers: { 'X-Tenant-Id': tenantId.trim() } } : undefined
+        { email: submittedEmail, password: submittedPassword },
+        submittedTenantId ? { headers: { 'X-Tenant-Id': submittedTenantId } } : undefined
       );
 
       const data = (response as any).data || response;
@@ -112,18 +121,17 @@ export default function LoginPage() {
       localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles));
       localStorage.setItem(USER_STORAGE_KEY, userId);
 
-      login(userId, roles);
       setCurrentTenant({
-        id: data.tenantId || tenantId.trim(),
-        name: data.tenantId || tenantId.trim(),
-        slug: data.tenantId || tenantId.trim(),
+        id: data.tenantId || submittedTenantId,
+        name: data.tenantId || submittedTenantId,
+        slug: data.tenantId || submittedTenantId,
         status: 'ACTIVE',
         plan: 'STARTER',
       });
 
       try {
         const activeContext = await ensureActiveContext({
-          preferredTenantId: data.tenantId || tenantId.trim(),
+          preferredTenantId: data.tenantId || submittedTenantId,
           preferredWorkspaceId: data.workspaceId ?? null,
           preferredEnvironmentId: data.environmentId ?? null,
         });
@@ -135,8 +143,11 @@ export default function LoginPage() {
         throw new Error('Workspace context setup failed. Please sign in again.');
       }
 
-      router.push(ROUTES.EMAIL);
+      redirectingRef.current = true;
+      login(userId, roles);
+      router.replace(ROUTES.EMAIL);
     } catch (err: any) {
+      redirectingRef.current = false;
       const message = err?.response?.data?.error?.message || err?.message || 'Unable to login. Please check your credentials.';
       setError(message);
     } finally {
@@ -161,6 +172,7 @@ export default function LoginPage() {
             </label>
             <input
               id="tenantId"
+              name="tenantId"
               value={tenantId}
               onChange={(event) => setTenantId(event.target.value)}
               placeholder="Optional when you have a default membership"
@@ -174,7 +186,10 @@ export default function LoginPage() {
             </label>
             <input
               id="email"
+              name="email"
               type="email"
+              autoComplete="username"
+              required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="you@example.com"
@@ -188,10 +203,13 @@ export default function LoginPage() {
             </label>
             <input
               id="password"
+              name="password"
               type="password"
+              autoComplete="current-password"
+              required
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
+              placeholder="********"
               className="mt-2 w-full rounded-2xl border border-border-default bg-surface-primary px-4 py-3 text-sm text-content-primary placeholder:text-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>

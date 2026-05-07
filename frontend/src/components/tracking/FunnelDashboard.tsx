@@ -23,7 +23,7 @@ export const FunnelDashboard: React.FC<{ campaignId: string }> = ({ campaignId }
         {funnel.map((step) => (
           <div key={step.event_type} className="flex flex-col items-center">
             <span className="text-2xl font-bold">{step.count}</span>
-            <span className="text-xs uppercase text-muted-foreground">{step.event_type}</span>
+            <span className="text-xs uppercase text-content-secondary">{step.event_type}</span>
           </div>
         ))}
       </div>

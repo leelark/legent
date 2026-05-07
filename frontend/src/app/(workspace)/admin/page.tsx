@@ -36,11 +36,14 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="space-y-6 p-8">
-      <h1 className="text-3xl font-bold mb-1">Admin Studio</h1>
-      <p className="text-sm text-content-secondary">Central settings, governance, bootstrap, and runtime controls.</p>
+    <div className="space-y-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Governance</p>
+        <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Admin Studio</h1>
+        <p className="mt-1 text-sm text-content-secondary">Central settings, governance, bootstrap, and runtime controls.</p>
+      </div>
       <PlatformCorePanel />
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         <div className="space-y-6">
           <BootstrapStatusPanel />
           <AdminConfigPanel />

@@ -24,7 +24,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set, get) => ({
-  theme: 'light',
+  theme: 'dark',
   uiMode: 'BASIC',
   density: 'comfortable',
   sidebarCollapsed: false,
@@ -48,8 +48,23 @@ export const useUIStore = create<UIState>((set, get) => ({
     set({ theme });
   },
 
-  toggleUiMode: () => set((s) => ({ uiMode: s.uiMode === 'BASIC' ? 'ADVANCED' : 'BASIC' })),
-  setUiMode: (mode) => set({ uiMode: mode }),
+  toggleUiMode: () => {
+    const next = get().uiMode === 'BASIC' ? 'ADVANCED' : 'BASIC';
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('legent_ui_mode', next);
+      document.documentElement.classList.toggle('mode-basic', next === 'BASIC');
+      document.documentElement.classList.toggle('mode-advanced', next === 'ADVANCED');
+    }
+    set({ uiMode: next });
+  },
+  setUiMode: (mode) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('legent_ui_mode', mode);
+      document.documentElement.classList.toggle('mode-basic', mode === 'BASIC');
+      document.documentElement.classList.toggle('mode-advanced', mode === 'ADVANCED');
+    }
+    set({ uiMode: mode });
+  },
   setDensity: (density) => set({ density }),
 
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),

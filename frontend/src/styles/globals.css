@@ -2,9 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Design Tokens ── */
+/* Design Tokens */
 :root {
-  /* Brand Palette — Deep Indigo */
+  color-scheme: light;
+
   --color-brand-50:  #ECFDF5;
   --color-brand-100: #D1FAE5;
   --color-brand-200: #A7F3D0;
@@ -15,29 +16,25 @@
   --color-brand-700: #047857;
   --color-brand-800: #065F46;
   --color-brand-900: #064E3B;
-  
-  /* Brand triplets for opacity support */
   --color-brand-900-rgb: 6 78 59;
 
-  /* Semantic */
   --color-success: #10B981;
   --color-warning: #F59E0B;
   --color-danger:  #EF4444;
   --color-info:    #3B82F6;
 
-  /* Light Theme (default) */
   --bg-primary:    #FAFCFB;
-  --bg-secondary:  #F3F8F6;
+  --bg-secondary:  #F1F7F4;
   --bg-surface:    #FFFFFF;
   --bg-surface-rgb: 255 255 255;
   --text-primary:  #0D1714;
   --text-secondary:#43564F;
-  --text-muted:    #7A8F86;
-  --border-default:#DCE7E1;
-  --border-strong: #BFD0C7;
+  --text-muted:    #789087;
+  --border-default:#D6E3DD;
+  --border-strong: #B8CEC4;
   --accent:        #047857;
+  --focus-ring:    rgba(16, 185, 129, 0.45);
 
-  /* Spacing */
   --space-0:  0;
   --space-1:  0.25rem;
   --space-2:  0.5rem;
@@ -51,32 +48,14 @@
   --space-16: 4rem;
   --space-20: 5rem;
 
-  /* Layout */
   --sidebar-width: 256px;
   --sidebar-collapsed-width: 64px;
   --header-height: 56px;
   --right-panel-width: 320px;
 
-  /* Typography */
   --font-sans: 'Sora', system-ui, -apple-system, sans-serif;
   --font-mono: 'IBM Plex Mono', 'JetBrains Mono', monospace;
-  --text-xs:   0.75rem;
-  --text-sm:   0.875rem;
-  --text-base: 1rem;
-  --text-lg:   1.125rem;
-  --text-xl:   1.25rem;
-  --text-2xl:  1.5rem;
-  --text-3xl:  1.875rem;
-  --text-4xl:  2.25rem;
-  --font-normal:   400;
-  --font-medium:   500;
-  --font-semibold: 600;
-  --font-bold:     700;
-  --leading-tight:  1.25;
-  --leading-normal: 1.5;
-  --leading-relaxed: 1.625;
 
-  /* Shadows */
   --shadow-xs:  0 1px 2px 0 rgba(0, 0, 0, 0.03);
   --shadow-sm:  0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   --shadow-md:  0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
@@ -86,16 +65,18 @@
 }
 
 .dark {
-  --bg-primary:    #08110E;
-  --bg-secondary:  #0C1915;
-  --bg-surface:    #13231D;
-  --bg-surface-rgb: 19 35 29;
-  --text-primary:  #EAF5F0;
-  --text-secondary:#A4C0B3;
-  --text-muted:    #78968A;
-  --border-default:#1A2D26;
-  --border-strong: #244137;
-  --accent:        #34D399;
+  color-scheme: dark;
+  --bg-primary:    #06110E;
+  --bg-secondary:  #091A15;
+  --bg-surface:    #10241D;
+  --bg-surface-rgb: 16 36 29;
+  --text-primary:  #F2FBF7;
+  --text-secondary:#B4CEC2;
+  --text-muted:    #78988C;
+  --border-default:#203A31;
+  --border-strong: #315A4B;
+  --accent:        #38E0A0;
+  --focus-ring:    rgba(56, 224, 160, 0.48);
 
   --shadow-xs:  0 1px 2px 0 rgba(0, 0, 0, 0.2);
   --shadow-sm:  0 1px 3px 0 rgba(0, 0, 0, 0.3);
@@ -105,7 +86,6 @@
   --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-/* ── Base Styles ── */
 @layer base {
   html {
     font-family: var(--font-sans), 'Sora', system-ui, sans-serif;
@@ -116,6 +96,7 @@
 
   body {
     @apply bg-surface-primary text-content-primary;
+    min-width: 320px;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
@@ -124,11 +105,14 @@
   }
 
   *:focus-visible {
-    outline: 2px solid rgba(16, 185, 129, 0.55);
+    outline: 2px solid var(--focus-ring);
     outline-offset: 2px;
   }
 
-  /* Scrollbar styling */
+  ::selection {
+    background: rgba(16, 185, 129, 0.28);
+  }
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -139,7 +123,7 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-border-default rounded-full;
+    @apply rounded-full bg-border-default;
   }
 
   ::-webkit-scrollbar-thumb:hover {
@@ -147,24 +131,48 @@
   }
 }
 
-/* ── Component Layer ── */
 @layer components {
+  .app-surface {
+    background:
+      linear-gradient(180deg, rgba(16, 185, 129, 0.08), transparent 280px),
+      var(--bg-secondary);
+  }
+
   .glass-panel {
-    background-color: rgba(var(--bg-surface-rgb), 0.8);
-    @apply backdrop-blur-xl border border-border-default rounded-xl shadow-glass;
+    background-color: rgba(var(--bg-surface-rgb), 0.82);
+    @apply rounded-lg border border-border-default shadow-glass backdrop-blur-xl;
   }
 
   .sidebar-item {
-    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer;
-    @apply text-content-secondary hover:text-content-primary hover:bg-surface-secondary;
+    @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-content-secondary transition-all duration-150 hover:bg-surface-secondary hover:text-content-primary;
   }
 
   .sidebar-item.active {
-    @apply text-accent bg-brand-50 font-semibold;
+    @apply bg-brand-50 font-semibold text-accent;
   }
 
   .dark .sidebar-item.active {
     background-color: rgba(var(--color-brand-900-rgb), 0.2);
     @apply text-brand-400;
+  }
+
+  .premium-grid {
+    background-image:
+      linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+  }
+
+  .mode-basic [data-advanced="true"] {
+    display: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

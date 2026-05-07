@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui";
-import { Activity, MousePointerClick, CheckCircle, Flame } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Activity, CheckCircle, Flame, MousePointerClick, RefreshCw } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { get } from '@/lib/api-client';
 
 interface EventCount {
@@ -19,152 +21,134 @@ interface CampaignSummary {
   totalConversions?: number;
 }
 
+const eventLabels: Record<string, string> = {
+  OPEN: 'Opens',
+  CLICK: 'Clicks',
+  CONVERSION: 'Conversions',
+};
+
 export default function AnalyticsDashboard() {
   const [eventCounts, setEventCounts] = useState<EventCount[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const [counts, camps] = await Promise.allSettled([
+      get<EventCount[]>('/analytics/events/counts'),
+      get<CampaignSummary[]>('/analytics/campaigns'),
+    ]);
+    setEventCounts(counts.status === 'fulfilled' && Array.isArray(counts.value) ? counts.value : []);
+    setCampaigns(camps.status === 'fulfilled' && Array.isArray(camps.value) ? camps.value : []);
+    setLoading(false);
+  };
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const counts = await get<EventCount[]>('/analytics/events/counts');
-        setEventCounts(Array.isArray(counts) ? counts : []);
-      } catch (e: any) {
-        setEventCounts([]);
-      }
-      try {
-        const camps = await get<CampaignSummary[]>('/analytics/campaigns');
-        setCampaigns(Array.isArray(camps) ? camps : []);
-      } catch (e: any) {
-        setCampaigns([]);
-      }
-      setLoading(false);
-    };
-    load();
+    void load();
   }, []);
 
-  const totalOpens = eventCounts.find(e => e.event_type === 'OPEN')?.count || 0;
-  const totalClicks = eventCounts.find(e => e.event_type === 'CLICK')?.count || 0;
-  const totalConversions = eventCounts.find(e => e.event_type === 'CONVERSION')?.count || 0;
-  const activeCampaigns = campaigns.length;
+  const totals = useMemo(() => {
+    const find = (type: string) => eventCounts.find((event) => event.event_type === type)?.count || 0;
+    return {
+      opens: find('OPEN'),
+      clicks: find('CLICK'),
+      conversions: find('CONVERSION'),
+      campaigns: campaigns.length,
+    };
+  }, [campaigns.length, eventCounts]);
+
+  const maxCount = Math.max(1, ...eventCounts.map((event) => event.count));
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight">Analytics Overview</h2>
-          <p className="text-muted-foreground mt-1">Real-time aggregate delivery and engagement metrics</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Live telemetry</p>
+          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Analytics Overview</h1>
+          <p className="mt-1 text-sm text-content-secondary">Aggregate delivery and engagement metrics from tracking services.</p>
         </div>
+        <Button variant="secondary" icon={<RefreshCw size={16} />} onClick={() => void load()} loading={loading}>
+          Refresh
+        </Button>
       </div>
 
-      {/* Aggregate Metric Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Opens</CardTitle>
-            <Activity className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalOpens.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {loading ? 'Loading...' : 'From tracked events'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Clicks</CardTitle>
-            <MousePointerClick className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalClicks.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {loading ? 'Loading...' : 'From tracked events'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Conversions</CardTitle>
-            <CheckCircle className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalConversions.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              {loading ? 'Loading...' : 'From tracked events'}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
-            <Flame className="h-4 w-4 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{activeCampaigns}</div>
-            <p className="text-xs text-muted-foreground">
-              {loading ? 'Loading...' : 'tracked campaigns'}
-            </p>
-          </CardContent>
-        </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Total Opens" value={totals.opens} helper="Tracked open events" icon={<Activity size={18} />} />
+        <MetricCard label="Total Clicks" value={totals.clicks} helper="Tracked click events" icon={<MousePointerClick size={18} />} />
+        <MetricCard label="Conversions" value={totals.conversions} helper="Goal events captured" icon={<CheckCircle size={18} />} />
+        <MetricCard label="Active Campaigns" value={totals.campaigns} helper="Campaign summaries" icon={<Flame size={18} />} />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <Card>
           <CardHeader>
-            <CardTitle>Engagement Overview</CardTitle>
-            <CardDescription>
-              A snapshot of Open and Click rates over recent campaigns.
-            </CardDescription>
+            <CardTitle>Engagement Mix</CardTitle>
+            <CardDescription>Event distribution by type.</CardDescription>
           </CardHeader>
-          <CardContent className="pl-2 h-[350px] flex items-center justify-center border-t border-dashed m-4 rounded">
+          <CardContent className="space-y-3">
             {loading ? (
-              <span className="text-muted-foreground">Loading data...</span>
+              <div className="py-16 text-center text-sm text-content-secondary">Loading data...</div>
             ) : eventCounts.length === 0 ? (
-              <span className="text-muted-foreground">No event data available yet</span>
+              <div className="py-16 text-center text-sm text-content-secondary">No event data available yet</div>
             ) : (
-              <div className="w-full space-y-4 px-4">
-                {eventCounts.map((ec) => (
-                  <div key={ec.event_type} className="flex items-center justify-between">
-                    <span className="text-sm font-medium">{ec.event_type}</span>
-                    <span className="text-lg font-bold">{ec.count}</span>
+              eventCounts.map((event) => (
+                <div key={event.event_type} className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{eventLabels[event.event_type] || event.event_type}</span>
+                    <span className="font-semibold">{event.count.toLocaleString()}</span>
                   </div>
-                ))}
-              </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-surface-secondary">
+                    <div className="h-full rounded-full bg-gradient-to-r from-brand-700 to-brand-300" style={{ width: `${Math.max(4, (event.count / maxCount) * 100)}%` }} />
+                  </div>
+                </div>
+              ))
             )}
           </CardContent>
         </Card>
 
-        <Card className="col-span-3">
+        <Card>
           <CardHeader>
-            <CardTitle>Top Performing Campaigns</CardTitle>
-            <CardDescription>Recent campaign summaries</CardDescription>
+            <CardTitle>Top Campaigns</CardTitle>
+            <CardDescription>Recent campaign summaries.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-8">
-              {loading ? (
-                <p className="text-sm text-muted-foreground">Loading campaigns...</p>
-              ) : campaigns.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No campaigns tracked yet</p>
-              ) : (
-                campaigns.slice(0, 5).map((c) => (
-                  <div className="flex items-center" key={c.campaignId || c.id}>
-                    <div className="ml-4 space-y-1">
-                      <p className="text-sm font-medium leading-none">{c.campaignId || 'Campaign'}</p>
-                      <p className="text-sm text-muted-foreground">Opens: {c.totalOpens || 0} | Clicks: {c.totalClicks || 0}</p>
+          <CardContent className="space-y-3">
+            {loading ? (
+              <p className="py-12 text-center text-sm text-content-secondary">Loading campaigns...</p>
+            ) : campaigns.length === 0 ? (
+              <p className="py-12 text-center text-sm text-content-secondary">No campaigns tracked yet</p>
+            ) : (
+              campaigns.slice(0, 6).map((campaign) => {
+                const sends = campaign.totalSends || 0;
+                const ctr = sends ? Math.round(((campaign.totalClicks || 0) / sends) * 100) : 0;
+                return (
+                  <div key={campaign.campaignId || campaign.id} className="rounded-lg border border-border-default bg-surface-secondary p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="truncate text-sm font-semibold">{campaign.campaignId || campaign.id || 'Campaign'}</p>
+                      <Badge variant={ctr >= 10 ? 'success' : 'default'}>{ctr}% CTR</Badge>
                     </div>
-                    <div className="ml-auto font-medium text-green-500">
-                      {c.totalSends ? Math.round(((c.totalClicks || 0) / c.totalSends) * 100) + '% CTR' : '-'}
-                    </div>
+                    <p className="mt-1 text-xs text-content-secondary">Opens {campaign.totalOpens || 0} / Clicks {campaign.totalClicks || 0}</p>
                   </div>
-                ))
-              )}
-            </div>
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>
     </div>
+  );
+}
+
+function MetricCard({ label, value, helper, icon }: { label: string; value: number; helper: string; icon: React.ReactNode }) {
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wider text-content-secondary">{label}</p>
+          <p className="mt-2 text-3xl font-semibold text-content-primary">{value.toLocaleString()}</p>
+          <p className="mt-1 text-xs text-content-muted">{helper}</p>
+        </div>
+        <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 p-2 text-brand-300">{icon}</div>
+      </div>
+    </Card>
   );
 }

@@ -167,7 +167,7 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
                 </Button>
               </span>
             </div>
-            <div className="mb-2 text-xs text-muted-foreground">{node.type}</div>
+            <div className="mb-2 text-xs text-content-secondary">{node.type}</div>
           </Card>
         </div>
       ))}

@@ -17,7 +17,7 @@ export const ReputationDashboard: React.FC<{ domain: string }> = ({ domain }) =>
       <h3 className="font-bold mb-2">Reputation: {domain}</h3>
       <div className="flex items-center gap-4">
         <span className="text-2xl font-bold">{score.score}</span>
-        <span className="text-xs text-muted-foreground">Last updated: {score.lastUpdated}</span>
+        <span className="text-xs text-content-secondary">Last updated: {score.lastUpdated}</span>
       </div>
     </Card>
   );

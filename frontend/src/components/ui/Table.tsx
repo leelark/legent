@@ -38,7 +38,7 @@ export function Table<T>({
 }: TableProps<T> & { children?: React.ReactNode; className?: string }) {
   if (children) {
     return (
-      <div className="overflow-x-auto rounded-lg border border-border-default">
+      <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-elevated">
         <table className={clsx('w-full text-sm', className)}>
           {children}
         </table>
@@ -88,10 +88,10 @@ export function Table<T>({
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border-default">
+    <div className="overflow-x-auto rounded-lg border border-border-default bg-surface-elevated">
       <table className={clsx('w-full text-sm', className)}>
         <thead>
-          <tr className="border-b border-border-default bg-surface-secondary">
+          <tr className="border-b border-border-default bg-surface-secondary/80">
             {selectable && (
               <th className="w-10 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-secondary">
                 <input
@@ -123,7 +123,7 @@ export function Table<T>({
                   className={clsx(
                     'transition-colors',
                     onRowClick
-                      ? 'cursor-pointer hover:bg-surface-secondary'
+                      ? 'cursor-pointer hover:bg-surface-secondary/80'
                       : ''
                   )}
                   onClick={() => onRowClick?.(row)}
@@ -142,7 +142,7 @@ export function Table<T>({
                   {columns?.map((col: any) => (
                     <td
                       key={col.key}
-                      className="px-4 py-3 text-content-primary"
+                      className="px-4 py-3 text-content-primary align-middle"
                     >
                       {col.render
                         ? col.render(row)

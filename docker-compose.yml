@@ -10,7 +10,7 @@ x-service-defaults: &service-defaults
         memory: 512M
 
 x-spring-env: &spring-env
-  SPRING_PROFILES_ACTIVE: prod
+  SPRING_PROFILES_ACTIVE: local
   JAVA_TOOL_OPTIONS: -Xmx512m -Xms256m
   SPRING_JPA_HIBERNATE_DDL_AUTO: validate
   SPRING_FLYWAY_ENABLED: "true"
@@ -352,8 +352,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8081/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   identity-service:
     build: ./services/identity-service
@@ -381,8 +381,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8089/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   content-service:
     build: ./services/content-service
@@ -413,8 +413,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8090/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   audience-service:
     build: ./services/audience-service
@@ -445,8 +445,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8082/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   campaign-service:
     build: ./services/campaign-service
@@ -472,8 +472,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8083/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   delivery-service:
     build: ./services/delivery-service
@@ -504,8 +504,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8084/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   tracking-service:
     build: ./services/tracking-service
@@ -537,8 +537,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8085/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   automation-service:
     build: ./services/automation-service
@@ -563,8 +563,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8086/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   deliverability-service:
     build: ./services/deliverability-service
@@ -593,8 +593,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8087/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 120s
+      retries: 36
+      start_period: 240s
 
   platform-service:
     build: ./services/platform-service
@@ -616,8 +616,8 @@ services:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:8088/actuator/health || exit 1"]
       interval: 10s
       timeout: 5s
-      retries: 20
-      start_period: 90s
+      retries: 36
+      start_period: 240s
 
   frontend:
     build: ./frontend

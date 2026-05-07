@@ -9,14 +9,14 @@ export function TopNavigationBar() {
         
         {/* Global Search Bar */}
         <div className="flex-1 max-w-md relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-content-secondary" />
             <Input 
                 placeholder="Search campaigns, subscribers, or workflows..." 
                 className="pl-9 bg-slate-50 border-slate-200 focus-visible:ring-indigo-500" 
             />
             {/* Keyboard shortcut hint */}
             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1">
-                <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+                <kbd className="hidden sm:inline-flex h-5 items-center gap-1 rounded border bg-surface-secondary px-1.5 font-mono text-[10px] font-medium text-content-secondary">
                     <span className="text-xs">⌘</span>K
                 </kbd>
             </div>

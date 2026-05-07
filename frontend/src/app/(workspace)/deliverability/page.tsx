@@ -36,9 +36,11 @@ export default function DeliverabilityPage() {
   const [warmup, setWarmup] = useState<{ readiness: number; activeProviders: number; unhealthyProviders: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const loadAll = async () => {
     setLoading(true);
+    setError(null);
     try {
       const [domainRes, queueRes, messageRes, diagnosticsRes, warmupRes] = await Promise.all([
         get<any>('/deliverability/domains'),
@@ -53,8 +55,9 @@ export default function DeliverabilityPage() {
       setMessages(messageRes || []);
       setDiagnostics(diagnosticsRes);
       setWarmup(warmupRes);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to load delivery studio data', e);
+      setError(e?.normalized?.message || 'Failed to load delivery studio data');
     } finally {
       setLoading(false);
     }
@@ -104,17 +107,19 @@ export default function DeliverabilityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-content-primary">Delivery Studio</h1>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Inbox operations</p>
+          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Delivery Studio</h1>
           <p className="mt-1 text-sm text-content-secondary">Queue monitor, replay console, warm-up readiness, and inbox health telemetry</p>
         </div>
         <Button variant="outline" onClick={loadAll} icon={<ArrowClockwise size={14} />}>
           Refresh
         </Button>
       </div>
+      {error && <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border-blue-500/20">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -161,7 +166,7 @@ export default function DeliverabilityPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title="Delivery Queue & Replay Diagnostics" />
           <div className="px-6 pb-6 text-sm text-content-secondary">

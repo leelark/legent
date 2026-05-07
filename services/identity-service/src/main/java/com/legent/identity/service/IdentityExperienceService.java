@@ -17,6 +17,7 @@ import com.legent.identity.repository.UserPreferenceRepository;
 import com.legent.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -157,10 +158,23 @@ public class IdentityExperienceService {
     }
 
     @Transactional
-    public ExperienceDto.UserPreferenceResponse updatePreferences(String userId, String tenantId, ExperienceDto.UserPreferenceRequest request) {
+    public synchronized ExperienceDto.UserPreferenceResponse updatePreferences(String userId, String tenantId, ExperienceDto.UserPreferenceRequest request) {
         UserPreference preference = userPreferenceRepository.findByTenantIdAndUserId(tenantId, userId)
                 .orElseGet(() -> buildDefaultPreference(userId, tenantId));
+        applyPreferenceRequest(preference, request);
 
+        try {
+            userPreferenceRepository.saveAndFlush(preference);
+        } catch (DataIntegrityViolationException ex) {
+            UserPreference existing = userPreferenceRepository.findByTenantIdAndUserId(tenantId, userId)
+                    .orElseThrow(() -> ex);
+            applyPreferenceRequest(existing, request);
+            preference = userPreferenceRepository.saveAndFlush(existing);
+        }
+        return toResponse(preference);
+    }
+
+    private void applyPreferenceRequest(UserPreference preference, ExperienceDto.UserPreferenceRequest request) {
         if (request.getUiMode() != null && !request.getUiMode().isBlank()) {
             String uiMode = request.getUiMode().trim().toUpperCase(Locale.ROOT);
             preference.setUiMode("ADVANCED".equals(uiMode) ? "ADVANCED" : "BASIC");
@@ -178,9 +192,6 @@ public class IdentityExperienceService {
         if (request.getMetadata() != null) {
             preference.setMetadata(toJson(request.getMetadata()));
         }
-
-        userPreferenceRepository.save(preference);
-        return toResponse(preference);
     }
 
     private ExperienceDto.UserPreferenceResponse toResponse(UserPreference preference) {
@@ -200,10 +211,10 @@ public class IdentityExperienceService {
         preference.setTenantId(tenantId);
         preference.setUserId(userId);
         preference.setUiMode("BASIC");
-        preference.setTheme("light");
+        preference.setTheme("dark");
         preference.setDensity("comfortable");
         preference.setSidebarCollapsed(false);
-        preference.setMetadata("{}");
+        preference.setMetadata(null);
         return preference;
     }
 

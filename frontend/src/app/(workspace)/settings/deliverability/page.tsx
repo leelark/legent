@@ -83,7 +83,7 @@ export default function DeliverabilitySettings() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold tracking-tight">Deliverability & Compliance</h2>
-          <p className="text-muted-foreground mt-1">Manage sender identities, DNS records, and domain reputation</p>
+          <p className="text-content-secondary mt-1">Manage sender identities, DNS records, and domain reputation</p>
         </div>
         <div className="flex items-center gap-2">
           <input
@@ -106,7 +106,7 @@ export default function DeliverabilitySettings() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{summary.avgScore} / 100</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-content-secondary mt-1">
               Computed from domain verification status
             </p>
           </CardContent>
@@ -118,7 +118,7 @@ export default function DeliverabilitySettings() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{summary.suppressions}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-content-secondary mt-1">
               Synced from suppression sources
             </p>
           </CardContent>
@@ -130,7 +130,7 @@ export default function DeliverabilitySettings() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-slate-800">{summary.complianceAlerts}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-content-secondary mt-1">
               Domains with SPF/DKIM/DMARC verification gaps
             </p>
           </CardContent>

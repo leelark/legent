@@ -78,7 +78,7 @@ export default function AutomationBuilder() {
             <div className="flex justify-between items-center bg-white p-4 rounded-md shadow-sm border">
                 <div>
                     <h2 className="text-2xl font-bold tracking-tight">Journey Builder</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Design and automate your customer journey</p>
+                    <p className="text-sm text-content-secondary mt-1">Design and automate your customer journey</p>
                                     </div>
                 <div className="flex space-x-2">
                         <Button className="bg-green-600 hover:bg-green-700" onClick={handleActivate} disabled={activating}>

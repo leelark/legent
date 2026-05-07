@@ -17,8 +17,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -106,24 +109,24 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
-    public ApiResponse<LoginResponse> refresh(
+    public ResponseEntity<ApiResponse<LoginResponse>> refresh(
             @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
             HttpServletRequest httpRequest,
             HttpServletResponse response) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            return ApiResponse.error("REFRESH_TOKEN_REQUIRED", "No refresh token provided", "Please provide a refresh token cookie");
+            return unauthorized("REFRESH_TOKEN_REQUIRED", "No refresh token provided", "Please provide a refresh token cookie");
         }
 
         var validationResult = refreshTokenService.validateRefreshToken(refreshToken);
         if (validationResult.isEmpty()) {
-            return ApiResponse.error("INVALID_REFRESH_TOKEN", "Refresh token is invalid or expired", "The provided refresh token may have been revoked or expired");
+            return unauthorized("INVALID_REFRESH_TOKEN", "Refresh token is invalid or expired", "The provided refresh token may have been revoked or expired");
         }
         var result = validationResult.get();
         refreshTokenService.revokeToken(refreshToken);
 
         List<String> roles = authService.getUserRoles(result.tenantId(), result.userId());
         if (roles.isEmpty()) {
-            return ApiResponse.error("USER_NOT_FOUND", "User is inactive or does not exist", "Please sign in again");
+            return unauthorized("USER_NOT_FOUND", "User is inactive or does not exist", "Please sign in again");
         }
 
         String newToken = jwtTokenProvider.generateToken(result.userId(), result.tenantId(), Map.of("roles", roles));
@@ -133,30 +136,30 @@ public class AuthController {
                 getClientIp(httpRequest)
         );
         setAuthCookies(response, newToken, result.tenantId(), newRefreshToken);
-        return ApiResponse.ok(buildLoginResponse("success", result.userId(), result.tenantId(), roles, newToken));
+        return ResponseEntity.ok(ApiResponse.ok(buildLoginResponse("success", result.userId(), result.tenantId(), roles, newToken)));
     }
 
     @GetMapping("/session")
-    public ApiResponse<LoginResponse> session(
+    public ResponseEntity<ApiResponse<LoginResponse>> session(
             @CookieValue(name = TOKEN_COOKIE_NAME, required = false) String token) {
         if (token == null || token.isBlank()) {
-            return ApiResponse.error("SESSION_NOT_FOUND", "No active session", "Please login");
+            return unauthorized("SESSION_NOT_FOUND", "No active session", "Please login");
         }
 
         var claimsOpt = jwtTokenProvider.validateToken(token);
         if (claimsOpt.isEmpty()) {
-            return ApiResponse.error("INVALID_SESSION", "Session is invalid or expired", "Please login again");
+            return unauthorized("INVALID_SESSION", "Session is invalid or expired", "Please login again");
         }
 
         var claims = claimsOpt.get();
-        return ApiResponse.ok(new LoginResponse(
+        return ResponseEntity.ok(ApiResponse.ok(new LoginResponse(
                 "success",
                 claims.getSubject(),
                 claims.get("tenantId", String.class),
                 jwtTokenProvider.extractRoles(token),
                 claims.get("workspaceId", String.class),
                 claims.get("environmentId", String.class)
-        ));
+        )));
     }
 
     @GetMapping("/contexts")
@@ -339,15 +342,21 @@ public class AuthController {
 
     private String resolveUserId(String token) {
         if (token == null || token.isBlank()) {
-            throw new IllegalArgumentException("No active session");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "No active session");
         }
         return jwtTokenProvider.getUserId(token)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid session"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid session"));
     }
 
     private LoginResponse buildLoginResponse(String status, String userId, String tenantId, List<String> roles, String token) {
         String workspaceId = jwtTokenProvider.getWorkspaceId(token).orElse(null);
         String environmentId = jwtTokenProvider.getEnvironmentId(token).orElse(null);
         return new LoginResponse(status, userId, tenantId, roles, workspaceId, environmentId);
+    }
+
+    private ResponseEntity<ApiResponse<LoginResponse>> unauthorized(String errorCode, String message, String details) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(errorCode, message, details));
     }
 }

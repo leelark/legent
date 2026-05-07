@@ -32,11 +32,11 @@ export function EmptyState({
   return (
     <div
       className={clsx(
-        'flex flex-col items-center justify-center py-16 text-center animate-fade-in',
+        'flex flex-col items-center justify-center px-4 py-16 text-center animate-fade-in',
         className
       )}
     >
-      <div className="mb-4 rounded-2xl bg-surface-secondary p-4">
+      <div className="mb-4 rounded-lg border border-border-default bg-surface-secondary p-4">
         <Icon size={32} weight="duotone" className="text-content-muted" />
       </div>
       <h3 className="text-base font-semibold text-content-primary">{title}</h3>
