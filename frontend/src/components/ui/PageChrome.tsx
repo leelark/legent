@@ -19,7 +19,7 @@ export function PageHeader({
   return (
     <div className={clsx('flex flex-col gap-4 md:flex-row md:items-end md:justify-between', className)}>
       <div className="min-w-0">
-        {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-300">{eyebrow}</p> : null}
+        {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">{eyebrow}</p> : null}
         <h1 className="mt-1 text-balance text-2xl font-semibold tracking-normal text-content-primary md:text-3xl">{title}</h1>
         {description ? <p className="mt-2 max-w-3xl text-sm leading-6 text-content-secondary">{description}</p> : null}
       </div>

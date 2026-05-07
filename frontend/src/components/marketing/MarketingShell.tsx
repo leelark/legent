@@ -26,11 +26,11 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const year = useMemo(() => new Date().getFullYear(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [theme, setTheme] = useState<PublicTheme>('dark');
+  const [theme, setTheme] = useState<PublicTheme>('light');
 
   useEffect(() => {
     const stored = window.localStorage.getItem(PUBLIC_THEME_KEY);
-    setTheme(stored === 'light' ? 'light' : 'dark');
+    setTheme(stored === 'dark' ? 'dark' : 'light');
   }, []);
 
   const toggleTheme = () => {

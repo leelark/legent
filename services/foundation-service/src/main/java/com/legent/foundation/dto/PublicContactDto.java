@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
+
 public class PublicContactDto {
 
     @Getter
@@ -42,5 +44,28 @@ public class PublicContactDto {
         private String id;
         private String status;
         private String message;
+    }
+
+    @Getter
+    @Setter
+    public static class StatusUpdateRequest {
+        @NotBlank
+        private String status;
+    }
+
+    @Getter
+    @Setter
+    @Builder
+    public static class AdminResponse {
+        private String id;
+        private String name;
+        private String workEmail;
+        private String company;
+        private String interest;
+        private String message;
+        private String sourcePage;
+        private String status;
+        private Instant createdAt;
+        private Instant updatedAt;
     }
 }

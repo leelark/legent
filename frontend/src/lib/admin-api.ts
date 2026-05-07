@@ -44,6 +44,30 @@ export type WebhookIntegration = {
   secretKey?: string;
 };
 
+export type ContactRequestStatus = 'RECEIVED' | 'IN_REVIEW' | 'CONTACTED' | 'CLOSED';
+
+export type AdminContactRequest = {
+  id: string;
+  name?: string | null;
+  workEmail: string;
+  company: string;
+  interest?: string | null;
+  message: string;
+  sourcePage?: string | null;
+  status: ContactRequestStatus;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+};
+
+type PagedResult<T> = {
+  content?: T[];
+  data?: T[];
+  page?: number;
+  size?: number;
+  totalElements?: number;
+  totalPages?: number;
+};
+
 export const getAdminConfigs = async () => (await get<any[]>('/admin/configs')).map(normalizeConfig);
 export const saveAdminConfig = async (config: AdminConfig) => normalizeConfig(await post<any>('/admin/configs', config));
 export const getBranding = async () => get<Branding>('/admin/branding');
@@ -175,3 +199,31 @@ export const saveWebhook = async (wh: WebhookIntegration) => {
 };
 
 export const search = async (q: string) => get<unknown>('/platform/search', { params: { q } });
+
+export const listContactRequests = async (params?: {
+  status?: ContactRequestStatus | 'ALL';
+  page?: number;
+  size?: number;
+}) => {
+  const response = await get<PagedResult<AdminContactRequest>>('/admin/contact-requests', {
+    params: {
+      page: params?.page ?? 0,
+      size: params?.size ?? 20,
+      ...(params?.status && params.status !== 'ALL' ? { status: params.status } : {}),
+    },
+  });
+
+  return {
+    items: response.content ?? response.data ?? [],
+    page: response.page ?? params?.page ?? 0,
+    size: response.size ?? params?.size ?? 20,
+    totalElements: response.totalElements ?? (response.content ?? response.data ?? []).length,
+    totalPages: response.totalPages ?? 1,
+  };
+};
+
+export const updateContactRequestStatus = async (id: string, status: ContactRequestStatus) =>
+  post<AdminContactRequest>(`/admin/contact-requests/${encodeURIComponent(id)}/status`, { status });
+
+export const listAdminAuditEvents = async (params?: { workspaceId?: string; action?: string; limit?: number }) =>
+  get<Array<Record<string, unknown>>>('/core/audit', { params });

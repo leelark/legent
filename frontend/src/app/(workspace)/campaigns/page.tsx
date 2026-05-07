@@ -228,7 +228,7 @@ export default function CampaignsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Launch operations</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Launch operations</p>
           <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Campaign Studio</h1>
           <p className="mt-1 text-sm text-content-secondary">Create, approve, schedule, and orchestrate enterprise email campaigns.</p>
         </div>

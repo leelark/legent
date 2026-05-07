@@ -63,7 +63,7 @@ export default function AnalyticsDashboard() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Live telemetry</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Live telemetry</p>
           <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Analytics Overview</h1>
           <p className="mt-1 text-sm text-content-secondary">Aggregate delivery and engagement metrics from tracking services.</p>
         </div>
@@ -147,7 +147,7 @@ function MetricCard({ label, value, helper, icon }: { label: string; value: numb
           <p className="mt-2 text-3xl font-semibold text-content-primary">{value.toLocaleString()}</p>
           <p className="mt-1 text-xs text-content-muted">{helper}</p>
         </div>
-        <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 p-2 text-brand-300">{icon}</div>
+        <div className="rounded-lg border border-brand-500/20 bg-brand-500/10 p-2 text-brand-600 dark:text-brand-300">{icon}</div>
       </div>
     </Card>
   );

@@ -5,10 +5,21 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowRight,
+  BarChart3,
   CheckCircle2,
   CircleDot,
+  Clock3,
+  Database,
+  GitBranch,
+  MailCheck,
+  MousePointerClick,
+  RadioTower,
   ShieldCheck,
   Sparkles,
+  Target,
+  Users,
+  Wand2,
+  Zap,
 } from 'lucide-react';
 import { MarketingShell } from '@/components/marketing/MarketingShell';
 import { Button } from '@/components/ui/Button';
@@ -111,7 +122,7 @@ function MarketingHero({
           transition={{ duration: 0.62, ease: 'easeOut' }}
           className="relative"
         >
-          <PublicMockVisual variant={pageKey} />
+          <HeroVisual variant={pageKey} />
         </motion.div>
       </div>
     </section>
@@ -142,6 +153,9 @@ function HomeSections() {
       />
 
       <SolutionLayers />
+      <MarketingSection eyebrow="Live surfaces" title="Campaign views shift together as operators prepare a launch.">
+        <LiveSurfaceShowcase />
+      </MarketingSection>
       <FinalCta title="Build a workspace that feels as controlled as it looks." body="Start with the public experience, then move directly into a polished operator cockpit." />
     </>
   );
@@ -173,7 +187,7 @@ function FeatureSections() {
         eyebrow="Governance"
         title="Security, configuration, and telemetry stay in the operator view."
         body="Feature depth matters only when teams can see ownership, risk, permissions, and runtime behavior before they act."
-        visual={<ProofStack items={[...page.bands]} />}
+        visual={<FeatureSignalMap />}
       />
 
       <MarketingSection eyebrow="Operator workflows" title="The features connect into complete work patterns.">
@@ -223,7 +237,7 @@ function ModuleSections() {
         eyebrow="Connected flow"
         title="How studios work together without disconnected handoffs."
         body="Each studio owns a deep workflow, but the system keeps tenant, workspace, permissions, config, activity, and analytics context shared."
-        visual={<ConnectedFlow steps={[...page.flow]} />}
+        visual={<StudioRelay steps={[...page.flow]} />}
       />
 
       <FinalCta title="Open the workspace around your real operating model." body="Use dedicated studios without losing shared ownership, audit, or launch state." />
@@ -261,6 +275,10 @@ function PricingSections() {
       </MarketingSection>
 
       <MarketingSection eyebrow="Compare" title="What changes as your program scales.">
+        <PricingScaleVisual />
+      </MarketingSection>
+
+      <MarketingSection eyebrow="Plan details" title="Capability depth by workspace tier.">
         <PublicComparisonTable rows={[...page.comparison]} />
       </MarketingSection>
 
@@ -299,7 +317,7 @@ function AboutSections() {
         eyebrow="Mission"
         title="Email deserves production-grade operating discipline."
         body="Legent is shaped around a simple principle: teams should not need separate tools to understand data readiness, creative state, delivery health, and business results."
-        visual={<PublicTimeline items={[...page.timeline]} />}
+        visual={<OperatingTimeline items={[...page.timeline]} />}
       />
 
       <MarketingSection eyebrow="Principles" title="A product philosophy for serious email teams.">
@@ -337,6 +355,7 @@ function ContactSections() {
       <MarketingSection eyebrow="Solution intake" title="Tell us the launch path you need to make reliable.">
         <div className="grid gap-5 lg:grid-cols-[0.85fr_1.15fr]">
           <div className="grid gap-4">
+            <ContactRouteVisual />
             {page.contactCards.map((card) => {
               const Icon = card.icon;
               return (
@@ -419,33 +438,64 @@ function PublicBentoCard({ children, className = '' }: { children: React.ReactNo
   );
 }
 
-function PublicMockVisual({ variant }: { variant: MarketingPageKey }) {
+function HeroVisual({ variant }: { variant: MarketingPageKey }) {
+  if (variant === 'home') return <HomeDashboardVisual />;
+  if (variant === 'features') return <FeatureHeroVisual />;
+  if (variant === 'modules') return <ModuleHeroVisual />;
+  if (variant === 'pricing') return <PricingHeroVisual />;
+  if (variant === 'about') return <AboutHeroVisual />;
+  return <ContactHeroVisual />;
+}
+
+function WindowDots() {
+  return (
+    <div className="flex items-center gap-2" aria-hidden="true">
+      <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+      <span className="h-3 w-3 rounded-full bg-[#ffbd2e]" />
+      <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+    </div>
+  );
+}
+
+function HomeDashboardVisual() {
   const visual = {
-    home: { active: 2, label: 'Campaign Studio', title: 'Spring launch orchestration', status: 'Approved', ready: '76% ready' },
-    features: { active: 5, label: 'Analytics Studio', title: 'Governed performance cockpit', status: 'Healthy', ready: '91% visible' },
-    modules: { active: 3, label: 'Automation Studio', title: 'Lifecycle workflow map', status: 'Running', ready: '64% complete' },
-    pricing: { active: 4, label: 'Delivery Studio', title: 'Plan-based capacity view', status: 'Scaled', ready: '83% capacity' },
-    about: { active: 6, label: 'Admin Studio', title: 'Operating maturity board', status: 'Audited', ready: '88% governed' },
-    contact: { active: 1, label: 'Audience Studio', title: 'Consultation readiness view', status: 'Ready', ready: '72% matched' },
-  } satisfies Record<MarketingPageKey, { active: number; label: string; title: string; status: string; ready: string }>;
-  const current = visual[variant];
+    active: 2,
+    label: 'Campaign Studio',
+    title: 'Spring launch orchestration',
+    status: 'Approved',
+    ready: '76% ready',
+  };
 
   return (
     <div className="relative">
       <div className="absolute -inset-4 rounded-[2rem] bg-fuchsia-500/18 blur-3xl" />
+      <motion.div
+        animate={{ y: [0, -14, 0], rotate: [0, 1.5, 0] }}
+        transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+        className="public-panel absolute -right-4 top-12 z-20 hidden w-36 rounded-2xl p-3 shadow-2xl sm:block"
+      >
+        <p className="public-muted text-[10px] uppercase">Inbox safety</p>
+        <p className="public-heading mt-1 text-lg font-semibold">99.2%</p>
+      </motion.div>
+      <motion.div
+        animate={{ y: [0, 16, 0], x: [0, 8, 0] }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
+        className="public-panel absolute -left-5 bottom-16 z-20 hidden w-40 rounded-2xl p-3 shadow-2xl md:block"
+      >
+        <p className="public-muted text-[10px] uppercase">Audience fit</p>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--public-panel-strong)]">
+          <motion.div animate={{ width: ['42%', '78%', '56%', '88%'] }} transition={{ duration: 6, repeat: Infinity }} className="h-full rounded-full bg-emerald-400" />
+        </div>
+      </motion.div>
       <div className="public-panel relative overflow-hidden rounded-[1.65rem] shadow-[0_24px_100px_rgba(55,18,105,0.22)] backdrop-blur-xl">
         <div className="public-border flex items-center justify-between border-b px-5 py-4">
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-fuchsia-400" />
-            <span className="h-3 w-3 rounded-full bg-violet-400" />
-            <span className="h-3 w-3 rounded-full bg-emerald-300" />
-          </div>
+          <WindowDots />
           <span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-300/10 px-3 py-1 text-xs font-semibold text-[var(--public-accent)]">Live workspace</span>
         </div>
-        <div className="grid min-h-[430px] lg:grid-cols-[190px_1fr]">
-          <div className="public-border border-b bg-[var(--public-panel-strong)] p-4 lg:border-b-0 lg:border-r">
+        <div className="grid lg:min-h-[430px] lg:grid-cols-[190px_1fr]">
+          <div className="public-border hidden border-b bg-[var(--public-panel-strong)] p-4 lg:block lg:border-b-0 lg:border-r">
             {studios.slice(0, 6).map((studio, index) => (
-              <div key={studio.name} className={`mb-2 rounded-xl px-3 py-2 text-xs ${index === current.active - 1 ? 'bg-fuchsia-300/15 text-[var(--public-text)]' : 'public-muted'}`}>
+              <div key={studio.name} className={`mb-2 rounded-xl px-3 py-2 text-xs ${index === visual.active - 1 ? 'bg-fuchsia-300/15 text-[var(--public-text)]' : 'public-muted'}`}>
                 {studio.name.replace(' Studio', '')}
               </div>
             ))}
@@ -453,10 +503,10 @@ function PublicMockVisual({ variant }: { variant: MarketingPageKey }) {
           <div className="p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <p className="public-muted text-xs uppercase tracking-[0.2em]">{current.label}</p>
-                <h3 className="public-heading mt-1 text-xl font-semibold sm:text-2xl">{current.title}</h3>
+                <p className="public-muted text-xs uppercase tracking-[0.2em]">{visual.label}</p>
+                <h3 className="public-heading mt-1 text-xl font-semibold sm:text-2xl">{visual.title}</h3>
               </div>
-              <span className="rounded-full bg-emerald-300/12 px-3 py-1 text-xs font-semibold text-emerald-500">{current.status}</span>
+              <span className="rounded-full bg-emerald-300/12 px-3 py-1 text-xs font-semibold text-emerald-500">{visual.status}</span>
             </div>
             <div className="mt-5 grid gap-3 sm:grid-cols-3">
               {proofCards.map((card) => {
@@ -475,9 +525,9 @@ function PublicMockVisual({ variant }: { variant: MarketingPageKey }) {
                 <div className="h-2 overflow-hidden rounded-full bg-[var(--public-panel)]">
                   <motion.div initial={{ width: '18%' }} animate={{ width: '76%' }} transition={{ duration: 1.1 }} className="h-full rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-300" />
                 </div>
-                <span className="text-xs font-semibold text-[var(--public-accent)]">{current.ready}</span>
+                <span className="text-xs font-semibold text-[var(--public-accent)]">{visual.ready}</span>
               </div>
-              <div className="flex h-40 items-end gap-2">
+              <div className="flex h-28 items-end gap-2 sm:h-40">
                 {[38, 56, 48, 72, 63, 86, 78, 92, 74, 98].map((height, index) => (
                   <motion.div
                     key={index}
@@ -489,7 +539,7 @@ function PublicMockVisual({ variant }: { variant: MarketingPageKey }) {
                 ))}
               </div>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+            <div className="mt-5 hidden gap-3 sm:grid sm:grid-cols-2">
               {['Suppression check passed', 'Provider health stable'].map((item) => (
                 <div key={item} className="public-panel rounded-2xl p-4 text-sm">
                   <CheckCircle2 className="mb-2 text-[var(--public-accent)]" size={17} />
@@ -497,20 +547,167 @@ function PublicMockVisual({ variant }: { variant: MarketingPageKey }) {
                 </div>
               ))}
             </div>
-            <div className="public-border mt-5 overflow-hidden rounded-2xl border bg-gradient-to-br from-violet-950 to-fuchsia-950/40 p-4">
+            <div className="public-border mt-5 hidden overflow-hidden rounded-2xl border bg-[var(--public-panel-strong)] p-4 sm:block">
               <div className="grid grid-cols-[56px_1fr] gap-4">
                 <div className="relative h-14 w-14 overflow-hidden rounded-2xl bg-gradient-to-br from-fuchsia-300 via-violet-300 to-purple-700">
                   <div className="absolute inset-x-2 top-3 h-2 rounded-full bg-white/70" />
                   <div className="absolute inset-x-3 bottom-3 h-5 rounded-t-2xl bg-white/28" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">Workspace preview image</p>
-                  <p className="mt-1 text-xs leading-5 text-violet-100/72">Responsive dashboards, CTA states, personalization, tracking, and inbox-ready controls.</p>
+                  <p className="public-heading text-sm font-semibold">Workspace preview</p>
+                  <p className="public-muted mt-1 text-xs leading-5">Audience targeting, approved creative, delivery health, personalization checks, and engagement tracking move in one launch view.</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureHeroVisual() {
+  return (
+    <div className="public-panel relative min-h-[500px] overflow-hidden rounded-[1.65rem] p-5">
+      <div className="public-border flex items-center justify-between border-b pb-4">
+        <WindowDots />
+        <span className="public-muted text-xs font-semibold uppercase tracking-[0.18em]">Feature graph</span>
+      </div>
+      <div className="relative mt-8 grid min-h-[380px] place-items-center">
+        {['Audience', 'Template', 'Campaign', 'Delivery', 'Analytics'].map((label, index) => {
+          const angle = (index / 5) * Math.PI * 2;
+          return (
+            <motion.div
+              key={label}
+              animate={{ x: Math.cos(angle) * 150, y: Math.sin(angle) * 120, scale: [1, 1.05, 1] }}
+              transition={{ scale: { duration: 2.5, repeat: Infinity, delay: index * 0.2 } }}
+              whileHover={{ scale: 1.12, rotate: 2 }}
+              className="public-panel absolute w-36 rounded-2xl p-4 text-center"
+            >
+              <p className="public-heading text-sm font-semibold">{label}</p>
+              <p className="public-muted mt-1 text-xs">Synced</p>
+            </motion.div>
+          );
+        })}
+        <motion.div animate={{ rotate: 360 }} transition={{ duration: 22, repeat: Infinity, ease: 'linear' }} className="absolute h-72 w-72 rounded-full border border-dashed border-fuchsia-400/45" />
+        <div className="public-panel relative z-10 grid h-36 w-36 place-items-center rounded-full text-center">
+          <ShieldCheck className="text-[var(--public-accent)]" size={28} />
+          <p className="public-heading mt-2 text-sm font-semibold">Governed runtime</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModuleHeroVisual() {
+  return (
+    <div className="public-panel relative overflow-hidden rounded-[1.65rem] p-5">
+      <div className="public-border flex items-center justify-between border-b pb-4">
+        <WindowDots />
+        <span className="public-muted text-xs font-semibold uppercase tracking-[0.18em]">Studio relay</span>
+      </div>
+      <div className="mt-7 grid gap-3">
+        {studios.map((studio, index) => {
+          const Icon = studio.icon;
+          return (
+            <motion.div
+              key={studio.name}
+              animate={{ x: [0, index % 2 ? 18 : -18, 0] }}
+              transition={{ duration: 5 + index * 0.35, repeat: Infinity, ease: 'easeInOut' }}
+              whileHover={{ x: 0, scale: 1.03 }}
+              className="public-border grid grid-cols-[42px_1fr_auto] items-center gap-3 rounded-2xl border bg-[var(--public-panel-strong)] p-3"
+            >
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-fuchsia-400/14 text-[var(--public-accent)]"><Icon size={18} /></span>
+              <div>
+                <p className="public-heading text-sm font-semibold">{studio.name}</p>
+                <p className="public-muted text-xs">{studio.desc}</p>
+              </div>
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PricingHeroVisual() {
+  const plans = marketingPages.pricing.plans;
+  return (
+    <div className="public-panel relative overflow-hidden rounded-[1.65rem] p-5">
+      <div className="public-border flex items-center justify-between border-b pb-4">
+        <WindowDots />
+        <span className="public-muted text-xs font-semibold uppercase tracking-[0.18em]">Capacity model</span>
+      </div>
+      <div className="mt-7 grid gap-4">
+        {plans.map((plan, index) => (
+          <motion.div
+            key={plan.name}
+            whileHover={{ scale: 1.03, y: -4 }}
+            className={`public-border rounded-2xl border p-4 ${index === 1 ? 'bg-fuchsia-400/12' : 'bg-[var(--public-panel-strong)]'}`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="public-heading text-lg font-semibold">{plan.name}</p>
+                <p className="public-muted text-sm">{plan.price}</p>
+              </div>
+              <motion.span animate={{ rotate: [0, 8, -8, 0] }} transition={{ duration: 3, repeat: Infinity, delay: index * 0.4 }} className="grid h-12 w-12 place-items-center rounded-full bg-white/70 text-[var(--public-accent)]">
+                <Zap size={20} />
+              </motion.span>
+            </div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--public-panel)]">
+              <motion.div animate={{ width: [`${34 + index * 20}%`, `${48 + index * 22}%`, `${34 + index * 20}%`] }} transition={{ duration: 4, repeat: Infinity }} className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-violet-400 to-fuchsia-400" />
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AboutHeroVisual() {
+  return (
+    <div className="public-panel relative overflow-hidden rounded-[1.65rem] p-6">
+      <div className="absolute inset-y-8 left-1/2 w-px bg-gradient-to-b from-transparent via-fuchsia-400/50 to-transparent" />
+      {marketingPages.about.timeline.map((item, index) => (
+        <motion.div
+          key={item.title}
+          animate={{ y: [0, index % 2 ? -10 : 10, 0] }}
+          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: index * 0.35 }}
+          className={`public-panel relative mb-5 w-[82%] rounded-2xl p-4 ${index % 2 ? 'ml-auto' : ''}`}
+        >
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--public-accent)]">0{index + 1}</p>
+          <h3 className="public-heading mt-2 font-semibold">{item.title}</h3>
+          <p className="public-muted mt-2 text-sm leading-6">{item.body}</p>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+function ContactHeroVisual() {
+  return (
+    <div className="public-panel relative overflow-hidden rounded-[1.65rem] p-5">
+      <div className="public-border flex items-center justify-between border-b pb-4">
+        <WindowDots />
+        <span className="public-muted text-xs font-semibold uppercase tracking-[0.18em]">Intake routing</span>
+      </div>
+      <div className="relative mt-8 min-h-[390px]">
+        {['Workspace rollout', 'Provider review', 'Migration', 'Security'].map((item, index) => (
+          <motion.div
+            key={item}
+            animate={{ x: [0, 18, 0], y: [0, -8, 0] }}
+            transition={{ duration: 4 + index * 0.4, repeat: Infinity, ease: 'easeInOut' }}
+            whileHover={{ scale: 1.06 }}
+            className="public-panel mb-4 rounded-2xl p-4"
+          >
+            <p className="public-heading font-semibold">{item}</p>
+            <p className="public-muted mt-1 text-sm">Routed to product and solution review.</p>
+          </motion.div>
+        ))}
+        <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.6, repeat: Infinity }} className="absolute bottom-3 right-3 grid h-24 w-24 place-items-center rounded-full bg-fuchsia-500 text-white shadow-2xl">
+          <MousePointerClick size={26} />
+        </motion.div>
       </div>
     </div>
   );
@@ -531,12 +728,74 @@ function SignalFlow({ steps }: { steps: string[] }) {
   );
 }
 
-function SolutionLayers() {
-  const cards = marketingPages.home.solutionLayers;
+function LiveSurfaceShowcase() {
+  const surfaces = [
+    { title: 'Audience', value: '42.8k', icon: Users, color: 'from-emerald-400 to-teal-300' },
+    { title: 'Creative', value: '12', icon: Wand2, color: 'from-fuchsia-400 to-pink-300' },
+    { title: 'Delivery', value: '99.2%', icon: RadioTower, color: 'from-violet-400 to-indigo-300' },
+    { title: 'Tracking', value: 'Live', icon: BarChart3, color: 'from-amber-300 to-orange-300' },
+  ];
 
   return (
-    <MarketingSection eyebrow="Solution layers" title="Summary cards aligned to the real operating solution.">
-      <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+      <div className="public-panel overflow-hidden rounded-[1.35rem] p-5">
+        <div className="public-border flex items-center justify-between border-b pb-4">
+          <WindowDots />
+          <span className="public-muted text-xs font-semibold uppercase tracking-[0.18em]">Auto loop</span>
+        </div>
+        <div className="mt-6 flex gap-4 overflow-hidden">
+          {[...surfaces, ...surfaces].map((surface, index) => {
+            const Icon = surface.icon;
+            return (
+              <motion.div
+                key={`${surface.title}-${index}`}
+                animate={{ x: ['0%', '-120%'] }}
+                transition={{ duration: 16, repeat: Infinity, ease: 'linear' }}
+                className="public-border min-w-[220px] rounded-2xl border bg-[var(--public-panel-strong)] p-4"
+              >
+                <span className={`grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br ${surface.color} text-white`}>
+                  <Icon size={20} />
+                </span>
+                <p className="public-heading mt-4 text-lg font-semibold">{surface.title}</p>
+                <p className="public-muted mt-1 text-sm">{surface.value} workspace signal</p>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="public-panel relative min-h-[300px] overflow-hidden rounded-[1.35rem] p-6">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {surfaces.map((surface, index) => {
+            const Icon = surface.icon;
+            return (
+              <motion.div
+                key={surface.title}
+                animate={{ y: [0, index % 2 ? 14 : -14, 0] }}
+                transition={{ duration: 5 + index * 0.3, repeat: Infinity, ease: 'easeInOut' }}
+                whileHover={{ scale: 1.05, rotate: index % 2 ? -1.5 : 1.5 }}
+                className="public-border rounded-2xl border bg-[var(--public-panel-strong)] p-4"
+              >
+                <Icon className="text-[var(--public-accent)]" size={20} />
+                <p className="public-heading mt-3 font-semibold">{surface.title}</p>
+                <p className="public-muted mt-1 text-sm">Moves with launch status.</p>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SolutionLayers() {
+  const cards = marketingPages.home.solutionLayers;
+  const [activeIndex, setActiveIndex] = useState(0);
+  const active = cards[activeIndex];
+
+  return (
+    <MarketingSection eyebrow="Solution layers" title="Three operating layers that keep every launch under control.">
+      <div className="grid gap-5 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch">
+        <div className="grid gap-4">
         {cards.map((card, index) => (
           <motion.div
             key={card.title}
@@ -545,7 +804,8 @@ function SolutionLayers() {
             viewport={{ once: true, amount: 0.25 }}
             transition={{ duration: 0.42, delay: index * 0.05 }}
           >
-            <PublicBentoCard className="overflow-hidden p-0">
+            <button type="button" onClick={() => setActiveIndex(index)} className="block w-full text-left">
+            <PublicBentoCard className={`overflow-hidden p-0 ${activeIndex === index ? 'border-fuchsia-300/55 bg-fuchsia-400/[0.08]' : ''}`}>
               <div className="public-border border-b bg-[var(--public-panel-strong)] p-5">
                 <p className="public-muted text-xs font-semibold uppercase tracking-[0.2em]">Operating layer</p>
                 <div className="mt-3 flex items-end justify-between gap-3">
@@ -569,46 +829,165 @@ function SolutionLayers() {
                 ))}
               </div>
             </PublicBentoCard>
+            </button>
           </motion.div>
         ))}
+        </div>
+        <motion.div
+          key={active.title}
+          initial={{ opacity: 0, scale: 0.96, y: 18 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+          className="public-panel relative min-h-[360px] overflow-hidden rounded-[1.35rem] p-6"
+        >
+          <div className="absolute inset-x-8 top-24 h-px bg-gradient-to-r from-transparent via-fuchsia-400/50 to-transparent" />
+          <div className="absolute inset-y-12 left-1/2 w-px bg-gradient-to-b from-transparent via-violet-400/50 to-transparent" />
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--public-accent)]">Clicked detail</p>
+          <h3 className="public-heading mt-3 text-2xl font-semibold">{active.title}</h3>
+          <p className="public-muted mt-3 leading-7">{active.body}</p>
+          <div className="mt-8 grid grid-cols-2 gap-3">
+            {active.items.map((item, index) => (
+              <motion.div
+                key={item}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.08 }}
+                whileHover={{ rotate: index % 2 ? -2 : 2, scale: 1.04 }}
+                className="public-border rounded-2xl border bg-[var(--public-panel-strong)] p-4"
+              >
+                <p className="public-heading text-sm font-semibold">{item}</p>
+                <p className="public-muted mt-2 text-xs">Checked before send</p>
+              </motion.div>
+            ))}
+          </div>
+          <motion.div animate={{ x: ['-20%', '115%'] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-8 left-0 h-10 w-24 rounded-full bg-gradient-to-r from-violet-400 to-fuchsia-400 opacity-70 blur-xl" />
+        </motion.div>
       </div>
     </MarketingSection>
   );
 }
 
-function ProofStack({ items }: { items: ReadonlyArray<{ title: string; body: string; icon: any }> }) {
+function FeatureSignalMap() {
+  const nodes = [
+    { label: 'RBAC', icon: ShieldCheck },
+    { label: 'Config', icon: Database },
+    { label: 'Campaign', icon: GitBranch },
+    { label: 'Inbox', icon: MailCheck },
+    { label: 'Telemetry', icon: BarChart3 },
+  ];
   return (
-    <div className="grid gap-3">
-      {items.map((item) => {
-        const Icon = item.icon;
-        return (
-          <div key={item.title} className="public-panel rounded-2xl p-4">
-            <div className="flex items-start gap-3">
-              <Icon size={22} className="mt-1 text-[var(--public-accent)]" />
-              <div>
-                <h3 className="public-heading font-semibold">{item.title}</h3>
-                <p className="public-muted mt-2 text-sm leading-6">{item.body}</p>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+    <div className="public-panel relative min-h-[390px] overflow-hidden rounded-[1.35rem] p-5">
+      <motion.div animate={{ rotate: 360 }} transition={{ duration: 28, repeat: Infinity, ease: 'linear' }} className="absolute left-1/2 top-1/2 h-72 w-72 -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-fuchsia-400/40" />
+      <div className="relative grid min-h-[340px] place-items-center">
+        <div className="public-panel z-10 grid h-32 w-32 place-items-center rounded-full text-center">
+          <Sparkles className="text-[var(--public-accent)]" size={24} />
+          <p className="public-heading text-sm font-semibold">Operator view</p>
+        </div>
+        {nodes.map((node, index) => {
+          const Icon = node.icon;
+          const positions = ['left-4 top-8', 'right-8 top-10', 'left-10 bottom-12', 'right-4 bottom-8', 'left-1/2 top-1 -translate-x-1/2'];
+          return (
+            <motion.div key={node.label} whileHover={{ scale: 1.1 }} animate={{ y: [0, -10, 0] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.25 }} className={`public-panel absolute ${positions[index]} rounded-2xl p-4`}>
+              <Icon className="text-[var(--public-accent)]" size={20} />
+              <p className="public-heading mt-2 text-sm font-semibold">{node.label}</p>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-function ConnectedFlow({ steps }: { steps: string[] }) {
+function StudioRelay({ steps }: { steps: string[] }) {
   return (
-    <div className="public-panel rounded-[1.35rem] p-5">
-      <div className="grid gap-3 md:grid-cols-6">
+    <div className="public-panel overflow-hidden rounded-[1.35rem] p-5">
+      <div className="grid gap-3 md:grid-cols-3">
         {steps.map((step, index) => (
-          <div key={step} className="rounded-2xl bg-[var(--public-panel-strong)] p-4 text-center">
-            <p className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-fuchsia-300 text-sm font-semibold text-purple-950">{index + 1}</p>
-            <p className="public-heading mt-3 text-sm font-semibold">{step}</p>
-          </div>
+          <motion.div
+            key={step}
+            whileHover={{ y: -6, scale: 1.04 }}
+            animate={{ opacity: [0.72, 1, 0.72] }}
+            transition={{ duration: 3.2, repeat: Infinity, delay: index * 0.22 }}
+            className="public-border relative min-h-28 overflow-hidden rounded-2xl border bg-[var(--public-panel-strong)] p-4"
+          >
+            <p className="public-heading font-semibold">{step}</p>
+            <p className="public-muted mt-2 text-sm">Shared context</p>
+            <motion.span animate={{ x: ['-120%', '220%'] }} transition={{ duration: 3.8, repeat: Infinity, delay: index * 0.25 }} className="absolute bottom-0 left-0 h-1 w-24 bg-gradient-to-r from-transparent via-fuchsia-400 to-transparent" />
+          </motion.div>
         ))}
       </div>
     </div>
+  );
+}
+
+function PricingScaleVisual() {
+  const rows = [
+    ['Workspace depth', 38, 70, 96],
+    ['Delivery governance', 26, 76, 100],
+    ['Automation control', 32, 82, 100],
+    ['Audit readiness', 44, 78, 100],
+  ] as const;
+  return (
+    <div className="public-panel overflow-hidden rounded-[1.35rem] p-5">
+      <div className="grid gap-5 lg:grid-cols-[220px_1fr]">
+        <div>
+          <p className="public-heading text-xl font-semibold">Launch to Enterprise</p>
+          <p className="public-muted mt-3 text-sm leading-6">Plan value grows by adding governance, workspace scale, provider strategy, and review depth.</p>
+        </div>
+        <div className="grid gap-4">
+          {rows.map(([label, launch, scale, enterprise]) => (
+            <div key={label}>
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="public-heading font-semibold">{label}</span>
+                <span className="public-muted">Launch / Scale / Enterprise</span>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {[launch, scale, enterprise].map((value, index) => (
+                  <div key={index} className="h-3 overflow-hidden rounded-full bg-[var(--public-panel-strong)]">
+                    <motion.div initial={{ width: 0 }} whileInView={{ width: `${value}%` }} viewport={{ once: true }} transition={{ duration: 0.8, delay: index * 0.08 }} className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OperatingTimeline({ items }: { items: ReadonlyArray<{ title: string; body: string }> }) {
+  return (
+    <div className="public-panel rounded-[1.35rem] p-5">
+      <div className="relative grid gap-4">
+        {items.map((item, index) => (
+          <motion.div key={item.title} whileHover={{ x: 8 }} className="grid grid-cols-[44px_1fr] gap-4 rounded-2xl bg-[var(--public-panel-strong)] p-4">
+            <motion.p animate={{ scale: [1, 1.12, 1] }} transition={{ duration: 2.8, repeat: Infinity, delay: index * 0.25 }} className="flex h-11 w-11 items-center justify-center rounded-full bg-fuchsia-300 text-sm font-semibold text-purple-950">{index + 1}</motion.p>
+            <div>
+              <h3 className="public-heading font-semibold">{item.title}</h3>
+              <p className="public-muted mt-1 text-sm leading-6">{item.body}</p>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContactRouteVisual() {
+  return (
+    <PublicBentoCard className="relative min-h-[230px] overflow-hidden">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--public-accent)]">Routing map</p>
+      <h3 className="public-heading mt-3 text-lg font-semibold">Every request lands with context.</h3>
+      <div className="mt-6 grid grid-cols-3 gap-2">
+        {[Target, Clock3, ShieldCheck].map((Icon, index) => (
+          <motion.div key={index} animate={{ y: [0, -8, 0] }} transition={{ duration: 3, repeat: Infinity, delay: index * 0.25 }} className="grid h-20 place-items-center rounded-2xl bg-[var(--public-panel-strong)]">
+            <Icon className="text-[var(--public-accent)]" size={22} />
+          </motion.div>
+        ))}
+      </div>
+      <motion.div animate={{ x: ['-20%', '110%'] }} transition={{ duration: 4.2, repeat: Infinity, ease: 'easeInOut' }} className="absolute bottom-5 left-0 h-2 w-24 rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
+    </PublicBentoCard>
   );
 }
 
@@ -634,24 +1013,6 @@ function PublicComparisonTable({ rows }: { rows: ReadonlyArray<{ feature: string
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function PublicTimeline({ items }: { items: ReadonlyArray<{ title: string; body: string }> }) {
-  return (
-    <div className="public-panel rounded-[1.35rem] p-5">
-      <div className="grid gap-3">
-        {items.map((item, index) => (
-          <div key={item.title} className="grid grid-cols-[40px_1fr] gap-3 rounded-2xl bg-[var(--public-panel-strong)] p-4">
-            <p className="flex h-9 w-9 items-center justify-center rounded-full bg-fuchsia-300 text-sm font-semibold text-purple-950">{index + 1}</p>
-            <div>
-              <h3 className="public-heading font-semibold">{item.title}</h3>
-              <p className="public-muted mt-1 text-sm leading-6">{item.body}</p>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

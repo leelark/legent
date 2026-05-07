@@ -80,7 +80,7 @@ export default function AudienceDashboard() {
       {/* Header */}
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-300">Customer data layer</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Customer data layer</p>
           <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Audience</h1>
           <p className="mt-1 text-sm text-content-secondary">
             Manage subscribers, lists, data extensions, and segments

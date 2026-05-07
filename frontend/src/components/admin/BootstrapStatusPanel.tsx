@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { getBootstrapStatus, repairBootstrap } from '@/lib/admin-api';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { AdminEmptyState, AdminPanel, AdminSkeletonRows, StatusPill } from '@/components/admin/AdminChrome';
 
 type BootstrapStatus = {
   tenantId: string;
@@ -23,7 +23,7 @@ export const BootstrapStatusPanel: React.FC = () => {
   const [repairing, setRepairing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -34,14 +34,18 @@ export const BootstrapStatusPanel: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const handleRepair = async () => {
+    if (!window.confirm('Force repair default setup? This retries failed or partial provisioning modules.')) {
+      return;
+    }
     setRepairing(true);
+    setError(null);
     try {
       const data = await repairBootstrap(true);
       setStatus(data || null);
@@ -53,32 +57,72 @@ export const BootstrapStatusPanel: React.FC = () => {
   };
 
   return (
-    <Card className="p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold">Default Setup Status</h3>
-        <Button size="sm" variant="secondary" onClick={load}>Refresh</Button>
-      </div>
+    <AdminPanel
+      title="Default Setup Status"
+      subtitle="Idempotent tenant bootstrap progress, repair state, retries, and module-level provisioning output."
+      action={<Button size="sm" variant="secondary" onClick={load} loading={loading}>Refresh</Button>}
+    >
       {loading ? (
-        <p className="text-sm text-content-muted">Loading bootstrap status...</p>
+        <AdminSkeletonRows rows={4} />
       ) : error ? (
-        <p className="text-sm text-danger">{error}</p>
+        <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">{error}</div>
       ) : status ? (
-        <div className="space-y-2 text-sm">
-          <p><span className="font-semibold">State:</span> {status.status}</p>
-          <p><span className="font-semibold">Message:</span> {status.message || '-'}</p>
-          <p><span className="font-semibold">Workspace:</span> {status.workspaceId || '-'}</p>
-          <p><span className="font-semibold">Environment:</span> {status.environmentId || '-'}</p>
-          <p><span className="font-semibold">Retry Count:</span> {status.retryCount}</p>
-          <div className="rounded bg-surface-secondary p-2 text-xs max-h-40 overflow-auto">
-            <pre>{JSON.stringify(status.modules || {}, null, 2)}</pre>
+        <div className="space-y-5 text-sm">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-xl border border-border-default bg-surface-secondary p-4">
+              <p className="text-xs uppercase tracking-wide text-content-muted">State</p>
+              <div className="mt-2"><StatusPill status={status.status} /></div>
+            </div>
+            <div className="rounded-xl border border-border-default bg-surface-secondary p-4">
+              <p className="text-xs uppercase tracking-wide text-content-muted">Retry Count</p>
+              <p className="mt-1 text-2xl font-semibold text-content-primary">{status.retryCount ?? 0}</p>
+            </div>
+            <div className="rounded-xl border border-border-default bg-surface-secondary p-4">
+              <p className="text-xs uppercase tracking-wide text-content-muted">Last Attempt</p>
+              <p className="mt-1 text-xs text-content-primary">{status.lastAttemptAt ? new Date(status.lastAttemptAt).toLocaleString() : '-'}</p>
+            </div>
+            <div className="rounded-xl border border-border-default bg-surface-secondary p-4">
+              <p className="text-xs uppercase tracking-wide text-content-muted">Completed</p>
+              <p className="mt-1 text-xs text-content-primary">{status.completedAt ? new Date(status.completedAt).toLocaleString() : '-'}</p>
+            </div>
           </div>
-          <Button size="sm" onClick={handleRepair} loading={repairing}>
-            Repair Bootstrap
-          </Button>
+
+          <div className="rounded-xl border border-border-default bg-surface-primary p-4">
+            <p className="text-xs uppercase tracking-wide text-content-muted">Context</p>
+            <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+              <p className="truncate text-content-secondary"><span className="font-semibold text-content-primary">Tenant:</span> {status.tenantId || '-'}</p>
+              <p className="truncate text-content-secondary"><span className="font-semibold text-content-primary">Workspace:</span> {status.workspaceId || '-'}</p>
+              <p className="truncate text-content-secondary"><span className="font-semibold text-content-primary">Environment:</span> {status.environmentId || '-'}</p>
+            </div>
+            {status.message ? <p className="mt-3 rounded-lg bg-surface-secondary px-3 py-2 text-sm text-content-secondary">{status.message}</p> : null}
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-content-primary">Module Progress</p>
+              <Button size="sm" onClick={handleRepair} loading={repairing}>
+                Force Repair
+              </Button>
+            </div>
+            {status.modules && Object.keys(status.modules).length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                {Object.entries(status.modules).map(([module, value]) => (
+                  <div key={module} className="rounded-xl border border-border-default bg-surface-secondary p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-content-primary">{module}</p>
+                    <pre className="mt-2 max-h-28 overflow-auto whitespace-pre-wrap text-xs text-content-secondary">
+                      {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+                    </pre>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <AdminEmptyState title="No module progress reported" description="The bootstrap service did not return module details for this tenant yet." />
+            )}
+          </div>
         </div>
       ) : (
-        <p className="text-sm text-content-muted">No bootstrap status available.</p>
+        <AdminEmptyState title="No bootstrap status available" description="Refresh after tenant provisioning starts or run repair from a privileged admin session." />
       )}
-    </Card>
+    </AdminPanel>
   );
 };

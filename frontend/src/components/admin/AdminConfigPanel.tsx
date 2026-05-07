@@ -10,8 +10,9 @@ import {
   validateAdminSetting,
   type AdminConfig,
 } from '@/lib/admin-api';
-import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { useToast } from '@/components/ui/Toast';
+import { AdminPanel, AdminSkeletonRows, AdminTableShell, StatusPill } from '@/components/admin/AdminChrome';
 
 const CATEGORIES = [
   { label: 'Delivery', value: 'DELIVERY', module: 'delivery' },
@@ -53,6 +54,7 @@ export const AdminConfigPanel: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [impactNotice, setImpactNotice] = useState<string[]>([]);
   const [historyKey, setHistoryKey] = useState<string>('');
+  const { addToast } = useToast();
 
   const selectedMeta = useMemo(
     () => CATEGORIES.find((item) => item.value === selectedCategory) ?? CATEGORIES[CATEGORIES.length - 1],
@@ -123,6 +125,7 @@ export const AdminConfigPanel: React.FC = () => {
       });
       setValidationErrors([]);
       await load();
+      addToast({ type: 'success', title: 'Runtime setting applied', message: `${draft.key} was validated and saved.` });
     } catch (err: any) {
       setError(err?.normalized?.message || 'Failed to apply setting');
     } finally {
@@ -131,9 +134,13 @@ export const AdminConfigPanel: React.FC = () => {
   };
 
   const handleReset = async (key: string, scope?: string) => {
+    if (!window.confirm(`Reset ${key} for ${scope || 'default'} scope?`)) {
+      return;
+    }
     try {
       await resetAdminSetting({ key, scope });
       await load();
+      addToast({ type: 'success', title: 'Setting reset', message: `${key} was reset to the runtime default.` });
     } catch (err: any) {
       setError(err?.normalized?.message || 'Failed to reset setting');
     }
@@ -150,7 +157,12 @@ export const AdminConfigPanel: React.FC = () => {
   };
 
   return (
-    <Card className="p-5 space-y-5">
+    <AdminPanel
+      title="Runtime Config"
+      subtitle="Typed setting editor with validation, impact preview, reset, history, and rollback visibility."
+      action={<Button size="sm" variant="secondary" onClick={load} loading={loading}>Refresh</Button>}
+    >
+      <div className="space-y-5">
       <div className="flex flex-wrap gap-2">
         {CATEGORIES.map((category) => (
           <Button
@@ -178,18 +190,18 @@ export const AdminConfigPanel: React.FC = () => {
           value={draft.key}
           onChange={(e) => setDraft((prev) => ({ ...prev, key: e.target.value }))}
           placeholder="setting.key"
-          className="border rounded px-2 py-1 text-sm md:col-span-2"
+          className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 md:col-span-2"
         />
         <input
           value={draft.value}
           onChange={(e) => setDraft((prev) => ({ ...prev, value: e.target.value }))}
           placeholder="value"
-          className="border rounded px-2 py-1 text-sm md:col-span-2"
+          className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 md:col-span-2"
         />
         <select
           value={draft.type}
           onChange={(e) => setDraft((prev) => ({ ...prev, type: e.target.value }))}
-          className="border rounded px-2 py-1 text-sm"
+          className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         >
           <option value="STRING">STRING</option>
           <option value="INTEGER">INTEGER</option>
@@ -200,7 +212,7 @@ export const AdminConfigPanel: React.FC = () => {
         <select
           value={draft.scope}
           onChange={(e) => setDraft((prev) => ({ ...prev, scope: e.target.value }))}
-          className="border rounded px-2 py-1 text-sm"
+          className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
         >
           <option value="WORKSPACE">WORKSPACE</option>
           <option value="TENANT">TENANT</option>
@@ -231,43 +243,43 @@ export const AdminConfigPanel: React.FC = () => {
       )}
 
       {loading ? (
-        <p className="text-sm text-content-muted">Loading settings...</p>
+        <AdminSkeletonRows rows={5} />
       ) : (
-        <table className="w-full text-sm">
-          <thead className="text-left">
+        <AdminTableShell>
+        <table className="w-full min-w-[820px] text-left text-sm">
+          <thead className="bg-surface-secondary text-xs uppercase tracking-wide text-content-muted">
             <tr>
-              <th className="pb-2">Key</th>
-              <th className="pb-2">Value</th>
-              <th className="pb-2">Type</th>
-              <th className="pb-2">Scope</th>
-              <th className="pb-2">Updated</th>
-              <th className="pb-2 text-right">Actions</th>
+              <th className="px-4 py-3">Key</th>
+              <th className="px-4 py-3">Value</th>
+              <th className="px-4 py-3">Type</th>
+              <th className="px-4 py-3">Scope</th>
+              <th className="px-4 py-3">Updated</th>
+              <th className="px-4 py-3 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-border-default">
             {configs.map((config) => (
-              <tr key={`${config.key}-${config.scope}-${config.workspaceId || 'global'}`} className="border-t border-border-default">
-                <td className="py-2 font-medium">{config.key}</td>
-                <td className="py-2">{config.value}</td>
-                <td className="py-2">{config.configType || 'STRING'}</td>
-                <td className="py-2">{config.scope || 'TENANT'}</td>
-                <td className="py-2 text-xs text-content-muted">{config.updatedAt ? new Date(config.updatedAt).toLocaleString() : '-'}</td>
-                <td className="py-2 text-right">
+              <tr key={`${config.key}-${config.scope}-${config.workspaceId || 'global'}`} className="transition-colors hover:bg-surface-secondary/70">
+                <td className="px-4 py-3 font-medium text-content-primary">{config.key}</td>
+                <td className="max-w-xs truncate px-4 py-3 text-content-secondary">{config.value}</td>
+                <td className="px-4 py-3"><StatusPill status={config.configType || 'STRING'} /></td>
+                <td className="px-4 py-3 text-content-secondary">{config.scope || 'TENANT'}</td>
+                <td className="px-4 py-3 text-xs text-content-muted">{config.updatedAt ? new Date(config.updatedAt).toLocaleString() : '-'}</td>
+                <td className="px-4 py-3 text-right">
                   <Button size="sm" variant="outline" onClick={() => handleReset(config.key, config.scope)}>
                     Reset
                   </Button>
                 </td>
               </tr>
             ))}
-            {configs.length === 0 && (
-              <tr>
-                <td className="py-4 text-content-muted" colSpan={6}>
-                  No settings found for {selectedMeta.label}.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
+        {configs.length === 0 ? (
+          <div className="border-t border-border-default p-5 text-sm text-content-muted">
+            No settings found for {selectedMeta.label}.
+          </div>
+        ) : null}
+        </AdminTableShell>
       )}
 
       <div className="border-t border-border-default pt-4 space-y-2">
@@ -277,7 +289,7 @@ export const AdminConfigPanel: React.FC = () => {
             value={historyKey}
             onChange={(e) => setHistoryKey(e.target.value)}
             placeholder="Optional setting key"
-            className="border rounded px-2 py-1 text-sm"
+            className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
           <Button size="sm" variant="secondary" onClick={loadHistory}>Load History</Button>
         </div>
@@ -289,6 +301,7 @@ export const AdminConfigPanel: React.FC = () => {
           )}
         </div>
       </div>
-    </Card>
+      </div>
+    </AdminPanel>
   );
 };
