@@ -341,19 +341,22 @@ function AuthShell({ title, eyebrow, supporting, children }: { title: string; ey
   };
 
   return (
-    <main className={`public-site ${theme === 'light' ? 'public-light' : 'public-dark'} min-h-screen overflow-hidden px-4 py-6`}>
+    <main className={`public-site ${theme === 'light' ? 'public-light' : 'public-dark'} min-h-screen overflow-hidden px-4 py-4`}>
       <div className="mx-auto flex max-w-7xl items-center justify-between">
-        <Link href="/" className="public-heading text-lg font-semibold">Legent</Link>
-        <button type="button" onClick={toggleTheme} aria-label="Toggle public theme" className="public-border rounded-xl border bg-[var(--public-panel)] p-2 text-[var(--public-text)]">
+        <Link href="/" className="public-heading rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
+          Legent <span className="public-muted ml-2 hidden text-xs font-medium uppercase tracking-[0.16em] sm:inline">Lifecycle Email OS</span>
+        </Link>
+        <button type="button" onClick={toggleTheme} aria-label="Toggle public theme" className="public-border rounded-xl border bg-[var(--public-panel)] p-2 text-[var(--public-text)] transition hover:-translate-y-0.5">
           {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
         </button>
       </div>
-      <div className="mx-auto grid min-h-[calc(100vh-6rem)] max-w-7xl gap-8 py-8 lg:grid-cols-2 lg:items-center">
-        <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="public-panel rounded-[1.8rem] p-6 md:p-8">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--public-accent)]">{eyebrow}</p>
-          <h1 className="public-heading mt-4 text-balance text-3xl font-semibold md:text-5xl">{title}</h1>
+      <div className="public-hero-shell public-hero-grid mx-auto max-w-7xl lg:grid-cols-[0.9fr_1.1fr]">
+        <motion.section initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} className="public-panel rounded-[1.45rem] p-5 md:p-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--public-accent)]">{eyebrow}</p>
+          <h1 className="public-heading mt-3 text-balance text-3xl font-semibold md:text-5xl">{title}</h1>
           <p className="public-muted mt-4 leading-7">{supporting}</p>
-          <div className="mt-8">{children}</div>
+          <MiniAuthVisual />
+          <div className="mt-6">{children}</div>
         </motion.section>
         <AuthVisual />
       </div>
@@ -369,8 +372,11 @@ function AuthVisual() {
     { label: 'Fast setup', icon: Zap },
   ];
   return (
-    <motion.aside initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="public-panel relative hidden min-h-[560px] overflow-hidden rounded-[1.8rem] p-6 lg:block">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(16,185,129,0.16),transparent_26%),radial-gradient(circle_at_78%_30%,rgba(217,70,239,0.18),transparent_30%)]" />
+    <motion.aside initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="public-panel public-hero-visual public-art-glow relative hidden rounded-[1.8rem] p-6 lg:block">
+      <div className="public-visual-clip">
+        <div className="public-mock-bitmap" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(16,185,129,0.16),transparent_26%),radial-gradient(circle_at_78%_30%,rgba(217,70,239,0.18),transparent_30%)]" />
+      </div>
       <div className="relative">
         <span className="inline-flex items-center gap-2 rounded-full bg-fuchsia-300/12 px-3 py-1 text-xs font-semibold text-[var(--public-accent)]"><Sparkles size={14} /> Workspace readiness</span>
         <h2 className="public-heading mt-5 text-3xl font-semibold">A secure entry point for serious email operations.</h2>
@@ -392,6 +398,20 @@ function AuthVisual() {
         </div>
       </div>
     </motion.aside>
+  );
+}
+
+function MiniAuthVisual() {
+  const steps = ['Identity', 'Workspace', 'Provider'];
+  return (
+    <div className="mt-5 grid gap-2 rounded-2xl bg-[var(--public-panel-strong)] p-3 lg:hidden">
+      {steps.map((step, index) => (
+        <motion.div key={step} animate={{ x: [0, index % 2 ? 5 : -5, 0] }} transition={{ duration: 4.5 + index * 0.2, repeat: Infinity }} className="flex items-center justify-between rounded-xl bg-[var(--public-panel)] px-3 py-2 text-xs">
+          <span className="public-heading font-semibold">{step}</span>
+          <span className="text-[var(--public-accent)]">{index === 2 ? 'Ready' : 'Verified'}</span>
+        </motion.div>
+      ))}
+    </div>
   );
 }
 

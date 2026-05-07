@@ -116,18 +116,18 @@ function HomePage() {
   return (
     <div ref={scope}>
       <section className="relative overflow-hidden">
-        <div className="mx-auto grid min-h-[calc(100vh-4rem)] max-w-7xl gap-10 px-4 pb-16 pt-10 sm:px-6 lg:grid-cols-2 lg:items-center">
+        <div className="public-hero-shell public-hero-grid mx-auto max-w-7xl px-4 sm:px-6 lg:grid-cols-[0.92fr_1.08fr]">
           <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.55 }}>
             <Pill icon={Sparkles}>{page.eyebrow}</Pill>
             <h1 className="public-heading mt-5 max-w-4xl text-balance text-4xl font-semibold leading-[1.02] sm:text-5xl lg:text-7xl">
               {page.title}
             </h1>
             <p className="public-muted mt-6 max-w-2xl text-base leading-8 sm:text-lg">{page.subtitle}</p>
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               <PublicLinkButton href="/signup" icon={<ArrowRight size={18} />}>{page.primaryCta}</PublicLinkButton>
               <PublicLinkButton href="/modules" variant="secondary">{page.secondaryCta}</PublicLinkButton>
             </div>
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
               {page.highlights.map((item) => (
                 <div key={item} className="public-panel rounded-2xl px-4 py-3 text-sm font-medium">
                   <CheckCircle2 className="mb-2 text-[var(--public-accent)]" size={16} />
@@ -148,13 +148,13 @@ function HomePage() {
         </div>
       </MarketingSection>
 
-      <section className="public-border border-y bg-[var(--public-panel)]" data-gsap-reveal>
+      <section className="public-bleed-band" data-gsap-reveal>
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center">
           <div>
             <Pill icon={Network}>Signal to outcome</Pill>
             <h2 className="public-heading mt-4 text-balance text-3xl font-semibold md:text-5xl">One operating loop from customer signal to business result.</h2>
             <p className="public-muted mt-5 max-w-xl leading-7">
-              Customer behavior, AI recommendations, approval evidence, provider risk, and revenue feedback move through a visible workflow instead of disconnected tools.
+              Customer behavior, AI guidance, approval evidence, provider risk, and revenue feedback move through one visible workflow instead of disconnected tools.
             </p>
           </div>
           <SignalRibbon steps={[...page.signalFlow]} />
@@ -266,11 +266,11 @@ function ModulesPage() {
         primaryCta={page.primaryCta}
         secondaryCta={page.secondaryCta}
         secondaryHref="/features"
-        visual={<ModuleSystemMap active={active} setActive={setActive} />}
+        visual={<StudioFabricVisual active={active} setActive={setActive} />}
       />
       <MarketingSection eyebrow="Architecture map" title="Select a module and watch its relationships change.">
         <div className="grid gap-6 lg:grid-cols-2">
-          <ModuleSystemMap active={active} setActive={setActive} large />
+          <ModuleRelationshipExplorer active={active} setActive={setActive} />
           <AnimatePresence mode="wait">
             <motion.div
               key={selected.name}
@@ -389,7 +389,7 @@ function AboutPage() {
                 <span className="text-sm font-semibold text-[var(--public-accent)]">{item.year}</span>
                 <h3 className="public-heading mt-5 text-xl font-semibold">{item.title}</h3>
                 <p className="public-muted mt-3 text-sm leading-6">{item.body}</p>
-                <motion.div animate={{ width: ['24%', '86%', '42%'] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-6 h-1 rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
+                <motion.div style={{ originX: 0 }} animate={{ scaleX: [0.24, 0.86, 0.42] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-6 h-1 w-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
               </motion.div>
             ))}
           </div>
@@ -460,12 +460,12 @@ function PageHero({
 }) {
   return (
     <section className="relative overflow-hidden">
-      <div className="mx-auto grid min-h-[680px] max-w-7xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:items-center">
+      <div className="public-hero-shell public-hero-grid mx-auto max-w-7xl px-4 sm:px-6 lg:grid-cols-[0.94fr_1.06fr]">
         <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.55 }}>
           <Pill icon={Sparkles}>{eyebrow}</Pill>
-          <h1 className="public-heading mt-5 max-w-4xl text-balance text-4xl font-semibold leading-[1.04] sm:text-5xl lg:text-6xl">{title}</h1>
-          <p className="public-muted mt-6 max-w-2xl text-base leading-8 sm:text-lg">{subtitle}</p>
-          <div className="mt-8 flex flex-wrap gap-3">
+          <h1 className="public-heading mt-4 max-w-4xl text-balance text-4xl font-semibold leading-[1.04] sm:text-5xl lg:text-6xl">{title}</h1>
+          <p className="public-muted mt-5 max-w-2xl text-base leading-7 sm:text-lg">{subtitle}</p>
+          <div className="mt-6 flex flex-wrap gap-3">
             <PublicLinkButton href="/signup" icon={<ArrowRight size={18} />}>{primaryCta}</PublicLinkButton>
             <PublicLinkButton href={secondaryHref} variant="secondary">{secondaryCta}</PublicLinkButton>
           </div>
@@ -480,18 +480,26 @@ function PageHero({
 
 export function MarketingSection({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 md:py-20" data-gsap-reveal>
+    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16" data-gsap-reveal>
       <Pill icon={Sparkles}>{eyebrow}</Pill>
       <h2 className="public-heading mt-4 max-w-3xl text-balance text-3xl font-semibold md:text-5xl">{title}</h2>
-      <div className="mt-9">{children}</div>
+      <div className="mt-7 md:mt-9">{children}</div>
     </section>
+  );
+}
+
+function VisualTexture() {
+  return (
+    <div className="public-visual-clip">
+      <div className="public-mock-bitmap" aria-hidden="true" />
+    </div>
   );
 }
 
 function HomeDashboardTheater({ active, setActive }: { active: number; setActive: (index: number) => void }) {
   const scenario = homeScenarios[active];
   return (
-    <div className="relative" data-gsap-parallax="-7">
+    <div className="public-hero-visual relative" data-gsap-parallax="-7">
       <motion.div className="public-panel absolute -left-4 bottom-20 z-20 hidden w-44 rounded-2xl p-4 shadow-2xl md:block" animate={{ y: [0, 14, 0] }} transition={{ duration: 6, repeat: Infinity }}>
         <p className="public-muted text-xs uppercase">Live activity</p>
         <p className="public-heading mt-2 text-xl font-semibold">{scenario.metric}</p>
@@ -501,7 +509,8 @@ function HomeDashboardTheater({ active, setActive }: { active: number; setActive
         <p className="public-heading mt-2 text-lg font-semibold">{scenario.status}</p>
       </motion.div>
       <MacFrame>
-        <div className="grid min-h-[520px] lg:grid-cols-[190px_1fr]">
+        <VisualTexture />
+        <div className="relative grid min-h-[430px] lg:grid-cols-[170px_1fr]">
           <aside className="public-border hidden border-r bg-[var(--public-panel-strong)] p-4 lg:block">
             {scenario.modules.map((module) => (
               <div key={module} className="mb-2 rounded-xl bg-[var(--public-panel)] px-3 py-2 text-xs font-semibold text-[var(--public-text)]">
@@ -518,7 +527,7 @@ function HomeDashboardTheater({ active, setActive }: { active: number; setActive
                   <span className="rounded-full bg-emerald-400/12 px-3 py-1 text-xs font-semibold text-emerald-500">{scenario.status}</span>
                 </div>
                 <p className="public-muted mt-3 max-w-xl text-sm leading-6">{scenario.narrative}</p>
-                <div className="mt-5 grid gap-3 sm:grid-cols-4">
+                <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   {scenario.stages.map((stage, index) => (
                     <button
                       key={stage}
@@ -531,20 +540,20 @@ function HomeDashboardTheater({ active, setActive }: { active: number; setActive
                     </button>
                   ))}
                 </div>
-                <div className="public-border mt-5 rounded-2xl border bg-[var(--public-bg-soft)] p-4">
+                <div className="public-border mt-4 rounded-2xl border bg-[var(--public-bg-soft)] p-4">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--public-panel)]">
                       <motion.div key={scenario.metric} initial={{ width: '18%' }} animate={{ width: scenario.metric.includes('%') ? scenario.metric : '82%' }} className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-violet-400 to-fuchsia-400" />
                     </div>
                     <span className="text-xs font-semibold text-[var(--public-accent)]">{scenario.metric}</span>
                   </div>
-                  <div className="flex h-32 items-end gap-2 sm:h-44">
+                  <div className="flex h-28 items-end gap-2 sm:h-36">
                     {scenario.bars.map((height, index) => (
                       <motion.div key={index} initial={{ height: 12 }} animate={{ height: `${height}%` }} transition={{ duration: 0.6, delay: index * 0.04 }} className="flex-1 rounded-t-xl bg-gradient-to-t from-violet-800 via-fuchsia-500 to-emerald-300" />
                     ))}
                   </div>
                 </div>
-                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   {scenario.activity.slice(0, 4).map((item) => (
                     <div key={item} className="rounded-2xl bg-[var(--public-panel-strong)] p-4 text-sm">
                       <CheckCircle2 className="mb-2 text-emerald-500" size={17} />
@@ -577,92 +586,184 @@ function HomeDashboardTheater({ active, setActive }: { active: number; setActive
 function FeatureArchitecture({ active, setActive }: { active: number; setActive: (index: number) => void }) {
   const features = marketingPages.features.features;
   return (
-    <div className="public-panel relative min-h-[500px] overflow-hidden rounded-[1.8rem] p-5">
+    <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-5">
+      <VisualTexture />
       <WindowHeader label="Interactive architecture" />
-      <div className="relative mt-8 grid min-h-[385px] place-items-center">
-        <motion.div animate={{ rotate: 360 }} transition={{ duration: 26, repeat: Infinity, ease: 'linear' }} className="absolute h-72 w-72 rounded-full border border-dashed border-fuchsia-400/40" />
-        <div className="public-panel z-10 grid h-36 w-36 place-items-center rounded-full text-center">
-          <ShieldCheck className="text-[var(--public-accent)]" size={26} />
-          <p className="public-heading text-sm font-semibold">Governed runtime</p>
+      <div className="relative mt-5 grid gap-4 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+        <div className="public-panel relative min-h-[250px] rounded-[1.4rem] p-5">
+          <div className="absolute inset-6 rounded-full border border-dashed border-[var(--public-accent)]/35" />
+          <motion.div animate={{ scale: [1, 1.05, 1], rotate: [0, 4, 0] }} transition={{ duration: 7, repeat: Infinity }} className="absolute inset-12 rounded-full bg-gradient-to-br from-emerald-400/20 via-fuchsia-400/15 to-blue-400/20" />
+          <div className="relative grid h-full min-h-[210px] place-items-center text-center">
+            <div className="rounded-[1.5rem] bg-[var(--public-panel-strong)] p-5 shadow-2xl">
+              <ShieldCheck className="mx-auto text-[var(--public-accent)]" size={30} />
+              <p className="public-heading mt-3 text-sm font-semibold">Governed runtime</p>
+              <p className="public-muted mt-1 text-xs">policy, context, evidence</p>
+            </div>
+          </div>
         </div>
-        {features.map((feature, index) => {
-          const Icon = feature.icon;
-          const angle = (index / features.length) * Math.PI * 2;
-          return (
-            <button
-              key={feature.title}
-              type="button"
-              onClick={() => setActive(index)}
-              className={`public-panel absolute w-36 rounded-2xl p-3 text-center transition focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'scale-110 border-fuchsia-300/60' : ''}`}
-              style={{ transform: `translate(${Math.cos(angle) * 170}px, ${Math.sin(angle) * 125}px)` }}
-            >
-              <Icon className="mx-auto text-[var(--public-accent)]" size={18} />
-              <p className="public-heading mt-2 text-xs font-semibold">{feature.title}</p>
-            </button>
-          );
-        })}
+        <div className="relative grid gap-2">
+          {features.map((feature, index) => {
+            const Icon = feature.icon;
+            return (
+              <button
+                key={feature.title}
+                type="button"
+                onClick={() => setActive(index)}
+                className={`public-border group relative overflow-hidden rounded-2xl border bg-[var(--public-panel-strong)] p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'border-[var(--public-accent)] bg-[var(--public-panel)] shadow-lg' : ''}`}
+              >
+                <motion.span animate={{ scaleX: active === index ? [0.2, 1, 0.45] : 0.28 }} transition={{ duration: 2.8, repeat: Infinity, delay: index * 0.08 }} className="absolute bottom-0 left-0 h-1 w-full origin-left bg-gradient-to-r from-emerald-400 via-[var(--public-accent)] to-blue-400" />
+                <span className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={17} /></span>
+                  <span>
+                    <span className="public-heading block text-sm font-semibold">{feature.title}</span>
+                    <span className="public-muted block text-xs">Connected to launch state</span>
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
-function ModuleSystemMap({ active, setActive, large = false }: { active: number; setActive: (index: number) => void; large?: boolean }) {
+function StudioFabricVisual({ active, setActive }: { active: number; setActive: (index: number) => void }) {
+  const selected = studios[active];
   return (
-    <div className={`public-panel relative overflow-hidden rounded-[1.8rem] p-5 ${large ? 'min-h-[520px]' : 'min-h-[500px]'}`}>
-      <WindowHeader label="Runtime system map" />
-      <div className="relative mt-8 grid min-h-[390px] place-items-center">
-        <motion.div animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 5, repeat: Infinity }} className="absolute h-72 w-72 rounded-full bg-gradient-to-br from-emerald-400/12 via-violet-400/12 to-rose-400/12" />
-        <div className="public-panel z-10 grid h-32 w-32 place-items-center rounded-full text-center">
-          <Database className="text-[var(--public-accent)]" size={24} />
-          <p className="public-heading text-sm font-semibold">Shared runtime</p>
+    <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-5">
+      <VisualTexture />
+      <WindowHeader label="Studio fabric" />
+      <div className="relative mt-5 grid gap-4">
+        <div className="grid gap-2 sm:grid-cols-2">
+          {studios.map((studio, index) => {
+            const Icon = studio.icon;
+            const selectedState = active === index;
+            return (
+              <button
+                key={studio.name}
+                type="button"
+                onClick={() => setActive(index)}
+                className={`public-border relative overflow-hidden rounded-2xl border bg-[var(--public-panel-strong)] p-3 text-left transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${selectedState ? 'border-[var(--public-accent)] bg-[var(--public-panel)]' : ''}`}
+              >
+                <motion.span animate={{ scaleX: selectedState ? [0.4, 1, 0.65] : [0.2, 0.42, 0.2] }} transition={{ duration: 3.2, repeat: Infinity, delay: index * 0.12 }} className="absolute bottom-0 left-0 h-1 w-full origin-left bg-gradient-to-r from-emerald-400 via-fuchsia-500 to-blue-400" />
+                <div className="flex items-center gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={18} /></span>
+                  <div>
+                    <p className="public-heading text-sm font-semibold">{studio.short}</p>
+                    <p className="public-muted text-xs">{studio.proof}</p>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
-        {studios.map((studio, index) => {
-          const Icon = studio.icon;
-          const angle = (index / studios.length) * Math.PI * 2;
-          return (
-            <button
-              key={studio.name}
-              type="button"
-              onClick={() => setActive(index)}
-              className={`public-panel absolute w-32 rounded-2xl p-3 text-center transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'border-fuchsia-300/60 bg-[var(--public-panel-strong)]' : ''}`}
-              style={{ transform: `translate(${Math.cos(angle) * 170}px, ${Math.sin(angle) * 130}px)` }}
-            >
-              <Icon className="mx-auto text-[var(--public-accent)]" size={18} />
-              <p className="public-heading mt-2 text-xs font-semibold">{studio.short}</p>
-            </button>
-          );
-        })}
+        <div className="public-panel rounded-[1.4rem] p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="public-muted text-xs uppercase tracking-[0.18em]">Shared runtime</p>
+              <h3 className="public-heading mt-1 text-2xl font-semibold">{selected.name}</h3>
+            </div>
+            <span className="rounded-full bg-emerald-400/12 px-3 py-1 text-xs font-semibold text-emerald-500">Context synced</span>
+          </div>
+          <div className="mt-5 grid grid-cols-3 gap-2">
+            {['Roles', 'Config', 'Audit'].map((item, index) => (
+              <motion.div key={item} animate={{ y: [0, index % 2 ? 6 : -6, 0] }} transition={{ duration: 4.4 + index * 0.2, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-3 text-center">
+                <p className="public-heading text-sm font-semibold">{item}</p>
+                <p className="public-muted mt-1 text-[11px]">live</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModuleRelationshipExplorer({ active, setActive }: { active: number; setActive: (index: number) => void }) {
+  const selected = studios[active];
+  const before = studios[(active + studios.length - 1) % studios.length];
+  const after = studios[(active + 1) % studios.length];
+  return (
+    <div className="public-panel public-art-glow relative rounded-[1.8rem] p-5">
+      <VisualTexture />
+      <WindowHeader label="Relationship explorer" />
+      <div className="relative mt-5 grid gap-4">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          {[before, selected, after].map((studio, index) => {
+            const Icon = studio.icon;
+            const center = index === 1;
+            return (
+              <motion.button
+                key={studio.name}
+                type="button"
+                onClick={() => setActive(studios.findIndex((item) => item.name === studio.name))}
+                whileHover={{ y: -4 }}
+                className={`public-border rounded-2xl border p-3 text-center focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${center ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'bg-[var(--public-panel-strong)] text-[var(--public-text)]'}`}
+              >
+                <Icon className={`mx-auto ${center ? 'text-[var(--public-bg)]' : 'text-[var(--public-accent)]'}`} size={20} />
+                <p className={`mt-2 text-xs font-semibold ${center ? '' : 'public-heading'}`}>{studio.short}</p>
+              </motion.button>
+            );
+          })}
+        </div>
+        <div className="relative h-3 overflow-hidden rounded-full bg-[var(--public-panel-strong)]">
+          <motion.div animate={{ x: ['-20%', '110%'] }} transition={{ duration: 2.6, repeat: Infinity, ease: 'linear' }} className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-gradient-to-r from-transparent via-[var(--public-accent)] to-transparent" />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {selected.capabilities.slice(0, 4).map((capability, index) => (
+            <motion.div key={capability} animate={{ opacity: [0.75, 1, 0.75] }} transition={{ duration: 3, repeat: Infinity, delay: index * 0.16 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+              <CircleDot className="text-[var(--public-accent)]" size={16} />
+              <p className="public-heading mt-2 text-sm font-semibold">{capability}</p>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
 function PricingConsole({ billing, setBilling }: { billing: 'monthly' | 'yearly'; setBilling: (billing: 'monthly' | 'yearly') => void }) {
+  const workload = billing === 'yearly' ? ['12 launches', '5 workspaces', '20% saved'] : ['1 launch', '1 workspace', 'monthly control'];
   return (
-    <div className="public-panel overflow-hidden rounded-[1.8rem] p-5">
-      <WindowHeader label="Pricing simulator" />
-      <div className="mt-7 grid gap-4">
-        <div className="inline-flex w-fit rounded-2xl bg-[var(--public-panel-strong)] p-1">
-          {(['monthly', 'yearly'] as const).map((mode) => (
-            <button key={mode} type="button" onClick={() => setBilling(mode)} className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize ${billing === mode ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'public-muted'}`}>
-              {mode}
-            </button>
+    <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-5">
+      <VisualTexture />
+      <WindowHeader label="Value model" />
+      <div className="relative mt-5 grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="public-muted text-xs uppercase tracking-[0.18em]">Billing signal</p>
+            <h3 className="public-heading mt-1 text-2xl font-semibold">{billing === 'yearly' ? 'Annual scale posture' : 'Monthly launch posture'}</h3>
+          </div>
+          <div className="inline-flex rounded-2xl bg-[var(--public-panel-strong)] p-1">
+            {(['monthly', 'yearly'] as const).map((mode) => (
+              <button key={mode} type="button" onClick={() => setBilling(mode)} className={`rounded-xl px-4 py-2 text-sm font-semibold capitalize ${billing === mode ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'public-muted'}`}>
+                {mode}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {workload.map((item, index) => (
+            <motion.div key={item} animate={{ y: [0, index % 2 ? 7 : -7, 0] }} transition={{ duration: 4.4 + index * 0.2, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+              <p className="public-heading text-sm font-semibold">{item}</p>
+              <p className="public-muted mt-1 text-xs">capacity input</p>
+            </motion.div>
           ))}
         </div>
-        {marketingPages.pricing.plans.map((plan, index) => (
-          <motion.div key={plan.name} whileHover={{ x: 8 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="public-heading font-semibold">{plan.name}</p>
-                <p className="public-muted text-sm">{plan.fit}</p>
+        <div className="public-panel rounded-[1.4rem] p-5">
+          {marketingPages.pricing.roi.map((item, index) => (
+            <div key={item.label} className="mb-4 last:mb-0">
+              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
+                <span className="public-heading font-semibold">{item.label}</span>
+                <span className="text-[var(--public-accent)]">{item.value}</span>
               </div>
-              <p className="public-heading text-lg font-semibold">{formatPlanPrice(plan.monthly, billing)}</p>
+              <div className="h-3 overflow-hidden rounded-full bg-[var(--public-panel-strong)]">
+                <motion.div style={{ originX: 0 }} animate={{ scaleX: billing === 'yearly' ? 0.72 + index * 0.1 : 0.48 + index * 0.12 }} className="h-full w-full rounded-full bg-gradient-to-r from-emerald-400 via-[var(--public-accent)] to-blue-400" />
+              </div>
             </div>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--public-panel)]">
-              <motion.div animate={{ width: `${38 + index * 28}%` }} className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
-            </div>
-          </motion.div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -670,33 +771,49 @@ function PricingConsole({ billing, setBilling }: { billing: 'monthly' | 'yearly'
 
 function AboutStoryVisual() {
   return (
-    <div className="public-panel relative min-h-[500px] overflow-hidden rounded-[1.8rem] p-6">
-      <div className="absolute inset-y-10 left-1/2 w-px bg-gradient-to-b from-transparent via-fuchsia-400/50 to-transparent" />
-      {marketingPages.about.timeline.map((item, index) => (
-        <motion.div
-          key={item.title}
-          animate={{ y: [0, index % 2 ? -8 : 8, 0] }}
-          transition={{ duration: 5.5, repeat: Infinity, delay: index * 0.2 }}
-          className={`public-panel relative mb-4 w-[84%] rounded-2xl p-4 ${index % 2 ? 'ml-auto' : ''}`}
-        >
-          <p className="text-xs font-semibold text-[var(--public-accent)]">{item.year}</p>
-          <h3 className="public-heading mt-2 font-semibold">{item.title}</h3>
-          <p className="public-muted mt-1 text-sm leading-6">{item.body}</p>
-        </motion.div>
-      ))}
+    <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-6">
+      <VisualTexture />
+      <WindowHeader label="Company story" />
+      <div className="relative mt-5 grid gap-4">
+        <div className="public-panel rounded-[1.4rem] p-5">
+          <p className="public-muted text-xs uppercase tracking-[0.18em]">Mission line</p>
+          <h3 className="public-heading mt-2 text-2xl font-semibold">Make messaging operations visible, governed, and measurable.</h3>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {marketingPages.about.timeline.map((item, index) => (
+            <motion.div
+              key={item.title}
+              animate={{ y: [0, index % 2 ? -6 : 6, 0] }}
+              transition={{ duration: 5.2, repeat: Infinity, delay: index * 0.18 }}
+              className="rounded-2xl bg-[var(--public-panel-strong)] p-4"
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--public-accent)] text-xs font-semibold text-white">{item.year}</span>
+              <h3 className="public-heading mt-3 font-semibold">{item.title}</h3>
+              <p className="public-muted mt-1 text-sm leading-6">{item.body}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 function ContactRoutingVisual() {
   return (
-    <div className="public-panel relative overflow-hidden rounded-[1.8rem] p-5">
-      <WindowHeader label="Routing intelligence" />
-      <div className="mt-8 grid gap-4">
+    <div className="public-panel public-hero-visual public-art-glow relative rounded-[1.8rem] p-5">
+      <VisualTexture />
+      <WindowHeader label="Support routing" />
+      <div className="relative mt-5 grid gap-4">
+        <div className="public-panel grid min-h-32 place-items-center rounded-[1.4rem] p-5 text-center">
+          <MousePointerClick className="text-[var(--public-accent)]" size={28} />
+          <h3 className="public-heading mt-3 text-2xl font-semibold">Route request to right operator</h3>
+          <p className="public-muted mt-1 text-sm">Architecture, delivery, migration, or security review.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
         {contactRoutes.map((route, index) => {
           const Icon = route.icon;
           return (
-            <motion.div key={route.label} animate={{ x: [0, index % 2 ? 14 : -14, 0] }} transition={{ duration: 5 + index * 0.3, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+            <motion.div key={route.label} animate={{ y: [0, index % 2 ? 7 : -7, 0] }} transition={{ duration: 5 + index * 0.3, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
               <div className="flex items-center gap-3">
                 <span className="grid h-11 w-11 place-items-center rounded-2xl bg-fuchsia-400/12 text-[var(--public-accent)]"><Icon size={20} /></span>
                 <div>
@@ -707,21 +824,21 @@ function ContactRoutingVisual() {
             </motion.div>
           );
         })}
+        </div>
       </div>
-      <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.8, repeat: Infinity }} className="absolute bottom-5 right-5 grid h-24 w-24 place-items-center rounded-full bg-fuchsia-500 text-white shadow-2xl">
-        <MousePointerClick size={26} />
-      </motion.div>
     </div>
   );
 }
 
 function MetricPanel({ metric, index }: { metric: { label: string; value: string; detail: string }; index: number }) {
   return (
-    <motion.div whileHover={{ y: -8 }} className="public-panel h-full rounded-[1.35rem] p-6">
-      <p className="public-heading text-4xl font-semibold">{metric.value}</p>
-      <p className="public-heading mt-4 font-semibold">{metric.label}</p>
-      <p className="public-muted mt-2 text-sm leading-6">{metric.detail}</p>
-      <motion.div animate={{ width: ['28%', '86%', '42%'] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-5 h-1 rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
+    <motion.div whileHover={{ y: -8 }} className="public-panel flex h-full min-h-[220px] flex-col rounded-[1.35rem] p-6">
+      <div>
+        <p className="public-heading flex min-h-12 items-end text-4xl font-semibold leading-none">{metric.value}</p>
+        <p className="public-heading mt-4 min-h-6 font-semibold">{metric.label}</p>
+        <p className="public-muted mt-2 text-sm leading-6">{metric.detail}</p>
+      </div>
+      <motion.div style={{ originX: 0 }} animate={{ scaleX: [0.28, 0.86, 0.42] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-auto h-1 w-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
     </motion.div>
   );
 }
@@ -765,14 +882,16 @@ function SurfaceLoop({ scenario }: { scenario: (typeof homeScenarios)[number] })
     <div className="grid gap-5 lg:grid-cols-2">
       <div className="public-panel overflow-hidden rounded-[1.4rem] p-5">
         <WindowHeader label="Auto-loop surfaces" />
-        <div className="mt-6 flex gap-4 overflow-hidden">
+        <div className="mt-6 overflow-hidden">
+          <motion.div animate={{ x: ['0%', '-50%'] }} transition={{ duration: 18, repeat: Infinity, ease: 'linear' }} className="flex w-max gap-4 will-change-transform">
           {[...scenario.modules, ...scenario.modules].map((module, index) => (
-            <motion.div key={`${module}-${index}`} animate={{ x: ['0%', '-125%'] }} transition={{ duration: 18, repeat: Infinity, ease: 'linear' }} className="public-border min-w-[220px] rounded-2xl border bg-[var(--public-panel-strong)] p-4">
+            <div key={`${module}-${index}`} className="public-border min-w-[220px] rounded-2xl border bg-[var(--public-panel-strong)] p-4">
               <Sparkles className="text-[var(--public-accent)]" size={20} />
               <p className="public-heading mt-4 text-lg font-semibold">{module}</p>
               <p className="public-muted mt-1 text-sm">State changes with launch progress.</p>
-            </motion.div>
+            </div>
           ))}
+          </motion.div>
         </div>
       </div>
       <div className="public-panel rounded-[1.4rem] p-6">
@@ -795,12 +914,12 @@ function SurfaceLoop({ scenario }: { scenario: (typeof homeScenarios)[number] })
 
 function SignalRibbon({ steps }: { steps: string[] }) {
   return (
-    <div className="public-panel overflow-hidden rounded-[1.4rem] p-5">
-      <div className="grid gap-3 sm:grid-cols-5">
+    <div className="public-panel rounded-[1.4rem] p-5">
+      <div className="grid gap-3 sm:grid-cols-5 sm:[grid-template-columns:repeat(5,minmax(0,1fr))]">
         {steps.map((step, index) => (
-          <motion.div key={step} whileHover={{ y: -6 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4 text-center">
-            <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-fuchsia-300 text-sm font-semibold text-purple-950">{index + 1}</span>
-            <p className="public-heading mt-3 text-sm font-semibold">{step}</p>
+          <motion.div key={step} whileHover={{ y: -6 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-3 text-center sm:min-h-[128px]">
+            <span className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-[var(--public-accent)] text-sm font-semibold text-white">{index + 1}</span>
+            <p className="public-heading mt-3 break-words text-sm font-semibold leading-5">{step}</p>
           </motion.div>
         ))}
       </div>
@@ -843,8 +962,8 @@ function DataFlowRail({ steps }: { steps: string[] }) {
 function PricingPlan({ plan, annual, index }: { plan: (typeof marketingPages.pricing.plans)[number]; annual: boolean; index: number }) {
   const featured = 'featured' in plan && plan.featured;
   return (
-    <motion.div whileHover={{ y: -10 }} className={`public-panel h-full rounded-[1.5rem] p-6 ${featured ? 'border-fuchsia-300/60 bg-fuchsia-400/[0.08]' : ''}`}>
-      {featured ? <span className="rounded-full bg-fuchsia-300 px-3 py-1 text-xs font-semibold text-purple-950">Most popular</span> : null}
+    <motion.div whileHover={{ y: -10 }} className={`public-panel h-full rounded-[1.5rem] p-6 ${featured ? 'border-[var(--public-accent)] bg-fuchsia-400/[0.08]' : ''}`}>
+      {featured ? <span className="rounded-full bg-[var(--public-accent)] px-3 py-1 text-xs font-semibold text-white">Most popular</span> : null}
       <h3 className="public-heading mt-4 text-2xl font-semibold">{plan.name}</h3>
       <p className="public-muted mt-2 text-sm">{plan.desc}</p>
       <p className="public-heading mt-6 text-4xl font-semibold">{formatPlanPrice(plan.monthly, annual ? 'yearly' : 'monthly')}</p>
@@ -877,7 +996,7 @@ function RoiVisualizer() {
               <span className="text-[var(--public-accent)]">{item.value}</span>
             </div>
             <div className="h-3 overflow-hidden rounded-full bg-[var(--public-panel-strong)]">
-              <motion.div initial={{ width: 0 }} whileInView={{ width: `${58 + index * 16}%` }} className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
+              <motion.div style={{ originX: 0 }} initial={{ scaleX: 0 }} whileInView={{ scaleX: (58 + index * 16) / 100 }} className="h-full w-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
             </div>
           </div>
         ))}
@@ -904,7 +1023,7 @@ function SupportBlock({ card, icon: Icon, index }: { card: { title: string; body
       <Icon className="text-[var(--public-accent)]" size={22} />
       <h3 className="public-heading mt-4 font-semibold">{card.title}</h3>
       <p className="public-muted mt-2 text-sm leading-6">{card.body}</p>
-      <motion.div animate={{ width: ['20%', '78%', '34%'] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-5 h-1 rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
+      <motion.div style={{ originX: 0 }} animate={{ scaleX: [0.2, 0.78, 0.34] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-5 h-1 w-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
     </motion.div>
   );
 }

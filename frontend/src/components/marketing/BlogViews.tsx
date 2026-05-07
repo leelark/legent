@@ -1,52 +1,51 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Sparkles } from 'lucide-react';
+import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Network, RadioTower, Sparkles } from 'lucide-react';
 import { MarketingShell } from '@/components/marketing/MarketingShell';
 import { blogCategories, blogPosts } from '@/lib/marketing-data';
 
 export function BlogIndexView() {
   const [featured, ...remaining] = blogPosts;
+  const [category, setCategory] = useState<'All' | (typeof blogCategories)[number]>('All');
+  const filtered = category === 'All' ? remaining : blogPosts.filter((post) => post.category === category && post.slug !== featured.slug);
 
   return (
     <MarketingShell>
-      <section className="mx-auto grid max-w-7xl gap-8 px-4 pb-12 pt-14 sm:px-6 md:py-20 lg:grid-cols-2 lg:items-end">
+      <section className="public-hero-shell public-hero-grid mx-auto max-w-7xl px-4 sm:px-6 lg:grid-cols-[0.96fr_1.04fr]">
         <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--public-accent)]">Field notes</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--public-accent)]">Field notes</p>
           <h1 className="public-heading mt-4 text-balance text-4xl font-semibold leading-tight md:text-6xl">Operating essays for teams building serious email systems.</h1>
           <p className="public-muted mt-5 max-w-2xl text-lg leading-8">Playbooks for audience strategy, delivery control, automation governance, workflow design, and premium SaaS operations.</p>
-          <div className="mt-6 flex flex-wrap gap-2">
-            {blogCategories.map((category) => (
-              <span key={category} className="public-border rounded-full border bg-[var(--public-panel)] px-3 py-1 text-xs font-semibold text-[var(--public-accent)]">
-                {category}
-              </span>
+          <div className="mt-6 flex flex-wrap gap-2" aria-label="Filter articles by category">
+            {(['All', ...blogCategories] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => setCategory(item)}
+                className={`public-border rounded-full border px-3 py-1 text-xs font-semibold transition hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${category === item ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'bg-[var(--public-panel)] text-[var(--public-accent)]'}`}
+              >
+                {item}
+              </button>
             ))}
           </div>
         </motion.div>
-        <Link href={`/blog/${featured.slug}`} className="public-panel group rounded-[1.6rem] p-6 transition hover:-translate-y-2 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
-          <span className="inline-flex items-center gap-2 rounded-full bg-fuchsia-300/12 px-3 py-1 text-xs font-semibold text-[var(--public-accent)]">
-            <BookOpen size={14} /> Featured
-          </span>
-          <h2 className="public-heading mt-5 text-3xl font-semibold">{featured.title}</h2>
-          <p className="public-muted mt-3 leading-7">{featured.summary}</p>
-          <span className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--public-accent)]">
-            Read feature <ArrowRight size={15} className="transition group-hover:translate-x-1" />
-          </span>
-        </Link>
+        <BlogHeroVisual post={featured} />
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
+      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16">
         <div className="grid gap-5 lg:grid-cols-3">
-          {remaining.map((post, index) => (
+          {filtered.map((post, index) => (
             <BlogCard key={post.slug} post={post} index={index} />
           ))}
         </div>
       </section>
 
-      <section className="public-border border-y bg-[var(--public-panel)]">
-        <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--public-accent)]">Library</p>
+      <section className="public-bleed-band">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--public-accent)]">Library</p>
           <h2 className="public-heading mt-4 max-w-3xl text-3xl font-semibold md:text-5xl">Browse all public field notes.</h2>
           <div className="mt-9 grid gap-4 lg:grid-cols-4">
             {blogPosts.map((post, index) => <BlogCard key={post.slug} post={post} index={index} compact />)}
@@ -59,10 +58,11 @@ export function BlogIndexView() {
 
 export function BlogPostView({ slug }: { slug: string }) {
   const post = blogPosts.find((item) => item.slug === slug);
+  const related = blogPosts.filter((item) => item.slug !== slug).slice(0, 3);
 
   return (
     <MarketingShell>
-      <article className="mx-auto max-w-4xl px-4 py-14 sm:px-6 md:py-20">
+      <article className="mx-auto max-w-4xl px-4 py-10 sm:px-6 md:py-16">
         <Link href="/blog" className="public-muted inline-flex items-center gap-2 rounded-xl text-sm font-medium hover:text-[var(--public-text)] focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
           <ArrowLeft size={16} /> Back to blog
         </Link>
@@ -88,10 +88,43 @@ export function BlogPostView({ slug }: { slug: string }) {
                 dangerouslySetInnerHTML={{ __html: post.body }}
               />
             </div>
+            <div className="mt-10">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--public-accent)]">Continue reading</p>
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                {related.map((item, index) => <BlogCard key={item.slug} post={item} index={index} compact />)}
+              </div>
+            </div>
           </>
         )}
       </article>
     </MarketingShell>
+  );
+}
+
+function BlogHeroVisual({ post }: { post: (typeof blogPosts)[number] }) {
+  const signals = ['Audience model', 'Inbox route', 'Approval state', 'Revenue loop'];
+  return (
+    <Link href={`/blog/${post.slug}`} className="public-panel public-hero-visual public-art-glow group relative rounded-[1.6rem] p-6 transition hover:-translate-y-2 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
+      <div className="public-visual-clip"><div className="public-mock-bitmap" aria-hidden="true" /></div>
+      <div className="relative">
+        <span className="inline-flex items-center gap-2 rounded-full bg-fuchsia-300/12 px-3 py-1 text-xs font-semibold text-[var(--public-accent)]">
+          <BookOpen size={14} /> Featured playbook
+        </span>
+        <h2 className="public-heading mt-5 text-3xl font-semibold">{post.title}</h2>
+        <p className="public-muted mt-3 leading-7">{post.summary}</p>
+        <div className="mt-7 grid gap-3 sm:grid-cols-2">
+          {signals.map((signal, index) => (
+            <motion.div key={signal} animate={{ y: [0, index % 2 ? 8 : -8, 0] }} transition={{ duration: 5 + index * 0.2, repeat: Infinity }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+              {index % 2 ? <RadioTower className="text-[var(--public-accent)]" size={18} /> : <Network className="text-[var(--public-accent)]" size={18} />}
+              <p className="public-heading mt-3 text-sm font-semibold">{signal}</p>
+            </motion.div>
+          ))}
+        </div>
+        <span className="mt-7 inline-flex items-center gap-2 text-sm font-semibold text-[var(--public-accent)]">
+          Read feature <ArrowRight size={15} className="transition group-hover:translate-x-1" />
+        </span>
+      </div>
+    </Link>
   );
 }
 

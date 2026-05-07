@@ -16,6 +16,8 @@ spring:
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
+      initialization-fail-timeout: ${SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT:-1}
+      connection-timeout: ${SPRING_DATASOURCE_HIKARI_CONNECTION_TIMEOUT:30000}
 
   jpa:
     hibernate:

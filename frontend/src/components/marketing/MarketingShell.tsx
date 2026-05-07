@@ -4,17 +4,17 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
-import { ArrowRight, Menu, Moon, Sun, X } from 'lucide-react';
+import { ArrowRight, Menu, Moon, ShieldCheck, Sun, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 const NAV_LINKS = [
-  { href: '/', label: 'Home' },
-  { href: '/features', label: 'Features' },
-  { href: '/modules', label: 'Modules' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/about', label: 'About' },
-  { href: '/contact', label: 'Contact' },
-  { href: '/blog', label: 'Blog' },
+  { href: '/', label: 'Home', group: 'Command' },
+  { href: '/features', label: 'Capabilities', group: 'Product' },
+  { href: '/modules', label: 'Studios', group: 'Product' },
+  { href: '/pricing', label: 'Pricing', group: 'Go-to-market' },
+  { href: '/about', label: 'Company', group: 'Company' },
+  { href: '/contact', label: 'Contact', group: 'Company' },
+  { href: '/blog', label: 'Field Notes', group: 'Company' },
 ];
 
 type PublicTheme = 'dark' | 'light';
@@ -58,26 +58,27 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <header className="public-border sticky top-0 z-50 border-b bg-[var(--public-nav)] backdrop-blur-2xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" className="group flex items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
-            <Image src="/legent-logo.svg" alt="" width={40} height={40} className="h-10 w-10 rounded-xl shadow-[0_0_32px_rgba(109,40,217,0.24)]" priority />
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
+          <Link href="/" className="group flex min-w-0 items-center gap-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
+            <Image src="/legent-logo.svg" alt="" width={40} height={40} className="h-10 w-10 rounded-xl shadow-[0_0_32px_rgba(107,33,168,0.26)]" priority />
             <span className="leading-tight">
               <span className="public-heading block text-base font-semibold tracking-normal">Legent</span>
-              <span className="public-muted block text-[10px] font-medium uppercase tracking-[0.2em]">Email Ops</span>
+              <span className="public-muted block truncate text-[10px] font-medium uppercase tracking-[0.16em]">Lifecycle Email OS</span>
             </span>
           </Link>
 
-          <nav aria-label="Primary navigation" className="hidden items-center gap-1 lg:flex">
+          <nav aria-label="Primary navigation" className="hidden items-center gap-1 rounded-full border border-[var(--public-border)] bg-[var(--public-panel)] p-1 lg:flex">
             {NAV_LINKS.map((item) => {
               const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
               return (
                 <Link
                   key={item.href}
                   href={item.href}
+                  title={`${item.group}: ${item.label}`}
                   className={clsx(
-                    'rounded-full px-3 py-2 text-sm font-medium transition duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]',
+                    'rounded-full px-3 py-2 text-sm font-semibold transition duration-200 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] xl:px-4',
                     active
-                      ? 'bg-[var(--public-panel-strong)] text-[var(--public-text)] shadow-sm'
+                      ? 'bg-[var(--public-text)] text-[var(--public-bg)] shadow-sm'
                       : 'public-muted hover:-translate-y-0.5 hover:bg-[var(--public-panel)] hover:text-[var(--public-text)]'
                   )}
                 >
@@ -111,18 +112,22 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
         {mobileOpen ? (
           <div id="public-mobile-menu" className="public-border border-t bg-[var(--public-nav)] px-4 py-4 lg:hidden">
             <nav aria-label="Mobile navigation" className="grid gap-1">
-              {NAV_LINKS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={clsx(
-                    'rounded-xl px-3 py-2 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]',
-                    pathname === item.href ? 'bg-[var(--public-panel-strong)] text-[var(--public-text)]' : 'public-muted hover:bg-[var(--public-panel)]'
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
+              {NAV_LINKS.map((item) => {
+                const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={clsx(
+                      'rounded-xl px-3 py-2 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]',
+                      active ? 'bg-[var(--public-text)] text-[var(--public-bg)]' : 'public-muted hover:bg-[var(--public-panel)]'
+                    )}
+                  >
+                    <span className="mr-2 text-[10px] uppercase tracking-[0.16em] opacity-70">{item.group}</span>
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
             <div className="mt-3 grid grid-cols-2 gap-2 sm:hidden">
               <ThemeButton theme={theme} toggleTheme={toggleTheme} />
@@ -144,7 +149,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
       <footer className="public-border relative z-10 border-t bg-[var(--public-nav)]">
         <div className="mx-auto grid max-w-7xl gap-8 px-6 py-12 md:grid-cols-2 md:items-start">
           <div>
-            <p className="public-heading text-lg font-semibold">Legent Email Operations</p>
+            <p className="public-heading inline-flex items-center gap-2 text-lg font-semibold"><ShieldCheck size={18} className="text-[var(--public-accent)]" /> Legent Lifecycle Email OS</p>
             <p className="public-muted mt-2 max-w-xl text-sm leading-6">
               A premium command system for lifecycle teams that need orchestration, governance, inbox safety, and measurable growth in one workspace.
             </p>

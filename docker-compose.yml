@@ -218,6 +218,7 @@ services:
   mailhog:
     image: mailhog/mailhog
     container_name: legent-mailhog
+    restart: unless-stopped
     ports:
       - "1025:1025"
       - "8025:8025"
@@ -490,6 +491,7 @@ services:
       MAIL_PASSWORD: ""
       MAIL_SMTP_AUTH: "false"
       MAIL_SMTP_STARTTLS: "false"
+      MANAGEMENT_HEALTH_MAIL_ENABLED: "false"
       TRACKING_BASE_URL: ${TRACKING_BASE_URL}
       LEGENT_DELIVERY_CREDENTIAL_KEY: ${LEGENT_DELIVERY_CREDENTIAL_KEY}
       LEGENT_DELIVERY_ENCRYPTION_SALT: ${LEGENT_DELIVERY_ENCRYPTION_SALT}
@@ -552,6 +554,17 @@ services:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_automation
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration,filesystem:/app/db/migration
+      SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT: "-1"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        for i in $$(seq 1 90); do
+          nc -z postgres 5432 >/dev/null 2>&1 && break
+          echo "Waiting for postgres DNS/socket before automation startup..."
+          sleep 2
+        done
+        exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.security.egd=file:/dev/./urandom -jar app.jar
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -631,7 +644,7 @@ services:
       API_GATEWAY_URL: ${API_GATEWAY_URL}
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -641,6 +654,7 @@ services:
   gateway:
     image: nginx:1.27-alpine
     container_name: legent-gateway
+    restart: unless-stopped
     ports:
       - "8080:80"
     volumes:
@@ -672,6 +686,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 15
+      start_period: 30s
 
 volumes:
   legent_pgdata:

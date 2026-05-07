@@ -137,10 +137,10 @@ export const marketingPages = {
     highlights: ['AI-assisted orchestration', 'Realtime operating visibility', 'Enterprise collaboration'],
     metrics: [
       { label: 'Launch cycle reduction', value: '42%', detail: 'from fewer approval and delivery handoffs' },
-      { label: 'Connected studios', value: '8', detail: 'sharing workspace, roles, config, and analytics context' },
+      { label: 'Connected studios', value: '6', detail: 'plus admin and settings control planes sharing runtime context' },
       { label: 'Inbox safety signal', value: 'Live', detail: 'provider, queue, reputation, and suppression state' },
     ],
-    signalFlow: ['Customer signal', 'AI recommendation', 'Human approval', 'Inbox guardrail', 'Revenue feedback'],
+    signalFlow: ['Customer signal', 'AI guidance', 'Human approval', 'Inbox guardrail', 'Revenue loop'],
     solutionLayers: [
       { title: 'Operational intelligence', metric: 'Live', body: 'Every send starts with data quality, audience readiness, approval state, provider risk, and performance history in one view.', items: ['Audience fit', 'Risk posture', 'Launch confidence'] },
       { title: 'Workflow orchestration', metric: '18', body: 'Teams plan journeys, campaigns, approvals, experiments, retries, and recovery paths without losing ownership context.', items: ['Approval rail', 'Variant control', 'Recovery path'] },
@@ -271,7 +271,7 @@ export const blogPosts = [
   {
     slug: 'ai-automation-with-human-control',
     title: 'AI automation with human control',
-    summary: 'How lifecycle teams can use AI recommendations without losing approval clarity, evidence, or rollback posture.',
+    summary: 'How lifecycle teams use AI guidance without losing approval clarity, evidence, or rollback posture.',
     readTime: '7 min read',
     category: 'Automation',
     body:
@@ -289,7 +289,7 @@ export const blogPosts = [
 ];
 
 export const proofCards = [
-  { label: 'Runtime-connected studios', value: '8', icon: Database },
+  { label: 'Runtime-connected studios', value: '6', icon: Database },
   { label: 'Launch status clarity', value: 'Live', icon: CheckCircle2 },
   { label: 'Operator acceleration', value: '42%', icon: Sparkles },
   { label: 'Governed automation', value: 'AI', icon: Network },

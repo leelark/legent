@@ -16,6 +16,7 @@ spring:
     hikari:
       maximum-pool-size: 30
       minimum-idle: 10
+      initialization-fail-timeout: ${SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT:-1}
 
   jpa:
     hibernate:
@@ -74,6 +75,12 @@ management:
     web:
       exposure:
         include: health,metrics,prometheus
+  health:
+    mail:
+      enabled: ${MANAGEMENT_HEALTH_MAIL_ENABLED:false}
+  endpoint:
+    health:
+      show-details: always
 
 legent:
   delivery:
