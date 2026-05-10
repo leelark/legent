@@ -135,16 +135,17 @@ export function EnterpriseAdminConsole() {
       setRefreshing(true);
     }
     try {
-      const sources = [
-        ['Operations dashboard', getAdminOperationsDashboard()],
-        ['Access overview', getAdminAccessOverview()],
-        ['Sync ledger', listAdminSyncEvents({ limit: 50 })],
-        ['Users', listAdminUsers()],
-      ] as const;
-      const [dashboardRes, accessRes, syncRes, usersRes] = await Promise.allSettled(sources.map(([, request]) => request));
-      const issues = sources
-        .map(([label], index) => {
-          const result = [dashboardRes, accessRes, syncRes, usersRes][index];
+      const labels = ['Operations dashboard', 'Access overview', 'Sync ledger', 'Users'] as const;
+      const [dashboardRes, accessRes, syncRes, usersRes] = await Promise.allSettled([
+        getAdminOperationsDashboard(),
+        getAdminAccessOverview(),
+        listAdminSyncEvents({ limit: 50 }),
+        listAdminUsers(),
+      ] as const);
+      const results = [dashboardRes, accessRes, syncRes, usersRes] as const;
+      const issues = labels
+        .map((label, index) => {
+          const result = results[index];
           return result.status === 'rejected' ? label : null;
         })
         .filter(Boolean) as string[];

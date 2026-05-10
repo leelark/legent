@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/ui/PageChrome';
 import { useApi } from '@/hooks/useApi';
 import { post, put, del } from '@/lib/api-client';
 import { Plus, Trash, PencilSimple } from '@phosphor-icons/react';
@@ -25,7 +26,7 @@ export default function ListsPage() {
     listType: 'PUBLICATION',
   });
   const [error, setError] = useState<string | null>(null);
-  const { data, loading, refetch } = useApi<any>('/api/v1/lists?page=0&size=100');
+  const { data, loading, refetch } = useApi<any>('/lists?page=0&size=100');
   const rows = data?.content ?? [];
 
   const openCreate = () => {
@@ -45,13 +46,13 @@ export default function ListsPage() {
   const save = async () => {
     try {
       if (editingId) {
-        await put(`/api/v1/lists/${editingId}`, {
+        await put(`/lists/${editingId}`, {
           name: form.name,
           description: form.description,
           status: 'ACTIVE',
         });
       } else {
-        await post('/api/v1/lists', form);
+        await post('/lists', form);
       }
       setIsModalOpen(false);
       refetch();
@@ -63,7 +64,7 @@ export default function ListsPage() {
   const remove = async (id: string) => {
     if (!confirm('Delete this list?')) return;
     try {
-      await del(`/api/v1/lists/${id}`);
+      await del(`/lists/${id}`);
       refetch();
     } catch {
       setError('Failed to delete list');
@@ -94,13 +95,12 @@ export default function ListsPage() {
   return (
     <div className="space-y-6">
       {error && <div className="rounded-lg bg-red-100 px-4 py-2 text-sm text-red-700">{error}</div>}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Lists</h1>
-          <p className="mt-1 text-sm text-content-secondary">Manage subscriber lists</p>
-        </div>
-        <Button icon={<Plus size={16} />} onClick={openCreate}>Create List</Button>
-      </div>
+      <PageHeader
+        eyebrow="Audience inventory"
+        title="Lists"
+        description="Manage publication, suppression, and send lists used by campaign targeting."
+        action={<Button icon={<Plus size={16} />} onClick={openCreate}>Create List</Button>}
+      />
 
       <Card className="!p-0 overflow-hidden">
         <Table

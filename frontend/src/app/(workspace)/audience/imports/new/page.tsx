@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageChrome';
 import { Upload, ArrowRight, ArrowLeft, CheckCircle, WarningCircle, FileText } from '@phosphor-icons/react';
 import { get, post } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
@@ -147,15 +148,14 @@ export default function ImportWizardPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Import Subscribers</h1>
-          <p className="mt-1 text-sm text-content-secondary">Upload a CSV file to import subscribers</p>
-        </div>
-        {currentStep === 3 && (jobStatus?.status === 'COMPLETED' || jobStatus?.status === 'COMPLETED_WITH_ERRORS') && (
+      <PageHeader
+        eyebrow="Import wizard"
+        title="Import Subscribers"
+        description="Upload CSV data, map subscriber fields, validate required columns, and start controlled audience intake."
+        action={currentStep === 3 && (jobStatus?.status === 'COMPLETED' || jobStatus?.status === 'COMPLETED_WITH_ERRORS') ? (
             <Button onClick={() => router.push('/app/audience/subscribers')}>View Subscribers</Button>
-        )}
-      </div>
+        ) : null}
+      />
 
       <StepIndicator currentStep={currentStep} />
 
@@ -188,7 +188,7 @@ export default function ImportWizardPage() {
                   <span className="w-32 text-sm font-medium text-content-primary capitalize">
                     {field.label} {field.key === 'email' ? '*' : ''}
                   </span>
-                  <span className="text-content-muted">→</span>
+                  <span className="text-content-muted">-&gt;</span>
                   <select 
                     value={mapping[field.key] || ''}
                     onChange={(e) => setMapping({ ...mapping, [field.key]: e.target.value })}

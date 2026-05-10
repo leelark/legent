@@ -4,6 +4,9 @@ test('login bootstraps workspace context and opens app route', async ({ page }) 
   const email = process.env.E2E_ADMIN_EMAIL;
   const password = process.env.E2E_ADMIN_PASSWORD;
   test.skip(!email || !password, 'E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD are required for login smoke');
+  if (!email || !password) {
+    return;
+  }
 
   await page.goto('/login');
   await page.getByLabel('Email address').fill(email);

@@ -539,7 +539,7 @@ function HomeDashboardTheater({ active, setActive }: { active: number; setActive
           </aside>
           <div className="min-h-0 overflow-hidden p-4">
             <AnimatePresence mode="wait">
-              <motion.div key={scenario.title} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} className="flex h-full min-h-0 flex-col">
+              <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -14 }} className="flex h-full min-h-0 flex-col">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="public-muted text-xs uppercase tracking-[0.18em]">{scenario.eyebrow}</p>

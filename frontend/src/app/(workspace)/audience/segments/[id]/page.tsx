@@ -4,6 +4,8 @@ import { useRouter, useParams } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PageHeader } from "@/components/ui/PageChrome";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { SegmentRuleBuilder } from "@/components/audience/SegmentRuleBuilder";
 import { get, put } from "@/lib/api-client";
 
@@ -57,12 +59,33 @@ export default function EditSegmentPage() {
     setSaving(false);
   };
 
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6">
+        <PageHeader
+          eyebrow="Audience rules"
+          title="Edit Segment"
+          description="Loading segment definition and rule groups."
+        />
+        <Card>
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-32 w-full" />
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        eyebrow="Audience rules"
+        title="Edit Segment"
+        description="Update the segment profile and governed rule logic."
+      />
       <Card>
-        <h2 className="text-xl font-bold mb-4">Edit Segment</h2>
         <div className="space-y-4">
           <Input
             label="Name *"

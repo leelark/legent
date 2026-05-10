@@ -17,7 +17,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <div className={clsx('flex flex-col gap-4 md:flex-row md:items-end md:justify-between', className)}>
+    <div className={clsx('flex flex-col gap-4 rounded-xl border border-border-default bg-surface-elevated/70 p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08)] backdrop-blur-xl md:flex-row md:items-end md:justify-between', className)}>
       <div className="min-w-0">
         {eyebrow ? <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">{eyebrow}</p> : null}
         <h1 className="mt-1 text-balance text-2xl font-semibold tracking-normal text-content-primary md:text-3xl">{title}</h1>
@@ -49,7 +49,7 @@ export function MetricCard({
   }[accent];
 
   return (
-    <div className="rounded-xl border border-border-default bg-surface-elevated/95 p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="rounded-xl border border-border-default bg-surface-elevated/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.82),rgba(255,255,255,0.58))] p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl dark:bg-[linear-gradient(145deg,rgba(26,15,44,0.96),rgba(18,9,31,0.78))] dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-content-secondary">{label}</p>
@@ -64,7 +64,7 @@ export function MetricCard({
 
 export function Panel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={clsx('rounded-xl border border-border-default bg-surface-elevated/95 p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]', className)}>
+    <section className={clsx('rounded-xl border border-border-default bg-surface-elevated/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.82),rgba(255,255,255,0.58))] p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl dark:bg-[linear-gradient(145deg,rgba(26,15,44,0.96),rgba(18,9,31,0.78))] dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]', className)}>
       {children}
     </section>
   );

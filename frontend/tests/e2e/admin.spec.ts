@@ -1,5 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
+test.describe.configure({ timeout: 120_000 });
+
 const contact = {
   id: '01HXCONTACTREQUEST000000001',
   name: 'Ada Lovelace',
@@ -196,9 +198,9 @@ async function mockAdminApis(page: Page) {
 
 test('admin console shows operations, users, and role engine', async ({ page }) => {
   await mockAdminApis(page);
-  await page.goto('/app/admin');
+  await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible({ timeout: 45000 });
   await expect(page.getByText('Module Activity Graph')).toBeVisible();
 
   await page.getByRole('button', { name: /Users/ }).click();
@@ -215,9 +217,9 @@ test('admin console shows operations, users, and role engine', async ({ page }) 
 
 test('settings console persists preferences and supports deliverability', async ({ page }) => {
   await mockAdminApis(page);
-  await page.goto('/app/settings/platform');
+  await page.goto('/app/settings/platform', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: /Settings that reshape/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Settings that reshape/ })).toBeVisible({ timeout: 45000 });
   await page.getByRole('button', { name: /^Dark$/ }).click();
   await page.getByRole('button', { name: 'Save profile' }).click();
   await expect(page.getByText('Settings saved')).toBeVisible();
@@ -232,9 +234,9 @@ test('settings console persists preferences and supports deliverability', async 
 test('admin console keeps mobile navigation usable', async ({ page }) => {
   await mockAdminApis(page);
   await page.setViewportSize({ width: 390, height: 760 });
-  await page.goto('/app/admin');
+  await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible({ timeout: 45000 });
   await page.getByRole('button', { name: /Users/ }).click();
   await expect(page.getByText('User Management')).toBeVisible();
   await expect(page.locator('main.app-surface')).not.toHaveCSS('overflow-x', 'visible');

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { PageHeader } from "@/components/ui/PageChrome";
 import { SegmentRuleBuilder } from "@/components/audience/SegmentRuleBuilder";
 import { post } from "@/lib/api-client";
 
@@ -23,7 +24,7 @@ export default function NewSegmentPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await post("/api/v1/segments", {
+      await post("/segments", {
         name: form.name,
         description: form.description,
         rules: form.rules,
@@ -36,9 +37,13 @@ export default function NewSegmentPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto py-8">
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader
+        eyebrow="Audience rules"
+        title="Create Segment"
+        description="Define a reusable subscriber group with governed rule logic."
+      />
       <Card>
-        <h2 className="text-xl font-bold mb-4">Create Segment</h2>
         <div className="space-y-4">
           <Input
             label="Name *"

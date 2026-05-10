@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/Table';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { ShieldCheck, Globe, ArrowClockwise, Lightning, Bug } from '@phosphor-icons/react';
 import { Button } from '@/components/ui/Button';
 import { get } from '@/lib/api-client';
@@ -97,9 +99,15 @@ export default function DeliverabilityPage() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Delivery Studio</h1>
-          <p className="mt-1 text-sm text-content-secondary">Loading delivery telemetry...</p>
+        <PageHeader
+          eyebrow="Inbox operations"
+          title="Delivery Studio"
+          description="Loading queue telemetry, replay state, warm-up readiness, and inbox health."
+        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 rounded-xl" />
+          ))}
         </div>
       </div>
     );
@@ -107,16 +115,16 @@ export default function DeliverabilityPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Inbox operations</p>
-          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Delivery Studio</h1>
-          <p className="mt-1 text-sm text-content-secondary">Queue monitor, replay console, warm-up readiness, and inbox health telemetry</p>
-        </div>
-        <Button variant="outline" onClick={loadAll} icon={<ArrowClockwise size={14} />}>
-          Refresh
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Inbox operations"
+        title="Delivery Studio"
+        description="Queue monitor, replay console, warm-up readiness, and inbox health telemetry."
+        action={(
+          <Button variant="outline" onClick={loadAll} icon={<ArrowClockwise size={14} />}>
+            Refresh
+          </Button>
+        )}
+      />
       {error && <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

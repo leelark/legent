@@ -5,6 +5,8 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { TrendUp } from '@phosphor-icons/react';
 import { get } from '@/lib/api-client';
 
@@ -45,10 +47,11 @@ export default function TrackingPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-content-primary">Tracking & Analytics</h1>
-        <p className="mt-1 text-sm text-content-secondary">Monitor email performance and engagement</p>
-      </div>
+      <PageHeader
+        eyebrow="Event telemetry"
+        title="Tracking & Analytics"
+        description="Monitor sends, opens, clicks, and engagement movement across campaign traffic."
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {eventCounts.map((item: any) => (
@@ -69,7 +72,11 @@ export default function TrackingPage() {
       <Card className="!p-0 overflow-hidden">
         <CardHeader title="Campaign Performance Summary" className="px-6 py-4 border-b" />
         {loading ? (
-          <div className="p-12 text-center text-content-muted">Loading analytics...</div>
+          <div className="space-y-3 p-6">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-12 rounded-lg" />
+            ))}
+          </div>
         ) : summaries.length > 0 ? (
           <Table
             columns={columns}

@@ -324,10 +324,12 @@ export function OnboardingView() {
 
 function AuthShell({ title, eyebrow, supporting, children }: { title: string; eyebrow: string; supporting: string; children: React.ReactNode }) {
   const [theme, setTheme] = useState<PublicTheme>('light');
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(PUBLIC_THEME_KEY);
     setTheme(stored === 'dark' ? 'dark' : 'light');
+    setHydrated(true);
   }, []);
 
   const toggleTheme = () => {
@@ -339,7 +341,7 @@ function AuthShell({ title, eyebrow, supporting, children }: { title: string; ey
   };
 
   return (
-    <main className={`public-site ${theme === 'light' ? 'public-light' : 'public-dark'} min-h-screen overflow-hidden px-4 py-4`}>
+    <main data-hydrated={hydrated ? 'true' : 'false'} className={`public-site ${theme === 'light' ? 'public-light' : 'public-dark'} min-h-screen overflow-hidden px-4 py-4`}>
       <div className="mx-auto flex max-w-7xl items-center justify-between">
         <Link href="/" className="public-heading rounded-xl text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
           Legent <span className="public-muted ml-2 hidden text-xs font-medium uppercase tracking-[0.16em] sm:inline">Lifecycle Email OS</span>

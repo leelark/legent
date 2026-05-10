@@ -2,13 +2,13 @@
 
 
 import { useEffect, useState } from 'react';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Plus, PencilSimple, Trash, Funnel, Play, ArrowClockwise } from '@phosphor-icons/react';
-import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { get, del } from '@/lib/api-client';
 
@@ -42,7 +42,7 @@ export default function SegmentsPage() {
   const handleDelete = async (id: string) => {
     if (confirm('Delete this segment?')) {
       try {
-        await del(`/api/v1/segments/${id}`);
+        await del(`/segments/${id}`);
         fetchSegments();
       } catch (e) {
         alert('Failed to delete segment');
@@ -68,13 +68,12 @@ export default function SegmentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Segments</h1>
-          <p className="mt-1 text-sm text-content-secondary">Define audience segments using rules</p>
-        </div>
-        <Button icon={<Plus size={16} />} onClick={() => router.push('/app/audience/segments/new')}>Create Segment</Button>
-      </div>
+      <PageHeader
+        eyebrow="Audience rules"
+        title="Segments"
+        description="Define reusable subscriber groups using rules, status, and computed audience state."
+        action={<Button icon={<Plus size={16} />} onClick={() => router.push('/app/audience/segments/new')}>Create Segment</Button>}
+      />
 
       <Card className="!p-0 overflow-hidden">
         {segments.length === 0 && !loading ? (

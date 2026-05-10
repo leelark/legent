@@ -132,11 +132,11 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 168
       KAFKA_MESSAGE_MAX_BYTES: 10485760
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
-      interval: 10s
-      timeout: 10s
+      test: ["CMD-SHELL", "cub kafka-ready -b localhost:9092 1 30 >/dev/null 2>&1"]
+      interval: 15s
+      timeout: 30s
       retries: 20
-      start_period: 30s
+      start_period: 60s
     deploy:
       resources:
         limits:

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Tabs } from '@/components/ui/Tabs';
 import { useToast } from '@/components/ui/Toast';
 import { TemplateBuilder, ContentBlock } from '@/components/content/TemplateBuilder';
@@ -523,7 +525,22 @@ export default function TemplateStudioPage() {
   };
 
   if (loading) {
-    return <div className="p-8 text-sm text-content-secondary">Loading Template Studio...</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Content operations"
+          title="Template Studio"
+          description="Loading builder state, approvals, assets, and render data."
+        />
+        <Card>
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-2/3" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   if (!template) {
@@ -539,13 +556,11 @@ export default function TemplateStudioPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Template Studio</h1>
-          <p className="mt-1 text-sm text-content-secondary">
-            Build, preview, approve, and publish enterprise email content.
-          </p>
-        </div>
+      <PageHeader
+        eyebrow="Content operations"
+        title="Template Studio"
+        description="Build, preview, approve, and publish enterprise email content."
+        action={(
         <div className="flex flex-wrap items-center gap-2">
           <Link href="/app/email/templates">
             <Button variant="secondary">Back</Button>
@@ -554,7 +569,8 @@ export default function TemplateStudioPage() {
           <Button variant="secondary" onClick={handleSaveDraft} loading={isBusy}>Save Draft</Button>
           <Button onClick={handlePublishLatest} loading={isBusy}>Publish</Button>
         </div>
-      </div>
+        )}
+      />
 
       <Card>
         <div className="grid gap-4 p-6 md:grid-cols-2">

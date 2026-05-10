@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/ui/PageChrome';
 import { EnvelopeSimple, Plus } from '@phosphor-icons/react';
 import { get, post } from '@/lib/api-client';
 import { useToast } from '@/components/ui/Toast';
@@ -107,15 +108,12 @@ export default function EmailPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Content command center</p>
-          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Email Studio</h1>
-          <p className="mt-1 text-sm text-content-secondary">
-            Create, manage, and send email campaigns
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        eyebrow="Content command center"
+        title="Email Studio"
+        description="Create, manage, and send email campaigns."
+        action={(
+        <div className="flex flex-wrap items-center gap-2">
           <Link href="/app/email/templates">
             <Button variant="secondary">Manage Templates</Button>
           </Link>
@@ -123,7 +121,8 @@ export default function EmailPage() {
             New Email
           </Button>
         </div>
-      </div>
+        )}
+      />
 
       {showCreate && (
         <Card className="overflow-hidden">

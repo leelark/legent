@@ -26,10 +26,12 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
   const year = useMemo(() => new Date().getFullYear(), []);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState<PublicTheme>('light');
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(PUBLIC_THEME_KEY);
     setTheme(stored === 'dark' ? 'dark' : 'light');
+    setHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <div className={clsx('public-site min-h-screen overflow-x-hidden', theme === 'light' ? 'public-light' : 'public-dark')}>
+    <div data-hydrated={hydrated ? 'true' : 'false'} className={clsx('public-site min-h-screen overflow-x-hidden', theme === 'light' ? 'public-light' : 'public-dark')}>
       <a
         href="#public-main"
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[80] focus:rounded-xl focus:bg-[var(--public-text)] focus:px-4 focus:py-2 focus:text-[var(--public-bg)]"

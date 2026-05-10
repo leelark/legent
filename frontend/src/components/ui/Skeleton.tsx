@@ -15,7 +15,7 @@ export function Skeleton({
   height,
   count = 1,
 }: SkeletonProps) {
-  const baseStyles = 'animate-pulse bg-surface-tertiary';
+  const baseStyles = 'animate-pulse bg-gradient-to-r from-surface-tertiary via-surface-secondary to-surface-tertiary';
   
   const variantStyles = {
     text: 'rounded',
@@ -41,7 +41,7 @@ export function Skeleton({
 // Pre-built skeleton layouts
 export function CardSkeleton() {
   return (
-    <div className="rounded-xl border border-border-default bg-surface-primary p-6">
+    <div className="rounded-xl border border-border-default bg-surface-elevated/90 p-6 shadow-[0_18px_45px_rgba(76,29,149,0.08)] backdrop-blur-xl">
       <Skeleton variant="rounded" width="100%" height={120} className="mb-4" />
       <Skeleton variant="text" width="60%" height={24} className="mb-2" />
       <Skeleton variant="text" width="40%" height={16} />
@@ -51,7 +51,7 @@ export function CardSkeleton() {
 
 export function TableSkeleton({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="rounded-xl border border-border-default overflow-hidden">
+    <div className="overflow-hidden rounded-xl border border-border-default bg-surface-elevated/90 shadow-[0_18px_45px_rgba(76,29,149,0.08)]">
       {/* Header */}
       <div className="flex gap-4 p-4 bg-surface-secondary border-b border-border-default">
         <Skeleton variant="text" width="25%" height={20} />
@@ -74,7 +74,7 @@ export function TableSkeleton({ rows = 5 }: { rows?: number }) {
 
 export function StatCardSkeleton() {
   return (
-    <div className="rounded-xl border border-border-default bg-surface-primary p-6">
+    <div className="rounded-xl border border-border-default bg-surface-elevated/90 p-6 shadow-[0_18px_45px_rgba(76,29,149,0.08)]">
       <div className="flex items-center justify-between">
         <div className="space-y-2">
           <Skeleton variant="text" width={80} height={12} />

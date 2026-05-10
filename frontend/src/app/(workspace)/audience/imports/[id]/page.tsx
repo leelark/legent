@@ -6,6 +6,9 @@ import { useParams } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { get } from '@/lib/api-client';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
@@ -50,21 +53,35 @@ export default function ImportDetailsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Import Details</h1>
-          <p className="mt-1 text-sm text-content-secondary">Track import job progress and outcomes</p>
-        </div>
-        <Link href="/app/audience/imports">
-          <Button variant="secondary">Back to Imports</Button>
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Import monitor"
+        title="Import Details"
+        description="Track row processing, validation outcomes, and subscriber intake progress."
+        action={(
+          <Link href="/app/audience/imports">
+            <Button variant="secondary">Back to Imports</Button>
+          </Link>
+        )}
+      />
 
       <Card>
         {loading && !job ? (
-          <p className="text-sm text-content-secondary">Loading job...</p>
+          <div className="space-y-4">
+            <Skeleton className="h-6 w-48" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="h-20 rounded-lg" />
+              ))}
+            </div>
+            <Skeleton className="h-2 w-full rounded-full" />
+          </div>
         ) : !job ? (
-          <p className="text-sm text-danger">Import job not found.</p>
+          <EmptyState
+            type="error"
+            title="Import job not found"
+            description="This import may have been deleted or is outside the current workspace."
+            action={<Link href="/app/audience/imports"><Button variant="secondary">Back to Imports</Button></Link>}
+          />
         ) : (
           <div className="space-y-4">
             <div className="flex items-center gap-3">

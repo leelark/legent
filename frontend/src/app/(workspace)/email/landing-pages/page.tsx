@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import {
   LandingPage,
@@ -132,24 +134,29 @@ export default function LandingPageStudio() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Landing Page Studio</h1>
-          <p className="mt-1 text-sm text-content-secondary">Build public campaign pages with a form-capable block model.</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        eyebrow="Post-click experiences"
+        title="Landing Page Studio"
+        description="Build public campaign pages with a form-capable block model and live route preview."
+        action={(
+        <div className="flex flex-wrap gap-2">
           <Link href="/app/email/templates"><Button variant="secondary">Template Studio</Button></Link>
           <Button variant="secondary" onClick={handleNew}>New Page</Button>
           <Button variant="secondary" loading={busy} onClick={() => handleSave(false)}>Save Draft</Button>
           <Button loading={busy} onClick={() => handleSave(true)}>Publish</Button>
         </div>
-      </div>
+        )}
+      />
 
       <div className="grid gap-6 xl:grid-cols-[320px_1fr]">
         <Card>
           <CardHeader title="Pages" action={<Badge variant="info">{pages.length}</Badge>} />
           {loading ? (
-            <div className="p-4 text-sm text-content-secondary">Loading...</div>
+            <div className="space-y-3 p-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <Skeleton key={index} className="h-14 rounded-lg" />
+              ))}
+            </div>
           ) : pages.length === 0 ? (
             <EmptyState type="empty" title="No landing pages" description="Create the first public campaign page." />
           ) : (
@@ -195,7 +202,7 @@ export default function LandingPageStudio() {
 
           <Card>
             <CardHeader title="Public Preview" action={<Link href={publicPath} target="_blank"><Button size="sm" variant="secondary">Open Public Route</Button></Link>} />
-            <div className="rounded-lg border border-border-default bg-white p-4 text-black">
+            <div className="rounded-xl border border-border-default bg-white p-4 text-black shadow-inner">
               <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
             </div>
           </Card>

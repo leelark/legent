@@ -157,20 +157,34 @@ export default function WorkspaceLayout({
 
   if (!hydrated) {
     return (
-      <div className="flex h-screen overflow-hidden">
-        <div className="w-64 bg-surface-primary border-r border-border-default" />
+      <div className="flex h-screen overflow-hidden bg-surface-secondary">
+        <div className="hidden w-64 border-r border-border-default bg-surface-primary/92 p-4 md:block">
+          <div className="mb-8 flex items-center gap-3">
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-brand-500 to-fuchsia-600 text-sm font-semibold text-white shadow-[0_0_28px_rgba(147,51,234,0.35)]">L</span>
+            <div className="space-y-2">
+              <Skeleton variant="text" width={96} height={14} />
+              <Skeleton variant="text" width={72} height={10} />
+            </div>
+          </div>
+          <div className="space-y-3">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} variant="rounded" width="100%" height={40} />
+            ))}
+          </div>
+        </div>
         <div className="flex flex-1 flex-col overflow-hidden">
-          <div className="h-14 bg-surface-primary border-b border-border-default" />
-          <main className="flex-1 overflow-auto bg-surface-secondary p-6">
-            <div className="space-y-4">
-              <Skeleton variant="text" width="30%" height={32} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Skeleton variant="rounded" width="100%" height={120} />
-                <Skeleton variant="rounded" width="100%" height={120} />
-                <Skeleton variant="rounded" width="100%" height={120} />
-                <Skeleton variant="rounded" width="100%" height={120} />
+          <div className="h-14 border-b border-border-default bg-surface-primary/88 px-6 py-3">
+            <Skeleton variant="rounded" width="34%" height={30} className="mx-auto" />
+          </div>
+          <main className="app-surface flex-1 overflow-auto p-4 md:p-6">
+            <div className="mx-auto w-full max-w-[1480px] space-y-5">
+              <Skeleton variant="rounded" width="100%" height={150} />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} variant="rounded" width="100%" height={120} />
+                ))}
               </div>
-              <Skeleton variant="rounded" width="100%" height={400} />
+              <Skeleton variant="rounded" width="100%" height={420} />
             </div>
           </main>
         </div>
@@ -181,10 +195,11 @@ export default function WorkspaceLayout({
   if (!isAuthenticated) {
     // AUDIT-020: Show loading/redirecting state instead of blank screen
     return (
-      <div className="flex h-screen items-center justify-center bg-surface-secondary">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500 mx-auto mb-4" />
-          <p className="text-content-secondary">Redirecting to login...</p>
+      <div className="app-surface flex h-screen items-center justify-center p-6">
+        <div className="rounded-xl border border-border-default bg-surface-elevated/90 p-8 text-center shadow-[0_24px_70px_rgba(76,29,149,0.14)] backdrop-blur-xl">
+          <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-2 border-brand-500/20 border-b-brand-600" />
+          <p className="font-semibold text-content-primary">Redirecting to login</p>
+          <p className="mt-1 text-sm text-content-secondary">Session context is being refreshed.</p>
         </div>
       </div>
     );

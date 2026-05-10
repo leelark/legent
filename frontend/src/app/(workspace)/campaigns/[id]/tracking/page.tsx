@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Table } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -359,28 +362,47 @@ export default function CampaignTrackingPage() {
   ];
 
   if (loading) {
-    return <div className="p-8 text-sm text-content-secondary">Loading campaign tracking...</div>;
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          eyebrow="Campaign telemetry"
+          title="Campaign Tracking"
+          description="Loading send jobs, preflight gates, experiments, and budget controls."
+        />
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-28 rounded-xl" />
+          ))}
+        </div>
+        <Card>
+          <Skeleton className="h-40 w-full" />
+        </Card>
+      </div>
+    );
   }
 
   if (!campaign) {
     return (
       <Card>
-        <p className="p-6 text-sm text-content-secondary">Campaign not found for this workspace.</p>
+        <EmptyState
+          type="error"
+          title="Campaign not found"
+          description="This campaign does not exist or is outside the current workspace."
+          action={<Link href="/app/campaigns"><Button variant="secondary">Back to Campaigns</Button></Link>}
+        />
       </Card>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-content-primary">{campaign.name}</h1>
-            <Badge variant={badgeMap[campaign.status] || 'default'}>{campaign.status}</Badge>
-          </div>
-          <p className="mt-1 text-sm text-content-secondary">{campaign.subject || 'No subject set'}</p>
-        </div>
-        <div className="flex items-center gap-2">
+      <PageHeader
+        eyebrow="Campaign telemetry"
+        title={campaign.name}
+        description={campaign.subject || 'No subject set'}
+        action={(
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={badgeMap[campaign.status] || 'default'}>{campaign.status}</Badge>
           <Button variant="secondary" onClick={() => void loadTracking()} disabled={actionLoading}>Refresh</Button>
           <select
             value={resendMode}
@@ -399,7 +421,8 @@ export default function CampaignTrackingPage() {
             <Button variant="secondary">Back</Button>
           </Link>
         </div>
-      </div>
+        )}
+      />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <Card>

@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
+import { PageHeader } from '@/components/ui/PageChrome';
 import { get } from '@/lib/api-client';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
@@ -77,15 +78,12 @@ export default function ImportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Imports</h1>
-          <p className="mt-1 text-sm text-content-secondary">Import subscriber data from CSV files</p>
-        </div>
-        <Link href="/app/audience/imports/new">
-          <Button icon={<Upload size={16} />}>New Import</Button>
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Data intake"
+        title="Imports"
+        description="Import subscriber data from CSV files and track processing quality."
+        action={<Link href="/app/audience/imports/new"><Button icon={<Upload size={16} />}>New Import</Button></Link>}
+      />
 
       <Card className="overflow-hidden !p-0">
         <Table

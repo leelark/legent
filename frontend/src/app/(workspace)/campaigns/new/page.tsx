@@ -7,6 +7,8 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { ArrowRight, ArrowLeft, CheckCircle, CircleNotch, PaperPlaneTilt } from '@phosphor-icons/react';
 import { get } from '@/lib/api-client';
@@ -280,20 +282,35 @@ export default function CampaignWizardPage() {
   };
 
   if (bootLoading) {
-    return <div className="p-8 text-sm text-content-secondary">Loading campaign wizard...</div>;
+    return (
+      <div className="mx-auto max-w-5xl space-y-6">
+        <PageHeader
+          eyebrow="Campaign setup"
+          title="Campaign Wizard"
+          description="Loading templates, audiences, and launch controls."
+        />
+        <Card>
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        </Card>
+      </div>
+    );
   }
 
   return (
     <div className="mx-auto max-w-5xl space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Campaign Wizard</h1>
-          <p className="mt-1 text-sm text-content-secondary">Plan campaign setup, targeting, approvals, and delivery in one flow.</p>
-        </div>
-        <Link href="/app/campaigns">
-          <Button variant="secondary">Back to Campaigns</Button>
-        </Link>
-      </div>
+      <PageHeader
+        eyebrow="Campaign setup"
+        title="Campaign Wizard"
+        description="Plan campaign setup, targeting, approvals, and delivery in one controlled flow."
+        action={(
+          <Link href="/app/campaigns">
+            <Button variant="secondary">Back to Campaigns</Button>
+          </Link>
+        )}
+      />
 
       <div className="flex flex-wrap items-center justify-center gap-3">
         {STEPS.map((label, index) => (

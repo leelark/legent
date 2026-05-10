@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import {
   Template,
@@ -252,12 +254,12 @@ export default function EmailTemplatesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Template Studio</h1>
-          <p className="mt-1 text-sm text-content-secondary">Build reusable, branded email templates with versioned workflows.</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        eyebrow="Content operations"
+        title="Template Studio"
+        description="Build reusable, branded email templates with versioned workflows, presets, and approval-ready content."
+        action={(
+        <div className="flex flex-wrap gap-2">
           <Link href="/app/email/landing-pages">
             <Button variant="secondary">Landing Pages</Button>
           </Link>
@@ -265,7 +267,8 @@ export default function EmailTemplatesPage() {
             <Button variant="secondary">Back to Email Studio</Button>
           </Link>
         </div>
-      </div>
+        )}
+      />
 
       <Card>
         <CardHeader title="Quick Start Library" subtitle="Start from professionally designed templates." />
@@ -347,7 +350,11 @@ export default function EmailTemplatesPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-sm text-content-secondary">Loading template library...</div>
+          <div className="space-y-3 p-4">
+            {Array.from({ length: 5 }).map((_, index) => (
+              <Skeleton key={index} className="h-16 rounded-lg" />
+            ))}
+          </div>
         ) : filteredTemplates.length === 0 ? (
           <EmptyState
             type="empty"

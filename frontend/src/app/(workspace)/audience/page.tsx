@@ -6,6 +6,8 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Tabs } from '@/components/ui/Tabs';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import {
   Users, ListBullets, Database, Funnel,
   Upload, ShieldCheck, TrendUp, Plus
@@ -77,15 +79,11 @@ export default function AudienceDashboard() {
   }, []);
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Customer data layer</p>
-          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Audience</h1>
-          <p className="mt-1 text-sm text-content-secondary">
-            Manage subscribers, lists, data extensions, and segments
-          </p>
-        </div>
+      <PageHeader
+        eyebrow="Customer data layer"
+        title="Audience"
+        description="Manage subscribers, lists, data extensions, and segments."
+        action={(
         <div className="flex flex-wrap gap-2">
           <Link href="/app/audience/imports/new">
             <Button variant="secondary" icon={<Upload size={16} />}>Import</Button>
@@ -94,14 +92,15 @@ export default function AudienceDashboard() {
             <Button icon={<Plus size={16} />}>Add Subscriber</Button>
           </Link>
         </div>
-      </div>
+        )}
+      />
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Subscribers" value={loading ? "—" : stats.subscribers} icon={Users} href="/app/audience/subscribers" color="bg-gradient-to-br from-brand-500 to-brand-700" />
-        <StatCard label="Lists" value={loading ? "—" : stats.lists} icon={ListBullets} href="/app/audience/lists" color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
-        <StatCard label="Data Extensions" value={loading ? "—" : stats.dataExtensions} icon={Database} href="/app/audience/data-extensions" color="bg-gradient-to-br from-amber-500 to-amber-700" />
-        <StatCard label="Segments" value={loading ? "—" : stats.segments} icon={Funnel} href="/app/audience/segments" color="bg-gradient-to-br from-violet-500 to-violet-700" />
+        <StatCard label="Total Subscribers" value={loading ? "-" : stats.subscribers} icon={Users} href="/app/audience/subscribers" color="bg-gradient-to-br from-brand-500 to-brand-700" />
+        <StatCard label="Lists" value={loading ? "-" : stats.lists} icon={ListBullets} href="/app/audience/lists" color="bg-gradient-to-br from-emerald-500 to-emerald-700" />
+        <StatCard label="Data Extensions" value={loading ? "-" : stats.dataExtensions} icon={Database} href="/app/audience/data-extensions" color="bg-gradient-to-br from-amber-500 to-amber-700" />
+        <StatCard label="Segments" value={loading ? "-" : stats.segments} icon={Funnel} href="/app/audience/segments" color="bg-gradient-to-br from-violet-500 to-violet-700" />
       </div>
 
       {/* Quick Access Tabs */}
@@ -116,7 +115,11 @@ export default function AudienceDashboard() {
           {(tab) => (
             <div className="py-8 text-center">
               {loading ? (
-                <p className="text-sm text-content-muted">Loading...</p>
+                <div className="mx-auto max-w-xl space-y-3">
+                  {Array.from({ length: 3 }).map((_, index) => (
+                    <Skeleton key={index} className="h-10 rounded-lg" />
+                  ))}
+                </div>
               ) : (
                 <>
                   {tab === 'recent' && (
@@ -153,7 +156,7 @@ export default function AudienceDashboard() {
                 </>
               )}
               <Link href={tab === 'recent' ? '/app/audience/subscribers' : tab === 'imports' ? '/app/audience/imports' : '/app/audience/segments'}>
-                <Button variant="ghost" size="sm" className="mt-3">View All →</Button>
+                <Button variant="ghost" size="sm" className="mt-3">View All -&gt;</Button>
               </Link>
             </div>
           )}

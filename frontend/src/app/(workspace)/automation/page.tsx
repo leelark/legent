@@ -6,6 +6,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import {
   archiveWorkflow,
   cloneWorkflow,
@@ -89,14 +91,12 @@ export default function AutomationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Journey orchestration</p>
-          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Automation</h1>
-          <p className="mt-1 max-w-2xl text-sm text-content-secondary">Build customer journeys with draft control, publish gates, rollback posture, and execution visibility.</p>
-        </div>
-        <Button icon={<Plus size={16} />} onClick={() => setShowCreate(!showCreate)}>New Workflow</Button>
-      </div>
+      <PageHeader
+        eyebrow="Journey orchestration"
+        title="Automation"
+        description="Build customer journeys with draft control, publish gates, rollback posture, and execution visibility."
+        action={<Button icon={<Plus size={16} />} onClick={() => setShowCreate(!showCreate)}>New Workflow</Button>}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[
@@ -147,7 +147,11 @@ export default function AutomationPage() {
         <div className="p-5">
         {error && <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
         {loading ? (
-          <div className="p-8 text-sm text-content-secondary">Loading workflows...</div>
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={index} className="h-20 rounded-xl" />
+            ))}
+          </div>
         ) : workflows.length === 0 ? (
           <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
             <div className="rounded-xl border border-dashed border-border-default bg-surface-secondary/70 p-6">

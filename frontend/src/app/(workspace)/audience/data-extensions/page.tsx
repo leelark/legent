@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
+import { PageHeader } from '@/components/ui/PageChrome';
 import { useApi } from '@/hooks/useApi';
 import { post, del } from '@/lib/api-client';
 import { Plus, Trash } from '@phosphor-icons/react';
@@ -16,12 +17,12 @@ export default function DataExtensionsPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const { data, loading, refetch } = useApi<any>('/api/v1/data-extensions?page=0&size=100');
+  const { data, loading, refetch } = useApi<any>('/data-extensions?page=0&size=100');
   const rows = data?.content ?? [];
 
   const create = async () => {
     try {
-      await post('/api/v1/data-extensions', { name, description });
+      await post('/data-extensions', { name, description });
       setName('');
       setDescription('');
       setIsModalOpen(false);
@@ -34,7 +35,7 @@ export default function DataExtensionsPage() {
   const remove = async (id: string) => {
     if (!confirm('Delete this data extension?')) return;
     try {
-      await del(`/api/v1/data-extensions/${id}`);
+      await del(`/data-extensions/${id}`);
       refetch();
     } catch {
       setError('Failed to delete data extension');
@@ -64,13 +65,12 @@ export default function DataExtensionsPage() {
   return (
     <div className="space-y-6">
       {error && <div className="rounded-lg bg-red-100 px-4 py-2 text-sm text-red-700">{error}</div>}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Data Extensions</h1>
-          <p className="mt-1 text-sm text-content-secondary">Dynamic schema tables for custom data</p>
-        </div>
-        <Button icon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>Create Data Extension</Button>
-      </div>
+      <PageHeader
+        eyebrow="Custom data"
+        title="Data Extensions"
+        description="Maintain sendable custom tables and operational data used by segments and journeys."
+        action={<Button icon={<Plus size={16} />} onClick={() => setIsModalOpen(true)}>Create Data Extension</Button>}
+      />
 
       <Card className="!p-0 overflow-hidden">
         <Table

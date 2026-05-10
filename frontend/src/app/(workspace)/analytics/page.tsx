@@ -5,6 +5,9 @@ import { Activity, CheckCircle, Flame, MousePointerClick, RefreshCw } from 'luci
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageChrome';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { get } from '@/lib/api-client';
 
 interface EventCount {
@@ -61,16 +64,16 @@ export default function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Live telemetry</p>
-          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Analytics Overview</h1>
-          <p className="mt-1 text-sm text-content-secondary">Aggregate delivery and engagement metrics from tracking services.</p>
-        </div>
-        <Button variant="secondary" icon={<RefreshCw size={16} />} onClick={() => void load()} loading={loading}>
-          Refresh
-        </Button>
-      </div>
+      <PageHeader
+        eyebrow="Live telemetry"
+        title="Analytics Overview"
+        description="Aggregate delivery and engagement metrics from tracking services."
+        action={(
+          <Button variant="secondary" icon={<RefreshCw size={16} />} onClick={() => void load()} loading={loading}>
+            Refresh
+          </Button>
+        )}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total Opens" value={totals.opens} helper="Tracked open events" icon={<Activity size={18} />} />
@@ -87,9 +90,13 @@ export default function AnalyticsDashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <div className="py-16 text-center text-sm text-content-secondary">Loading data...</div>
+              <div className="space-y-4 py-6">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} className="h-12 rounded-lg" />
+                ))}
+              </div>
             ) : eventCounts.length === 0 ? (
-              <div className="py-16 text-center text-sm text-content-secondary">No event data available yet</div>
+              <EmptyState type="empty" title="No event data" description="Engagement events will appear after campaigns generate activity." />
             ) : (
               eventCounts.map((event) => (
                 <div key={event.event_type} className="space-y-2">
@@ -113,9 +120,13 @@ export default function AnalyticsDashboard() {
           </CardHeader>
           <CardContent className="space-y-3">
             {loading ? (
-              <p className="py-12 text-center text-sm text-content-secondary">Loading campaigns...</p>
+              <div className="space-y-3 py-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <Skeleton key={index} className="h-16 rounded-lg" />
+                ))}
+              </div>
             ) : campaigns.length === 0 ? (
-              <p className="py-12 text-center text-sm text-content-secondary">No campaigns tracked yet</p>
+              <EmptyState type="empty" title="No campaigns tracked" description="Campaign summaries will appear once sends are recorded." />
             ) : (
               campaigns.slice(0, 6).map((campaign) => {
                 const sends = campaign.totalSends || 0;

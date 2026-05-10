@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
+import { PageHeader } from '@/components/ui/PageChrome';
 import { useApi } from '@/hooks/useApi';
 import { useDebounce } from '@/hooks/useDebounce';
 import { post, put, del } from '@/lib/api-client';
@@ -44,7 +45,7 @@ export default function SubscribersPage() {
   const [error, setError] = useState<string | null>(null);
 
   const { data, loading, refetch } = useApi<any>(
-    `/api/v1/subscribers?page=${page}&size=20${debouncedSearch ? `&search=${debouncedSearch}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`
+    `/subscribers?page=${page}&size=20${debouncedSearch ? `&search=${debouncedSearch}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`
   );
   const rows = data?.content ?? [];
   const totalElements = data?.totalElements ?? 0;
@@ -63,7 +64,7 @@ export default function SubscribersPage() {
     },
     {
       key: 'name', header: 'Name',
-      render: (row: any) => `${row.firstName || ''} ${row.lastName || ''}`.trim() || '—',
+      render: (row: any) => `${row.firstName || ''} ${row.lastName || ''}`.trim() || '-',
     },
     {
       key: 'status', header: 'Status',
@@ -71,11 +72,11 @@ export default function SubscribersPage() {
     },
     {
       key: 'source', header: 'Source',
-      render: (row: any) => row.source || '—',
+      render: (row: any) => row.source || '-',
     },
     {
       key: 'createdAt', header: 'Created',
-      render: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—',
+      render: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '-',
     },
     {
       key: 'actions', header: '',
@@ -95,9 +96,9 @@ export default function SubscribersPage() {
         subscriberKey: formData.subscriberKey?.trim() ? formData.subscriberKey.trim() : undefined,
       };
       if (editingId) {
-        await put(`/api/v1/subscribers/${editingId}`, payload);
+        await put(`/subscribers/${editingId}`, payload);
       } else {
-        await post('/api/v1/subscribers', payload);
+        await post('/subscribers', payload);
       }
       setIsModalOpen(false);
       refetch();
@@ -109,7 +110,7 @@ export default function SubscribersPage() {
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this subscriber?')) {
       try {
-        await del(`/api/v1/subscribers/${id}`);
+        await del(`/subscribers/${id}`);
         refetch();
       } catch (e: any) {
         setError('Failed to delete subscriber');
@@ -121,7 +122,7 @@ export default function SubscribersPage() {
     if (selected.length === 0) return;
     if (confirm(`Delete ${selected.length} subscribers?`)) {
       try {
-        await Promise.all(selected.map(id => del(`/api/v1/subscribers/${id}`)));
+        await Promise.all(selected.map(id => del(`/subscribers/${id}`)));
         setSelected([]);
         refetch();
       } catch (e: any) {
@@ -151,19 +152,19 @@ export default function SubscribersPage() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="bg-red-100 text-red-700 px-4 py-2 rounded-lg">{error}</div>
+        <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">{error}</div>
       )}
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-content-primary">Subscribers</h1>
-          <p className="mt-1 text-sm text-content-secondary">Manage your subscriber database</p>
-        </div>
-        <div className="flex gap-2">
+      <PageHeader
+        eyebrow="Subscriber database"
+        title="Subscribers"
+        description="Search, filter, edit, and maintain people records used by targeting and compliance."
+        action={
+          <>
           <Button onClick={openNew} icon={<Plus size={16} />}>Add Subscriber</Button>
           <Button variant="danger" onClick={handleBulkDelete} disabled={selected.length === 0}>Delete Selected</Button>
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {/* Filters */}
       <Card>

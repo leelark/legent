@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PageHeader } from '@/components/ui/PageChrome';
 import { useToast } from '@/components/ui/Toast';
 import { Plus, Megaphone, MagnifyingGlass, ClockClockwise } from '@phosphor-icons/react';
 import {
@@ -227,12 +228,11 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Launch operations</p>
-          <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Campaign Studio</h1>
-          <p className="mt-1 text-sm text-content-secondary">Create, approve, schedule, and orchestrate enterprise email campaigns.</p>
-        </div>
+      <PageHeader
+        eyebrow="Launch operations"
+        title="Campaign Studio"
+        description="Create, approve, schedule, and orchestrate enterprise email campaigns."
+        action={(
         <div className="flex flex-wrap items-center gap-2">
           <Button variant="secondary" icon={<ClockClockwise size={16} />} onClick={() => void loadCampaigns()}>
             Refresh
@@ -241,7 +241,8 @@ export default function CampaignsPage() {
             <Button icon={<Plus size={16} />}>Create Campaign</Button>
           </Link>
         </div>
-      </div>
+        )}
+      />
 
       <Card>
         <div className="relative">
