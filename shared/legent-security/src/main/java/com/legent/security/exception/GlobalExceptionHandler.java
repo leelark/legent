@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -81,6 +82,17 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(ApiResponse.error("ACCESS_DENIED", "Access denied", "You do not have permission to access this resource"));
+    }
+
+    /**
+     * Handles authentication failures as 401 instead of falling through to runtime 500.
+     */
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
+        log.warn("Authentication failed: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error("UNAUTHORIZED", "Invalid credentials", "Email, password, or tenant context is invalid"));
     }
 
     /**

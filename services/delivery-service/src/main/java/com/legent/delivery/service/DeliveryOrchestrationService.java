@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.cache.service.CacheService;
 import com.legent.delivery.client.ContentServiceClient;
 import com.legent.delivery.domain.MessageLog;
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import java.util.Map;
@@ -77,6 +78,10 @@ public class DeliveryOrchestrationService {
         String teamId = normalize(payload.get("teamId"));
         String jobId = normalize(payload.get("jobId"));
         String batchId = normalize(payload.get("batchId"));
+        String experimentId = normalize(payload.get("experimentId"));
+        String variantId = normalize(payload.get("variantId"));
+        boolean holdout = Boolean.parseBoolean(String.valueOf(payload.getOrDefault("holdout", "false")));
+        BigDecimal costReserved = parseMoney(payload.get("costReserved"));
         String htmlBody = normalize(payload.get("htmlBody"));
         if (htmlBody == null) {
             htmlBody = normalize(payload.get("htmlContent"));
@@ -131,6 +136,10 @@ public class DeliveryOrchestrationService {
             newLog.setOwnershipScope("WORKSPACE");
             newLog.setJobId(jobId);
             newLog.setBatchId(batchId);
+            newLog.setExperimentId(experimentId);
+            newLog.setVariantId(variantId);
+            newLog.setHoldout(holdout);
+            newLog.setCostReserved(costReserved);
             newLog.setSubscriberId(subscriberId);
             newLog.setEmail(email);
             newLog.setFromEmail(fromEmail);
@@ -187,6 +196,16 @@ public class DeliveryOrchestrationService {
         }
         if (logEntry.getBatchId() == null || logEntry.getBatchId().isBlank()) {
             logEntry.setBatchId(batchId);
+        }
+        if (logEntry.getExperimentId() == null || logEntry.getExperimentId().isBlank()) {
+            logEntry.setExperimentId(experimentId);
+        }
+        if (logEntry.getVariantId() == null || logEntry.getVariantId().isBlank()) {
+            logEntry.setVariantId(variantId);
+        }
+        logEntry.setHoldout(holdout);
+        if (logEntry.getCostReserved() == null || logEntry.getCostReserved().compareTo(BigDecimal.ZERO) == 0) {
+            logEntry.setCostReserved(costReserved);
         }
         if (logEntry.getFromEmail() == null || logEntry.getFromEmail().isBlank()) {
             logEntry.setFromEmail(fromEmail);
@@ -279,7 +298,8 @@ public class DeliveryOrchestrationService {
 
             // Process content for tracking
             String processedHtml = contentProcessingService.processContent(
-                    htmlBody, normalizedTenantId, campaignId, subscriberId, messageId, workspaceId);
+                    htmlBody, normalizedTenantId, campaignId, subscriberId, messageId, workspaceId,
+                    experimentId, variantId, holdout);
 
             // Dispatch
             adapter.sendEmail(java.util.Objects.requireNonNull(email), java.util.Objects.requireNonNull(subject), java.util.Objects.requireNonNull(processedHtml), metadata, strategyResult.dbRecord());
@@ -444,6 +464,16 @@ public class DeliveryOrchestrationService {
         if (logEntry.getSuppressionReason() != null) {
             metadata.put("suppressionReason", logEntry.getSuppressionReason());
         }
+        if (logEntry.getExperimentId() != null) {
+            metadata.put("experimentId", logEntry.getExperimentId());
+        }
+        if (logEntry.getVariantId() != null) {
+            metadata.put("variantId", logEntry.getVariantId());
+        }
+        metadata.put("holdout", String.valueOf(logEntry.isHoldout()));
+        if (logEntry.getCostReserved() != null) {
+            metadata.put("costReserved", logEntry.getCostReserved().toPlainString());
+        }
         return metadata;
     }
 
@@ -479,6 +509,17 @@ public class DeliveryOrchestrationService {
         }
     }
 
+    private BigDecimal parseMoney(Object value) {
+        if (value == null) {
+            return BigDecimal.ZERO;
+        }
+        try {
+            return new BigDecimal(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return BigDecimal.ZERO;
+        }
+    }
+
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 60000)
     public void processScheduledRetries() {
         java.util.List<MessageLog> retries = messageLogRepository.findEligibleForRetry(Instant.now());
@@ -504,6 +545,10 @@ public class DeliveryOrchestrationService {
             payload.put("workspaceId", logEntry.getWorkspaceId());
             payload.put("jobId", logEntry.getJobId() != null ? logEntry.getJobId() : "");
             payload.put("batchId", logEntry.getBatchId() != null ? logEntry.getBatchId() : "");
+            payload.put("experimentId", logEntry.getExperimentId() != null ? logEntry.getExperimentId() : "");
+            payload.put("variantId", logEntry.getVariantId() != null ? logEntry.getVariantId() : "");
+            payload.put("holdout", logEntry.isHoldout());
+            payload.put("costReserved", logEntry.getCostReserved() != null ? logEntry.getCostReserved() : BigDecimal.ZERO);
             payload.put("messageId", logEntry.getMessageId());
             payload.put("fromEmail", logEntry.getFromEmail() != null ? logEntry.getFromEmail() : "");
             payload.put("fromName", logEntry.getFromName() != null ? logEntry.getFromName() : "");

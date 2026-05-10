@@ -81,7 +81,8 @@ class DeliveryOrchestrationServiceTest {
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
-        when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any())).thenReturn("Processed HTML");
+        when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
+                .thenReturn("Processed HTML");
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
@@ -114,7 +115,8 @@ class DeliveryOrchestrationServiceTest {
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
-        when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any())).thenReturn("Processed HTML");
+        when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
+                .thenReturn("Processed HTML");
         when(retryPolicyService.decide(any(), anyInt()))
                 .thenReturn(new RetryPolicyService.RetryDecision(false, "HARD_BOUNCE", null, "permanent"));
 
@@ -149,7 +151,8 @@ class DeliveryOrchestrationServiceTest {
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
         when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
-        when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any())).thenReturn("Processed HTML");
+        when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
+                .thenReturn("Processed HTML");
         when(retryPolicyService.decide(any(), anyInt()))
                 .thenReturn(new RetryPolicyService.RetryDecision(true, "NETWORK", Instant.now().plusSeconds(60), "retry"));
 

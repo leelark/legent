@@ -74,12 +74,13 @@ function useGsapReveals() {
       gsap.utils.toArray<HTMLElement>('[data-gsap-reveal]').forEach((element) => {
         gsap.fromTo(
           element,
-          { autoAlpha: 0, y: 42 },
+          { y: 34 },
           {
-            autoAlpha: 1,
             y: 0,
             duration: 0.75,
             ease: 'power3.out',
+            immediateRender: false,
+            clearProps: 'transform',
             scrollTrigger: { trigger: element, start: 'top 84%' },
           }
         );
@@ -136,7 +137,7 @@ function HomePage() {
         <HomeProofRail highlights={[...page.highlights]} scenario={scenario} />
       </section>
 
-      <MarketingSection eyebrow="Operating proof" title="Measurable lift across launch, delivery, and team velocity.">
+      <MarketingSection eyebrow="Operating proof" title="Launch proof, not guesswork." compact>
         <div className="grid gap-4 md:grid-cols-3">
           {page.metrics.map((metric, index) => (
             <MetricPanel key={metric.label} metric={metric} index={index} />
@@ -148,24 +149,24 @@ function HomePage() {
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:items-center">
           <div>
             <Pill icon={Network}>Signal to outcome</Pill>
-            <h2 className="public-heading mt-4 text-balance text-3xl font-semibold md:text-5xl">One operating loop from customer signal to business result.</h2>
+            <h2 className="public-heading mt-4 text-balance text-3xl font-semibold md:text-5xl">One operating loop from customer signal to business outcome.</h2>
             <p className="public-muted mt-5 max-w-xl leading-7">
-              Customer behavior, AI guidance, approval evidence, provider risk, and revenue feedback move through one visible workflow instead of disconnected tools.
+              Customer behavior, AI guidance, approval evidence, provider risk, and revenue feedback move through one visible workflow instead of disconnected queues.
             </p>
           </div>
           <SignalRibbon steps={[...page.signalFlow]} />
         </div>
       </section>
 
-      <MarketingSection eyebrow="Scenario control" title="Click a layer to see how Legent changes the operating model.">
+      <MarketingSection eyebrow="Scenario control" title="Operating state changes live." compact>
         <ScenarioLayerGrid />
       </MarketingSection>
 
-      <MarketingSection eyebrow="Product surfaces" title="Multiple live surfaces move together as a launch progresses.">
+      <MarketingSection eyebrow="Product surfaces" title="Every surface stays connected." compact>
         <SurfaceLoop scenario={scenario} />
       </MarketingSection>
 
-      <FinalCta title="Build a workspace that turns email operations into enterprise execution." body="Start free, then scale into the studios, governance, delivery control, and analytics your team needs." />
+      <FinalCta title="Build a workspace where lifecycle email runs with evidence." body="Start focused, then scale into the studios, governance, delivery control, and analytics your team needs." />
     </div>
   );
 }
@@ -474,12 +475,12 @@ function PageHero({
   );
 }
 
-export function MarketingSection({ eyebrow, title, children }: { eyebrow: string; title: string; children: ReactNode }) {
+export function MarketingSection({ eyebrow, title, children, compact = false }: { eyebrow: string; title: string; children: ReactNode; compact?: boolean }) {
   return (
-    <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 md:py-16" data-gsap-reveal>
+    <section className={`mx-auto max-w-7xl px-4 sm:px-6 ${compact ? 'py-8 md:py-10' : 'py-12 md:py-16'}`} data-gsap-reveal>
       <Pill icon={Sparkles}>{eyebrow}</Pill>
-      <h2 className="public-heading mt-4 max-w-3xl text-balance text-3xl font-semibold md:text-5xl">{title}</h2>
-      <div className="mt-7 md:mt-9">{children}</div>
+      <h2 className={`public-heading mt-4 max-w-3xl text-balance font-semibold ${compact ? 'text-3xl md:text-4xl' : 'text-3xl md:text-5xl'}`}>{title}</h2>
+      <div className={compact ? 'mt-5 md:mt-6' : 'mt-7 md:mt-9'}>{children}</div>
     </section>
   );
 }
@@ -900,10 +901,10 @@ function ContactRoutingVisual() {
 
 function MetricPanel({ metric, index }: { metric: { label: string; value: string; detail: string }; index: number }) {
   return (
-    <motion.div whileHover={{ y: -8 }} className="public-panel flex h-full min-h-[196px] flex-col rounded-[1.35rem] p-6">
+    <motion.div whileHover={{ y: -6 }} className="public-panel flex h-full min-h-[168px] flex-col rounded-[1.25rem] p-5">
       <div>
-        <p className="public-heading flex min-h-12 items-end text-4xl font-semibold leading-none">{metric.value}</p>
-        <p className="public-heading mt-4 min-h-6 font-semibold">{metric.label}</p>
+        <p className="public-heading flex min-h-10 items-end text-3xl font-semibold leading-none">{metric.value}</p>
+        <p className="public-heading mt-3 min-h-6 font-semibold">{metric.label}</p>
         <p className="public-muted mt-2 text-sm leading-5">{metric.detail}</p>
       </div>
       <motion.div style={{ originX: 0 }} animate={{ scaleX: [0.28, 0.86, 0.42] }} transition={{ duration: 4, repeat: Infinity, delay: index * 0.3 }} className="mt-auto h-1 w-full rounded-full bg-gradient-to-r from-emerald-400 to-fuchsia-400" />
@@ -915,16 +916,17 @@ function ScenarioLayerGrid() {
   const layers = marketingPages.home.solutionLayers;
   const [active, setActive] = useState(0);
   const selected = layers[active];
+  const evidenceLabels = ['Readiness', 'Control', 'Outcome'];
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.86fr_1.14fr] lg:items-stretch">
-      <div className="public-panel relative rounded-[1.5rem] p-5">
-        <div className="absolute bottom-8 left-[2.05rem] top-8 w-px bg-gradient-to-b from-emerald-400 via-[var(--public-accent)] to-blue-400" />
+    <div className="grid gap-5 lg:grid-cols-[0.84fr_1.16fr] lg:items-stretch">
+      <div className="public-panel relative rounded-[1.35rem] p-5">
+        <div className="absolute bottom-[5.3rem] left-10 top-10 w-px bg-gradient-to-b from-emerald-400/55 via-[var(--public-accent)]/60 to-blue-400/55" />
         {layers.map((layer, index) => (
-          <button key={layer.title} type="button" onClick={() => setActive(index)} className="relative mb-5 flex w-full gap-4 text-left last:mb-0 focus:outline-none">
-            <span className={`relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full border text-sm font-semibold transition ${active === index ? 'border-[var(--public-accent)] bg-[var(--public-accent)] text-white' : 'public-border bg-[var(--public-panel-strong)] text-[var(--public-accent)]'}`}>
+          <button key={layer.title} type="button" onClick={() => setActive(index)} className="relative mb-4 flex w-full gap-4 text-left last:mb-0 focus:outline-none">
+            <span className={`relative z-10 grid h-10 w-10 shrink-0 place-items-center rounded-full border text-sm font-semibold shadow-sm transition ${active === index ? 'border-[var(--public-accent)] bg-[var(--public-accent)] text-white' : 'public-border bg-[var(--public-bg)] text-[var(--public-accent)]'}`}>
               {index + 1}
             </span>
-            <span className={`public-border block flex-1 rounded-2xl border px-4 py-3 transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'bg-[var(--public-panel-strong)]' : 'bg-[var(--public-panel)]'}`}>
+            <span className={`public-border block flex-1 rounded-2xl border px-4 py-3 transition hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)] ${active === index ? 'bg-[var(--public-panel-strong)] shadow-sm' : 'bg-[var(--public-panel)]'}`}>
               <span className="flex items-center justify-between gap-3">
                 <span className="public-heading font-semibold">{layer.title}</span>
                 <span className="text-lg font-semibold text-[var(--public-accent)]">{layer.metric}</span>
@@ -934,27 +936,56 @@ function ScenarioLayerGrid() {
           </button>
         ))}
       </div>
-      <motion.div key={selected.title} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="public-panel public-art-glow relative overflow-hidden rounded-[1.5rem] p-6">
+      <motion.div key={selected.title} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="public-panel public-art-glow relative flex h-full min-h-[410px] flex-col overflow-hidden rounded-[1.35rem] p-5">
         <VisualTexture />
         <div className="relative">
           <Pill icon={Target}>Operating model</Pill>
-          <div className="mt-5 grid gap-5 md:grid-cols-[1fr_auto] md:items-start">
+          <div className="mt-4 grid gap-5 md:grid-cols-[1fr_auto] md:items-start">
             <div>
-              <h3 className="public-heading text-3xl font-semibold">{selected.title}</h3>
-              <p className="public-muted mt-4 max-w-2xl leading-7">{selected.body}</p>
+              <h3 className="public-heading text-2xl font-semibold md:text-3xl">{selected.title}</h3>
+              <p className="public-muted mt-3 max-w-2xl leading-7">{selected.body}</p>
             </div>
-            <motion.div animate={{ rotate: [0, 4, -3, 0] }} transition={{ duration: 7, repeat: Infinity }} className="grid h-24 w-24 place-items-center rounded-full bg-[var(--public-text)] text-center text-sm font-semibold text-[var(--public-bg)]">
+            <motion.div animate={{ rotate: [0, 4, -3, 0] }} transition={{ duration: 7, repeat: Infinity }} className="grid h-20 w-20 place-items-center rounded-full bg-[var(--public-text)] text-center text-sm font-semibold text-[var(--public-bg)] md:h-24 md:w-24">
               {selected.metric}
             </motion.div>
           </div>
         </div>
-        <div className="relative mt-8 grid gap-3 sm:grid-cols-3">
+        <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
           {selected.items.map((item, index) => (
-            <motion.div key={item} whileHover={{ y: -6 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
+            <motion.div key={item} whileHover={{ y: -5 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
               <CheckCircle2 className="text-emerald-500" size={18} />
               <p className="public-heading mt-3 text-sm font-semibold">{item}</p>
             </motion.div>
           ))}
+        </div>
+        <div className="relative mt-auto pt-5">
+          <div className="rounded-2xl border border-[var(--public-border)] bg-[var(--public-panel-strong)] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="public-muted text-xs font-semibold uppercase tracking-[0.18em]">Live operating evidence</p>
+                <p className="public-heading mt-1 text-sm font-semibold">{selected.title} stays linked to measurable state.</p>
+              </div>
+              <span className="rounded-full bg-[var(--public-text)] px-3 py-1 text-sm font-semibold text-[var(--public-bg)]">{selected.metric}</span>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              {selected.items.map((item, index) => (
+                <div key={`${item}-evidence`} className="rounded-xl bg-[var(--public-panel)] p-3">
+                  <div className="flex items-center justify-between gap-2 text-xs font-semibold">
+                    <span className="public-heading">{evidenceLabels[index]}</span>
+                    <span className="text-[var(--public-accent)]">{item}</span>
+                  </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--public-bg)]">
+                    <motion.div
+                      initial={{ scaleX: 0.2 }}
+                      animate={{ scaleX: [0.48 + index * 0.1, 0.82 + index * 0.04, 0.58 + index * 0.08] }}
+                      transition={{ duration: 4.2, repeat: Infinity, delay: index * 0.18 }}
+                      className="h-full origin-left rounded-full bg-gradient-to-r from-emerald-400 via-violet-400 to-fuchsia-400"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>
@@ -963,17 +994,17 @@ function ScenarioLayerGrid() {
 
 function SurfaceLoop({ scenario }: { scenario: (typeof homeScenarios)[number] }) {
   return (
-    <div className="public-panel public-art-glow relative overflow-hidden rounded-[1.5rem] p-5">
+    <div className="public-panel public-art-glow relative overflow-hidden rounded-[1.35rem] p-5">
       <VisualTexture />
       <WindowHeader label="Connected product surfaces" />
-      <div className="relative mt-6 grid gap-5 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
-        <div className="relative rounded-[1.4rem] bg-[var(--public-panel-strong)] p-4">
-          <div className="absolute left-8 right-8 top-1/2 h-px bg-gradient-to-r from-emerald-400 via-[var(--public-accent)] to-blue-400" />
+      <div className="relative mt-5 grid gap-4 xl:grid-cols-[1.04fr_0.96fr] xl:items-center">
+        <div className="relative rounded-[1.25rem] bg-[var(--public-panel-strong)] p-4">
+          <div className="pointer-events-none absolute left-10 right-10 top-[4.15rem] hidden h-px bg-gradient-to-r from-emerald-400/45 via-[var(--public-accent)]/50 to-blue-400/45 sm:block" />
           <div className="relative grid gap-3 sm:grid-cols-4">
             {scenario.modules.map((module, index) => (
-              <motion.div key={module} animate={{ y: [0, index % 2 ? 8 : -8, 0] }} transition={{ duration: 5 + index * 0.25, repeat: Infinity }} className="public-border min-h-28 rounded-2xl border bg-[var(--public-panel)] p-4">
+              <motion.div key={module} animate={{ y: [0, index % 2 ? 5 : -5, 0] }} transition={{ duration: 5 + index * 0.25, repeat: Infinity }} className="public-border relative min-h-24 rounded-2xl border bg-[var(--public-bg)] p-4 shadow-sm">
                 <Sparkles className="text-[var(--public-accent)]" size={18} />
-                <p className="public-heading mt-4 text-sm font-semibold">{module}</p>
+                <p className="public-heading mt-3 text-sm font-semibold">{module}</p>
                 <p className="public-muted mt-1 text-xs">live state</p>
               </motion.div>
             ))}
@@ -981,21 +1012,21 @@ function SurfaceLoop({ scenario }: { scenario: (typeof homeScenarios)[number] })
         </div>
         <div className="relative">
           <Pill icon={LineChart}>Outcome panel</Pill>
-          <h3 className="public-heading mt-4 text-2xl font-semibold">{scenario.title}</h3>
+          <h3 className="public-heading mt-3 text-2xl font-semibold">{scenario.title}</h3>
           <p className="public-muted mt-3 text-sm leading-6">{scenario.narrative}</p>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-          {proofCards.slice(0, 4).map((card, index) => {
-            const Icon = card.icon;
-            return (
-              <motion.div key={card.label} whileHover={{ x: 6 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
-                <Icon className="text-[var(--public-accent)]" size={20} />
-                <p className="public-heading mt-3 text-xl font-semibold">{card.value}</p>
-                <p className="public-muted mt-1 text-sm">{card.label}</p>
-              </motion.div>
-            );
-          })}
-          </div>
         </div>
+      </div>
+      <div className="relative mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {proofCards.slice(0, 4).map((card) => {
+          const Icon = card.icon;
+          return (
+            <motion.div key={card.label} whileHover={{ y: -4 }} className="min-h-24 rounded-2xl bg-[var(--public-panel-strong)] p-4">
+              <Icon className="text-[var(--public-accent)]" size={20} />
+              <p className="public-heading mt-3 text-lg font-semibold">{card.value}</p>
+              <p className="public-muted mt-1 text-sm">{card.label}</p>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );

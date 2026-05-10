@@ -10,7 +10,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api/v1/admin/branding")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN')")
 public class BrandingController {
     private final BrandingService brandingService;
 

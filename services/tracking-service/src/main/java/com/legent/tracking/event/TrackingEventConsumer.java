@@ -110,6 +110,9 @@ public class TrackingEventConsumer {
         e.setCampaignId(p.getCampaignId());
         e.setSubscriberId(p.getSubscriberId());
         e.setMessageId(p.getMessageId());
+        e.setExperimentId(p.getExperimentId());
+        e.setVariantId(p.getVariantId());
+        e.setHoldout(Boolean.TRUE.equals(p.getHoldout()));
         e.setEventType(p.getEventType().trim().toUpperCase(java.util.Locale.ROOT));
         e.setUserAgent(p.getUserAgent());
         e.setIpAddress(p.getIpAddress());

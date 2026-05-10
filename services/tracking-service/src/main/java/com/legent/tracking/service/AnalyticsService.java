@@ -56,4 +56,41 @@ public class AnalyticsService {
             return new ArrayList<>();
         }
     }
+
+    public List<Map<String, Object>> getExperimentMetrics(String tenantId, String workspaceId, String campaignId, String experimentId) {
+        if (tenantId == null || tenantId.isBlank()
+                || workspaceId == null || workspaceId.isBlank()
+                || campaignId == null || campaignId.isBlank()
+                || experimentId == null || experimentId.isBlank()) {
+            return new ArrayList<>();
+        }
+        try {
+            return jdbcTemplate.queryForList("""
+                SELECT
+                    COALESCE(variant_id, 'HOLDOUT') AS variant_id,
+                    COUNT(*) FILTER (WHERE event_type = 'OPEN') AS opens,
+                    COUNT(*) FILTER (WHERE event_type = 'CLICK') AS clicks,
+                    COUNT(*) FILTER (WHERE event_type = 'CONVERSION') AS conversions,
+                    COALESCE(SUM(CASE
+                        WHEN event_type = 'CONVERSION'
+                         AND metadata IS NOT NULL
+                         AND metadata->>'value' ~ '^[0-9]+(\\.[0-9]+)?$'
+                        THEN (metadata->>'value')::numeric
+                        ELSE 0
+                    END), 0) AS revenue,
+                    COUNT(*) FILTER (WHERE metadata ? 'customMetricName') AS custom_metric_count
+                FROM raw_events
+                WHERE tenant_id = ?
+                  AND workspace_id = ?
+                  AND campaign_id = ?
+                  AND experiment_id = ?
+                GROUP BY COALESCE(variant_id, 'HOLDOUT')
+                ORDER BY variant_id
+            """, tenantId, workspaceId, campaignId, experimentId);
+        } catch (DataAccessException e) {
+            log.error("Failed to query experiment metrics for tenant {} workspace {} campaign {} experiment {}",
+                    tenantId, workspaceId, campaignId, experimentId, e);
+            return new ArrayList<>();
+        }
+    }
 }

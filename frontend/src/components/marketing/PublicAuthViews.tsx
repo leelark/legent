@@ -37,8 +37,6 @@ export function LoginView() {
 
   useEffect(() => {
     if (typeof window === 'undefined' || redirectingRef.current) return;
-    const savedTenant = localStorage.getItem(TENANT_STORAGE_KEY);
-    if (savedTenant) setTenantId(savedTenant);
 
     if (isAuthenticated) {
       get<{ status: string; userId?: string; tenantId?: string; workspaceId?: string | null; environmentId?: string | null }>('/auth/session')
@@ -76,7 +74,6 @@ export function LoginView() {
       const submittedTenantId = String(formData.get('tenantId') ?? tenantId).trim();
       const submittedEmail = String(formData.get('email') ?? email).trim();
       const submittedPassword = String(formData.get('password') ?? password);
-      if (submittedTenantId) localStorage.setItem(TENANT_STORAGE_KEY, submittedTenantId);
 
       const response = await post<{ status: string; userId: string; tenantId: string; roles: string[]; workspaceId?: string | null; environmentId?: string | null }>(
         '/auth/login',
@@ -88,6 +85,7 @@ export function LoginView() {
 
       const userId = data.userId || 'anonymous';
       const roles = data.roles ?? [];
+      if (data.tenantId || submittedTenantId) localStorage.setItem(TENANT_STORAGE_KEY, data.tenantId || submittedTenantId);
       localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles));
       localStorage.setItem(USER_STORAGE_KEY, userId);
       setCurrentTenant({ id: data.tenantId || submittedTenantId, name: data.tenantId || submittedTenantId, slug: data.tenantId || submittedTenantId, status: 'ACTIVE', plan: 'STARTER' });

@@ -26,6 +26,7 @@ public class SchedulingService {
     private final CampaignRepository campaignRepository;
     private final CampaignEventPublisher eventPublisher;
     private final CampaignStateMachineService stateMachine;
+    private final CampaignLockService campaignLockService;
 
     @Scheduled(fixedDelayString = "${legent.campaign.scheduler.delay:60000}")
     @Transactional
@@ -51,6 +52,9 @@ public class SchedulingService {
                 if (campaign != null) {
                     if (campaign.isApprovalRequired() && campaign.getStatus() != Campaign.CampaignStatus.APPROVED) {
                         throw new ValidationException("campaign.status", "Scheduled campaign requires approval before send");
+                    }
+                    if (campaign.isApprovalRequired()) {
+                        campaignLockService.validateActiveLock(campaign);
                     }
                     stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.SENDING, "Scheduled send started");
                     campaignRepository.save(campaign);

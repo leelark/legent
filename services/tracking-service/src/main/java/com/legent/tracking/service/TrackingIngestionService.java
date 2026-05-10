@@ -30,7 +30,16 @@ public class TrackingIngestionService {
     private final ObjectMapper objectMapper;
 
     @Transactional
-    public void processOpen(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String idempotencyKey, String userAgentString, String ipAddress) {
+    public void processOpen(String tenantId, String campaignId, String subscriberId, String messageId,
+                            String workspaceId, String idempotencyKey, String userAgentString, String ipAddress) {
+        processOpen(tenantId, campaignId, subscriberId, messageId, null, null, false,
+                workspaceId, idempotencyKey, userAgentString, ipAddress);
+    }
+
+    @Transactional
+    public void processOpen(String tenantId, String campaignId, String subscriberId, String messageId,
+                            String experimentId, String variantId, boolean holdout,
+                            String workspaceId, String idempotencyKey, String userAgentString, String ipAddress) {
         requireTenantAndMessage(tenantId, messageId);
         String resolvedWorkspaceId = resolveWorkspaceId(tenantId, messageId, workspaceId);
         if (isDuplicateInDatabase(tenantId, resolvedWorkspaceId, "OPEN", messageId, subscriberId) ||
@@ -38,7 +47,8 @@ public class TrackingIngestionService {
             log.debug("Duplicate OPEN event detected for message {} subscriber {}", messageId, subscriberId);
             return;
         }
-        TrackingDto.RawEventPayload payload = buildPayload("OPEN", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId, idempotencyKey, null, userAgentString, ipAddress, null);
+        TrackingDto.RawEventPayload payload = buildPayload("OPEN", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId,
+                experimentId, variantId, holdout, idempotencyKey, null, userAgentString, ipAddress, null);
         // AUDIT-016: Outbox pattern - save to DB first, then publish within same transaction
         saveEventToDatabase(payload);
         // Publish event using transactional outbox pattern
@@ -46,7 +56,16 @@ public class TrackingIngestionService {
     }
 
     @Transactional
-    public void processClick(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String idempotencyKey, String linkUrl, String userAgentString, String ipAddress) {
+    public void processClick(String tenantId, String campaignId, String subscriberId, String messageId,
+                             String workspaceId, String idempotencyKey, String linkUrl, String userAgentString, String ipAddress) {
+        processClick(tenantId, campaignId, subscriberId, messageId, null, null, false,
+                workspaceId, idempotencyKey, linkUrl, userAgentString, ipAddress);
+    }
+
+    @Transactional
+    public void processClick(String tenantId, String campaignId, String subscriberId, String messageId,
+                             String experimentId, String variantId, boolean holdout,
+                             String workspaceId, String idempotencyKey, String linkUrl, String userAgentString, String ipAddress) {
         requireTenantAndMessage(tenantId, messageId);
         String resolvedWorkspaceId = resolveWorkspaceId(tenantId, messageId, workspaceId);
         if (isDuplicateInDatabase(tenantId, resolvedWorkspaceId, "CLICK", messageId, subscriberId) ||
@@ -54,7 +73,8 @@ public class TrackingIngestionService {
             log.debug("Duplicate CLICK event detected for message {} subscriber {}", messageId, subscriberId);
             return;
         }
-        TrackingDto.RawEventPayload payload = buildPayload("CLICK", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId, idempotencyKey, linkUrl, userAgentString, ipAddress, null);
+        TrackingDto.RawEventPayload payload = buildPayload("CLICK", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId,
+                experimentId, variantId, holdout, idempotencyKey, linkUrl, userAgentString, ipAddress, null);
         // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
         publishEventWithOutbox(payload);
@@ -73,10 +93,12 @@ public class TrackingIngestionService {
         }
         Map<String, Object> meta = new HashMap<>();
         meta.put("eventName", request.getEventName().trim());
+        meta.put("customMetricName", request.getEventName().trim());
         meta.put("value", request.getValue());
         meta.put("currency", request.getCurrency());
 
-        TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, workspaceId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(), idempotencyKey, null, userAgentString, ipAddress, meta);
+        TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, workspaceId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(),
+                request.getExperimentId(), request.getVariantId(), false, idempotencyKey, null, userAgentString, ipAddress, meta);
         // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
         publishEventWithOutbox(payload);
@@ -160,6 +182,9 @@ public class TrackingIngestionService {
             event.setCampaignId(payload.getCampaignId());
             event.setSubscriberId(payload.getSubscriberId());
             event.setMessageId(payload.getMessageId());
+            event.setExperimentId(payload.getExperimentId());
+            event.setVariantId(payload.getVariantId());
+            event.setHoldout(Boolean.TRUE.equals(payload.getHoldout()));
             event.setUserAgent(payload.getUserAgent());
             event.setIpAddress(payload.getIpAddress());
             event.setLinkUrl(payload.getLinkUrl());
@@ -205,7 +230,8 @@ public class TrackingIngestionService {
     }
 
     private TrackingDto.RawEventPayload buildPayload(String eventType, String tenantId, String workspaceId, String campaignId, String subscriberId,
-                                                     String messageId, String idempotencyKey, String linkUrl, String uaString, String ip, Map<String, Object> customMeta) {
+                                                     String messageId, String experimentId, String variantId, boolean holdout,
+                                                     String idempotencyKey, String linkUrl, String uaString, String ip, Map<String, Object> customMeta) {
         
         Map<String, Object> metadata = customMeta != null ? customMeta : new HashMap<>();
         
@@ -229,6 +255,9 @@ public class TrackingIngestionService {
                 .campaignId(campaignId)
                 .subscriberId(subscriberId)
                 .messageId(messageId)
+                .experimentId(experimentId)
+                .variantId(variantId)
+                .holdout(holdout)
                 .userAgent(uaString)
                 .ipAddress(ip)
                 .linkUrl(linkUrl)

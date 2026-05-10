@@ -46,6 +46,9 @@ public class IngestionController {
             @RequestParam @NotBlank String m, // messageId
             @RequestParam @NotBlank String sig, // HMAC signature
             @RequestParam(name = "w", required = false) String workspaceId,
+            @RequestParam(name = "e", required = false) String experimentId,
+            @RequestParam(name = "v", required = false) String variantId,
+            @RequestParam(name = "h", required = false, defaultValue = "false") boolean holdout,
             HttpServletRequest request) {
 
         // Verify HMAC signature to prevent event forgery
@@ -59,6 +62,9 @@ public class IngestionController {
                 c,
                 s,
                 m,
+                experimentId,
+                variantId,
+                holdout,
                 workspaceId,
                 resolveIdempotencyKey(request),
                 request.getHeader("User-Agent"),
@@ -82,6 +88,9 @@ public class IngestionController {
             @RequestParam @NotBlank String m, // messageId
             @RequestParam @NotBlank String sig, // HMAC signature
             @RequestParam(name = "w", required = false) String workspaceId,
+            @RequestParam(name = "e", required = false) String experimentId,
+            @RequestParam(name = "v", required = false) String variantId,
+            @RequestParam(name = "h", required = false, defaultValue = "false") boolean holdout,
             HttpServletRequest request) {
 
         // Verify HMAC signature to prevent event forgery
@@ -106,6 +115,9 @@ public class IngestionController {
                 c,
                 s,
                 m,
+                experimentId,
+                variantId,
+                holdout,
                 workspaceId,
                 resolveIdempotencyKey(request),
                 url,

@@ -45,6 +45,15 @@ public class RawEvent {
     @Column(name = "message_id")
     private String messageId;
 
+    @Column(name = "experiment_id")
+    private String experimentId;
+
+    @Column(name = "variant_id")
+    private String variantId;
+
+    @Column(nullable = false)
+    private boolean holdout = false;
+
     @Column(name = "user_agent")
     private String userAgent;
 

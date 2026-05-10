@@ -1,8 +1,10 @@
 package com.legent.deliverability.controller;
 
 import java.util.List;
+import java.util.Locale;
 
 import com.legent.common.dto.ApiResponse;
+import com.legent.common.exception.ConflictException;
 import com.legent.deliverability.domain.SenderDomain;
 import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.service.DomainVerificationService;
@@ -31,10 +33,19 @@ public class DomainController {
             @RequestBody SenderDomain request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
+        String domainName = normalizeDomain(request.getDomainName());
+        if (domainName == null) {
+            throw new IllegalArgumentException("domainName is required");
+        }
+        domainRepository.findByTenantIdAndWorkspaceIdAndDomainName(tenantId, workspaceId, domainName)
+                .ifPresent(existing -> {
+                    throw new ConflictException("SenderDomain", "domainName", domainName);
+                });
         request.setTenantId(tenantId);
         request.setWorkspaceId(workspaceId);
         request.setOwnershipScope("WORKSPACE");
         request.setId(java.util.UUID.randomUUID().toString());
+        request.setDomainName(domainName);
         return ApiResponse.ok(domainRepository.save(request));
     }
 
@@ -52,5 +63,13 @@ public class DomainController {
         }
 
         return ApiResponse.ok(domainVerificationService.verifyDomain(domainId));
+    }
+
+    private String normalizeDomain(String domainName) {
+        if (domainName == null) {
+            return null;
+        }
+        String normalized = domainName.trim().toLowerCase(Locale.ROOT);
+        return normalized.isBlank() ? null : normalized;
     }
 }

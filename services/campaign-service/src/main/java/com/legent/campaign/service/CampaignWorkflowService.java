@@ -27,6 +27,7 @@ public class CampaignWorkflowService {
     private final CampaignRepository campaignRepository;
     private final CampaignApprovalRepository approvalRepository;
     private final CampaignStateMachineService stateMachine;
+    private final CampaignLockService campaignLockService;
 
     /**
      * Submit a campaign for approval.
@@ -103,6 +104,7 @@ public class CampaignWorkflowService {
         stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.APPROVED, comments);
 
         approvalRepository.save(approval);
+        campaignLockService.lockCampaign(campaign);
         campaignRepository.save(campaign);
 
         log.info("Campaign approved: tenant={}, campaign={}, approver={}",

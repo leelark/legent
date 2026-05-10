@@ -23,6 +23,7 @@ public class CampaignService {
     private final CampaignRepository campaignRepository;
     private final CampaignMapper campaignMapper;
     private final CampaignStateMachineService stateMachine;
+    private final CampaignLockService campaignLockService;
 
     @Value("${legent.campaign.approval.default-required:true}")
     private boolean defaultApprovalRequired;
@@ -96,6 +97,13 @@ public class CampaignService {
             }
         }
         applyDefaults(campaign);
+        if (campaign.getStatus() == Campaign.CampaignStatus.APPROVED
+                && campaignLockService.supersedeIfChanged(campaign)) {
+            campaign.setApprovedAt(null);
+            campaign.setApprovedBy(null);
+            stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.DRAFT,
+                    "Approved send lock superseded by campaign changes");
+        }
 
         return campaignMapper.toResponse(campaignRepository.save(campaign));
     }
@@ -188,8 +196,12 @@ public class CampaignService {
         if (request == null || request.getScheduledAt() == null) {
             throw new ValidationException("scheduledAt", "scheduledAt is required");
         }
+        if (campaign.isApprovalRequired() && campaign.getStatus() != Campaign.CampaignStatus.APPROVED) {
+            throw new ValidationException("campaign.status", "Campaign must be APPROVED before scheduling");
+        }
         campaign.setScheduledAt(request.getScheduledAt());
         stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.SCHEDULED, "Campaign scheduled");
+        campaignLockService.lockCampaign(campaign);
         return campaignMapper.toResponse(campaignRepository.save(campaign));
     }
 

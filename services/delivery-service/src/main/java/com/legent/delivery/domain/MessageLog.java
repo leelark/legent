@@ -44,6 +44,18 @@ public class MessageLog extends BaseEntity {
     @Column(name = "batch_id", length = 64)
     private String batchId;
 
+    @Column(name = "experiment_id", length = 64)
+    private String experimentId;
+
+    @Column(name = "variant_id", length = 64)
+    private String variantId;
+
+    @Column(nullable = false)
+    private boolean holdout = false;
+
+    @Column(name = "cost_reserved", precision = 18, scale = 6)
+    private java.math.BigDecimal costReserved = java.math.BigDecimal.ZERO;
+
     @Column(name = "subscriber_id")
     private String subscriberId;
 

@@ -8,6 +8,7 @@ import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,26 +45,26 @@ public class AdminOperationsService {
     public Map<String, Object> accessOverview() {
         String tenantId = requireTenant();
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("roles", repository.queryForList("""
+        response.put("roles", safeQueryForList("""
                 SELECT role_key, display_name, description, is_system, permissions, updated_at
                 FROM role_definitions
                 WHERE deleted_at IS NULL AND (tenant_id IS NULL OR tenant_id = :tenantId)
                 ORDER BY tenant_id NULLS FIRST, role_key ASC
                 """, Map.of("tenantId", tenantId)));
-        response.put("permissionGroups", repository.queryForList("""
+        response.put("permissionGroups", safeQueryForList("""
                 SELECT group_key, display_name, permissions, updated_at
                 FROM permission_groups
                 WHERE deleted_at IS NULL AND (tenant_id IS NULL OR tenant_id = :tenantId)
                 ORDER BY tenant_id NULLS FIRST, group_key ASC
                 """, Map.of("tenantId", tenantId)));
-        response.put("memberships", repository.queryForList("""
+        response.put("memberships", safeQueryForList("""
                 SELECT id, user_id, workspace_id, team_id, department_id, status, principal_type, updated_at
                 FROM membership_links
                 WHERE tenant_id = :tenantId AND deleted_at IS NULL
                 ORDER BY updated_at DESC
                 LIMIT 100
                 """, Map.of("tenantId", tenantId)));
-        response.put("delegatedAccess", repository.queryForList("""
+        response.put("delegatedAccess", safeQueryForList("""
                 SELECT id, grantor_user_id, grantee_user_id, workspace_id, permissions, status, expires_at, updated_at
                 FROM delegated_access_grants
                 WHERE tenant_id = :tenantId AND deleted_at IS NULL
@@ -98,10 +99,10 @@ public class AdminOperationsService {
             params.put("status", normalizedStatus.toUpperCase());
         }
         sql.append(" ORDER BY created_at DESC LIMIT :limit");
-        return repository.queryForList(sql.toString(), params);
+        return safeQueryForList(sql.toString(), params);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Map<String, Object> recordSyncEvent(
             String eventType,
             String sourceModule,
@@ -127,7 +128,11 @@ public class AdminOperationsService {
         values.put("deleted_at", null);
         values.put("version", 0L);
         Map<String, Object> saved = repository.insert("admin_sync_events", values, List.of("target_modules", "payload"));
-        recordAudit("ADMIN_SYNC_EVENT", "AdminSyncEvent", saved.get("id"), saved);
+        try {
+            recordAudit("ADMIN_SYNC_EVENT", "AdminSyncEvent", saved.get("id"), saved);
+        } catch (Exception ex) {
+            log.warn("Admin sync event audit write skipped for eventType={}: {}", eventType, ex.getMessage());
+        }
         return saved;
     }
 
@@ -293,7 +298,7 @@ public class AdminOperationsService {
     }
 
     private List<Map<String, Object>> recentAudit(String tenantId, int limit) {
-        return repository.queryForList("""
+        return safeQueryForList("""
                 SELECT action, resource_type, resource_id, actor_id, status, created_at
                 FROM core_audit_events
                 WHERE tenant_id = :tenantId AND deleted_at IS NULL
@@ -303,22 +308,17 @@ public class AdminOperationsService {
     }
 
     private List<Map<String, Object>> recentSync(String tenantId, int limit) {
-        try {
-            return repository.queryForList("""
-                    SELECT event_type, source_module, target_modules, status, applied_at, created_at
-                    FROM admin_sync_events
-                    WHERE tenant_id = :tenantId AND deleted_at IS NULL
-                    ORDER BY created_at DESC
-                    LIMIT :limit
-                    """, Map.of("tenantId", tenantId, "limit", limit));
-        } catch (DataAccessException ex) {
-            log.warn("Admin sync ledger unavailable: {}", ex.getMessage());
-            return List.of();
-        }
+        return safeQueryForList("""
+                SELECT event_type, source_module, target_modules, status, applied_at, created_at
+                FROM admin_sync_events
+                WHERE tenant_id = :tenantId AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                LIMIT :limit
+                """, Map.of("tenantId", tenantId, "limit", limit));
     }
 
     private List<Map<String, Object>> recentSyncByTypes(String tenantId, List<String> eventTypes) {
-        return repository.queryForList("""
+        return safeQueryForList("""
                 SELECT event_type, source_module, target_modules, status, applied_at, created_at
                 FROM admin_sync_events
                 WHERE tenant_id = :tenantId
@@ -341,15 +341,20 @@ public class AdminOperationsService {
     }
 
     private long count(String sql, Map<String, Object> params) {
-        Object value = repository.queryForMap(sql, params).values().iterator().next();
-        if (value instanceof Number number) {
-            return number.longValue();
+        try {
+            Object value = repository.queryForMap(sql, params).values().iterator().next();
+            if (value instanceof Number number) {
+                return number.longValue();
+            }
+            return Long.parseLong(String.valueOf(value));
+        } catch (DataAccessException | NumberFormatException ex) {
+            log.warn("Admin count query skipped: {}", ex.getMessage());
+            return 0L;
         }
-        return Long.parseLong(String.valueOf(value));
     }
 
     private String latestValue(String table, String tenantId, String column, String fallback) {
-        List<Map<String, Object>> rows = repository.queryForList(
+        List<Map<String, Object>> rows = safeQueryForList(
                 "SELECT " + column + " FROM " + table + " WHERE tenant_id = :tenantId ORDER BY updated_at DESC LIMIT 1",
                 Map.of("tenantId", tenantId)
         );
@@ -358,6 +363,15 @@ public class AdminOperationsService {
         }
         Object value = rows.get(0).get(column);
         return value == null ? fallback : String.valueOf(value);
+    }
+
+    private List<Map<String, Object>> safeQueryForList(String sql, Map<String, Object> params) {
+        try {
+            return repository.queryForList(sql, params);
+        } catch (DataAccessException ex) {
+            log.warn("Admin query skipped: {}", ex.getMessage());
+            return List.of();
+        }
     }
 
     private void recordAudit(String action, String resourceType, Object resourceId, Map<String, Object> details) {

@@ -48,4 +48,12 @@ public class AnalyticsController {
         String workspaceId = TenantContext.requireWorkspaceId();
         return ApiResponse.ok(analyticsService.getEventTimeline(tenantId, workspaceId, eventType));
     }
+
+    @GetMapping("/campaigns/{id}/experiments/{experimentId}")
+    public ApiResponse<List<Map<String, Object>>> getExperimentMetrics(@PathVariable String id,
+                                                                       @PathVariable String experimentId) {
+        String tenantId = TenantContext.getTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(analyticsService.getExperimentMetrics(tenantId, workspaceId, id, experimentId));
+    }
 }

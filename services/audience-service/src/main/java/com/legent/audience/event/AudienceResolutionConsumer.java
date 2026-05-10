@@ -6,6 +6,7 @@ import com.legent.audience.repository.ListMembershipRepository;
 import com.legent.audience.repository.SubscriberRepository;
 import com.legent.audience.service.AudienceEventIdempotencyService;
 import com.legent.audience.service.SegmentEvaluationService;
+import com.legent.audience.service.SendEligibilityService;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
@@ -34,6 +35,7 @@ public class AudienceResolutionConsumer {
     private final SegmentEvaluationService segmentEvaluationService;
     private final DeliverabilityServiceClient deliverabilityClient;
     private final AudienceEventIdempotencyService idempotencyService;
+    private final SendEligibilityService sendEligibilityService;
 
     @KafkaListener(topics = AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, groupId = AppConstants.GROUP_AUDIENCE)
     public void handleResolutionRequest(EventEnvelope<Map<String, Object>> event) {
@@ -122,6 +124,7 @@ public class AudienceResolutionConsumer {
             // Filter out suppressed subscribers
             List<Subscriber> filteredAudience = audience.stream()
                     .filter(sub -> !suppressedEmails.contains(sub.getEmail()))
+                    .filter(sendEligibilityService::isSendEligible)
                     .collect(Collectors.toList());
 
             int suppressedCount = audience.size() - filteredAudience.size();

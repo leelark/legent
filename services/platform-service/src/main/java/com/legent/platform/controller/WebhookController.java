@@ -16,7 +16,7 @@ import com.legent.security.TenantContext;
 @RestController
 @RequestMapping("/api/v1/platform/webhooks")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN')")
 public class WebhookController {
 
     private final WebhookConfigRepository webhookRepository;

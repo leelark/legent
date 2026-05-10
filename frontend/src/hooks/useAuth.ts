@@ -15,7 +15,7 @@ export function useAuth() {
   );
 
   const isAdmin = useCallback(
-    () => roles.includes('ADMIN'),
+    () => roles.some((role) => ['ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN'].includes(role)),
     [roles]
   );
 

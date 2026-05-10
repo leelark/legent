@@ -120,9 +120,11 @@ export function EnterpriseAdminConsole() {
   const [query, setQuery] = useState('');
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUserDraft);
   const [savingUser, setSavingUser] = useState(false);
+  const [pendingUserIds, setPendingUserIds] = useState<Set<string>>(new Set());
+  const [loadIssues, setLoadIssues] = useState<string[]>([]);
 
   const canAdmin = useMemo(
-    () => isAdmin() || roles.some((role) => ['PLATFORM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN'].includes(role)),
+    () => isAdmin() || roles.some((role) => ['PLATFORM_ADMIN', 'ORG_ADMIN'].includes(role)),
     [isAdmin, roles]
   );
 
@@ -133,12 +135,20 @@ export function EnterpriseAdminConsole() {
       setRefreshing(true);
     }
     try {
-      const [dashboardRes, accessRes, syncRes, usersRes] = await Promise.allSettled([
-        getAdminOperationsDashboard(),
-        getAdminAccessOverview(),
-        listAdminSyncEvents({ limit: 50 }),
-        listAdminUsers(),
-      ]);
+      const sources = [
+        ['Operations dashboard', getAdminOperationsDashboard()],
+        ['Access overview', getAdminAccessOverview()],
+        ['Sync ledger', listAdminSyncEvents({ limit: 50 })],
+        ['Users', listAdminUsers()],
+      ] as const;
+      const [dashboardRes, accessRes, syncRes, usersRes] = await Promise.allSettled(sources.map(([, request]) => request));
+      const issues = sources
+        .map(([label], index) => {
+          const result = [dashboardRes, accessRes, syncRes, usersRes][index];
+          return result.status === 'rejected' ? label : null;
+        })
+        .filter(Boolean) as string[];
+      setLoadIssues(issues);
       if (dashboardRes.status === 'fulfilled') {
         setDashboard(dashboardRes.value);
       }
@@ -151,12 +161,11 @@ export function EnterpriseAdminConsole() {
       if (usersRes.status === 'fulfilled') {
         setUsers(usersRes.value);
       }
-      const failed = [dashboardRes, accessRes, syncRes, usersRes].filter((result) => result.status === 'rejected').length;
-      if (failed && !silent) {
+      if (issues.length && !silent) {
         addToast({
           type: 'warning',
           title: 'Some admin data unavailable',
-          message: 'Console loaded with available services. Check service health for failed endpoints.',
+          message: `${issues.join(', ')} did not load. Available panels remain usable.`,
         });
       }
     } finally {
@@ -164,6 +173,18 @@ export function EnterpriseAdminConsole() {
       setRefreshing(false);
     }
   }, [addToast]);
+
+  const setUserPending = useCallback((id: string, pending: boolean) => {
+    setPendingUserIds((current) => {
+      const next = new Set(current);
+      if (pending) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (!canAdmin) {
@@ -190,7 +211,8 @@ export function EnterpriseAdminConsole() {
   }, [query, users]);
 
   const createUser = async () => {
-    if (!userDraft.email || !userDraft.password || !userDraft.role) {
+    const email = userDraft.email.trim().toLowerCase();
+    if (!email || !userDraft.password || !userDraft.role) {
       addToast({ type: 'error', title: 'User needs email, password, and role' });
       return;
     }
@@ -198,6 +220,10 @@ export function EnterpriseAdminConsole() {
     try {
       const created = await createAdminUser({
         ...userDraft,
+        email,
+        firstName: userDraft.firstName.trim(),
+        lastName: userDraft.lastName.trim(),
+        role: userDraft.role.trim(),
         isActive: true,
       });
       setUsers((prev) => [created, ...prev]);
@@ -218,21 +244,27 @@ export function EnterpriseAdminConsole() {
       role: patch.role ?? user.role,
       isActive: patch.isActive ?? user.isActive,
     };
+    setUserPending(user.id, true);
     try {
       const updated = await updateAdminUser(user.id, payload);
       setUsers((prev) => prev.map((candidate) => (candidate.id === user.id ? updated : candidate)));
       addToast({ type: 'success', title: 'User policy updated', message: 'Menus and API checks refresh on next session validation.' });
     } catch (error: any) {
       addToast({ type: 'error', title: 'User update failed', message: error?.normalized?.message || error?.message });
+    } finally {
+      setUserPending(user.id, false);
     }
   };
 
   const sendReset = async (user: AdminUser) => {
+    setUserPending(user.id, true);
     try {
       await requestUserPasswordReset(user.email);
       addToast({ type: 'success', title: 'Reset workflow queued', message: user.email });
     } catch (error: any) {
       addToast({ type: 'error', title: 'Reset request failed', message: error?.normalized?.message || error?.message });
+    } finally {
+      setUserPending(user.id, false);
     }
   };
 
@@ -259,9 +291,9 @@ export function EnterpriseAdminConsole() {
 
   return (
     <div className="space-y-5 text-content-primary">
-      <section className="overflow-hidden rounded-lg border border-border-default bg-surface-elevated shadow-[0_20px_80px_rgba(76,29,149,0.10)]">
+      <section className="overflow-hidden rounded-lg border border-border-default bg-surface-elevated shadow-[0_20px_80px_rgba(31,41,55,0.10)]">
         <div className="relative grid gap-6 p-5 md:grid-cols-[minmax(0,1fr)_360px] md:p-7">
-          <div className="pointer-events-none absolute inset-0 opacity-70 [background:radial-gradient(circle_at_18%_12%,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_84%_18%,rgba(59,130,246,0.14),transparent_28%)]" />
+          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(16,185,129,0.10),transparent_38%,rgba(59,130,246,0.10))]" />
           <div className="relative">
             <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
               <ShieldCheck className="h-3.5 w-3.5" />
@@ -271,7 +303,7 @@ export function EnterpriseAdminConsole() {
               Govern users, runtime policy, audit evidence, and configuration propagation from one control plane.
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-content-secondary md:text-base">
-              Admin now reads live operational state, records propagation events for access/config changes, and keeps settings, workflows, menus, and API permissions aligned with tenant context.
+              Admin reads live operational state, records propagation events for access/config changes, and keeps settings, workflows, menus, and API permissions aligned with tenant context.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <Button onClick={() => load(true)} loading={refreshing} icon={<RefreshCcw className="h-4 w-4" />}>
@@ -318,10 +350,21 @@ export function EnterpriseAdminConsole() {
                   <span className="text-content-secondary">{formatTime(event.created_at || event.createdAt)}</span>
                 </motion.div>
               ))}
+              {!dashboard?.syncEvents?.length && !syncEvents.length ? (
+                <p className="rounded-lg border border-dashed border-border-default bg-surface-secondary px-3 py-2 text-xs text-content-muted">
+                  No propagation events recorded yet.
+                </p>
+              ) : null}
             </div>
           </motion.div>
         </div>
       </section>
+
+      {loadIssues.length ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          Partial admin data loaded. Unavailable: {loadIssues.join(', ')}.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="h-fit rounded-lg border border-border-default bg-surface-elevated p-2 shadow-sm">
@@ -365,6 +408,7 @@ export function EnterpriseAdminConsole() {
                   setUserDraft={setUserDraft}
                   createUser={createUser}
                   savingUser={savingUser}
+                  pendingUserIds={pendingUserIds}
                   patchUser={patchUser}
                   sendReset={sendReset}
                 />
@@ -450,6 +494,9 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
                 </div>
               </motion.div>
             ))}
+            {!dashboard?.modules?.length ? (
+              <EmptyBlock title="No module activity" detail="Operational modules will appear when admin telemetry is available." />
+            ) : null}
           </div>
         </section>
 
@@ -466,6 +513,9 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
                   </div>
                 </div>
               ))}
+              {!dashboard?.alerts?.length ? (
+                <EmptyBlock title="No alerts" detail="No critical admin alerts are active." compact />
+              ) : null}
             </div>
           </div>
           <div className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
@@ -491,6 +541,7 @@ function UserManagement({
   setUserDraft,
   createUser,
   savingUser,
+  pendingUserIds,
   patchUser,
   sendReset,
 }: {
@@ -501,6 +552,7 @@ function UserManagement({
   setUserDraft: (draft: UserDraft) => void;
   createUser: () => void;
   savingUser: boolean;
+  pendingUserIds: Set<string>;
   patchUser: (user: AdminUser, patch: Partial<AdminUser>) => Promise<void>;
   sendReset: (user: AdminUser) => Promise<void>;
 }) {
@@ -523,7 +575,9 @@ function UserManagement({
             </div>
           </div>
           <div className="divide-y divide-border-default">
-            {users.map((user) => (
+            {users.map((user) => {
+              const pending = pendingUserIds.has(user.id);
+              return (
               <div key={user.id} className="grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_180px_220px] md:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -537,6 +591,7 @@ function UserManagement({
                 <select
                   value={user.role || 'USER'}
                   onChange={(event) => patchUser(user, { role: event.target.value })}
+                  disabled={pending}
                   className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm focus:border-brand-400 focus:ring-2 focus:ring-brand-200"
                 >
                   {roleOptions.map((role) => (
@@ -544,20 +599,23 @@ function UserManagement({
                   ))}
                 </select>
                 <div className="flex flex-wrap gap-2 md:justify-end">
-                  <Button variant="secondary" size="sm" onClick={() => sendReset(user)} icon={<KeyRound className="h-4 w-4" />}>
+                  <Button variant="secondary" size="sm" onClick={() => sendReset(user)} loading={pending} disabled={pending} icon={<KeyRound className="h-4 w-4" />}>
                     Reset
                   </Button>
                   <Button
                     variant={user.isActive ? 'danger' : 'secondary'}
                     size="sm"
                     onClick={() => patchUser(user, { isActive: !user.isActive })}
+                    loading={pending}
+                    disabled={pending}
                     icon={user.isActive ? <XCircle className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                   >
                     {user.isActive ? 'Deactivate' : 'Activate'}
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
             {!users.length && (
               <EmptyBlock title="No users found" detail="Create a user or clear the current search filter." />
             )}

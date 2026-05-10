@@ -15,6 +15,8 @@ import com.legent.campaign.service.BatchingService;
 import com.legent.campaign.service.CampaignEventIdempotencyService;
 import com.legent.campaign.service.CampaignStateMachineService;
 import com.legent.campaign.service.OrchestrationService;
+import com.legent.campaign.service.CampaignMetricsService;
+import com.legent.campaign.service.CampaignSendSafetyService;
 import com.legent.campaign.service.SendExecutionService;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
@@ -44,6 +46,8 @@ public class CampaignEventConsumer {
     private final SendBatchRepository sendBatchRepository;
     private final CampaignRepository campaignRepository;
     private final CampaignStateMachineService stateMachine;
+    private final CampaignSendSafetyService sendSafetyService;
+    private final CampaignMetricsService metricsService;
 
     @KafkaListener(topics = AppConstants.TOPIC_AUDIENCE_RESOLVED, groupId = AppConstants.GROUP_CAMPAIGN)
     public void handleAudienceResolved(EventEnvelope<Map<String, Object>> event) {
@@ -185,6 +189,42 @@ public class CampaignEventConsumer {
         reconcileDeliveryFeedback(event, true);
     }
 
+    @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = AppConstants.GROUP_CAMPAIGN + "-experiment-metrics", concurrency = "3")
+    public void handleTrackingIngested(EventEnvelope<String> event) {
+        try {
+            if (event.getPayload() == null || event.getPayload().isBlank()) {
+                return;
+            }
+            Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+            String workspaceId = resolveWorkspaceId(event, payload);
+            if (workspaceId == null) {
+                return;
+            }
+            if (!registerEvent(event, AppConstants.TOPIC_TRACKING_INGESTED, workspaceId)) {
+                return;
+            }
+            String campaignId = stringValue(payload.get("campaignId"));
+            String experimentId = stringValue(payload.get("experimentId"));
+            if (campaignId == null || experimentId == null) {
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> metadata = payload.get("metadata") instanceof Map<?, ?> map
+                    ? (Map<String, Object>) map
+                    : Collections.emptyMap();
+            metricsService.recordTracking(
+                    event.getTenantId(),
+                    workspaceId,
+                    campaignId,
+                    experimentId,
+                    stringValue(payload.get("variantId")),
+                    stringValue(payload.get("eventType")),
+                    metadata);
+        } catch (Exception e) {
+            log.error("Failed handling TOPIC_TRACKING_INGESTED {}", event.getEventId(), e);
+        }
+    }
+
     private void reconcileDeliveryFeedback(EventEnvelope<Map<String, Object>> event, boolean failed) {
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
@@ -237,6 +277,15 @@ public class CampaignEventConsumer {
                 }
             } else {
                 job.setTotalSent((job.getTotalSent() == null ? 0L : job.getTotalSent()) + 1);
+            }
+            String messageId = stringValue(payload.get("messageId"));
+            if (messageId != null) {
+                sendSafetyService.recordDeliveryFeedback(
+                        event.getTenantId(),
+                        workspaceId,
+                        messageId,
+                        failed,
+                        stringValue(payload.get("reason")));
             }
             sendJobRepository.save(job);
 

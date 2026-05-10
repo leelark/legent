@@ -93,10 +93,10 @@ export const studios = [
 export const homeScenarios = [
   {
     eyebrow: 'Launch readiness',
-    title: 'Board-level launch command',
+    title: 'Executive launch command',
     metric: '76%',
     status: 'Approved',
-    narrative: 'Audience, creative, approvals, delivery safety, and analytics readiness move together before the campaign enters queue.',
+    narrative: 'Audience quality, creative approval, delivery safety, and analytics readiness move together before a campaign enters queue.',
     modules: ['Audience', 'Template', 'Campaign', 'Delivery'],
     stages: ['Audience fit', 'Template QA', 'Approval path', 'Provider route'],
     activity: ['Segment health refreshed', 'Variant B approved', 'Suppression check passed', 'Provider route locked'],
@@ -104,10 +104,10 @@ export const homeScenarios = [
   },
   {
     eyebrow: 'AI orchestration',
-    title: 'Lifecycle automation control',
+    title: 'Lifecycle journey control',
     metric: '38k',
     status: 'Learning',
-    narrative: 'AI-assisted journey suggestions stay governed by explicit trigger logic, audit state, and human approval.',
+    narrative: 'AI-assisted journey suggestions stay governed by explicit trigger logic, audit evidence, and operator approval.',
     modules: ['Audience', 'Automation', 'Template', 'Analytics'],
     stages: ['Signal detected', 'Journey branch', 'Content match', 'Feedback loop'],
     activity: ['Dormant cohort detected', 'Next-best branch simulated', 'Personalization tokens verified', 'Lift report updating'],
@@ -128,23 +128,23 @@ export const homeScenarios = [
 
 export const marketingPages = {
   home: {
-    eyebrow: 'Enterprise lifecycle intelligence',
-    title: 'Command every email workflow in real time.',
+    eyebrow: 'Enterprise email command layer',
+    title: 'Run lifecycle email from signal to inbox.',
     subtitle:
-      'Legent connects audience intelligence, governed creative, AI-assisted automation, inbox-safe delivery, and revenue feedback in one collaborative operating layer.',
-    primaryCta: 'Start Free',
-    secondaryCta: 'Explore Architecture',
-    highlights: ['AI-assisted orchestration', 'Realtime operating visibility', 'Enterprise collaboration'],
+      'Legent brings audience intelligence, governed creative, AI-assisted journeys, inbox-safe delivery, and revenue feedback into one operating system for modern lifecycle teams.',
+    primaryCta: 'Create Workspace',
+    secondaryCta: 'Explore Product Fabric',
+    highlights: ['Launch readiness in one view', 'Delivery risk before send', 'Shared evidence for every team'],
     metrics: [
-      { label: 'Launch cycle reduction', value: '42%', detail: 'from fewer approval and delivery handoffs' },
-      { label: 'Connected studios', value: '6', detail: 'plus admin and settings control planes sharing runtime context' },
-      { label: 'Inbox safety signal', value: 'Live', detail: 'provider, queue, reputation, and suppression state' },
+      { label: 'Launch cycle reduction', value: '42%', detail: 'from fewer approval, QA, and delivery handoffs' },
+      { label: 'Connected studios', value: '6', detail: 'with admin and settings control planes sharing runtime context' },
+      { label: 'Inbox safety signal', value: 'Live', detail: 'provider, queue, reputation, DNS, and suppression state' },
     ],
     signalFlow: ['Customer signal', 'AI guidance', 'Human approval', 'Inbox guardrail', 'Revenue loop'],
     solutionLayers: [
       { title: 'Operational intelligence', metric: 'Live', body: 'Every send starts with data quality, audience readiness, approval state, provider risk, and performance history in one view.', items: ['Audience fit', 'Risk posture', 'Launch confidence'] },
       { title: 'Workflow orchestration', metric: '18', body: 'Teams plan journeys, campaigns, approvals, experiments, retries, and recovery paths without losing ownership context.', items: ['Approval rail', 'Variant control', 'Recovery path'] },
-      { title: 'Business transformation', metric: '42%', body: 'Marketing operations move from reactive send management to repeatable lifecycle systems tied to measurable outcomes.', items: ['Revenue signal', 'Cycle time', 'Team velocity'] },
+      { title: 'Measurable improvement', metric: '42%', body: 'Lifecycle teams move from reactive send management to repeatable operating systems tied to measurable outcomes.', items: ['Revenue signal', 'Cycle time', 'Team velocity'] },
     ],
   },
   features: {

@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.SendJob;
+import com.legent.campaign.dto.CampaignEngineDto;
 import com.legent.campaign.dto.SendJobDto;
 import com.legent.campaign.event.CampaignEventPublisher;
 import com.legent.campaign.mapper.SendJobMapper;
@@ -44,6 +45,8 @@ class OrchestrationServiceTest {
     @Mock private CampaignEventPublisher eventPublisher;
     @Mock private SendJobMapper sendJobMapper;
     @Mock private CampaignStateMachineService stateMachine;
+    @Mock private CampaignLockService campaignLockService;
+    @Mock private CampaignEngineService campaignEngineService;
 
     @InjectMocks private OrchestrationService orchestrationService;
 
@@ -66,6 +69,17 @@ class OrchestrationServiceTest {
             job.setStatus(next);
             return null;
         }).when(stateMachine).transitionJob(any(SendJob.class), any(SendJob.JobStatus.class), anyString());
+        lenient().when(campaignEngineService.preflight(anyString())).thenReturn(
+                CampaignEngineDto.SendPreflightReport.builder()
+                        .campaignId("camp-1")
+                        .sendAllowed(true)
+                        .errors(java.util.List.of())
+                        .warnings(java.util.List.of())
+                        .checks(java.util.Map.of())
+                        .build());
+        lenient().when(sendJobRepository.findByTenantIdAndWorkspaceIdAndIdempotencyKeyAndDeletedAtIsNull(
+                        anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
     }
 
     @AfterEach

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
@@ -116,9 +117,7 @@ export function MobileNav() {
 function Brand({ collapsed }: { collapsed: boolean }) {
   return (
     <Link href="/app/email" className="flex h-14 items-center gap-3 border-b border-border-default px-4">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-400 via-brand-600 to-fuchsia-600 text-sm font-bold text-white shadow-[0_0_28px_rgba(147,51,234,0.35)]">
-        L
-      </span>
+      <Image src="/legent-logo.svg" alt="" width={34} height={34} className="h-8 w-8 shrink-0 rounded-xl shadow-[0_0_28px_rgba(147,51,234,0.35)]" priority />
       {!collapsed && (
         <span className="min-w-0">
           <span className="block truncate text-sm font-semibold text-content-primary">Legent</span>

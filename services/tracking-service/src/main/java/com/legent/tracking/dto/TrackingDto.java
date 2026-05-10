@@ -31,6 +31,9 @@ public class TrackingDto {
         private String campaignId;
         private String subscriberId;
         private String messageId;
+        private String experimentId;
+        private String variantId;
+        private Boolean holdout;
         private String userAgent;
         private String ipAddress;
         private String linkUrl;
@@ -47,6 +50,8 @@ public class TrackingDto {
         private String email;
         private String subscriberId;
         private String campaignId;
+        private String experimentId;
+        private String variantId;
         @NotBlank
         private String eventName;
         private BigDecimal value; // AUDIT-027: Use BigDecimal instead of Double for monetary precision

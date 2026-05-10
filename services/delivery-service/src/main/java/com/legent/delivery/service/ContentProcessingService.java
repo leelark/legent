@@ -44,24 +44,36 @@ public class ContentProcessingService {
     private static final Pattern LINK_PATTERN = Pattern.compile("<a\\s+(?:[^>]*?\\s+)?href=([\"'])(.*?)\\1", Pattern.CASE_INSENSITIVE);
 
     public String processContent(String htmlContent, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId) {
+        return processContent(htmlContent, tenantId, campaignId, subscriberId, messageId, workspaceId, null, null, false);
+    }
+
+    public String processContent(String htmlContent,
+                                 String tenantId,
+                                 String campaignId,
+                                 String subscriberId,
+                                 String messageId,
+                                 String workspaceId,
+                                 String experimentId,
+                                 String variantId,
+                                 boolean holdout) {
         if (htmlContent == null || htmlContent.isBlank()) {
             throw new IllegalArgumentException("HTML content cannot be null or empty");
         }
 
-        String processed = injectTrackingPixel(htmlContent, tenantId, campaignId, subscriberId, messageId, workspaceId);
-        processed = rewriteLinks(processed, tenantId, campaignId, subscriberId, messageId, workspaceId);
+        String processed = injectTrackingPixel(htmlContent, tenantId, campaignId, subscriberId, messageId, workspaceId, experimentId, variantId, holdout);
+        processed = rewriteLinks(processed, tenantId, campaignId, subscriberId, messageId, workspaceId, experimentId, variantId, holdout);
 
         return processed;
     }
 
-    private String injectTrackingPixel(String html, String t, String c, String s, String m, String w) {
+    private String injectTrackingPixel(String html, String t, String c, String s, String m, String w, String e, String v, boolean h) {
         if (trackingBaseUrl == null || trackingBaseUrl.isBlank()) {
             throw new IllegalStateException("Tracking base URL not configured");
         }
         // Generate HMAC signature to prevent URL tampering
         String sig = trackingUrlSigner.generateSignature(t, c, s, m, w);
-        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s&sig=%s&w=%s",
-                trackingBaseUrl, encode(t), encode(c), encode(s), encode(m), encode(sig), encode(w));
+        String pixelUrl = String.format("%s/api/v1/tracking/o.gif?t=%s&c=%s&s=%s&m=%s&sig=%s&w=%s%s",
+                trackingBaseUrl, encode(t), encode(c), encode(s), encode(m), encode(sig), encode(w), lineageParams(e, v, h));
         String pixelTag = String.format("<img src=\"%s\" width=\"1\" height=\"1\" border=\"0\" style=\"display:none;\" />", pixelUrl);
 
         if (html.toLowerCase().contains("</body>")) {
@@ -71,7 +83,7 @@ public class ContentProcessingService {
         }
     }
 
-    private String rewriteLinks(String html, String t, String c, String s, String m, String w) {
+    private String rewriteLinks(String html, String t, String c, String s, String m, String w, String e, String v, boolean h) {
         StringBuilder sb = new StringBuilder();
         Matcher matcher = LINK_PATTERN.matcher(html);
         int lastEnd = 0;
@@ -86,8 +98,8 @@ public class ContentProcessingService {
             } else {
                 // Generate HMAC signature to prevent URL tampering
                 String sig = trackingUrlSigner.generateClickSignature(t, c, s, m, w, originalUrl);
-                String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s&sig=%s&w=%s",
-                        trackingBaseUrl, encode(originalUrl), encode(t), encode(c), encode(s), encode(m), encode(sig), encode(w));
+                String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s&sig=%s&w=%s%s",
+                        trackingBaseUrl, encode(originalUrl), encode(t), encode(c), encode(s), encode(m), encode(sig), encode(w), lineageParams(e, v, h));
                 
                 String fullTag = matcher.group(0).replace(originalUrl, trackedUrl);
                 sb.append(fullTag);
@@ -100,5 +112,19 @@ public class ContentProcessingService {
 
     private String encode(String value) {
         return java.net.URLEncoder.encode(value == null ? "" : value, StandardCharsets.UTF_8);
+    }
+
+    private String lineageParams(String experimentId, String variantId, boolean holdout) {
+        StringBuilder params = new StringBuilder();
+        if (experimentId != null && !experimentId.isBlank()) {
+            params.append("&e=").append(encode(experimentId));
+        }
+        if (variantId != null && !variantId.isBlank()) {
+            params.append("&v=").append(encode(variantId));
+        }
+        if (holdout) {
+            params.append("&h=true");
+        }
+        return params.toString();
     }
 }

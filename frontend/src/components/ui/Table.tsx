@@ -38,7 +38,7 @@ export function Table<T>({
 }: TableProps<T> & { children?: React.ReactNode; className?: string }) {
   if (children) {
     return (
-      <div className="overflow-x-auto rounded-xl border border-border-default bg-surface-elevated/92 shadow-soft backdrop-blur-xl">
+      <div className="overflow-x-auto rounded-xl border border-border-default bg-surface-elevated/92 shadow-[0_18px_45px_rgba(76,29,149,0.08)] backdrop-blur-xl">
         <table className={clsx('w-full text-sm', className)}>
           {children}
         </table>
@@ -88,7 +88,7 @@ export function Table<T>({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border-default bg-surface-elevated/92 shadow-soft backdrop-blur-xl">
+    <div className="overflow-x-auto rounded-xl border border-border-default bg-surface-elevated/92 shadow-[0_18px_45px_rgba(76,29,149,0.08)] backdrop-blur-xl">
       <table className={clsx('w-full text-sm', className)}>
         <thead>
           <tr className="border-b border-border-default bg-surface-secondary/85">

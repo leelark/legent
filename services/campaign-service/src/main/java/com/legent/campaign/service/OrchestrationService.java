@@ -40,6 +40,8 @@ public class OrchestrationService {
     private final CampaignEventPublisher eventPublisher;
     private final SendJobMapper sendJobMapper;
     private final CampaignStateMachineService stateMachine;
+    private final CampaignLockService campaignLockService;
+    private final CampaignEngineService campaignEngineService;
 
     @Transactional
     public SendJobDto.Response triggerSend(String campaignId, SendJobDto.TriggerRequest request) {
@@ -62,6 +64,16 @@ public class OrchestrationService {
         }
         if (campaign.getAudiences() == null || campaign.getAudiences().isEmpty()) {
             throw new ValidationException("campaign.audiences", "At least one audience is required before triggering a send");
+        }
+        if (campaign.isApprovalRequired() && campaign.getStatus() == Campaign.CampaignStatus.APPROVED) {
+            campaignLockService.validateActiveLock(campaign);
+        }
+        var preflight = campaignEngineService.preflight(campaignId);
+        if (!preflight.isSendAllowed()) {
+            throw new ValidationException("campaign.preflight", String.join("; ", preflight.getErrors()));
+        }
+        if (request.getIdempotencyKey() == null || request.getIdempotencyKey().isBlank()) {
+            request.setIdempotencyKey(defaultSendIdempotencyKey(campaignId, request));
         }
         if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
             var existing = sendJobRepository.findByTenantIdAndWorkspaceIdAndIdempotencyKeyAndDeletedAtIsNull(
@@ -253,8 +265,22 @@ public class OrchestrationService {
         SendJobDto.TriggerRequest request = new SendJobDto.TriggerRequest();
         request.setTriggerSource("RESEND");
         request.setTriggerReference(campaignId);
-        request.setIdempotencyKey("resend-" + campaignId + "-" + Instant.now().toEpochMilli());
+        String requestId = TenantContext.getRequestId();
+        request.setIdempotencyKey("resend:" + campaignId + ":" + (requestId != null && !requestId.isBlank()
+                ? requestId
+                : Integer.toHexString(String.valueOf(reason).hashCode())));
         return triggerSend(campaignId, request);
+    }
+
+    private String defaultSendIdempotencyKey(String campaignId, SendJobDto.TriggerRequest request) {
+        String requestId = TenantContext.getRequestId();
+        if (requestId != null && !requestId.isBlank()) {
+            return "send:" + campaignId + ":" + requestId;
+        }
+        String source = request.getTriggerSource() == null ? "MANUAL" : request.getTriggerSource();
+        String reference = request.getTriggerReference() == null ? "" : request.getTriggerReference();
+        String scheduled = request.getScheduledAt() == null ? "immediate" : request.getScheduledAt().toString();
+        return "send:" + campaignId + ":" + source + ":" + reference + ":" + scheduled;
     }
 
     private SendJob latestActiveJob(String tenantId, String workspaceId, String campaignId) {

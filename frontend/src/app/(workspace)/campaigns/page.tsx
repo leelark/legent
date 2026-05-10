@@ -15,6 +15,7 @@ import {
   cancelCampaign,
   cancelCampaignSend,
   cloneCampaign,
+  createRequestKey,
   listCampaigns,
   pauseCampaignSend,
   resumeCampaignSend,
@@ -91,7 +92,7 @@ export default function CampaignsPage() {
       await triggerCampaignSend(campaign.id, {
         triggerSource: 'MANUAL',
         triggerReference: 'campaigns-page',
-        idempotencyKey: `manual-send-${campaign.id}-${Date.now()}`,
+        idempotencyKey: createRequestKey(`manual-send-${campaign.id}`),
       });
       addToast({ type: 'success', title: 'Send queued', message: `${campaign.name} send job started.` });
     });

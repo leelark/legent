@@ -210,21 +210,25 @@ public class AdminSettingsService {
     }
 
     private void recordConfigSync(String eventType, AdminSettingsDto.Entry entry, List<String> impactedModules) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("key", entry.getKey());
-        payload.put("module", entry.getModule());
-        payload.put("category", entry.getCategory());
-        payload.put("scope", entry.getScope());
-        payload.put("workspaceId", entry.getWorkspaceId());
-        payload.put("environmentId", entry.getEnvironmentId());
-        payload.put("version", entry.getVersion());
-        payload.put("updatedBy", entry.getUpdatedBy());
-        adminOperationsService.recordSyncEvent(
-                eventType,
-                "admin-settings",
-                impactedModules == null ? List.of("system") : impactedModules,
-                payload
-        );
+        try {
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("key", entry.getKey());
+            payload.put("module", entry.getModule());
+            payload.put("category", entry.getCategory());
+            payload.put("scope", entry.getScope());
+            payload.put("workspaceId", entry.getWorkspaceId());
+            payload.put("environmentId", entry.getEnvironmentId());
+            payload.put("version", entry.getVersion());
+            payload.put("updatedBy", entry.getUpdatedBy());
+            adminOperationsService.recordSyncEvent(
+                    eventType,
+                    "admin-settings",
+                    impactedModules == null ? List.of("system") : impactedModules,
+                    payload
+            );
+        } catch (Exception ex) {
+            log.warn("Config sync ledger write skipped for key={}: {}", entry.getKey(), ex.getMessage());
+        }
     }
 
     private AdminSettingsDto.Entry toEntry(SystemConfig config) {

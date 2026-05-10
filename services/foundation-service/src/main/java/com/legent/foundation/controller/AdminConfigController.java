@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 @RestController
 @RequestMapping("/api/v1/admin/configs")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN')")
 public class AdminConfigController {
     private final AdminSettingsService adminSettingsService;
 

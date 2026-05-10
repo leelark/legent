@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 test('premium public navigation, theme persistence, and mobile menu', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { name: /Operate email growth/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Run lifecycle email/i })).toBeVisible();
 
   await page.getByRole('button', { name: 'Toggle public theme' }).first().click();
   await page.reload();
@@ -15,13 +15,13 @@ test('premium public navigation, theme persistence, and mobile menu', async ({ p
   await page.setViewportSize({ width: 390, height: 800 });
   await page.goto('/modules');
   await page.getByLabel('Toggle navigation').click();
-  await expect(page.getByRole('link', { name: 'Pricing', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: /Pricing/ }).first()).toBeVisible();
 });
 
 test('homepage scenarios and pricing yearly toggle work', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: /Inbox intelligence/i }).click();
-  await expect(page.getByText('Provider-aware delivery room')).toBeVisible();
+  await page.getByRole('button', { name: /Show Provider-aware delivery room/i }).click();
+  await expect(page.getByRole('heading', { name: 'Provider-aware delivery room' }).first()).toBeVisible();
 
   await page.goto('/pricing');
   await expect(page.getByRole('heading', { name: /Pricing responds/i })).toBeVisible();
@@ -50,7 +50,7 @@ test('public pages are differentiated and contact submit succeeds', async ({ pag
   await expect(page.getByText('Interactive architecture')).toBeVisible();
 
   await page.goto('/modules');
-  await expect(page.getByText('Runtime system map').first()).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Select a module/i })).toBeVisible();
 
   await page.goto('/about');
   await expect(page.getByRole('heading', { name: /production infrastructure/i })).toBeVisible();

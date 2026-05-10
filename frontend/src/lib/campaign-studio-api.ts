@@ -87,6 +87,145 @@ export type CampaignApproval = {
   updatedAt?: string;
 };
 
+export type ExperimentType = 'AB' | 'MULTIVARIATE';
+export type ExperimentStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'PROMOTED';
+export type WinnerMetric = 'OPENS' | 'CLICKS' | 'CONVERSIONS' | 'REVENUE' | 'CUSTOM';
+
+export type CampaignVariant = {
+  id?: string;
+  experimentId?: string;
+  variantKey: string;
+  name: string;
+  weight: number;
+  controlVariant?: boolean;
+  holdoutVariant?: boolean;
+  active?: boolean;
+  winner?: boolean;
+  contentId?: string;
+  subjectOverride?: string;
+  metadata?: string;
+};
+
+export type CampaignExperiment = {
+  id: string;
+  campaignId: string;
+  name: string;
+  experimentType: ExperimentType;
+  status: ExperimentStatus;
+  winnerMetric: WinnerMetric;
+  customMetricName?: string;
+  autoPromotion: boolean;
+  minRecipientsPerVariant: number;
+  evaluationWindowHours: number;
+  holdoutPercentage: number;
+  winnerVariantId?: string;
+  factors?: string;
+  startsAt?: string;
+  endsAt?: string;
+  completedAt?: string;
+  variants: CampaignVariant[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type CampaignExperimentRequest = {
+  name: string;
+  experimentType: ExperimentType;
+  winnerMetric: WinnerMetric;
+  customMetricName?: string;
+  autoPromotion?: boolean;
+  minRecipientsPerVariant?: number;
+  evaluationWindowHours?: number;
+  holdoutPercentage?: number;
+  factors?: string;
+  status?: ExperimentStatus;
+  variants: CampaignVariant[];
+};
+
+export type CampaignBudget = {
+  id?: string;
+  campaignId: string;
+  currency: string;
+  budgetLimit: number;
+  costPerSend: number;
+  reservedSpend: number;
+  actualSpend: number;
+  enforced: boolean;
+  status: string;
+};
+
+export type CampaignBudgetRequest = {
+  currency?: string;
+  budgetLimit?: number;
+  costPerSend?: number;
+  enforced?: boolean;
+};
+
+export type FrequencyPolicy = {
+  id?: string;
+  campaignId: string;
+  enabled: boolean;
+  maxSends: number;
+  windowHours: number;
+  includeJourneys: boolean;
+};
+
+export type FrequencyPolicyRequest = {
+  enabled?: boolean;
+  maxSends?: number;
+  windowHours?: number;
+  includeJourneys?: boolean;
+};
+
+export type SendPreflightReport = {
+  campaignId: string;
+  sendAllowed: boolean;
+  errors: string[];
+  warnings: string[];
+  checks: Record<string, unknown>;
+};
+
+export type ResendPlan = {
+  campaignId: string;
+  resendMode: 'FAILED_ONLY' | 'NOT_SENT' | 'SUPPRESSED_RECHECK' | 'ALL_REQUIRES_CONFIRMATION';
+  requiresConfirmation: boolean;
+  idempotencyKey: string;
+  eligibleRecipients: number;
+  warnings: string[];
+};
+
+export type DeadLetterEntry = {
+  id: string;
+  campaignId: string;
+  jobId: string;
+  batchId?: string;
+  subscriberId?: string;
+  email?: string;
+  reason?: string;
+  payload?: string;
+  retryCount?: number;
+  status: string;
+  nextRetryAt?: string;
+  replayedAt?: string;
+  createdAt?: string;
+};
+
+export type VariantMetrics = {
+  campaignId: string;
+  experimentId: string;
+  variantId?: string;
+  targetCount: number;
+  holdoutCount: number;
+  sentCount: number;
+  failedCount: number;
+  openCount: number;
+  clickCount: number;
+  conversionCount: number;
+  revenue: number;
+  customMetricCount: number;
+  score: number;
+};
+
 export type CampaignListResponse = {
   content: Campaign[];
   totalElements: number;
@@ -132,6 +271,60 @@ export const triggerCampaignSend = async (
   id: string,
   payload?: { scheduledAt?: string; triggerSource?: string; triggerReference?: string; idempotencyKey?: string }
 ) => post<SendJob>(`/campaigns/${id}/send`, payload ?? {});
+
+export const listCampaignExperiments = async (campaignId: string) =>
+  get<CampaignExperiment[]>(`/campaigns/${campaignId}/experiments`);
+
+export const createCampaignExperiment = async (campaignId: string, payload: CampaignExperimentRequest) =>
+  post<CampaignExperiment>(`/campaigns/${campaignId}/experiments`, payload);
+
+export const updateCampaignExperiment = async (
+  campaignId: string,
+  experimentId: string,
+  payload: CampaignExperimentRequest
+) => put<CampaignExperiment>(`/campaigns/${campaignId}/experiments/${experimentId}`, payload);
+
+export const deleteCampaignExperiment = async (campaignId: string, experimentId: string) =>
+  del<void>(`/campaigns/${campaignId}/experiments/${experimentId}`);
+
+export const promoteExperimentWinner = async (campaignId: string, experimentId: string) =>
+  post<CampaignExperiment>(`/campaigns/${campaignId}/experiments/${experimentId}/promote-winner`);
+
+export const getExperimentMetrics = async (campaignId: string, experimentId: string) =>
+  get<VariantMetrics[]>(`/campaigns/${campaignId}/experiments/${experimentId}/metrics`);
+
+export const getCampaignBudget = async (campaignId: string) =>
+  get<CampaignBudget>(`/campaigns/${campaignId}/budget`);
+
+export const updateCampaignBudget = async (campaignId: string, payload: CampaignBudgetRequest) =>
+  put<CampaignBudget>(`/campaigns/${campaignId}/budget`, payload);
+
+export const getFrequencyPolicy = async (campaignId: string) =>
+  get<FrequencyPolicy>(`/campaigns/${campaignId}/frequency-policy`);
+
+export const updateFrequencyPolicy = async (campaignId: string, payload: FrequencyPolicyRequest) =>
+  put<FrequencyPolicy>(`/campaigns/${campaignId}/frequency-policy`, payload);
+
+export const preflightCampaignSend = async (campaignId: string) =>
+  post<SendPreflightReport>(`/campaigns/${campaignId}/send/preflight`, {});
+
+export const createResendPlan = async (
+  campaignId: string,
+  payload: { resendMode: ResendPlan['resendMode']; confirmed?: boolean; reason?: string }
+) => post<ResendPlan>(`/campaigns/${campaignId}/send/resend-plans`, payload);
+
+export const listSendJobDeadLetters = async (jobId: string) =>
+  get<DeadLetterEntry[]>(`/send-jobs/${jobId}/dead-letters`);
+
+export const replayDeadLetter = async (jobId: string, deadLetterId: string) =>
+  post<DeadLetterEntry>(`/send-jobs/${jobId}/dead-letters/${deadLetterId}/replay`, {});
+
+export const createRequestKey = (scope: string) => {
+  if (typeof window !== 'undefined' && window.crypto && 'randomUUID' in window.crypto) {
+    return `${scope}-${window.crypto.randomUUID()}`;
+  }
+  return `${scope}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+};
 
 export const getCampaignJobs = async (id: string, page = 0, size = 20) =>
   get<{ content: SendJob[]; totalElements: number; totalPages: number; page: number; size: number }>(

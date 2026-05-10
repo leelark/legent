@@ -189,7 +189,7 @@ export function Header() {
 
       <button
         onClick={() => setSearchOpen(true)}
-        className="mx-3 hidden h-9 w-full max-w-md items-center gap-2 rounded-xl border border-border-default bg-surface-elevated/78 px-3 text-left text-sm text-content-muted shadow-sm transition hover:border-border-strong hover:text-content-primary md:flex"
+        className="mx-3 hidden h-9 w-full max-w-md items-center gap-2 rounded-xl border border-border-default bg-surface-elevated/84 px-3 text-left text-sm text-content-muted shadow-[0_10px_28px_rgba(76,29,149,0.08)] transition hover:border-border-strong hover:bg-surface-primary hover:text-content-primary md:flex"
       >
         <Search size={16} />
         <span className="flex-1 truncate">Search campaigns, subscribers, templates...</span>
@@ -201,7 +201,7 @@ export function Header() {
           <select
             value={selectedContext}
             onChange={(event) => void handleContextChange(event.target.value)}
-            className="hidden max-w-56 rounded-lg border border-border-default bg-surface-secondary px-2 py-2 text-xs text-content-primary lg:block"
+            className="hidden max-w-56 rounded-xl border border-border-default bg-surface-elevated/90 px-3 py-2 text-xs font-medium text-content-primary shadow-sm lg:block"
             aria-label="Workspace context"
           >
             {contexts.map((ctx) => {
@@ -229,8 +229,8 @@ export function Header() {
         <button
           onClick={handleToggleMode}
           className={clsx(
-            'rounded-xl border border-border-default px-3 py-2 text-xs font-semibold transition-colors',
-            uiMode === 'ADVANCED' ? 'bg-brand-500/15 text-brand-300' : 'text-content-secondary hover:bg-surface-secondary'
+            'rounded-xl border border-border-default px-3 py-2 text-xs font-semibold shadow-sm transition-colors',
+            uiMode === 'ADVANCED' ? 'bg-brand-500/15 text-brand-600 dark:text-brand-300' : 'text-content-secondary hover:bg-surface-secondary'
           )}
           aria-label="Toggle Basic or Advanced mode"
         >

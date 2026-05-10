@@ -29,6 +29,10 @@ export default function AutomationPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const activeCount = workflows.filter((workflow) => workflow.status === 'ACTIVE').length;
+  const draftCount = workflows.filter((workflow) => workflow.status === 'DRAFT').length;
+  const pausedCount = workflows.filter((workflow) => workflow.status === 'PAUSED' || workflow.status === 'SCHEDULED').length;
+  const governedCount = workflows.filter((workflow) => workflow.status !== 'ARCHIVED').length;
 
   const loadWorkflows = async () => {
     setLoading(true);
@@ -89,9 +93,27 @@ export default function AutomationPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-brand-600 dark:text-brand-300">Journey orchestration</p>
           <h1 className="mt-1 text-2xl font-semibold text-content-primary md:text-3xl">Automation</h1>
-          <p className="mt-1 text-sm text-content-secondary">Build and manage customer journeys</p>
+          <p className="mt-1 max-w-2xl text-sm text-content-secondary">Build customer journeys with draft control, publish gates, rollback posture, and execution visibility.</p>
         </div>
         <Button icon={<Plus size={16} />} onClick={() => setShowCreate(!showCreate)}>New Workflow</Button>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {[
+          { label: 'Active journeys', value: activeCount, detail: 'running lifecycle paths' },
+          { label: 'Drafts', value: draftCount, detail: 'waiting for review' },
+          { label: 'Paused or scheduled', value: pausedCount, detail: 'operator controlled' },
+          { label: 'Governed workflows', value: governedCount, detail: 'not archived' },
+        ].map((stat) => (
+          <Card key={stat.label}>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-content-secondary">{stat.label}</p>
+            <div className="mt-3 flex items-end justify-between gap-3">
+              <p className="text-3xl font-semibold text-content-primary">{loading ? '-' : stat.value}</p>
+              <span className="rounded-full border border-brand-500/20 bg-brand-500/10 px-2 py-1 text-xs font-semibold text-brand-600 dark:text-brand-300">Live</span>
+            </div>
+            <p className="mt-2 text-xs text-content-muted">{stat.detail}</p>
+          </Card>
+        ))}
       </div>
 
       {showCreate && (
@@ -118,18 +140,40 @@ export default function AutomationPage() {
         </Card>
       )}
 
-      <Card>
-        <CardHeader title="Workflows" action={<Badge variant="info">{workflows.length} items</Badge>} />
+      <Card className="overflow-hidden !p-0">
+        <div className="border-b border-border-default bg-surface-secondary/60 p-5">
+          <CardHeader title="Workflows" subtitle="Draft, publish, pause, clone, and archive journeys from one control surface." action={<Badge variant="info">{workflows.length} items</Badge>} className="mb-0" />
+        </div>
+        <div className="p-5">
         {error && <div className="mb-4 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">{error}</div>}
         {loading ? (
           <div className="p-8 text-sm text-content-secondary">Loading workflows...</div>
         ) : workflows.length === 0 ? (
-          <EmptyState
-            type="empty"
-            title="No workflows yet"
-            description="Create automated journeys for your subscribers."
-            action={<Button icon={<Plus size={16} />} onClick={() => setShowCreate(true)}>Create Workflow</Button>}
-          />
+          <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-xl border border-dashed border-border-default bg-surface-secondary/70 p-6">
+              <EmptyState
+                type="empty"
+                title="No workflows yet"
+                description="Create a governed lifecycle path, then publish when branch logic and approvals are ready."
+                action={<Button icon={<Plus size={16} />} onClick={() => setShowCreate(true)}>Create Workflow</Button>}
+              />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+              {[
+                ['Trigger', 'Start from subscriber joins, segment entry, or campaign event.'],
+                ['Decide', 'Branch by audience state, consent, engagement, or readiness score.'],
+                ['Deliver', 'Send through approved templates with provider-safe timing.'],
+              ].map(([label, detail], index) => (
+                <div key={label} className="rounded-xl border border-border-default bg-surface-secondary/70 p-4">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-500/10 text-sm font-semibold text-brand-600 dark:text-brand-300">{index + 1}</span>
+                    <p className="font-semibold text-content-primary">{label}</p>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-content-secondary">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : (
           <div className="grid gap-0 divide-y divide-border-default">
             {workflows.map((wf) => (
@@ -164,6 +208,7 @@ export default function AutomationPage() {
             ))}
           </div>
         )}
+        </div>
       </Card>
     </div>
   );

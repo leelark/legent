@@ -10,14 +10,17 @@ import java.util.List;
 import java.util.Map;
 
 import com.legent.campaign.domain.SendBatch;
+import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
+import com.legent.campaign.repository.SendJobRepository;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.kafka.model.EventEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,10 +36,16 @@ public class SendExecutionService {
 
     private final SendBatchRepository batchRepository;
     private final CampaignRepository campaignRepository;
+    private final SendJobRepository sendJobRepository;
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final ThrottlingService throttlingService;
     private final ContentServiceClient contentServiceClient;
+    private final CampaignSendSafetyService sendSafetyService;
+    private final CampaignStateMachineService stateMachine;
+
+    @Value("${legent.campaign.send.max-batch-retries:5}")
+    private int maxBatchRetries;
 
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
@@ -74,12 +83,32 @@ public class SendExecutionService {
                 return;
             }
             
-            // Limit by domain throttling rules before publishing to delivery
-            int acquiredPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), subscribers.size());
+            CampaignSendSafetyService.SendPlan sendPlan = sendSafetyService.buildPlan(campaign);
+            List<CampaignSendSafetyService.PreparedRecipient> preparedRecipients = new java.util.ArrayList<>();
+            int skippedRecipients = 0;
+            for (Map<String, String> sub : subscribers) {
+                String subscriberIdentity = sub.get("subscriberId") != null ? sub.get("subscriberId") : sub.get("email");
+                String messageId = batch.getJobId() + ":" + batchId + ":" + subscriberIdentity + ":r" + (batch.getRetryCount() == null ? 0 : batch.getRetryCount());
+                CampaignSendSafetyService.PreparedRecipient prepared = sendSafetyService.prepareRecipient(
+                        campaign,
+                        batch,
+                        sendPlan,
+                        sub,
+                        messageId);
+                if (prepared.send()) {
+                    preparedRecipients.add(prepared);
+                } else {
+                    skippedRecipients++;
+                }
+            }
+
+            // Limit by domain throttling rules before publishing to delivery.
+            int acquiredPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), preparedRecipients.size());
             int publishFailures = 0;
             
             for (int i = 0; i < acquiredPermits; i++) {
-                Map<String, String> sub = subscribers.get(i);
+                CampaignSendSafetyService.PreparedRecipient prepared = preparedRecipients.get(i);
+                Map<String, String> sub = prepared.subscriber();
                 
                 // Publish individual email send requests into Delivery Kafka Topic
                 try {
@@ -88,11 +117,22 @@ public class SendExecutionService {
                     variables.put("campaignId", batch.getCampaignId());
                     variables.put("jobId", batch.getJobId());
                     variables.put("batchId", batchId);
+                    if (prepared.experimentId() != null) {
+                        variables.put("experimentId", prepared.experimentId());
+                    }
+                    if (prepared.variantId() != null) {
+                        variables.put("variantId", prepared.variantId());
+                    }
+                    String renderContentId = prepared.contentIdOverride() != null && !prepared.contentIdOverride().isBlank()
+                            ? prepared.contentIdOverride()
+                            : campaign.getContentId();
                     ContentServiceClient.RenderedContent rendered = contentServiceClient.renderTemplate(
                             tenantId,
-                            campaign.getContentId(),
+                            renderContentId,
                             variables);
-                    String subject = campaign.getSubject() != null && !campaign.getSubject().isBlank()
+                    String subject = prepared.subjectOverride() != null && !prepared.subjectOverride().isBlank()
+                            ? prepared.subjectOverride()
+                            : campaign.getSubject() != null && !campaign.getSubject().isBlank()
                             ? campaign.getSubject()
                             : rendered.subject();
                     if (subject == null || subject.isBlank() || rendered.htmlBody() == null || rendered.htmlBody().isBlank()) {
@@ -106,6 +146,17 @@ public class SendExecutionService {
                     emailPayload.put("jobId", batch.getJobId());
                     emailPayload.put("batchId", batchId);
                     emailPayload.put("workspaceId", batch.getWorkspaceId());
+                    if (batch.getTeamId() != null) {
+                        emailPayload.put("teamId", batch.getTeamId());
+                    }
+                    if (prepared.experimentId() != null) {
+                        emailPayload.put("experimentId", prepared.experimentId());
+                    }
+                    if (prepared.variantId() != null) {
+                        emailPayload.put("variantId", prepared.variantId());
+                    }
+                    emailPayload.put("holdout", false);
+                    emailPayload.put("costReserved", prepared.costReserved());
                     emailPayload.put("subject", subject);
                     emailPayload.put("htmlBody", rendered.htmlBody());
                     if (rendered.textBody() != null && !rendered.textBody().isBlank()) {
@@ -114,10 +165,7 @@ public class SendExecutionService {
                     emailPayload.put("fromEmail", campaign.getSenderEmail());
                     emailPayload.put("fromName", campaign.getSenderName());
                     emailPayload.put("replyToEmail", campaign.getReplyToEmail());
-                    String subscriberIdentity = sub.get("subscriberId") != null ? sub.get("subscriberId") : sub.get("email");
-                    if (subscriberIdentity != null) {
-                        emailPayload.put("messageId", batch.getJobId() + ":" + batchId + ":" + subscriberIdentity);
-                    }
+                    emailPayload.put("messageId", prepared.messageId());
                     if (sub.get("firstName") != null) {
                         emailPayload.put("firstName", sub.get("firstName"));
                     }
@@ -132,11 +180,26 @@ public class SendExecutionService {
                     eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
                 } catch (Exception e) {
                     log.error("Failed to publish send request", e);
+                    sendSafetyService.recordDeliveryFeedback(
+                            tenantId,
+                            batch.getWorkspaceId(),
+                            prepared.messageId(),
+                            true,
+                            e.getMessage());
                     publishFailures++;
                 }
             }
 
-            batch.setProcessedCount(batch.getProcessedCount() + acquiredPermits);
+            batch.setProcessedCount(batch.getProcessedCount() + skippedRecipients + acquiredPermits);
+            if (skippedRecipients > 0) {
+                final int skippedForJob = skippedRecipients;
+                sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                                tenantId, batch.getWorkspaceId(), batch.getJobId())
+                        .ifPresent(job -> {
+                            job.setTotalSuppressed((job.getTotalSuppressed() == null ? 0L : job.getTotalSuppressed()) + skippedForJob);
+                            sendJobRepository.save(job);
+                        });
+            }
             
             // Note: success and failure count updates will now be managed via tracking webhook later.
             // For now, we consider them successful handoffs to the delivery engine queue.
@@ -144,11 +207,14 @@ public class SendExecutionService {
             int successfulHandoffs = Math.max(0, acquiredPermits - publishFailures);
             batch.setSuccessCount(batch.getSuccessCount() + successfulHandoffs);
             
-            if (acquiredPermits < subscribers.size()) {
+            if (acquiredPermits < preparedRecipients.size()) {
                 batch.setStatus(SendBatch.BatchStatus.PARTIAL); // Requires retry later
                 
                 // Active DLQ / DL-Routing
-                List<Map<String, String>> remaining = subscribers.subList(acquiredPermits, subscribers.size());
+                List<Map<String, String>> remaining = preparedRecipients.subList(acquiredPermits, preparedRecipients.size())
+                        .stream()
+                        .map(CampaignSendSafetyService.PreparedRecipient::subscriber)
+                        .toList();
                 try {
                     String remainingPayload = objectMapper.writeValueAsString(remaining);
                     batch.setPayload(remainingPayload);
@@ -170,7 +236,9 @@ public class SendExecutionService {
                     log.error("Failed to process remaining subscribers for DLQ tracking on batch {}", batchId, se);
                 }
             } else {
-                if (publishFailures == acquiredPermits && acquiredPermits > 0) {
+                if (preparedRecipients.isEmpty()) {
+                    batch.setStatus(SendBatch.BatchStatus.COMPLETED);
+                } else if (publishFailures == acquiredPermits && acquiredPermits > 0) {
                     batch.setStatus(SendBatch.BatchStatus.FAILED);
                     batch.setLastError("All rendered send requests failed");
                 } else if (publishFailures > 0) {
@@ -181,6 +249,7 @@ public class SendExecutionService {
                 }
             }
             batchRepository.save(batch);
+            reconcileJobIfFinished(batch);
         } catch (Exception e) {
             log.error("Failed to enqueue batch {}", batchId, e);
         }
@@ -233,9 +302,27 @@ public class SendExecutionService {
 
         for (SendBatch batch : partialBatches) {
             try {
+                int nextRetryCount = batch.getRetryCount() != null ? batch.getRetryCount() + 1 : 1;
+                if (nextRetryCount > maxBatchRetries) {
+                    batch.setStatus(SendBatch.BatchStatus.FAILED);
+                    batch.setLastError("Max campaign batch retries exceeded");
+                    batch.setRetryCount(nextRetryCount);
+                    batchRepository.save(batch);
+                    sendSafetyService.createDeadLetter(
+                            batch.getTenantId(),
+                            batch.getWorkspaceId(),
+                            batch.getCampaignId(),
+                            batch.getJobId(),
+                            batch.getId(),
+                            "MAX_BATCH_RETRIES_EXCEEDED",
+                            batch.getPayload(),
+                            nextRetryCount);
+                    reconcileJobIfFinished(batch);
+                    continue;
+                }
                 // Reset status to PENDING so it can be picked up again
                 batch.setStatus(SendBatch.BatchStatus.PENDING);
-                batch.setRetryCount(batch.getRetryCount() != null ? batch.getRetryCount() + 1 : 1);
+                batch.setRetryCount(nextRetryCount);
                 batchRepository.save(batch);
 
                 // Publish batch created event to trigger reprocessing
@@ -256,5 +343,55 @@ public class SendExecutionService {
                 log.error("Failed to requeue PARTIAL batch {} for retry", batch.getId(), e);
             }
         }
+    }
+
+    private void reconcileJobIfFinished(SendBatch batch) {
+        long totalBatches = batchRepository.countByTenantWorkspaceAndJob(batch.getTenantId(), batch.getWorkspaceId(), batch.getJobId());
+        if (totalBatches == 0) {
+            return;
+        }
+        long activeBatches = batchRepository.countByTenantWorkspaceAndJobAndStatuses(
+                batch.getTenantId(),
+                batch.getWorkspaceId(),
+                batch.getJobId(),
+                List.of(SendBatch.BatchStatus.PENDING, SendBatch.BatchStatus.PROCESSING, SendBatch.BatchStatus.PARTIAL));
+        if (activeBatches > 0) {
+            return;
+        }
+        sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                batch.getTenantId(), batch.getWorkspaceId(), batch.getJobId()).ifPresent(job -> {
+            if (job.getStatus() == SendJob.JobStatus.COMPLETED
+                    || job.getStatus() == SendJob.JobStatus.FAILED
+                    || job.getStatus() == SendJob.JobStatus.CANCELLED) {
+                return;
+            }
+            long failedBatches = batchRepository.countByTenantWorkspaceAndJobAndStatuses(
+                    batch.getTenantId(),
+                    batch.getWorkspaceId(),
+                    batch.getJobId(),
+                    List.of(SendBatch.BatchStatus.FAILED));
+            if (failedBatches > 0) {
+                stateMachine.transitionJob(job, SendJob.JobStatus.FAILED, "One or more send batches failed");
+            } else {
+                stateMachine.transitionJob(job, SendJob.JobStatus.COMPLETED, "All batches processed");
+            }
+            sendJobRepository.save(job);
+
+            campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                    job.getTenantId(), job.getWorkspaceId(), job.getCampaignId()).ifPresent(campaign -> {
+                if (campaign.getStatus() == Campaign.CampaignStatus.CANCELLED
+                        || campaign.getStatus() == Campaign.CampaignStatus.ARCHIVED
+                        || campaign.getStatus() == Campaign.CampaignStatus.COMPLETED
+                        || campaign.getStatus() == Campaign.CampaignStatus.FAILED) {
+                    return;
+                }
+                if (job.getStatus() == SendJob.JobStatus.FAILED) {
+                    stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.FAILED, job.getErrorMessage());
+                } else {
+                    stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.COMPLETED, "Campaign send completed");
+                }
+                campaignRepository.save(campaign);
+            });
+        });
     }
 }

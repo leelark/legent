@@ -13,7 +13,7 @@ export function Card({ children, className, hover = false, onClick, ...props }: 
   return (
     <div
       className={clsx(
-        'rounded-xl border border-border-default bg-surface-elevated/95 p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl',
+        'rounded-xl border border-border-default bg-surface-elevated/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.80),rgba(255,255,255,0.54))] p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl dark:bg-[linear-gradient(145deg,rgba(26,15,44,0.96),rgba(18,9,31,0.78))]',
         'transition-all duration-200 dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]',
         hover && 'cursor-pointer hover:-translate-y-0.5 hover:border-brand-300/70 hover:shadow-[0_22px_56px_rgba(76,29,149,0.14)] dark:hover:border-brand-500/50',
         className
