@@ -149,71 +149,54 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    command: >
-      sh -c "
-        echo 'Waiting for Kafka to be fully ready...' &&
-        for i in 1 2 3 4 5 6 7 8 9 10; do
-          kafka-broker-api-versions --bootstrap-server kafka:9092 >/dev/null 2>&1 && break;
-          echo 'Kafka not ready yet, retrying in 5s...' &&
-          sleep 5;
-        done &&
-        echo 'Creating Kafka topics...' &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic system.initialized --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic identity.user.signup --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic config.updated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic tenant.bootstrap.requested --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic tenant.bootstrap.completed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.created --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.updated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic subscriber.deleted --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic segment.created --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic segment.updated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic segment.recomputed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.requested --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.audience.resolution.requested --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.audience.resolved --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.processing --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.batch.created --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.batch.completed --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.completed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic send.failed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic content.published --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.send.requested --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.sent --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.failed --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.failed.dlq --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.retry.scheduled --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.bounced --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.complaint --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.unsubscribed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.open --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.click --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic email.delivered --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic conversion.event --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic tracking.ingested --partitions 6 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic analytics.aggregated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic workflow.trigger --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic workflow.started --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic workflow.step.started --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic workflow.step.completed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic workflow.step.failed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic workflow.completed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic domain.verified --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic reputation.updated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic bounce.classified --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic complaint.received --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic suppression.updated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic spam.score.generated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic compliance.violation --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic search.index.updated --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic notification.created --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic webhook.triggered --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic integration.sync --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic import.started --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic import.completed --partitions 3 --replication-factor 1 &&
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic import.failed --partitions 3 --replication-factor 1 &&
-        echo 'All topics created successfully'
-      "
+    command: |
+      sh -ec '
+        echo "Waiting for Kafka to be fully ready..."
+        ready=false
+        for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+          if kafka-broker-api-versions --bootstrap-server kafka:9092 >/dev/null 2>&1; then
+            ready=true
+            break
+          fi
+          echo "Kafka not ready yet, retrying in 5s..."
+          sleep 5
+        done
+        if [ "$$ready" != "true" ]; then
+          echo "Kafka did not become ready in time"
+          exit 1
+        fi
+
+        create_topic() {
+          topic="$$1"
+          partitions="$$2"
+          if echo "$$existing_topics" | grep -Fxq "$$topic"; then
+            return 0
+          fi
+          output="$$(kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic "$$topic" --partitions "$$partitions" --replication-factor 1 2>&1)" || {
+            echo "$$output"
+            exit 1
+          }
+          echo "$$output" | grep -v "Due to limitations in metric names" || true
+        }
+
+        echo "Creating Kafka topics..."
+        existing_topics="$$(kafka-topics --bootstrap-server kafka:9092 --list 2>&1)" || {
+          echo "$$existing_topics"
+          exit 1
+        }
+        for spec in \
+          system.initialized:3 identity.user.signup:3 config.updated:3 tenant.bootstrap.requested:3 tenant.bootstrap.completed:3 \
+          subscriber.created:3 subscriber.updated:3 subscriber.deleted:3 segment.created:3 segment.updated:3 segment.recomputed:3 \
+          send.requested:3 send.audience.resolution.requested:3 send.audience.resolved:3 send.processing:3 send.batch.created:6 send.batch.completed:6 send.completed:3 send.failed:3 \
+          content.published:3 email.send.requested:6 email.sent:6 email.failed:6 email.failed.dlq:3 email.retry.scheduled:3 email.bounced:3 email.complaint:3 email.unsubscribed:3 email.open:6 email.click:6 email.delivered:3 \
+          conversion.event:3 tracking.ingested:6 analytics.aggregated:3 \
+          workflow.trigger:3 workflow.started:3 workflow.step.started:3 workflow.step.completed:3 workflow.step.failed:3 workflow.completed:3 \
+          domain.verified:3 reputation.updated:3 bounce.classified:3 complaint.received:3 suppression.updated:3 spam.score.generated:3 compliance.violation:3 \
+          search.index.updated:3 notification.created:3 webhook.triggered:3 integration.sync:3 import.started:3 import.completed:3 import.failed:3; do
+          create_topic "$${spec%:*}" "$${spec##*:}"
+        done
+        echo "All topics created successfully"
+      '
 
   mailhog:
     image: mailhog/mailhog
@@ -272,16 +255,16 @@ services:
     ports:
       - "9200:9200"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow"]
-      interval: 15s
-      timeout: 10s
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=2s"]
+      interval: 30s
+      timeout: 5s
       retries: 10
-      start_period: 60s
+      start_period: 90s
     deploy:
       resources:
         limits:
           cpus: "1.0"
-          memory: 1G
+          memory: 1536M
 
   # ClickHouse native port mapped to 9009 to avoid conflict with MinIO (9000)
   clickhouse:
@@ -637,14 +620,11 @@ services:
     container_name: legent-frontend
     <<: *service-defaults
     ports:
-      - "3000:3000"
+      - "${FRONTEND_HOST_PORT:-3000}:3000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
       API_GATEWAY_URL: ${API_GATEWAY_URL}
-    depends_on:
-      gateway:
-        condition: service_healthy
     deploy:
       resources:
         limits:
@@ -680,6 +660,8 @@ services:
       deliverability-service:
         condition: service_healthy
       platform-service:
+        condition: service_healthy
+      frontend:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1/nginx-health || exit 1"]

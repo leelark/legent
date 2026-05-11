@@ -78,8 +78,12 @@ export type AdminOperationsDashboard = {
   health: Record<string, unknown>;
   stats: Record<string, number>;
   modules: Array<Record<string, unknown>>;
+  moduleStatuses?: Record<string, Record<string, unknown>>;
   jobs: Array<Record<string, unknown>>;
   alerts: Array<Record<string, unknown>>;
+  recommendedActions?: Array<Record<string, unknown>>;
+  cacheState?: Record<string, unknown>;
+  staleConfig?: Record<string, unknown>;
   activity: Array<Record<string, unknown>>;
   syncEvents: Array<Record<string, unknown>>;
 };

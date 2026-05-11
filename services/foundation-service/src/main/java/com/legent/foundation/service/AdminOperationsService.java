@@ -34,8 +34,12 @@ public class AdminOperationsService {
         response.put("health", health(tenantId));
         response.put("stats", stats(tenantId));
         response.put("modules", modules(tenantId));
+        response.put("moduleStatuses", moduleStatuses(tenantId));
         response.put("jobs", jobs(tenantId));
         response.put("alerts", alerts(tenantId));
+        response.put("recommendedActions", recommendedActions(tenantId));
+        response.put("cacheState", cacheState());
+        response.put("staleConfig", staleConfig(tenantId));
         response.put("activity", recentAudit(tenantId, 12));
         response.put("syncEvents", recentSync(tenantId, 12));
         return response;
@@ -268,6 +272,96 @@ public class AdminOperationsService {
         return jobs;
     }
 
+    private Map<String, Object> moduleStatuses(String tenantId) {
+        Map<String, Object> statuses = new LinkedHashMap<>();
+        for (Map<String, Object> module : modules(tenantId)) {
+            String key = String.valueOf(module.get("key"));
+            long failedSync = count("""
+                    SELECT COUNT(*) FROM admin_sync_events
+                    WHERE tenant_id = :tenantId
+                      AND deleted_at IS NULL
+                      AND status = 'FAILED'
+                      AND CAST(target_modules AS text) ILIKE CONCAT('%', :moduleKey, '%')
+                    """, Map.of("tenantId", tenantId, "moduleKey", key));
+            long recentAudit = asLong(module.get("auditEvents"));
+            statuses.put(key, Map.of(
+                    "status", failedSync > 0 ? "DEGRADED" : "OPERATIONAL",
+                    "failedSyncEvents", failedSync,
+                    "auditEvents7d", recentAudit,
+                    "lastCheckedAt", Instant.now()
+            ));
+        }
+        return statuses;
+    }
+
+    private List<Map<String, Object>> recommendedActions(String tenantId) {
+        List<Map<String, Object>> actions = new ArrayList<>();
+        long failedSync = count("""
+                SELECT COUNT(*) FROM admin_sync_events
+                WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'FAILED'
+                """, Map.of("tenantId", tenantId));
+        long pendingAccess = count("""
+                SELECT COUNT(*) FROM delegated_access_grants
+                WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'PENDING'
+                """, Map.of("tenantId", tenantId));
+        long staleConfig = countStaleConfig(tenantId);
+        if (failedSync > 0) {
+            actions.add(Map.of(
+                    "key", "sync.replay",
+                    "tone", "danger",
+                    "title", "Review failed propagation",
+                    "detail", failedSync + " admin sync events failed and may leave modules stale.",
+                    "action", "Open sync ledger"
+            ));
+        }
+        if (pendingAccess > 0) {
+            actions.add(Map.of(
+                    "key", "access.review",
+                    "tone", "warning",
+                    "title", "Review pending access",
+                    "detail", pendingAccess + " delegated access grants need an admin decision.",
+                    "action", "Open role engine"
+            ));
+        }
+        if (staleConfig > 0) {
+            actions.add(Map.of(
+                    "key", "config.review",
+                    "tone", "info",
+                    "title", "Review stale runtime config",
+                    "detail", staleConfig + " settings have not changed in the last 90 days.",
+                    "action", "Open configuration"
+            ));
+        }
+        if (actions.isEmpty()) {
+            actions.add(Map.of(
+                    "key", "ops.clean",
+                    "tone", "success",
+                    "title", "Operations steady",
+                    "detail", "No failed sync, pending access, or stale critical config detected.",
+                    "action", "Monitor"
+            ));
+        }
+        return actions;
+    }
+
+    private Map<String, Object> cacheState() {
+        return Map.of(
+                "settings", "TENANT_AWARE_EVICT_ON_APPLY",
+                "publicContent", "TENANT_AWARE_EVICT_ON_PUBLISH",
+                "featureFlags", "TENANT_AWARE_EVICT_ON_CHANGE",
+                "checkedAt", Instant.now()
+        );
+    }
+
+    private Map<String, Object> staleConfig(String tenantId) {
+        long count = countStaleConfig(tenantId);
+        return Map.of(
+                "count", count,
+                "status", count > 0 ? "REVIEW" : "CURRENT",
+                "thresholdDays", 90
+        );
+    }
+
     private List<Map<String, Object>> alerts(String tenantId) {
         List<Map<String, Object>> alerts = new ArrayList<>();
         long failed = count("""
@@ -338,6 +432,26 @@ public class AdminOperationsService {
                 SELECT COUNT(*) FROM role_definitions
                 WHERE deleted_at IS NULL AND (tenant_id IS NULL OR tenant_id = :tenantId)
                 """, Map.of("tenantId", tenantId));
+    }
+
+    private long countStaleConfig(String tenantId) {
+        return count("""
+                SELECT COUNT(*) FROM system_configs
+                WHERE deleted_at IS NULL
+                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
+                  AND updated_at < NOW() - INTERVAL '90 days'
+                """, Map.of("tenantId", tenantId));
+    }
+
+    private long asLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return 0L;
+        }
     }
 
     private long count(String sql, Map<String, Object> params) {

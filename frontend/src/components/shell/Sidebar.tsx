@@ -13,6 +13,7 @@ import {
   LayoutTemplate,
   Megaphone,
   RadioTower,
+  Rocket,
   Settings,
   ShieldCheck,
   Users,
@@ -23,6 +24,7 @@ import { updateUserPreferences } from '@/lib/user-preferences-api';
 
 const NAV_ITEMS = [
   { label: 'Dashboard', href: '/app/email', icon: Gauge },
+  { label: 'Launch', href: '/app/launch', icon: Rocket },
   { label: 'Audience', href: '/app/audience', icon: Users },
   { label: 'Templates', href: '/app/email/templates', icon: LayoutTemplate },
   { label: 'Campaigns', href: '/app/campaigns', icon: Megaphone },

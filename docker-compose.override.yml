@@ -58,9 +58,10 @@ services:
   gateway:
     pull_policy: if_not_present
 
-  # Frontend - use cached build
+  # Frontend - reuse cached image/container on normal compose up.
+  # Run `docker compose up -d --build frontend` when frontend source changes.
   frontend:
-    pull_policy: build
+    pull_policy: if_not_present
 
 volumes:
   # Mark volumes as external so they persist between compose down/up

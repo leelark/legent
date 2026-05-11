@@ -234,6 +234,54 @@ export type CampaignListResponse = {
   size: number;
 };
 
+export type LaunchAction = 'AUTO' | 'PREVIEW' | 'SAFE_FIX' | 'SUBMIT_APPROVAL' | 'SCHEDULE' | 'LAUNCH';
+
+export type LaunchStepResult = {
+  key: string;
+  label: string;
+  status: 'PASS' | 'WARN' | 'BLOCKED' | 'EXECUTED' | 'SKIPPED' | 'FAILED';
+  score: number;
+  message?: string;
+  details?: Record<string, unknown>;
+};
+
+export type LaunchRecommendation = {
+  key: string;
+  severity: 'BLOCKER' | 'WARN' | 'INFO' | string;
+  title: string;
+  detail: string;
+  autoFixAvailable?: boolean;
+};
+
+export type LaunchPlanResponse = {
+  planId?: string;
+  campaignId: string;
+  idempotencyKey: string;
+  status: 'PREVIEWED' | 'READY' | 'BLOCKED' | 'EXECUTED' | 'FAILED' | string;
+  readinessScore: number;
+  blockerCount: number;
+  warningCount: number;
+  primaryAction: string;
+  message?: string;
+  auditId?: string;
+  affectedResourceIds?: Record<string, unknown>;
+  blockers: string[];
+  warnings: string[];
+  recommendations: LaunchRecommendation[];
+  steps: LaunchStepResult[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type LaunchPlanRequest = {
+  campaignId: string;
+  idempotencyKey: string;
+  action?: LaunchAction;
+  scheduledAt?: string;
+  confirmLaunch?: boolean;
+  metadata?: Record<string, unknown>;
+};
+
 export const listCampaigns = async (params?: { page?: number; size?: number; search?: string }) => {
   const qp = new URLSearchParams();
   qp.set('page', String(params?.page ?? 0));
@@ -243,6 +291,15 @@ export const listCampaigns = async (params?: { page?: number; size?: number; sea
   }
   return get<CampaignListResponse>(`/campaigns?${qp.toString()}`);
 };
+
+export const previewLaunchPlan = async (payload: LaunchPlanRequest) =>
+  post<LaunchPlanResponse>('/campaigns/launch-plans/preview', payload);
+
+export const executeLaunchPlan = async (payload: LaunchPlanRequest) =>
+  post<LaunchPlanResponse>('/campaigns/launch-plans/execute', payload);
+
+export const getCampaignLaunchReadiness = async (campaignId: string) =>
+  get<LaunchPlanResponse>(`/campaigns/${campaignId}/launch-readiness`);
 
 export const getCampaign = async (id: string) => get<Campaign>(`/campaigns/${id}`);
 

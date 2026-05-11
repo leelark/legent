@@ -48,6 +48,21 @@ async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}) 
     if (path.startsWith('/segments')) {
       return fulfill(route, ok({ content: [{ id: 'seg-1', name: 'Engaged' }] }));
     }
+    if (path === '/campaigns' && method === 'GET') {
+      return fulfill(route, ok({
+        content: [{
+          id: 'camp-1',
+          name: 'Spring Launch',
+          subject: 'Launch day',
+          status: 'APPROVED',
+          templateId: 'tpl-1',
+          senderEmail: 'marketing@example.com',
+          sendingDomain: 'example.com',
+          providerId: 'provider-1',
+          audiences: [{ audienceType: 'LIST', audienceId: 'list-1', action: 'INCLUDE' }],
+        }],
+      }));
+    }
     if (path === '/campaigns' && method === 'POST') {
       seen.campaign = JSON.parse(request.postData() || '{}');
       return fulfill(route, ok({
@@ -151,8 +166,73 @@ async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}) 
     if (path === '/campaigns/camp-1/send/preflight') {
       return fulfill(route, ok({ campaignId: 'camp-1', sendAllowed: true, errors: [], warnings: [], checks: { experiments: 1, budgetEnforced: true, frequencyEnabled: true } }));
     }
+    if (path === '/campaigns/launch-plans/preview') {
+      seen.launchPreview = JSON.parse(request.postData() || '{}');
+      return fulfill(route, ok({
+        planId: 'plan-1',
+        campaignId: 'camp-1',
+        idempotencyKey: 'ik-preview',
+        status: 'PREVIEWED',
+        readinessScore: 100,
+        blockerCount: 0,
+        warningCount: 0,
+        primaryAction: 'CONFIRM_LAUNCH',
+        message: 'Readiness scan complete.',
+        affectedResourceIds: { campaignId: 'camp-1' },
+        blockers: [],
+        warnings: [],
+        recommendations: [],
+        steps: [
+          { key: 'audience', label: 'Audience', status: 'PASS', score: 20, message: 'Audience rules ready', details: { rules: 1 } },
+          { key: 'content', label: 'Creative', status: 'PASS', score: 20, message: 'Template and subject ready', details: { templateId: 'tpl-1' } },
+          { key: 'deliverability', label: 'Deliverability', status: 'PASS', score: 20, message: 'Sender and domain ready', details: { sendingDomain: 'example.com' } },
+          { key: 'delivery', label: 'Delivery', status: 'PASS', score: 20, message: 'Provider selected', details: { providerId: 'provider-1' } },
+          { key: 'governance', label: 'Governance', status: 'PASS', score: 20, message: 'Governance controls ready', details: { status: 'APPROVED' } },
+        ],
+      }));
+    }
+    if (path === '/campaigns/launch-plans/execute') {
+      seen.launchExecute = JSON.parse(request.postData() || '{}');
+      return fulfill(route, ok({
+        planId: 'plan-1',
+        campaignId: 'camp-1',
+        idempotencyKey: 'ik-execute',
+        status: 'EXECUTED',
+        readinessScore: 100,
+        blockerCount: 0,
+        warningCount: 0,
+        primaryAction: 'CONFIRM_LAUNCH',
+        message: 'Campaign send queued.',
+        affectedResourceIds: { campaignId: 'camp-1', sendJobId: 'job-1' },
+        blockers: [],
+        warnings: [],
+        recommendations: [],
+        steps: [
+          { key: 'audience', label: 'Audience', status: 'PASS', score: 20, message: 'Audience rules ready', details: { rules: 1 } },
+          { key: 'content', label: 'Creative', status: 'PASS', score: 20, message: 'Template and subject ready', details: { templateId: 'tpl-1' } },
+          { key: 'deliverability', label: 'Deliverability', status: 'PASS', score: 20, message: 'Sender and domain ready', details: { sendingDomain: 'example.com' } },
+          { key: 'delivery', label: 'Delivery', status: 'PASS', score: 20, message: 'Provider selected', details: { providerId: 'provider-1' } },
+          { key: 'governance', label: 'Governance', status: 'PASS', score: 20, message: 'Governance controls ready', details: { status: 'APPROVED' } },
+        ],
+      }));
+    }
     if (path === '/send-jobs/job-1/dead-letters') {
       return fulfill(route, ok([{ id: 'dlq-1', campaignId: 'camp-1', jobId: 'job-1', batchId: 'batch-1', email: 'bad@example.com', reason: 'PROVIDER_TIMEOUT', retryCount: 1, status: 'OPEN', createdAt: '2026-05-08T04:02:00Z' }]));
+    }
+    if (path === '/providers') {
+      return fulfill(route, ok([{ id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY' }]));
+    }
+    if (path === '/providers/health') {
+      return fulfill(route, ok([{ id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY' }]));
+    }
+    if (path === '/delivery/queue/stats') {
+      return fulfill(route, ok({ pending: 0, processing: 0, sent: 200, failed: 0, replayPending: 0, replayFailed: 0, unhealthyProviders: 0, updatedAt: '2026-05-08T04:00:00Z' }));
+    }
+    if (path === '/delivery/warmup/status') {
+      return fulfill(route, ok({ activeProviders: 1, healthyProviders: 1, degradedProviders: 0, unhealthyProviders: 0, readiness: 98, updatedAt: '2026-05-08T04:00:00Z' }));
+    }
+    if (path === '/deliverability/domains') {
+      return fulfill(route, ok([{ id: 'domain-1', domainName: 'example.com', status: 'VERIFIED' }]));
     }
 
     return fulfill(route, ok([]));
@@ -215,4 +295,22 @@ test('campaign tracking exposes safety, DLQ, budget, and variant analytics tabs'
   await page.getByRole('button', { name: 'Variant Analytics' }).click();
   await expect(page.getByText('var-b')).toBeVisible();
   await expect(page.getByText('0.1818')).toBeVisible();
+});
+
+test('launch command center scans readiness and executes launch action', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockCampaignApis(page, seen);
+  await page.goto('/app/launch');
+
+  await expect(page.getByRole('heading', { name: 'One-action launch orchestration' })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('combobox')).toHaveValue('camp-1');
+  await page.getByRole('button', { name: 'Run readiness' }).click();
+
+  await expect(page.getByText('100')).toBeVisible();
+  await expect(page.getByText('Template and subject ready')).toBeVisible();
+  await page.getByRole('button', { name: 'Confirm launch' }).click();
+  await expect(page.getByText('Campaign send queued.')).toBeVisible();
+
+  expect(seen.launchPreview).toMatchObject({ campaignId: 'camp-1', action: 'PREVIEW' });
+  expect(seen.launchExecute).toMatchObject({ campaignId: 'camp-1', action: 'LAUNCH', confirmLaunch: true });
 });

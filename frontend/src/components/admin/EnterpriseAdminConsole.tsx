@@ -520,6 +520,25 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
             </div>
           </div>
           <div className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+            <SectionHeader icon={Sparkles} title="Recommended Actions" subtitle="Safe admin moves based on live operations state." />
+            <div className="mt-4 space-y-3">
+              {(dashboard?.recommendedActions || []).map((action, index) => (
+                <div key={`${asText(action.key, 'action')}-${index}`} className="rounded-lg border border-border-default bg-surface-secondary p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-content-primary">{asText(action.title, 'Recommended action')}</p>
+                      <p className="mt-1 text-xs leading-5 text-content-secondary">{asText(action.detail, 'No detail')}</p>
+                    </div>
+                    <StatusBadge status={asText(action.action, 'Review')} />
+                  </div>
+                </div>
+              ))}
+              {!dashboard?.recommendedActions?.length ? (
+                <EmptyBlock title="No recommendations" detail="Admin recommendations appear after operations telemetry loads." compact />
+              ) : null}
+            </div>
+          </div>
+          <div className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
             <SectionHeader icon={Workflow} title="Recent Propagation" subtitle="Admin changes applied across dependent modules." />
             <ActivityList items={dashboard?.syncEvents?.length ? dashboard.syncEvents : syncEvents} empty="No propagation events yet." />
           </div>
