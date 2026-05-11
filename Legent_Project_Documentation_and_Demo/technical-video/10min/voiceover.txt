@@ -1,0 +1,19 @@
+The repository is organized as a production monorepo with shared Java libraries, Spring Boot services, a Next.js frontend, Docker and Kubernetes infrastructure, scripts, tests, and existing project documentation.
+
+The frontend uses Next.js App Router, public marketing pages, authenticated app routes, a shared workspace layout, reusable UI components, API clients, hooks, and Zustand stores.
+
+The backend is split into identity, foundation, audience, content, campaign, delivery, tracking, automation, deliverability, and platform services. Each service owns a domain boundary.
+
+Shared libraries centralize common models, security, Kafka, cache, and test support so service code uses consistent response, tenant, event, and testing primitives.
+
+APIs use the /api/v1 base path. Protected requests carry tenant, workspace, environment, and request identifiers. Auth endpoints and public tracking endpoints have different context rules.
+
+PostgreSQL stores transactional service data through Flyway migrations. ClickHouse supports analytics, Redis supports fast state, OpenSearch supports search, and MinIO handles object storage.
+
+Kafka decouples signup, bootstrap, audience resolution, campaign send, delivery results, tracking ingestion, workflow execution, deliverability feedback, search, notification, and webhook events.
+
+Local development starts infrastructure with Docker Compose, builds Java with Maven wrapper, runs Spring services, starts the Next.js frontend, and validates with smoke and e2e tests.
+
+Cloud setup builds images, pushes to a registry, applies Kubernetes manifests, injects secrets and config maps, then monitors health, logs, rollouts, and service metrics.
+
+The future roadmap should add OpenAPI generation, Helm and Terraform, richer observability, CI/CD, enterprise identity, visual regression testing, AI recommendations, and stronger module-level automation.

@@ -1,0 +1,4 @@
+legent-product-demo-3min: existing render kept (legent-product-demo-3min.mp4)
+legent-product-demo-6min: rendered legent-product-demo-6min.mp4, duration=360.000000s
+legent-product-demo-10min: rendered legent-product-demo-10min.mp4, duration=600.000000s
+legent-technical-explanation-10min: rendered legent-technical-explanation-10min.mp4, duration=600.000000s

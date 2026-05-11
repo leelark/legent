@@ -1,0 +1,24 @@
+[2026-05-11T07:14:28.780Z] capture 01_public_home http://127.0.0.1:3000/
+[2026-05-11T07:14:55.349Z] browser warning: The resource http://127.0.0.1:3000/legent-logo.svg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+[2026-05-11T07:14:59.806Z] capture 02_public_features http://127.0.0.1:3000/features
+[2026-05-11T07:15:23.389Z] browser warning: The resource http://127.0.0.1:3000/legent-logo.svg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+[2026-05-11T07:15:26.636Z] capture 03_public_modules http://127.0.0.1:3000/modules
+[2026-05-11T07:15:54.353Z] browser warning: The resource http://127.0.0.1:3000/legent-logo.svg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+[2026-05-11T07:15:56.009Z] capture 04_public_pricing http://127.0.0.1:3000/pricing
+[2026-05-11T07:16:12.738Z] browser warning: The resource http://127.0.0.1:3000/legent-logo.svg was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.
+[2026-05-11T07:16:16.938Z] capture 05_signup http://127.0.0.1:3000/signup
+[2026-05-11T07:16:39.897Z] capture 06_onboarding http://127.0.0.1:3000/onboarding
+[2026-05-11T07:16:52.949Z] capture 07_email_studio http://127.0.0.1:3000/app/email
+[2026-05-11T07:17:15.454Z] capture 08_template_studio http://127.0.0.1:3000/app/email/templates
+[2026-05-11T07:17:31.841Z] capture 09_audience_overview http://127.0.0.1:3000/app/audience
+[2026-05-11T07:17:45.298Z] capture 10_subscriber_manager http://127.0.0.1:3000/app/audience/subscribers
+[2026-05-11T07:18:02.262Z] capture 11_campaign_studio http://127.0.0.1:3000/app/campaigns
+[2026-05-11T07:18:15.274Z] capture 12_campaign_wizard http://127.0.0.1:3000/app/campaigns/new
+[2026-05-11T07:18:30.094Z] capture 13_launch_orchestration http://127.0.0.1:3000/app/launch
+[2026-05-11T07:18:46.828Z] capture 14_campaign_tracking http://127.0.0.1:3000/app/campaigns/cmp-spring/tracking
+[2026-05-11T07:19:05.352Z] capture 15_automation_builder http://127.0.0.1:3000/app/automation
+[2026-05-11T07:19:26.147Z] capture 16_deliverability http://127.0.0.1:3000/app/deliverability
+[2026-05-11T07:19:40.166Z] capture 17_analytics http://127.0.0.1:3000/app/analytics
+[2026-05-11T07:20:00.567Z] capture 18_admin_console http://127.0.0.1:3000/app/admin
+[2026-05-11T07:20:20.023Z] capture 19_platform_settings http://127.0.0.1:3000/app/settings/platform
+[2026-05-11T07:21:30.652Z] done 19 screenshots

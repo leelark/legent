@@ -417,7 +417,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: legent-imports
-      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:-legent-internal-dev-token}
+      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:?LEGENT_INTERNAL_API_TOKEN must be set}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
@@ -575,7 +575,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_deliverability
       LEGENT_DELIVERABILITY_MOCK_DNS: "false"
       LEGENT_DELIVERABILITY_FEEDBACK_LOOP_ENABLED: "true"
-      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:-legent-internal-dev-token}
+      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:?LEGENT_INTERNAL_API_TOKEN must be set}
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
     depends_on:
@@ -625,6 +625,12 @@ services:
       NODE_ENV: production
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL}
       API_GATEWAY_URL: ${API_GATEWAY_URL}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 60s
     deploy:
       resources:
         limits:

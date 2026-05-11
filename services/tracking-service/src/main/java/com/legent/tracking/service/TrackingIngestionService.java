@@ -7,7 +7,6 @@ import java.time.Instant;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.tracking.domain.RawEvent;
 import com.legent.tracking.dto.TrackingDto;
-import com.legent.tracking.event.TrackingEventPublisher;
 import com.legent.tracking.repository.RawEventRepository;
 import com.legent.security.TenantContext;
 import eu.bitwalker.useragentutils.UserAgent;
@@ -24,10 +23,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class TrackingIngestionService {
 
-    private final TrackingEventPublisher eventPublisher;
     private final com.legent.cache.service.CacheService cacheService;
     private final RawEventRepository rawEventRepository;
     private final ObjectMapper objectMapper;
+    private final TrackingOutboxService outboxService;
 
     @Transactional
     public void processOpen(String tenantId, String campaignId, String subscriberId, String messageId,
@@ -49,9 +48,7 @@ public class TrackingIngestionService {
         }
         TrackingDto.RawEventPayload payload = buildPayload("OPEN", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId,
                 experimentId, variantId, holdout, idempotencyKey, null, userAgentString, ipAddress, null);
-        // AUDIT-016: Outbox pattern - save to DB first, then publish within same transaction
         saveEventToDatabase(payload);
-        // Publish event using transactional outbox pattern
         publishEventWithOutbox(payload);
     }
 
@@ -75,7 +72,6 @@ public class TrackingIngestionService {
         }
         TrackingDto.RawEventPayload payload = buildPayload("CLICK", tenantId, resolvedWorkspaceId, campaignId, subscriberId, messageId,
                 experimentId, variantId, holdout, idempotencyKey, linkUrl, userAgentString, ipAddress, null);
-        // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
         publishEventWithOutbox(payload);
     }
@@ -99,7 +95,6 @@ public class TrackingIngestionService {
 
         TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, workspaceId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(),
                 request.getExperimentId(), request.getVariantId(), false, idempotencyKey, null, userAgentString, ipAddress, meta);
-        // LEGENT-CRIT-004: Use transactional outbox pattern for consistency
         saveEventToDatabase(payload);
         publishEventWithOutbox(payload);
     }
@@ -168,7 +163,8 @@ public class TrackingIngestionService {
     }
 
     /**
-     * Saves the event to the database for persistent storage.
+     * Saves the event to persistent storage. Fail closed so Kafka never receives
+     * an event that the database transaction could not persist.
      */
     private void saveEventToDatabase(TrackingDto.RawEventPayload payload) {
         try {
@@ -196,37 +192,16 @@ public class TrackingIngestionService {
             log.debug("Saved event {} to database", payload.getId());
         } catch (Exception e) {
             log.error("Failed to save event to database: {}", payload.getId(), e);
-            // Don't throw - we still want to publish to Kafka even if DB save fails
+            throw new IllegalStateException("Failed to persist tracking event " + payload.getId(), e);
         }
     }
 
     /**
-     * AUDIT-016: Publish event with transactional outbox pattern.
-     * Ensures DB and Kafka stay consistent by using transaction synchronization.
+     * Writes a durable outbox record in the same transaction as RawEvent. The
+     * outbox service publishes after commit and retries if Kafka is unavailable.
      */
     private void publishEventWithOutbox(TrackingDto.RawEventPayload payload) {
-        if (!org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
-            eventPublisher.publishIngestedEvent(payload);
-            return;
-        }
-
-        // Register a transaction synchronization to publish after successful commit
-        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    // Only publish to Kafka after DB transaction successfully commits
-                    eventPublisher.publishIngestedEvent(payload);
-                }
-                
-                @Override
-                public void afterCompletion(int status) {
-                    if (status == STATUS_ROLLED_BACK) {
-                        log.warn("Transaction rolled back, event {} not published to Kafka", payload.getId());
-                    }
-                }
-            }
-        );
+        outboxService.enqueue(payload);
     }
 
     private TrackingDto.RawEventPayload buildPayload(String eventType, String tenantId, String workspaceId, String campaignId, String subscriberId,
@@ -274,8 +249,8 @@ public class TrackingIngestionService {
                 .map(RawEvent::getWorkspaceId)
                 .filter(existing -> existing != null && !existing.isBlank())
                 .orElseGet(() -> {
-                    log.warn("Missing workspace on tracking event, fallback workspace-default. tenantId={}, messageId={}", tenantId, messageId);
-                    return "workspace-default";
+                    log.warn("Missing workspace on tracking event. tenantId={}, messageId={}", tenantId, messageId);
+                    throw new IllegalArgumentException("workspaceId is required for tracking event");
                 });
     }
 }

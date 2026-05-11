@@ -1,0 +1,13 @@
+﻿Backend smoke evidence
+simulate_e2e_flow.py requires third-party requests, unavailable in current Python environment.
+Stdlib health probe executed instead.
+foundation: HTTP 200 {"status":"UP","groups":["liveness","readiness"]}
+audience: HTTP 200 {"status":"UP","groups":["liveness","readiness"]}
+campaign: HTTP 200 {"status":"UP","components":{"db":{"status":"UP","details":{"database":"PostgreSQL","validationQuery":"isValid()"}},"diskSpace":{"status":"UP","details":{"total":1081101176832,"free":997294944256,"thr
+delivery: HTTP 200 {"status":"UP","components":{"db":{"status":"UP","details":{"database":"PostgreSQL","validationQuery":"isValid()"}},"diskSpace":{"status":"UP","details":{"total":1081101176832,"free":997294944256,"thr
+tracking: HTTP 200 {"status":"UP"}
+automation: HTTP 200 {"status":"UP","components":{"db":{"status":"UP","details":{"database":"PostgreSQL","validationQuery":"isValid()"}},"diskSpace":{"status":"UP","details":{"total":1081101176832,"free":997294776320,"thr
+deliverability: HTTP 200 {"status":"UP"}
+platform: HTTP 200 {"status":"UP","components":{"db":{"status":"UP","details":{"database":"PostgreSQL","validationQuery":"isValid()"}},"diskSpace":{"status":"UP","details":{"total":1081101176832,"free":997294776320,"thr
+identity: HTTP 200 {"status":"UP","groups":["liveness","readiness"]}
+content: HTTP 200 {"status":"UP","groups":["liveness","readiness"]}

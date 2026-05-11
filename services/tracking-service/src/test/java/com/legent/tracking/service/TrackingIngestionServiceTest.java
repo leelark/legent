@@ -3,7 +3,6 @@ package com.legent.tracking.service;
 import org.mockito.ArgumentCaptor;
 
 import com.legent.tracking.dto.TrackingDto;
-import com.legent.tracking.event.TrackingEventPublisher;
 import com.legent.tracking.repository.RawEventRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -12,14 +11,13 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class TrackingIngestionServiceTest {
-
-    @Mock
-    private TrackingEventPublisher eventPublisher;
 
     @Mock
     private com.legent.cache.service.CacheService cacheService;
@@ -29,6 +27,9 @@ class TrackingIngestionServiceTest {
 
     @Mock
     private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+
+    @Mock
+    private TrackingOutboxService outboxService;
 
     @InjectMocks
     private TrackingIngestionService ingestionService;
@@ -49,7 +50,7 @@ class TrackingIngestionServiceTest {
         ingestionService.processOpen("t1", "c1", "s1", "m1", "workspace-default", "idem-1", ua, "192.168.1.1");
 
         ArgumentCaptor<TrackingDto.RawEventPayload> captor = ArgumentCaptor.forClass(TrackingDto.RawEventPayload.class);
-        verify(eventPublisher).publishIngestedEvent(captor.capture());
+        verify(outboxService).enqueue(captor.capture());
 
         TrackingDto.RawEventPayload payload = captor.getValue();
         assertEquals("OPEN", payload.getEventType());
@@ -76,10 +77,42 @@ class TrackingIngestionServiceTest {
         ingestionService.processClick("t1", "c1", "s1", "m1", "workspace-default", "idem-2", url, null, "10.0.0.1");
 
         ArgumentCaptor<TrackingDto.RawEventPayload> captor = ArgumentCaptor.forClass(TrackingDto.RawEventPayload.class);
-        verify(eventPublisher).publishIngestedEvent(captor.capture());
+        verify(outboxService).enqueue(captor.capture());
 
         TrackingDto.RawEventPayload payload = captor.getValue();
         assertEquals("CLICK", payload.getEventType());
         assertEquals(url, payload.getLinkUrl());
+    }
+
+    @Test
+    void processOpen_WhenDatabaseSaveFails_DoesNotPublishEvent() {
+        org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
+                .thenReturn(java.util.Optional.empty());
+        org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.Optional.empty());
+        org.mockito.Mockito.when(rawEventRepository.save(org.mockito.ArgumentMatchers.any()))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("database unavailable"));
+
+        assertThrows(IllegalStateException.class,
+                () -> ingestionService.processOpen("t1", "c1", "s1", "m1", "workspace-1", "idem-3", null, "192.168.1.1"));
+
+        verify(outboxService, never()).enqueue(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void processOpen_WhenWorkspaceCannotBeResolved_RejectsEvent() {
+        org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndMessageIdAndWorkspaceIdIsNotNullOrderByTimestampDesc("t1", "m1"))
+                .thenReturn(java.util.Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> ingestionService.processOpen("t1", "c1", "s1", "m1", null, "idem-4", null, "192.168.1.1"));
+
+        verify(outboxService, never()).enqueue(org.mockito.ArgumentMatchers.any());
     }
 }

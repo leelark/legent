@@ -10,6 +10,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.netty.http.client.HttpClient;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -22,15 +23,20 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ContentServiceClient {
 
     private final WebClient webClient;
-    private final Map<String, Map<String, String>> contentCache = new ConcurrentHashMap<>();
+    private final Duration cacheTtl;
+    private final Duration requestTimeout;
+    private final Map<String, CacheEntry> contentCache = new ConcurrentHashMap<>();
 
     public ContentServiceClient(
             @Value("${legent.content-service.url:http://content-service:8090}") String baseUrl,
-            @Value("${legent.content-service.timeout-seconds:10}") int timeoutSeconds) {
+            @Value("${legent.content-service.timeout-seconds:10}") int timeoutSeconds,
+            @Value("${legent.content-service.cache-ttl-seconds:300}") long cacheTtlSeconds) {
+        this.cacheTtl = Duration.ofSeconds(cacheTtlSeconds);
+        this.requestTimeout = Duration.ofSeconds(timeoutSeconds);
 
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
-                .responseTimeout(Duration.ofSeconds(timeoutSeconds))
+                .responseTimeout(requestTimeout)
                 .option(ChannelOption.SO_KEEPALIVE, true);
 
         this.webClient = WebClient.builder()
@@ -38,7 +44,8 @@ public class ContentServiceClient {
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();
 
-        log.info("ContentServiceClient initialized with baseUrl: {} and timeout: {}s", baseUrl, timeoutSeconds);
+        log.info("ContentServiceClient initialized with baseUrl: {}, timeout: {}s, cacheTtl: {}s",
+                baseUrl, timeoutSeconds, cacheTtlSeconds);
     }
 
     /**
@@ -48,10 +55,13 @@ public class ContentServiceClient {
      * @return Map containing subject, htmlBody, textBody (may be empty if not found)
      */
     public Map<String, String> fetchCampaignContent(String campaignId) {
-        // Check in-memory cache first
-        if (contentCache.containsKey(campaignId)) {
+        CacheEntry cached = contentCache.get(campaignId);
+        if (cached != null && !cached.isExpired()) {
             log.debug("Content cache hit for campaign {}", campaignId);
-            return contentCache.get(campaignId);
+            return cached.content();
+        }
+        if (cached != null) {
+            contentCache.remove(campaignId, cached);
         }
 
         try {
@@ -61,23 +71,26 @@ public class ContentServiceClient {
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, response -> {
                         log.warn("Content-service returned 4xx for campaign {}: {}", campaignId, response.statusCode());
-                        return null;
+                        return response.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .map(body -> new IllegalStateException(
+                                        "Content-service returned " + response.statusCode() + " for campaign " + campaignId));
                     })
                     .onStatus(HttpStatusCode::is5xxServerError, response -> {
                         log.error("Content-service returned 5xx for campaign {}: {}", campaignId, response.statusCode());
-                        return null;
+                        return response.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .map(body -> new IllegalStateException(
+                                        "Content-service returned " + response.statusCode() + " for campaign " + campaignId));
                     })
                     .bodyToMono(ContentResponse.class)
                     .map(this::extractContent)
                     .onErrorReturn(Map.of())
-                    .block(Duration.ofSeconds(10));
+                    .block(requestTimeout);
 
             // Cache successful results briefly (5 minutes) to reduce load
             if (!result.isEmpty()) {
-                contentCache.put(campaignId, result);
-                // Schedule cache eviction
-                java.util.concurrent.Executors.newSingleThreadScheduledExecutor()
-                        .schedule(() -> contentCache.remove(campaignId), 5, java.util.concurrent.TimeUnit.MINUTES);
+                contentCache.put(campaignId, new CacheEntry(result, Instant.now().plus(cacheTtl)));
             }
 
             return result;
@@ -105,6 +118,11 @@ public class ContentServiceClient {
     }
 
     // Record classes for JSON parsing
+    private record CacheEntry(Map<String, String> content, Instant expiresAt) {
+        private boolean isExpired() {
+            return Instant.now().isAfter(expiresAt);
+        }
+    }
     private record ContentResponse(ContentData data) {}
     private record ContentData(String subject, String htmlBody, String textBody) {}
 }

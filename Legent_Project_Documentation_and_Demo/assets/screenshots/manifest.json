@@ -1,0 +1,135 @@
+[
+  {
+    "name": "01_public_home",
+    "route": "/",
+    "expected": "Run lifecycle email",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\01_public_home.png",
+    "textSample": "Skip to content\nLegent\nLIFECYCLE EMAIL OS\nHome\nCapabilities\nStudios\nPricing\nCompany\nContact\nField Notes\nLogin\nStart Free\nENTERPRISE EMAIL COMMAND LAYER\nRun lifecycle email from signal to inbox.\n\nLegent brings audience intelligence, governed creative, AI-assisted journeys, inbox-safe delivery, and revenue feedback into one operating system for modern lifecycle teams.\n\nCreate Workspace\nExplore Product Fabric\n\nLIVE ACTIVITY\n\n38k\n\nSTATUS\n\nLearning\n\nLive workspace\nAudience\nAutomation\nTemplate\nAnalyti"
+  },
+  {
+    "name": "02_public_features",
+    "route": "/features",
+    "expected": "Every capability works inside one governed operating model",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\02_public_features.png",
+    "textSample": "Skip to content\nLegent\nLIFECYCLE EMAIL OS\nHome\nCapabilities\nStudios\nPricing\nCompany\nContact\nField Notes\nLogin\nStart Free\nPLATFORM INTELLIGENCE\nEvery capability works inside one governed operating model.\n\nLegent turns fragmented email tooling into a shared command system for data, creative, automation, delivery, analytics, and runtime control.\n\nCreate Workspace\nView Pricing\nInteractive architecture\n\nAudience intelligence\n\nComposable campaign launch\n\nAI journey assistance\n\nInbox-aware delivery\n\nRe"
+  },
+  {
+    "name": "03_public_modules",
+    "route": "/modules",
+    "expected": "Six operating studios, one shared runtime fabric",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\03_public_modules.png",
+    "textSample": "Skip to content\nLegent\nLIFECYCLE EMAIL OS\nHome\nCapabilities\nStudios\nPricing\nCompany\nContact\nField Notes\nLogin\nStart Free\nPRODUCT ARCHITECTURE\nSix operating studios, one shared runtime fabric.\n\nEach module owns a deep workflow while tenant, workspace, permissions, configuration, activity, and analytics context stay connected.\n\nOpen Workspace\nSee Features\nStudio fabric\n\nAudience\n\n42.8k ready contacts\n\nTemplate\n\n12 active versions\n\nCampaign\n\n18 governed launches\n\nAutomation\n\n64% journey complete\n\nD"
+  },
+  {
+    "name": "04_public_pricing",
+    "route": "/pricing",
+    "expected": "Pricing responds to how your operation matures",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\04_public_pricing.png",
+    "textSample": "Skip to content\nLegent\nLIFECYCLE EMAIL OS\nHome\nCapabilities\nStudios\nPricing\nCompany\nContact\nField Notes\nLogin\nStart Free\nPRICING WORKSPACE\nChoose the operating model your team can grow into.\n\nStart with launch discipline, then add orchestration, delivery governance, automation depth, and enterprise controls as your program matures.\n\nStart Free\nTalk to Sales\nValue model\n\nBILLING SIGNAL\n\nMonthly launch posture\nMonthly\nYearly\n\n1 launch\n\ncapacity input\n\n1 workspace\n\ncapacity input\n\nmonthly control\n\n"
+  },
+  {
+    "name": "05_signup",
+    "route": "/signup",
+    "expected": "Create your operating workspace",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\05_signup.png",
+    "textSample": "Legent LIFECYCLE EMAIL OS\n\nSTART FREE\n\nCreate your operating workspace\n\nLaunch audience, campaigns, automation, delivery, and analytics in one governed flow.\n\nFirst name\nLast name\nCompany name\nWork email\nPassword\nCreate account\n\nAlready have account? Login\n\nWorkspace readiness\nA secure entry point for serious email operations.\n\nTenant scoped\n\nReady before operators enter the app.\n\nProvider safe\n\nReady before operators enter the app.\n\nAudience ready\n\nReady before operators enter the app.\n\nFast se"
+  },
+  {
+    "name": "06_onboarding",
+    "route": "/onboarding",
+    "expected": "Finish workspace readiness",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\06_onboarding.png",
+    "textSample": "Legent LIFECYCLE EMAIL OS\n\nGUIDED SETUP\n\nFinish workspace readiness\n\nCreate the minimum runtime context needed for safe first sends.\n\nStep 1 of 3\n\nWorkspace setup\nBack\nContinue\nWorkspace readiness\nA secure entry point for serious email operations.\n\nTenant scoped\n\nReady before operators enter the app.\n\nProvider safe\n\nReady before operators enter the app.\n\nAudience ready\n\nReady before operators enter the app.\n\nFast setup\n\nReady before operators enter the app."
+  },
+  {
+    "name": "07_email_studio",
+    "route": "/app/email",
+    "expected": "Email Studio",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\07_email_studio.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nEmail Studio\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nCONTENT COMMAND CENTER\n\nEmail Studio\n\nCreate, manage, and send email campaigns.\n\nManage Templates\nNew Email\n\nTOTAL EMAILS\n\n2\n\nAll recent email records\n\nDRAFTS\n\n1\n\nNeeds review\n\nSENT\n\n0\n\nDelivered content\n\nTEMPLA"
+  },
+  {
+    "name": "08_template_studio",
+    "route": "/app/email/templates",
+    "expected": "Template Studio",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\08_template_studio.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nEmail Studio\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nCONTENT OPERATIONS\n\nTemplate Studio\n\nBuild reusable, branded email templates with versioned workflows, presets, and approval-ready content.\n\nLanding Pages\nBack to Email Studio\nQuick Start Library\n\nStart from pro"
+  },
+  {
+    "name": "09_audience_overview",
+    "route": "/app/audience",
+    "expected": "Audience",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\09_audience_overview.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nAudience\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nCUSTOMER DATA LAYER\n\nAudience\n\nManage subscribers, lists, data extensions, and segments.\n\nImport\nAdd Subscriber\n\nTOTAL SUBSCRIBERS\n\n42800\n\nLISTS\n\n2\n\nDATA EXTENSIONS\n\n2\n\nSEGMENTS\n\n2\n\nRecent Subscribers\nRecent Imports"
+  },
+  {
+    "name": "10_subscriber_manager",
+    "route": "/app/audience/subscribers",
+    "expected": "Subscribers",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\10_subscriber_manager.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nAudience\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nSUBSCRIBER DATABASE\n\nSubscribers\n\nSearch, filter, edit, and maintain people records used by targeting and compliance.\n\nAdd Subscriber\nDelete Selected\nAll\nACTIVE\nUNSUBSCRIBED\nBOUNCED\n\tEMAIL\tNAME\tSTATUS\tSOURCE\tCREATED"
+  },
+  {
+    "name": "11_campaign_studio",
+    "route": "/app/campaigns",
+    "expected": "Campaign Studio",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\11_campaign_studio.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nCampaign Studio\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nLAUNCH OPERATIONS\n\nCampaign Studio\n\nCreate, approve, schedule, and orchestrate enterprise email campaigns.\n\nRefresh\nCreate Campaign\nCAMPAIGN\tSTATUS\tTYPE\tUPDATED\t\n\n\nSpring Launch\n\nEarly access opens today\n\n\tRE"
+  },
+  {
+    "name": "12_campaign_wizard",
+    "route": "/app/campaigns/new",
+    "expected": "Campaign Wizard",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\12_campaign_wizard.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nCampaign Studio\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nCAMPAIGN SETUP\n\nCampaign Wizard\n\nPlan campaign setup, targeting, approvals, and delivery in one controlled flow.\n\nBack to Campaigns\n1\nBasics\n2\nTargeting\n3\nDelivery\n4\nReview\nCampaign Basics\n\nDefine message ide"
+  },
+  {
+    "name": "13_launch_orchestration",
+    "route": "/app/launch",
+    "expected": "One-action launch orchestration",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\13_launch_orchestration.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nWorkspace\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nLAUNCH COMMAND CENTER\n\nOne-action launch orchestration\n\nRun readiness, approval, scheduling, and send execution from one controlled command flow.\n\nRefresh\nRun readiness\n\nACTIVE LAUNCH\n\nSpring Launch\nWelcome Journey"
+  },
+  {
+    "name": "14_campaign_tracking",
+    "route": "/app/campaigns/cmp-spring/tracking",
+    "expected": "Spring Launch",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\14_campaign_tracking.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nCampaign Studio\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nCAMPAIGN TELEMETRY\n\nSpring Launch\n\nEarly access opens today\n\nREADY\nRefresh\nFailed only\nNot sent\nSuppressed recheck\nAll with confirmation\nResend Plan\nBack\n\nTARGET\n\n0\n\nSENT\n\n0\n\nFAILED\n\n0\n\nSUPPRESSED\n\n0\n\nProgres"
+  },
+  {
+    "name": "15_automation_builder",
+    "route": "/app/automation",
+    "expected": "Automation",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\15_automation_builder.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nAutomation\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nJOURNEY ORCHESTRATION\n\nAutomation\n\nBuild customer journeys with draft control, publish gates, rollback posture, and execution visibility.\n\nNew Workflow\n\nACTIVE JOURNEYS\n\n1\n\nLive\n\nrunning lifecycle paths\n\nDRAFTS\n\n1"
+  },
+  {
+    "name": "16_deliverability",
+    "route": "/app/deliverability",
+    "expected": "Delivery Studio",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\16_deliverability.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nDelivery Studio\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nINBOX OPERATIONS\n\nDelivery Studio\n\nQueue monitor, replay console, warm-up readiness, and inbox health telemetry.\n\nRefresh\n\nQueue Pending\n\n184\n\nAuth Readiness\n\n50%\n\nRecent Failures\n\n19\n\nWarm-up Readiness\n\n91%\n"
+  },
+  {
+    "name": "17_analytics",
+    "route": "/app/analytics",
+    "expected": "Analytics Overview",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\17_analytics.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nAnalytics\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\n\nLIVE TELEMETRY\n\nAnalytics Overview\n\nAggregate delivery and engagement metrics from tracking services.\n\nRefresh\n\nTOTAL OPENS\n\n0\n\nTracked open events\n\nTOTAL CLICKS\n\n0\n\nTracked click events\n\nCONVERSIONS\n\n0\n\nGoal event"
+  },
+  {
+    "name": "18_admin_console",
+    "route": "/app/admin",
+    "expected": "Govern users, runtime policy",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\18_admin_console.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nAdmin\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\nEnterprise administration fabric\nGovern users, runtime policy, audit evidence, and configuration propagation from one control plane.\n\nAdmin reads live operational state, records propagation events for access/config chan"
+  },
+  {
+    "name": "19_platform_settings",
+    "route": "/app/settings/platform",
+    "expected": "Settings that reshape the shell",
+    "file": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\Legent_Project_Documentation_and_Demo\\assets\\screenshots\\19_platform_settings.png",
+    "textSample": "Legent\nEmail Studio\nDashboard\nLaunch\nAudience\nTemplates\nCampaigns\nAutomation\nDelivery\nAnalytics\nAdmin\n\nSettings\n\n11111111-1111-4111-8111-111111111111\n\nSearch campaigns, subscribers, templates...\nCtrl K\n11111111-1111-4111-8111-111111111111 / 22222222-2222-4222-8222-222222222222\nBasic\nPersonal operating console\nSettings that reshape the shell, alerts, modules, and integration behavior without stale state.\n\nProfile preferences persist in identity service, theme updates apply immediately, and module"
+  }
+]

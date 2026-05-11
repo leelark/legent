@@ -6,6 +6,7 @@ import com.legent.common.dto.ApiResponse;
 import com.legent.deliverability.domain.SuppressionList;
 import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.security.TenantContext;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 
@@ -26,8 +28,15 @@ import java.util.Map;
 public class SuppressionController {
 
     private final SuppressionListRepository suppressionRepository;
-    @Value("${legent.internal.api-token:legent-internal-dev-token}")
+    @Value("${legent.internal.api-token}")
     private String internalApiToken;
+
+    @PostConstruct
+    void validateInternalApiToken() {
+        if (internalApiToken == null || internalApiToken.isBlank() || isPlaceholderToken(internalApiToken)) {
+            throw new IllegalStateException("legent.internal.api-token must be configured with a non-placeholder secret");
+        }
+    }
 
     @GetMapping
     public ApiResponse<List<SuppressionList>> listSuppressions() {
@@ -63,5 +72,14 @@ public class SuppressionController {
         result.put("unsubscribes", unsubscribes);
         result.put("generatedAt", Instant.now());
         return ApiResponse.ok(result);
+    }
+
+    private boolean isPlaceholderToken(String token) {
+        String normalized = token.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("dev-token")
+                || normalized.contains("change_me")
+                || normalized.contains("changeme")
+                || normalized.contains("replace_in_production")
+                || normalized.equals("password");
     }
 }

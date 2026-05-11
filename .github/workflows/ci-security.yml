@@ -32,8 +32,43 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
-      - run: npm run build
+      - name: Frontend production build with telemetry
+        run: npm run build:ci
+        env:
+          LEGENT_BUILD_TIMEOUT_MS: "900000"
+      - name: Install Playwright smoke browser
+        run: npx playwright install --with-deps chromium
+      - name: Frontend E2E smoke
+        run: npm run test:e2e:smoke
+        env:
+          CI: "true"
       - run: npm audit --omit=dev --audit-level=high
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    env:
+      DB_USER: legent
+      DB_PASSWORD: ci-postgres-password
+      LEGENT_SECURITY_JWT_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:8080
+      FRONTEND_HOST_PORT: "3000"
+      REDIS_PASSWORD: ""
+      MINIO_ACCESS_KEY: ci-minio-access
+      MINIO_SECRET_KEY: ci-minio-secret
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      CLICKHOUSE_PASSWORD: ci-clickhouse-password
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
+      API_GATEWAY_URL: http://gateway
+      TRACKING_BASE_URL: http://localhost:8080
+      LEGENT_TRACKING_SIGNING_KEY: 0123456789abcdef0123456789abcdef
+      LEGENT_DELIVERY_CREDENTIAL_KEY: 0123456789abcdef0123456789abcdef
+      LEGENT_DELIVERY_ENCRYPTION_SALT: bG9jYWwtZGV2ZWxvcG1lbnQtc2FsdC0xMjM0NTY=
+      LEGENT_INTERNAL_API_TOKEN: ci-internal-token-0123456789abcdef
+    steps:
+      - uses: actions/checkout@v4
+      - name: Docker Compose config smoke
+        run: docker compose config --quiet
 
   security:
     runs-on: ubuntu-latest

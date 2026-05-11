@@ -2,12 +2,19 @@
   "name": "legent-email-studio-frontend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20 <23",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "build": "node scripts/build-with-telemetry.mjs",
+    "build:next": "next build",
+    "build:ci": "node scripts/build-with-telemetry.mjs",
+    "start": "node scripts/start-standalone.mjs",
     "lint": "next lint",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test tests/e2e/smoke.spec.ts --project=chromium"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.4",

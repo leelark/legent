@@ -23,23 +23,27 @@ public class TrackingEventPublisher {
 
     public void publishIngestedEvent(TrackingDto.RawEventPayload payload) {
         try {
-            EventEnvelope<String> envelope = EventEnvelope.wrap(
-                    AppConstants.TOPIC_TRACKING_INGESTED,
-                    payload.getTenantId(),
-                    SOURCE,
-                    objectMapper.writeValueAsString(payload)
-            );
-            envelope.setWorkspaceId(payload.getWorkspaceId());
-            envelope.setEnvironmentId(payload.getEnvironmentId());
-            envelope.setActorId(payload.getActorId());
-            envelope.setOwnershipScope(payload.getOwnershipScope() == null ? "WORKSPACE" : payload.getOwnershipScope());
-            if (payload.getIdempotencyKey() != null && !payload.getIdempotencyKey().isBlank()) {
-                envelope.setIdempotencyKey(payload.getIdempotencyKey());
-            }
-            eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, payload.getMessageId(), envelope);
+            publishIngestedEventOrThrow(payload);
         } catch (Exception e) {
             log.error("Failed to publish tracking ingestion for mid={}", payload.getMessageId(), e);
         }
+    }
+
+    public void publishIngestedEventOrThrow(TrackingDto.RawEventPayload payload) throws Exception {
+        EventEnvelope<String> envelope = EventEnvelope.wrap(
+                AppConstants.TOPIC_TRACKING_INGESTED,
+                payload.getTenantId(),
+                SOURCE,
+                objectMapper.writeValueAsString(payload)
+        );
+        envelope.setWorkspaceId(payload.getWorkspaceId());
+        envelope.setEnvironmentId(payload.getEnvironmentId());
+        envelope.setActorId(payload.getActorId());
+        envelope.setOwnershipScope(payload.getOwnershipScope() == null ? "WORKSPACE" : payload.getOwnershipScope());
+        if (payload.getIdempotencyKey() != null && !payload.getIdempotencyKey().isBlank()) {
+            envelope.setIdempotencyKey(payload.getIdempotencyKey());
+        }
+        eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, payload.getMessageId(), envelope);
     }
 
     public void publishOpen(String mid, String tenantId) {

@@ -1,0 +1,19 @@
+1
+00:00:00,000 --> 00:00:35,500
+Public Product Story. Legent opens with a public product story for lifecycle email teams. The website explains why audience quality, creative governance, launch control, delivery safety, and revenue fee
+
+2
+00:00:36,000 --> 00:01:11,500
+Signup And Onboarding. The operator creates a workspace, signs in, and moves through onboarding. Workspace, sender, and provider readiness become explicit before the first campaign reaches production.
+
+3
+00:01:12,000 --> 00:01:47,500
+Email And Audience. Inside the app, Email Studio and Audience Studio provide the daily operating surfaces. Teams manage templates, assets, subscribers, lists, segments, imports, preferences, consent, 
+
+4
+00:01:48,000 --> 00:02:23,500
+Campaign And Launch. Campaign Studio turns content and audience into a governed send. Operators configure audience rules, frequency caps, budgets, experiments, approval posture, and run a readiness sca
+
+5
+00:02:24,000 --> 00:02:59,500
+Delivery And Tracking. Delivery and tracking close the loop. Provider health, routing, queue stats, replay safety, open events, click events, experiments, budget ledger, and dead letter handling stay vis

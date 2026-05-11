@@ -8,6 +8,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
@@ -28,7 +29,8 @@ public class DeliverabilityServiceClient {
     public DeliverabilityServiceClient(
             // LEGENT-HIGH-005: Fixed port from 8085 (tracking-service) to 8087 (deliverability-service)
             @Value("${legent.deliverability-service.url:http://deliverability-service:8087}") String baseUrl,
-            @Value("${legent.internal.api-token:legent-internal-dev-token}") String internalApiToken) {
+            @Value("${legent.internal.api-token}") String internalApiToken) {
+        validateInternalApiToken(internalApiToken);
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();
@@ -93,5 +95,20 @@ public class DeliverabilityServiceClient {
             }
             return Collections.emptySet();
         }
+    }
+
+    private void validateInternalApiToken(String token) {
+        if (token == null || token.isBlank() || isPlaceholderToken(token)) {
+            throw new IllegalStateException("legent.internal.api-token must be configured with a non-placeholder secret");
+        }
+    }
+
+    private boolean isPlaceholderToken(String token) {
+        String normalized = token.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("dev-token")
+                || normalized.contains("change_me")
+                || normalized.contains("changeme")
+                || normalized.contains("replace_in_production")
+                || normalized.equals("password");
     }
 }
