@@ -205,6 +205,39 @@ public class EmailStudioDto {
     }
 
     @Data
+    public static class BuilderBlock {
+        @NotBlank
+        private String id;
+        @NotBlank
+        private String blockType;
+        private String name;
+        @NotBlank
+        private String content;
+        private Map<String, Object> styles;
+        private Map<String, Object> settings;
+    }
+
+    @Data
+    public static class BuilderLayoutRequest {
+        @NotBlank
+        @Size(max = 500)
+        private String subject;
+        private List<BuilderBlock> blocks;
+        private Map<String, Object> variables;
+    }
+
+    @Data
+    public static class BuilderLayoutResponse {
+        private String subject;
+        private String htmlContent;
+        private String textContent;
+        private Integer blockCount;
+        private List<String> blockIds;
+        private List<String> warnings;
+        private ValidationResponse validation;
+    }
+
+    @Data
     public static class ValidationResponse {
         private String status;
         private String sanitizedHtml;
@@ -244,5 +277,33 @@ public class EmailStudioDto {
         private String errorMessage;
         private String createdAt;
         private String updatedAt;
+    }
+
+    @Data
+    public static class TestSendMatrixRecipient {
+        @Email
+        @NotBlank
+        private String email;
+        private String recipientGroup;
+        private String brandKitId;
+        private Map<String, Object> variables;
+    }
+
+    @Data
+    public static class TestSendMatrixRequest {
+        @NotBlank
+        private String matrixName;
+        private String subjectOverride;
+        private List<TestSendMatrixRecipient> recipients;
+    }
+
+    @Data
+    public static class TestSendMatrixResponse {
+        private String matrixName;
+        private int requested;
+        private int queued;
+        private int failed;
+        private List<TestSendRecordResponse> records;
+        private List<String> errors;
     }
 }

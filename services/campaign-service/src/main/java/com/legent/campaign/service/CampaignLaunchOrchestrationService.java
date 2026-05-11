@@ -3,12 +3,16 @@ package com.legent.campaign.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.campaign.domain.Campaign;
+import com.legent.campaign.domain.CampaignBudget;
+import com.legent.campaign.domain.CampaignFrequencyPolicy;
 import com.legent.campaign.domain.CampaignLaunchPlan;
 import com.legent.campaign.domain.CampaignLaunchStep;
 import com.legent.campaign.dto.CampaignDto;
 import com.legent.campaign.dto.CampaignEngineDto;
 import com.legent.campaign.dto.CampaignLaunchDto;
 import com.legent.campaign.dto.SendJobDto;
+import com.legent.campaign.repository.CampaignBudgetRepository;
+import com.legent.campaign.repository.CampaignFrequencyPolicyRepository;
 import com.legent.campaign.repository.CampaignLaunchPlanRepository;
 import com.legent.campaign.repository.CampaignLaunchStepRepository;
 import com.legent.campaign.repository.CampaignRepository;
@@ -21,7 +25,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -38,6 +45,8 @@ public class CampaignLaunchOrchestrationService {
     private final CampaignRepository campaignRepository;
     private final CampaignLaunchPlanRepository launchPlanRepository;
     private final CampaignLaunchStepRepository launchStepRepository;
+    private final CampaignBudgetRepository budgetRepository;
+    private final CampaignFrequencyPolicyRepository frequencyPolicyRepository;
     private final CampaignEngineService campaignEngineService;
     private final CampaignWorkflowService workflowService;
     private final CampaignService campaignService;
@@ -72,6 +81,7 @@ public class CampaignLaunchOrchestrationService {
                 .primaryAction(readiness.primaryAction())
                 .message(readiness.blocked() ? "Resolve blockers before launch." : "Campaign is ready for controlled execution.")
                 .affectedResourceIds(Map.of("campaignId", campaignId))
+                .launchControls(launchControls(request))
                 .blockers(readiness.blockers())
                 .warnings(readiness.warnings())
                 .recommendations(readiness.recommendations())
@@ -208,6 +218,7 @@ public class CampaignLaunchOrchestrationService {
         score += deliverabilityScore(campaign, blockers, warnings, recommendations, steps);
         score += deliveryScore(campaign, warnings, recommendations, steps);
         score += governanceScore(campaign, request, blockers, warnings, recommendations, steps);
+        evaluateLaunchControls(campaign, request, blockers, warnings, recommendations, steps);
 
         CampaignEngineDto.SendPreflightReport preflight = campaignEngineService.preflight(campaign.getId());
         if (preflight.getErrors() != null && !preflight.getErrors().isEmpty()) {
@@ -341,6 +352,207 @@ public class CampaignLaunchOrchestrationService {
         return 20;
     }
 
+    private void evaluateLaunchControls(Campaign campaign,
+                                        CampaignLaunchDto.LaunchPlanRequest request,
+                                        List<String> blockers,
+                                        List<String> warnings,
+                                        List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                        List<CampaignLaunchDto.LaunchStepResult> steps) {
+        List<String> controlIssues = new ArrayList<>();
+        Instant effectiveLaunchTime = request.getScheduledAt() == null ? Instant.now() : request.getScheduledAt();
+
+        evaluatePublicationCalendar(request.getPublicationCalendar(), effectiveLaunchTime, blockers, warnings, recommendations, controlIssues);
+        evaluateBlackoutWindows(request.getBlackoutWindows(), effectiveLaunchTime, blockers, recommendations, controlIssues);
+        evaluateDependencies(request.getDependencies(), blockers, recommendations, controlIssues);
+        evaluateSendClassification(request.getSendClassification(), blockers, warnings, recommendations, controlIssues);
+        evaluateBudgetGuard(campaign, request.getBudgetGuard(), blockers, warnings, recommendations, controlIssues);
+        evaluateFrequencyGuard(campaign, request.getFrequencyGuard(), blockers, warnings, recommendations, controlIssues);
+
+        boolean blocked = controlIssues.stream().anyMatch(issue -> issue.startsWith("BLOCKER:"));
+        boolean warned = controlIssues.stream().anyMatch(issue -> issue.startsWith("WARN:"));
+        String status = blocked ? "BLOCKED" : warned ? "WARN" : "PASS";
+        steps.add(step("launch_controls", "Launch Controls", status, blocked ? 0 : warned ? 12 : 20,
+                blocked ? "Calendar, dependency, or guardrail issue found."
+                        : warned ? "Launch controls have warnings."
+                        : "Calendar, dependencies, classifications, budget, and frequency controls ready.",
+                launchControls(request)));
+    }
+
+    private void evaluatePublicationCalendar(CampaignLaunchDto.PublicationCalendar calendar,
+                                             Instant effectiveLaunchTime,
+                                             List<String> blockers,
+                                             List<String> warnings,
+                                             List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                             List<String> controlIssues) {
+        if (calendar == null) {
+            warnings.add("Publication calendar is not attached.");
+            controlIssues.add("WARN:publication_calendar_missing");
+            recommendations.add(recommend("calendar.attach", "WARN", "Attach publication calendar",
+                    "A calendar prevents sends outside approved operating windows.", false));
+            return;
+        }
+        if (calendar.getPublishAfter() != null && effectiveLaunchTime.isBefore(calendar.getPublishAfter())) {
+            blockers.add("Launch is before publication calendar start.");
+            controlIssues.add("BLOCKER:publication_calendar_before_start");
+        }
+        if (calendar.getPublishBefore() != null && effectiveLaunchTime.isAfter(calendar.getPublishBefore())) {
+            blockers.add("Launch is after publication calendar end.");
+            controlIssues.add("BLOCKER:publication_calendar_after_end");
+        }
+        if (calendar.getAllowedDays() != null && !calendar.getAllowedDays().isEmpty()) {
+            ZoneId zoneId = safeZone(calendar.getTimezone());
+            String day = ZonedDateTime.ofInstant(effectiveLaunchTime, zoneId).getDayOfWeek().name();
+            boolean allowed = calendar.getAllowedDays().stream().map(value -> value.toUpperCase(Locale.ROOT)).anyMatch(day::equals);
+            if (!allowed) {
+                blockers.add("Launch day is blocked by publication calendar: " + day);
+                controlIssues.add("BLOCKER:publication_calendar_day");
+            }
+        }
+    }
+
+    private void evaluateBlackoutWindows(List<CampaignLaunchDto.BlackoutWindow> blackoutWindows,
+                                         Instant effectiveLaunchTime,
+                                         List<String> blockers,
+                                         List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                         List<String> controlIssues) {
+        if (blackoutWindows == null || blackoutWindows.isEmpty()) {
+            return;
+        }
+        for (CampaignLaunchDto.BlackoutWindow window : blackoutWindows) {
+            if (window.getStartsAt() == null || window.getEndsAt() == null) {
+                blockers.add("Blackout window must include startsAt and endsAt.");
+                controlIssues.add("BLOCKER:blackout_window_invalid");
+                continue;
+            }
+            if (!effectiveLaunchTime.isBefore(window.getStartsAt()) && !effectiveLaunchTime.isAfter(window.getEndsAt())) {
+                String name = window.getName() == null || window.getName().isBlank() ? "unnamed blackout window" : window.getName();
+                blockers.add("Launch time falls inside blackout window: " + name);
+                controlIssues.add("BLOCKER:blackout_window_match");
+                recommendations.add(recommend("calendar.blackout", "BLOCKER", "Move launch outside blackout",
+                        "Choose an approved send time outside blackout windows.", false));
+            }
+        }
+    }
+
+    private void evaluateDependencies(List<CampaignLaunchDto.LaunchDependency> dependencies,
+                                      List<String> blockers,
+                                      List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                      List<String> controlIssues) {
+        if (dependencies == null || dependencies.isEmpty()) {
+            return;
+        }
+        for (CampaignLaunchDto.LaunchDependency dependency : dependencies) {
+            if (!Boolean.TRUE.equals(dependency.getSatisfied())) {
+                String key = dependency.getKey() == null ? "dependency" : dependency.getKey();
+                blockers.add("Launch dependency is not satisfied: " + key);
+                controlIssues.add("BLOCKER:dependency:" + key);
+                recommendations.add(recommend("dependency." + key, "BLOCKER", "Satisfy dependency",
+                        dependency.getDetail() == null ? "Resolve dependency before launch." : dependency.getDetail(), false));
+            }
+        }
+    }
+
+    private void evaluateSendClassification(CampaignLaunchDto.SendClassification classification,
+                                            List<String> blockers,
+                                            List<String> warnings,
+                                            List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                            List<String> controlIssues) {
+        if (classification == null) {
+            warnings.add("Send classification is not selected.");
+            controlIssues.add("WARN:send_classification_missing");
+            recommendations.add(recommend("classification.required", "WARN", "Select send classification",
+                    "Use a governed sender, delivery profile, and unsubscribe policy.", false));
+            return;
+        }
+        if (classification.getClassificationKey() == null || classification.getClassificationKey().isBlank()) {
+            warnings.add("Send classification key is empty.");
+            controlIssues.add("WARN:classification_key_missing");
+        }
+        if (Boolean.TRUE.equals(classification.getCommercial())) {
+            if (classification.getUnsubscribePolicy() == null || classification.getUnsubscribePolicy().isBlank()) {
+                blockers.add("Commercial sends require an unsubscribe policy.");
+                controlIssues.add("BLOCKER:unsubscribe_policy_missing");
+            }
+            if (Boolean.TRUE.equals(classification.getRequiresConsent()) && classification.getSenderProfileId() == null) {
+                warnings.add("Consent-required send has no sender profile.");
+                controlIssues.add("WARN:sender_profile_missing");
+            }
+        }
+    }
+
+    private void evaluateBudgetGuard(Campaign campaign,
+                                     CampaignLaunchDto.BudgetGuard guard,
+                                     List<String> blockers,
+                                     List<String> warnings,
+                                     List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                     List<String> controlIssues) {
+        var budget = budgetRepository.findByTenantIdAndWorkspaceIdAndCampaignIdAndDeletedAtIsNull(
+                campaign.getTenantId(), campaign.getWorkspaceId(), campaign.getId());
+        boolean enforce = guard != null && Boolean.TRUE.equals(guard.getEnforced());
+        if (enforce && budget.isEmpty()) {
+            blockers.add("Budget guard is enforced but campaign budget is not configured.");
+            controlIssues.add("BLOCKER:budget_missing");
+            return;
+        }
+        budget.ifPresent(current -> {
+            if (CampaignBudget.STATUS_EXHAUSTED.equals(current.getStatus())) {
+                blockers.add("Campaign budget is exhausted.");
+                controlIssues.add("BLOCKER:budget_exhausted");
+            }
+            Long estimatedRecipients = guard == null ? null : guard.getEstimatedRecipients();
+            if ((enforce || current.isEnforced()) && estimatedRecipients != null && estimatedRecipients > 0) {
+                BigDecimal estimatedSpend = current.getCostPerSend().multiply(BigDecimal.valueOf(estimatedRecipients));
+                BigDecimal projected = current.getReservedSpend().add(current.getActualSpend()).add(estimatedSpend);
+                if (current.getBudgetLimit().compareTo(BigDecimal.ZERO) > 0 && projected.compareTo(current.getBudgetLimit()) > 0) {
+                    blockers.add("Projected launch spend exceeds campaign budget.");
+                    controlIssues.add("BLOCKER:budget_overrun");
+                }
+            }
+            if (!current.isEnforced()) {
+                warnings.add("Campaign budget is configured but not enforced.");
+                controlIssues.add("WARN:budget_not_enforced");
+            }
+        });
+        if (budget.isEmpty() && !enforce) {
+            recommendations.add(recommend("budget.configure", "INFO", "Configure budget guard",
+                    "Budget caps protect high-volume launch spend.", false));
+        }
+    }
+
+    private void evaluateFrequencyGuard(Campaign campaign,
+                                        CampaignLaunchDto.FrequencyGuard guard,
+                                        List<String> blockers,
+                                        List<String> warnings,
+                                        List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                        List<String> controlIssues) {
+        var persistedPolicy = frequencyPolicyRepository.findByTenantIdAndWorkspaceIdAndCampaignIdAndDeletedAtIsNull(
+                campaign.getTenantId(), campaign.getWorkspaceId(), campaign.getId());
+        if (guard != null && Boolean.TRUE.equals(guard.getEnforceWorkspacePolicy())) {
+            if (guard.getMaxSends() == null || guard.getMaxSends() < 1) {
+                blockers.add("Frequency guard is enabled but maxSends is not positive.");
+                controlIssues.add("BLOCKER:frequency_max_sends");
+            }
+            if (guard.getWindowHours() == null || guard.getWindowHours() < 1) {
+                blockers.add("Frequency guard is enabled but windowHours is not positive.");
+                controlIssues.add("BLOCKER:frequency_window");
+            }
+        }
+        persistedPolicy.ifPresent(policy -> {
+            if (policy.isEnabled() && (policy.getMaxSends() == null || policy.getMaxSends() < 1)) {
+                blockers.add("Persisted frequency policy is enabled with invalid maxSends.");
+                controlIssues.add("BLOCKER:persisted_frequency_invalid");
+            }
+            if (!policy.isEnabled()) {
+                warnings.add("Campaign frequency policy is disabled.");
+                controlIssues.add("WARN:frequency_policy_disabled");
+            }
+        });
+        if (persistedPolicy.isEmpty() && guard == null) {
+            recommendations.add(recommend("frequency.configure", "INFO", "Configure frequency cap",
+                    "Frequency caps protect subscribers across campaigns and journeys.", false));
+        }
+    }
+
     private String primaryAction(Campaign campaign, List<String> blockers, CampaignLaunchDto.LaunchPlanRequest request) {
         if (!blockers.isEmpty()) {
             if (campaign.isApprovalRequired() && campaign.getStatus() == Campaign.CampaignStatus.DRAFT
@@ -461,6 +673,7 @@ public class CampaignLaunchOrchestrationService {
                 .message(message)
                 .auditId(plan.getAuditId())
                 .affectedResourceIds(castMap(summary.get("affectedResourceIds")))
+                .launchControls(launchControlsFromRequest(plan.getRequestJson()))
                 .blockers(castList(summary.get("blockers")))
                 .warnings(castList(summary.get("warnings")))
                 .recommendations(List.of())
@@ -486,6 +699,7 @@ public class CampaignLaunchOrchestrationService {
                 .message(message)
                 .auditId(plan.getAuditId())
                 .affectedResourceIds(affected)
+                .launchControls(launchControlsFromRequest(plan.getRequestJson()))
                 .blockers(readiness.blockers())
                 .warnings(readiness.warnings())
                 .recommendations(readiness.recommendations())
@@ -541,6 +755,45 @@ public class CampaignLaunchOrchestrationService {
             return objectMapper.readValue(json, MAP_TYPE);
         } catch (Exception ignored) {
             return Map.of();
+        }
+    }
+
+    private Map<String, Object> launchControlsFromRequest(String requestJson) {
+        Map<String, Object> requestMap = readMap(requestJson);
+        return Map.of(
+                "publicationCalendar", controlValue(requestMap, "publicationCalendar", Map.of()),
+                "blackoutWindows", controlValue(requestMap, "blackoutWindows", List.of()),
+                "dependencies", controlValue(requestMap, "dependencies", List.of()),
+                "sendClassification", controlValue(requestMap, "sendClassification", Map.of()),
+                "budgetGuard", controlValue(requestMap, "budgetGuard", Map.of()),
+                "frequencyGuard", controlValue(requestMap, "frequencyGuard", Map.of())
+        );
+    }
+
+    private Object controlValue(Map<String, Object> requestMap, String key, Object defaultValue) {
+        Object value = requestMap.get(key);
+        return value == null ? defaultValue : value;
+    }
+
+    private Map<String, Object> launchControls(CampaignLaunchDto.LaunchPlanRequest request) {
+        Map<String, Object> controls = new LinkedHashMap<>();
+        controls.put("publicationCalendar", request.getPublicationCalendar());
+        controls.put("blackoutWindows", request.getBlackoutWindows() == null ? List.of() : request.getBlackoutWindows());
+        controls.put("dependencies", request.getDependencies() == null ? List.of() : request.getDependencies());
+        controls.put("sendClassification", request.getSendClassification());
+        controls.put("budgetGuard", request.getBudgetGuard());
+        controls.put("frequencyGuard", request.getFrequencyGuard());
+        return controls;
+    }
+
+    private ZoneId safeZone(String timezone) {
+        if (timezone == null || timezone.isBlank()) {
+            return ZoneId.of("UTC");
+        }
+        try {
+            return ZoneId.of(timezone);
+        } catch (Exception ignored) {
+            return ZoneId.of("UTC");
         }
     }
 

@@ -11,6 +11,7 @@ import com.legent.content.domain.PersonalizationToken;
 import com.legent.content.domain.TemplateTestSendRecord;
 import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.service.DynamicContentRuleService;
+import com.legent.content.service.ContentBuilderService;
 import com.legent.content.service.EmailRenderService;
 import com.legent.content.service.EmailStudioResourceService;
 import com.legent.content.service.PersonalizationTokenService;
@@ -42,6 +43,7 @@ public class EmailStudioController {
     private final EmailStudioResourceService resourceService;
     private final PersonalizationTokenService tokenService;
     private final DynamicContentRuleService dynamicRuleService;
+    private final ContentBuilderService contentBuilderService;
     private final EmailRenderService renderService;
     private final TemplateTestSendService testSendService;
 
@@ -122,6 +124,12 @@ public class EmailStudioController {
     public ApiResponse<List<EmailStudioDto.DynamicRuleResponse>> listDynamicRules(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(dynamicRuleService.list(tenantId, templateId).stream().map(this::mapDynamicRule).toList());
+    }
+
+    @PostMapping("/content/builder/render")
+    public ApiResponse<EmailStudioDto.BuilderLayoutResponse> renderBuilderLayout(
+            @Valid @RequestBody EmailStudioDto.BuilderLayoutRequest request) {
+        return ApiResponse.ok(contentBuilderService.renderLayout(request));
     }
 
     @PutMapping("/templates/{templateId}/dynamic-content/{id}")
@@ -250,6 +258,15 @@ public class EmailStudioController {
     public ApiResponse<List<EmailStudioDto.TestSendRecordResponse>> listTestSends(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(testSendService.list(tenantId, templateId).stream().map(this::mapTestSend).toList());
+    }
+
+    @PostMapping("/templates/{templateId}/test-send-matrix")
+    @ResponseStatus(HttpStatus.CREATED)
+    public ApiResponse<EmailStudioDto.TestSendMatrixResponse> createTestSendMatrix(
+            @PathVariable String templateId,
+            @Valid @RequestBody EmailStudioDto.TestSendMatrixRequest request) {
+        String tenantId = TenantContext.requireTenantId();
+        return ApiResponse.ok(contentBuilderService.sendMatrix(tenantId, templateId, request));
     }
 
     private EmailStudioDto.SnippetResponse mapSnippet(ContentSnippet snippet) {

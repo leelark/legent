@@ -1,0 +1,13 @@
+- op: add
+  path: /spec/strategy
+  value:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+- op: add
+  path: /spec/minReadySeconds
+  value: 20
+- op: add
+  path: /spec/revisionHistoryLimit
+  value: 10

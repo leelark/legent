@@ -9,14 +9,20 @@ import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
+  AutomationActivity,
+  AutomationActivityType,
   archiveWorkflow,
   cloneWorkflow,
+  createAutomationActivity,
   createWorkflow,
+  listAutomationActivities,
   listWorkflows,
   pauseWorkflow,
   publishWorkflow,
   resumeWorkflow,
+  runAutomationActivity,
   stopWorkflow,
+  verifyAutomationActivity,
   Workflow,
 } from '@/lib/automation-api';
 import { Plus } from '@phosphor-icons/react';
@@ -24,23 +30,32 @@ import Link from 'next/link';
 
 export default function AutomationPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
+  const [activities, setActivities] = useState<AutomationActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
+  const [showCreateActivity, setShowCreateActivity] = useState(false);
   const [newName, setNewName] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [activityName, setActivityName] = useState('');
+  const [activityType, setActivityType] = useState<AutomationActivityType>('SQL_QUERY');
+  const [activitySql, setActivitySql] = useState('SELECT subscriber_key, email FROM subscribers');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const activeCount = workflows.filter((workflow) => workflow.status === 'ACTIVE').length;
   const draftCount = workflows.filter((workflow) => workflow.status === 'DRAFT').length;
   const pausedCount = workflows.filter((workflow) => workflow.status === 'PAUSED' || workflow.status === 'SCHEDULED').length;
-  const governedCount = workflows.filter((workflow) => workflow.status !== 'ARCHIVED').length;
+  const activeActivityCount = activities.filter((activity) => activity.status === 'ACTIVE').length;
 
   const loadWorkflows = async () => {
     setLoading(true);
     try {
-      const data = await listWorkflows();
+      const [data, activityData] = await Promise.all([
+        listWorkflows(),
+        listAutomationActivities(),
+      ]);
       setWorkflows(data);
+      setActivities(activityData);
     } catch (e: any) {
       setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to load workflows');
     } finally {
@@ -69,6 +84,60 @@ export default function AutomationPage() {
       setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to create workflow');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleCreateActivity = async () => {
+    if (!activityName.trim()) {
+      setError('Activity name is required');
+      return;
+    }
+    setCreating(true);
+    setError(null);
+    try {
+      const inputConfig =
+        activityType === 'SQL_QUERY'
+          ? { sql: activitySql }
+          : activityType === 'WEBHOOK'
+            ? { url: 'https://example.com/webhook', method: 'POST' }
+            : activityType === 'FILE_DROP'
+              ? { locationPattern: 's3://bucket/path/*.csv' }
+              : activityType === 'IMPORT'
+                ? { sourceLocation: 's3://bucket/file.csv', targetType: 'DATA_EXTENSION', targetId: 'data-extension-id', fieldMapping: {} }
+                : activityType === 'EXTRACT'
+                  ? { sourceType: 'RAW_EVENTS' }
+                  : { scriptRef: 'signed-script-artifact' };
+      const outputConfig = activityType === 'SQL_QUERY' ? { targetDataExtensionId: 'data-extension-id' } : { destination: 's3://bucket/output/' };
+      await createAutomationActivity({
+        name: activityName.trim(),
+        activityType,
+        status: 'DRAFT',
+        inputConfig,
+        outputConfig,
+      });
+      setActivityName('');
+      setShowCreateActivity(false);
+      await loadWorkflows();
+    } catch (e: any) {
+      setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to create activity');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const runActivityAction = async (activityId: string, mode: 'verify' | 'dryRun') => {
+    setActionBusy(`${activityId}:${mode}`);
+    try {
+      if (mode === 'verify') {
+        await verifyAutomationActivity(activityId);
+      } else {
+        await runAutomationActivity(activityId, { dryRun: true, triggerSource: 'MANUAL' });
+      }
+      await loadWorkflows();
+    } catch (e: any) {
+      setError(e?.normalized?.message || e?.response?.data?.error?.message || `Failed to ${mode} activity`);
+    } finally {
+      setActionBusy(null);
     }
   };
 
@@ -103,7 +172,7 @@ export default function AutomationPage() {
           { label: 'Active journeys', value: activeCount, detail: 'running lifecycle paths' },
           { label: 'Drafts', value: draftCount, detail: 'waiting for review' },
           { label: 'Paused or scheduled', value: pausedCount, detail: 'operator controlled' },
-          { label: 'Governed workflows', value: governedCount, detail: 'not archived' },
+          { label: 'Studio activities', value: activeActivityCount, detail: `${activities.length} configured` },
         ].map((stat) => (
           <Card key={stat.label}>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-content-secondary">{stat.label}</p>
@@ -139,6 +208,53 @@ export default function AutomationPage() {
           </div>
         </Card>
       )}
+
+      <Card className="overflow-hidden !p-0">
+        <div className="border-b border-border-default bg-surface-secondary/60 p-5">
+          <CardHeader
+            title="Automation Studio Activities"
+            subtitle="SQL, file-drop, import, extract, script, and webhook activities with verification and run history."
+            action={<Button icon={<Plus size={16} />} onClick={() => setShowCreateActivity(!showCreateActivity)}>New Activity</Button>}
+            className="mb-0"
+          />
+        </div>
+        {showCreateActivity && (
+          <div className="grid gap-3 border-b border-border-default p-5 md:grid-cols-[1fr_180px_1fr_auto]">
+            <Input label="Activity Name" value={activityName} onChange={(event) => setActivityName(event.target.value)} />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-content-primary">Type</label>
+              <select
+                value={activityType}
+                onChange={(event) => setActivityType(event.target.value as AutomationActivityType)}
+                className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+              >
+                {['SQL_QUERY', 'FILE_DROP', 'IMPORT', 'EXTRACT', 'SCRIPT', 'WEBHOOK'].map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </div>
+            <Input label="SQL" value={activitySql} onChange={(event) => setActivitySql(event.target.value)} />
+            <Button className="mt-6" onClick={handleCreateActivity} loading={creating}>Create</Button>
+          </div>
+        )}
+        <div className="divide-y divide-border-default">
+          {activities.length === 0 ? (
+            <div className="p-5 text-sm text-content-secondary">No automation activities configured.</div>
+          ) : activities.map((activity) => (
+            <div key={activity.id} className="flex flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
+              <div>
+                <p className="font-semibold text-content-primary">{activity.name}</p>
+                <p className="text-sm text-content-secondary">{activity.activityType}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={activity.status === 'ACTIVE' ? 'success' : 'default'}>{activity.status}</Badge>
+                <Button size="sm" variant="secondary" loading={actionBusy === `${activity.id}:verify`} onClick={() => runActivityAction(activity.id, 'verify')}>Verify</Button>
+                <Button size="sm" loading={actionBusy === `${activity.id}:dryRun`} onClick={() => runActivityAction(activity.id, 'dryRun')}>Dry Run</Button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
 
       <Card className="overflow-hidden !p-0">
         <div className="border-b border-border-default bg-surface-secondary/60 p-5">

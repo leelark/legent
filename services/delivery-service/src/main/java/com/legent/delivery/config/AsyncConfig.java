@@ -16,6 +16,9 @@ public class AsyncConfig {
         executor.setMaxPoolSize(100);
         executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("delivery-");
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

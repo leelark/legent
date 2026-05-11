@@ -180,6 +180,15 @@ export type TestSendRecord = {
   updatedAt?: string;
 };
 
+export type TestSendMatrixResponse = {
+  matrixName: string;
+  requested: number;
+  queued: number;
+  failed: number;
+  records: TestSendRecord[];
+  errors: string[];
+};
+
 export type VersionCompareResponse = {
   leftVersion: number;
   rightVersion: number;
@@ -268,6 +277,15 @@ export const createTemplateTestSend = async (
   id: string,
   payload: { email: string; recipientGroup?: string; subjectOverride?: string; variables?: Record<string, unknown>; brandKitId?: string }
 ) => post<TestSendRecord>(`/templates/${id}/test-sends`, payload);
+
+export const createTemplateTestSendMatrix = async (
+  id: string,
+  payload: {
+    matrixName: string;
+    subjectOverride?: string;
+    recipients: Array<{ email: string; recipientGroup?: string; brandKitId?: string; variables?: Record<string, unknown> }>;
+  }
+) => post<TestSendMatrixResponse>(`/templates/${id}/test-send-matrix`, payload);
 
 export const listTemplateTestSends = async (id: string) =>
   get<TestSendRecord[]>(`/templates/${id}/test-sends`);

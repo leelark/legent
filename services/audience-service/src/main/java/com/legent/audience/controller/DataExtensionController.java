@@ -37,6 +37,30 @@ public class DataExtensionController {
         return ApiResponse.ok(deService.create(request));
     }
 
+    @PutMapping("/{id}/schema")
+    public ApiResponse<DataExtensionDto.Response> updateSchema(@PathVariable String id,
+                                                                @Valid @RequestBody DataExtensionDto.SchemaUpdateRequest request) {
+        return ApiResponse.ok(deService.updateSchema(id, request));
+    }
+
+    @PutMapping("/{id}/sendable")
+    public ApiResponse<DataExtensionDto.Response> updateSendableConfig(@PathVariable String id,
+                                                                        @Valid @RequestBody DataExtensionDto.SendableConfigRequest request) {
+        return ApiResponse.ok(deService.updateSendableConfig(id, request));
+    }
+
+    @PutMapping("/{id}/retention")
+    public ApiResponse<DataExtensionDto.Response> updateRetentionPolicy(@PathVariable String id,
+                                                                         @Valid @RequestBody DataExtensionDto.RetentionPolicyRequest request) {
+        return ApiResponse.ok(deService.updateRetentionPolicy(id, request));
+    }
+
+    @PutMapping("/{id}/relationships")
+    public ApiResponse<DataExtensionDto.Response> updateRelationships(@PathVariable String id,
+                                                                       @Valid @RequestBody DataExtensionDto.RelationshipRequest request) {
+        return ApiResponse.ok(deService.updateRelationships(id, request));
+    }
+
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable String id) {
@@ -56,5 +80,19 @@ public class DataExtensionController {
                                                                       @RequestParam(defaultValue = "20") int size) {
         Page<DataExtensionDto.RecordResponse> result = deService.listRecords(deId, PageRequest.of(page, size));
         return PagedResponse.of(result.getContent(), page, size, result.getTotalElements(), result.getTotalPages());
+    }
+
+    @PostMapping("/{deId}/query-preview")
+    public ApiResponse<DataExtensionDto.QueryPreviewResponse> previewQuery(
+            @PathVariable String deId,
+            @Valid @RequestBody(required = false) DataExtensionDto.QueryPreviewRequest request) {
+        return ApiResponse.ok(deService.previewQuery(deId, request));
+    }
+
+    @PostMapping("/{deId}/import-mapping/preview")
+    public ApiResponse<DataExtensionDto.ImportMappingPreviewResponse> previewImportMapping(
+            @PathVariable String deId,
+            @Valid @RequestBody DataExtensionDto.ImportMappingPreviewRequest request) {
+        return ApiResponse.ok(deService.previewImportMapping(deId, request));
     }
 }

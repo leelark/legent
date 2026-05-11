@@ -21,6 +21,9 @@ public class AsyncConfig {
         executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("wh-disp-");
         executor.setTaskDecorator(new TenantContextTaskDecorator());
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }
@@ -37,6 +40,9 @@ public class AsyncConfig {
         executor.setQueueCapacity(200);
         executor.setThreadNamePrefix("wh-retry-");
         executor.setTaskDecorator(new TenantContextTaskDecorator());
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

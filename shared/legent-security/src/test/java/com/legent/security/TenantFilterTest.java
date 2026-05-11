@@ -54,6 +54,23 @@ class TenantFilterTest {
     }
 
     @Test
+    void doFilter_whenHeaderConflictsWithAuthenticatedTenant_returnsForbiddenAndClearsContext() throws Exception {
+        TenantContext.setTenantId("tenant-a");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");
+        request.addHeader("X-Tenant-Id", "tenant-b");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertEquals(403, response.getStatus());
+        assertTrue(!chainCalled.get());
+        assertNull(TenantContext.getTenantId());
+    }
+
+    @Test
     void doFilter_onTenantFreePath_allowsRequestWithoutTenant() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/actuator/health");
         MockHttpServletResponse response = new MockHttpServletResponse();

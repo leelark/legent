@@ -21,6 +21,9 @@ public class AsyncConfig {
         executor.setQueueCapacity(500);
         executor.setThreadNamePrefix("workflow-");
         executor.setTaskDecorator(new TenantContextTaskDecorator());
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

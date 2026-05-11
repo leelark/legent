@@ -2,7 +2,10 @@ param(
     [switch] $SkipBackend,
     [switch] $SkipFrontend,
     [switch] $SkipE2E,
-    [switch] $SkipComposeSmoke
+    [switch] $SkipComposeSmoke,
+    [switch] $SkipKustomize,
+    [switch] $RunSyntheticSmoke,
+    [string] $SmokeBaseUrl = $env:LEGENT_SMOKE_BASE_URL
 )
 
 $ErrorActionPreference = "Stop"
@@ -68,6 +71,28 @@ if (-not $SkipComposeSmoke) {
         } finally {
             Pop-Location
         }
+    }
+}
+
+if (-not $SkipKustomize) {
+    Invoke-GateStep "Kubernetes production overlay render" {
+        Push-Location $repoRoot
+        try {
+            kubectl kustomize infrastructure/kubernetes/overlays/production | Out-Null
+        } finally {
+            Pop-Location
+        }
+    }
+}
+
+if ($RunSyntheticSmoke) {
+    Invoke-GateStep "Synthetic API smoke" {
+        $scriptPath = Join-Path $repoRoot "scripts\ops\synthetic-smoke.ps1"
+        $arguments = @{}
+        if ($SmokeBaseUrl) {
+            $arguments["BaseUrl"] = $SmokeBaseUrl
+        }
+        & $scriptPath @arguments
     }
 }
 

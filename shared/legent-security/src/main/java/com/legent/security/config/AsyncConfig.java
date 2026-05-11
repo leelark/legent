@@ -23,6 +23,9 @@ public class AsyncConfig implements AsyncConfigurer {
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("LegentAsync-");
         executor.setTaskDecorator(new TenantTaskDecorator());
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

@@ -60,6 +60,11 @@ data:
 
   # ── Observability ──
   LOG_LEVEL: "INFO"
+  MANAGEMENT_TRACING_ENABLED: "true"
+  MANAGEMENT_TRACING_SAMPLING_PROBABILITY: "0.10"
+  MANAGEMENT_OTLP_TRACING_ENDPOINT: "http://otel-collector:4318/v1/traces"
+  OTEL_SERVICE_NAMESPACE: "legent"
+  OTEL_RESOURCE_ATTRIBUTES: "deployment.environment=production,service.namespace=legent"
 
   # ── JVM ──
   JAVA_TOOL_OPTIONS: "-Xmx512m -Xms256m"

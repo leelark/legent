@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yml
+  - configmap.yml
+  - secrets.yml
+  - network-policy.yml
+  - hpa.yml
+  - deployments/frontend.yml
+  - services/audience-service.yml
+  - services/automation-service.yml
+  - services/campaign-service.yml
+  - services/clickhouse.yml
+  - services/content-service.yml
+  - services/deliverability-service.yml
+  - services/delivery-service.yml
+  - services/foundation-service.yml
+  - services/identity-service.yml
+  - services/kafka.yml
+  - services/mailhog.yml
+  - services/minio.yml
+  - services/opensearch.yml
+  - services/platform-service.yml
+  - services/postgres.yml
+  - services/redis.yml
+  - services/tracking-service.yml

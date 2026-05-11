@@ -30,6 +30,38 @@ groups:
         for: 5m
         labels:
           severity: warning
+          team: platform
         annotations:
           summary: "Legent pod restart loop"
           description: "{{ $labels.pod }} restarted repeatedly."
+          runbook_url: "docs/operations/production-hardening-runbook.md"
+      - alert: LegentExecutorSaturationHigh
+        expr: max(legent_executor_saturation_ratio{namespace="legent"}) by (application, executor) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Executor saturation high for {{ $labels.application }} {{ $labels.executor }}"
+          description: "Executor {{ $labels.executor }} has been above 85% saturation for 10 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#executor-saturation"
+      - alert: LegentExecutorSaturationCritical
+        expr: max(legent_executor_saturation_ratio{namespace="legent"}) by (application, executor) > 0.95
+        for: 5m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Executor saturation critical for {{ $labels.application }} {{ $labels.executor }}"
+          description: "Executor {{ $labels.executor }} is above 95% saturation."
+          runbook_url: "docs/operations/production-hardening-runbook.md#executor-saturation"
+      - alert: LegentOtlpCollectorDown
+        expr: up{job=~".*otel.*"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "OpenTelemetry collector is down"
+          description: "Trace export is unavailable."
+          runbook_url: "docs/operations/production-hardening-runbook.md#tracing"

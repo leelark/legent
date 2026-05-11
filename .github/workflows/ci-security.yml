@@ -69,6 +69,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Docker Compose config smoke
         run: docker compose config --quiet
+      - name: Production Kustomize render
+        run: kubectl kustomize infrastructure/kubernetes/overlays/production > /tmp/legent-production.yml
 
   security:
     runs-on: ubuntu-latest

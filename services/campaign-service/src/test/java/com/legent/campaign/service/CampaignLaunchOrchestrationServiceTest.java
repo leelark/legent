@@ -6,6 +6,8 @@ import com.legent.campaign.domain.CampaignLaunchPlan;
 import com.legent.campaign.domain.CampaignLaunchStep;
 import com.legent.campaign.dto.CampaignEngineDto;
 import com.legent.campaign.dto.CampaignLaunchDto;
+import com.legent.campaign.repository.CampaignBudgetRepository;
+import com.legent.campaign.repository.CampaignFrequencyPolicyRepository;
 import com.legent.campaign.repository.CampaignLaunchPlanRepository;
 import com.legent.campaign.repository.CampaignLaunchStepRepository;
 import com.legent.campaign.repository.CampaignRepository;
@@ -35,6 +37,8 @@ class CampaignLaunchOrchestrationServiceTest {
     @Mock private CampaignRepository campaignRepository;
     @Mock private CampaignLaunchPlanRepository launchPlanRepository;
     @Mock private CampaignLaunchStepRepository launchStepRepository;
+    @Mock private CampaignBudgetRepository budgetRepository;
+    @Mock private CampaignFrequencyPolicyRepository frequencyPolicyRepository;
     @Mock private CampaignEngineService campaignEngineService;
     @Mock private CampaignWorkflowService workflowService;
     @Mock private CampaignService campaignService;
@@ -51,6 +55,8 @@ class CampaignLaunchOrchestrationServiceTest {
                 campaignRepository,
                 launchPlanRepository,
                 launchStepRepository,
+                budgetRepository,
+                frequencyPolicyRepository,
                 campaignEngineService,
                 workflowService,
                 campaignService,
@@ -82,6 +88,10 @@ class CampaignLaunchOrchestrationServiceTest {
                 .warnings(List.of())
                 .checks(Map.of())
                 .build());
+        lenient().when(budgetRepository.findByTenantIdAndWorkspaceIdAndCampaignIdAndDeletedAtIsNull(anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        lenient().when(frequencyPolicyRepository.findByTenantIdAndWorkspaceIdAndCampaignIdAndDeletedAtIsNull(anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
     }
 
     @AfterEach
@@ -130,6 +140,42 @@ class CampaignLaunchOrchestrationServiceTest {
         assertThat(campaign.getComplianceEnabled()).isTrue();
         assertThat(campaign.getTimezone()).isEqualTo("UTC");
         verify(campaignRepository).save(campaign);
+    }
+
+    @Test
+    void previewBlocksBlackoutWindowAndMissingCommercialPolicy() {
+        Campaign campaign = completeCampaign();
+        Instant launchAt = Instant.now().plusSeconds(3600);
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "campaign-1"))
+                .thenReturn(Optional.of(campaign));
+
+        CampaignLaunchDto.LaunchPlanRequest request = request(CampaignLaunchDto.LaunchAction.PREVIEW);
+        request.setScheduledAt(launchAt);
+        request.setPublicationCalendar(CampaignLaunchDto.PublicationCalendar.builder()
+                .timezone("UTC")
+                .publishAfter(launchAt.minusSeconds(3600))
+                .publishBefore(launchAt.plusSeconds(3600))
+                .allowedDays(List.of(java.time.ZonedDateTime.ofInstant(launchAt, java.time.ZoneOffset.UTC).getDayOfWeek().name()))
+                .build());
+        request.setBlackoutWindows(List.of(CampaignLaunchDto.BlackoutWindow.builder()
+                .name("holiday-freeze")
+                .startsAt(launchAt.minusSeconds(60))
+                .endsAt(launchAt.plusSeconds(60))
+                .build()));
+        request.setSendClassification(CampaignLaunchDto.SendClassification.builder()
+                .classificationKey("commercial")
+                .commercial(true)
+                .requiresConsent(true)
+                .build());
+
+        CampaignLaunchDto.LaunchPlanResponse response = service.preview(request);
+
+        assertThat(response.getBlockers()).anyMatch(blocker -> blocker.contains("blackout window"));
+        assertThat(response.getBlockers()).anyMatch(blocker -> blocker.contains("unsubscribe policy"));
+        assertThat(response.getSteps()).anySatisfy(step -> {
+            assertThat(step.getKey()).isEqualTo("launch_controls");
+            assertThat(step.getStatus()).isEqualTo("BLOCKED");
+        });
     }
 
     private CampaignLaunchDto.LaunchPlanRequest request(CampaignLaunchDto.LaunchAction action) {

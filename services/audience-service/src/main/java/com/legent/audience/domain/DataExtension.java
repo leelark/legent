@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /**
  * Data extension schema definition.
@@ -31,6 +33,16 @@ public class DataExtension extends TenantAwareEntity {
 
     @Column(name = "primary_key_field", length = 128)
     private String primaryKeyField;
+
+    @Column(name = "retention_days")
+    private Integer retentionDays;
+
+    @Column(name = "retention_action", length = 32)
+    private String retentionAction;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "relationship_json", columnDefinition = "jsonb")
+    private String relationshipJson = "[]";
 
     @Column(name = "record_count", nullable = false)
     private long recordCount = 0;

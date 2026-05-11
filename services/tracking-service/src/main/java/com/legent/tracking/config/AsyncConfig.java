@@ -16,6 +16,9 @@ public class AsyncConfig {
         executor.setMaxPoolSize(200); // Super high concurrency for pixel requests
         executor.setQueueCapacity(2000);
         executor.setThreadNamePrefix("tracking-");
+        executor.setRejectedExecutionHandler(new java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(30);
         executor.initialize();
         return executor;
     }

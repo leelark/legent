@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: legent-production-budget
+  namespace: legent
+spec:
+  hard:
+    requests.cpu: "12"
+    requests.memory: 24Gi
+    limits.cpu: "32"
+    limits.memory: 64Gi
+    pods: "120"
+    persistentvolumeclaims: "20"
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: legent-production-container-defaults
+  namespace: legent
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 256Mi
+      default:
+        cpu: 1000m
+        memory: 1Gi
+      max:
+        cpu: "4"
+        memory: 8Gi

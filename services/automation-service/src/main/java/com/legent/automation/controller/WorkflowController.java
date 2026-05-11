@@ -48,6 +48,16 @@ public class WorkflowController {
         return ApiResponse.ok(workflowStudioService.validateGraph(graph));
     }
 
+    @GetMapping("/{id}/capabilities")
+    public ApiResponse<Map<String, Object>> journeyCapabilities(@PathVariable String id) {
+        return ApiResponse.ok(workflowStudioService.journeyCapabilities(id));
+    }
+
+    @GetMapping("/{id}/analytics")
+    public ApiResponse<Map<String, Object>> journeyAnalytics(@PathVariable String id) {
+        return ApiResponse.ok(workflowStudioService.journeyAnalytics(id));
+    }
+
     @PostMapping("/{id}/definitions")
     public ApiResponse<WorkflowDefinition> saveWorkflowDefinition(@PathVariable String id,
                                                                   @RequestBody WorkflowGraphDto graph,

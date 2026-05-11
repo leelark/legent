@@ -1,5 +1,6 @@
 package com.legent.identity.config;
 
+import com.legent.security.ActuatorAccess;
 import com.legent.security.JwtAuthenticationFilter;
 import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
@@ -38,7 +39,8 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/health/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
+                        .requestMatchers(ActuatorAccess.PUBLIC_ENDPOINTS).permitAll()
+                        .requestMatchers(ActuatorAccess.ADMIN_ENDPOINTS).hasRole(ActuatorAccess.ADMIN_ROLE)
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .anyRequest().authenticated()
                 )

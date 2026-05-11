@@ -34,6 +34,7 @@ import {
   createContentSnippet,
   createDynamicContentRule,
   createPersonalizationToken,
+  createTemplateTestSendMatrix,
   createTemplateTestSend,
   exportTemplateHtml,
   getTemplate,
@@ -145,6 +146,8 @@ export default function TemplateStudioPage() {
   const [compareResult, setCompareResult] = useState<any>(null);
 
   const [testEmail, setTestEmail] = useState('');
+  const [testMatrixEmails, setTestMatrixEmails] = useState('qa-desktop@example.com\nqa-mobile@example.com');
+  const [testMatrixResult, setTestMatrixResult] = useState<{ queued: number; failed: number; errors: string[] } | null>(null);
   const [recipientGroup, setRecipientGroup] = useState('QA');
   const [approvalComment, setApprovalComment] = useState('');
   const [rejectReason, setRejectReason] = useState('');
@@ -396,6 +399,33 @@ export default function TemplateStudioPage() {
       });
       setTestSendRecords(await listTemplateTestSends(template.id));
       addToast({ type: 'success', title: 'Test queued', message: `Test email queued for ${testEmail.trim()}.` });
+    });
+  };
+
+  const handleTestMatrix = async () => {
+    if (!template) return;
+    const recipients = testMatrixEmails
+      .split(/\r?\n|,/)
+      .map((email) => email.trim())
+      .filter(Boolean)
+      .map((email) => ({
+        email,
+        recipientGroup: recipientGroup.trim() || 'QA',
+        variables: personalizationVars,
+      }));
+    if (recipients.length === 0) {
+      addToast({ type: 'warning', title: 'Recipients required', message: 'Add at least one matrix recipient.' });
+      return;
+    }
+    await withBusy(async () => {
+      await persistTemplate();
+      const result = await createTemplateTestSendMatrix(template.id, {
+        matrixName: `${template.name} QA Matrix`,
+        recipients,
+      });
+      setTestMatrixResult({ queued: result.queued, failed: result.failed, errors: result.errors || [] });
+      setTestSendRecords(await listTemplateTestSends(template.id));
+      addToast({ type: result.failed > 0 ? 'warning' : 'success', title: 'Matrix complete', message: `${result.queued} queued, ${result.failed} failed.` });
     });
   };
 
@@ -1030,6 +1060,35 @@ export default function TemplateStudioPage() {
                         Send Test Email
                       </Button>
                     </div>
+                  </Card>
+                  <Card>
+                    <CardHeader title="Test Send Matrix" />
+                    <div className="grid gap-3 p-4 md:grid-cols-[1fr_auto]">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-content-primary">Recipients</label>
+                        <textarea
+                          value={testMatrixEmails}
+                          onChange={(event) => setTestMatrixEmails(event.target.value)}
+                          rows={4}
+                          className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                        />
+                      </div>
+                      <Button className="mt-6" onClick={handleTestMatrix} loading={isBusy}>
+                        Run Matrix
+                      </Button>
+                    </div>
+                    {testMatrixResult && (
+                      <div className="border-t border-border-default p-4 text-sm">
+                        <p className="font-medium text-content-primary">
+                          Queued {testMatrixResult.queued} - Failed {testMatrixResult.failed}
+                        </p>
+                        {testMatrixResult.errors.length > 0 && (
+                          <div className="mt-2 space-y-1 text-danger">
+                            {testMatrixResult.errors.map((error) => <p key={error}>{error}</p>)}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </Card>
                   <div className="divide-y divide-border-default rounded-lg border border-border-default">
                     {testSendRecords.length === 0 ? (

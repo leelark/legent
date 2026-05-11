@@ -37,6 +37,12 @@ public class CampaignLaunchDto {
 
         private Instant scheduledAt;
         private Boolean confirmLaunch;
+        private PublicationCalendar publicationCalendar;
+        private List<BlackoutWindow> blackoutWindows;
+        private List<LaunchDependency> dependencies;
+        private SendClassification sendClassification;
+        private BudgetGuard budgetGuard;
+        private FrequencyGuard frequencyGuard;
         private Map<String, Object> metadata;
     }
 
@@ -56,6 +62,7 @@ public class CampaignLaunchDto {
         private String message;
         private String auditId;
         private Map<String, Object> affectedResourceIds;
+        private Map<String, Object> launchControls;
         private List<String> blockers;
         private List<String> warnings;
         private List<LaunchRecommendation> recommendations;
@@ -87,5 +94,73 @@ public class CampaignLaunchDto {
         private String title;
         private String detail;
         private Boolean autoFixAvailable;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PublicationCalendar {
+        private String calendarId;
+        private String timezone;
+        private Instant publishAfter;
+        private Instant publishBefore;
+        private List<String> allowedDays;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BlackoutWindow {
+        private String name;
+        private Instant startsAt;
+        private Instant endsAt;
+        private String reason;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class LaunchDependency {
+        private String key;
+        private String resourceType;
+        private String resourceId;
+        private Boolean satisfied;
+        private String detail;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SendClassification {
+        private String classificationKey;
+        private String senderProfileId;
+        private String deliveryProfileId;
+        private String unsubscribePolicy;
+        private Boolean commercial;
+        private Boolean requiresConsent;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class BudgetGuard {
+        private Boolean enforced;
+        private Long estimatedRecipients;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class FrequencyGuard {
+        private Boolean enforceWorkspacePolicy;
+        private Integer maxSends;
+        private Integer windowHours;
+        private Boolean includeJourneys;
     }
 }

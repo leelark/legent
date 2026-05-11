@@ -247,6 +247,42 @@ public class WorkflowStudioService {
         response.put("graphVersion", normalized.getGraphVersion());
         response.put("nodeCount", normalized.getNodes().size());
         response.put("initialNodeId", normalized.getInitialNodeId());
+        response.put("capabilities", graphCapabilities(normalized));
+        return response;
+    }
+
+    public Map<String, Object> journeyCapabilities(String workflowId) {
+        WorkflowGraphDto graph = parseDefinition(getLatestDefinition(workflowId));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("workflowId", workflowId);
+        response.put("activeDefinitionVersion", findWorkflow(workflowId).getActiveDefinitionVersion());
+        response.put("capabilities", graphCapabilities(graph));
+        response.put("graphVersion", graph.getGraphVersion());
+        return response;
+    }
+
+    public Map<String, Object> journeyAnalytics(String workflowId) {
+        findWorkflow(workflowId);
+        List<WorkflowInstance> runs = listRuns(workflowId);
+        Map<String, Long> runStatusCounts = new LinkedHashMap<>();
+        for (WorkflowInstance run : runs) {
+            String status = run.getStatus() == null ? "UNKNOWN" : run.getStatus();
+            runStatusCounts.put(status, runStatusCounts.getOrDefault(status, 0L) + 1);
+        }
+        Map<String, Long> nodeExecutions = new LinkedHashMap<>();
+        for (WorkflowInstance run : runs.stream().limit(100).toList()) {
+            for (InstanceHistory history : instanceHistoryRepository
+                    .findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(requireTenant(), requireWorkspace(), run.getId())) {
+                String key = history.getNodeId() == null ? "UNKNOWN" : history.getNodeId();
+                nodeExecutions.put(key, nodeExecutions.getOrDefault(key, 0L) + 1);
+            }
+        }
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("workflowId", workflowId);
+        response.put("runCount", runs.size());
+        response.put("runStatusCounts", runStatusCounts);
+        response.put("nodeExecutions", nodeExecutions);
+        response.put("capabilities", journeyCapabilities(workflowId).get("capabilities"));
         return response;
     }
 
@@ -290,6 +326,16 @@ public class WorkflowStudioService {
         response.put("visitedNodes", visited);
         response.put("steps", visited.size());
         response.put("truncated", guard >= 250);
+        response.put("capabilities", graphCapabilities(normalized));
+        response.put("entryAccepted", normalized.getEntryPolicy() == null || normalized.getEntryPolicy().isCheckSuppression());
+        response.put("goalsReached", visited.stream()
+                .filter(id -> !id.endsWith(" (cycle)"))
+                .filter(id -> {
+                    WorkflowGraphDto.WorkflowNode node = normalized.getNodes().get(id);
+                    return node != null && "EXIT_GOAL".equals(node.getType());
+                })
+                .toList());
+        response.put("exitReason", visited.stream().anyMatch(id -> id.endsWith(" (cycle)")) ? "CYCLE_DETECTED" : "NORMAL");
         return response;
     }
 
@@ -431,6 +477,33 @@ public class WorkflowStudioService {
             }
         }
         return branches.getFirst().getTargetNodeId();
+    }
+
+    private WorkflowGraphDto parseDefinition(WorkflowDefinition definition) {
+        try {
+            return workflowGraphValidator.validateAndNormalize(objectMapper.readValue(definition.getDefinition(), WorkflowGraphDto.class));
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Workflow definition cannot be parsed", e);
+        }
+    }
+
+    private Map<String, Object> graphCapabilities(WorkflowGraphDto graph) {
+        Map<String, Long> nodeTypeCounts = new LinkedHashMap<>();
+        for (WorkflowGraphDto.WorkflowNode node : graph.getNodes().values()) {
+            String type = node.getType() == null ? "UNKNOWN" : node.getType();
+            nodeTypeCounts.put(type, nodeTypeCounts.getOrDefault(type, 0L) + 1);
+        }
+        Map<String, Object> capabilities = new LinkedHashMap<>();
+        capabilities.put("entrySources", nodeTypeCounts.getOrDefault("ENTRY_TRIGGER", 0L) + nodeTypeCounts.getOrDefault("EVENT_LISTENER", 0L));
+        capabilities.put("waits", nodeTypeCounts.getOrDefault("DELAY", 0L) + nodeTypeCounts.getOrDefault("WAIT_UNTIL", 0L) + nodeTypeCounts.getOrDefault("PAUSE", 0L));
+        capabilities.put("decisions", nodeTypeCounts.getOrDefault("CONDITION", 0L) + nodeTypeCounts.getOrDefault("BRANCH", 0L) + nodeTypeCounts.getOrDefault("SPLIT", 0L));
+        capabilities.put("goals", nodeTypeCounts.getOrDefault("EXIT_GOAL", 0L));
+        capabilities.put("exits", nodeTypeCounts.getOrDefault("END", 0L));
+        capabilities.put("reentryGates", nodeTypeCounts.getOrDefault("REENTRY_GATE", 0L));
+        capabilities.put("nodeTypeCounts", nodeTypeCounts);
+        capabilities.put("reentryPolicy", graph.getReentryPolicy());
+        capabilities.put("entryPolicy", graph.getEntryPolicy());
+        return capabilities;
     }
 
     private String requireTenant() {

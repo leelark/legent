@@ -13,8 +13,13 @@ public interface DataExtensionRecordRepository extends JpaRepository<DataExtensi
 
     Page<DataExtensionRecord> findByDataExtensionId(String dataExtensionId, Pageable pageable);
 
+    Page<DataExtensionRecord> findByTenantIdAndDataExtensionId(String tenantId, String dataExtensionId, Pageable pageable);
+
     @Query("SELECT COUNT(r) FROM DataExtensionRecord r WHERE r.dataExtensionId = :deId")
     long countByDataExtension(@Param("deId") String dataExtensionId);
+
+    @Query("SELECT COUNT(r) FROM DataExtensionRecord r WHERE r.tenantId = :tenantId AND r.dataExtensionId = :deId")
+    long countByTenantAndDataExtension(@Param("tenantId") String tenantId, @Param("deId") String dataExtensionId);
 
     void deleteByDataExtensionId(String dataExtensionId);
 }

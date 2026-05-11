@@ -5,6 +5,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 import com.legent.common.security.OutboundUrlGuard;
 import com.legent.platform.domain.WebhookConfig;
@@ -16,6 +18,7 @@ import com.legent.platform.repository.WebhookRetryRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -42,6 +45,8 @@ public class WebhookRetryService {
     private final WebhookConfigRepository configRepository;
     private final WebhookLogRepository logRepository;
     private final WebClient webClient;
+    @Qualifier("webhookRetryExecutor")
+    private final Executor webhookRetryExecutor;
 
     // Exponential backoff delays: 30s, 2min, 10min
     private static final Duration[] RETRY_DELAYS = {
@@ -67,17 +72,17 @@ public class WebhookRetryService {
             // Process in parallel with max 10 concurrent
             List<CompletableFuture<Void>> futures = pendingRetries.stream()
                     .limit(50) // Max 50 retries per batch to prevent memory issues
-                    .map(retry -> CompletableFuture.runAsync(() -> processRetryAsync(retry)))
+                    .map(retry -> CompletableFuture.runAsync(() -> processRetryAsync(retry), webhookRetryExecutor))
                     .toList();
 
             // Wait for all to complete (with timeout)
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .orTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
-                    .whenComplete((result, ex) -> {
-                        if (ex != null) {
-                            log.warn("Some webhook retries timed out or failed: {}", ex.getMessage());
-                        }
-                    }).join();
+            try {
+                CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                        .orTimeout(25, java.util.concurrent.TimeUnit.SECONDS)
+                        .join();
+            } catch (CompletionException ex) {
+                log.warn("Some webhook retries timed out or failed: {}", ex.getMessage());
+            }
         }
     }
 

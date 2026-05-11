@@ -15,6 +15,10 @@ metadata:
     nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.legent.com, https://admin.legent.com, http://app.legent.local"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
     nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Tenant-Id, X-Correlation-Id, X-Request-Id"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      location ~* ^/actuator(/|$) {
+        return 404;
+      }
 spec:
   ingressClassName: nginx
   rules:

@@ -1,6 +1,7 @@
 package com.legent.tracking.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Map;
 
 import java.time.Instant;
@@ -56,5 +57,63 @@ public class TrackingDto {
         private String eventName;
         private BigDecimal value; // AUDIT-027: Use BigDecimal instead of Double for monetary precision
         private String currency;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EventExportRequest {
+        private String campaignId;
+        private List<String> eventTypes;
+        private Instant startAt;
+        private Instant endAt;
+        private Integer limit;
+        private String format;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class EventExportResponse {
+        private String format;
+        private int rowCount;
+        private String content;
+        private Map<String, Object> metadata;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RollupResponse {
+        private String campaignId;
+        private String grain;
+        private List<Map<String, Object>> rows;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TaxonomyEntry {
+        private String eventType;
+        private String category;
+        private String description;
+        private List<String> requiredFields;
+        private List<String> metadataKeys;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ReconciliationResponse {
+        private String campaignId;
+        private Map<String, Object> summaryCounts;
+        private Map<String, Object> rawEventCounts;
+        private List<String> mismatches;
+        private boolean reconciled;
     }
 }

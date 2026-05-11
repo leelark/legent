@@ -13,6 +13,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import com.legent.security.ActuatorAccess;
 import com.legent.security.JwtAuthenticationFilter;
 import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +34,8 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsSource()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers(ActuatorAccess.PUBLIC_ENDPOINTS).permitAll()
+                .requestMatchers(ActuatorAccess.ADMIN_ENDPOINTS).hasRole(ActuatorAccess.ADMIN_ROLE)
                 .requestMatchers("/api/v1/health/**").permitAll()
                 .anyRequest().authenticated()
             )
