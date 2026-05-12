@@ -34,6 +34,7 @@ public class CorePlatformDto {
         @NotBlank
         private String name;
         private String description;
+        private String status;
         private Map<String, Object> metadata;
     }
 
@@ -125,6 +126,67 @@ public class CorePlatformDto {
         private String workspaceId;
         private List<String> permissions;
         private String reason;
+        private Instant expiresAt;
+    }
+
+    @Getter
+    @Setter
+    public static class AccessGrantDecisionRequest {
+        @NotBlank
+        private String status;
+        private String decisionNote;
+    }
+
+    @Getter
+    @Setter
+    public static class RoleBindingRequest {
+        @NotBlank
+        private String principalType;
+        @NotBlank
+        private String principalId;
+        private String roleDefinitionId;
+        private String permissionGroupId;
+        private String workspaceId;
+        private String teamId;
+        private String resourceType;
+        private String resourceId;
+        private Instant effectiveFrom;
+        private Instant effectiveUntil;
+        private Map<String, Object> metadata;
+    }
+
+    @Getter
+    @Setter
+    public static class IdentityProviderRequest {
+        @NotBlank
+        private String providerKey;
+        @NotBlank
+        private String displayName;
+        @NotBlank
+        private String protocol;
+        private String status;
+        private String issuer;
+        private String entityId;
+        private String ssoUrl;
+        private String jwksUrl;
+        private String metadataUrl;
+        private Map<String, Object> attributeMapping;
+        private String certificateFingerprint;
+        private String signingCertificate;
+        private Boolean scimEnabled;
+        private Boolean jitProvisioningEnabled;
+        private List<String> defaultRoleKeys;
+        private Map<String, Object> metadata;
+    }
+
+    @Getter
+    @Setter
+    public static class ScimTokenRequest {
+        @NotBlank
+        private String identityProviderId;
+        @NotBlank
+        private String label;
+        private List<String> scopes;
         private Instant expiresAt;
     }
 

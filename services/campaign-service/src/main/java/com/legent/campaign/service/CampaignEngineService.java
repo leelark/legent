@@ -121,6 +121,13 @@ public class CampaignEngineService {
     }
 
     @Transactional(readOnly = true)
+    public CampaignEngineDto.ExperimentAnalysisResponse analyzeExperiment(String campaignId, String experimentId) {
+        Campaign campaign = findCampaign(campaignId);
+        CampaignExperiment experiment = findExperiment(campaign, experimentId);
+        return metricsService.analyzeExperiment(campaign.getTenantId(), campaign.getWorkspaceId(), campaign.getId(), experiment);
+    }
+
+    @Transactional(readOnly = true)
     public CampaignEngineDto.BudgetResponse getBudget(String campaignId) {
         Campaign campaign = findCampaign(campaignId);
         return toBudgetResponse(getOrDefaultBudget(campaign));

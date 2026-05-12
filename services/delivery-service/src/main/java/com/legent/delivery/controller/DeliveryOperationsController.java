@@ -5,6 +5,8 @@ import com.legent.delivery.domain.DeliveryReplayQueue;
 import com.legent.delivery.domain.InboxSafetyEvaluation;
 import com.legent.delivery.domain.MessageLog;
 import com.legent.delivery.domain.ProviderDecisionTrace;
+import com.legent.delivery.domain.ProviderCapacityProfile;
+import com.legent.delivery.domain.ProviderFailoverTest;
 import com.legent.delivery.domain.ProviderHealthStatus;
 import com.legent.delivery.domain.SendRateState;
 import com.legent.delivery.domain.WarmupState;
@@ -14,6 +16,7 @@ import com.legent.delivery.repository.ProviderHealthStatusRepository;
 import com.legent.delivery.repository.SmtpProviderRepository;
 import com.legent.delivery.service.DeliveryOperationsService;
 import com.legent.delivery.service.InboxSafetyService;
+import com.legent.delivery.service.ProviderCapacityService;
 import com.legent.delivery.service.SendRateControlService;
 import com.legent.delivery.service.WarmupService;
 import com.legent.security.TenantContext;
@@ -39,6 +42,7 @@ public class DeliveryOperationsController {
     private final WarmupService warmupService;
     private final ProviderDecisionTraceRepository providerDecisionTraceRepository;
     private final InboxSafetyEvaluationRepository inboxSafetyEvaluationRepository;
+    private final ProviderCapacityService providerCapacityService;
 
     @GetMapping("/queue/stats")
     public ApiResponse<Map<String, Object>> queueStats() {
@@ -173,6 +177,55 @@ public class DeliveryOperationsController {
         String workspaceId = TenantContext.requireWorkspaceId();
         return ApiResponse.ok(providerDecisionTraceRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
                 tenantId, workspaceId, PageRequest.of(0, Math.max(1, Math.min(limit, 200)))));
+    }
+
+    @PostMapping("/provider-capacity")
+    public ApiResponse<ProviderCapacityProfile> upsertProviderCapacity(@RequestBody ProviderCapacityService.ProviderCapacityRequest request) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(providerCapacityService.upsert(tenantId, workspaceId, request));
+    }
+
+    @GetMapping("/provider-capacity")
+    public ApiResponse<List<ProviderCapacityProfile>> providerCapacity() {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(providerCapacityService.list(tenantId, workspaceId));
+    }
+
+    @PostMapping("/provider-capacity/evaluate")
+    public ApiResponse<ProviderCapacityService.ThrottleDecision> evaluateProviderCapacity(@RequestBody ProviderCapacityService.ThrottleRequest request) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(providerCapacityService.evaluate(tenantId, workspaceId, request));
+    }
+
+    @PostMapping("/provider-failover/tests")
+    public ApiResponse<ProviderFailoverTest> runFailoverTest(@RequestBody ProviderCapacityService.FailoverTestRequest request) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(providerCapacityService.runFailoverTest(tenantId, workspaceId, request));
+    }
+
+    @GetMapping("/provider-failover/tests")
+    public ApiResponse<List<ProviderFailoverTest>> failoverTests(@RequestParam(defaultValue = "25") int limit) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(providerCapacityService.listFailoverTests(tenantId, workspaceId, limit));
+    }
+
+    @GetMapping("/dead-letters")
+    public ApiResponse<Map<String, Object>> deadLetters(@RequestParam(defaultValue = "100") int limit) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(providerCapacityService.deadLetters(tenantId, workspaceId, limit));
+    }
+
+    @PostMapping("/dead-letters/replay")
+    public ApiResponse<Map<String, Object>> replayDeadLetters(@RequestBody ProviderCapacityService.DeadLetterReplayRequest request) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(providerCapacityService.replayDeadLetters(tenantId, workspaceId, request));
     }
 
     public record RetryRequest(String reason) {}

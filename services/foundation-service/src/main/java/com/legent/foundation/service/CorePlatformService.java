@@ -12,6 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -21,6 +25,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class CorePlatformService {
+
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final CorePlatformRepository repository;
     private final ObjectMapper objectMapper;
@@ -66,21 +72,67 @@ public class CorePlatformService {
     @Transactional
     public Map<String, Object> createBusinessUnit(CorePlatformDto.BusinessUnitRequest request) {
         assertExists("organizations", request.getOrganizationId(), "organizationId");
+        String id = IdGenerator.newId();
+        String parentId = nullable(request.getParentId());
+        int depth = 0;
+        String path = null;
+        if (parentId != null) {
+            Map<String, Object> parent = repository.queryForMap(
+                    "SELECT id, organization_id, path, depth FROM business_units WHERE id = :id AND tenant_id = :tenantId AND deleted_at IS NULL",
+                    Map.of("id", parentId, "tenantId", requireTenant())
+            );
+            if (!request.getOrganizationId().equals(String.valueOf(parent.get("organization_id")))) {
+                throw new IllegalArgumentException("parentId must belong to same organization");
+            }
+            depth = toInt(parent.get("depth")) + 1;
+            path = defaultValue((String) parent.get("path"), String.valueOf(parent.get("id"))) + "/" + id;
+        }
+        if (path == null) {
+            path = id;
+        }
         Map<String, Object> values = baseValues(requireTenant());
+        values.put("id", id);
         values.put("organization_id", request.getOrganizationId());
-        values.put("parent_id", nullable(request.getParentId()));
+        values.put("parent_id", parentId);
         values.put("code", nullable(request.getCode()));
         values.put("name", request.getName());
         values.put("description", nullable(request.getDescription()));
+        values.put("status", defaultValue(request.getStatus(), "ACTIVE"));
+        values.put("path", path);
+        values.put("depth", depth);
         values.put("metadata", toJson(request.getMetadata()));
         Map<String, Object> saved = repository.insert("business_units", values, List.of("metadata"));
         recordAudit("BUSINESS_UNIT_CREATE", "BusinessUnit", saved.get("id"), saved);
+        recordAccessSync("BUSINESS_UNIT_CHANGED", "BusinessUnit", saved, List.of("identity", "admin", "api-gateway", "navigation"));
         return saved;
     }
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listBusinessUnits() {
         return repository.listByTenant("business_units", requireTenant(), "created_at DESC");
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listBusinessUnitTree() {
+        String sql = """
+                WITH RECURSIVE bu_tree AS (
+                    SELECT bu.*, 0 AS tree_depth, ARRAY[bu.id::text] AS lineage
+                    FROM business_units bu
+                    WHERE bu.tenant_id = :tenantId
+                      AND bu.deleted_at IS NULL
+                      AND bu.parent_id IS NULL
+                    UNION ALL
+                    SELECT child.*, parent.tree_depth + 1 AS tree_depth, parent.lineage || child.id::text
+                    FROM business_units child
+                    JOIN bu_tree parent ON child.parent_id = parent.id
+                    WHERE child.tenant_id = :tenantId
+                      AND child.deleted_at IS NULL
+                )
+                SELECT *, array_to_string(lineage, '/') AS lineage_path
+                FROM bu_tree
+                ORDER BY lineage
+                """;
+        return repository.queryForList(sql, Map.of("tenantId", requireTenant()));
     }
 
     @Transactional
@@ -233,6 +285,48 @@ public class CorePlatformService {
     }
 
     @Transactional
+    public Map<String, Object> createRoleBinding(CorePlatformDto.RoleBindingRequest request) {
+        if (nullable(request.getRoleDefinitionId()) == null && nullable(request.getPermissionGroupId()) == null) {
+            throw new IllegalArgumentException("roleDefinitionId or permissionGroupId is required");
+        }
+        if (nullable(request.getRoleDefinitionId()) != null) {
+            assertScopedDefinitionExists("role_definitions", request.getRoleDefinitionId(), "roleDefinitionId");
+        }
+        if (nullable(request.getPermissionGroupId()) != null) {
+            assertScopedDefinitionExists("permission_groups", request.getPermissionGroupId(), "permissionGroupId");
+        }
+        String workspaceId = nullable(request.getWorkspaceId());
+        if (workspaceId != null) {
+            assertExists("workspaces", workspaceId, "workspaceId");
+        }
+        String teamId = nullable(request.getTeamId());
+        if (teamId != null) {
+            assertExists("teams", teamId, "teamId");
+        }
+        Map<String, Object> values = baseValues(requireTenant());
+        values.put("principal_type", request.getPrincipalType().trim().toUpperCase());
+        values.put("principal_id", request.getPrincipalId());
+        values.put("role_definition_id", nullable(request.getRoleDefinitionId()));
+        values.put("permission_group_id", nullable(request.getPermissionGroupId()));
+        values.put("workspace_id", workspaceId);
+        values.put("team_id", teamId);
+        values.put("resource_type", nullable(request.getResourceType()));
+        values.put("resource_id", nullable(request.getResourceId()));
+        values.put("effective_from", request.getEffectiveFrom());
+        values.put("effective_until", request.getEffectiveUntil());
+        values.put("metadata", toJson(request.getMetadata()));
+        Map<String, Object> saved = repository.insert("principal_role_bindings", values, List.of("metadata"));
+        recordAudit("PRINCIPAL_ROLE_BINDING_CREATE", "PrincipalRoleBinding", saved.get("id"), saved);
+        recordAccessSync("ROLE_BINDING_CHANGED", "PrincipalRoleBinding", saved, List.of("identity", "admin", "api-gateway", "navigation"));
+        return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listRoleBindings() {
+        return repository.listByTenant("principal_role_bindings", requireTenant(), "created_at DESC");
+    }
+
+    @Transactional
     public Map<String, Object> createAccessGrant(CorePlatformDto.AccessGrantRequest request) {
         Map<String, Object> values = baseValues(requireTenant());
         values.put("grantor_user_id", currentActor());
@@ -253,6 +347,171 @@ public class CorePlatformService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listAccessGrants() {
         return repository.listByTenant("delegated_access_grants", requireTenant(), "created_at DESC");
+    }
+
+    @Transactional
+    public Map<String, Object> decideAccessGrant(String id, CorePlatformDto.AccessGrantDecisionRequest request) {
+        String status = request.getStatus().trim().toUpperCase();
+        if (!List.of("APPROVED", "DENIED", "REVOKED").contains(status)) {
+            throw new IllegalArgumentException("status must be APPROVED, DENIED, or REVOKED");
+        }
+        Map<String, Object> saved = repository.updateById(
+                "delegated_access_grants",
+                id,
+                requireTenant(),
+                mapWithNullable(
+                        "status", status,
+                        "approved_by", "APPROVED".equals(status) ? currentActor() : null,
+                        "approved_at", "APPROVED".equals(status) ? Instant.now() : null,
+                        "reason", nullable(request.getDecisionNote())
+                ),
+                Collections.emptyList()
+        );
+        recordAudit("ACCESS_GRANT_DECIDE", "DelegatedAccessGrant", saved.get("id"), saved);
+        recordAccessSync("ACCESS_GRANT_CHANGED", "DelegatedAccessGrant", saved, List.of("identity", "admin", "api-gateway", "navigation"));
+        return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> previewAccessPolicy(String principalId) {
+        if (principalId == null || principalId.isBlank()) {
+            throw new IllegalArgumentException("principalId is required");
+        }
+        List<Map<String, Object>> bindings = repository.queryForList("""
+                SELECT prb.*, rd.role_key, rd.display_name AS role_name, rd.permissions AS role_permissions,
+                       pg.group_key, pg.display_name AS group_name, pg.permissions AS group_permissions
+                FROM principal_role_bindings prb
+                LEFT JOIN role_definitions rd ON rd.id = prb.role_definition_id AND rd.deleted_at IS NULL
+                LEFT JOIN permission_groups pg ON pg.id = prb.permission_group_id AND pg.deleted_at IS NULL
+                WHERE prb.tenant_id = :tenantId
+                  AND prb.principal_id = :principalId
+                  AND prb.deleted_at IS NULL
+                  AND (prb.effective_from IS NULL OR prb.effective_from <= NOW())
+                  AND (prb.effective_until IS NULL OR prb.effective_until > NOW())
+                ORDER BY prb.created_at DESC
+                """, Map.of("tenantId", requireTenant(), "principalId", principalId));
+        List<Map<String, Object>> grants = repository.queryForList("""
+                SELECT * FROM delegated_access_grants
+                WHERE tenant_id = :tenantId
+                  AND grantee_user_id = :principalId
+                  AND status = 'APPROVED'
+                  AND deleted_at IS NULL
+                  AND (expires_at IS NULL OR expires_at > NOW())
+                ORDER BY created_at DESC
+                """, Map.of("tenantId", requireTenant(), "principalId", principalId));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("principalId", principalId);
+        response.put("bindings", bindings);
+        response.put("delegatedAccess", grants);
+        response.put("evaluatedAt", Instant.now());
+        return response;
+    }
+
+    @Transactional
+    public Map<String, Object> upsertIdentityProvider(CorePlatformDto.IdentityProviderRequest request) {
+        String protocol = request.getProtocol().trim().toUpperCase();
+        if (!List.of("SAML", "OIDC").contains(protocol)) {
+            throw new IllegalArgumentException("protocol must be SAML or OIDC");
+        }
+        String sql = """
+                INSERT INTO enterprise_identity_providers
+                    (id, tenant_id, provider_key, display_name, protocol, status, issuer, entity_id, sso_url, jwks_url,
+                     metadata_url, attribute_mapping, certificate_fingerprint, signing_certificate, scim_enabled,
+                     jit_provisioning_enabled, default_role_keys, metadata, created_at, updated_at, created_by, version)
+                VALUES
+                    (:id, :tenantId, :providerKey, :displayName, :protocol, :status, :issuer, :entityId, :ssoUrl, :jwksUrl,
+                     :metadataUrl, CAST(:attributeMapping AS jsonb), :certificateFingerprint, :signingCertificate, :scimEnabled,
+                     :jitProvisioningEnabled, CAST(:defaultRoleKeys AS jsonb), CAST(:metadata AS jsonb), NOW(), NOW(), :createdBy, 0)
+                ON CONFLICT (tenant_id, provider_key)
+                WHERE deleted_at IS NULL
+                DO UPDATE SET
+                    display_name = EXCLUDED.display_name,
+                    protocol = EXCLUDED.protocol,
+                    status = EXCLUDED.status,
+                    issuer = EXCLUDED.issuer,
+                    entity_id = EXCLUDED.entity_id,
+                    sso_url = EXCLUDED.sso_url,
+                    jwks_url = EXCLUDED.jwks_url,
+                    metadata_url = EXCLUDED.metadata_url,
+                    attribute_mapping = EXCLUDED.attribute_mapping,
+                    certificate_fingerprint = EXCLUDED.certificate_fingerprint,
+                    signing_certificate = EXCLUDED.signing_certificate,
+                    scim_enabled = EXCLUDED.scim_enabled,
+                    jit_provisioning_enabled = EXCLUDED.jit_provisioning_enabled,
+                    default_role_keys = EXCLUDED.default_role_keys,
+                    metadata = EXCLUDED.metadata,
+                    updated_at = NOW(),
+                    version = enterprise_identity_providers.version + 1
+                RETURNING *
+                """;
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("id", IdGenerator.newId());
+        params.put("tenantId", requireTenant());
+        params.put("providerKey", request.getProviderKey().trim().toLowerCase());
+        params.put("displayName", request.getDisplayName());
+        params.put("protocol", protocol);
+        params.put("status", defaultValue(request.getStatus(), "ACTIVE").toUpperCase());
+        params.put("issuer", nullable(request.getIssuer()));
+        params.put("entityId", nullable(request.getEntityId()));
+        params.put("ssoUrl", nullable(request.getSsoUrl()));
+        params.put("jwksUrl", nullable(request.getJwksUrl()));
+        params.put("metadataUrl", nullable(request.getMetadataUrl()));
+        params.put("attributeMapping", toJson(request.getAttributeMapping()));
+        params.put("certificateFingerprint", nullable(request.getCertificateFingerprint()));
+        params.put("signingCertificate", nullable(request.getSigningCertificate()));
+        params.put("scimEnabled", request.getScimEnabled() != null && request.getScimEnabled());
+        params.put("jitProvisioningEnabled", request.getJitProvisioningEnabled() != null && request.getJitProvisioningEnabled());
+        params.put("defaultRoleKeys", toJson(request.getDefaultRoleKeys()));
+        params.put("metadata", toJson(request.getMetadata()));
+        params.put("createdBy", currentActor());
+        Map<String, Object> saved = repository.queryForMap(sql, params);
+        Map<String, Object> redacted = redactIdentityProvider(saved);
+        recordAudit("IDENTITY_PROVIDER_UPSERT", "IdentityProvider", saved.get("id"), redacted);
+        recordAccessSync("IDENTITY_PROVIDER_CHANGED", "IdentityProvider", saved, List.of("identity", "admin", "api-gateway"));
+        return redacted;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listIdentityProviders() {
+        return repository.queryForList("""
+                SELECT id, tenant_id, provider_key, display_name, protocol, status, issuer, entity_id, sso_url,
+                       jwks_url, metadata_url, attribute_mapping, certificate_fingerprint, scim_enabled,
+                       jit_provisioning_enabled, default_role_keys, metadata, created_at, updated_at, created_by, version
+                FROM enterprise_identity_providers
+                WHERE tenant_id = :tenantId AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                """, Map.of("tenantId", requireTenant()));
+    }
+
+    @Transactional
+    public Map<String, Object> createScimToken(CorePlatformDto.ScimTokenRequest request) {
+        assertExists("enterprise_identity_providers", request.getIdentityProviderId(), "identityProviderId");
+        String rawToken = newScimToken();
+        Map<String, Object> values = baseValues(requireTenant());
+        values.put("identity_provider_id", request.getIdentityProviderId());
+        values.put("label", request.getLabel());
+        values.put("token_hash", sha256(rawToken));
+        values.put("scopes", toJson(request.getScopes() == null || request.getScopes().isEmpty() ? List.of("scim:read", "scim:write") : request.getScopes()));
+        values.put("status", "ACTIVE");
+        values.put("expires_at", request.getExpiresAt());
+        values.put("last_used_at", null);
+        Map<String, Object> saved = repository.insert("scim_tokens", values, List.of("scopes"));
+        saved.put("token", rawToken);
+        saved.remove("token_hash");
+        recordAudit("SCIM_TOKEN_CREATE", "ScimToken", saved.get("id"), Map.of("id", saved.get("id"), "label", saved.get("label")));
+        recordAccessSync("SCIM_TOKEN_CHANGED", "ScimToken", saved, List.of("identity", "admin", "api-gateway"));
+        return saved;
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listScimTokens() {
+        return repository.queryForList("""
+                SELECT id, tenant_id, identity_provider_id, label, scopes, status, expires_at, last_used_at,
+                       created_at, updated_at, created_by, version
+                FROM scim_tokens
+                WHERE tenant_id = :tenantId AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                """, Map.of("tenantId", requireTenant()));
     }
 
     @Transactional
@@ -639,6 +898,42 @@ public class CorePlatformService {
         }
     }
 
+    private int toInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return 0;
+        }
+        return Integer.parseInt(String.valueOf(value));
+    }
+
+    private String newScimToken() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        return "scim_live_" + Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder(hash.length * 2);
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to hash SCIM token", e);
+        }
+    }
+
+    private Map<String, Object> redactIdentityProvider(Map<String, Object> identityProvider) {
+        Map<String, Object> redacted = new LinkedHashMap<>(identityProvider);
+        redacted.remove("signing_certificate");
+        return redacted;
+    }
+
     private Map<String, Object> mapWithNullable(Object... pairs) {
         Map<String, Object> map = new LinkedHashMap<>();
         for (int i = 0; i < pairs.length; i += 2) {
@@ -650,6 +945,16 @@ public class CorePlatformService {
     private void assertExists(String table, String id, String fieldName) {
         List<Map<String, Object>> rows = repository.queryForList(
                 "SELECT id FROM " + table + " WHERE id = :id AND tenant_id = :tenantId AND deleted_at IS NULL LIMIT 1",
+                Map.of("id", id, "tenantId", requireTenant())
+        );
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " is invalid for current tenant");
+        }
+    }
+
+    private void assertScopedDefinitionExists(String table, String id, String fieldName) {
+        List<Map<String, Object>> rows = repository.queryForList(
+                "SELECT id FROM " + table + " WHERE id = :id AND (tenant_id IS NULL OR tenant_id = :tenantId) AND deleted_at IS NULL LIMIT 1",
                 Map.of("id", id, "tenantId", requireTenant())
         );
         if (rows.isEmpty()) {

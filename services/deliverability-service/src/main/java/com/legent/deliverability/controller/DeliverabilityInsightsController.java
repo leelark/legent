@@ -6,6 +6,7 @@ import com.legent.deliverability.domain.SenderDomain;
 import com.legent.deliverability.repository.DomainReputationRepository;
 import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.repository.SuppressionListRepository;
+import com.legent.deliverability.service.PredictiveDeliverabilityService;
 import com.legent.deliverability.service.SpamScoringEngine;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class DeliverabilityInsightsController {
     private final DomainReputationRepository domainReputationRepository;
     private final SuppressionListRepository suppressionListRepository;
     private final SpamScoringEngine spamScoringEngine;
+    private final PredictiveDeliverabilityService predictiveDeliverabilityService;
 
     @GetMapping("/auth/checks")
     public ApiResponse<List<Map<String, Object>>> authChecks() {
@@ -115,6 +117,13 @@ public class DeliverabilityInsightsController {
         response.put("recommendedActions", recommendedActions(riskScore, authRisk, contentRisk, linkRisk));
         response.put("calculatedAt", Instant.now());
         return ApiResponse.ok(response);
+    }
+
+    @GetMapping("/predictive-risk")
+    public ApiResponse<Map<String, Object>> predictiveRisk(@RequestParam(required = false) String domain,
+                                                           @RequestParam(required = false) Integer plannedVolume,
+                                                           @RequestParam(required = false) String isp) {
+        return ApiResponse.ok(predictiveDeliverabilityService.predictRisk(domain, plannedVolume, isp));
     }
 
     private int authenticationRisk(List<SenderDomain> domains, String requestedDomain) {

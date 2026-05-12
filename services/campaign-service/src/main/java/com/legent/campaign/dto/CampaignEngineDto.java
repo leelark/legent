@@ -241,4 +241,33 @@ public class CampaignEngineDto {
         private long customMetricCount;
         private BigDecimal score;
     }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ExperimentAnalysisResponse {
+        private String campaignId;
+        private String experimentId;
+        private WinnerMetric winnerMetric;
+        private String recommendedWinnerVariantId;
+        private BigDecimal confidencePercent;
+        private boolean autoWinnerAllowed;
+        private List<String> guardrails;
+        private Map<String, Object> causalReport;
+        private List<VariantAnalysisResponse> variants;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class VariantAnalysisResponse {
+        private String variantId;
+        private long samples;
+        private BigDecimal metricRate;
+        private BigDecimal liftVsBaselinePercent;
+        private BigDecimal confidencePercent;
+        private String guardrailStatus;
+    }
 }

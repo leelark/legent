@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { coreApi } from '@/lib/core-api';
+import { complianceApi } from '@/lib/compliance-api';
 import { AdminMetricCard, AdminPanel, AdminSkeletonRows } from '@/components/admin/AdminChrome';
 import { Button } from '@/components/ui/Button';
 
@@ -12,12 +13,18 @@ type Summary = {
   teams: number;
   departments: number;
   memberships: number;
+  roleBindings: number;
+  identityProviders: number;
+  scimTokens: number;
   invitations: number;
   featureControls: number;
   quotas: number;
   usageRows: number;
   subscriptions: number;
   auditEvents: number;
+  retentionPolicies: number;
+  consentEvents: number;
+  privacyRequests: number;
 };
 
 const emptySummary: Summary = {
@@ -27,12 +34,18 @@ const emptySummary: Summary = {
   teams: 0,
   departments: 0,
   memberships: 0,
+  roleBindings: 0,
+  identityProviders: 0,
+  scimTokens: 0,
   invitations: 0,
   featureControls: 0,
   quotas: 0,
   usageRows: 0,
   subscriptions: 0,
   auditEvents: 0,
+  retentionPolicies: 0,
+  consentEvents: 0,
+  privacyRequests: 0,
 };
 
 export function PlatformCorePanel() {
@@ -51,12 +64,18 @@ export function PlatformCorePanel() {
       coreApi.listTeams(),
       coreApi.listDepartments(),
       coreApi.listMemberships(),
+      coreApi.listRoleBindings(),
+      coreApi.listIdentityProviders(),
+      coreApi.listScimTokens(),
       coreApi.listInvitations(),
       coreApi.listFeatureControls(),
       coreApi.listQuotas(),
       coreApi.listUsage(),
       coreApi.listSubscriptions(),
       coreApi.listAuditEvents(undefined, undefined),
+      complianceApi.listRetentionMatrix(),
+      complianceApi.listConsentLedger(),
+      complianceApi.listPrivacyRequests(),
     ])
       .then((results) => {
         const valueAt = (index: number) => {
@@ -70,12 +89,18 @@ export function PlatformCorePanel() {
           teams: valueAt(3),
           departments: valueAt(4),
           memberships: valueAt(5),
-          invitations: valueAt(6),
-          featureControls: valueAt(7),
-          quotas: valueAt(8),
-          usageRows: valueAt(9),
-          subscriptions: valueAt(10),
-          auditEvents: valueAt(11),
+          roleBindings: valueAt(6),
+          identityProviders: valueAt(7),
+          scimTokens: valueAt(8),
+          invitations: valueAt(9),
+          featureControls: valueAt(10),
+          quotas: valueAt(11),
+          usageRows: valueAt(12),
+          subscriptions: valueAt(13),
+          auditEvents: valueAt(14),
+          retentionPolicies: valueAt(15),
+          consentEvents: valueAt(16),
+          privacyRequests: valueAt(17),
         });
         const rejected = results.filter((result) => result.status === 'rejected').length;
         setError(rejected > 0 ? `${rejected} platform summary source${rejected > 1 ? 's' : ''} could not be loaded.` : null);
@@ -99,9 +124,12 @@ export function PlatformCorePanel() {
       { label: 'Workspaces', value: summary.workspaces, tone: 'info' as const },
       { label: 'Teams', value: summary.teams, tone: 'neutral' as const },
       { label: 'Memberships', value: summary.memberships, tone: 'success' as const },
+      { label: 'Role Bindings', value: summary.roleBindings, tone: 'success' as const },
+      { label: 'Identity Providers', value: summary.identityProviders, tone: 'info' as const },
+      { label: 'SCIM Tokens', value: summary.scimTokens, tone: 'warning' as const },
       { label: 'Invitations', value: summary.invitations, tone: 'warning' as const },
       { label: 'Feature Controls', value: summary.featureControls, tone: 'brand' as const },
-      { label: 'Quotas', value: summary.quotas, tone: 'info' as const },
+      { label: 'Retention Policies', value: summary.retentionPolicies, tone: 'info' as const },
     ],
     [summary]
   );
@@ -128,8 +156,8 @@ export function PlatformCorePanel() {
               <p className="mt-1 text-sm text-content-secondary">Organizations, business units, workspaces, teams, and departments are loaded from Platform Core APIs.</p>
             </div>
             <div className="rounded-xl border border-border-default bg-surface-secondary p-4">
-              <p className="text-sm font-semibold text-content-primary">Usage + Subscription</p>
-              <p className="mt-1 text-sm text-content-secondary">{summary.usageRows} usage rows and {summary.subscriptions} subscriptions are visible to admin controls.</p>
+              <p className="text-sm font-semibold text-content-primary">Compliance Evidence</p>
+              <p className="mt-1 text-sm text-content-secondary">{summary.consentEvents} consent events and {summary.privacyRequests} privacy requests are visible to governance controls.</p>
             </div>
             <div className="rounded-xl border border-border-default bg-surface-secondary p-4">
               <p className="text-sm font-semibold text-content-primary">Recent Audit Events</p>

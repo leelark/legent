@@ -47,6 +47,7 @@ import { AuditPanel } from '@/components/admin/AuditPanel';
 import { BootstrapStatusPanel } from '@/components/admin/BootstrapStatusPanel';
 import { BrandingPanel } from '@/components/admin/BrandingPanel';
 import { ContactRequestsPanel } from '@/components/admin/ContactRequestsPanel';
+import { DifferentiationPlatformPanel } from '@/components/admin/DifferentiationPlatformPanel';
 import { PlatformCorePanel } from '@/components/admin/PlatformCorePanel';
 import { PublicContentPanel } from '@/components/admin/PublicContentPanel';
 import { WebhookPanel } from '@/components/admin/WebhookPanel';
@@ -63,7 +64,7 @@ import {
 } from '@/lib/admin-api';
 import { coreApi } from '@/lib/core-api';
 
-type SectionId = 'command' | 'users' | 'roles' | 'audit' | 'configuration' | 'operations';
+type SectionId = 'command' | 'users' | 'roles' | 'audit' | 'configuration' | 'operations' | 'differentiation';
 
 type UserDraft = {
   email: string;
@@ -85,6 +86,7 @@ const sections: Array<{
   { id: 'audit', label: 'Audit Center', kicker: 'investigation, export, replay', icon: FileDown },
   { id: 'configuration', label: 'Configuration', kicker: 'validated runtime control', icon: SlidersHorizontal },
   { id: 'operations', label: 'Platform Ops', kicker: 'branding, webhooks, public ops', icon: ServerCog },
+  { id: 'differentiation', label: 'Differentiation', kicker: 'AI, omni, SLO, SDKs', icon: Sparkles },
 ];
 
 const roleOptions = ['ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'DELIVERY_OPERATOR', 'ANALYST', 'VIEWER', 'USER'];
@@ -418,6 +420,7 @@ export function EnterpriseAdminConsole() {
               {active === 'audit' && <AuditCenter key="audit" syncEvents={syncEvents} />}
               {active === 'configuration' && <ConfigurationCenter key="configuration" />}
               {active === 'operations' && <PlatformOperations key="operations" />}
+              {active === 'differentiation' && <DifferentiationPlatform key="differentiation" />}
             </AnimatePresence>
           )}
         </main>
@@ -807,6 +810,14 @@ function PlatformOperations() {
         <PublicContentPanel />
         <ContactRequestsPanel />
       </div>
+    </PanelMotion>
+  );
+}
+
+function DifferentiationPlatform() {
+  return (
+    <PanelMotion>
+      <DifferentiationPlatformPanel />
     </PanelMotion>
   );
 }

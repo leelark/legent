@@ -73,6 +73,14 @@ public class CampaignEngineController {
         return ApiResponse.ok(campaignEngineService.getExperimentMetrics(id, experimentId));
     }
 
+    @GetMapping("/campaigns/{id}/experiments/{experimentId}/analysis")
+    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER', 'ANALYST', 'VIEWER')")
+    public ApiResponse<CampaignEngineDto.ExperimentAnalysisResponse> analyzeExperiment(
+            @PathVariable String id,
+            @PathVariable String experimentId) {
+        return ApiResponse.ok(campaignEngineService.analyzeExperiment(id, experimentId));
+    }
+
     @GetMapping("/campaigns/{id}/budget")
     @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER', 'ANALYST', 'VIEWER')")
     public ApiResponse<CampaignEngineDto.BudgetResponse> getBudget(@PathVariable String id) {

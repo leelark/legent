@@ -13,11 +13,20 @@ import {
   DeliveryMessage,
   DeliveryQueueStats,
   enqueueReplay,
+  evaluateProviderCapacity,
+  getDeadLetters,
   getFailureDiagnostics,
   getQueueStats,
   getWarmupStatus,
   listMessages,
+  listProviderCapacity,
+  listProviderFailoverTests,
   processReplay,
+  ProviderCapacityProfile,
+  ProviderFailoverTest,
+  ProviderThrottleDecision,
+  replayDeadLetters,
+  runProviderFailoverTest,
   retryMessage
 } from '@/lib/delivery-api';
 
@@ -36,6 +45,10 @@ export default function DeliverabilityPage() {
   const [messages, setMessages] = useState<DeliveryMessage[]>([]);
   const [diagnostics, setDiagnostics] = useState<{ failedRecent: number; byFailureClass: Record<string, number>; replayQueueDepth: number } | null>(null);
   const [warmup, setWarmup] = useState<{ readiness: number; activeProviders: number; unhealthyProviders: number } | null>(null);
+  const [capacity, setCapacity] = useState<ProviderCapacityProfile[]>([]);
+  const [failoverTests, setFailoverTests] = useState<ProviderFailoverTest[]>([]);
+  const [deadLetters, setDeadLetters] = useState<DeliveryMessage[]>([]);
+  const [throttleDecision, setThrottleDecision] = useState<ProviderThrottleDecision | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +57,15 @@ export default function DeliverabilityPage() {
     setLoading(true);
     setError(null);
     try {
-      const [domainRes, queueRes, messageRes, diagnosticsRes, warmupRes] = await Promise.all([
+      const [domainRes, queueRes, messageRes, diagnosticsRes, warmupRes, capacityRes, failoverRes, deadLetterRes] = await Promise.all([
         get<any>('/deliverability/domains'),
         getQueueStats(),
         listMessages(20),
         getFailureDiagnostics(),
-        getWarmupStatus()
+        getWarmupStatus(),
+        listProviderCapacity(),
+        listProviderFailoverTests(5),
+        getDeadLetters(25)
       ]);
       const domainData = Array.isArray(domainRes) ? domainRes : domainRes?.content || domainRes?.data || [];
       setDomains(domainData);
@@ -57,6 +73,9 @@ export default function DeliverabilityPage() {
       setMessages(messageRes || []);
       setDiagnostics(diagnosticsRes);
       setWarmup(warmupRes);
+      setCapacity(capacityRes || []);
+      setFailoverTests(failoverRes || []);
+      setDeadLetters(deadLetterRes?.items || []);
     } catch (e: any) {
       console.error('Failed to load delivery studio data', e);
       setError(e?.normalized?.message || 'Failed to load delivery studio data');
@@ -83,6 +102,46 @@ export default function DeliverabilityPage() {
     setActionBusy(`replay:${messageId}`);
     try {
       await enqueueReplay(messageId, 'MANUAL_REPLAY');
+      await processReplay(50);
+      await loadAll();
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const handleEvaluateCapacity = async (profile: ProviderCapacityProfile) => {
+    setActionBusy(`capacity:${profile.id}`);
+    try {
+      const decision = await evaluateProviderCapacity({
+        providerId: profile.providerId,
+        senderDomain: profile.senderDomain,
+        ispDomain: profile.ispDomain,
+        riskScore: profile.backpressureScore
+      });
+      setThrottleDecision(decision);
+      await loadAll();
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const handleFailoverDrill = async (profile: ProviderCapacityProfile) => {
+    setActionBusy(`failover:${profile.id}`);
+    try {
+      await runProviderFailoverTest({
+        primaryProviderId: profile.providerId,
+        failoverProviderId: profile.failoverProviderId
+      });
+      await loadAll();
+    } finally {
+      setActionBusy(null);
+    }
+  };
+
+  const handleBulkReplay = async () => {
+    setActionBusy('dlq:bulk-replay');
+    try {
+      await replayDeadLetters(deadLetters.slice(0, 10).map((message) => message.messageId), 'DLQ_BULK_REPLAY');
       await processReplay(50);
       await loadAll();
     } finally {
@@ -207,6 +266,108 @@ export default function DeliverabilityPage() {
             <div>Auth Issues: <span className="font-semibold text-content-primary">{issuesCount}</span></div>
             <div>Active Providers: <span className="font-semibold text-content-primary">{warmup?.activeProviders ?? 0}</span></div>
             <div>Unhealthy Providers: <span className="font-semibold text-content-primary">{warmup?.unhealthyProviders ?? 0}</span></div>
+          </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.65fr)]">
+        <Card>
+          <CardHeader title="Provider Capacity & Adaptive Throttle" />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableCell className="font-semibold">Provider</TableCell>
+                <TableCell className="font-semibold">Scope</TableCell>
+                <TableCell className="font-semibold">Cap / Min</TableCell>
+                <TableCell className="font-semibold">Signals</TableCell>
+                <TableCell className="font-semibold">State</TableCell>
+                <TableCell className="font-semibold text-right">Actions</TableCell>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {capacity.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-content-muted py-8">No provider capacity profiles configured</TableCell>
+                </TableRow>
+              ) : capacity.map((profile) => (
+                <TableRow key={profile.id}>
+                  <TableCell className="font-mono text-xs text-content-secondary">{profile.providerId}</TableCell>
+                  <TableCell className="text-sm">
+                    <div className="font-medium text-content-primary">{profile.senderDomain || 'all senders'}</div>
+                    <div className="text-xs text-content-muted">{profile.ispDomain || 'all ISPs'}</div>
+                  </TableCell>
+                  <TableCell>{profile.currentMaxPerMinute}</TableCell>
+                  <TableCell className="text-xs text-content-secondary">
+                    {(profile.observedSuccessRate * 100).toFixed(1)}% success / {(profile.bounceRate * 100).toFixed(2)}% bounce / {profile.backpressureScore} pressure
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={profile.status === 'ACTIVE' ? 'success' : 'warning'}>{profile.status}</Badge>
+                  </TableCell>
+                  <TableCell className="text-right space-x-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionBusy === `capacity:${profile.id}`}
+                      onClick={() => handleEvaluateCapacity(profile)}
+                    >
+                      Evaluate
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={actionBusy === `failover:${profile.id}`}
+                      onClick={() => handleFailoverDrill(profile)}
+                    >
+                      Drill
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </Card>
+
+        <Card>
+          <CardHeader title="Failover & DLQ Ops" />
+          <div className="px-6 pb-6 space-y-4 text-sm text-content-secondary">
+            {throttleDecision ? (
+              <div className="rounded-lg border border-border-default bg-surface-secondary p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="font-semibold text-content-primary">{throttleDecision.throttleState}</span>
+                  <span>{throttleDecision.recommendedPerMinute}/min</span>
+                </div>
+                <p className="mt-2 text-xs">{throttleDecision.reason}</p>
+              </div>
+            ) : null}
+            <div className="rounded-lg border border-border-default bg-surface-secondary p-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-content-primary">Dead Letters</span>
+                <span>{deadLetters.length}</span>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="mt-3 w-full"
+                disabled={deadLetters.length === 0 || actionBusy === 'dlq:bulk-replay'}
+                onClick={handleBulkReplay}
+              >
+                Replay first 10
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-content-muted">Recent Failover Drills</p>
+              {failoverTests.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border-default p-3 text-xs text-content-muted">No drills recorded</div>
+              ) : failoverTests.map((test) => (
+                <div key={test.id} className="rounded-lg border border-border-default bg-surface-secondary p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium text-content-primary">{test.resultCode}</span>
+                    <Badge variant={test.status === 'PASSED' ? 'success' : 'warning'}>{test.status}</Badge>
+                  </div>
+                  <p className="mt-1 text-xs">{test.diagnostic || test.primaryProviderId}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </Card>
       </div>

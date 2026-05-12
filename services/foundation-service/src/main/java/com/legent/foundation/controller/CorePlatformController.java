@@ -42,6 +42,12 @@ public class CorePlatformController {
         return ApiResponse.ok(corePlatformService.listBusinessUnits());
     }
 
+    @GetMapping("/business-units/tree")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listBusinessUnitTree() {
+        return ApiResponse.ok(corePlatformService.listBusinessUnitTree());
+    }
+
     @PostMapping("/workspaces")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
     public ApiResponse<Map<String, Object>> createWorkspace(@Valid @RequestBody CorePlatformDto.WorkspaceRequest request) {
@@ -114,6 +120,18 @@ public class CorePlatformController {
         return ApiResponse.ok(corePlatformService.listPermissionGroups());
     }
 
+    @PostMapping("/role-bindings")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> createRoleBinding(@Valid @RequestBody CorePlatformDto.RoleBindingRequest request) {
+        return ApiResponse.ok(corePlatformService.createRoleBinding(request));
+    }
+
+    @GetMapping("/role-bindings")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listRoleBindings() {
+        return ApiResponse.ok(corePlatformService.listRoleBindings());
+    }
+
     @PostMapping("/access-grants")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
     public ApiResponse<Map<String, Object>> createAccessGrant(@Valid @RequestBody CorePlatformDto.AccessGrantRequest request) {
@@ -124,6 +142,44 @@ public class CorePlatformController {
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> listAccessGrants() {
         return ApiResponse.ok(corePlatformService.listAccessGrants());
+    }
+
+    @PostMapping("/access-grants/{id}/decision")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> decideAccessGrant(
+            @PathVariable String id,
+            @Valid @RequestBody CorePlatformDto.AccessGrantDecisionRequest request) {
+        return ApiResponse.ok(corePlatformService.decideAccessGrant(id, request));
+    }
+
+    @GetMapping("/access-policy/preview")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<Map<String, Object>> previewAccessPolicy(@RequestParam String principalId) {
+        return ApiResponse.ok(corePlatformService.previewAccessPolicy(principalId));
+    }
+
+    @PostMapping("/identity-providers")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> upsertIdentityProvider(@Valid @RequestBody CorePlatformDto.IdentityProviderRequest request) {
+        return ApiResponse.ok(corePlatformService.upsertIdentityProvider(request));
+    }
+
+    @GetMapping("/identity-providers")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listIdentityProviders() {
+        return ApiResponse.ok(corePlatformService.listIdentityProviders());
+    }
+
+    @PostMapping("/scim-tokens")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> createScimToken(@Valid @RequestBody CorePlatformDto.ScimTokenRequest request) {
+        return ApiResponse.ok(corePlatformService.createScimToken(request));
+    }
+
+    @GetMapping("/scim-tokens")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listScimTokens() {
+        return ApiResponse.ok(corePlatformService.listScimTokens());
     }
 
     @PostMapping("/invitations")
