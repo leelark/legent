@@ -4,7 +4,6 @@ import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import com.legent.content.domain.Asset;
-import com.legent.content.dto.AssetDto;
 import com.legent.content.service.AssetService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -15,9 +14,8 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
 import java.util.List;
-import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping(AppConstants.API_BASE_PATH + "/assets")
@@ -45,20 +43,8 @@ public class AssetController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles)")
     public ApiResponse<Asset> uploadAsset(@RequestParam("file") MultipartFile file) {
-        String tenantId = TenantContext.requireTenantId();
-        String objectName = tenantId + "/" + UUID.randomUUID() + "_" + file.getOriginalFilename();
-        
-        String url = assetService.uploadToMinio(file, objectName);
-        
-        AssetDto.Create create = AssetDto.Create.builder()
-                .name(file.getOriginalFilename())
-                .url(url)
-                .contentType(file.getContentType())
-                .size(file.getSize())
-                .metadata(Collections.emptyMap())
-                .build();
-        
-        return ApiResponse.ok(assetService.createAsset(create));
+        TenantContext.requireTenantId();
+        return ApiResponse.ok(assetService.uploadAsset(file, Map.of("source", "single-upload")));
     }
 
     @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

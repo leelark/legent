@@ -274,7 +274,7 @@ public class ComplianceEvidenceService {
         params.put("tenantId", tenantId);
         params.put("workspaceId", workspaceId);
         List<Map<String, Object>> rows = repository.queryForList(
-                "SELECT event_hash FROM " + table + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+                "SELECT event_hash FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
                 params
         );
         return rows.isEmpty() ? null : String.valueOf(rows.get(0).get("event_hash"));
@@ -292,7 +292,7 @@ public class ComplianceEvidenceService {
         params.put("tenantId", TenantContext.requireTenantId());
         params.put("workspaceId", workspaceId);
         return repository.queryForList(
-                "SELECT COUNT(*) AS count FROM " + table + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL",
+                "SELECT COUNT(*) AS count FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL",
                 params
         ).stream().findFirst().map(row -> ((Number) row.get("count")).longValue()).orElse(0L);
     }

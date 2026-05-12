@@ -17,7 +17,7 @@ import { ensureActiveContext } from '@/lib/context-bootstrap';
 import { getUserPreferences } from '@/lib/user-preferences-api';
 
 /**
- * Workspace layout — provides the app shell with sidebar + header + workspace area.
+ * Workspace layout provides the app shell with sidebar, header, and workspace area.
  * All authenticated module pages are rendered inside this layout.
  */
 export default function WorkspaceLayout({
@@ -177,7 +177,7 @@ export default function WorkspaceLayout({
             <Skeleton variant="rounded" width="34%" height={30} className="mx-auto" />
           </div>
           <main className="app-surface flex-1 overflow-auto p-4 md:p-6">
-            <div className="mx-auto w-full max-w-[1480px] space-y-5">
+            <div className="app-content-frame mx-auto w-full max-w-[1480px] space-y-5">
               <Skeleton variant="rounded" width="100%" height={150} />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, index) => (
@@ -213,7 +213,7 @@ export default function WorkspaceLayout({
           <Header />
           <main className="app-surface flex-1 overflow-auto p-4 pb-24 md:p-6">
             <ErrorBoundary>
-              <div className="mx-auto w-full max-w-[1480px] animate-fade-in">{children}</div>
+              <div className="app-content-frame mx-auto w-full max-w-[1480px] animate-fade-in">{children}</div>
             </ErrorBoundary>
           </main>
         </div>

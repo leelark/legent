@@ -102,7 +102,7 @@ export default function SubscribersPage() {
       }
       setIsModalOpen(false);
       refetch();
-    } catch (e: any) {
+    } catch {
       setError('Failed to save subscriber');
     }
   };
@@ -112,7 +112,7 @@ export default function SubscribersPage() {
       try {
         await del(`/subscribers/${id}`);
         refetch();
-      } catch (e: any) {
+      } catch {
         setError('Failed to delete subscriber');
       }
     }
@@ -125,7 +125,7 @@ export default function SubscribersPage() {
         await Promise.all(selected.map(id => del(`/subscribers/${id}`)));
         setSelected([]);
         refetch();
-      } catch (e: any) {
+      } catch {
         setError('Bulk delete failed');
       }
     }

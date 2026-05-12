@@ -26,8 +26,13 @@ import org.springframework.web.multipart.MultipartFile;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.lang.NonNull;
@@ -47,6 +52,9 @@ public class AssetService {
 
     @Value("${legent.assets.max-size-bytes:26214400}")
     private long maxAssetSizeBytes;
+
+    @Value("${legent.assets.allowed-content-types:image/png,image/jpeg,image/gif,image/webp,application/pdf,text/plain,text/csv,text/html,application/json}")
+    private String allowedAssetContentTypes;
 
     @Value("${minio.endpoint}")
     private String minioEndpoint;
@@ -151,6 +159,23 @@ public class AssetService {
     }
 
     @Transactional
+    public Asset uploadAsset(MultipartFile file, Map<String, String> metadata) {
+        validateUploadFile(file);
+        String tenantId = TenantContext.requireTenantId();
+        String safeFileName = sanitizeFileName(file.getOriginalFilename());
+        String objectName = tenantId + "/" + UUID.randomUUID() + "_" + safeFileName;
+        String url = uploadToMinio(file, objectName);
+        AssetDto.Create create = AssetDto.Create.builder()
+                .name(safeFileName)
+                .url(url)
+                .contentType(normalizeContentType(file.getContentType()))
+                .size(file.getSize())
+                .metadata(metadata == null ? Map.of() : metadata)
+                .build();
+        return createAsset(create);
+    }
+
+    @Transactional
     public List<Asset> uploadAssets(List<MultipartFile> files) {
         List<Asset> uploadedAssets = new ArrayList<>();
         if (files == null || files.isEmpty()) {
@@ -162,12 +187,13 @@ public class AssetService {
                 continue;
             }
             validateUploadFile(file);
-            String objectName = tenantId + "/" + java.util.UUID.randomUUID() + "_" + file.getOriginalFilename();
+            String safeFileName = sanitizeFileName(file.getOriginalFilename());
+            String objectName = tenantId + "/" + UUID.randomUUID() + "_" + safeFileName;
             String url = uploadToMinio(file, objectName);
             AssetDto.Create create = AssetDto.Create.builder()
-                    .name(file.getOriginalFilename())
+                    .name(safeFileName)
                     .url(url)
-                    .contentType(file.getContentType())
+                    .contentType(normalizeContentType(file.getContentType()))
                     .size(file.getSize())
                     .metadata(Map.of("source", "bulk-upload"))
                     .build();
@@ -246,7 +272,7 @@ public class AssetService {
     }
 
     private void validateUploadFile(MultipartFile file) {
-        String contentType = file.getContentType();
+        String contentType = normalizeContentType(file.getContentType());
         if (contentType == null || contentType.isBlank()) {
             throw new IllegalArgumentException("Asset content type is required");
         }
@@ -257,5 +283,41 @@ public class AssetService {
         if (size > maxAssetSizeBytes) {
             throw new IllegalArgumentException("Asset exceeds max upload size of " + maxAssetSizeBytes + " bytes");
         }
+        if (!allowedContentTypes().contains(contentType)) {
+            throw new IllegalArgumentException("Asset content type is not allowed: " + contentType);
+        }
+        sanitizeFileName(file.getOriginalFilename());
+    }
+
+    String sanitizeFileName(String originalName) {
+        String value = originalName == null || originalName.isBlank() ? "asset" : originalName.trim();
+        int slashIndex = Math.max(value.lastIndexOf('/'), value.lastIndexOf('\\'));
+        if (slashIndex >= 0 && slashIndex < value.length() - 1) {
+            value = value.substring(slashIndex + 1);
+        }
+        value = value.replaceAll("[\\p{Cntrl}]+", "")
+                .replaceAll("[^A-Za-z0-9._ -]+", "-")
+                .replaceAll("\\s+", "-")
+                .replaceAll("-{2,}", "-")
+                .replaceAll("-+\\.", ".");
+        value = value.replaceAll("^[._-]+", "").replaceAll("[._-]+$", "");
+        if (value.isBlank()) {
+            value = "asset";
+        }
+        return value.length() > 160 ? value.substring(value.length() - 160) : value;
+    }
+
+    private String normalizeContentType(String contentType) {
+        if (contentType == null) {
+            return null;
+        }
+        return contentType.split(";", 2)[0].trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Set<String> allowedContentTypes() {
+        return Arrays.stream(allowedAssetContentTypes.split(","))
+                .map(this::normalizeContentType)
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
     }
 }

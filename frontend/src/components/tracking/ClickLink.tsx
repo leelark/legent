@@ -18,7 +18,7 @@ export const ClickLink: React.FC<ClickLinkProps> = ({ tenantId, campaignId, subs
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
       return <span>{children}</span>;
     }
-  } catch (e) {
+  } catch {
     return <span>{children}</span>;
   }
   const trackingUrl = `/api/v1/tracking/c?url=${encodeURIComponent(url)}&t=${encodeURIComponent(tenantId)}&c=${encodeURIComponent(campaignId)}&s=${encodeURIComponent(subscriberId)}&m=${encodeURIComponent(messageId)}&sig=${encodeURIComponent(signature)}${workspaceId ? `&w=${encodeURIComponent(workspaceId)}` : ''}`;

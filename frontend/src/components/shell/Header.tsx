@@ -188,6 +188,7 @@ export function Header() {
       </div>
 
       <button
+        type="button"
         onClick={() => setSearchOpen(true)}
         className="mx-3 hidden h-9 w-full max-w-md items-center gap-2 rounded-xl border border-border-default bg-surface-elevated/84 px-3 text-left text-sm text-content-muted shadow-[0_10px_28px_rgba(76,29,149,0.08)] transition hover:border-border-strong hover:bg-surface-primary hover:text-content-primary md:flex"
       >
@@ -215,10 +216,11 @@ export function Header() {
           </select>
         )}
 
-        <button className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary hover:text-content-primary md:hidden" onClick={() => setSearchOpen(true)} aria-label="Search">
+        <button type="button" className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary hover:text-content-primary md:hidden" onClick={() => setSearchOpen(true)} aria-label="Search">
           <Search size={18} />
         </button>
         <button
+          type="button"
           onClick={() => setNotificationsOpen((open) => !open)}
           className="relative rounded-lg p-2 text-content-secondary hover:bg-surface-secondary hover:text-content-primary"
           aria-label="Notifications"
@@ -227,6 +229,7 @@ export function Header() {
           {notifications.length > 0 && <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger" />}
         </button>
         <button
+          type="button"
           onClick={handleToggleMode}
           className={clsx(
             'rounded-xl border border-border-default px-3 py-2 text-xs font-semibold shadow-sm transition-colors',
@@ -236,19 +239,19 @@ export function Header() {
         >
           {uiMode === 'BASIC' ? 'Basic' : 'Advanced'}
         </button>
-        <button onClick={handleToggleTheme} className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary hover:text-content-primary" aria-label="Toggle theme">
+        <button type="button" onClick={handleToggleTheme} className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary hover:text-content-primary" aria-label="Toggle theme">
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <button onClick={handleLogout} className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary hover:text-content-primary" aria-label="Logout">
+        <button type="button" onClick={handleLogout} className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary hover:text-content-primary" aria-label="Logout">
           <LogOut size={18} />
         </button>
       </div>
 
       {notificationsOpen && (
-        <div className="absolute right-4 top-14 z-50 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-border-default bg-surface-elevated/95 p-2 shadow-2xl backdrop-blur-xl">
+        <div className="absolute right-4 top-14 z-50 w-[min(360px,calc(100vw-2rem))] rounded-xl border border-border-default bg-surface-elevated/95 p-2 shadow-2xl backdrop-blur-xl" role="dialog" aria-label="Notifications">
           <div className="flex items-center justify-between px-2 py-1">
             <p className="text-sm font-semibold">Notifications</p>
-            <button onClick={() => setNotificationsOpen(false)} className="rounded p-1 text-content-secondary hover:bg-surface-secondary" aria-label="Close notifications">
+            <button type="button" onClick={() => setNotificationsOpen(false)} className="rounded p-1 text-content-secondary hover:bg-surface-secondary" aria-label="Close notifications">
               <X size={15} />
             </button>
           </div>
@@ -263,7 +266,7 @@ export function Header() {
                       <p className="truncate text-sm font-semibold">{item.title || item.type || 'Notification'}</p>
                       {item.message && <p className="mt-1 text-xs text-content-secondary">{item.message}</p>}
                     </div>
-                    <button onClick={() => void markRead(item.id)} className="h-7 w-7 rounded-lg text-content-secondary hover:bg-surface-elevated" aria-label="Mark as read">
+                    <button type="button" onClick={() => void markRead(item.id)} className="h-7 w-7 rounded-lg text-content-secondary hover:bg-surface-elevated" aria-label="Mark as read">
                       <Check size={15} className="mx-auto" />
                     </button>
                   </div>
@@ -276,7 +279,7 @@ export function Header() {
 
       {searchOpen && (
         <div className="fixed inset-0 z-50 bg-black/45 p-4 backdrop-blur-sm" onClick={() => setSearchOpen(false)}>
-          <div className="mx-auto mt-20 w-full max-w-2xl rounded-xl border border-border-default bg-surface-elevated/96 shadow-2xl backdrop-blur-xl" onClick={(event) => event.stopPropagation()}>
+          <div className="mx-auto mt-20 w-full max-w-2xl rounded-xl border border-border-default bg-surface-elevated/96 shadow-2xl backdrop-blur-xl" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Workspace search">
             <div className="flex items-center gap-2 border-b border-border-default px-4 py-3">
               <Search size={18} className="text-content-muted" />
               <input
@@ -284,13 +287,14 @@ export function Header() {
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search workspace"
+                aria-label="Search workspace"
                 className="h-9 flex-1 bg-transparent text-sm text-content-primary outline-none placeholder:text-content-muted"
               />
-              <button onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary" aria-label="Close search">
+              <button type="button" onClick={() => setSearchOpen(false)} className="rounded-lg p-2 text-content-secondary hover:bg-surface-secondary" aria-label="Close search">
                 <X size={17} />
               </button>
             </div>
-            <div className="max-h-[420px] overflow-auto p-2">
+            <div className="max-h-[420px] overflow-auto p-2" aria-live="polite">
               {query.trim().length < 2 ? (
                 <p className="px-3 py-8 text-center text-sm text-content-secondary">Type at least 2 characters</p>
               ) : searching ? (

@@ -70,6 +70,7 @@ export function Sidebar() {
               className={clsx('sidebar-item', active && 'active')}
               title={sidebarCollapsed ? item.label : undefined}
               data-advanced={item.advanced ? 'true' : undefined}
+              aria-current={active ? 'page' : undefined}
             >
               <Icon size={18} className="shrink-0" />
               {!sidebarCollapsed && <span className="truncate">{item.label}</span>}
@@ -78,6 +79,7 @@ export function Sidebar() {
         })}
       </nav>
       <button
+        type="button"
         onClick={toggleSidebar}
         className="flex items-center justify-center border-t border-border-default p-3 text-content-secondary transition-colors hover:bg-surface-secondary hover:text-content-primary"
         aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
@@ -106,6 +108,7 @@ export function MobileNav() {
               'flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-colors',
               active ? 'bg-brand-50 text-accent dark:bg-brand-900/20 dark:text-brand-300' : 'text-content-secondary'
             )}
+            aria-current={active ? 'page' : undefined}
           >
             <Icon size={18} />
             <span className="max-w-full truncate">{item.label}</span>

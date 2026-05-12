@@ -1,24 +1,19 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import {
   ArrowRight,
-  BarChart3,
-  BrainCircuit,
   CheckCircle2,
   ChevronRight,
   CircleDot,
   Clock3,
-  Database,
   LineChart,
-  MailCheck,
   MousePointerClick,
   Network,
-  ShieldCheck,
   Sparkles,
   Target,
   Zap,
@@ -496,7 +491,7 @@ function VisualTexture() {
 function HomeProofRail({ highlights, scenario }: { highlights: string[]; scenario: (typeof homeScenarios)[number] }) {
   return (
     <div className="public-panel grid gap-3 rounded-[1.35rem] p-3 md:grid-cols-[1.1fr_0.9fr_0.9fr_0.8fr] md:items-center">
-      {highlights.map((item, index) => (
+      {highlights.map((item) => (
         <motion.div key={item} whileHover={{ y: -3 }} className="flex min-h-16 items-center gap-3 rounded-2xl bg-[var(--public-panel-strong)] px-4 py-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-fuchsia-400/12 text-[var(--public-accent)]">
             <CheckCircle2 size={16} />
@@ -951,7 +946,7 @@ function ScenarioLayerGrid() {
           </div>
         </div>
         <div className="relative mt-6 grid gap-3 sm:grid-cols-3">
-          {selected.items.map((item, index) => (
+          {selected.items.map((item) => (
             <motion.div key={item} whileHover={{ y: -5 }} className="rounded-2xl bg-[var(--public-panel-strong)] p-4">
               <CheckCircle2 className="text-emerald-500" size={18} />
               <p className="public-heading mt-3 text-sm font-semibold">{item}</p>

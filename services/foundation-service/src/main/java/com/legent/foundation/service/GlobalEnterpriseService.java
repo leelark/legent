@@ -672,8 +672,10 @@ public class GlobalEnterpriseService {
 
     private Map<String, Object> upsertByKey(String table, String keyColumn, String keyValue, String workspaceId,
                                             Map<String, Object> values, List<String> jsonColumns) {
+        String safeTable = CorePlatformRepository.safeTable(table);
+        String safeKeyColumn = CorePlatformRepository.safeKeyColumn(keyColumn);
         List<Map<String, Object>> existing = repository.queryForList(
-                "SELECT id FROM " + table + " WHERE tenant_id = :tenantId AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '') AND " + keyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
+                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '') AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
                 map("tenantId", tenant(), "workspaceId", workspaceId, "keyValue", keyValue)
         );
         if (existing.isEmpty()) {
@@ -686,8 +688,10 @@ public class GlobalEnterpriseService {
 
     private Map<String, Object> upsertByKeyNoWorkspace(String table, String keyColumn, String keyValue,
                                                        Map<String, Object> values, List<String> jsonColumns) {
+        String safeTable = CorePlatformRepository.safeTable(table);
+        String safeKeyColumn = CorePlatformRepository.safeKeyColumn(keyColumn);
         List<Map<String, Object>> existing = repository.queryForList(
-                "SELECT id FROM " + table + " WHERE tenant_id = :tenantId AND " + keyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
+                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
                 map("tenantId", tenant(), "keyValue", keyValue)
         );
         if (existing.isEmpty()) {
@@ -701,18 +705,19 @@ public class GlobalEnterpriseService {
     private List<Map<String, Object>> listScoped(String table, String workspaceId, String orderBy) {
         Map<String, Object> params = scopedParams(workspaceId);
         return repository.queryForList(
-                "SELECT * FROM " + table + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + orderBy,
+                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + CorePlatformRepository.safeOrderBy(orderBy),
                 params
         );
     }
 
     private Map<String, Object> requireById(String table, String id) {
+        String safeTable = CorePlatformRepository.safeTable(table);
         List<Map<String, Object>> rows = repository.queryForList(
-                "SELECT * FROM " + table + " WHERE tenant_id = :tenantId AND id = :id AND deleted_at IS NULL LIMIT 1",
+                "SELECT * FROM " + safeTable + " WHERE tenant_id = :tenantId AND id = :id AND deleted_at IS NULL LIMIT 1",
                 map("tenantId", tenant(), "id", id)
         );
         if (rows.isEmpty()) {
-            throw new IllegalArgumentException(table + " not found: " + id);
+            throw new IllegalArgumentException(safeTable + " not found: " + id);
         }
         return rows.get(0);
     }

@@ -35,7 +35,7 @@ export default function EditSegmentPage() {
           description: segment?.description || "",
           rules: segment?.rules || { operator: "AND", conditions: [], groups: [] },
         });
-      } catch (e) {
+      } catch {
         alert("Failed to load segment");
         router.push("/app/audience/segments");
       }
@@ -53,7 +53,7 @@ export default function EditSegmentPage() {
         rules: form.rules,
       });
       router.push("/app/audience/segments");
-    } catch (e) {
+    } catch {
       alert("Failed to update segment");
     }
     setSaving(false);

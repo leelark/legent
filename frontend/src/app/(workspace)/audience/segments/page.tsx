@@ -29,7 +29,7 @@ export default function SegmentsPage() {
     try {
       const res = await get<any>('/segments?page=0&size=50');
       setSegments(res.content || res || []);
-    } catch (e) {
+    } catch {
       setSegments([]);
     }
     setLoading(false);
@@ -44,7 +44,7 @@ export default function SegmentsPage() {
       try {
         await del(`/segments/${id}`);
         fetchSegments();
-      } catch (e) {
+      } catch {
         alert('Failed to delete segment');
       }
     }

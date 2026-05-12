@@ -21,6 +21,11 @@ patches:
     target:
       kind: NetworkPolicy
       name: allow-ingress-to-legent-apps
+  - path: delete-nonprod-stateful.yml
+  - path: production-configmap-patch.yml
+    target:
+      kind: ConfigMap
+      name: legent-config
   - path: deployment-rollout-patch.yml
     target:
       kind: Deployment

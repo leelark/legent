@@ -14,6 +14,8 @@ build/
 .env*.local
 npm-debug.log*
 package-lock.json.bak
+frontend/test-results/
+frontend/playwright-report/
 
 # Docker
 # (Optional: ignore local data volumes if any)

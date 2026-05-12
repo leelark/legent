@@ -100,11 +100,26 @@
     @apply bg-surface-primary text-content-primary;
     min-width: 320px;
     overflow-x: hidden;
+    text-size-adjust: 100%;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
   * {
     @apply border-border-default;
+  }
+
+  button,
+  [role='button'],
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  button:disabled,
+  [aria-disabled='true'] {
+    cursor: not-allowed;
   }
 
   *:focus-visible {
@@ -136,6 +151,10 @@
 
 @layer components {
   .app-surface {
+    min-width: 0;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
     background:
       linear-gradient(135deg, rgba(16, 185, 129, 0.055), transparent 34%),
       linear-gradient(215deg, rgba(14, 165, 233, 0.055), transparent 42%),
@@ -154,6 +173,11 @@
   .glass-panel {
     background-color: rgba(var(--bg-surface-rgb), 0.82);
     @apply rounded-lg border border-border-default shadow-glass backdrop-blur-xl;
+  }
+
+  .app-content-frame {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .sidebar-item {
@@ -413,6 +437,11 @@
   }
 
   @media (max-width: 767px) {
+    .app-surface {
+      padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+      scrollbar-gutter: auto;
+    }
+
     .public-hero-shell {
       min-height: calc(100svh - 4rem);
       padding-block: 1.2rem 1.6rem;

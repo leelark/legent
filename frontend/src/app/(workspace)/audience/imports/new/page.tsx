@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageChrome';
-import { Upload, ArrowRight, ArrowLeft, CheckCircle, WarningCircle, FileText } from '@phosphor-icons/react';
+import { Upload, ArrowRight, ArrowLeft, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { get, post } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
 
@@ -62,7 +62,7 @@ export default function ImportWizardPage() {
         try {
           const res = await get<any>(`/imports/${jobId}`);
           setJobStatus(res);
-        } catch (e) {
+        } catch {
           console.error('Failed to fetch job status');
         }
       }, 2000);
@@ -132,7 +132,7 @@ export default function ImportWizardPage() {
       } else {
         alert('Failed to start import');
       }
-    } catch (e) {
+    } catch {
       alert('Failed to start import');
     }
   };

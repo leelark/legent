@@ -88,6 +88,8 @@ legent:
     import:
       chunk-size: 5000
       max-errors: 1000
+      max-file-size-bytes: ${LEGENT_AUDIENCE_IMPORT_MAX_FILE_SIZE_BYTES:104857600}
+      allowed-content-types: ${LEGENT_AUDIENCE_IMPORT_ALLOWED_CONTENT_TYPES:text/csv,application/csv,application/vnd.ms-excel,text/plain}
     segment:
       recompute-cron: "0 */15 * * * *"
       max-concurrent-evaluations: 5

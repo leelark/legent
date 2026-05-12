@@ -2,7 +2,10 @@ param(
     [switch] $SkipBackend,
     [switch] $SkipFrontend,
     [switch] $SkipE2E,
+    [switch] $SkipEnvValidation,
+    [switch] $SkipRouteValidation,
     [switch] $SkipComposeSmoke,
+    [switch] $SkipVisualE2E,
     [switch] $SkipKustomize,
     [switch] $RunSyntheticSmoke,
     [string] $SmokeBaseUrl = $env:LEGENT_SMOKE_BASE_URL
@@ -20,12 +23,27 @@ function Invoke-GateStep($Name, [scriptblock] $Command) {
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $frontendRoot = Join-Path $repoRoot "frontend"
+$mavenWrapper = Join-Path $repoRoot "mvnw.cmd"
+
+if (-not $SkipEnvValidation) {
+    Invoke-GateStep "Environment preflight" {
+        $scriptPath = Join-Path $repoRoot "scripts\ops\validate-env.ps1"
+        & $scriptPath
+    }
+}
+
+if (-not $SkipRouteValidation) {
+    Invoke-GateStep "Gateway route contract" {
+        $scriptPath = Join-Path $repoRoot "scripts\ops\validate-route-map.ps1"
+        & $scriptPath
+    }
+}
 
 if (-not $SkipBackend) {
     Invoke-GateStep "Backend Maven tests" {
         Push-Location $repoRoot
         try {
-            mvn test
+            & $mavenWrapper test -T 1C
         } finally {
             Pop-Location
         }
@@ -60,6 +78,17 @@ if (-not $SkipFrontend) {
                 Pop-Location
             }
         }
+
+        if (-not $SkipVisualE2E) {
+            Invoke-GateStep "Frontend visual smoke" {
+                Push-Location $frontendRoot
+                try {
+                    npm run test:e2e:visual
+                } finally {
+                    Pop-Location
+                }
+            }
+        }
     }
 }
 
@@ -75,10 +104,20 @@ if (-not $SkipComposeSmoke) {
 }
 
 if (-not $SkipKustomize) {
-    Invoke-GateStep "Kubernetes production overlay render" {
+    Invoke-GateStep "Kubernetes overlay render" {
         Push-Location $repoRoot
         try {
-            kubectl kustomize infrastructure/kubernetes/overlays/production | Out-Null
+            $overlays = @(
+                "infrastructure/kubernetes/base",
+                "infrastructure/kubernetes/overlays/production",
+                "infrastructure/kubernetes/overlays/global/global-active-active",
+                "infrastructure/kubernetes/overlays/global/global-primary",
+                "infrastructure/kubernetes/overlays/global/global-standby",
+                "infrastructure/kubernetes/observability"
+            )
+            foreach ($overlay in $overlays) {
+                kubectl kustomize $overlay | Out-Null
+            }
         } finally {
             Pop-Location
         }

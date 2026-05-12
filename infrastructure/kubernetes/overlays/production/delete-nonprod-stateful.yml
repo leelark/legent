@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-postgres
+  namespace: legent
+$patch: delete
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legent-postgres
+  namespace: legent
+$patch: delete
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-redis
+  namespace: legent
+$patch: delete
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legent-redis
+  namespace: legent
+$patch: delete
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-kafka
+  namespace: legent
+$patch: delete
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legent-kafka
+  namespace: legent
+$patch: delete
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-minio
+  namespace: legent
+$patch: delete
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legent-minio
+  namespace: legent
+$patch: delete
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-opensearch
+  namespace: legent
+$patch: delete
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legent-opensearch
+  namespace: legent
+$patch: delete
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-clickhouse
+  namespace: legent
+$patch: delete
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legent-clickhouse
+  namespace: legent
+$patch: delete
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-mailhog
+  namespace: legent
+$patch: delete
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legent-mailhog
+  namespace: legent
+$patch: delete

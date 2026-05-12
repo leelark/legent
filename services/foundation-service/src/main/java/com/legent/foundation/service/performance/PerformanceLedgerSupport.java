@@ -31,12 +31,13 @@ public abstract class PerformanceLedgerSupport {
     }
 
     protected Map<String, Object> requireById(String table, String id) {
+        String safeTable = CorePlatformRepository.safeTable(table);
         List<Map<String, Object>> rows = repository.queryForList(
-                "SELECT * FROM " + table + " WHERE tenant_id = :tenantId AND id = :id AND deleted_at IS NULL LIMIT 1",
+                "SELECT * FROM " + safeTable + " WHERE tenant_id = :tenantId AND id = :id AND deleted_at IS NULL LIMIT 1",
                 map("tenantId", tenant(), "id", id)
         );
         if (rows.isEmpty()) {
-            throw new IllegalArgumentException(table + " not found: " + id);
+            throw new IllegalArgumentException(safeTable + " not found: " + id);
         }
         return rows.get(0);
     }
@@ -47,8 +48,10 @@ public abstract class PerformanceLedgerSupport {
                                               String workspaceId,
                                               Map<String, Object> values,
                                               List<String> jsonColumns) {
+        String safeTable = CorePlatformRepository.safeTable(table);
+        String safeKeyColumn = CorePlatformRepository.safeKeyColumn(keyColumn);
         List<Map<String, Object>> existing = repository.queryForList(
-                "SELECT id FROM " + table + " WHERE tenant_id = :tenantId AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '') AND " + keyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
+                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '') AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
                 map("tenantId", tenant(), "workspaceId", workspaceId, "keyValue", keyValue)
         );
         if (existing.isEmpty()) {
@@ -61,14 +64,14 @@ public abstract class PerformanceLedgerSupport {
 
     protected List<Map<String, Object>> listScoped(String table, String workspaceId, String orderBy) {
         return repository.queryForList(
-                "SELECT * FROM " + table + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + orderBy,
+                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + CorePlatformRepository.safeOrderBy(orderBy),
                 map("tenantId", tenant(), "workspaceId", workspaceId)
         );
     }
 
     protected List<Map<String, Object>> listLatest(String table, String workspaceId, int limit) {
         return repository.queryForList(
-                "SELECT * FROM " + table + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT :limit",
+                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT :limit",
                 map("tenantId", tenant(), "workspaceId", workspaceId, "limit", limit)
         );
     }

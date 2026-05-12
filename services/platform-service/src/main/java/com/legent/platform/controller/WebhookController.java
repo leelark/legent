@@ -14,7 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import com.legent.security.TenantContext;
 
 @RestController
-@RequestMapping("/api/v1/platform/webhooks")
+@RequestMapping({"/api/v1/platform/webhooks", "/api/v1/admin/webhooks"})
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN')")
 public class WebhookController {

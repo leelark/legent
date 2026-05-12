@@ -293,7 +293,7 @@ public class DifferentiationPlatformService {
         values.put("service_name", request.getServiceName().trim());
         values.put("status", defaultValue(request.getStatus(), "ACTIVE"));
         values.put("slo_target_percent", request.getSloTargetPercent() == null ? 99.9 : request.getSloTargetPercent());
-        values.put("window", defaultValue(request.getWindow(), "30d"));
+        values.put("slo_window", defaultValue(request.getWindow(), "30d"));
         values.put("error_budget_minutes", request.getErrorBudgetMinutes() == null ? 43.2 : request.getErrorBudgetMinutes());
         values.put("synthetic_probe", toJson(request.getSyntheticProbe()));
         values.put("self_healing_actions", toJson(request.getSelfHealingActions() == null ? List.of() : request.getSelfHealingActions()));
@@ -370,12 +370,14 @@ public class DifferentiationPlatformService {
                                             String workspaceId,
                                             Map<String, Object> values,
                                             List<String> jsonColumns) {
+        String safeTable = CorePlatformRepository.safeTable(table);
+        String safeKeyColumn = CorePlatformRepository.safeKeyColumn(keyColumn);
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", tenant());
         params.put("workspaceId", workspaceId);
         params.put("keyValue", keyValue);
         List<Map<String, Object>> existing = repository.queryForList(
-                "SELECT id FROM " + table + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND " + keyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
+                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
                 params
         );
         if (existing.isEmpty()) {
@@ -395,7 +397,7 @@ public class DifferentiationPlatformService {
     private List<Map<String, Object>> listScoped(String table, String workspaceId, String orderBy) {
         Map<String, Object> params = scopedParams(workspaceId);
         return repository.queryForList(
-                "SELECT * FROM " + table + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + orderBy,
+                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + CorePlatformRepository.safeOrderBy(orderBy),
                 params
         );
     }

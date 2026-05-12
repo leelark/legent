@@ -5,7 +5,6 @@ import {
   BrainCircuit,
   Building2,
   CheckCircle2,
-  Clock3,
   Database,
   FileCheck2,
   GitBranch,

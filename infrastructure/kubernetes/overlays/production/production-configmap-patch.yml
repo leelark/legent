@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: legent-config
+  namespace: legent
+data:
+  DB_HOST: "postgres.production.legent.internal"
+  SPRING_JPA_HIBERNATE_DDL_AUTO: "validate"
+  SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
+  SPRING_FLYWAY_OUT_OF_ORDER: "false"
+  REDIS_HOST: "redis.production.legent.internal"
+  KAFKA_BOOTSTRAP: "kafka.production.legent.internal:9092"
+  MINIO_ENDPOINT: "https://object-storage.production.legent.internal"
+  OPENSEARCH_URL: "https://search.production.legent.internal"
+  SEARCH_ENABLED: "true"
+  CLICKHOUSE_HOST: "clickhouse.production.legent.internal"
+  MAIL_HOST: "smtp.production.legent.internal"
+  MAIL_PORT: "587"
+  MAIL_SMTP_AUTH: "true"
+  MAIL_SMTP_STARTTLS: "true"
+  TRACKING_BASE_URL: "https://api.legent.com"
+  NEXT_PUBLIC_API_BASE_URL: "https://api.legent.com"
+  API_GATEWAY_URL: "https://api.legent.com"

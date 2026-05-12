@@ -1,165 +1,117 @@
 # Legent: Email Studio
 
-> Enterprise Email Marketing Platform — A Salesforce Marketing Cloud Email Studio Replica
+Enterprise lifecycle email operating system with a Next.js frontend, Spring Boot microservices, PostgreSQL, Kafka, Redis, ClickHouse, OpenSearch, object storage, Docker Compose, and Kubernetes manifests.
 
----
+## Prerequisites
 
-## Quick Start
+- Java 21
+- Maven 3.9+ or the included `mvnw.cmd`
+- Node.js 20.9 through 24.x and npm 10+
+- Docker Desktop with Compose
+- `kubectl` when validating Kubernetes overlays
 
-### Prerequisites
+## Local Setup
 
-- **Java 21** (Eclipse Temurin recommended)
-- **Maven 3.9+** (or use the included `./mvnw` wrapper)
-- **Node.js 20+** and npm
-- **Docker** and Docker Compose
+1. Create a local environment file.
 
-### 1. Start Infrastructure
-
-```bash
-docker compose up -d
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-This starts: PostgreSQL, Redis, Kafka, Zookeeper, OpenSearch, MinIO, ClickHouse, and Kafka UI.
+Use non-placeholder local values. `LEGENT_SECURITY_JWT_SECRET` must be at least 64 characters. `LEGENT_TRACKING_SIGNING_KEY`, `LEGENT_DELIVERY_CREDENTIAL_KEY`, and `LEGENT_INTERNAL_API_TOKEN` must be at least 32 characters.
 
-| Service      | Port  | URL                          |
-|:-------------|:------|:-----------------------------|
-| PostgreSQL   | 5432  | `jdbc:postgresql://localhost:5432/legent_foundation` |
-| Redis        | 6379  |                              |
-| Kafka        | 9092  |                              |
-| Kafka UI     | 8090  | http://localhost:8090        |
-| OpenSearch   | 9200  | http://localhost:9200        |
-| MinIO        | 9001  | http://localhost:9001        |
-| ClickHouse   | 8123  | http://localhost:8123        |
+Upload limits are configurable through `LEGENT_AUDIENCE_IMPORT_MAX_FILE_SIZE_BYTES`, `LEGENT_AUDIENCE_IMPORT_ALLOWED_CONTENT_TYPES`, `LEGENT_ASSETS_MAX_SIZE_BYTES`, and `LEGENT_ASSETS_ALLOWED_CONTENT_TYPES`.
 
-### 2. Build Backend (Optimized)
+2. Validate local configuration.
 
-```bash
-# Fastest - incremental build with caching
-make fast-build
-
-# Or PowerShell
-.\scripts\fast-build\fast-build.ps1
-
-# Full clean build
-mvn clean install -DskipTests -T 1C
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-env.ps1
+docker compose config --quiet
 ```
 
-**One-time setup for new developers:**
-```batch
-.\scripts\setup\first-time-setup.bat
+3. Start the local stack.
+
+```powershell
+docker compose up -d --build
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-compose-health.ps1
 ```
 
-See `docs/build/QUICKSTART.md` for detailed build optimization guide.
+Local ports:
 
-### 3. Run Foundation Service
+| Service | Port |
+| --- | --- |
+| Gateway | `http://localhost:8080` |
+| Frontend | `http://localhost:${FRONTEND_HOST_PORT:-3000}` |
+| PostgreSQL | `5432` |
+| Redis | `6379` |
+| Kafka | `9092` internal, `29092` host |
+| Kafka UI | `http://localhost:8091` |
+| OpenSearch | `http://localhost:9200` |
+| MinIO Console | `http://localhost:9001` |
+| ClickHouse | `8123` HTTP, `9009` native |
+| MailHog | `http://localhost:8025` |
 
-```bash
-mvn -pl services/foundation-service spring-boot:run
+## Development
+
+Backend:
+
+```powershell
+.\mvnw.cmd -DskipTests compile -T 1C
+.\mvnw.cmd test -T 1C
 ```
 
-- Health: http://localhost:8081/api/v1/health
-- Metrics: http://localhost:8081/actuator/prometheus
+Frontend:
 
-### 4. Start Frontend
-
-```bash
+```powershell
 cd frontend
 npm install
-npm run dev
+npm run lint
+npm run build:next
+npm run test:e2e:smoke
+npm run test:e2e:visual
 ```
 
-- UI: http://localhost:3000
+Playwright uses `http://127.0.0.1:3010` by default to avoid stale dev servers on port `3000`. Override with `PLAYWRIGHT_PORT`, `PORT`, or `PLAYWRIGHT_BASE_URL`.
 
----
+## Release Gate
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1
+```
+
+The gate validates env, gateway routes, backend tests, frontend lint/build, smoke E2E, Docker Compose config, and the production Kubernetes overlay. Use the `-Skip*` switches in the script only for targeted local debugging.
+
+## Kubernetes
+
+Base manifests are local/non-production friendly. Production and global overlays use external managed-service endpoints and external secrets.
+
+```powershell
+kubectl kustomize infrastructure\kubernetes\base | Out-Null
+kubectl kustomize infrastructure\kubernetes\overlays\production | Out-Null
+kubectl kustomize infrastructure\kubernetes\overlays\global\global-primary | Out-Null
+kubectl kustomize infrastructure\kubernetes\overlays\global\global-standby | Out-Null
+kubectl kustomize infrastructure\kubernetes\overlays\global\global-active-active | Out-Null
+```
+
+Gateway route ownership lives in `config/gateway/route-map.json` and is checked by `scripts/ops/validate-route-map.ps1`.
 
 ## Architecture
 
-```
-┌──────────┐   ┌──────────────┐   ┌──────────────────────────┐
-│ Next.js  │──▶│ Nginx/Kong   │──▶│ Microservices (Spring)   │
-│ Frontend │   │ API Gateway  │   │                          │
-└──────────┘   └──────────────┘   │ ┌─ Foundation Service    │
-                                  │ ├─ Audience Service      │
-                                  │ ├─ Content Service       │
-                                  │ ├─ Campaign Service      │
-                                  │ ├─ Delivery Service      │
-                                  │ ├─ Tracking Service      │
-                                  │ ├─ Automation Service    │
-                                  │ ├─ Deliverability Svc    │
-                                  │ └─ Admin Service         │
-                                  └──────────────────────────┘
-                                    │         │          │
-                              ┌─────┘    ┌────┘     ┌────┘
-                              ▼          ▼          ▼
-                         PostgreSQL    Kafka     Redis
-                         ClickHouse  OpenSearch  MinIO
-```
+- `frontend/`: Next.js 16, React 19, Tailwind, Playwright
+- `shared/`: common Java libraries for security, caching, Kafka, test support
+- `services/`: Spring Boot 3.2 microservices
+- `config/nginx/`: local gateway config
+- `infrastructure/kubernetes/`: base, production, global, ingress, observability manifests
+- `scripts/ops/`: production-readiness validation and smoke scripts
 
-## Project Structure
+API conventions:
 
-```
-legent-email-studio/
-├── shared/                     # Shared Java libraries
-│   ├── legent-common/          # Base entities, DTOs, exceptions, utils
-│   ├── legent-security/        # Tenant context, JWT, RBAC
-│   ├── legent-kafka/           # Kafka producer/consumer abstraction
-│   ├── legent-cache/           # Redis caching layer
-│   └── legent-test-support/    # TestContainers, mock helpers
-├── services/                   # Microservices
-│   └── foundation-service/     # Config, feature flags, tenants, health
-├── frontend/                   # Next.js + Tailwind app
-│   ├── src/app/                # App Router pages
-│   ├── src/components/         # UI components + shell
-│   ├── src/hooks/              # Custom React hooks
-│   ├── src/stores/             # Zustand state stores
-│   └── src/styles/             # Design tokens + globals
-├── infrastructure/             # Docker + K8s manifests
-├── config/                     # Nginx, Kafka topics, env configs
-├── scripts/                    # Build and deployment scripts
-│   ├── fast-build/             # Fast development builds
-│   ├── cached-builds/          # Layered caching builds
-│   ├── infrastructure/         # Infrastructure image management
-│   ├── docker/                 # Docker-specific scripts
-│   └── setup/                  # One-time setup scripts
-├── docs/                       # Documentation
-│   └── build/                  # Build optimization guides
-└── .mvn/                       # Maven configuration
-```
-
-## API Conventions
-
-- **Base path:** `/api/v1`
-- **Tenant header:** `X-Tenant-Id` (required on all requests except health)
-- **Response format:** `{ success, data, error, meta }`
-- **Pagination:** `{ page, size, totalElements, totalPages }`
-
-## Tech Stack
-
-| Layer           | Technology                     |
-|:----------------|:-------------------------------|
-| Frontend        | React, Next.js 14, Tailwind v3 |
-| Backend         | Java 21, Spring Boot 3.2       |
-| Database        | PostgreSQL 16 + JSONB          |
-| Analytics       | ClickHouse                     |
-| Cache           | Redis 7                        |
-| Message Broker  | Apache Kafka                   |
-| Search          | OpenSearch                     |
-| Object Storage  | MinIO                          |
-| Gateway         | Nginx (default) / Kong         |
-| Container       | Docker + Kubernetes            |
-
-## Running Tests
-
-```bash
-# All tests
-mvn clean test
-
-# Single service
-mvn -pl services/foundation-service test
-```
-
----
+- Base path: `/api/v1`
+- Tenant/workspace headers: `X-Tenant-Id`, `X-Workspace-Id`
+- Response envelope: `{ success, data, error, meta }`
+- Pagination: `{ page, size, totalElements, totalPages }`
 
 ## License
 
-Proprietary — All rights reserved.
+Proprietary. All rights reserved.

@@ -13,7 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import com.legent.security.TenantContext;
 
 @RestController
-@RequestMapping("/api/v1/platform/search")
+@RequestMapping({"/api/v1/platform/search", "/api/v1/admin/search"})
 @RequiredArgsConstructor
 @PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN')")
 public class SearchController {

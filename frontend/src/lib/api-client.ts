@@ -2,7 +2,6 @@ import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import {
   getStoredTenantId,
-  TENANT_STORAGE_KEY,
   WORKSPACE_STORAGE_KEY,
   ENVIRONMENT_STORAGE_KEY,
 } from '@/lib/auth';
@@ -82,9 +81,9 @@ apiClient.interceptors.request.use(async (config) => {
   config.url = resolvedUrl;
 
   if (typeof window !== 'undefined') {
-    let tenantId = getStoredTenantId();
-    let workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
-    let environmentId = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
+    const tenantId = getStoredTenantId();
+    const workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+    const environmentId = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
     const isAuthRequest = isAuthEndpoint(resolvedUrl);
     const requestId =
       (window.crypto && 'randomUUID' in window.crypto)

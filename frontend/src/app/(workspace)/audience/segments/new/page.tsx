@@ -30,7 +30,7 @@ export default function NewSegmentPage() {
         rules: form.rules,
       });
       router.push("/app/audience/segments");
-    } catch (e) {
+    } catch {
       alert("Failed to create segment");
     }
     setSaving(false);

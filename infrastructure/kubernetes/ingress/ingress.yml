@@ -33,8 +33,24 @@ spec:
                 name: identity-service
                 port:
                   number: 8089
+          # Platform admin aliases
+          - path: /api/v1/admin/(webhooks|search)(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: platform-service
+                port:
+                  number: 8088
+          # Content public landing pages
+          - path: /api/v1/public/landing-pages(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: content-service
+                port:
+                  number: 8090
           # Foundation
-          - path: /api/v1/(configs|feature-flags|tenants|admin|health)(/.*)?
+          - path: /api/v1/(configs|feature-flags|tenants|core|admin|public|health|audit-logs|compliance)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -50,7 +66,7 @@ spec:
                 port:
                   number: 8082
           # Content
-          - path: /api/v1/(templates|content-blocks|assets|content|emails)(/.*)?
+          - path: /api/v1/(templates|content|assets|emails|personalization-tokens|brand-kits|landing-pages)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -58,7 +74,7 @@ spec:
                 port:
                   number: 8090
           # Campaign
-          - path: /api/v1/(campaigns|sends)(/.*)?
+          - path: /api/v1/(campaigns|send-jobs)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -66,7 +82,7 @@ spec:
                 port:
                   number: 8083
           # Delivery
-          - path: /api/v1/(providers|delivery-status)(/.*)?
+          - path: /api/v1/(providers|delivery)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -74,7 +90,7 @@ spec:
                 port:
                   number: 8084
           # Tracking (pixel + analytics + reports)
-          - path: /api/v1/(tracking|track|reports|analytics)(/.*)?
+          - path: /api/v1/(tracking|analytics|events)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
@@ -82,7 +98,7 @@ spec:
                 port:
                   number: 8085
           # Automation
-          - path: /api/v1/(workflows|triggers|workflow-definitions)(/.*)?
+          - path: /api/v1/(workflows|workflow-definitions|automation-studio)(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:

@@ -424,7 +424,7 @@ public class AdminOperationsService {
     }
 
     private long countActive(String table, String tenantId) {
-        return count("SELECT COUNT(*) FROM " + table + " WHERE tenant_id = :tenantId AND deleted_at IS NULL", Map.of("tenantId", tenantId));
+        return count("SELECT COUNT(*) FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND deleted_at IS NULL", Map.of("tenantId", tenantId));
     }
 
     private long countRoleDefinitions(String tenantId) {
@@ -468,14 +468,15 @@ public class AdminOperationsService {
     }
 
     private String latestValue(String table, String tenantId, String column, String fallback) {
+        String safeColumn = CorePlatformRepository.safeColumn(column);
         List<Map<String, Object>> rows = safeQueryForList(
-                "SELECT " + column + " FROM " + table + " WHERE tenant_id = :tenantId ORDER BY updated_at DESC LIMIT 1",
+                "SELECT " + safeColumn + " FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId ORDER BY updated_at DESC LIMIT 1",
                 Map.of("tenantId", tenantId)
         );
         if (rows.isEmpty()) {
             return fallback;
         }
-        Object value = rows.get(0).get(column);
+        Object value = rows.get(0).get(safeColumn);
         return value == null ? fallback : String.valueOf(value);
     }
 

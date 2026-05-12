@@ -1,7 +1,5 @@
 'use client';
 
-import { useCallback } from 'react';
-import { get } from '@/lib/api-client';
 import { useApi } from './useApi';
 
 interface FeatureFlagResult {

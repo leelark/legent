@@ -1,43 +1,34 @@
-cd "C:\Users\leelark.saxena\Desktop\Legent - v1.0.2"
+Local runbook
+=============
 
-mvn clean
+Validate configuration:
 
-mvn clean install -U -DskipTests
+    powershell -ExecutionPolicy Bypass -File scripts\ops\validate-env.ps1
+    powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1
+    docker compose config --quiet
 
-docker compose down -v
+Build and test:
 
-docker system prune -a -f
+    .\mvnw.cmd -DskipTests compile -T 1C
+    .\mvnw.cmd test -T 1C
+    cd frontend
+    npm run lint
+    npm run build:next
+    npm run test:e2e:smoke
+    npm run test:e2e:visual
 
-docker volume prune -f
+Start locally:
 
-docker compose build --no-cache
+    docker compose up -d --build
+    powershell -ExecutionPolicy Bypass -File scripts\ops\validate-compose-health.ps1
 
-docker compose up -d
+Inspect:
 
-docker ps
+    docker compose ps
+    docker compose logs -f gateway frontend foundation-service identity-service
 
-docker ps -a
+Stop without deleting volumes:
 
-docker logs legent-platform-service
+    docker compose down
 
-📜 7. Check logs (very important)
-docker compose logs
-
-Real-time:
-
-docker compose logs -f
-
-Save to file:
-
-docker compose logs > logs.txt 2>&1
-
-for /f "tokens=1,*" %i in ('docker ps --format "{{.ID}} {{.Names}}"') do @echo ==== %j ==== & docker logs %i >> all_logs.txt 2>&1
-------
-
-git status
-
-git add .
-
-git commit -m "AI update"
-
-git push origin main
+Only prune images, volumes, or git history when a human explicitly requests it.

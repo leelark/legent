@@ -189,7 +189,7 @@ CREATE TABLE IF NOT EXISTS slo_operations_policies (
     service_name            VARCHAR(128) NOT NULL,
     status                  VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
     slo_target_percent      NUMERIC(6,3) NOT NULL DEFAULT 99.900,
-    window                  VARCHAR(32) NOT NULL DEFAULT '30d',
+    slo_window              VARCHAR(32) NOT NULL DEFAULT '30d',
     error_budget_minutes    NUMERIC(12,3) NOT NULL DEFAULT 43.200,
     synthetic_probe         JSONB NOT NULL DEFAULT '{}',
     self_healing_actions    JSONB NOT NULL DEFAULT '[]',

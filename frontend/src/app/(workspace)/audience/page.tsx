@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Card, CardHeader } from '@/components/ui/Card';
+import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Tabs } from '@/components/ui/Tabs';
 import { PageHeader } from '@/components/ui/PageChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
   Users, ListBullets, Database, Funnel,
-  Upload, ShieldCheck, TrendUp, Plus
+  Upload, Plus
 } from '@phosphor-icons/react/dist/ssr';
 import { get } from '@/lib/api-client';
 

@@ -48,9 +48,3 @@ export const authApi = {
   completeOnboarding: (payload: { workspaceId?: string; payload?: Record<string, unknown> }) =>
     post<Record<string, unknown>>('/auth/onboarding/complete', payload),
 };
-
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  error?: string;
-}
