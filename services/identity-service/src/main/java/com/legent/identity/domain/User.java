@@ -37,6 +37,12 @@ public class User extends BaseEntity {
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "external_id")
+    private String externalId;
+
+    @Column(name = "identity_provider_id")
+    private String identityProviderId;
+
     @Builder.Default
     @Column(name = "is_active")
     private boolean isActive = true;

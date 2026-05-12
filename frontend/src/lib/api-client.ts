@@ -48,7 +48,7 @@ function isWorkspaceOptionalEndpoint(url: string | undefined): boolean {
   if (!url) {
     return false;
   }
-  return /\/api\/v1\/(?:users\/preferences|admin\/(?:bootstrap|branding|configs|contact-requests|operations|public-content|settings)|core|differentiation|platform\/(?:notifications|search|webhooks))(?:\/|$)/.test(url);
+  return /\/api\/v1\/(?:users\/preferences|admin\/(?:bootstrap|branding|configs|contact-requests|operations|public-content|settings)|core|differentiation|federation|platform\/(?:notifications|search|webhooks))(?:\/|$)/.test(url);
 }
 
 function parseApiError(error: any) {

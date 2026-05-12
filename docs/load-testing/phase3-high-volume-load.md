@@ -8,13 +8,26 @@ Purpose: exercise enterprise-scale paths for imports, segmentation/query preview
 .\scripts\load\phase3-high-volume-load.ps1 -BaseUrl http://localhost:8080/api/v1 -TenantId tenant-load -WorkspaceId workspace-load -Token $env:LEGENT_LOAD_TOKEN
 ```
 
+For a release-grade run, point at a live stack, pass a real operator token, and name the production-like dataset. The harness fails before traffic starts when these preconditions are missing:
+
+```powershell
+.\scripts\load\phase3-high-volume-load.ps1 `
+  -BaseUrl https://gateway.example.com/api/v1 `
+  -TenantId tenant-enterprise-load `
+  -WorkspaceId workspace-enterprise-load `
+  -Token $env:LEGENT_LOAD_TOKEN `
+  -DataProfileName enterprise-2026q2-volume `
+  -RequireLive `
+  -FailOnErrors
+```
+
 Use `-DryRun` in CI to validate scenario wiring without generating traffic:
 
 ```powershell
 .\scripts\load\phase3-high-volume-load.ps1 -DryRun
 ```
 
-PowerShell 5.1 runs the harness sequentially. Use PowerShell 7 when parallel execution is required for real load.
+PowerShell 5.1 runs the harness sequentially. Use PowerShell 7 when parallel execution is required for real load. The JSON output records `parallel`, `dataProfileName`, per-scenario p95 latency, error rate, and pass/fail gate.
 
 ## Gates
 

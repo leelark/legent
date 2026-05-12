@@ -42,6 +42,8 @@ public class SecurityConfig {
                         .requestMatchers(ActuatorAccess.PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(ActuatorAccess.ADMIN_ENDPOINTS).hasRole(ActuatorAccess.ADMIN_ROLE)
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/api/v1/sso/**").permitAll()
+                        .requestMatchers("/api/v1/scim/v2/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

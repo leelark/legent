@@ -48,6 +48,7 @@ import { BootstrapStatusPanel } from '@/components/admin/BootstrapStatusPanel';
 import { BrandingPanel } from '@/components/admin/BrandingPanel';
 import { ContactRequestsPanel } from '@/components/admin/ContactRequestsPanel';
 import { DifferentiationPlatformPanel } from '@/components/admin/DifferentiationPlatformPanel';
+import { FederationConfigPanel } from '@/components/admin/FederationConfigPanel';
 import { PlatformCorePanel } from '@/components/admin/PlatformCorePanel';
 import { PublicContentPanel } from '@/components/admin/PublicContentPanel';
 import { WebhookPanel } from '@/components/admin/WebhookPanel';
@@ -64,7 +65,7 @@ import {
 } from '@/lib/admin-api';
 import { coreApi } from '@/lib/core-api';
 
-type SectionId = 'command' | 'users' | 'roles' | 'audit' | 'configuration' | 'operations' | 'differentiation';
+type SectionId = 'command' | 'users' | 'roles' | 'federation' | 'audit' | 'configuration' | 'operations' | 'differentiation';
 
 type UserDraft = {
   email: string;
@@ -83,6 +84,7 @@ const sections: Array<{
   { id: 'command', label: 'System Command', kicker: 'health, jobs, drift', icon: Gauge },
   { id: 'users', label: 'Users', kicker: 'identity, sessions, access', icon: Users },
   { id: 'roles', label: 'Role Engine', kicker: 'inheritance, grants, features', icon: Fingerprint },
+  { id: 'federation', label: 'Federation', kicker: 'SAML, OIDC, SCIM', icon: KeyRound },
   { id: 'audit', label: 'Audit Center', kicker: 'investigation, export, replay', icon: FileDown },
   { id: 'configuration', label: 'Configuration', kicker: 'validated runtime control', icon: SlidersHorizontal },
   { id: 'operations', label: 'Platform Ops', kicker: 'branding, webhooks, public ops', icon: ServerCog },
@@ -417,6 +419,7 @@ export function EnterpriseAdminConsole() {
                 />
               )}
               {active === 'roles' && <RoleEngine key="roles" access={access} createOperatorRole={createOperatorRole} />}
+              {active === 'federation' && <FederationConfigPanel key="federation" />}
               {active === 'audit' && <AuditCenter key="audit" syncEvents={syncEvents} />}
               {active === 'configuration' && <ConfigurationCenter key="configuration" />}
               {active === 'operations' && <PlatformOperations key="operations" />}
