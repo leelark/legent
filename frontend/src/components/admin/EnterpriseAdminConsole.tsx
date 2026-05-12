@@ -18,6 +18,7 @@ import {
   FileDown,
   Fingerprint,
   Gauge,
+  Globe2,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -32,6 +33,7 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Sparkles,
+  Trophy,
   UserCog,
   Users,
   Workflow,
@@ -49,6 +51,8 @@ import { BrandingPanel } from '@/components/admin/BrandingPanel';
 import { ContactRequestsPanel } from '@/components/admin/ContactRequestsPanel';
 import { DifferentiationPlatformPanel } from '@/components/admin/DifferentiationPlatformPanel';
 import { FederationConfigPanel } from '@/components/admin/FederationConfigPanel';
+import { GlobalEnterprisePanel } from '@/components/admin/GlobalEnterprisePanel';
+import { PerformanceIntelligencePanel } from '@/components/admin/PerformanceIntelligencePanel';
 import { PlatformCorePanel } from '@/components/admin/PlatformCorePanel';
 import { PublicContentPanel } from '@/components/admin/PublicContentPanel';
 import { WebhookPanel } from '@/components/admin/WebhookPanel';
@@ -65,7 +69,7 @@ import {
 } from '@/lib/admin-api';
 import { coreApi } from '@/lib/core-api';
 
-type SectionId = 'command' | 'users' | 'roles' | 'federation' | 'audit' | 'configuration' | 'operations' | 'differentiation';
+type SectionId = 'command' | 'users' | 'roles' | 'federation' | 'audit' | 'configuration' | 'operations' | 'differentiation' | 'global' | 'performance';
 
 type UserDraft = {
   email: string;
@@ -89,6 +93,8 @@ const sections: Array<{
   { id: 'configuration', label: 'Configuration', kicker: 'validated runtime control', icon: SlidersHorizontal },
   { id: 'operations', label: 'Platform Ops', kicker: 'branding, webhooks, public ops', icon: ServerCog },
   { id: 'differentiation', label: 'Differentiation', kicker: 'AI, omni, SLO, SDKs', icon: Sparkles },
+  { id: 'global', label: 'Global Ops', kicker: 'regions, residency, governance', icon: Globe2 },
+  { id: 'performance', label: 'Performance Intelligence', kicker: 'decisions, optimization, ops, benchmarks', icon: Trophy },
 ];
 
 const roleOptions = ['ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN', 'SECURITY_ADMIN', 'WORKSPACE_OWNER', 'CAMPAIGN_MANAGER', 'DELIVERY_OPERATOR', 'ANALYST', 'VIEWER', 'USER'];
@@ -424,6 +430,8 @@ export function EnterpriseAdminConsole() {
               {active === 'configuration' && <ConfigurationCenter key="configuration" />}
               {active === 'operations' && <PlatformOperations key="operations" />}
               {active === 'differentiation' && <DifferentiationPlatform key="differentiation" />}
+              {active === 'global' && <GlobalEnterprise key="global" />}
+              {active === 'performance' && <PerformanceIntelligence key="performance" />}
             </AnimatePresence>
           )}
         </main>
@@ -821,6 +829,22 @@ function DifferentiationPlatform() {
   return (
     <PanelMotion>
       <DifferentiationPlatformPanel />
+    </PanelMotion>
+  );
+}
+
+function GlobalEnterprise() {
+  return (
+    <PanelMotion>
+      <GlobalEnterprisePanel />
+    </PanelMotion>
+  );
+}
+
+function PerformanceIntelligence() {
+  return (
+    <PanelMotion>
+      <PerformanceIntelligencePanel />
     </PanelMotion>
   );
 }

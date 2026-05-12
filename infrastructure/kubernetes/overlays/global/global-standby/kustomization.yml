@@ -1,0 +1,26 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: legent
+
+resources:
+  - ../../production
+  - regional-config.yml
+  - external-secret-refs.yml
+
+labels:
+  - includeSelectors: true
+    pairs:
+      legent.com/global-overlay: global-standby
+      legent.com/global-role: standby
+      legent.com/global-topology: active-warm
+
+commonAnnotations:
+  legent.com/topology-mode: ACTIVE_WARM
+  legent.com/region: us-west-2
+  legent.com/failover-default: fail-closed
+
+patches:
+  - path: global-scheduling-patch.yml
+    target:
+      kind: Deployment

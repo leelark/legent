@@ -26,6 +26,29 @@ const user = {
   lastLoginAt: '2026-05-07T09:00:00Z',
 };
 
+const performanceSummary = {
+  personalizationEvaluations: [{
+    id: 'rt-1',
+    evaluation_key: 'performance-next-best-action',
+    latency_ms: 124,
+    slo_pass: true,
+    segment_hits: [{ key: 'engaged-upgrade' }],
+  }],
+  optimizationPolicies: [{ id: 'policy-1', policy_key: 'performance-revenue-consent-policy', name: 'Revenue and Consent Policy', optimization_type: 'REVENUE', status: 'ACTIVE' }],
+  optimizationRuns: [{ id: 'run-1', optimization_type: 'REVENUE', risk_band: 'MEDIUM', blocked_reasons: [] }],
+  extensionPackages: [{ id: 'pkg-1', package_key: 'performance-safe-extension', display_name: 'Performance Safe Extension', approval_status: 'APPROVED' }],
+  extensionValidationRuns: [{ id: 'test-1', package_id: 'pkg-1', status: 'PASSED', forbidden_tokens: [] }],
+  operationsReviews: [{ id: 'ops-1', operation_type: 'INCIDENT', severity: 'P2', recommended_actions: [{ key: 'incident.route' }] }],
+  workflowBenchmarks: [{
+    id: 'ux-1',
+    benchmark_key: 'campaign-create-launch',
+    flow_name: 'Campaign create and launch',
+    verdict: 'LEADER',
+    deltas: { campaignCreationSeconds: 180, launchErrors: 3, observabilityScore: 18 },
+  }],
+  generatedAt: '2026-05-07T09:00:00Z',
+};
+
 function ok(data: unknown) {
   return {
     success: true,
@@ -191,6 +214,51 @@ async function mockAdminApis(page: Page) {
     if (path === '/admin/contact-requests') {
       return fulfill(route, paged([contact]));
     }
+    if (path === '/performance-intelligence/summary') {
+      return fulfill(route, ok(performanceSummary));
+    }
+    if (path === '/performance-intelligence/optimization/policies' && method === 'POST') {
+      const body = JSON.parse(request.postData() || '{}');
+      return fulfill(route, ok({ id: 'policy-1', ...body, status: body.status || 'ACTIVE' }));
+    }
+    if (path === '/performance-intelligence/optimization/policies') {
+      return fulfill(route, ok(performanceSummary.optimizationPolicies));
+    }
+    if (path === '/performance-intelligence/optimization/evaluate') {
+      return fulfill(route, ok(performanceSummary.optimizationRuns[0]));
+    }
+    if (path === '/performance-intelligence/personalization/evaluate') {
+      return fulfill(route, ok({
+        id: 'rt-2',
+        evaluationKey: 'performance-next-best-action',
+        latencyMs: 118,
+        sloPass: true,
+        segmentHits: [{ key: 'engaged-upgrade' }],
+        variantDecision: { eligible: true, variantKey: 'upgrade-offer' },
+      }));
+    }
+    if (path === '/performance-intelligence/extensions/packages' && method === 'POST') {
+      const body = JSON.parse(request.postData() || '{}');
+      return fulfill(route, ok({ id: 'pkg-1', ...body, approvalStatus: body.approvalStatus || 'APPROVED' }));
+    }
+    if (path === '/performance-intelligence/extensions/packages') {
+      return fulfill(route, ok(performanceSummary.extensionPackages));
+    }
+    if (path.startsWith('/performance-intelligence/extensions/packages/') && path.endsWith('/validate')) {
+      return fulfill(route, ok(performanceSummary.extensionValidationRuns[0]));
+    }
+    if (path === '/performance-intelligence/operations/assist' && method === 'POST') {
+      return fulfill(route, ok(performanceSummary.operationsReviews[0]));
+    }
+    if (path === '/performance-intelligence/operations/reviews') {
+      return fulfill(route, ok(performanceSummary.operationsReviews));
+    }
+    if (path === '/performance-intelligence/workflow-benchmarks' && method === 'POST') {
+      return fulfill(route, ok(performanceSummary.workflowBenchmarks[0]));
+    }
+    if (path === '/performance-intelligence/workflow-benchmarks') {
+      return fulfill(route, ok(performanceSummary.workflowBenchmarks));
+    }
 
     return fulfill(route, ok([]));
   });
@@ -240,4 +308,20 @@ test('admin console keeps mobile navigation usable', async ({ page }) => {
   await page.getByRole('button', { name: /Users/ }).click();
   await expect(page.getByText('User Management')).toBeVisible();
   await expect(page.locator('main.app-surface')).not.toHaveCSS('overflow-x', 'visible');
+});
+
+test('admin console exposes performance intelligence evidence and demo flow', async ({ page }) => {
+  await mockAdminApis(page);
+  await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible({ timeout: 45000 });
+  await page.getByRole('button', { name: /Performance Intelligence/ }).click();
+  await expect(page.getByRole('heading', { name: 'Performance Intelligence' })).toBeVisible();
+  await expect(page.getByText('Realtime Personalization', { exact: true })).toBeVisible();
+  await expect(page.getByText('Closed-loop Optimization', { exact: true })).toBeVisible();
+  await expect(page.getByText('Workflow Benchmarks', { exact: true })).toBeVisible();
+  await expect(page.getByText('LEADER', { exact: true }).first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Run demo evaluation' }).click();
+  await expect(page.getByText('Latest Evidence Ledger')).toBeVisible();
 });

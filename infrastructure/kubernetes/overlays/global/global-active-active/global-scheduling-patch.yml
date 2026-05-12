@@ -1,0 +1,41 @@
+- op: add
+  path: /spec/template/metadata/labels/legent.com~1global-region-set
+  value: us-east-1-eu-west-1
+- op: add
+  path: /spec/template/metadata/labels/legent.com~1global-role
+  value: active
+- op: add
+  path: /spec/template/spec/topologySpreadConstraints
+  value:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          legent.com/global-overlay: global-active-active
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/region
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          legent.com/global-overlay: global-active-active
+- op: add
+  path: /spec/template/spec/affinity
+  value:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: topology.kubernetes.io/region
+                operator: In
+                values:
+                  - us-east-1
+                  - eu-west-1
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 70
+          podAffinityTerm:
+            topologyKey: kubernetes.io/hostname
+            labelSelector:
+              matchLabels:
+                legent.com/global-overlay: global-active-active
