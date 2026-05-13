@@ -31,6 +31,17 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, String> 
     @Query("""
         SELECT s FROM Subscriber s
         WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL
+          AND (:lastSeenId IS NULL OR s.id > :lastSeenId)
+        ORDER BY s.id ASC
+    """)
+    List<Subscriber> findNextByTenantAndWorkspaceAfterId(@Param("tid") String tenantId,
+                                                         @Param("wid") String workspaceId,
+                                                         @Param("lastSeenId") String lastSeenId,
+                                                         Pageable pageable);
+
+    @Query("""
+        SELECT s FROM Subscriber s
+        WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL
           AND s.status = :status
     """)
     Page<Subscriber> findByTenantAndStatus(@Param("tid") String tenantId,

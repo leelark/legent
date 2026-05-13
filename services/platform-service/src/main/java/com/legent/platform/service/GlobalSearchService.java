@@ -42,6 +42,7 @@ public class GlobalSearchService {
             }
         } catch (JsonProcessingException e) {
             log.error("Failed to map metadata for search doc", e);
+            throw new IllegalStateException("Failed to serialize search metadata", e);
         }
 
         searchRepository.save(doc);

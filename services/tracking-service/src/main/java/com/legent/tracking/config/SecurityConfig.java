@@ -38,7 +38,7 @@ public class SecurityConfig {
                 .requestMatchers(ActuatorAccess.ADMIN_ENDPOINTS).hasRole(ActuatorAccess.ADMIN_ROLE)
                 .requestMatchers("/api/v1/health/**").permitAll()
                 .requestMatchers("/api/v1/tracking/o.gif", "/api/v1/tracking/c").permitAll()
-                .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/ws/**").authenticated()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
@@ -81,5 +82,30 @@ class TrackingEventConsumerTest {
         consumer.handleIngestedEvents(List.of(envelope));
 
         verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void handleIngestedEvents_ClickHouseFailure_RethrowsForRetry() throws Exception {
+        EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setTenantId("tenant-1");
+        envelope.setWorkspaceId("workspace-1");
+        envelope.setEventType("tracking.ingested");
+        envelope.setEventId("evt-1");
+        envelope.setIdempotencyKey("idem-1");
+        envelope.setPayload("{\"tenantId\":\"tenant-1\",\"eventType\":\"OPEN\"}");
+
+        TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
+                .tenantId("tenant-1")
+                .eventType("OPEN")
+                .timestamp(java.time.Instant.now())
+                .build();
+
+        when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(payload);
+        when(idempotencyService.registerIfNew(anyString(), anyString(), anyString(), anyString(), anyString()))
+                .thenReturn(true);
+        doThrow(new RuntimeException("clickhouse down")).when(clickHouseWriter).writeBatch(anyList());
+
+        assertThrows(IllegalStateException.class, () -> consumer.handleIngestedEvents(List.of(envelope)));
     }
 }

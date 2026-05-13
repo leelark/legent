@@ -40,17 +40,22 @@ class TenantFilterTest {
     void doFilter_whenTenantHeaderPresent_setsAndClearsContext() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");
         request.addHeader("X-Tenant-Id", "tenant-1");
+        request.addHeader("X-Workspace-Id", "workspace-1");
         MockHttpServletResponse response = new MockHttpServletResponse();
         AtomicBoolean sawTenantInChain = new AtomicBoolean(false);
+        AtomicBoolean sawWorkspaceInChain = new AtomicBoolean(false);
 
         FilterChain chain = (req, res) -> {
             sawTenantInChain.set("tenant-1".equals(TenantContext.getTenantId()));
+            sawWorkspaceInChain.set("workspace-1".equals(TenantContext.getWorkspaceId()));
         };
 
         tenantFilter.doFilter(request, response, chain);
 
         assertTrue(sawTenantInChain.get());
+        assertTrue(sawWorkspaceInChain.get());
         assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
     }
 
     @Test
@@ -68,6 +73,66 @@ class TenantFilterTest {
         assertEquals(403, response.getStatus());
         assertTrue(!chainCalled.get());
         assertNull(TenantContext.getTenantId());
+    }
+
+    @Test
+    void doFilter_whenHeaderConflictsWithAuthenticatedWorkspace_returnsForbiddenAndClearsContext() throws Exception {
+        TenantContext.setTenantId("tenant-a");
+        TenantContext.setWorkspaceId("workspace-a");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");
+        request.addHeader("X-Tenant-Id", "tenant-a");
+        request.addHeader("X-Workspace-Id", "workspace-b");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertEquals(403, response.getStatus());
+        assertTrue(!chainCalled.get());
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
+    }
+
+    @Test
+    void doFilter_whenWorkspaceHeaderMissing_preservesAuthenticatedWorkspaceDuringRequest() throws Exception {
+        TenantContext.setTenantId("tenant-a");
+        TenantContext.setWorkspaceId("workspace-a");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");
+        request.addHeader("X-Tenant-Id", "tenant-a");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean sawWorkspaceInChain = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> {
+            sawWorkspaceInChain.set("workspace-a".equals(TenantContext.getWorkspaceId()));
+        };
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertTrue(sawWorkspaceInChain.get());
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
+    }
+
+    @Test
+    void doFilter_whenHeaderConflictsWithAuthenticatedEnvironment_returnsForbiddenAndClearsContext() throws Exception {
+        TenantContext.setTenantId("tenant-a");
+        TenantContext.setEnvironmentId("prod");
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");
+        request.addHeader("X-Tenant-Id", "tenant-a");
+        request.addHeader("X-Environment-Id", "staging");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertEquals(403, response.getStatus());
+        assertTrue(!chainCalled.get());
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getEnvironmentId());
     }
 
     @Test

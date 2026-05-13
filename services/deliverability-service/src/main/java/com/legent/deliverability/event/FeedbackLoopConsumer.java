@@ -1,5 +1,6 @@
 package com.legent.deliverability.event;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.constant.AppConstants;
@@ -101,8 +102,11 @@ public class FeedbackLoopConsumer {
                 }
             }
 
+        } catch (JsonProcessingException e) {
+            log.warn("Dropping malformed feedback loop event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
         } catch (Exception e) {
             log.error("Failed to process feedback loop event", e);
+            throw new IllegalStateException("Failed to process feedback loop event", e);
         } finally {
             TenantContext.clear();
         }

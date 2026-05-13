@@ -9,7 +9,6 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Locale;
-import java.util.HashSet;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -67,13 +66,12 @@ public class DeliverabilityServiceClient {
                     .block();
 
             if (response == null || !response.has("data")) {
-                log.warn("Empty suppression list response, proceeding without suppression check");
-                return Collections.emptySet();
+                throw new SuppressionCheckException("Suppression response did not include data");
             }
 
             JsonNode data = response.get("data");
             if (!data.isArray()) {
-                return Collections.emptySet();
+                throw new SuppressionCheckException("Suppression response data is not an array");
             }
 
             // Extract suppressed emails from the response
@@ -88,12 +86,19 @@ public class DeliverabilityServiceClient {
 
         } catch (Exception e) {
             log.error("Error checking suppressed emails: {}", e.getMessage(), e);
-            if (e.getMessage() != null && e.getMessage().contains("403")) {
-                log.error("Suppression sync auth failed with 403. Failing closed for tenant {} workspace {} and suppressing {} recipients",
-                        tenantId, workspaceId, emails.size());
-                return new HashSet<>(emails);
-            }
-            return Collections.emptySet();
+            throw new SuppressionCheckException(
+                    "Failed to check suppressed emails for tenant " + tenantId + " workspace " + workspaceId,
+                    e);
+        }
+    }
+
+    public static class SuppressionCheckException extends RuntimeException {
+        public SuppressionCheckException(String message) {
+            super(message);
+        }
+
+        public SuppressionCheckException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 

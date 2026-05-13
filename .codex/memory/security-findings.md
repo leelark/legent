@@ -1,0 +1,17 @@
+# Security Findings
+
+Last updated: 2026-05-13.
+
+Open:
+
+- 2026-05-13, resolved: wildcard Kafka trusted package entries in tracking, platform, campaign, automation, deliverability, and delivery service YAML files were narrowed to `java.lang,java.util,com.legent.kafka.model`.
+- 2026-05-13, resolved: service `application.yml` and Kubernetes base defaults now use `SPRING_JPA_HIBERNATE_DDL_AUTO:validate`; intentional test `create-drop` remains. Impact: absent env/overlay fails closed instead of mutating schemas. Residual risk: startup may now reveal incomplete Flyway migrations.
+- 2026-05-13, resolved: shared `TenantFilter` now rejects `X-Workspace-Id` and `X-Environment-Id` conflicts against JWT-populated `TenantContext` and preserves authenticated workspace/environment when headers are omitted. Source: `shared/legent-security/src/main/java/com/legent/security/TenantFilter.java`. Validation: `.\mvnw.cmd -pl shared/legent-security -am test`.
+- 2026-05-13, resolved: service Kafka consumers in delivery, tracking, platform, deliverability, automation, campaign, and audience now rethrow unexpected processing failures after logging, and shared Kafka retry exhaustion publishes to declared central `kafka.dead-letter`. Validation: impacted Maven slices passed.
+- 2026-05-13, source `AGENTS.md`: inbox placement must not be guaranteed. Impact: product/security/compliance risk if UI/API claims impossible guarantee. Next action: audit copy before release.
+- 2026-05-13, resolved: tracking `/ws/analytics` now requires authentication and tenant/workspace handshake context; refreshed access tokens preserve workspace/environment claims so browser WebSocket clients do not need custom headers. Validation: focused Maven slice passed.
+- 2026-05-13, source runtime/container scan: Kubernetes base config remains unsafe as direct production target despite DDL hardening because Flyway validation is disabled, out-of-order is enabled, and MailHog/local URLs remain. Impact: wrong overlay or direct base apply could weaken production safety. Next action: document base as nonprod only or make base safer with local-only overlay.
+- 2026-05-13, source frontend scan: raw HTML rendering exists for public landing pages and template/landing preview paths; TemplateBuilder sanitizes block preview but not every raw HTML surface was verified. Impact: XSS risk depends on backend sanitizer and content trust model. Next action: audit all `dangerouslySetInnerHTML` paths and add sanitizer/contract tests.
+- 2026-05-13, source DB/API audit: many service workspace filters check header presence, not membership/authorization. Impact: workspace context spoofing risk remains for authenticated tokens without workspace claims or for services that enforce only header presence. Next action: add membership/authorization checks against identity/foundation workspace membership.
+- 2026-05-13, source DB/API audit: content and platform schemas are tenant-only, and audience data extensions are tenant-only. Impact: cross-workspace data visibility within a tenant unless product intentionally scopes these globally. Next action: decide ownership scope, add workspace columns/filters or document tenant-global behavior.
+- 2026-05-13, resolved: shared `KafkaConsumerConfig` no longer hardcodes `com.legent.*`; it defaults to `java.lang,java.util,com.legent.kafka.model`, `EventEnvelope`, and disabled type headers. Residual risk: weak `EventEnvelope<?>` / `EventEnvelope<Object>` listener payload contracts still need schema validation.

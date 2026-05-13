@@ -14,10 +14,14 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 class AuthControllerTest {
@@ -37,11 +41,52 @@ class AuthControllerTest {
 
     @Test
     void refresh_withoutRefreshCookie_returnsUnauthorizedEnvelope() {
-        var response = controller.refresh(null, mock(jakarta.servlet.http.HttpServletRequest.class), mock(jakarta.servlet.http.HttpServletResponse.class));
+        var response = controller.refresh(null, null, mock(jakarta.servlet.http.HttpServletRequest.class), mock(jakarta.servlet.http.HttpServletResponse.class));
 
         assertEquals(HttpStatus.UNAUTHORIZED, response.getStatusCode());
         assertFalse(response.getBody().isSuccess());
         assertEquals("REFRESH_TOKEN_REQUIRED", response.getBody().getError().getErrorCode());
+    }
+
+    @Test
+    void refresh_preservesWorkspaceAndEnvironmentFromExistingAccessToken() {
+        AuthService authService = mock(AuthService.class);
+        RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
+        JwtTokenProvider jwtTokenProvider = mock(JwtTokenProvider.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                refreshTokenService,
+                jwtTokenProvider
+        );
+        ReflectionTestUtils.setField(authController, "cookieSecure", true);
+        ReflectionTestUtils.setField(authController, "cookieSameSite", "Strict");
+
+        when(refreshTokenService.validateRefreshToken("refresh-token"))
+                .thenReturn(Optional.of(new RefreshTokenService.TokenValidationResult("user-1", "tenant-1")));
+        when(authService.getUserRoles("tenant-1", "user-1")).thenReturn(List.of("USER"));
+        when(jwtTokenProvider.getUserIdAllowExpired("old-access")).thenReturn(Optional.of("user-1"));
+        when(jwtTokenProvider.getTenantIdAllowExpired("old-access")).thenReturn(Optional.of("tenant-1"));
+        when(jwtTokenProvider.getWorkspaceIdAllowExpired("old-access")).thenReturn(Optional.of("workspace-1"));
+        when(jwtTokenProvider.getEnvironmentIdAllowExpired("old-access")).thenReturn(Optional.of("prod"));
+        when(jwtTokenProvider.generateToken(eq("user-1"), eq("tenant-1"), eq("workspace-1"), eq("prod"), eq(Map.of("roles", List.of("USER")))))
+                .thenReturn("new-access");
+        when(refreshTokenService.createRefreshToken(eq("user-1"), eq("tenant-1"), anyString(), anyString()))
+                .thenReturn("new-refresh");
+        when(jwtTokenProvider.getWorkspaceId("new-access")).thenReturn(Optional.of("workspace-1"));
+        when(jwtTokenProvider.getEnvironmentId("new-access")).thenReturn(Optional.of("prod"));
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.setRemoteAddr("127.0.0.1");
+        request.addHeader("User-Agent", "test-agent");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+
+        var refreshResponse = authController.refresh("refresh-token", "old-access", request, response);
+
+        assertEquals(HttpStatus.OK, refreshResponse.getStatusCode());
+        assertEquals("workspace-1", refreshResponse.getBody().getData().getWorkspaceId());
+        assertEquals("prod", refreshResponse.getBody().getData().getEnvironmentId());
+        verify(refreshTokenService).revokeToken("refresh-token");
     }
 
     @Test

@@ -36,6 +36,7 @@ public final class AppConstants {
     public static final String TOPIC_CONFIG_UPDATED = "config.updated";
     public static final String TOPIC_TENANT_BOOTSTRAP_REQUESTED = "tenant.bootstrap.requested";
     public static final String TOPIC_TENANT_BOOTSTRAP_COMPLETED = "tenant.bootstrap.completed";
+    public static final String TOPIC_KAFKA_DLQ = "kafka.dead-letter";
 
     // Audience Topics
     public static final String TOPIC_SUBSCRIBER_CREATED = "subscriber.created";

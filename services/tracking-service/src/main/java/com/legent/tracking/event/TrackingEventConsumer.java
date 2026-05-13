@@ -1,5 +1,6 @@
 package com.legent.tracking.event;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.constant.AppConstants;
@@ -88,8 +89,11 @@ public class TrackingEventConsumer {
                 RawEvent rawEvent = toRawEvent(payload);
                 aggregationService.aggregateEvent(rawEvent);
 
+            } catch (JsonProcessingException e) {
+                log.warn("Dropping malformed tracking event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
             } catch (Exception e) {
-                log.error("Failed to parse tracking event", e);
+                log.error("Failed to process tracking event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
+                throw new IllegalStateException("Failed to process tracking event", e);
             }
         }
 
@@ -98,6 +102,7 @@ public class TrackingEventConsumer {
                 clickHouseWriter.writeBatch(batch);
             } catch (Exception e) {
                 log.error("Failed to write batch to ClickHouse", e);
+                throw new IllegalStateException("Failed to write tracking batch to ClickHouse", e);
             }
         }
     }

@@ -40,6 +40,7 @@ public class PlatformEventConsumer {
 
         } catch (Exception e) {
             log.error("Failed to process webhook trigger", e);
+            throw new IllegalStateException("Failed to process webhook trigger", e);
         } finally {
             TenantContext.clear();
         }
@@ -61,6 +62,7 @@ public class PlatformEventConsumer {
 
         } catch (Exception e) {
             log.error("Failed to process notification creation", e);
+            throw new IllegalStateException("Failed to process notification creation", e);
         } finally {
             TenantContext.clear();
         }
@@ -83,6 +85,7 @@ public class PlatformEventConsumer {
 
         } catch (Exception e) {
             log.error("Failed to update abstract search index", e);
+            throw new IllegalStateException("Failed to update abstract search index", e);
         } finally {
             TenantContext.clear();
         }

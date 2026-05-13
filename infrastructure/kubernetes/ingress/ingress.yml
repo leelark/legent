@@ -12,9 +12,9 @@ metadata:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/enable-cors: "true"
-    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.legent.com, https://admin.legent.com, http://app.legent.local"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.legent.com, https://admin.legent.com"
     nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
-    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Tenant-Id, X-Correlation-Id, X-Request-Id"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Tenant-Id, X-Workspace-Id, X-Environment-Id, X-Correlation-Id, X-Request-Id"
     nginx.ingress.kubernetes.io/server-snippet: |
       location ~* ^/actuator(/|$) {
         return 404;
@@ -22,9 +22,17 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: api.legent.local
+    - host: api.legent.com
       http:
         paths:
+          # Tracking analytics websocket
+          - path: /ws/analytics(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tracking-service
+                port:
+                  number: 8085
           # Identity
           - path: /api/v1/(auth|users)(/.*)?
             pathType: ImplementationSpecific
@@ -121,7 +129,7 @@ spec:
                 name: platform-service
                 port:
                   number: 8088
-    - host: app.legent.local
+    - host: app.legent.com
       http:
         paths:
           - path: /

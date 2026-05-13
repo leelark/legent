@@ -122,6 +122,11 @@ if (-not $SkipKustomize) {
             Pop-Location
         }
     }
+
+    Invoke-GateStep "Production overlay drift checks" {
+        $scriptPath = Join-Path $repoRoot "scripts\ops\validate-production-overlay.ps1"
+        & $scriptPath
+    }
 }
 
 if ($RunSyntheticSmoke) {

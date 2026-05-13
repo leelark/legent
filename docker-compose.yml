@@ -75,10 +75,12 @@ services:
     container_name: legent-redis
     command: >
       sh -c "redis-server ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}"
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "if [ -n \"$${REDIS_PASSWORD:-}\" ]; then REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping >/dev/null; else redis-cli ping >/dev/null; fi"]
       interval: 5s
       timeout: 3s
       retries: 15
@@ -185,7 +187,7 @@ services:
           exit 1
         }
         for spec in \
-          system.initialized:3 identity.user.signup:3 config.updated:3 tenant.bootstrap.requested:3 tenant.bootstrap.completed:3 \
+          system.initialized:3 identity.user.signup:3 config.updated:3 tenant.bootstrap.requested:3 tenant.bootstrap.completed:3 kafka.dead-letter:1 \
           subscriber.created:3 subscriber.updated:3 subscriber.deleted:3 segment.created:3 segment.updated:3 segment.recomputed:3 \
           send.requested:3 send.audience.resolution.requested:3 send.audience.resolved:3 send.processing:3 send.batch.created:6 send.batch.completed:6 send.completed:3 send.failed:3 \
           content.published:3 email.send.requested:6 email.sent:6 email.failed:6 email.failed.dlq:3 email.retry.scheduled:3 email.bounced:3 email.complaint:3 email.unsubscribed:3 email.open:6 email.click:6 email.delivered:3 \

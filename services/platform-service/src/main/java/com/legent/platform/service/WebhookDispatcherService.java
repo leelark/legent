@@ -18,7 +18,6 @@ import com.legent.platform.repository.WebhookRetryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -45,10 +44,8 @@ public class WebhookDispatcherService {
     private final ObjectMapper objectMapper;
 
     /**
-     * AUDIT-014: Non-blocking webhook dispatch.
-     * Uses reactive pipeline without blocking the async executor thread.
+     * Dispatches matching webhooks and only returns after delivery succeeds or a retry is durably stored.
      */
-    @Async("webhookExecutor")
     public void dispatch(String tenantId, String eventType, Object payload) {
         
         List<WebhookConfig> configs = configRepository.findByTenantIdAndIsActiveTrue(tenantId);
@@ -67,7 +64,7 @@ public class WebhookDispatcherService {
             jsonPayload = objectMapper.writeValueAsString(payload);
         } catch (Exception e) {
             log.error("Failed to serialize webhook payload", e);
-            return;
+            throw new IllegalStateException("Failed to serialize webhook payload", e);
         }
 
         // Collect all webhook dispatch Monos for concurrent execution
@@ -147,6 +144,7 @@ public class WebhookDispatcherService {
         } catch (Exception e) {
             log.error("Failed to store webhook retry: tenant={}, webhook={}, error={}", 
                     tenantId, webhookId, e.getMessage(), e);
+            throw new IllegalStateException("Failed to store webhook retry", e);
         }
     }
 

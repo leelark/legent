@@ -1,5 +1,6 @@
 package com.legent.automation.event;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.constant.AppConstants;
@@ -89,8 +90,11 @@ public class WorkflowTriggerConsumer {
                     requestId,
                     event.getCorrelationId()
             );
+        } catch (JsonProcessingException e) {
+            log.warn("Dropping malformed workflow.trigger event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
         } catch (Exception e) {
-            log.error("Failed to parse or trigger workflow execution", e);
+            log.error("Failed to trigger workflow execution. eventId={}", event == null ? "unknown" : event.getEventId(), e);
+            throw new IllegalStateException("Failed to trigger workflow execution", e);
         } finally {
             com.legent.security.TenantContext.clear();
         }

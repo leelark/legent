@@ -49,7 +49,12 @@ public class DeliveryEventConsumer {
             }
             orchestrationService.processSendRequest(payload, event.getTenantId(), event.getEventId());
         } catch (Exception e) {
-            log.error("Error processing text send request {}", event.getEventId(), e);
+            String eventId = event != null ? event.getEventId() : "<unknown>";
+            log.error("Error processing email send request {}", eventId, e);
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("Error processing email send request " + eventId, e);
         } finally {
             TenantContext.clear();
         }

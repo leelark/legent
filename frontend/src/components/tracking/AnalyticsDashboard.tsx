@@ -14,6 +14,7 @@ import {
   Legend,
 } from 'chart.js';
 import { subscribeAnalytics } from '@/lib/analytics-ws';
+import { WORKSPACE_STORAGE_KEY } from '@/lib/auth';
 import { useTenantStore } from '@/stores/tenantStore';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
@@ -26,8 +27,9 @@ export const AnalyticsDashboard: React.FC = () => {
 
   useEffect(() => {
     getEventCounts().then(setCounts);
-    if (currentTenant?.id) {
-      const unsub = subscribeAnalytics(currentTenant.id, (data) => setCounts(data));
+    const workspaceId = typeof window !== 'undefined' ? localStorage.getItem(WORKSPACE_STORAGE_KEY) : null;
+    if (currentTenant?.id && workspaceId) {
+      const unsub = subscribeAnalytics(currentTenant.id, workspaceId, (data) => setCounts(data));
       return unsub;
     }
   }, [currentTenant?.id]);

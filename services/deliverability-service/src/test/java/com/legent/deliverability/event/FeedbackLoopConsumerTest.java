@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -87,5 +88,20 @@ class FeedbackLoopConsumerTest {
         consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED);
 
         verifyNoInteractions(suppressionRepository, reputationEngine);
+    }
+
+    @Test
+    void consumeDeliveryFailedEvents_SuppressionSaveFailure_RethrowsForRetry() {
+        String jsonPayload = "{\"email\":\"bad@example.com\", \"bounceType\":\"HARD\", \"domainId\":\"d1\"}";
+        EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId("w1");
+
+        when(suppressionRepository.findByTenantIdAndWorkspaceIdAndEmail("t1", "w1", "bad@example.com"))
+                .thenReturn(Optional.empty());
+        when(suppressionRepository.save(any(SuppressionList.class)))
+                .thenThrow(new RuntimeException("database unavailable"));
+
+        assertThrows(IllegalStateException.class,
+                () -> consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED));
     }
 }

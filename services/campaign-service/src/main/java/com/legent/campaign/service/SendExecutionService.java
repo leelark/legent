@@ -5,9 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.domain.Campaign;
 import com.legent.common.constant.AppConstants;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 
 import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
@@ -46,6 +50,9 @@ public class SendExecutionService {
 
     @Value("${legent.campaign.send.max-batch-retries:5}")
     private int maxBatchRetries;
+
+    @Value("${legent.campaign.send.render-cache-max-entries:1000}")
+    private int maxRenderCacheEntries;
 
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
@@ -105,6 +112,7 @@ public class SendExecutionService {
             // Limit by domain throttling rules before publishing to delivery.
             int acquiredPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), preparedRecipients.size());
             int publishFailures = 0;
+            Map<RenderCacheKey, ContentServiceClient.RenderedContent> renderCache = newRenderCache();
             
             for (int i = 0; i < acquiredPermits; i++) {
                 CampaignSendSafetyService.PreparedRecipient prepared = preparedRecipients.get(i);
@@ -126,9 +134,11 @@ public class SendExecutionService {
                     String renderContentId = prepared.contentIdOverride() != null && !prepared.contentIdOverride().isBlank()
                             ? prepared.contentIdOverride()
                             : campaign.getContentId();
-                    ContentServiceClient.RenderedContent rendered = contentServiceClient.renderTemplate(
+                    ContentServiceClient.RenderedContent rendered = renderWithBatchCache(
+                            renderCache,
                             tenantId,
                             renderContentId,
+                            prepared.subjectOverride(),
                             variables);
                     String subject = prepared.subjectOverride() != null && !prepared.subjectOverride().isBlank()
                             ? prepared.subjectOverride()
@@ -252,6 +262,65 @@ public class SendExecutionService {
             reconcileJobIfFinished(batch);
         } catch (Exception e) {
             log.error("Failed to enqueue batch {}", batchId, e);
+        }
+    }
+
+    private Map<RenderCacheKey, ContentServiceClient.RenderedContent> newRenderCache() {
+        int maxEntries = Math.max(0, maxRenderCacheEntries);
+        if (maxEntries == 0) {
+            return Collections.emptyMap();
+        }
+        return new LinkedHashMap<>(Math.min(16, maxEntries), 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<RenderCacheKey, ContentServiceClient.RenderedContent> eldest) {
+                return size() > maxEntries;
+            }
+        };
+    }
+
+    private ContentServiceClient.RenderedContent renderWithBatchCache(
+            Map<RenderCacheKey, ContentServiceClient.RenderedContent> renderCache,
+            String tenantId,
+            String renderContentId,
+            String subjectOverride,
+            Map<String, Object> variables) {
+        if (renderCache.isEmpty() && maxRenderCacheEntries <= 0) {
+            return contentServiceClient.renderTemplate(tenantId, renderContentId, variables);
+        }
+        RenderCacheKey key = RenderCacheKey.from(renderContentId, subjectOverride, variables);
+        ContentServiceClient.RenderedContent cached = renderCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        ContentServiceClient.RenderedContent rendered = contentServiceClient.renderTemplate(tenantId, renderContentId, variables);
+        renderCache.put(key, rendered);
+        return rendered;
+    }
+
+    private record RenderCacheKey(String renderContentId,
+                                  String subjectOverride,
+                                  SortedMap<String, String> variables) {
+        static RenderCacheKey from(String renderContentId, String subjectOverride, Map<String, Object> variables) {
+            TreeMap<String, String> normalizedVariables = new TreeMap<>();
+            if (variables != null) {
+                variables.forEach((key, value) -> {
+                    if (key != null) {
+                        normalizedVariables.put(key, value == null ? null : value.toString());
+                    }
+                });
+            }
+            return new RenderCacheKey(
+                    normalizeText(renderContentId),
+                    normalizeText(subjectOverride),
+                    Collections.unmodifiableSortedMap(normalizedVariables));
+        }
+
+        private static String normalizeText(String value) {
+            if (value == null) {
+                return null;
+            }
+            String normalized = value.trim();
+            return normalized.isEmpty() ? null : normalized;
         }
     }
 

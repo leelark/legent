@@ -111,6 +111,7 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<ApiResponse<LoginResponse>> refresh(
             @CookieValue(name = REFRESH_COOKIE_NAME, required = false) String refreshToken,
+            @CookieValue(name = TOKEN_COOKIE_NAME, required = false) String accessToken,
             HttpServletRequest httpRequest,
             HttpServletResponse response) {
         if (refreshToken == null || refreshToken.isBlank()) {
@@ -129,7 +130,14 @@ public class AuthController {
             return unauthorized("USER_NOT_FOUND", "User is inactive or does not exist", "Please sign in again");
         }
 
-        String newToken = jwtTokenProvider.generateToken(result.userId(), result.tenantId(), Map.of("roles", roles));
+        String workspaceId = preserveWorkspaceClaim(accessToken, result.userId(), result.tenantId());
+        String environmentId = preserveEnvironmentClaim(accessToken, result.userId(), result.tenantId());
+        String newToken = jwtTokenProvider.generateToken(
+                result.userId(),
+                result.tenantId(),
+                workspaceId,
+                environmentId,
+                Map.of("roles", roles));
         String newRefreshToken = refreshTokenService.createRefreshToken(
                 result.userId(), result.tenantId(),
                 httpRequest.getHeader("User-Agent"),
@@ -352,6 +360,29 @@ public class AuthController {
         String workspaceId = jwtTokenProvider.getWorkspaceId(token).orElse(null);
         String environmentId = jwtTokenProvider.getEnvironmentId(token).orElse(null);
         return new LoginResponse(status, userId, tenantId, roles, workspaceId, environmentId);
+    }
+
+    private String preserveWorkspaceClaim(String accessToken, String userId, String tenantId) {
+        if (!sameRefreshSubject(accessToken, userId, tenantId)) {
+            return null;
+        }
+        return jwtTokenProvider.getWorkspaceIdAllowExpired(accessToken).orElse(null);
+    }
+
+    private String preserveEnvironmentClaim(String accessToken, String userId, String tenantId) {
+        if (!sameRefreshSubject(accessToken, userId, tenantId)) {
+            return null;
+        }
+        return jwtTokenProvider.getEnvironmentIdAllowExpired(accessToken).orElse(null);
+    }
+
+    private boolean sameRefreshSubject(String accessToken, String userId, String tenantId) {
+        return jwtTokenProvider.getUserIdAllowExpired(accessToken)
+                .filter(userId::equals)
+                .isPresent()
+                && jwtTokenProvider.getTenantIdAllowExpired(accessToken)
+                .filter(tenantId::equals)
+                .isPresent();
     }
 
     private ResponseEntity<ApiResponse<LoginResponse>> unauthorized(String errorCode, String message, String details) {

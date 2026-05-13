@@ -134,6 +134,10 @@ public class JwtTokenProvider {
         return validateToken(token).map(Claims::getSubject);
     }
 
+    public Optional<String> getUserIdAllowExpired(String token) {
+        return parseTokenAllowExpired(token).map(Claims::getSubject);
+    }
+
     /**
      * Extracts tenant ID from a token.
      */
@@ -141,12 +145,24 @@ public class JwtTokenProvider {
         return validateToken(token).map(c -> c.get("tenantId", String.class));
     }
 
+    public Optional<String> getTenantIdAllowExpired(String token) {
+        return parseTokenAllowExpired(token).map(c -> c.get("tenantId", String.class));
+    }
+
     public Optional<String> getWorkspaceId(String token) {
         return validateToken(token).map(c -> c.get("workspaceId", String.class));
     }
 
+    public Optional<String> getWorkspaceIdAllowExpired(String token) {
+        return parseTokenAllowExpired(token).map(c -> c.get("workspaceId", String.class));
+    }
+
     public Optional<String> getEnvironmentId(String token) {
         return validateToken(token).map(c -> c.get("environmentId", String.class));
+    }
+
+    public Optional<String> getEnvironmentIdAllowExpired(String token) {
+        return parseTokenAllowExpired(token).map(c -> c.get("environmentId", String.class));
     }
 
     /**
@@ -168,5 +184,24 @@ public class JwtTokenProvider {
             return Collections.singletonList((String) roles);
         }
         return Collections.emptyList();
+    }
+
+    private Optional<Claims> parseTokenAllowExpired(String token) {
+        try {
+            if (token == null || token.isBlank()) {
+                return Optional.empty();
+            }
+            Claims claims = Jwts.parser()
+                    .verifyWith(signingKey)
+                    .build()
+                    .parseSignedClaims(token)
+                    .getPayload();
+            return Optional.of(claims);
+        } catch (ExpiredJwtException e) {
+            return Optional.ofNullable(e.getClaims());
+        } catch (JwtException | IllegalArgumentException e) {
+            log.warn("JWT claim extraction failed: {}", e.getMessage());
+            return Optional.empty();
+        }
     }
 }

@@ -17,8 +17,11 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -84,6 +87,28 @@ class WebhookDispatcherServiceTest {
         verify(webClient, never()).post();
     }
 
+    @Test
+    void dispatch_whenDeliveryFails_persistsRetryBeforeReturning() {
+        WebhookConfig config = config("hk1", "[\"email.bounced\"]");
+        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        mockPostChainWithError();
+
+        assertDoesNotThrow(() -> service.dispatch("t1", "email.bounced", Map.of("test", "data")));
+
+        verify(retryRepository).save(any());
+    }
+
+    @Test
+    void dispatch_whenRetryPersistenceFails_throws() {
+        WebhookConfig config = config("hk1", "[\"email.bounced\"]");
+        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        doThrow(new IllegalStateException("database unavailable")).when(retryRepository).save(any());
+        mockPostChainWithError();
+
+        assertThrows(IllegalStateException.class,
+                () -> service.dispatch("t1", "email.bounced", Map.of("test", "data")));
+    }
+
     private void mockPostChain() {
         when(webClient.post()).thenReturn(requestBodyUriSpec);
         when(requestBodyUriSpec.uri(any(URI.class))).thenReturn(requestBodySpec);
@@ -91,6 +116,15 @@ class WebhookDispatcherServiceTest {
         when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
         when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
         when(requestHeadersSpec.exchangeToMono(any())).thenReturn(Mono.just(true));
+    }
+
+    private void mockPostChainWithError() {
+        when(webClient.post()).thenReturn(requestBodyUriSpec);
+        when(requestBodyUriSpec.uri(any(URI.class))).thenReturn(requestBodySpec);
+        when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+        when(requestBodySpec.header(anyString(), anyString())).thenReturn(requestBodySpec);
+        when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
+        when(requestHeadersSpec.exchangeToMono(any())).thenReturn(Mono.error(new IllegalArgumentException("delivery failed")));
     }
 
     private WebhookConfig config(String id, String eventsSubscribed) {

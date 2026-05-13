@@ -14,6 +14,7 @@ data:
   OPENSEARCH_URL: "https://search.production.legent.internal"
   SEARCH_ENABLED: "true"
   CLICKHOUSE_HOST: "clickhouse.production.legent.internal"
+  CLICKHOUSE_DB: "legent_analytics"
   MAIL_HOST: "smtp.production.legent.internal"
   MAIL_PORT: "587"
   MAIL_SMTP_AUTH: "true"

@@ -77,7 +77,8 @@ public class CampaignEventConsumer {
             batchingService.processResolvedAudienceChunk(event.getTenantId(), jobId, subscribers, isLastChunk);
 
         } catch (Exception e) {
-            log.error("Failed handling TOPIC_AUDIENCE_RESOLVED {}", event.getEventId(), e);
+            log.error("Failed handling TOPIC_AUDIENCE_RESOLVED {}", eventId(event), e);
+            throw new IllegalStateException("Failed handling TOPIC_AUDIENCE_RESOLVED", e);
         } finally {
             TenantContext.clear();
         }
@@ -104,7 +105,8 @@ public class CampaignEventConsumer {
                 log.warn("SEND_PROCESSING event {} missing jobId/batchId - ignored", event.getEventId());
             }
         } catch (Exception e) {
-            log.error("Failed handling TOPIC_SEND_PROCESSING {}", event.getEventId(), e);
+            log.error("Failed handling TOPIC_SEND_PROCESSING {}", eventId(event), e);
+            throw new IllegalStateException("Failed handling TOPIC_SEND_PROCESSING", e);
         } finally {
             TenantContext.clear();
         }
@@ -131,7 +133,8 @@ public class CampaignEventConsumer {
             executionService.executeBatch(event.getTenantId(), jobId, batchId, null); // passing null as it will fetch from db
 
         } catch (Exception e) {
-            log.error("Failed handling TOPIC_BATCH_CREATED {}", event.getEventId(), e);
+            log.error("Failed handling TOPIC_BATCH_CREATED {}", eventId(event), e);
+            throw new IllegalStateException("Failed handling TOPIC_BATCH_CREATED", e);
         } finally {
             TenantContext.clear();
         }
@@ -171,7 +174,8 @@ public class CampaignEventConsumer {
                     .build();
             orchestrationService.triggerFromAutomation(campaignId, request);
         } catch (Exception e) {
-            log.error("Failed handling TOPIC_SEND_REQUESTED {}", event.getEventId(), e);
+            log.error("Failed handling TOPIC_SEND_REQUESTED {}", eventId(event), e);
+            throw new IllegalStateException("Failed handling TOPIC_SEND_REQUESTED", e);
         } finally {
             TenantContext.clear();
         }
@@ -221,7 +225,8 @@ public class CampaignEventConsumer {
                     stringValue(payload.get("eventType")),
                     metadata);
         } catch (Exception e) {
-            log.error("Failed handling TOPIC_TRACKING_INGESTED {}", event.getEventId(), e);
+            log.error("Failed handling TOPIC_TRACKING_INGESTED {}", eventId(event), e);
+            throw new IllegalStateException("Failed handling TOPIC_TRACKING_INGESTED", e);
         }
     }
 
@@ -291,7 +296,8 @@ public class CampaignEventConsumer {
 
             reconcileJobAndCampaignState(job);
         } catch (Exception e) {
-            log.error("Failed reconciling delivery feedback {}", event.getEventId(), e);
+            log.error("Failed reconciling delivery feedback {}", eventId(event), e);
+            throw new IllegalStateException("Failed reconciling delivery feedback", e);
         } finally {
             TenantContext.clear();
         }
@@ -390,5 +396,9 @@ public class CampaignEventConsumer {
         }
         String normalized = String.valueOf(value).trim();
         return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String eventId(EventEnvelope<?> event) {
+        return event == null ? "unknown" : event.getEventId();
     }
 }

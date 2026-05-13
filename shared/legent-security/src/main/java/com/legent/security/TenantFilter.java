@@ -45,26 +45,28 @@ public class TenantFilter extends OncePerRequestFilter {
             @org.springframework.lang.NonNull FilterChain filterChain) throws ServletException, IOException {
         try {
             String path = request.getRequestURI();
-            String tenantId = request.getHeader(AppConstants.HEADER_TENANT_ID);
-            String workspaceId = request.getHeader(AppConstants.HEADER_WORKSPACE_ID);
-            String environmentId = request.getHeader(AppConstants.HEADER_ENVIRONMENT_ID);
-            String requestId = request.getHeader(AppConstants.HEADER_REQUEST_ID);
-            String correlationId = request.getHeader(AppConstants.HEADER_CORRELATION_ID);
-            if (tenantId == null || tenantId.isBlank()) {
-                tenantId = request.getParameter("t");
+            String tenantId = blankToNull(request.getHeader(AppConstants.HEADER_TENANT_ID));
+            String workspaceId = blankToNull(request.getHeader(AppConstants.HEADER_WORKSPACE_ID));
+            String environmentId = blankToNull(request.getHeader(AppConstants.HEADER_ENVIRONMENT_ID));
+            String requestId = blankToNull(request.getHeader(AppConstants.HEADER_REQUEST_ID));
+            String correlationId = blankToNull(request.getHeader(AppConstants.HEADER_CORRELATION_ID));
+            if (tenantId == null) {
+                tenantId = blankToNull(request.getParameter("t"));
             }
 
-            if (requestId == null || requestId.isBlank()) {
+            if (requestId == null) {
                 requestId = IdGenerator.newId();
             }
-            if (correlationId == null || correlationId.isBlank()) {
+            if (correlationId == null) {
                 correlationId = requestId;
             }
 
             String currentTenantId = TenantContext.getTenantId();
+            String currentWorkspaceId = TenantContext.getWorkspaceId();
+            String currentEnvironmentId = TenantContext.getEnvironmentId();
 
             // If tenant is missing and path is NOT tenant-free, fail
-            if ((tenantId == null || tenantId.isBlank()) && (currentTenantId == null || currentTenantId.isBlank())) {
+            if (tenantId == null && currentTenantId == null) {
                 if (isTenantFreePath(path)) {
                     filterChain.doFilter(request, response);
                     return;
@@ -83,17 +85,33 @@ public class TenantFilter extends OncePerRequestFilter {
             }
 
             // If tenantId provided (header/param) and differs from currentTenantId (from JWT), it's a conflict
-            if (tenantId != null && !tenantId.isBlank() && currentTenantId != null && !currentTenantId.isBlank() && !currentTenantId.equals(tenantId)) {
+            if (tenantId != null && currentTenantId != null && !currentTenantId.equals(tenantId)) {
                 log.error("Tenant ID conflict: JWT={}, Provided={}", currentTenantId, tenantId);
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 return;
             }
 
-            if ((currentTenantId == null || currentTenantId.isBlank()) && tenantId != null && !tenantId.isBlank()) {
+            if (workspaceId != null && currentWorkspaceId != null && !currentWorkspaceId.equals(workspaceId)) {
+                log.error("Workspace ID conflict: JWT={}, Provided={}", currentWorkspaceId, workspaceId);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+
+            if (environmentId != null && currentEnvironmentId != null && !currentEnvironmentId.equals(environmentId)) {
+                log.error("Environment ID conflict: JWT={}, Provided={}", currentEnvironmentId, environmentId);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+
+            if (currentTenantId == null && tenantId != null) {
                 TenantContext.setTenantId(tenantId);
             }
-            TenantContext.setWorkspaceId(workspaceId);
-            TenantContext.setEnvironmentId(environmentId);
+            if (currentWorkspaceId == null && workspaceId != null) {
+                TenantContext.setWorkspaceId(workspaceId);
+            }
+            if (currentEnvironmentId == null && environmentId != null) {
+                TenantContext.setEnvironmentId(environmentId);
+            }
             TenantContext.setRequestId(requestId);
             TenantContext.setCorrelationId(correlationId);
 
@@ -108,5 +126,12 @@ public class TenantFilter extends OncePerRequestFilter {
 
     private boolean isTenantFreePath(String path) {
         return TENANT_FREE_PATHS.stream().anyMatch(path::startsWith);
+    }
+
+    private String blankToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

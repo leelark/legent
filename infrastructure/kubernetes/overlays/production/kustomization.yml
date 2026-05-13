@@ -12,6 +12,30 @@ resources:
   - resource-budget.yml
   - pod-disruption-budgets.yml
 
+images:
+  - name: legent/frontend
+    newTag: "1.0.2"
+  - name: legent/audience-service
+    newTag: "1.0.2"
+  - name: legent/automation-service
+    newTag: "1.0.2"
+  - name: legent/campaign-service
+    newTag: "1.0.2"
+  - name: legent/content-service
+    newTag: "1.0.2"
+  - name: legent/deliverability-service
+    newTag: "1.0.2"
+  - name: legent/delivery-service
+    newTag: "1.0.2"
+  - name: legent/foundation-service
+    newTag: "1.0.2"
+  - name: legent/identity-service
+    newTag: "1.0.2"
+  - name: legent/platform-service
+    newTag: "1.0.2"
+  - name: legent/tracking-service
+    newTag: "1.0.2"
+
 patches:
   - path: delete-base-secret.yml
     target:

@@ -14,6 +14,14 @@ import org.springframework.kafka.config.TopicBuilder;
 public class KafkaTopicConfig {
 
     @Bean
+    public NewTopic kafkaDeadLetterTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_KAFKA_DLQ)
+                .partitions(1)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic emailSentTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_EMAIL_SENT)
                 .partitions(6)

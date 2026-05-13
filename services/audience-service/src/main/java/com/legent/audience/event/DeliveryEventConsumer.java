@@ -66,6 +66,7 @@ public class DeliveryEventConsumer {
 
         } catch (Exception e) {
             log.error("Failed to process delivery event: {}", envelope != null ? envelope.getEventId() : "unknown", e);
+            throw new IllegalStateException("Failed to process delivery event", e);
         }
     }
 

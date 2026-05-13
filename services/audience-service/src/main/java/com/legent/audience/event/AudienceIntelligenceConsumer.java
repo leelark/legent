@@ -31,6 +31,7 @@ public class AudienceIntelligenceConsumer {
                     envelope.getPayload());
         } catch (Exception e) {
             log.error("Failed to process audience tracking intelligence event", e);
+            throw new IllegalStateException("Failed to process audience tracking intelligence event", e);
         }
     }
 
@@ -54,6 +55,7 @@ public class AudienceIntelligenceConsumer {
                     envelope.getPayload());
         } catch (Exception e) {
             log.error("Failed to process audience automation intelligence event", e);
+            throw new IllegalStateException("Failed to process audience automation intelligence event", e);
         }
     }
 

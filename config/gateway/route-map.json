@@ -37,6 +37,7 @@
     { "prefix": "/api/v1/tracking", "service": "tracking-service", "nginxUpstream": "tracking_service" },
     { "prefix": "/api/v1/analytics", "service": "tracking-service", "nginxUpstream": "tracking_service" },
     { "prefix": "/api/v1/events", "service": "tracking-service", "nginxUpstream": "tracking_service" },
+    { "prefix": "/ws/analytics", "service": "tracking-service", "nginxUpstream": "tracking_service" },
     { "prefix": "/api/v1/deliverability", "service": "deliverability-service", "nginxUpstream": "deliverability_service" },
     { "prefix": "/api/v1/reputation", "service": "deliverability-service", "nginxUpstream": "deliverability_service" },
     { "prefix": "/api/v1/dmarc", "service": "deliverability-service", "nginxUpstream": "deliverability_service" },
