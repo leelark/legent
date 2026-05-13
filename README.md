@@ -1,117 +1,237 @@
-# Legent: Email Studio
+# Legent Email Studio
 
-Enterprise lifecycle email operating system with a Next.js frontend, Spring Boot microservices, PostgreSQL, Kafka, Redis, ClickHouse, OpenSearch, object storage, Docker Compose, and Kubernetes manifests.
+Legent is an enterprise email marketing, lifecycle automation, deliverability, and analytics platform. It provides a Next.js workspace UI backed by Java/Spring microservices, Kafka event processing, PostgreSQL service databases, Redis, MinIO, OpenSearch, ClickHouse, Docker Compose, and Kubernetes deployment manifests.
 
-## Prerequisites
+The product is designed for teams that need audience management, email content creation, campaign approvals, high-volume send orchestration, provider-aware delivery, tracking, automation journeys, deliverability monitoring, and admin controls.
 
-- Java 21
-- Maven 3.9+ or the included `mvnw.cmd`
-- Node.js 20.9 through 24.x and npm 10+
-- Docker Desktop with Compose
-- `kubectl` when validating Kubernetes overlays
+Important: no email platform can guarantee that all mail from a new domain or new address lands in the inbox. Legent should optimize authentication, warmup, throttling, suppression compliance, targeting, provider feedback, and reputation. The current delivery code intentionally limits new sender/provider warmup.
+
+## Features
+
+- Multi-tenant signup, login, HTTP-only cookie sessions, workspace/environment context, invitations, delegation, SSO, and SCIM.
+- Tenant/workspace foundation, enterprise settings, entitlements, and admin governance.
+- Subscriber management, data extensions, preferences, CSV imports, segmentation, and audience resolution.
+- Email templates, snippets, brand kits, personalization, dynamic content, landing pages, validation, and test sends.
+- Campaign drafting, approvals, preflight, scheduling, launch orchestration, batching, and feedback reconciliation.
+- Delivery provider selection, message logs, inbox safety checks, warmup, rate control, retry, bounce, and failure events.
+- Signed open/click tracking, conversion ingestion, outbox, ClickHouse analytics, rollups, and WebSocket analytics updates.
+- Automation workflows, triggers, node execution, delays, and scheduled journeys.
+- Deliverability suppressions, domain/DNS verification, feedback loops, and reputation metrics.
+- Platform integrations, webhooks, retries, and import platform services.
+- Docker Compose local stack and Kubernetes base/production overlays.
+
+## Tech Stack
+
+- Frontend: Next.js 16, React 19, TypeScript, Tailwind CSS, Zustand, Axios, Framer Motion, GSAP, Chart.js, Playwright.
+- Backend: Java 21, Spring Boot 3.2, Spring Security, Spring Data JPA, Spring Kafka, Flyway, MapStruct, Lombok, Micrometer, Resilience4j.
+- Data and infrastructure: PostgreSQL, Redis, Kafka, MinIO, OpenSearch, ClickHouse, MailHog, Nginx.
+- Build and tests: Maven, npm, Testcontainers, Playwright, Docker Compose, Kubernetes kustomize.
+
+## Folder Structure
+
+```text
+.
++-- config/                    # Nginx, gateway route map, database init, local config
++-- docs/                      # Audits, runbooks, contracts, production and load-test notes
++-- frontend/                  # Next.js application and Playwright tests
++-- infrastructure/            # Kubernetes manifests, overlays, observability, secrets templates
++-- scripts/                   # Ops, release, validation, build, and load-test scripts
++-- sdk/                       # SDK/client code
++-- services/                  # Spring Boot microservices
+|   +-- audience-service
+|   +-- automation-service
+|   +-- campaign-service
+|   +-- content-service
+|   +-- deliverability-service
+|   +-- delivery-service
+|   +-- foundation-service
+|   +-- identity-service
+|   +-- platform-service
+|   +-- tracking-service
++-- shared/                    # Common, security, Kafka, cache, and test-support modules
++-- docker-compose.yml
++-- Makefile
++-- pom.xml
+```
 
 ## Local Setup
 
-1. Create a local environment file.
+Prerequisites:
+
+- Java 21
+- Maven wrapper from this repository
+- Node.js and npm compatible with the frontend lockfile
+- Docker Desktop or Docker Engine with Compose
+- PowerShell for Windows helper scripts
+
+Create local environment:
 
 ```powershell
 Copy-Item .env.example .env
-notepad .env
 ```
 
-Use non-placeholder local values. `LEGENT_SECURITY_JWT_SECRET` must be at least 64 characters. `LEGENT_TRACKING_SIGNING_KEY`, `LEGENT_DELIVERY_CREDENTIAL_KEY`, and `LEGENT_INTERNAL_API_TOKEN` must be at least 32 characters.
+Edit `.env` with local values. Do not commit `.env`.
 
-Upload limits are configurable through `LEGENT_AUDIENCE_IMPORT_MAX_FILE_SIZE_BYTES`, `LEGENT_AUDIENCE_IMPORT_ALLOWED_CONTENT_TYPES`, `LEGENT_ASSETS_MAX_SIZE_BYTES`, and `LEGENT_ASSETS_ALLOWED_CONTENT_TYPES`.
-
-2. Validate local configuration.
+Validate environment:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\ops\validate-env.ps1
-docker compose config --quiet
+.\scripts\ops\validate-env.ps1 -Path .\.env -AllowLocalDefaults
 ```
 
-3. Start the local stack.
+Install backend/frontend dependencies:
+
+```powershell
+.\mvnw.cmd -DskipTests install
+cd frontend
+npm ci
+```
+
+## Running Locally
+
+Run full local stack:
 
 ```powershell
 docker compose up -d --build
-powershell -ExecutionPolicy Bypass -File scripts\ops\validate-compose-health.ps1
 ```
 
-Local ports:
+Main local URLs:
 
-| Service | Port |
-| --- | --- |
-| Gateway | `http://localhost:8080` |
-| Frontend | `http://localhost:${FRONTEND_HOST_PORT:-3000}` |
-| PostgreSQL | `5432` |
-| Redis | `6379` |
-| Kafka | `9092` internal, `29092` host |
-| Kafka UI | `http://localhost:8091` |
-| OpenSearch | `http://localhost:9200` |
-| MinIO Console | `http://localhost:9001` |
-| ClickHouse | `8123` HTTP, `9009` native |
-| MailHog | `http://localhost:8025` |
+- Frontend: `http://localhost:3000`
+- Gateway: `http://localhost:8080`
+- MailHog: `http://localhost:8025`
+- Kafka UI: `http://localhost:8095`
+- MinIO console: `http://localhost:9001`
+- OpenSearch: `http://localhost:9200`
+- ClickHouse HTTP: `http://localhost:8123`
 
-## Development
-
-Backend:
-
-```powershell
-.\mvnw.cmd -DskipTests compile -T 1C
-.\mvnw.cmd test -T 1C
-```
-
-Frontend:
+Frontend only:
 
 ```powershell
 cd frontend
-npm install
+npm run dev
+```
+
+Backend helper commands:
+
+```powershell
+make backend-build
+make backend-run
+```
+
+Stop local stack:
+
+```powershell
+docker compose down
+```
+
+## Environment Setup
+
+Use `.env.example` as the contract for required local variables. Key categories include:
+
+- Database credentials and per-service database names.
+- Redis, Kafka, MinIO, OpenSearch, and ClickHouse settings.
+- JWT secret and token lifetimes.
+- Cookie security settings.
+- CORS and frontend API base URLs.
+- Tracking and delivery signing keys.
+- Internal service token.
+- Mail provider settings.
+
+Production must use real secret management. The Kubernetes production overlay expects External Secrets and managed infrastructure instead of local Compose backing services.
+
+## Testing
+
+Backend tests:
+
+```powershell
+.\mvnw.cmd test
+```
+
+Single service tests:
+
+```powershell
+.\mvnw.cmd -pl services/campaign-service -am test
+```
+
+Frontend lint/build/E2E:
+
+```powershell
+cd frontend
 npm run lint
-npm run build:next
+npm run build
 npm run test:e2e:smoke
-npm run test:e2e:visual
 ```
 
-Playwright uses `http://127.0.0.1:3010` by default to avoid stale dev servers on port `3000`. Override with `PLAYWRIGHT_PORT`, `PORT`, or `PLAYWRIGHT_BASE_URL`.
-
-## Release Gate
+Infrastructure validation:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1
+docker compose config
+kubectl kustomize infrastructure/kubernetes/overlays/production
 ```
 
-The gate validates env, gateway routes, backend tests, frontend lint/build, smoke E2E, Docker Compose config, and the production Kubernetes overlay. Use the `-Skip*` switches in the script only for targeted local debugging.
+## Build Process
 
-## Kubernetes
-
-Base manifests are local/non-production friendly. Production and global overlays use external managed-service endpoints and external secrets.
+Backend package:
 
 ```powershell
-kubectl kustomize infrastructure\kubernetes\base | Out-Null
-kubectl kustomize infrastructure\kubernetes\overlays\production | Out-Null
-kubectl kustomize infrastructure\kubernetes\overlays\global\global-primary | Out-Null
-kubectl kustomize infrastructure\kubernetes\overlays\global\global-standby | Out-Null
-kubectl kustomize infrastructure\kubernetes\overlays\global\global-active-active | Out-Null
+.\mvnw.cmd -DskipTests package
 ```
 
-Gateway route ownership lives in `config/gateway/route-map.json` and is checked by `scripts/ops/validate-route-map.ps1`.
+Frontend production build:
 
-## Architecture
+```powershell
+cd frontend
+npm run build
+```
 
-- `frontend/`: Next.js 16, React 19, Tailwind, Playwright
-- `shared/`: common Java libraries for security, caching, Kafka, test support
-- `services/`: Spring Boot 3.2 microservices
-- `config/nginx/`: local gateway config
-- `infrastructure/kubernetes/`: base, production, global, ingress, observability manifests
-- `scripts/ops/`: production-readiness validation and smoke scripts
+Docker images:
 
-API conventions:
+```powershell
+docker compose build
+```
 
-- Base path: `/api/v1`
-- Tenant/workspace headers: `X-Tenant-Id`, `X-Workspace-Id`
-- Response envelope: `{ success, data, error, meta }`
-- Pagination: `{ page, size, totalElements, totalPages }`
+Cached/local helpers:
 
-## License
+```powershell
+make fast-build
+make docker-build
+```
 
-Proprietary. All rights reserved.
+## Deployment
+
+Local deployment is handled by Docker Compose.
+
+Production-style manifests live under:
+
+```text
+infrastructure/kubernetes/base
+infrastructure/kubernetes/overlays/production
+```
+
+Render production manifests:
+
+```powershell
+kubectl kustomize infrastructure/kubernetes/overlays/production
+```
+
+Production overlay removes local-only backing services such as in-cluster PostgreSQL, Redis, Kafka, MinIO, OpenSearch, ClickHouse, and MailHog, and expects managed services plus External Secrets.
+
+Before deployment:
+
+- Validate environment and secret placeholders.
+- Run backend tests and frontend build/lint.
+- Render Kubernetes manifests.
+- Confirm route ownership between `config/gateway/route-map.json` and `config/nginx/nginx.conf`.
+- Confirm provider configuration, warmup policy, suppression compliance, and tracking URL configuration.
+
+## Architecture Notes
+
+The current million-send bottleneck is not frontend rendering. It is the backend event and delivery pipeline:
+
+- Audience resolution currently emits a full resolved recipient payload.
+- Kafka default partition key can hot-spot by tenant.
+- Send execution renders and publishes per recipient.
+- Delivery performs multiple per-message checks/writes.
+- New sender warmup intentionally blocks unsafe high volume.
+
+For high-volume production, redesign around chunked recipient snapshots, shard-aware Kafka keys, provider/domain backpressure, batched rate reservations, explicit DLQ handling, and tracking ingestion isolation.

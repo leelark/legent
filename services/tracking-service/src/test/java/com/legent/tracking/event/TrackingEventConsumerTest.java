@@ -58,4 +58,28 @@ class TrackingEventConsumerTest {
         verify(aggregationService).aggregateEvent(any());
         verify(clickHouseWriter).writeBatch(anyList());
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void handleIngestedEvents_MissingWorkspace_SkipsEvent() throws Exception {
+        EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setTenantId("tenant-1");
+        envelope.setEventType("tracking.ingested");
+        envelope.setEventId("evt-1");
+        envelope.setIdempotencyKey("idem-1");
+        envelope.setPayload("{\"tenantId\":\"tenant-1\",\"eventType\":\"OPEN\"}");
+
+        TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
+                .tenantId("tenant-1")
+                .eventType("OPEN")
+                .timestamp(java.time.Instant.now())
+                .build();
+
+        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .thenReturn(payload);
+
+        consumer.handleIngestedEvents(List.of(envelope));
+
+        verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
+    }
 }

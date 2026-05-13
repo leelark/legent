@@ -53,7 +53,9 @@ public class TrackingEventConsumer {
                     workspaceId = event.getWorkspaceId();
                 }
                 if (workspaceId == null || workspaceId.isBlank()) {
-                    workspaceId = "workspace-default";
+                    log.error("Skipping tracking event with missing workspaceId. eventId={}, tenantId={}",
+                            event.getEventId(), payload.getTenantId());
+                    continue;
                 }
 
                 if (payload.getTenantId() == null || payload.getTenantId().isBlank()
@@ -75,7 +77,7 @@ public class TrackingEventConsumer {
                 if (!idempotencyService.registerIfNew(
                         payload.getTenantId(),
                         workspaceId,
-                        event.getEventType(),
+                        payload.getEventType(),
                         event.getEventId(),
                         event.getIdempotencyKey())) {
                     continue;

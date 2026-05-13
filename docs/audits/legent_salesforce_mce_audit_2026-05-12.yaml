@@ -1,0 +1,561 @@
+metadata:
+  report_name: "Legent Salesforce-Level Product Audit"
+  artifact_path: "docs/audits/legent_salesforce_mce_audit_2026-05-12.yaml"
+  generated_on: "2026-05-12"
+  timezone: "Asia/Calcutta"
+  product: "Legent v1.0.2"
+  comparator: "Salesforce Marketing Cloud Engagement"
+  audit_type: "source, configuration, test, build, E2E, infrastructure, operations, feature parity, and readiness audit"
+  scoring_scale:
+    min: 0
+    max: 100
+    meaning: "100 means Salesforce Marketing Cloud Engagement parity or better for this area."
+  scoring_weights:
+    salesforce_feature_parity: 30
+    functional_completeness: 20
+    architecture_reliability_scale: 15
+    security_compliance_governance: 12
+    observability_operations: 10
+    user_experience: 8
+    test_evidence: 5
+  source_references:
+    local:
+      - "services/"
+      - "shared/"
+      - "frontend/"
+      - "infrastructure/"
+      - "config/"
+      - "scripts/"
+      - "docs/"
+      - "docker-compose.yml"
+      - "README.md"
+    salesforce_official:
+      - name: "Marketing Cloud Engagement REST API"
+        url: "https://developer.salesforce.com/docs/marketing/marketing-cloud/references"
+      - name: "Salesforce Marketing Email PDF"
+        url: "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/mc_email.pdf"
+      - name: "Salesforce Journeys and Automations PDF"
+        url: "https://resources.docs.salesforce.com/latest/latest/en-us/sfdc/pdf/mc_journeys_and_automations.pdf"
+  limits:
+    - "Percentages are engineering estimates from local source and validation evidence, not customer traffic telemetry."
+    - "No penetration test, production load result, live ISP deliverability feed, or production incident history was available."
+    - "Binary assets, screenshots, audio, video, PDF, DOCX, and generated build outputs were inventoried only, not line-scored."
+
+executive_summary:
+  overall_salesforce_parity_percent: 68
+  functional_readiness_percent: 74
+  live_public_ga_readiness_percent: 70
+  private_beta_readiness_percent: 82
+  best_in_world_readiness_percent: 46
+  current_live_verdict: "Private beta ready after external environment smoke; not yet Salesforce-replacement GA."
+  highest_strengths:
+    - "Broad microservice coverage for identity, audience, content, campaign, delivery, tracking, automation, deliverability, platform, and foundation."
+    - "Backend clean tests, frontend build, smoke E2E, visual E2E, compose, env, route map, and kustomize validations passed locally."
+    - "Recent critical production risks have been reduced: JWT length guard, CSRF origin guard, WebClient pooling, tracking outbox fail-close, real ClickHouse backup script, and frontend health checks exist."
+    - "Salesforce-adjacent primitives exist across data extensions, send safety, experiments, campaign launch, template workflow, automation activities, and deliverability intelligence."
+  highest_gaps:
+    - "Automation Studio and Journey Builder depth remain below Salesforce level."
+    - "Contact Builder/Data Extension model needs stronger relationship governance, query operations, retention proof, and high-volume import evidence."
+    - "Deliverability is not yet enterprise ISP-grade without live feedback loops, blocklist feeds, BIMI, MTA-STS, TLS-RPT, and warmup automation."
+    - "Frontend has broad routes but weak TypeScript contract safety and limited advanced builder UX."
+    - "GA evidence still needs production smoke, load testing, restore drill transcript, security testing, and real monitoring history."
+
+validation_evidence:
+  commands_run:
+    backend_clean_tests:
+      command: ".\\mvnw.cmd clean test -T 1C"
+      status: "passed"
+      result: "All 16 Maven reactor modules succeeded."
+    backend_tests:
+      command: ".\\mvnw.cmd test -T 1C"
+      status: "passed"
+      result: "All 16 Maven reactor modules succeeded before clean verification."
+    frontend_lint:
+      command: "npm run lint"
+      status: "passed_with_warnings"
+      result: "0 errors, 302 warnings, mostly @typescript-eslint/no-explicit-any."
+    frontend_build:
+      command: "npm run build:next"
+      status: "passed"
+      result: "Next.js 16.2.6 production build succeeded; 64 app routes generated."
+    frontend_smoke_e2e:
+      command: "npm run test:e2e:smoke"
+      status: "passed"
+      result: "9/9 Chromium smoke tests passed."
+    frontend_visual_e2e:
+      command: "npm run test:e2e:visual"
+      status: "passed"
+      result: "8/8 visual overflow smoke tests passed."
+    docker_compose_config:
+      command: "docker compose config --quiet"
+      status: "passed"
+    env_validation:
+      command: "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-env.ps1"
+      status: "passed"
+    gateway_route_map:
+      command: "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1"
+      status: "passed"
+      result: "41 routes validated."
+    kubernetes_kustomize:
+      command: "kubectl kustomize base, production, global-primary, global-standby, global-active-active"
+      status: "passed"
+    git_worktree:
+      command: "git status --short"
+      status: "clean_before_changes"
+  validation_gaps:
+    - "Full release-gate was not rerun after every possible phase item because frontend lint/build/E2E and backend clean tests were run separately."
+    - "No target production URL was provided, so synthetic smoke against real environment was not executed."
+    - "No live restore drill was executed against a cluster."
+    - "No high-volume load profile was executed."
+
+inventory:
+  in_scope_roots:
+    services: 746
+    shared: 68
+    frontend: 210
+    infrastructure: 55
+    config: 3
+    scripts: 28
+    docs: 15
+  source_extension_counts_excluding_generated:
+    java: 663
+    tsx: 132
+    sql: 95
+    yml: 76
+    ts: 48
+    md: 42
+    yaml: 22
+    xml: 16
+    ps1: 16
+    json: 11
+  service_endpoint_inventory:
+    foundation_service: { controllers: 19, endpoints: 193, entities: 11, repositories: 11 }
+    identity_service: { controllers: 5, endpoints: 53, entities: 11, repositories: 11 }
+    audience_service: { controllers: 9, endpoints: 64, entities: 12, repositories: 12 }
+    content_service: { controllers: 8, endpoints: 84, entities: 14, repositories: 14 }
+    campaign_service: { controllers: 5, endpoints: 50, entities: 17, repositories: 16 }
+    delivery_service: { controllers: 2, endpoints: 26, entities: 14, repositories: 12 }
+    tracking_service: { controllers: 5, endpoints: 23, entities: 4, repositories: 4 }
+    automation_service: { controllers: 3, endpoints: 43, entities: 7, repositories: 7 }
+    deliverability_service: { controllers: 5, endpoints: 18, entities: 6, repositories: 6 }
+    platform_service: { controllers: 4, endpoints: 11, entities: 6, repositories: 6 }
+  module_line_inventory:
+    foundation_service: { files: 129, lines: 14225, java: 110, sql: 15 }
+    campaign_service: { files: 91, lines: 8369, java: 75, sql: 13 }
+    audience_service: { files: 95, lines: 7047, java: 77, sql: 14 }
+    delivery_service: { files: 81, lines: 6314, java: 66, sql: 12 }
+    content_service: { files: 76, lines: 5698, java: 67, sql: 7 }
+    identity_service: { files: 62, lines: 5070, java: 51, sql: 9 }
+    automation_service: { files: 50, lines: 3793, java: 43, sql: 4 }
+    tracking_service: { files: 54, lines: 3192, java: 43, sql: 8 }
+    deliverability_service: { files: 51, lines: 2334, java: 41, sql: 7 }
+    platform_service: { files: 35, lines: 1697, java: 28, sql: 4 }
+    frontend_src_tests: { files: 177, lines: 18658, ts: 44, tsx: 132, css: 1 }
+
+module_scores:
+  foundation_service:
+    readiness_percent: 78
+    salesforce_parity_percent: 72
+    functional_percent: 82
+    architecture_percent: 76
+    security_governance_percent: 78
+    test_percent: 78
+    strengths:
+      - "Strong tenant, config, feature flag, audit, admin, compliance, core platform, global enterprise, differentiation, and performance intelligence surface."
+      - "Broad endpoint surface and current tests cover config, governance, feature flags, compliance, public contact, and differentiation services."
+    gaps:
+      - "Enterprise operating evidence is mostly config and docs, not proven live operational history."
+      - "Needs stronger immutable audit, retention evidence, policy simulation evidence, and compliance export validation."
+  identity_service:
+    readiness_percent: 75
+    salesforce_parity_percent: 68
+    functional_percent: 78
+    architecture_percent: 73
+    security_governance_percent: 80
+    test_percent: 70
+    strengths:
+      - "Auth, refresh tokens, password recovery, onboarding, account membership, federation runtime, SCIM service/controller, and session foundations exist."
+      - "HTTP-only cookie posture and shared JWT validation are stronger than early audit state."
+    gaps:
+      - "Needs full enterprise SSO conformance, SCIM lifecycle certification, business-unit role hierarchy, and delegated admin proof."
+  audience_service:
+    readiness_percent: 74
+    salesforce_parity_percent: 70
+    functional_percent: 80
+    architecture_percent: 72
+    security_governance_percent: 72
+    test_percent: 72
+    strengths:
+      - "Subscribers, lists, segments, imports, consent, double opt-in, suppression, send eligibility, and data extension schema controls exist."
+      - "Data extension APIs include schema, sendable, retention, relationships, records, query preview, and import mapping preview."
+    gaps:
+      - "Needs Salesforce Contact Builder relationship model depth, query runner, field-level governance, retention enforcement proof, import reconciliation, and high-volume import test evidence."
+  content_service:
+    readiness_percent: 72
+    salesforce_parity_percent: 66
+    functional_percent: 76
+    architecture_percent: 70
+    security_governance_percent: 68
+    test_percent: 72
+    strengths:
+      - "Templates, versions, approvals, content blocks, assets, personalization tokens, dynamic content, brand kits, landing pages, rendering, validation, and test send matrix exist."
+      - "Workflow and version APIs give stronger Content Builder foundation than typical MVP."
+    gaps:
+      - "Needs mature drag/drop authoring, folder/library governance, collaborative editing, client rendering previews, inbox placement tests, and design QA at scale."
+  campaign_service:
+    readiness_percent: 76
+    salesforce_parity_percent: 70
+    functional_percent: 82
+    architecture_percent: 75
+    security_governance_percent: 70
+    algorithm_percent: 76
+    test_percent: 76
+    strengths:
+      - "Campaign lifecycle, approvals, launch plans, readiness checks, scheduling, send jobs, checkpoints, experiments, budgets, frequency policy, safety, DLQ, and replay are present."
+      - "Deterministic variant assignment and send safety tests exist."
+    gaps:
+      - "Needs Salesforce-grade Send Flow, send classification model, calendar/blackout governance, send logging depth, and load proof for large campaign sends."
+  delivery_service:
+    readiness_percent: 70
+    salesforce_parity_percent: 63
+    functional_percent: 74
+    architecture_percent: 70
+    security_governance_percent: 68
+    operations_percent: 66
+    test_percent: 72
+    strengths:
+      - "Multi-provider adapters, provider routing, capacity profiles, health, failover tests, replay queue, rate state, warmup state, inbox safety, and DLQ ops exist."
+      - "ContentServiceClient uses WebClient pooling and is tested."
+    gaps:
+      - "Needs MTA-grade queue backpressure proof, provider-level SLOs, adaptive throttling under live load, bounce feedback wiring, and replay/operator UX hardening."
+  tracking_service:
+    readiness_percent: 71
+    salesforce_parity_percent: 65
+    functional_percent: 74
+    architecture_percent: 70
+    security_governance_percent: 68
+    operations_percent: 67
+    test_percent: 74
+    strengths:
+      - "Open, click, conversion, analytics, funnel, segment, BI rollup, event export, taxonomy, reconciliation, ClickHouse writer, outbox, and idempotency exist."
+      - "Ingestion now fails closed when workspace is missing and uses durable outbox."
+    gaps:
+      - "Needs bot filtering, privacy retention enforcement, attribution model, BI dashboard depth, reporting extract scheduling, and load proof."
+  automation_service:
+    readiness_percent: 67
+    salesforce_parity_percent: 58
+    functional_percent: 70
+    architecture_percent: 66
+    security_governance_percent: 64
+    algorithm_percent: 60
+    test_percent: 68
+    strengths:
+      - "Workflow definitions, versions, publish, pause, resume, stop, archive, rollback, clone, compare, trigger, runs, steps, trace, simulate, dry-run, schedules, and automation studio activities exist."
+      - "Workflow and automation tests cover important logic."
+    gaps:
+      - "Needs richer Journey Builder entry sources, re-entry rules, goals, exits, journey history, branch analytics, SQL/file-transfer/extract/script activities, dependency graph, and operations console."
+  deliverability_service:
+    readiness_percent: 66
+    salesforce_parity_percent: 58
+    functional_percent: 70
+    architecture_percent: 64
+    security_governance_percent: 66
+    operations_percent: 60
+    test_percent: 72
+    strengths:
+      - "Domain verification, DMARC reporting, reputation, suppression, feedback-loop consumer, bounce classifier, spam scoring, and predictive deliverability service exist."
+      - "Tests cover bounce, spam, predictive risk, DNS validation, and feedback loop suppression."
+    gaps:
+      - "Needs live ISP feedback loops, blocklist feeds, BIMI, MTA-STS, TLS-RPT, sender warmup automation, inbox placement measurement, and real DNS production evidence."
+  platform_service:
+    readiness_percent: 69
+    salesforce_parity_percent: 60
+    functional_percent: 72
+    architecture_percent: 68
+    security_governance_percent: 68
+    operations_percent: 66
+    test_percent: 60
+    strengths:
+      - "Webhooks, search, notification, retry, signature, SSRF/public HTTPS guard, and FK migration exist."
+      - "Webhook retry now uses configured executor instead of unbounded default async."
+    gaps:
+      - "Needs developer portal, app/package manager, API key scopes, rate limit governance, schema registry, webhook replay UI, and stronger platform contract tests."
+  frontend:
+    readiness_percent: 70
+    salesforce_parity_percent: 62
+    functional_percent: 72
+    ux_percent: 68
+    architecture_percent: 66
+    security_percent: 66
+    test_percent: 70
+    strengths:
+      - "Broad public and app route coverage across admin, analytics, audience, automation, campaigns, deliverability, email, launch, settings, and tracking."
+      - "Production build, smoke E2E, and visual overflow smoke pass."
+    gaps:
+      - "302 lint warnings expose weak TypeScript API contracts."
+      - "Advanced Salesforce-grade builder workflows and guided operational UX remain shallow."
+  infrastructure:
+    readiness_percent: 72
+    salesforce_parity_percent: 62
+    functional_percent: 76
+    architecture_percent: 72
+    security_governance_percent: 70
+    operations_percent: 70
+    test_percent: 66
+    strengths:
+      - "Docker Compose, nginx gateway, route contract validation, Kubernetes base/production/global overlays, observability manifests, backup/restore scripts, release gate, and runbooks exist."
+      - "Compose config, env validation, route validation, and kustomize render pass."
+    gaps:
+      - "Needs live external secrets proof, production smoke, canary/rollback drill, restore transcript, load results, and incident/on-call exercise evidence."
+
+feature_functionality_scores:
+  email_studio:
+    score_percent: 65
+    present: ["templates", "campaigns", "send jobs", "tracking primitives", "test sends", "approval workflow"]
+    missing: ["Salesforce-grade Send Flow", "send classifications", "advanced send logging", "triggered send maturity", "publication calendar UX"]
+  content_builder:
+    score_percent: 64
+    present: ["templates", "versions", "content blocks", "assets", "dynamic content", "personalization tokens", "approval workflow"]
+    missing: ["polished drag/drop editor", "client previews", "inbox tests", "collaboration", "folder/library governance"]
+  contact_builder_data_extensions:
+    score_percent: 70
+    present: ["sendable data extensions", "schema controls", "relationships endpoint", "retention endpoint", "query-preview", "import mapping preview"]
+    missing: ["deep relationship browser", "query automation", "retention enforcement evidence", "large-volume operational proof"]
+  journey_builder:
+    score_percent: 58
+    present: ["workflow canvas primitives", "publish", "rollback", "clone", "simulate", "dry-run", "runs and trace"]
+    missing: ["rich entry sources", "goals", "exits", "re-entry controls", "branch analytics", "version activation history UX"]
+  automation_studio:
+    score_percent: 52
+    present: ["automation activity model", "verify", "runs", "schedule support"]
+    missing: ["SQL activity execution depth", "file-transfer/file-drop", "extract activity", "script activity", "dependency graph", "notifications"]
+  tracking_reporting:
+    score_percent: 66
+    present: ["open", "click", "conversion", "taxonomy", "rollups", "export", "reconciliation", "ClickHouse"]
+    missing: ["bot filtering", "privacy retention controls", "scheduled extracts", "BI-grade dashboards", "attribution modeling"]
+  deliverability:
+    score_percent: 58
+    present: ["domain verification", "DMARC", "reputation", "spam scoring", "bounce classifier", "feedback suppression"]
+    missing: ["ISP feeds", "blocklist feeds", "BIMI", "MTA-STS", "TLS-RPT", "warmup automation", "inbox placement feeds"]
+  admin_api_governance:
+    score_percent: 68
+    present: ["RBAC", "audit", "config", "feature flags", "compliance", "webhooks", "search", "global enterprise primitives"]
+    missing: ["package manager", "developer portal", "API key scopes", "schema registry", "business unit hierarchy UX"]
+  frontend_experience:
+    score_percent: 62
+    present: ["broad app shell", "workspace routes", "admin/settings", "audience/campaign/email/automation pages", "mobile smoke"]
+    missing: ["Salesforce-grade builders", "guided launch diagnostics", "collaboration", "deep analytics UX", "type-safe API layer"]
+
+algorithm_scores:
+  deterministic_experiment_assignment:
+    score_percent: 76
+    evidence: "Campaign deterministic variant assignment and tests exist."
+    gap: "Needs statistical confidence, auto-winner guardrails, causal reporting, and business metric feedback loops."
+  send_safety_and_frequency:
+    score_percent: 72
+    evidence: "Campaign send safety, budget, frequency policy, and preflight APIs exist."
+    gap: "Needs large-scale proof, calendar constraints, blackout windows, and per-tenant throttling SLOs."
+  provider_routing_and_capacity:
+    score_percent: 70
+    evidence: "Provider selection, capacity, failover, health, and routing decision trace exist."
+    gap: "Needs adaptive real-time routing from live ISP/provider telemetry."
+  tracking_idempotency_and_outbox:
+    score_percent: 74
+    evidence: "Redis and database dedupe plus durable outbox exist; missing-workspace fallback removed in consumer."
+    gap: "Needs poison event DLQ and replay tooling for malformed analytics messages."
+  segmentation_query_logic:
+    score_percent: 66
+    evidence: "Segment evaluation uses persisted rules and async recompute."
+    gap: "Needs query planner, explain UI, cache invalidation proof, and high-volume performance gates."
+  predictive_deliverability:
+    score_percent: 55
+    evidence: "Predictive deliverability service and tests exist."
+    gap: "Needs live external data feeds and validated model performance."
+  realtime_personalization:
+    score_percent: 48
+    evidence: "Performance intelligence and personalization control-plane primitives exist."
+    gap: "Needs low-latency profile stream and production decision service."
+
+critical_items:
+  - id: "TRK-001"
+    severity: "high"
+    status: "implemented_in_this_change"
+    modules: ["tracking-service"]
+    issue: "TrackingEventConsumer assigned workspace-default when payload and envelope lacked workspaceId."
+    impact: "Malformed events could contaminate analytics under a fake default workspace."
+    fix: "Consumer now logs and skips missing-workspace events before idempotency, aggregation, or ClickHouse write."
+    validation: "Added TrackingEventConsumerTest missing-workspace regression."
+  - id: "REL-001"
+    severity: "high"
+    status: "implemented_in_this_change"
+    modules: ["scripts/ops/release-gate.ps1"]
+    issue: "Release gate used mvnw test without clean/package."
+    impact: "Stale target/classes resources could mask source packaging problems."
+    fix: "Backend release gate now runs mvnw clean package -T 1C."
+    validation: "Targeted script inspection plus backend tests planned after patch."
+  - id: "FE-001"
+    severity: "medium"
+    status: "open"
+    modules: ["frontend"]
+    issue: "Frontend lint passes with 302 no-explicit-any warnings."
+    impact: "API contract drift and runtime UI bugs are more likely."
+    fix: "Add typed DTOs and typed API hooks by module; start with core API client, admin, audience, template studio, and campaign pages."
+  - id: "OPS-001"
+    severity: "medium"
+    status: "open"
+    modules: ["operations", "infrastructure"]
+    issue: "No live production smoke/load/restore transcript was available."
+    impact: "GA cannot be certified from local validation only."
+    fix: "Run release-gate with RunSyntheticSmoke against target URL, then restore drill and high-volume load profile."
+
+bug_risk_register:
+  high:
+    - id: "TRK-001"
+      title: "Malformed tracking workspace contamination"
+      status: "fixed"
+    - id: "REL-001"
+      title: "Release gate stale build artifact risk"
+      status: "fixed"
+  medium:
+    - id: "FE-001"
+      title: "Weak frontend type contracts"
+      status: "open"
+    - id: "OPS-001"
+      title: "No production evidence bundle"
+      status: "open"
+    - id: "AUTO-001"
+      title: "Automation Studio below Salesforce functional depth"
+      status: "roadmap"
+    - id: "DELIV-001"
+      title: "Deliverability needs live external intelligence"
+      status: "roadmap"
+    - id: "UX-001"
+      title: "Builder UX not yet Salesforce-grade"
+      status: "roadmap"
+  low:
+    - id: "DOC-001"
+      title: "Implementation docs contain older port and module notes that should be reconciled with current compose."
+      status: "open"
+
+salesforce_gap_summary:
+  email_studio:
+    current_percent: 65
+    to_reach_salesforce:
+      - "Implement Send Flow with guided audience/content/classification/review steps."
+      - "Add send classifications, publication lists, delivery profiles, and send log exports."
+      - "Add triggered and transactional send maturity with audit, replay, and provider correlation."
+  content_builder:
+    current_percent: 64
+    to_reach_salesforce:
+      - "Build polished drag/drop content builder with reusable block library."
+      - "Add per-client preview, inbox/spam tests, foldering, collaboration, comments, compare, and rollback."
+  contact_builder_data_extensions:
+    current_percent: 70
+    to_reach_salesforce:
+      - "Add relationship graph UI, governed field model, query runner, retention engine, and import reconciliation."
+      - "Add high-volume import, segment, and query load tests."
+  journey_builder:
+    current_percent: 58
+    to_reach_salesforce:
+      - "Implement entry-source catalog, re-entry controls, waits, decisions, goals, exits, version activation history, analytics, and rollback UX."
+  automation_studio:
+    current_percent: 52
+    to_reach_salesforce:
+      - "Implement SQL, import, extract, file-drop, script/webhook, send, and verification activities with dependency graph and run history."
+  tracking_reporting:
+    current_percent: 66
+    to_reach_salesforce:
+      - "Add bot filtering, privacy retention, scheduled extracts, attribution, BI-grade dashboards, and reconciliation reports."
+  deliverability:
+    current_percent: 58
+    to_reach_salesforce:
+      - "Add BIMI, MTA-STS, TLS-RPT, blocklist, inbox placement, ISP feedback feeds, sender warmup automation, and remediation playbooks."
+  admin_api_governance:
+    current_percent: 68
+    to_reach_salesforce:
+      - "Add business unit hierarchy, delegated administration, package/app management, API scopes, developer portal, schema registry, and compliance evidence packs."
+
+best_in_world_gap_summary:
+  target_definition: "Best in world means Salesforce parity plus AI-assisted operations, real-time decisioning, predictive deliverability, global scale, governed extensibility, and faster UX."
+  current_percent: 46
+  to_be_best_in_world:
+    - "AI campaign and journey copilot with explainable recommendations, brand/compliance policy checks, and human approvals."
+    - "Predictive deliverability from live ISP, blocklist, inbox placement, bounce, complaint, and engagement data."
+    - "Real-time event-driven profile updates with sub-second segmentation and personalization."
+    - "Closed-loop experimentation with confidence, lift, auto-winner guardrails, causal reporting, and rollback."
+    - "Omnichannel orchestration across email, SMS, push, ads, web, and transactional messaging."
+    - "Developer platform with SDKs, CLI, sandbox, app marketplace, webhook replay, API lifecycle, scopes, and rate limits."
+    - "SLO-driven operations with synthetic monitoring, error budgets, self-healing workers, incident automation, and capacity forecasts."
+    - "Multi-region active-active or active-warm architecture with tested RPO/RTO and tenant-aware data residency."
+
+phase_plan:
+  phase_0_release_blockers:
+    window: "0-2 weeks"
+    target_overall_after_phase_percent: 72
+    work:
+      - "Fail-close missing-workspace tracking consumer events."
+      - "Make backend release gate clean/package."
+      - "Reduce frontend lint warnings in core API modules."
+      - "Run synthetic smoke against real environment."
+      - "Produce restore drill transcript for PostgreSQL, ClickHouse, and MinIO."
+      - "Run high-volume profile for imports, segments, sends, tracking, and analytics."
+  phase_1_salesforce_core_parity:
+    window: "2-8 weeks"
+    target_overall_after_phase_percent: 80
+    work:
+      - "Build Send Flow and send classification model."
+      - "Expand Contact Builder relationships, retention, query runner, and import reconciliation."
+      - "Build Journey Builder entry/re-entry/goals/exits/history analytics."
+      - "Implement Automation Studio SQL/file-transfer/extract/script activities and dependency graph."
+      - "Add Content Builder drag/drop editor, previews, inbox tests, and collaboration."
+  phase_2_enterprise_ga:
+    window: "2-4 months"
+    target_overall_after_phase_percent: 86
+    work:
+      - "Add multi-business-unit governance and delegated admin."
+      - "Harden SAML/OIDC and SCIM lifecycle."
+      - "Add immutable audit exports, consent ledger, retention matrix, and privacy workflow automation."
+      - "Complete canary, rollback, restore, load, and security evidence bundle."
+      - "Add SLO dashboards and alert routing backed by live telemetry."
+  phase_3_better_than_salesforce:
+    window: "4-9 months"
+    target_best_in_world_after_phase_percent: 75
+    work:
+      - "AI copilot with approvals and compliance guardrails."
+      - "Predictive deliverability with live feeds and warmup automation."
+      - "Real-time personalization and decisioning."
+      - "Developer marketplace with SDKs, CLI, sandbox, packages, and webhook replay."
+      - "SLO automation and self-healing operations."
+  phase_4_world_best:
+    window: "9-18 months"
+    target_best_in_world_after_phase_percent: 90
+    work:
+      - "Multi-region active-active or active-warm architecture with tested RPO/RTO."
+      - "Sub-second segmentation and personalization at global scale."
+      - "Closed-loop optimization across deliverability, engagement, revenue, and consent."
+      - "Omnichannel orchestration with governed no-code and pro-code extensibility."
+      - "Category-leading UX benchmarks against Salesforce task completion speed and launch error rate."
+
+live_readiness_gate:
+  status: "not_public_ga_yet"
+  can_launch_private_beta: true
+  must_have_before_public_ga:
+    - "Target environment synthetic smoke pass."
+    - "Restore drill transcript with RPO/RTO evidence."
+    - "High-volume load test pass."
+    - "Security test and dependency scan evidence."
+    - "Frontend type-warning burn-down plan or accepted risk waiver."
+    - "Operational SLO dashboards and alert routing verified."
+    - "Data processing agreement, consent ledger, retention, unsubscribe, suppression, and audit export checks."
+
+implementation_changes_from_this_audit:
+  - "TrackingEventConsumer no longer uses workspace-default fallback; malformed workspace events are skipped before downstream writes."
+  - "TrackingEventConsumer idempotency now uses payload event type instead of envelope event type."
+  - "Release gate backend step now runs clean package instead of test only."
+  - "Audit artifact created for 2026-05-12."
+
+assumptions:
+  - "Salesforce means Salesforce Marketing Cloud Engagement, not Account Engagement."
+  - "Best in world means Salesforce parity plus AI-assisted orchestration, predictive deliverability, real-time personalization, global scale, governed developer platform, and superior UX."
+  - "Scores are current as of local validation on 2026-05-12."
+  - "No production telemetry, penetration test, external deliverability provider data, or customer traffic data was available."

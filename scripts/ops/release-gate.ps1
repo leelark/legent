@@ -40,10 +40,10 @@ if (-not $SkipRouteValidation) {
 }
 
 if (-not $SkipBackend) {
-    Invoke-GateStep "Backend Maven tests" {
+    Invoke-GateStep "Backend Maven clean package" {
         Push-Location $repoRoot
         try {
-            & $mavenWrapper test -T 1C
+            & $mavenWrapper clean package -T 1C
         } finally {
             Pop-Location
         }
