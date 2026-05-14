@@ -3,12 +3,15 @@ import { defineConfig, devices } from '@playwright/test';
 const isVisualSmoke =
   process.env.npm_lifecycle_event === 'test:e2e:visual' ||
   process.argv.some((arg) => arg.includes('visual-smoke.spec'));
+const isSanitizeSpec =
+  process.env.npm_lifecycle_event === 'test:e2e:sanitize' ||
+  process.argv.some((arg) => arg.includes('sanitize-html.spec'));
 const defaultPort = isVisualSmoke ? '3011' : '3010';
 const port = process.env.PLAYWRIGHT_PORT || process.env.PORT || defaultPort;
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || `http://127.0.0.1:${port}`;
 const outputLabel = (process.env.npm_lifecycle_event || 'manual').replace(/[^A-Za-z0-9_-]/g, '-');
 const outputDir = process.env.PLAYWRIGHT_OUTPUT_DIR || `test-results/${outputLabel}-${port}`;
-const webServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1'
+const webServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER === '1' || isSanitizeSpec
   ? undefined
   : {
       command: process.env.PLAYWRIGHT_WEB_SERVER_COMMAND || 'npm run start',

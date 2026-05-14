@@ -36,9 +36,9 @@ spring:
 
   flyway:
     enabled: true
-    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:true}
-    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:false}
-    out-of-order: ${SPRING_FLYWAY_OUT_OF_ORDER:true}
+    baseline-on-migrate: ${SPRING_FLYWAY_BASELINE_ON_MIGRATE:false}
+    validate-on-migrate: ${SPRING_FLYWAY_VALIDATE_ON_MIGRATE:true}
+    out-of-order: ${SPRING_FLYWAY_OUT_OF_ORDER:false}
 
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}

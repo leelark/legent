@@ -42,6 +42,7 @@ export type WebhookIntegration = {
   eventType: string;
   isActive?: boolean;
   secretKey?: string;
+  secretConfigured?: boolean;
 };
 
 export type ContactRequestStatus = 'RECEIVED' | 'IN_REVIEW' | 'CONTACTED' | 'CLOSED';
@@ -176,6 +177,7 @@ type PlatformWebhookPayload = {
   eventsSubscribed: string;
   isActive?: boolean;
   secretKey?: string;
+  secretConfigured?: boolean;
 };
 
 function parseEvents(eventsSubscribed: string | undefined): string {
@@ -197,7 +199,7 @@ function toUiWebhook(payload: PlatformWebhookPayload): WebhookIntegration {
     url: payload.endpointUrl,
     eventType: parseEvents(payload.eventsSubscribed),
     isActive: payload.isActive,
-    secretKey: payload.secretKey,
+    secretConfigured: payload.secretConfigured,
   };
 }
 

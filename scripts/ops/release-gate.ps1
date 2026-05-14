@@ -21,6 +21,26 @@ function Invoke-GateStep($Name, [scriptblock] $Command) {
     Write-Host "<== $Name completed in $([math]::Round($elapsed.TotalSeconds, 1))s"
 }
 
+function Invoke-NativeCommand {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $FilePath,
+        [string[]] $Arguments = @(),
+        [switch] $SuppressOutput
+    )
+
+    $global:LASTEXITCODE = 0
+    if ($SuppressOutput) {
+        & $FilePath @Arguments | Out-Null
+    } else {
+        & $FilePath @Arguments
+    }
+    $exitCode = $global:LASTEXITCODE
+    if ($exitCode -ne 0) {
+        throw "Native command failed with exit code $exitCode`: $FilePath $($Arguments -join ' ')"
+    }
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $frontendRoot = Join-Path $repoRoot "frontend"
 $mavenWrapper = Join-Path $repoRoot "mvnw.cmd"
@@ -43,7 +63,7 @@ if (-not $SkipBackend) {
     Invoke-GateStep "Backend Maven clean package" {
         Push-Location $repoRoot
         try {
-            & $mavenWrapper clean package -T 1C
+            Invoke-NativeCommand $mavenWrapper @("clean", "package", "-T", "1C")
         } finally {
             Pop-Location
         }
@@ -54,8 +74,24 @@ if (-not $SkipFrontend) {
     Invoke-GateStep "Frontend lint" {
         Push-Location $frontendRoot
         try {
-            npm run lint
+            Invoke-NativeCommand "npm" @("run", "lint")
         } finally {
+            Pop-Location
+        }
+    }
+
+    Invoke-GateStep "Frontend sanitizer regression" {
+        Push-Location $frontendRoot
+        $previousSkipWebServer = $env:PLAYWRIGHT_SKIP_WEB_SERVER
+        try {
+            $env:PLAYWRIGHT_SKIP_WEB_SERVER = "1"
+            Invoke-NativeCommand "npm" @("run", "test:e2e:sanitize")
+        } finally {
+            if ($null -eq $previousSkipWebServer) {
+                Remove-Item Env:\PLAYWRIGHT_SKIP_WEB_SERVER -ErrorAction SilentlyContinue
+            } else {
+                $env:PLAYWRIGHT_SKIP_WEB_SERVER = $previousSkipWebServer
+            }
             Pop-Location
         }
     }
@@ -63,7 +99,7 @@ if (-not $SkipFrontend) {
     Invoke-GateStep "Frontend production build" {
         Push-Location $frontendRoot
         try {
-            npm run build:ci
+            Invoke-NativeCommand "npm" @("run", "build:ci")
         } finally {
             Pop-Location
         }
@@ -73,7 +109,7 @@ if (-not $SkipFrontend) {
         Invoke-GateStep "Frontend Playwright smoke" {
             Push-Location $frontendRoot
             try {
-                npm run test:e2e:smoke
+                Invoke-NativeCommand "npm" @("run", "test:e2e:smoke")
             } finally {
                 Pop-Location
             }
@@ -83,7 +119,7 @@ if (-not $SkipFrontend) {
             Invoke-GateStep "Frontend visual smoke" {
                 Push-Location $frontendRoot
                 try {
-                    npm run test:e2e:visual
+                    Invoke-NativeCommand "npm" @("run", "test:e2e:visual")
                 } finally {
                     Pop-Location
                 }
@@ -96,7 +132,7 @@ if (-not $SkipComposeSmoke) {
     Invoke-GateStep "Docker Compose config smoke" {
         Push-Location $repoRoot
         try {
-            docker compose config --quiet
+            Invoke-NativeCommand "docker" @("compose", "config", "--quiet")
         } finally {
             Pop-Location
         }
@@ -116,7 +152,7 @@ if (-not $SkipKustomize) {
                 "infrastructure/kubernetes/observability"
             )
             foreach ($overlay in $overlays) {
-                kubectl kustomize $overlay | Out-Null
+                Invoke-NativeCommand "kubectl" @("kustomize", $overlay) -SuppressOutput
             }
         } finally {
             Pop-Location

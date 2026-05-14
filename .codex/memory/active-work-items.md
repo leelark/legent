@@ -1,6 +1,18 @@
 # Active Work Items
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-14.
+
+Resume-org-20260514:
+assigned_task: mandatory five-loop repository organization execution using .codex operating system
+task_type: SECURITY/PERFORMANCE/RELEASE/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: delivery/tracking event scope/idempotency, platform/content RBAC and webhook secrets, landing-page sanitizers, release/load/route/prod validators, Flyway defaults, docs and .codex memory
+branch_or_worktree: main
+dependencies: AGENTS.md, .codex/bootstrap.md, .codex/commands, .codex/memory, .codex/checkpoints, CTO/PM/repository intelligence/specialized agents
+blockers: production egress still requires reviewed provider/VPC CIDRs or approved CNI FQDN policy model; foundation bridge service auth and content/platform workspace-scoping require product/security design
+next_actions: final validation sweep recorded; resolve approval-bound blockers before release; do not commit or push
 
 Copernicus:
 assigned_task: repository intelligence scan

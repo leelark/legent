@@ -36,9 +36,14 @@ public class BatchingService {
     private final CampaignStateMachineService stateMachine;
 
     @Transactional
-    public void processResolvedAudienceChunk(String tenantId, String jobId, List<Map<String, String>> subscribers, boolean isLastChunk) {
+    public void processResolvedAudienceChunk(String tenantId,
+                                             String workspaceId,
+                                             String jobId,
+                                             List<Map<String, String>> subscribers,
+                                             boolean isLastChunk) {
         try {
-            SendJob job = jobRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, jobId).orElseThrow();
+            SendJob job = jobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, jobId)
+                    .orElseThrow(() -> new IllegalStateException("Send job not found for tenant/workspace/job"));
             if (job.getStatus() == SendJob.JobStatus.BATCHING || job.getStatus() == SendJob.JobStatus.SENDING) {
                 requeueExistingBatches(tenantId, job);
                 return;

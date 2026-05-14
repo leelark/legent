@@ -32,6 +32,64 @@ function Assert-NginxRoute($Route) {
     }
 }
 
+function Normalize-RoutePath([string] $Path) {
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return ""
+    }
+
+    $normalized = $Path.Trim()
+    if (-not $normalized.StartsWith("/")) {
+        $normalized = "/$normalized"
+    }
+
+    if ($normalized.Length -gt 1) {
+        $normalized = $normalized.TrimEnd("/")
+    }
+
+    return $normalized
+}
+
+function Join-RoutePath([string] $Root, [string] $Path) {
+    $normalizedRoot = Normalize-RoutePath $Root
+    $normalizedPath = Normalize-RoutePath $Path
+
+    if ([string]::IsNullOrWhiteSpace($normalizedPath)) {
+        return $normalizedRoot
+    }
+
+    return "$($normalizedRoot.TrimEnd("/"))$normalizedPath"
+}
+
+function Read-NginxRoutes {
+    $routes = @()
+    $locationMatches = [regex]::Matches($nginx, 'location\s+\^~\s+(?<prefix>\S+)\s*\{(?<body>.*?)(?m:^\s*\})', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    foreach ($locationMatch in $locationMatches) {
+        $body = $locationMatch.Groups["body"].Value
+        if ($body -match 'proxy_pass\s+http://(?<upstream>[\w_]+);') {
+            $routes += [pscustomobject]@{
+                Prefix   = Normalize-RoutePath $locationMatch.Groups["prefix"].Value
+                Upstream = $Matches["upstream"]
+                Order    = $routes.Count
+            }
+        }
+    }
+
+    return $routes
+}
+
+function Find-NginxRouteForPrefix([string] $Prefix) {
+    $normalizedPrefix = Normalize-RoutePath $Prefix
+    $matches = @($nginxRoutes | Where-Object {
+            $normalizedPrefix -eq $_.Prefix -or $normalizedPrefix.StartsWith("$($_.Prefix)/")
+        } | Sort-Object -Property @{ Expression = { $_.Prefix.Length }; Descending = $true }, @{ Expression = { $_.Order } })
+
+    if ($matches.Count -gt 0) {
+        return $matches[0]
+    }
+
+    return $null
+}
+
 function Test-IngressPathMatch([string] $PathPattern, [string] $Prefix) {
     try {
         return $Prefix -match "^$PathPattern"
@@ -65,6 +123,7 @@ function Read-IngressRoutes {
 
 Assert-NoRouteMapShadowing
 
+$nginxRoutes = Read-NginxRoutes
 $ingressRoutes = Read-IngressRoutes
 # ingress-nginx renders regex paths in descending path length before original order.
 $renderedIngressRoutes = @($ingressRoutes | Sort-Object -Property @{ Expression = { $_.Path.Length }; Descending = $true }, @{ Expression = { $_.Order } })
@@ -114,6 +173,65 @@ function Find-RouteForControllerRoot([string] $Root) {
     return $null
 }
 
+function Get-RoutePathLiterals([string] $Args) {
+    $paths = @()
+    if ([string]::IsNullOrWhiteSpace($Args)) {
+        return $paths
+    }
+
+    $literalMatches = [regex]::Matches($Args, '"(?<path>/[^"]*)"', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    foreach ($literalMatch in $literalMatches) {
+        $paths += Normalize-RoutePath $literalMatch.Groups["path"].Value
+    }
+
+    return @($paths | Select-Object -Unique)
+}
+
+function Get-ClassRoutePaths([string] $Args) {
+    $paths = @(Get-RoutePathLiterals $Args)
+
+    $constantMatches = [regex]::Matches($Args, 'AppConstants\.API_BASE_PATH\s*(?:\+\s*"(?<suffix>/[^"]*)")?', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    foreach ($constantMatch in $constantMatches) {
+        $suffix = $constantMatch.Groups["suffix"].Value
+        $paths += Normalize-RoutePath "/api/v1$suffix"
+    }
+
+    return @($paths | Select-Object -Unique)
+}
+
+function Get-MethodRoutePaths([string] $Args) {
+    $paths = @(Get-RoutePathLiterals $Args)
+    if ($paths.Count -eq 0) {
+        return @("")
+    }
+
+    return $paths
+}
+
+function Assert-ControllerRoute([string] $Root, [string] $RelativePath, [string] $ServiceName) {
+    $root = Normalize-RoutePath $Root
+    $route = Find-RouteForControllerRoot $root
+    if ($null -eq $route) {
+        throw "Controller route missing from route map: $root in $relativePath should route to $ServiceName"
+    }
+
+    if ($route.service -ne $ServiceName) {
+        throw "Controller route ownership mismatch: $root in $relativePath should route to $ServiceName, found $($route.service)"
+    }
+
+    $nginxRoute = Find-NginxRouteForPrefix $root
+    if ($null -eq $nginxRoute -or $nginxRoute.Upstream -ne $route.nginxUpstream) {
+        $actual = if ($null -eq $nginxRoute) { "<none>" } else { "$($nginxRoute.Upstream) via $($nginxRoute.Prefix)" }
+        throw "Controller nginx route mismatch: $root in $relativePath should proxy to $($route.nginxUpstream), found $actual"
+    }
+
+    $ingressRoute = Find-RenderedIngressRoute $root
+    if ($null -eq $ingressRoute -or $ingressRoute.Service -ne $ServiceName) {
+        $actual = if ($null -eq $ingressRoute) { "<none>" } else { "$($ingressRoute.Service) via $($ingressRoute.Path) on line $($ingressRoute.Line)" }
+        throw "Controller ingress route mismatch after rendered precedence: $root in $relativePath should route to $ServiceName, found $actual"
+    }
+}
+
 $controllerFiles = Get-ChildItem (Join-Path $repoRoot "services") -Recurse -Filter "*.java" |
     Where-Object { $_.FullName -match "\\src\\main\\java\\.*\\controller\\" }
 
@@ -130,20 +248,51 @@ foreach ($file in $controllerFiles) {
         $literalRoots = [regex]::Matches($requestMapping.Groups["args"].Value, '"(?<root>/api/v1[^"]*)"')
         foreach ($literalRoot in $literalRoots) {
             $root = $literalRoot.Groups["root"].Value.TrimEnd("/")
-        if ($root -eq "/api/v1") {
-            continue
-        }
+            if ($root -eq "/api/v1") {
+                continue
+            }
 
-        $route = Find-RouteForControllerRoot $root
-        if ($null -eq $route) {
-            throw "Controller route missing from route map: $root in $relativePath should route to $serviceName"
+            Assert-ControllerRoute $root $relativePath $serviceName
         }
+    }
 
-        if ($route.service -ne $serviceName) {
-            throw "Controller route ownership mismatch: $root in $relativePath should route to $serviceName, found $($route.service)"
+    $classMatch = [regex]::Match($content, '\bclass\s+\w+')
+    if (-not $classMatch.Success) {
+        continue
+    }
+
+    $allMappings = [regex]::Matches($content, '@(?<kind>Request|Get|Post|Put|Patch|Delete)Mapping(?:\s*\((?<args>[^)]*)\))?', [System.Text.RegularExpressions.RegexOptions]::Singleline)
+    $classRequestMappings = @($allMappings | Where-Object {
+            $_.Groups["kind"].Value -eq "Request" -and $_.Index -lt $classMatch.Index
+        })
+    $broadClassRoots = @()
+    foreach ($classRequestMapping in $classRequestMappings) {
+        $classRoots = Get-ClassRoutePaths $classRequestMapping.Groups["args"].Value
+        foreach ($classRoot in $classRoots) {
+            if ((Normalize-RoutePath $classRoot) -eq "/api/v1") {
+                $broadClassRoots += $classRoot
+            }
         }
+    }
+
+    if ($broadClassRoots.Count -eq 0) {
+        continue
+    }
+
+    $methodMappings = @($allMappings | Where-Object { $_.Index -gt $classMatch.Index })
+    foreach ($classRoot in ($broadClassRoots | Select-Object -Unique)) {
+        foreach ($methodMapping in $methodMappings) {
+            $methodPaths = Get-MethodRoutePaths $methodMapping.Groups["args"].Value
+            foreach ($methodPath in $methodPaths) {
+                $composedRoot = Join-RoutePath $classRoot $methodPath
+                if ($composedRoot -eq "/api/v1") {
+                    throw "Controller method route is too broad: $composedRoot in $relativePath must declare a concrete method-level path"
+                }
+
+                Assert-ControllerRoute $composedRoot $relativePath $serviceName
+            }
         }
     }
 }
 
-Write-Host "Gateway route map validation passed for $($routeMap.routes.Count) routes, rendered ingress precedence, and literal controller @RequestMapping roots"
+Write-Host "Gateway route map validation passed for $($routeMap.routes.Count) routes, rendered ingress precedence, literal controller @RequestMapping roots, and broad controller method prefixes"

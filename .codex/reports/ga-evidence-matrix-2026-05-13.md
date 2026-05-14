@@ -25,7 +25,7 @@ Created `docs/operations/ga-evidence-matrix.md` as a concise evidence checklist 
 
 ## Key Finding
 
-Production egress remains blocked for promotion evidence. The production network policy has default-deny egress and no explicit egress allowlist, which can block pod-initiated in-cluster/service egress as well as managed/external dependencies. The next action is to obtain exact service dependencies, provider CIDRs/ports, or confirm selected CNI support for reviewed FQDN egress policies. No CIDRs or FQDN policies were guessed.
+Production egress remains blocked for promotion evidence. The production overlay still inherits broad base `allow-legent-egress` with `0.0.0.0/0` TCP 443 except private ranges, and the validator now rejects that render. The next action is to obtain exact service dependencies, provider CIDRs/ports, or confirm selected CNI support for reviewed FQDN egress policies before replacing broad egress. No CIDRs or FQDN policies were guessed.
 
 ## Changed Files
 

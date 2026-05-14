@@ -12,6 +12,7 @@ import com.legent.content.domain.TemplateTestSendRecord;
 import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.service.DynamicContentRuleService;
 import com.legent.content.service.ContentBuilderService;
+import com.legent.content.service.EmailContentValidationService;
 import com.legent.content.service.EmailRenderService;
 import com.legent.content.service.EmailStudioResourceService;
 import com.legent.content.service.PersonalizationTokenService;
@@ -22,6 +23,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -46,6 +48,7 @@ public class EmailStudioController {
     private final ContentBuilderService contentBuilderService;
     private final EmailRenderService renderService;
     private final TemplateTestSendService testSendService;
+    private final EmailContentValidationService validationService;
 
     @PostMapping("/content/snippets")
     @ResponseStatus(HttpStatus.CREATED)
@@ -182,6 +185,7 @@ public class EmailStudioController {
 
     @PostMapping("/landing-pages")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.LandingPageResponse> createLandingPage(@Valid @RequestBody EmailStudioDto.LandingPageRequest request) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(mapLandingPage(resourceService.createLandingPage(tenantId, request)));
@@ -199,6 +203,7 @@ public class EmailStudioController {
     }
 
     @PutMapping("/landing-pages/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.LandingPageResponse> updateLandingPage(
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.LandingPageRequest request) {
@@ -207,12 +212,14 @@ public class EmailStudioController {
     }
 
     @PostMapping("/landing-pages/{id}/publish")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.LandingPageResponse> publishLandingPage(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(mapLandingPage(resourceService.publishLandingPage(tenantId, id)));
     }
 
     @PostMapping("/landing-pages/{id}/archive")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.LandingPageResponse> archiveLandingPage(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(mapLandingPage(resourceService.archiveLandingPage(tenantId, id)));
@@ -220,13 +227,14 @@ public class EmailStudioController {
 
     @DeleteMapping("/landing-pages/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteLandingPage(@PathVariable String id) {
         resourceService.deleteLandingPage(TenantContext.requireTenantId(), id);
     }
 
     @GetMapping("/public/landing-pages/{slug}")
     public ApiResponse<EmailStudioDto.LandingPageResponse> getPublicLandingPage(@PathVariable String slug) {
-        return ApiResponse.ok(mapLandingPage(resourceService.getPublishedLandingPage(slug)));
+        return ApiResponse.ok(mapPublicLandingPage(resourceService.getPublishedLandingPage(slug)));
     }
 
     @PostMapping("/templates/{templateId}/render")
@@ -346,6 +354,12 @@ public class EmailStudioController {
         response.setPublishedAt(landingPage.getPublishedAt() != null ? landingPage.getPublishedAt().toString() : null);
         response.setCreatedAt(landingPage.getCreatedAt() != null ? landingPage.getCreatedAt().toString() : null);
         response.setUpdatedAt(landingPage.getUpdatedAt() != null ? landingPage.getUpdatedAt().toString() : null);
+        return response;
+    }
+
+    private EmailStudioDto.LandingPageResponse mapPublicLandingPage(LandingPage landingPage) {
+        EmailStudioDto.LandingPageResponse response = mapLandingPage(landingPage);
+        response.setHtmlContent(validationService.sanitizeLandingPage(response.getHtmlContent()));
         return response;
     }
 

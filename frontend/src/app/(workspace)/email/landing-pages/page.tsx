@@ -22,11 +22,11 @@ import {
 
 const defaultLandingHtml = `<section style="max-width:720px;margin:0 auto;padding:48px 24px;font-family:Arial,sans-serif">
   <h1>Campaign Landing Page</h1>
-  <p>Use this page for forms, gated content, and post-click campaign experiences.</p>
-  <form method="post" action="#">
-    <label>Email<br><input name="email" type="email" required style="padding:10px;width:100%;max-width:360px"></label>
-    <button type="submit" style="margin-top:12px;padding:10px 16px">Submit</button>
-  </form>
+  <p>Use this page for gated content and post-click campaign experiences.</p>
+  <div aria-label="Inert signup preview" style="display:grid;gap:12px;max-width:360px">
+    <label>Email<br><input name="email" type="email" placeholder="preview only" disabled style="padding:10px;width:100%"></label>
+    <button type="button" disabled style="padding:10px 16px">Preview only</button>
+  </div>
 </section>`;
 
 const slugify = (value: string) =>
@@ -138,7 +138,7 @@ export default function LandingPageStudio() {
       <PageHeader
         eyebrow="Post-click experiences"
         title="Landing Page Studio"
-        description="Build public campaign pages with a form-capable block model and live route preview."
+        description="Build public campaign pages with sanitized previews and live route preview."
         action={(
         <div className="flex flex-wrap gap-2">
           <Link href="/app/email/templates"><Button variant="secondary">Template Studio</Button></Link>
@@ -183,7 +183,7 @@ export default function LandingPageStudio() {
           <Card>
             <CardHeader
               title="Builder"
-              subtitle="Forms are allowed here; email templates continue to block form controls."
+              subtitle="Form controls can be previewed, but browser submission is stripped unless a governed capture flow is added."
               action={selected ? <Button size="sm" variant="secondary" onClick={() => handleArchive(selected)}>Archive</Button> : null}
             />
             <div className="grid gap-4 p-4 md:grid-cols-2">

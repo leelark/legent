@@ -23,29 +23,52 @@ public class EmailFailedConsumer {
 
     @KafkaListener(topics = AppConstants.TOPIC_EMAIL_FAILED, groupId = AppConstants.GROUP_DELIVERY_FAILED, concurrency = "3")
     public void consumeEmailFailed(EventEnvelope<Map<String, Object>> envelope) {
+        String tenantId = envelope != null ? envelope.getTenantId() : null;
+        String workspaceId = null;
+        String eventId = envelope != null ? envelope.getEventId() : null;
+        String idempotencyKey = envelope != null ? envelope.getIdempotencyKey() : null;
+        boolean claimed = false;
         try {
             Map<String, Object> payload = envelope.getPayload() != null ? envelope.getPayload() : Map.of();
-            String workspaceId = resolveWorkspaceId(envelope, payload);
-            if (!idempotencyService.registerIfNew(
-                    envelope.getTenantId(),
+            workspaceId = resolveWorkspaceId(envelope, payload);
+            claimed = idempotencyService.claimIfNew(
+                    tenantId,
                     workspaceId,
                     AppConstants.TOPIC_EMAIL_FAILED,
-                    envelope.getEventId(),
-                    envelope.getIdempotencyKey())) {
+                    eventId,
+                    idempotencyKey);
+            if (!claimed) {
                 return;
             }
             log.warn("Received failed email event: {}", envelope.getEventId());
             if (envelope.getRetryCount() < 3) {
                 EventEnvelope<Map<String, Object>> retryEnvelope = envelope.forRetry();
-                eventPublisher.publish(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, envelope.getTenantId(), retryEnvelope);
+                eventPublisher.publish(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, envelope.getTenantId(), retryEnvelope).join();
                 log.info("Scheduled retry for failed email event [{}] attempt {}", envelope.getEventId(), retryEnvelope.getRetryCount());
             } else {
-                eventPublisher.publish(AppConstants.TOPIC_EMAIL_FAILED_DLQ, envelope.getTenantId(), envelope);
+                eventPublisher.publish(AppConstants.TOPIC_EMAIL_FAILED_DLQ, envelope.getTenantId(), envelope).join();
                 log.warn("Max retry reached for email event [{}], moved to DLQ", envelope.getEventId());
             }
+            idempotencyService.markProcessed(tenantId, workspaceId, AppConstants.TOPIC_EMAIL_FAILED, eventId, idempotencyKey);
         } catch (Exception e) {
+            if (claimed) {
+                releaseClaim(tenantId, workspaceId, eventId, idempotencyKey, e);
+            }
             log.error("Error processing failed email event", e);
             throw new RuntimeException(e);
+        }
+    }
+
+    private void releaseClaim(String tenantId,
+                              String workspaceId,
+                              String eventId,
+                              String idempotencyKey,
+                              Exception processingFailure) {
+        try {
+            idempotencyService.releaseClaim(tenantId, workspaceId, AppConstants.TOPIC_EMAIL_FAILED, eventId, idempotencyKey);
+        } catch (Exception releaseFailure) {
+            processingFailure.addSuppressed(releaseFailure);
+            log.error("Failed to release failed-email idempotency claim eventId={}", eventId, releaseFailure);
         }
     }
 

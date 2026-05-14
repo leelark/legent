@@ -227,6 +227,10 @@ public class EmailContentValidationService {
             }
 
             sanitizeChildren(child, allowForms);
+            if (allowForms && "form".equals(tag)) {
+                child.unwrap();
+                continue;
+            }
             if (!isAllowedTag(tag, allowForms)) {
                 child.unwrap();
                 continue;

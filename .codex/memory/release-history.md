@@ -1,8 +1,11 @@
 # Release History
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-14.
 
 - No release performed.
+- 2026-05-14 final validation sweep: full `.\mvnw.cmd clean compile`, full `.\mvnw.cmd test`, `.\mvnw.cmd verify`, frontend `npm run lint`, `npx tsc --noEmit`, `npm run build`, Playwright sanitizer/smoke/visual, `docker compose config --quiet`, `docker compose build`, `docker compose up -d`, `validate-compose-health.ps1`, direct gateway/frontend health probes, recent Compose log error scan, route validation, production Kustomize render, `.env.example` validation, frontend production audit, and load harness dry-run passed. `npm ci` installed/audited dependencies with 0 vulnerabilities but hit the 15-minute tool timeout after completion text. Release-gate infra slice fails only at production overlay drift checks because broad inherited egress is intentionally blocked pending reviewed CIDR/FQDN policy data. No release, commit, or push performed.
+- 2026-05-14 five-loop release-hardening change: delivery/tracking event scope mismatches now fail closed, pending idempotency claims can retry, platform config/content publishing gained RBAC, webhook secrets no longer serialize in responses, landing-page forms are inert by sanitizer policy, load/release/route/production validators fail closed on drift, and all service Flyway defaults are safe by default. Not released; focused backend/frontend/infra validations passed where run. Production overlay validation still fails intentionally on inherited broad egress pending reviewed policy data.
+- 2026-05-14 release-hardening change: audience data-extension legacy workspace mapping now requires reviewed operator metadata before production upgrades can pass V17; clean installs remain unaffected. Not released; validation `.\mvnw.cmd -pl services/audience-service -am test` passed. Residual: V17 validates reviewed mapping metadata, not target workspace existence outside the audience DB.
 - 2026-05-13 orchestration setup is repo-process only; no product code shipped.
 - 2026-05-13 release-hardening change: non-test service/Kubernetes base JPA DDL defaults now validate instead of update. Not released; validation limited to `rg` config check and `docker compose config --quiet`.
 - 2026-05-13 release-hardening change: local Compose health validation now aligns with frontend host port and Redis optional auth. Not released; validation limited to parser and Compose config checks.

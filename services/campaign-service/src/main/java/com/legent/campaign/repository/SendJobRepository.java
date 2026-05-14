@@ -13,8 +13,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SendJobRepository extends JpaRepository<SendJob, String> {
-    Optional<SendJob> findByTenantIdAndIdAndDeletedAtIsNull(String tenantId, String id);
-
     Page<SendJob> findByTenantIdAndCampaignIdAndDeletedAtIsNull(String tenantId, String campaignId, Pageable pageable);
 
     Page<SendJob> findByTenantIdAndWorkspaceIdAndCampaignIdAndDeletedAtIsNull(String tenantId, String workspaceId, String campaignId, Pageable pageable);

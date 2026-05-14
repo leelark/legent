@@ -10,11 +10,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,5 +48,40 @@ class CampaignEventPublisherTest {
 
         assertThrows(RuntimeException.class,
                 () -> publisher.publishBatchCreated("tenant-1", "job-1", "batch-1"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishBatchCreatedUsesBoundedPayloadWithoutSubscribers() {
+        when(eventPublisher.publish(
+                eq(AppConstants.TOPIC_BATCH_CREATED),
+                org.mockito.ArgumentMatchers.<EventEnvelope<Map<String, String>>>any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        publisher.publishBatchCreated("tenant-1", "job-1", "batch-1");
+
+        ArgumentCaptor<EventEnvelope<Map<String, String>>> envelopeCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_BATCH_CREATED), envelopeCaptor.capture());
+        Map<String, String> payload = envelopeCaptor.getValue().getPayload();
+        assertFalse(payload.containsKey("subscribers"));
+        assertFalse(payload.containsKey("payload"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishSendProcessingUsesBoundedBatchMetadata() {
+        when(eventPublisher.publish(
+                eq(AppConstants.TOPIC_SEND_PROCESSING),
+                eq("batch-1"),
+                org.mockito.ArgumentMatchers.<EventEnvelope<Map<String, String>>>any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        publisher.publishSendProcessing("tenant-1", "job-1", "batch-1", "[{\"email\":\"one@example.com\"}]");
+
+        ArgumentCaptor<EventEnvelope<Map<String, String>>> envelopeCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_PROCESSING), eq("batch-1"), envelopeCaptor.capture());
+        Map<String, String> payload = envelopeCaptor.getValue().getPayload();
+        assertFalse(payload.containsKey("subscribers"));
+        assertFalse(payload.containsKey("payload"));
     }
 }

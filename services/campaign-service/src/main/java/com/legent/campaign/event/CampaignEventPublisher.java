@@ -64,8 +64,14 @@ public class CampaignEventPublisher {
     }
 
     public void publishSendProcessing(String tenantId, String jobId, String batchId, String payloadJson) {
-        EventEnvelope<String> envelope = EventEnvelope.wrap(
-                AppConstants.TOPIC_SEND_PROCESSING, tenantId, SOURCE, payloadJson
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
+                AppConstants.TOPIC_SEND_PROCESSING, tenantId, SOURCE,
+                Map.of(
+                        "jobId", jobId,
+                        "batchId", batchId,
+                        "workspaceId", workspaceId
+                )
         );
         // Using batchId as key for partition locality for the same batch
         publishAndAwait(AppConstants.TOPIC_SEND_PROCESSING, batchId, envelope);

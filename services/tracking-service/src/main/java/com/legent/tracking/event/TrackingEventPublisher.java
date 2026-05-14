@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @Component
@@ -40,10 +41,15 @@ public class TrackingEventPublisher {
         envelope.setEnvironmentId(payload.getEnvironmentId());
         envelope.setActorId(payload.getActorId());
         envelope.setOwnershipScope(payload.getOwnershipScope() == null ? "WORKSPACE" : payload.getOwnershipScope());
-        if (payload.getIdempotencyKey() != null && !payload.getIdempotencyKey().isBlank()) {
-            envelope.setIdempotencyKey(payload.getIdempotencyKey());
+        String idempotencyKey = firstNonBlank(payload.getIdempotencyKey(), payload.getId());
+        if (idempotencyKey != null) {
+            envelope.setIdempotencyKey(idempotencyKey);
         }
-        eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, payload.getMessageId(), envelope);
+        CompletableFuture<?> send = eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, payload.getMessageId(), envelope);
+        if (send == null) {
+            throw new IllegalStateException("Kafka publish returned no send future");
+        }
+        send.get();
     }
 
     public void publishOpen(String mid, String tenantId) {
@@ -87,5 +93,15 @@ public class TrackingEventPublisher {
         } catch (Exception e) {
             log.error("Failed to publish conversion event for mid={}", mid, e);
         }
+    }
+
+    private String firstNonBlank(String primary, String fallback) {
+        if (primary != null && !primary.isBlank()) {
+            return primary.trim();
+        }
+        if (fallback != null && !fallback.isBlank()) {
+            return fallback.trim();
+        }
+        return null;
     }
 }

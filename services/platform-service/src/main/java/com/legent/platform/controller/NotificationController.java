@@ -20,17 +20,18 @@ public class NotificationController {
     private final NotificationEngine notificationEngine;
 
     @GetMapping
-    public ApiResponse<List<Notification>> getUnreadNotifications(@RequestHeader("X-Tenant-Id") String tenantId) {
+    public ApiResponse<List<Notification>> getUnreadNotifications() {
         // SECURITY: Get userId from authenticated security context, not from request
+        String tenantId = TenantContext.requireTenantId();
         String userId = getCurrentUserId();
         return ApiResponse.ok(notificationEngine.getUnreadNotifications(tenantId, userId));
     }
 
     @PostMapping("/{id}/read")
     public ApiResponse<Void> markAsRead(
-            @PathVariable String id,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @PathVariable String id) {
         // SECURITY: Get userId from authenticated security context
+        String tenantId = TenantContext.requireTenantId();
         String userId = getCurrentUserId();
         notificationEngine.markAsRead(id, tenantId, userId);
         return ApiResponse.ok(null);

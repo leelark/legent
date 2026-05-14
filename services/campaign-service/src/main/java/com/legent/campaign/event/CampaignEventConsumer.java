@@ -61,7 +61,8 @@ public class CampaignEventConsumer {
             if (workspaceId == null) {
                 return;
             }
-            registration = registerEvent(event, AppConstants.TOPIC_AUDIENCE_RESOLVED, workspaceId);
+            String chunkIdentity = audienceChunkIdentity(event, payload);
+            registration = registerEvent(event, AppConstants.TOPIC_AUDIENCE_RESOLVED, workspaceId, chunkIdentity, chunkIdentity);
             if (!registration.claimed()) {
                 return;
             }
@@ -79,7 +80,7 @@ public class CampaignEventConsumer {
             }
 
             log.info("Received resolved audience chunk for job {}. Size: {}, isLast: {}", jobId, subscribers.size(), isLastChunk);
-            batchingService.processResolvedAudienceChunk(event.getTenantId(), jobId, subscribers, isLastChunk);
+            batchingService.processResolvedAudienceChunk(event.getTenantId(), workspaceId, jobId, subscribers, isLastChunk);
             sideEffectsComplete = true;
             completeEvent(registration);
 
@@ -93,11 +94,11 @@ public class CampaignEventConsumer {
     }
 
     @KafkaListener(topics = AppConstants.TOPIC_SEND_PROCESSING, groupId = AppConstants.GROUP_CAMPAIGN, concurrency = "3")
-    public void handleSendProcessing(EventEnvelope<Map<String, Object>> event) {
+    public void handleSendProcessing(EventEnvelope<?> event) {
         EventRegistration registration = null;
         boolean sideEffectsComplete = false;
         try {
-            Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
+            Map<String, Object> payload = payloadAsMap(event.getPayload());
             String workspaceId = resolveWorkspaceId(event, payload);
             if (workspaceId == null) {
                 return;
@@ -161,13 +162,11 @@ public class CampaignEventConsumer {
     }
 
     @KafkaListener(topics = AppConstants.TOPIC_SEND_REQUESTED, groupId = AppConstants.GROUP_CAMPAIGN, concurrency = "2")
-    public void handleAutomationSendRequest(EventEnvelope<String> event) {
+    public void handleAutomationSendRequest(EventEnvelope<?> event) {
         EventRegistration registration = null;
         boolean sideEffectsComplete = false;
         try {
-            Map<String, Object> payload = event.getPayload() != null
-                    ? objectMapper.readValue(event.getPayload(), new TypeReference<>() {})
-                    : Collections.emptyMap();
+            Map<String, Object> payload = payloadAsMap(event.getPayload());
             String campaignId = stringValue(payload.get("campaignId"));
             if (campaignId == null) {
                 log.warn("Ignoring send.requested without campaignId: {}", event.getEventId());
@@ -205,6 +204,26 @@ public class CampaignEventConsumer {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private Map<String, Object> payloadAsMap(Object payload) {
+        if (payload == null) {
+            return Collections.emptyMap();
+        }
+        if (payload instanceof String json) {
+            if (json.isBlank()) {
+                return Collections.emptyMap();
+            }
+            try {
+                return objectMapper.readValue(json, new TypeReference<>() {});
+            } catch (Exception e) {
+                throw new IllegalArgumentException("Invalid JSON event payload", e);
+            }
+        }
+        if (payload instanceof Map<?, ?> map) {
+            return objectMapper.convertValue(map, new TypeReference<>() {});
+        }
+        throw new IllegalArgumentException("Unsupported event payload type: " + payload.getClass().getName());
     }
 
     @KafkaListener(topics = AppConstants.TOPIC_EMAIL_SENT, groupId = AppConstants.GROUP_CAMPAIGN, concurrency = "5")
@@ -409,19 +428,27 @@ public class CampaignEventConsumer {
     }
 
     private EventRegistration registerEvent(EventEnvelope<?> event, String eventType, String workspaceId) {
+        return registerEvent(event, eventType, workspaceId, event.getEventId(), event.getIdempotencyKey());
+    }
+
+    private EventRegistration registerEvent(EventEnvelope<?> event,
+                                            String eventType,
+                                            String workspaceId,
+                                            String eventId,
+                                            String idempotencyKey) {
         boolean claimed = idempotencyService.registerIfNew(
                 event.getTenantId(),
                 workspaceId,
                 eventType,
-                event.getEventId(),
-                event.getIdempotencyKey()
+                eventId,
+                idempotencyKey
         );
         return new EventRegistration(
                 event.getTenantId(),
                 workspaceId,
                 eventType,
-                event.getEventId(),
-                event.getIdempotencyKey(),
+                eventId,
+                idempotencyKey,
                 claimed
         );
     }
@@ -486,6 +513,19 @@ public class CampaignEventConsumer {
         }
         log.error("Dropping campaign event without workspaceId. eventId={}, eventType={}", event.getEventId(), event.getEventType());
         return null;
+    }
+
+    private String audienceChunkIdentity(EventEnvelope<?> event, Map<String, ?> payload) {
+        String chunkId = stringValue(payload.get("chunkId"));
+        if (chunkId != null) {
+            return chunkId;
+        }
+        String jobId = stringValue(payload.get("jobId"));
+        String chunkIndex = stringValue(payload.get("chunkIndex"));
+        if (jobId != null && chunkIndex != null) {
+            return jobId + ":chunk:" + chunkIndex;
+        }
+        return event.getEventId();
     }
 
     private String stringValue(Object value) {

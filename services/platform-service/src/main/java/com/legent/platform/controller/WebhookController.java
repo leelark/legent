@@ -23,13 +23,13 @@ public class WebhookController {
 
     @GetMapping
     public ApiResponse<List<WebhookConfig>> listWebhooks() {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(webhookRepository.findByTenantIdAndIsActiveTrue(tenantId));
     }
 
     @PostMapping
     public ApiResponse<WebhookConfig> createWebhook(@RequestBody WebhookConfig hook) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContext.requireTenantId();
         hook.setId(UUID.randomUUID().toString());
         hook.setTenantId(tenantId);
         return ApiResponse.ok(webhookRepository.save(hook));

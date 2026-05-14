@@ -9,6 +9,9 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Push-Location $repoRoot
 try {
     $rendered = (kubectl kustomize $OverlayPath) -join "`n"
+    if ($LASTEXITCODE -ne 0) {
+        throw "kubectl kustomize $OverlayPath failed with exit code $LASTEXITCODE"
+    }
 } finally {
     Pop-Location
 }
@@ -23,6 +26,20 @@ if ($rendered -match "\.local\b") {
 
 if ($rendered -notmatch "CLICKHOUSE_DB:\s+legent_analytics\b") {
     throw "Production overlay must set CLICKHOUSE_DB to legent_analytics"
+}
+
+$requiredRuntimeFlags = @{
+    "SPRING_JPA_HIBERNATE_DDL_AUTO" = "validate"
+    "SPRING_FLYWAY_BASELINE_ON_MIGRATE" = "false"
+    "SPRING_FLYWAY_VALIDATE_ON_MIGRATE" = "true"
+    "SPRING_FLYWAY_OUT_OF_ORDER" = "false"
+}
+
+foreach ($flag in $requiredRuntimeFlags.GetEnumerator()) {
+    $pattern = "(?m)^\s*$([regex]::Escape($flag.Key)):\s+`"?$([regex]::Escape($flag.Value))`"?\s*$"
+    if ($rendered -notmatch $pattern) {
+        throw "Production overlay must set $($flag.Key) to $($flag.Value)"
+    }
 }
 
 $requiredSecretKeys = @(

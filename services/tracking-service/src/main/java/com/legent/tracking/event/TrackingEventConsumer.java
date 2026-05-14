@@ -17,6 +17,8 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 
 @Slf4j
 @Component
@@ -29,14 +31,18 @@ public class TrackingEventConsumer {
     private final ObjectMapper objectMapper;
 
     @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = "tracking-clickhouse-group")
-    public void handleIngestedEvents(List<EventEnvelope<String>> events) {
+    public void handleIngestedEvent(EventEnvelope<String> event) {
+        handleIngestedEvents(List.of(event));
+    }
+
+    void handleIngestedEvents(List<EventEnvelope<String>> events) {
         if (events == null || events.isEmpty()) {
             log.info("Received empty tracking event batch");
             return;
         }
 
         log.info("Received batch of {} tracking events", events.size());
-        List<TrackingDto.RawEventPayload> batch = new ArrayList<>();
+        List<ClaimedTrackingEvent> claimedEvents = new ArrayList<>();
 
         for (EventEnvelope<String> event : events) {
             try {
@@ -49,45 +55,47 @@ public class TrackingEventConsumer {
                         event.getPayload(),
                         new TypeReference<TrackingDto.RawEventPayload>() {}
                 );
-                String workspaceId = payload.getWorkspaceId();
-                if (workspaceId == null || workspaceId.isBlank()) {
-                    workspaceId = event.getWorkspaceId();
-                }
-                if (workspaceId == null || workspaceId.isBlank()) {
+                String tenantId = normalizeRequiredScope(event.getTenantId());
+                String workspaceId = normalizeRequiredScope(event.getWorkspaceId());
+                if (tenantId == null || workspaceId == null) {
                     log.error("Skipping tracking event with missing workspaceId. eventId={}, tenantId={}",
-                            event.getEventId(), payload.getTenantId());
+                            event.getEventId(), event.getTenantId());
+                    continue;
+                }
+                if (scopeMismatch("tenantId", tenantId, payload.getTenantId(), event.getEventId())
+                        || scopeMismatch("workspaceId", workspaceId, payload.getWorkspaceId(), event.getEventId())) {
                     continue;
                 }
 
-                if (payload.getTenantId() == null || payload.getTenantId().isBlank()
-                        || payload.getEventType() == null || payload.getEventType().isBlank()) {
+                String eventType = normalizeEventType(payload.getEventType());
+                if (eventType == null) {
                     log.warn("Skipping tracking event with missing tenantId or eventType");
                     continue;
                 }
+                payload.setEventType(eventType);
+                payload.setTenantId(tenantId);
                 payload.setWorkspaceId(workspaceId);
                 if (payload.getOwnershipScope() == null || payload.getOwnershipScope().isBlank()) {
                     payload.setOwnershipScope("WORKSPACE");
                 }
-                if (payload.getIdempotencyKey() == null || payload.getIdempotencyKey().isBlank()) {
-                    payload.setIdempotencyKey(event.getIdempotencyKey());
+                String idempotencyKey = firstNonBlank(payload.getIdempotencyKey(), event.getIdempotencyKey(), payload.getId());
+                if (idempotencyKey != null) {
+                    payload.setIdempotencyKey(idempotencyKey);
                 }
                 if (payload.getId() == null || payload.getId().isBlank()) {
                     payload.setId(event.getEventId());
                 }
+                String eventId = firstNonBlank(event.getEventId(), payload.getId(), idempotencyKey);
 
-                if (!idempotencyService.registerIfNew(
-                        payload.getTenantId(),
+                if (!idempotencyService.claimIfNew(
+                        tenantId,
                         workspaceId,
-                        payload.getEventType(),
-                        event.getEventId(),
-                        event.getIdempotencyKey())) {
+                        eventType,
+                        eventId,
+                        idempotencyKey)) {
                     continue;
                 }
-                batch.add(payload);
-
-                // Also perform real-time aggregation for UI summaries
-                RawEvent rawEvent = toRawEvent(payload);
-                aggregationService.aggregateEvent(rawEvent);
+                claimedEvents.add(new ClaimedTrackingEvent(payload, tenantId, workspaceId, eventType, eventId, idempotencyKey));
 
             } catch (JsonProcessingException e) {
                 log.warn("Dropping malformed tracking event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
@@ -97,14 +105,79 @@ public class TrackingEventConsumer {
             }
         }
 
-        if (!batch.isEmpty()) {
+        if (!claimedEvents.isEmpty()) {
             try {
+                List<TrackingDto.RawEventPayload> batch = claimedEvents.stream()
+                        .map(ClaimedTrackingEvent::payload)
+                        .toList();
                 clickHouseWriter.writeBatch(batch);
+                for (ClaimedTrackingEvent claimed : claimedEvents) {
+                    aggregationService.aggregateEvent(toRawEvent(claimed.payload()));
+                    idempotencyService.markProcessed(
+                            claimed.tenantId(),
+                            claimed.workspaceId(),
+                            claimed.eventType(),
+                            claimed.eventId(),
+                            claimed.idempotencyKey());
+                }
             } catch (Exception e) {
-                log.error("Failed to write batch to ClickHouse", e);
-                throw new IllegalStateException("Failed to write tracking batch to ClickHouse", e);
+                releaseClaims(claimedEvents, e);
+                log.error("Failed to write tracking event side effects", e);
+                throw new IllegalStateException("Failed to process tracking event side effects", e);
             }
         }
+    }
+
+    private void releaseClaims(List<ClaimedTrackingEvent> claimedEvents, Exception processingFailure) {
+        for (ClaimedTrackingEvent claimed : claimedEvents) {
+            try {
+                idempotencyService.releaseClaim(
+                        claimed.tenantId(),
+                        claimed.workspaceId(),
+                        claimed.eventType(),
+                        claimed.eventId(),
+                        claimed.idempotencyKey());
+            } catch (Exception releaseFailure) {
+                processingFailure.addSuppressed(releaseFailure);
+                log.error("Failed to release tracking idempotency claim eventId={}", claimed.eventId(), releaseFailure);
+            }
+        }
+    }
+
+    private String normalizeEventType(String eventType) {
+        if (eventType == null || eventType.isBlank()) {
+            return null;
+        }
+        return eventType.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeRequiredScope(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    private boolean scopeMismatch(String field, String envelopeValue, String payloadValue, String eventId) {
+        if (payloadValue == null || payloadValue.isBlank()) {
+            return false;
+        }
+        String normalizedPayloadValue = payloadValue.trim();
+        if (Objects.equals(envelopeValue, normalizedPayloadValue)) {
+            return false;
+        }
+        log.error("Skipping tracking event with {} mismatch. eventId={}, envelope={}, payload={}",
+                field, eventId, envelopeValue, normalizedPayloadValue);
+        return true;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private RawEvent toRawEvent(TrackingDto.RawEventPayload p) {
@@ -133,5 +206,14 @@ public class TrackingEventConsumer {
             }
         }
         return e;
+    }
+
+    private record ClaimedTrackingEvent(
+            TrackingDto.RawEventPayload payload,
+            String tenantId,
+            String workspaceId,
+            String eventType,
+            String eventId,
+            String idempotencyKey) {
     }
 }
