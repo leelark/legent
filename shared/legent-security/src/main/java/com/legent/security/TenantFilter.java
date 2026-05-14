@@ -33,6 +33,8 @@ public class TenantFilter extends OncePerRequestFilter {
             "/actuator",
             "/api/v1/health",
             "/api/v1/auth",
+            "/api/v1/sso",
+            "/api/v1/scim/v2",
             "/api/v1/public",
             "/api/v1/tracking/o.gif",
             "/api/v1/tracking/c"

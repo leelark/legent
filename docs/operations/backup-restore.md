@@ -13,7 +13,7 @@ Backup:
 Restore:
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Target postgres -Action restore -InputFile .\backups\postgres.sql
+.\scripts\ops\backup-restore.ps1 -Target postgres -Action restore -InputFile <postgres-backup>
 ```
 
 ## ClickHouse
@@ -27,7 +27,13 @@ Backup:
 Restore:
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action restore -InputFile .\backups\clickhouse.sql
+.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action restore -InputFile <clickhouse-backup>
+```
+
+Drill:
+
+```powershell
+.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action drill -InputFile <clickhouse-backup>
 ```
 
 ## MinIO
@@ -41,7 +47,7 @@ Backup:
 Restore:
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Target minio -Action restore -InputFile .\backups\minio.tar
+.\scripts\ops\backup-restore.ps1 -Target minio -Action restore -InputFile <minio-backup>
 ```
 
 Run a restore drill at least once per release. Record backup checksum, restore duration, and application smoke result.

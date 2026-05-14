@@ -6,6 +6,7 @@ import com.legent.security.TenantContext;
 import java.util.Map;
 
 import java.time.Instant;
+import java.util.concurrent.CompletionException;
 
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
@@ -32,7 +33,7 @@ public class CampaignEventPublisher {
                         "scheduledAt", scheduledAt != null ? scheduledAt.toString() : ""
                 )
         );
-        eventPublisher.publish(AppConstants.TOPIC_SEND_REQUESTED, envelope);
+        publishAndAwait(AppConstants.TOPIC_SEND_REQUESTED, envelope);
     }
 
     public void publishAudienceResolutionRequested(String tenantId, String campaignId, String jobId, List<Map<String, String>> audiences) {
@@ -46,7 +47,7 @@ public class CampaignEventPublisher {
                         "audiences", audiences
                 )
         );
-        eventPublisher.publish(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, envelope);
+        publishAndAwait(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED, envelope);
     }
 
     public void publishBatchCreated(String tenantId, String jobId, String batchId) {
@@ -59,7 +60,7 @@ public class CampaignEventPublisher {
                         "workspaceId", workspaceId
                 )
         );
-        eventPublisher.publish(AppConstants.TOPIC_BATCH_CREATED, envelope);
+        publishAndAwait(AppConstants.TOPIC_BATCH_CREATED, envelope);
     }
 
     public void publishSendProcessing(String tenantId, String jobId, String batchId, String payloadJson) {
@@ -67,11 +68,35 @@ public class CampaignEventPublisher {
                 AppConstants.TOPIC_SEND_PROCESSING, tenantId, SOURCE, payloadJson
         );
         // Using batchId as key for partition locality for the same batch
-        eventPublisher.publish(AppConstants.TOPIC_SEND_PROCESSING, batchId, envelope);
+        publishAndAwait(AppConstants.TOPIC_SEND_PROCESSING, batchId, envelope);
     }
 
     public void publishJobStatus(String topic, String tenantId, String jobId, String payloadJson) {
         EventEnvelope<String> envelope = EventEnvelope.wrap(topic, tenantId, SOURCE, payloadJson);
-        eventPublisher.publish(topic, envelope);
+        publishAndAwait(topic, envelope);
+    }
+
+    private <T> void publishAndAwait(String topic, EventEnvelope<T> envelope) {
+        try {
+            eventPublisher.publish(topic, envelope).join();
+        } catch (CompletionException e) {
+            throw publishFailure(topic, e);
+        }
+    }
+
+    private <T> void publishAndAwait(String topic, String key, EventEnvelope<T> envelope) {
+        try {
+            eventPublisher.publish(topic, key, envelope).join();
+        } catch (CompletionException e) {
+            throw publishFailure(topic, e);
+        }
+    }
+
+    private RuntimeException publishFailure(String topic, CompletionException e) {
+        Throwable cause = e.getCause() != null ? e.getCause() : e;
+        if (cause instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        return new IllegalStateException("Failed to publish event to " + topic, cause);
     }
 }

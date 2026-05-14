@@ -14,8 +14,13 @@ Status: procedure defined, execution required in target cluster
 Run the existing backup/restore automation:
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Mode backup
-.\scripts\ops\backup-restore.ps1 -Mode restore -BackupPath <path-to-backup>
+.\scripts\ops\backup-restore.ps1 -Target postgres -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target postgres -Action restore -InputFile <postgres-backup>
+.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action drill -InputFile <clickhouse-backup>
+.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action restore -InputFile <clickhouse-backup>
+.\scripts\ops\backup-restore.ps1 -Target minio -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target minio -Action restore -InputFile <minio-backup>
 ```
 
 Run post-restore smoke:

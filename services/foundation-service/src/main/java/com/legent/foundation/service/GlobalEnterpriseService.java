@@ -104,7 +104,7 @@ public class GlobalEnterpriseService {
         values.put("completed_at", request.getCompletedAt() == null ? Instant.now() : request.getCompletedAt());
         Map<String, Object> saved = repository.insert("global_failover_drills", values, List.of("affected_services", "findings", "evidence"));
         if (model.get("id") != null) {
-            repository.updateById("global_operating_models", String.valueOf(model.get("id")), tenant(),
+            repository.updateByIdAndWorkspace("global_operating_models", String.valueOf(model.get("id")), tenant(), asString(model.get("workspace_id")),
                     map("last_drill_at", Instant.now(), "failover_state", pass ? "DRILL_PASS" : "DRILL_FAIL"),
                     List.of());
         }
@@ -277,7 +277,7 @@ public class GlobalEnterpriseService {
         if (!"ACTIVE".equalsIgnoreCase(asString(hold.get("status")))) {
             throw new IllegalArgumentException("Only ACTIVE legal holds can be released");
         }
-        return repository.updateById("governance_legal_holds", id, tenant(),
+        return repository.updateByIdAndWorkspace("governance_legal_holds", id, tenant(), asString(hold.get("workspace_id")),
                 map("status", "RELEASED",
                         "released_by", actor(),
                         "released_at", Instant.now(),
@@ -624,6 +624,7 @@ public class GlobalEnterpriseService {
 
     @Transactional
     public Map<String, Object> decideOptimizationRecommendation(String id, GlobalEnterpriseDto.OptimizationDecisionRequest request) {
+        Map<String, Object> recommendation = requireById("autonomous_optimization_recommendations", id);
         String decision = normalize(request.getDecision());
         if (!List.of("APPROVED", "REJECTED", "APPLY").contains(decision)) {
             throw new IllegalArgumentException("decision must be APPROVED, REJECTED, or APPLY");
@@ -637,7 +638,7 @@ public class GlobalEnterpriseService {
             updates.put("applied_snapshot", toJson(request.getAppliedSnapshot()));
             updates.put("applied_at", Instant.now());
         }
-        return repository.updateById("autonomous_optimization_recommendations", id, tenant(), updates, List.of("applied_snapshot"));
+        return repository.updateByIdAndWorkspace("autonomous_optimization_recommendations", id, tenant(), asString(recommendation.get("workspace_id")), updates, List.of("applied_snapshot"));
     }
 
     @Transactional
@@ -651,7 +652,7 @@ public class GlobalEnterpriseService {
         values.put("evidence", toJson(request.getEvidence()));
         values.put("rolled_back_at", Instant.now());
         Map<String, Object> rollback = repository.insert("autonomous_optimization_rollbacks", values, List.of("rollback_snapshot", "evidence"));
-        repository.updateById("autonomous_optimization_recommendations", request.getRecommendationId(), tenant(),
+        repository.updateByIdAndWorkspace("autonomous_optimization_recommendations", request.getRecommendationId(), tenant(), asString(recommendation.get("workspace_id")),
                 map("status", "ROLLED_BACK"), List.of());
         return rollback;
     }
@@ -683,6 +684,9 @@ public class GlobalEnterpriseService {
         }
         Map<String, Object> updates = new LinkedHashMap<>(values);
         updates.keySet().removeAll(List.of("id", "tenant_id", "workspace_id", "created_at", "created_by", "deleted_at", "version"));
+        if (workspaceId != null) {
+            return repository.updateByIdAndWorkspace(table, String.valueOf(existing.get(0).get("id")), tenant(), workspaceId, updates, jsonColumns);
+        }
         return repository.updateById(table, String.valueOf(existing.get(0).get("id")), tenant(), updates, jsonColumns);
     }
 
@@ -712,9 +716,10 @@ public class GlobalEnterpriseService {
 
     private Map<String, Object> requireById(String table, String id) {
         String safeTable = CorePlatformRepository.safeTable(table);
+        String workspaceId = workspace(null);
         List<Map<String, Object>> rows = repository.queryForList(
-                "SELECT * FROM " + safeTable + " WHERE tenant_id = :tenantId AND id = :id AND deleted_at IS NULL LIMIT 1",
-                map("tenantId", tenant(), "id", id)
+                "SELECT * FROM " + safeTable + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND id = :id AND deleted_at IS NULL LIMIT 1",
+                map("tenantId", tenant(), "workspaceId", workspaceId, "id", id)
         );
         if (rows.isEmpty()) {
             throw new IllegalArgumentException(safeTable + " not found: " + id);
@@ -1025,7 +1030,11 @@ public class GlobalEnterpriseService {
 
     private String workspace(String workspaceId) {
         String resolved = blankToNull(workspaceId);
-        return resolved == null ? TenantContext.getWorkspaceId() : resolved;
+        String contextWorkspaceId = blankToNull(TenantContext.getWorkspaceId());
+        if (resolved != null && contextWorkspaceId != null && !contextWorkspaceId.equals(resolved)) {
+            throw new IllegalArgumentException("workspaceId does not match the current workspace");
+        }
+        return resolved == null ? contextWorkspaceId : resolved;
     }
 
     private String actor() {

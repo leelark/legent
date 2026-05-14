@@ -28,7 +28,7 @@ public class ComplianceEvidenceService {
     @Transactional
     public Map<String, Object> recordAuditEvidence(ComplianceDto.AuditEvidenceRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        String workspaceId = coalesce(request.getWorkspaceId(), TenantContext.getWorkspaceId());
+        String workspaceId = workspace(request.getWorkspaceId());
         String previousHash = latestHash("immutable_audit_evidence", tenantId, workspaceId);
         String payloadJson = toJson(request.getPayload());
         String hash = hashChain(tenantId, workspaceId, request.getEventType(), request.getResourceType(),
@@ -54,7 +54,7 @@ public class ComplianceEvidenceService {
     public List<Map<String, Object>> listAuditEvidence(String workspaceId, String resourceType, int limit) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", TenantContext.requireTenantId());
-        params.put("workspaceId", coalesce(workspaceId, TenantContext.getWorkspaceId()));
+        params.put("workspaceId", workspace(workspaceId));
         params.put("resourceType", blankToNull(resourceType));
         params.put("limit", Math.max(1, Math.min(limit, 500)));
         return repository.queryForList("""
@@ -92,7 +92,7 @@ public class ComplianceEvidenceService {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("id", IdGenerator.newId());
         params.put("tenantId", TenantContext.requireTenantId());
-        params.put("workspaceId", coalesce(request.getWorkspaceId(), TenantContext.getWorkspaceId()));
+        params.put("workspaceId", workspace(request.getWorkspaceId()));
         params.put("dataDomain", request.getDataDomain().trim().toUpperCase());
         params.put("resourceType", request.getResourceType());
         params.put("retentionDays", request.getRetentionDays() == null ? 365 : request.getRetentionDays());
@@ -109,7 +109,7 @@ public class ComplianceEvidenceService {
     public List<Map<String, Object>> listRetentionMatrix(String workspaceId) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", TenantContext.requireTenantId());
-        params.put("workspaceId", coalesce(workspaceId, TenantContext.getWorkspaceId()));
+        params.put("workspaceId", workspace(workspaceId));
         return repository.queryForList("""
                 SELECT * FROM retention_matrix
                 WHERE tenant_id = :tenantId
@@ -122,7 +122,7 @@ public class ComplianceEvidenceService {
     @Transactional
     public Map<String, Object> recordConsent(ComplianceDto.ConsentLedgerRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        String workspaceId = coalesce(request.getWorkspaceId(), TenantContext.getWorkspaceId());
+        String workspaceId = workspace(request.getWorkspaceId());
         String previousHash = latestHash("consent_ledger", tenantId, workspaceId);
         String payloadJson = toJson(Map.of(
                 "subjectId", request.getSubjectId(),
@@ -153,7 +153,7 @@ public class ComplianceEvidenceService {
     public List<Map<String, Object>> listConsentLedger(String workspaceId, String subjectId, int limit) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", TenantContext.requireTenantId());
-        params.put("workspaceId", coalesce(workspaceId, TenantContext.getWorkspaceId()));
+        params.put("workspaceId", workspace(workspaceId));
         params.put("subjectId", blankToNull(subjectId));
         params.put("limit", Math.max(1, Math.min(limit, 500)));
         return repository.queryForList("""
@@ -169,7 +169,7 @@ public class ComplianceEvidenceService {
 
     @Transactional
     public Map<String, Object> createPrivacyRequest(ComplianceDto.PrivacyRequest request) {
-        Map<String, Object> values = baseValues(TenantContext.requireTenantId(), coalesce(request.getWorkspaceId(), TenantContext.getWorkspaceId()));
+        Map<String, Object> values = baseValues(TenantContext.requireTenantId(), workspace(request.getWorkspaceId()));
         values.put("subject_id", request.getSubjectId());
         values.put("email", blankToNull(request.getEmail()));
         values.put("request_type", request.getRequestType().trim().toUpperCase());
@@ -208,7 +208,7 @@ public class ComplianceEvidenceService {
     public List<Map<String, Object>> listPrivacyRequests(String workspaceId, String status, int limit) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", TenantContext.requireTenantId());
-        params.put("workspaceId", coalesce(workspaceId, TenantContext.getWorkspaceId()));
+        params.put("workspaceId", workspace(workspaceId));
         params.put("status", blankToNull(status) == null ? null : status.trim().toUpperCase());
         params.put("limit", Math.max(1, Math.min(limit, 500)));
         return repository.queryForList("""
@@ -226,7 +226,7 @@ public class ComplianceEvidenceService {
     public Map<String, Object> createComplianceExport(ComplianceDto.ComplianceExportRequest request) {
         String exportType = request.getExportType().trim().toUpperCase();
         String format = coalesce(request.getFormat(), "JSON").trim().toUpperCase();
-        Map<String, Object> values = baseValues(TenantContext.requireTenantId(), coalesce(request.getWorkspaceId(), TenantContext.getWorkspaceId()));
+        Map<String, Object> values = baseValues(TenantContext.requireTenantId(), workspace(request.getWorkspaceId()));
         values.put("export_type", exportType);
         values.put("status", "COMPLETED");
         values.put("format", format);
@@ -246,7 +246,7 @@ public class ComplianceEvidenceService {
     public List<Map<String, Object>> listComplianceExports(String workspaceId, int limit) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", TenantContext.requireTenantId());
-        params.put("workspaceId", coalesce(workspaceId, TenantContext.getWorkspaceId()));
+        params.put("workspaceId", workspace(workspaceId));
         params.put("limit", Math.max(1, Math.min(limit, 500)));
         return repository.queryForList("""
                 SELECT * FROM compliance_export_jobs
@@ -370,6 +370,15 @@ public class ComplianceEvidenceService {
 
     private String coalesce(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String workspace(String explicit) {
+        String resolved = blankToNull(explicit);
+        String contextWorkspaceId = blankToNull(TenantContext.getWorkspaceId());
+        if (resolved != null && contextWorkspaceId != null && !contextWorkspaceId.equals(resolved)) {
+            throw new IllegalArgumentException("workspaceId does not match the current workspace");
+        }
+        return resolved == null ? contextWorkspaceId : resolved;
     }
 
     private String blankToNull(String value) {

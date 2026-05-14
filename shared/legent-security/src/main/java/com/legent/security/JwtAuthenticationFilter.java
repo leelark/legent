@@ -38,6 +38,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
     private static final String TOKEN_COOKIE_NAME = "legent_token";
+    private static final Set<String> OPTIONAL_AUTH_PATHS = Set.of(
+            "/actuator",
+            "/api/v1/health",
+            "/api/v1/auth",
+            "/api/v1/sso",
+            "/api/v1/scim/v2",
+            "/api/v1/public",
+            "/api/v1/tracking/o.gif",
+            "/api/v1/tracking/c"
+    );
 
     @Override
     protected void doFilterInternal(
@@ -54,6 +64,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         Optional<Claims> claimsOptional = jwtTokenProvider.validateToken(token);
         if (claimsOptional.isEmpty()) {
+            if (isOptionalAuthPath(request.getRequestURI())) {
+                filterChain.doFilter(request, response);
+                return;
+            }
             unauthorized(response, "INVALID_TOKEN", "JWT token is invalid or expired");
             return;
         }
@@ -93,6 +107,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isOptionalAuthPath(String path) {
+        return OPTIONAL_AUTH_PATHS.stream().anyMatch(path::startsWith);
     }
 
     /**

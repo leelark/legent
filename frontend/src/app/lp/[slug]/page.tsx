@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getPublicLandingPage, LandingPage } from '@/lib/template-studio-api';
+import { sanitizeLandingPageHtml } from '@/lib/sanitize-html';
 
 export default function PublicLandingPageRoute() {
   const params = useParams();
@@ -34,7 +35,7 @@ export default function PublicLandingPageRoute() {
 
   return (
     <main className="min-h-screen bg-white text-slate-950">
-      <div dangerouslySetInnerHTML={{ __html: page.htmlContent || '' }} />
+      <div dangerouslySetInnerHTML={{ __html: sanitizeLandingPageHtml(page.htmlContent) }} />
     </main>
   );
 }

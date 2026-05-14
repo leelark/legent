@@ -11,15 +11,13 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface DataExtensionRecordRepository extends JpaRepository<DataExtensionRecord, String> {
 
-    Page<DataExtensionRecord> findByDataExtensionId(String dataExtensionId, Pageable pageable);
+    Page<DataExtensionRecord> findByTenantIdAndWorkspaceIdAndDataExtensionId(String tenantId,
+                                                                             String workspaceId,
+                                                                             String dataExtensionId,
+                                                                             Pageable pageable);
 
-    Page<DataExtensionRecord> findByTenantIdAndDataExtensionId(String tenantId, String dataExtensionId, Pageable pageable);
-
-    @Query("SELECT COUNT(r) FROM DataExtensionRecord r WHERE r.dataExtensionId = :deId")
-    long countByDataExtension(@Param("deId") String dataExtensionId);
-
-    @Query("SELECT COUNT(r) FROM DataExtensionRecord r WHERE r.tenantId = :tenantId AND r.dataExtensionId = :deId")
-    long countByTenantAndDataExtension(@Param("tenantId") String tenantId, @Param("deId") String dataExtensionId);
-
-    void deleteByDataExtensionId(String dataExtensionId);
+    @Query("SELECT COUNT(r) FROM DataExtensionRecord r WHERE r.tenantId = :tenantId AND r.workspaceId = :workspaceId AND r.dataExtensionId = :deId")
+    long countByTenantWorkspaceAndDataExtension(@Param("tenantId") String tenantId,
+                                                @Param("workspaceId") String workspaceId,
+                                                @Param("deId") String dataExtensionId);
 }

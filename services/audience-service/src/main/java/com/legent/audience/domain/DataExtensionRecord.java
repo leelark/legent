@@ -24,6 +24,9 @@ public class DataExtensionRecord extends BaseEntity {
     @Column(name = "tenant_id", nullable = false, length = 36)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false, length = 36)
+    private String workspaceId;
+
     @Column(name = "data_extension_id", nullable = false, length = 36)
     private String dataExtensionId;
 

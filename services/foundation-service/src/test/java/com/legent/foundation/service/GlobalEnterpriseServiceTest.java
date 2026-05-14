@@ -82,8 +82,8 @@ class GlobalEnterpriseServiceTest {
     void createFailoverDrill_failsWhenActualRtoBreachesTarget() {
         when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(model()));
         when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
-        when(repository.updateById(anyString(), anyString(), anyString(), any(Map.class), anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(3));
+        when(repository.updateByIdAndWorkspace(anyString(), anyString(), anyString(), anyString(), any(Map.class), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(4));
 
         GlobalEnterpriseDto.FailoverDrillRequest request = new GlobalEnterpriseDto.FailoverDrillRequest();
         request.setOperatingModelId("model-1");
@@ -166,8 +166,8 @@ class GlobalEnterpriseServiceTest {
                         "rollback_snapshot", Map.of("subject", "Old subject")
                 )));
         when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
-        when(repository.updateById(anyString(), anyString(), anyString(), any(Map.class), anyList()))
-                .thenAnswer(invocation -> invocation.getArgument(3));
+        when(repository.updateByIdAndWorkspace(anyString(), anyString(), anyString(), anyString(), any(Map.class), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(4));
 
         GlobalEnterpriseDto.OptimizationRecommendationRequest request = new GlobalEnterpriseDto.OptimizationRecommendationRequest();
         request.setPolicyKey("auto-subject");
@@ -201,6 +201,7 @@ class GlobalEnterpriseServiceTest {
     private Map<String, Object> model() {
         return Map.of(
                 "id", "model-1",
+                "workspace_id", "workspace-1",
                 "topology_mode", "ACTIVE_ACTIVE",
                 "primary_region", "us-east-1",
                 "standby_regions", List.of("eu-west-1"),

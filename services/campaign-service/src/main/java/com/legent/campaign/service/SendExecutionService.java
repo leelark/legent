@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.CompletionException;
 
 import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
@@ -38,6 +39,8 @@ import org.springframework.transaction.annotation.Transactional;
 @EnableScheduling
 public class SendExecutionService {
 
+    private static final String EMPTY_BATCH_PAYLOAD = "[]";
+
     private final SendBatchRepository batchRepository;
     private final CampaignRepository campaignRepository;
     private final SendJobRepository sendJobRepository;
@@ -59,6 +62,10 @@ public class SendExecutionService {
         try {
             SendBatch batch = findBatchWithRetry(tenantId, batchId);
             if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) return;
+            if (batch.getStatus() == SendBatch.BatchStatus.PROCESSING) {
+                log.info("Skipping batch {} because it is already processing", batchId);
+                return;
+            }
             if (batch.getCampaignId() == null || batch.getCampaignId().isBlank()) {
                 throw new ValidationException("campaignId", "Batch campaignId is required");
             }
@@ -76,7 +83,9 @@ public class SendExecutionService {
                     .toList();
             if (subscribers.isEmpty()) {
                 batch.setStatus(SendBatch.BatchStatus.COMPLETED);
+                batch.setPayload(EMPTY_BATCH_PAYLOAD);
                 batchRepository.save(batch);
+                reconcileJobIfFinished(batch);
                 return;
             }
             
@@ -110,8 +119,10 @@ public class SendExecutionService {
             }
 
             // Limit by domain throttling rules before publishing to delivery.
-            int acquiredPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), preparedRecipients.size());
+            int requestedPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), preparedRecipients.size());
+            int acquiredPermits = Math.min(preparedRecipients.size(), Math.max(0, requestedPermits));
             int publishFailures = 0;
+            List<Map<String, String>> retrySubscribers = new java.util.ArrayList<>();
             Map<RenderCacheKey, ContentServiceClient.RenderedContent> renderCache = newRenderCache();
             
             for (int i = 0; i < acquiredPermits; i++) {
@@ -119,75 +130,75 @@ public class SendExecutionService {
                 Map<String, String> sub = prepared.subscriber();
                 
                 // Publish individual email send requests into Delivery Kafka Topic
-                try {
-                    Map<String, Object> variables = new java.util.HashMap<>();
-                    variables.putAll(sub);
-                    variables.put("campaignId", batch.getCampaignId());
-                    variables.put("jobId", batch.getJobId());
-                    variables.put("batchId", batchId);
-                    if (prepared.experimentId() != null) {
-                        variables.put("experimentId", prepared.experimentId());
-                    }
-                    if (prepared.variantId() != null) {
-                        variables.put("variantId", prepared.variantId());
-                    }
-                    String renderContentId = prepared.contentIdOverride() != null && !prepared.contentIdOverride().isBlank()
-                            ? prepared.contentIdOverride()
-                            : campaign.getContentId();
-                    ContentServiceClient.RenderedContent rendered = renderWithBatchCache(
-                            renderCache,
-                            tenantId,
-                            renderContentId,
-                            prepared.subjectOverride(),
-                            variables);
-                    String subject = prepared.subjectOverride() != null && !prepared.subjectOverride().isBlank()
-                            ? prepared.subjectOverride()
-                            : campaign.getSubject() != null && !campaign.getSubject().isBlank()
-                            ? campaign.getSubject()
-                            : rendered.subject();
-                    if (subject == null || subject.isBlank() || rendered.htmlBody() == null || rendered.htmlBody().isBlank()) {
-                        throw new ValidationException("content", "Rendered email content is missing subject or HTML body");
-                    }
+                Map<String, Object> variables = new java.util.HashMap<>();
+                variables.putAll(sub);
+                variables.put("campaignId", batch.getCampaignId());
+                variables.put("jobId", batch.getJobId());
+                variables.put("batchId", batchId);
+                if (prepared.experimentId() != null) {
+                    variables.put("experimentId", prepared.experimentId());
+                }
+                if (prepared.variantId() != null) {
+                    variables.put("variantId", prepared.variantId());
+                }
+                String renderContentId = prepared.contentIdOverride() != null && !prepared.contentIdOverride().isBlank()
+                        ? prepared.contentIdOverride()
+                        : campaign.getContentId();
+                ContentServiceClient.RenderedContent rendered = renderWithBatchCache(
+                        renderCache,
+                        tenantId,
+                        renderContentId,
+                        prepared.subjectOverride(),
+                        variables);
+                String subject = prepared.subjectOverride() != null && !prepared.subjectOverride().isBlank()
+                        ? prepared.subjectOverride()
+                        : campaign.getSubject() != null && !campaign.getSubject().isBlank()
+                        ? campaign.getSubject()
+                        : rendered.subject();
+                if (subject == null || subject.isBlank() || rendered.htmlBody() == null || rendered.htmlBody().isBlank()) {
+                    throw new ValidationException("content", "Rendered email content is missing subject or HTML body");
+                }
 
-                    Map<String, Object> emailPayload = new java.util.HashMap<>();
-                    emailPayload.put("email", sub.get("email"));
-                    emailPayload.put("subscriberId", sub.get("subscriberId"));
-                    emailPayload.put("campaignId", batch.getCampaignId());
-                    emailPayload.put("jobId", batch.getJobId());
-                    emailPayload.put("batchId", batchId);
-                    emailPayload.put("workspaceId", batch.getWorkspaceId());
-                    if (batch.getTeamId() != null) {
-                        emailPayload.put("teamId", batch.getTeamId());
-                    }
-                    if (prepared.experimentId() != null) {
-                        emailPayload.put("experimentId", prepared.experimentId());
-                    }
-                    if (prepared.variantId() != null) {
-                        emailPayload.put("variantId", prepared.variantId());
-                    }
-                    emailPayload.put("holdout", false);
-                    emailPayload.put("costReserved", prepared.costReserved());
-                    emailPayload.put("subject", subject);
-                    emailPayload.put("htmlBody", rendered.htmlBody());
-                    if (rendered.textBody() != null && !rendered.textBody().isBlank()) {
-                        emailPayload.put("textBody", rendered.textBody());
-                    }
-                    emailPayload.put("fromEmail", campaign.getSenderEmail());
-                    emailPayload.put("fromName", campaign.getSenderName());
-                    emailPayload.put("replyToEmail", campaign.getReplyToEmail());
-                    emailPayload.put("messageId", prepared.messageId());
-                    if (sub.get("firstName") != null) {
-                        emailPayload.put("firstName", sub.get("firstName"));
-                    }
-                    if (sub.get("lastName") != null) {
-                        emailPayload.put("lastName", sub.get("lastName"));
-                    }
-                    
-                    EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
-                            AppConstants.TOPIC_EMAIL_SEND_REQUESTED, tenantId, "campaign-service",
-                            emailPayload
-                    );
-                    eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
+                Map<String, Object> emailPayload = new java.util.HashMap<>();
+                emailPayload.put("email", sub.get("email"));
+                emailPayload.put("subscriberId", sub.get("subscriberId"));
+                emailPayload.put("campaignId", batch.getCampaignId());
+                emailPayload.put("jobId", batch.getJobId());
+                emailPayload.put("batchId", batchId);
+                emailPayload.put("workspaceId", batch.getWorkspaceId());
+                if (batch.getTeamId() != null) {
+                    emailPayload.put("teamId", batch.getTeamId());
+                }
+                if (prepared.experimentId() != null) {
+                    emailPayload.put("experimentId", prepared.experimentId());
+                }
+                if (prepared.variantId() != null) {
+                    emailPayload.put("variantId", prepared.variantId());
+                }
+                emailPayload.put("holdout", false);
+                emailPayload.put("costReserved", prepared.costReserved());
+                emailPayload.put("subject", subject);
+                emailPayload.put("htmlBody", rendered.htmlBody());
+                if (rendered.textBody() != null && !rendered.textBody().isBlank()) {
+                    emailPayload.put("textBody", rendered.textBody());
+                }
+                emailPayload.put("fromEmail", campaign.getSenderEmail());
+                emailPayload.put("fromName", campaign.getSenderName());
+                emailPayload.put("replyToEmail", campaign.getReplyToEmail());
+                emailPayload.put("messageId", prepared.messageId());
+                if (sub.get("firstName") != null) {
+                    emailPayload.put("firstName", sub.get("firstName"));
+                }
+                if (sub.get("lastName") != null) {
+                    emailPayload.put("lastName", sub.get("lastName"));
+                }
+
+                EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
+                        AppConstants.TOPIC_EMAIL_SEND_REQUESTED, tenantId, "campaign-service",
+                        emailPayload
+                );
+                try {
+                    publishAndAwait(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
                 } catch (Exception e) {
                     log.error("Failed to publish send request", e);
                     sendSafetyService.recordDeliveryFeedback(
@@ -197,10 +208,11 @@ public class SendExecutionService {
                             true,
                             e.getMessage());
                     publishFailures++;
+                    retrySubscribers.add(sub);
                 }
             }
 
-            batch.setProcessedCount(batch.getProcessedCount() + skippedRecipients + acquiredPermits);
+            batch.setProcessedCount(batch.getProcessedCount() + skippedRecipients);
             if (skippedRecipients > 0) {
                 final int skippedForJob = skippedRecipients;
                 sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
@@ -211,20 +223,17 @@ public class SendExecutionService {
                         });
             }
             
-            // Note: success and failure count updates will now be managed via tracking webhook later.
-            // For now, we consider them successful handoffs to the delivery engine queue.
-            batch.setFailureCount(batch.getFailureCount() + publishFailures);
-            int successfulHandoffs = Math.max(0, acquiredPermits - publishFailures);
-            batch.setSuccessCount(batch.getSuccessCount() + successfulHandoffs);
+            // Delivery feedback owns success/failure recipient counters; handoff counters stay out of them.
             
-            if (acquiredPermits < preparedRecipients.size()) {
+            if (publishFailures > 0 || acquiredPermits < preparedRecipients.size()) {
                 batch.setStatus(SendBatch.BatchStatus.PARTIAL); // Requires retry later
                 
                 // Active DLQ / DL-Routing
-                List<Map<String, String>> remaining = preparedRecipients.subList(acquiredPermits, preparedRecipients.size())
+                List<Map<String, String>> remaining = new java.util.ArrayList<>(retrySubscribers);
+                remaining.addAll(preparedRecipients.subList(acquiredPermits, preparedRecipients.size())
                         .stream()
                         .map(CampaignSendSafetyService.PreparedRecipient::subscriber)
-                        .toList();
+                        .toList());
                 try {
                     String remainingPayload = objectMapper.writeValueAsString(remaining);
                     batch.setPayload(remainingPayload);
@@ -241,9 +250,10 @@ public class SendExecutionService {
                                 "unprocessedCount", remaining.size()
                             )
                     );
-                    eventPublisher.publish(AppConstants.TOPIC_SEND_FAILED, dlqEvent);
+                    publishAndAwait(AppConstants.TOPIC_SEND_FAILED, dlqEvent);
                 } catch (Exception se) {
                     log.error("Failed to process remaining subscribers for DLQ tracking on batch {}", batchId, se);
+                    throw se;
                 }
             } else {
                 if (preparedRecipients.isEmpty()) {
@@ -258,10 +268,26 @@ public class SendExecutionService {
                     batch.setStatus(SendBatch.BatchStatus.COMPLETED);
                 }
             }
+            if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) {
+                batch.setPayload(EMPTY_BATCH_PAYLOAD);
+            }
             batchRepository.save(batch);
             reconcileJobIfFinished(batch);
         } catch (Exception e) {
             log.error("Failed to enqueue batch {}", batchId, e);
+            throw new IllegalStateException("Failed to execute send batch " + batchId, e);
+        }
+    }
+
+    private <T> void publishAndAwait(String topic, EventEnvelope<T> envelope) {
+        try {
+            eventPublisher.publish(topic, envelope).join();
+        } catch (CompletionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("Failed to publish event to " + topic, cause);
         }
     }
 
@@ -342,7 +368,8 @@ public class SendExecutionService {
                         "message", message
                 )
         );
-        eventPublisher.publish(AppConstants.TOPIC_SEND_FAILED, event);
+        publishAndAwait(AppConstants.TOPIC_SEND_FAILED, event);
+        reconcileJobIfFinished(batch);
     }
 
     private SendBatch findBatchWithRetry(String tenantId, String batchId) {
@@ -406,7 +433,7 @@ public class SendExecutionService {
                             "retryCount", batch.getRetryCount()
                         )
                 );
-                eventPublisher.publish(AppConstants.TOPIC_BATCH_CREATED, retryEvent);
+                publishAndAwait(AppConstants.TOPIC_BATCH_CREATED, retryEvent);
                 log.info("Requeued PARTIAL batch {} for retry (attempt {})", batch.getId(), batch.getRetryCount());
             } catch (Exception e) {
                 log.error("Failed to requeue PARTIAL batch {} for retry", batch.getId(), e);

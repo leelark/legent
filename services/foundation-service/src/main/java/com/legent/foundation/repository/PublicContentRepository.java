@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PublicContentRepository extends JpaRepository<PublicContent, String> {
+    Optional<PublicContent> findByIdAndTenantIdAndWorkspaceId(String id, String tenantId, String workspaceId);
+
     Optional<PublicContent> findByTenantIdAndWorkspaceIdAndContentTypeAndPageKeyAndSlug(
             String tenantId,
             String workspaceId,
@@ -36,4 +38,3 @@ public interface PublicContentRepository extends JpaRepository<PublicContent, St
 
     List<PublicContent> findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(String tenantId, String workspaceId);
 }
-

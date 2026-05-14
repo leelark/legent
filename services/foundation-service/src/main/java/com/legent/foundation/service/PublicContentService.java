@@ -99,7 +99,8 @@ public class PublicContentService {
         }
 
         PublicContent record = (id != null && !id.isBlank())
-                ? publicContentRepository.findById(id).orElseThrow(() -> new IllegalArgumentException("Public content not found"))
+                ? publicContentRepository.findByIdAndTenantIdAndWorkspaceId(id, tenantId, workspaceId)
+                        .orElseThrow(() -> new IllegalArgumentException("Public content not found"))
                 : publicContentRepository
                     .findByTenantIdAndWorkspaceIdAndContentTypeAndPageKeyAndSlug(tenantId, workspaceId, type, pageKey, slug)
                     .orElseGet(PublicContent::new);
@@ -125,7 +126,9 @@ public class PublicContentService {
 
     @Transactional
     public PublicContentDto.Response publish(String id, boolean published) {
-        PublicContent record = publicContentRepository.findById(id)
+        String tenantId = normalize(TenantContext.getTenantId());
+        String workspaceId = normalize(TenantContext.getWorkspaceId());
+        PublicContent record = publicContentRepository.findByIdAndTenantIdAndWorkspaceId(id, tenantId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Public content not found"));
         record.setStatus(published ? "PUBLISHED" : "DRAFT");
         record.setPublishedAt(published ? Instant.now() : null);
@@ -201,4 +204,3 @@ public class PublicContentService {
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 }
-

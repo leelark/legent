@@ -11,8 +11,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JwtTokenProviderTest {
 
+    private static final String SECRET = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
     private final JwtTokenProvider tokenProvider = new JwtTokenProvider(
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+            SECRET,
             60000
     );
 
@@ -34,5 +36,23 @@ class JwtTokenProviderTest {
     @Test
     void validateToken_whenInvalid_returnsEmpty() {
         assertTrue(tokenProvider.validateToken("not-a-valid-token").isEmpty());
+    }
+
+    @Test
+    void allowExpiredAccessors_returnClaimsFromExpiredSignedToken() {
+        JwtTokenProvider expiredTokenProvider = new JwtTokenProvider(SECRET, -1000);
+        String token = expiredTokenProvider.generateToken(
+                "user-1",
+                "tenant-1",
+                "workspace-1",
+                "prod",
+                Map.of()
+        );
+
+        assertTrue(tokenProvider.validateToken(token).isEmpty());
+        assertEquals("user-1", tokenProvider.getUserIdAllowExpired(token).orElseThrow());
+        assertEquals("tenant-1", tokenProvider.getTenantIdAllowExpired(token).orElseThrow());
+        assertEquals("workspace-1", tokenProvider.getWorkspaceIdAllowExpired(token).orElseThrow());
+        assertEquals("prod", tokenProvider.getEnvironmentIdAllowExpired(token).orElseThrow());
     }
 }

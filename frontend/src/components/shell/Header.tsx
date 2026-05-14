@@ -20,6 +20,37 @@ type ContextItem = { tenantId: string; workspaceId?: string | null };
 type SearchResult = { id?: string; title?: string; name?: string; entityType?: string; type?: string; payload?: unknown };
 type NotificationItem = { id: string; title?: string; message?: string; type?: string; createdAt?: string };
 
+const normalizeContextPart = (value?: string | null) => {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+};
+
+const contextValue = (context: ContextItem) =>
+  `${context.tenantId}::${normalizeContextPart(context.workspaceId) ?? ''}`;
+
+function selectStoredHeaderContext(
+  contexts: ContextItem[],
+  storedTenantId?: string | null,
+  storedWorkspaceId?: string | null
+) {
+  const tenantId = normalizeContextPart(storedTenantId);
+  const workspaceId = normalizeContextPart(storedWorkspaceId);
+
+  if (tenantId && workspaceId) {
+    const exact = contexts.find(
+      (ctx) => ctx.tenantId === tenantId && normalizeContextPart(ctx.workspaceId) === workspaceId
+    );
+    if (exact) return exact;
+  }
+
+  if (tenantId && !workspaceId) {
+    const tenantOnly = contexts.find((ctx) => ctx.tenantId === tenantId);
+    if (tenantOnly) return tenantOnly;
+  }
+
+  return contexts[0] ?? null;
+}
+
 const moduleFromPath: Record<string, string> = {
   email: 'Email Studio',
   audience: 'Audience',
@@ -108,12 +139,10 @@ export function Header() {
         const next = items ?? [];
         setContexts(next);
         const currentTenant = localStorage.getItem(TENANT_STORAGE_KEY);
-        const matched = next.find((ctx) => ctx.tenantId === currentTenant) ?? next[0];
+        const currentWorkspace = localStorage.getItem(WORKSPACE_STORAGE_KEY);
+        const matched = selectStoredHeaderContext(next, currentTenant, currentWorkspace);
         if (matched) {
-          const value = `${matched.tenantId}::${matched.workspaceId ?? ''}`;
-          setSelectedContext(value);
-          localStorage.setItem(TENANT_STORAGE_KEY, matched.tenantId);
-          if (matched.workspaceId) localStorage.setItem(WORKSPACE_STORAGE_KEY, matched.workspaceId);
+          setSelectedContext(contextValue(matched));
         }
       })
       .catch(() => {
@@ -159,16 +188,21 @@ export function Header() {
   }, [query, searchOpen]);
 
   const handleContextChange = async (value: string) => {
+    const previousValue = selectedContext;
     setSelectedContext(value);
     const [tenantId, workspaceIdRaw] = value.split('::');
-    const workspaceId = workspaceIdRaw || null;
-    await post('/auth/context/switch', { tenantId, workspaceId });
-    localStorage.setItem(TENANT_STORAGE_KEY, tenantId);
-    if (workspaceId) localStorage.setItem(WORKSPACE_STORAGE_KEY, workspaceId);
-    else localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-    localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
-    switchTenant({ id: tenantId, name: tenantId, slug: tenantId, status: 'ACTIVE', plan: 'STARTER' });
-    router.refresh();
+    const workspaceId = normalizeContextPart(workspaceIdRaw);
+    try {
+      await post('/auth/context/switch', { tenantId, workspaceId });
+      localStorage.setItem(TENANT_STORAGE_KEY, tenantId);
+      if (workspaceId) localStorage.setItem(WORKSPACE_STORAGE_KEY, workspaceId);
+      else localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+      localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
+      switchTenant({ id: tenantId, name: tenantId, slug: tenantId, status: 'ACTIVE', plan: 'STARTER' });
+      router.refresh();
+    } catch {
+      setSelectedContext(previousValue);
+    }
   };
 
   const markRead = async (id: string) => {
@@ -206,7 +240,7 @@ export function Header() {
             aria-label="Workspace context"
           >
             {contexts.map((ctx) => {
-              const value = `${ctx.tenantId}::${ctx.workspaceId ?? ''}`;
+              const value = contextValue(ctx);
               return (
                 <option key={value} value={value}>
                   {ctx.workspaceId ? `${ctx.tenantId} / ${ctx.workspaceId}` : ctx.tenantId}

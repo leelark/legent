@@ -68,6 +68,7 @@ public class DifferentiationPlatformService {
 
     @Transactional
     public Map<String, Object> decideCopilotRecommendation(String id, DifferentiationDto.CopilotDecisionRequest request) {
+        Map<String, Object> existing = requireById("ai_copilot_recommendations", id);
         String decision = normalize(request.getDecision());
         if (!List.of("APPROVED", "REJECTED").contains(decision)) {
             throw new IllegalArgumentException("decision must be APPROVED or REJECTED");
@@ -77,7 +78,7 @@ public class DifferentiationPlatformService {
         updates.put("approved_by", actor());
         updates.put("approved_at", Instant.now());
         updates.put("human_decision_note", blankToNull(request.getDecisionNote()));
-        return repository.updateById("ai_copilot_recommendations", id, tenant(), updates, List.of());
+        return repository.updateByIdAndWorkspace("ai_copilot_recommendations", id, tenant(), asString(existing.get("workspace_id")), updates, List.of());
     }
 
     @Transactional(readOnly = true)
@@ -391,7 +392,23 @@ public class DifferentiationPlatformService {
         updates.remove("created_by");
         updates.remove("deleted_at");
         updates.remove("version");
+        if (workspaceId != null) {
+            return repository.updateByIdAndWorkspace(table, String.valueOf(existing.get(0).get("id")), tenant(), workspaceId, updates, jsonColumns);
+        }
         return repository.updateById(table, String.valueOf(existing.get(0).get("id")), tenant(), updates, jsonColumns);
+    }
+
+    private Map<String, Object> requireById(String table, String id) {
+        String safeTable = CorePlatformRepository.safeTable(table);
+        String workspaceId = workspace(null);
+        List<Map<String, Object>> rows = repository.queryForList(
+                "SELECT * FROM " + safeTable + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND id = :id AND deleted_at IS NULL LIMIT 1",
+                map("tenantId", tenant(), "workspaceId", workspaceId, "id", id)
+        );
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException(safeTable + " not found: " + id);
+        }
+        return rows.get(0);
     }
 
     private List<Map<String, Object>> listScoped(String table, String workspaceId, String orderBy) {
@@ -706,7 +723,12 @@ public class DifferentiationPlatformService {
     }
 
     private String workspace(String explicit) {
-        return blankToNull(explicit) == null ? TenantContext.getWorkspaceId() : explicit;
+        String resolved = blankToNull(explicit);
+        String contextWorkspaceId = blankToNull(TenantContext.getWorkspaceId());
+        if (resolved != null && contextWorkspaceId != null && !contextWorkspaceId.equals(resolved)) {
+            throw new IllegalArgumentException("workspaceId does not match the current workspace");
+        }
+        return resolved == null ? contextWorkspaceId : resolved;
     }
 
     private String actor() {

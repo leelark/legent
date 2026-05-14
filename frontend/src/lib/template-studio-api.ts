@@ -1,4 +1,4 @@
-import apiClient, { del, get, post, put } from '@/lib/api-client';
+import apiClient, { del, get, getPublic, post, put } from '@/lib/api-client';
 
 export type Template = {
   id: string;
@@ -470,4 +470,4 @@ export const publishLandingPage = async (id: string) => post<LandingPage>(`/land
 export const archiveLandingPage = async (id: string) => post<LandingPage>(`/landing-pages/${id}/archive`);
 export const deleteLandingPage = async (id: string) => del<void>(`/landing-pages/${id}`);
 export const getPublicLandingPage = async (slug: string) =>
-  get<LandingPage>(`/public/landing-pages/${encodeURIComponent(slug)}`);
+  getPublic<LandingPage>(`/public/landing-pages/${encodeURIComponent(slug)}`);

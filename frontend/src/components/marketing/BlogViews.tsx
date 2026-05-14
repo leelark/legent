@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, BookOpen, CalendarDays, Network, RadioTower, Sparkles } from 'lucide-react';
 import { MarketingShell } from '@/components/marketing/MarketingShell';
 import { blogCategories, blogPosts } from '@/lib/marketing-data';
+import { sanitizeRichContentHtml } from '@/lib/sanitize-html';
 
 export function BlogIndexView() {
   const [featured, ...remaining] = blogPosts;
@@ -85,7 +86,7 @@ export function BlogPostView({ slug }: { slug: string }) {
               </div>
               <div
                 className="prose max-w-none prose-headings:text-[var(--public-text)] prose-p:text-[var(--public-muted)]"
-                dangerouslySetInnerHTML={{ __html: post.body }}
+                dangerouslySetInnerHTML={{ __html: sanitizeRichContentHtml(post.body) }}
               />
             </div>
             <div className="mt-10">

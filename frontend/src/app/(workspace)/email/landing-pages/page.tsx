@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { sanitizeLandingPageHtml } from '@/lib/sanitize-html';
 import {
   LandingPage,
   archiveLandingPage,
@@ -203,7 +204,7 @@ export default function LandingPageStudio() {
           <Card>
             <CardHeader title="Public Preview" action={<Link href={publicPath} target="_blank"><Button size="sm" variant="secondary">Open Public Route</Button></Link>} />
             <div className="rounded-xl border border-border-default bg-white p-4 text-black shadow-inner">
-              <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeLandingPageHtml(htmlContent) }} />
             </div>
           </Card>
         </div>

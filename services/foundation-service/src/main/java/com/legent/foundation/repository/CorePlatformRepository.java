@@ -184,6 +184,38 @@ public class CorePlatformRepository {
         return jdbc.queryForMap(sql, toSqlParams(params));
     }
 
+    public Map<String, Object> updateByIdAndWorkspace(
+            String table,
+            String id,
+            String tenantId,
+            String workspaceId,
+            Map<String, Object> updates,
+            List<String> jsonColumns) {
+        String safeTable = safeTable(table);
+        if (updates.isEmpty()) {
+            throw new IllegalArgumentException("At least one update field is required");
+        }
+        updates.keySet().forEach(CorePlatformRepository::safeColumn);
+        jsonColumns.forEach(CorePlatformRepository::safeColumn);
+
+        Map<String, Object> params = new LinkedHashMap<>(updates);
+        params.put("id", id);
+        params.put("tenantId", tenantId);
+        params.put("workspaceId", workspaceId);
+
+        String setClause = updates.keySet().stream()
+                .map(key -> jsonColumns.contains(key)
+                        ? safeColumn(key) + " = CAST(:" + key + " AS jsonb)"
+                        : safeColumn(key) + " = :" + key)
+                .collect(Collectors.joining(", "));
+
+        String sql = "UPDATE " + safeTable +
+                " SET " + setClause + ", updated_at = NOW(), version = version + 1 " +
+                "WHERE id = :id AND tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL RETURNING *";
+
+        return jdbc.queryForMap(sql, toSqlParams(params));
+    }
+
     public Map<String, Object> queryForMap(String sql, Map<String, Object> params) {
         return jdbc.queryForMap(sql, toSqlParams(params));
     }

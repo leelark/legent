@@ -147,4 +147,30 @@ class TenantFilterTest {
 
         assertTrue(chainCalled.get());
     }
+
+    @Test
+    void doFilter_onSsoPath_allowsRequestWithoutTenant() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/sso/metadata");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertTrue(chainCalled.get());
+    }
+
+    @Test
+    void doFilter_onScimPath_allowsRequestWithoutTenant() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/scim/v2/Users");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertTrue(chainCalled.get());
+    }
 }

@@ -25,6 +25,9 @@ public class DataExtension extends TenantAwareEntity {
     @Column(name = "description", length = 2000)
     private String description;
 
+    @Column(name = "workspace_id", nullable = false, length = 36)
+    private String workspaceId;
+
     @Column(name = "is_sendable", nullable = false)
     private boolean sendable = false;
 

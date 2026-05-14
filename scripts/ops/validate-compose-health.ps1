@@ -147,7 +147,7 @@ do {
         $frontendHostPort = Resolve-FrontendHostPort $services
         Write-Host "Checking frontend health on host port $($frontendHostPort.Port) (source: $($frontendHostPort.Source))"
         Test-HttpEndpoint "http://127.0.0.1:$($frontendHostPort.Port)/api/health"
-        Test-HttpEndpoint "http://127.0.0.1:8080/api/health"
+        Test-HttpEndpoint "http://127.0.0.1:8080/api/v1/health"
         Write-Host "Docker Compose health validation passed"
         exit 0
     }

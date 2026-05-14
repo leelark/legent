@@ -8,6 +8,7 @@ import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.repository.DataExtensionFieldRepository;
 import com.legent.audience.repository.DataExtensionRecordRepository;
 import com.legent.audience.repository.DataExtensionRepository;
+import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +41,7 @@ class DataExtensionServiceTest {
     @BeforeEach
     void setUp() {
         TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
         service = new DataExtensionService(deRepository, fieldRepository, recordRepository, new ObjectMapper());
     }
 
@@ -50,18 +53,53 @@ class DataExtensionServiceTest {
     @Test
     void listRecordsUsesTenantScopedRepository() {
         DataExtension de = dataExtension();
-        when(deRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "de-1")).thenReturn(Optional.of(de));
-        when(recordRepository.findByTenantIdAndDataExtensionId(any(), any(), any()))
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1")).thenReturn(Optional.of(de));
+        when(recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         service.listRecords("de-1", PageRequest.of(0, 20));
 
-        verify(recordRepository).findByTenantIdAndDataExtensionId("tenant-1", "de-1", PageRequest.of(0, 20));
+        verify(recordRepository).findByTenantIdAndWorkspaceIdAndDataExtensionId("tenant-1", "workspace-1", "de-1", PageRequest.of(0, 20));
+    }
+
+    @Test
+    void getByIdRequiresSameTenantAndWorkspace() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-2"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.getById("de-2"))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(deRepository).findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-2");
+    }
+
+    @Test
+    void sameNameIsAllowedAcrossWorkspaces() {
+        TenantContext.setWorkspaceId("workspace-2");
+        when(deRepository.existsByTenantWorkspaceAndName("tenant-1", "workspace-2", "Customers"))
+                .thenReturn(false);
+        when(deRepository.save(any(DataExtension.class))).thenAnswer(invocation -> {
+            DataExtension saved = invocation.getArgument(0);
+            saved.setId("de-2");
+            return saved;
+        });
+
+        DataExtensionDto.Response response = service.create(DataExtensionDto.CreateRequest.builder()
+                .name("Customers")
+                .fields(List.of(DataExtensionDto.FieldDefinition.builder()
+                        .fieldName("email")
+                        .fieldType("EMAIL")
+                        .required(true)
+                        .build()))
+                .build());
+
+        assertThat(response.getId()).isEqualTo("de-2");
+        verify(deRepository).existsByTenantWorkspaceAndName("tenant-1", "workspace-2", "Customers");
     }
 
     @Test
     void importMappingPreviewReportsMissingRequiredField() {
-        when(deRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "de-1")).thenReturn(Optional.of(dataExtension()));
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1")).thenReturn(Optional.of(dataExtension()));
         when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
 
         DataExtensionDto.ImportMappingPreviewResponse response = service.previewImportMapping("de-1",
@@ -77,13 +115,13 @@ class DataExtensionServiceTest {
 
     @Test
     void queryPreviewFiltersAndProjectsRows() {
-        when(deRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "de-1")).thenReturn(Optional.of(dataExtension()));
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1")).thenReturn(Optional.of(dataExtension()));
         when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
         DataExtensionRecord matching = record(Map.of("subscriberKey", "abc", "email", "a@example.com", "score", 12L));
         DataExtensionRecord skipped = record(Map.of("subscriberKey", "def", "email", "b@example.com", "score", 1L));
-        when(recordRepository.findByTenantIdAndDataExtensionId(any(), any(), any()))
+        when(recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId(any(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of(matching, skipped)));
-        when(recordRepository.countByTenantAndDataExtension("tenant-1", "de-1")).thenReturn(2L);
+        when(recordRepository.countByTenantWorkspaceAndDataExtension("tenant-1", "workspace-1", "de-1")).thenReturn(2L);
 
         DataExtensionDto.QueryPreviewResponse response = service.previewQuery("de-1",
                 DataExtensionDto.QueryPreviewRequest.builder()
@@ -104,6 +142,7 @@ class DataExtensionServiceTest {
         DataExtension de = new DataExtension();
         de.setId("de-1");
         de.setTenantId("tenant-1");
+        de.setWorkspaceId("workspace-1");
         de.setName("Customers");
         return de;
     }
@@ -129,6 +168,7 @@ class DataExtensionServiceTest {
         DataExtensionRecord record = new DataExtensionRecord();
         record.setId("record-" + data.get("subscriberKey"));
         record.setTenantId("tenant-1");
+        record.setWorkspaceId("workspace-1");
         record.setDataExtensionId("de-1");
         record.setRecordData(data);
         return record;

@@ -75,6 +75,14 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true, // Important: sends HTTP-only cookies with requests
 });
 
+const publicApiClient: AxiosInstance = axios.create({
+  timeout: 15000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: false,
+});
+
 // -- Request Interceptor --
 apiClient.interceptors.request.use(async (config) => {
   const resolvedUrl = resolveApiUrl(config.url);
@@ -162,6 +170,12 @@ export async function get<T = any>(url: string, config?: AxiosRequestConfig): Pr
       ...resData.pagination
     } as any;
   }
+  return resData?.data ?? resData;
+}
+
+export async function getPublic<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  const response = await publicApiClient.get<any>(resolveApiUrl(url), config);
+  const resData = response.data;
   return resData?.data ?? resData;
 }
 

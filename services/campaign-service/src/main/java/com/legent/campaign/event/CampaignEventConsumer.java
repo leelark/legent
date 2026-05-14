@@ -28,6 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.Collections;
 
@@ -51,13 +53,16 @@ public class CampaignEventConsumer {
 
     @KafkaListener(topics = AppConstants.TOPIC_AUDIENCE_RESOLVED, groupId = AppConstants.GROUP_CAMPAIGN)
     public void handleAudienceResolved(EventEnvelope<Map<String, Object>> event) {
+        EventRegistration registration = null;
+        boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
             if (workspaceId == null) {
                 return;
             }
-            if (!registerEvent(event, AppConstants.TOPIC_AUDIENCE_RESOLVED, workspaceId)) {
+            registration = registerEvent(event, AppConstants.TOPIC_AUDIENCE_RESOLVED, workspaceId);
+            if (!registration.claimed()) {
                 return;
             }
             TenantContext.setTenantId(event.getTenantId());
@@ -75,8 +80,11 @@ public class CampaignEventConsumer {
 
             log.info("Received resolved audience chunk for job {}. Size: {}, isLast: {}", jobId, subscribers.size(), isLastChunk);
             batchingService.processResolvedAudienceChunk(event.getTenantId(), jobId, subscribers, isLastChunk);
+            sideEffectsComplete = true;
+            completeEvent(registration);
 
         } catch (Exception e) {
+            releaseEventClaim(registration, sideEffectsComplete);
             log.error("Failed handling TOPIC_AUDIENCE_RESOLVED {}", eventId(event), e);
             throw new IllegalStateException("Failed handling TOPIC_AUDIENCE_RESOLVED", e);
         } finally {
@@ -86,13 +94,16 @@ public class CampaignEventConsumer {
 
     @KafkaListener(topics = AppConstants.TOPIC_SEND_PROCESSING, groupId = AppConstants.GROUP_CAMPAIGN, concurrency = "3")
     public void handleSendProcessing(EventEnvelope<Map<String, Object>> event) {
+        EventRegistration registration = null;
+        boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
             if (workspaceId == null) {
                 return;
             }
-            if (!registerEvent(event, AppConstants.TOPIC_SEND_PROCESSING, workspaceId)) {
+            registration = registerEvent(event, AppConstants.TOPIC_SEND_PROCESSING, workspaceId);
+            if (!registration.claimed()) {
                 return;
             }
             TenantContext.setTenantId(event.getTenantId());
@@ -104,7 +115,10 @@ public class CampaignEventConsumer {
             } else {
                 log.warn("SEND_PROCESSING event {} missing jobId/batchId - ignored", event.getEventId());
             }
+            sideEffectsComplete = true;
+            completeEvent(registration);
         } catch (Exception e) {
+            releaseEventClaim(registration, sideEffectsComplete);
             log.error("Failed handling TOPIC_SEND_PROCESSING {}", eventId(event), e);
             throw new IllegalStateException("Failed handling TOPIC_SEND_PROCESSING", e);
         } finally {
@@ -114,13 +128,16 @@ public class CampaignEventConsumer {
 
     @KafkaListener(topics = AppConstants.TOPIC_BATCH_CREATED, groupId = AppConstants.GROUP_CAMPAIGN, concurrency = "3")
     public void handleBatchCreated(EventEnvelope<Map<String, String>> event) {
+        EventRegistration registration = null;
+        boolean sideEffectsComplete = false;
         try {
             Map<String, String> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
             if (workspaceId == null) {
                 return;
             }
-            if (!registerEvent(event, AppConstants.TOPIC_BATCH_CREATED, workspaceId)) {
+            registration = registerEvent(event, AppConstants.TOPIC_BATCH_CREATED, workspaceId);
+            if (!registration.claimed()) {
                 return;
             }
             TenantContext.setTenantId(event.getTenantId());
@@ -131,8 +148,11 @@ public class CampaignEventConsumer {
             // To pass payload we fetch from DB inside the service
             // This is a common pattern to avoid Kafka message size limits
             executionService.executeBatch(event.getTenantId(), jobId, batchId, null); // passing null as it will fetch from db
+            sideEffectsComplete = true;
+            completeEvent(registration);
 
         } catch (Exception e) {
+            releaseEventClaim(registration, sideEffectsComplete);
             log.error("Failed handling TOPIC_BATCH_CREATED {}", eventId(event), e);
             throw new IllegalStateException("Failed handling TOPIC_BATCH_CREATED", e);
         } finally {
@@ -142,6 +162,8 @@ public class CampaignEventConsumer {
 
     @KafkaListener(topics = AppConstants.TOPIC_SEND_REQUESTED, groupId = AppConstants.GROUP_CAMPAIGN, concurrency = "2")
     public void handleAutomationSendRequest(EventEnvelope<String> event) {
+        EventRegistration registration = null;
+        boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = event.getPayload() != null
                     ? objectMapper.readValue(event.getPayload(), new TypeReference<>() {})
@@ -161,7 +183,8 @@ public class CampaignEventConsumer {
                 log.error("Dropping send.requested event without workspaceId. eventId={}, campaignId={}", event.getEventId(), campaignId);
                 return;
             }
-            if (!registerEvent(event, AppConstants.TOPIC_SEND_REQUESTED, workspaceId)) {
+            registration = registerEvent(event, AppConstants.TOPIC_SEND_REQUESTED, workspaceId);
+            if (!registration.claimed()) {
                 return;
             }
             TenantContext.setTenantId(event.getTenantId());
@@ -173,7 +196,10 @@ public class CampaignEventConsumer {
                     .idempotencyKey(stringValue(payload.getOrDefault("idempotencyKey", event.getIdempotencyKey())))
                     .build();
             orchestrationService.triggerFromAutomation(campaignId, request);
+            sideEffectsComplete = true;
+            completeEvent(registration);
         } catch (Exception e) {
+            releaseEventClaim(registration, sideEffectsComplete);
             log.error("Failed handling TOPIC_SEND_REQUESTED {}", eventId(event), e);
             throw new IllegalStateException("Failed handling TOPIC_SEND_REQUESTED", e);
         } finally {
@@ -195,6 +221,8 @@ public class CampaignEventConsumer {
 
     @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = AppConstants.GROUP_CAMPAIGN + "-experiment-metrics", concurrency = "3")
     public void handleTrackingIngested(EventEnvelope<String> event) {
+        EventRegistration registration = null;
+        boolean sideEffectsComplete = false;
         try {
             if (event.getPayload() == null || event.getPayload().isBlank()) {
                 return;
@@ -204,12 +232,15 @@ public class CampaignEventConsumer {
             if (workspaceId == null) {
                 return;
             }
-            if (!registerEvent(event, AppConstants.TOPIC_TRACKING_INGESTED, workspaceId)) {
+            registration = registerEvent(event, AppConstants.TOPIC_TRACKING_INGESTED, workspaceId);
+            if (!registration.claimed()) {
                 return;
             }
             String campaignId = stringValue(payload.get("campaignId"));
             String experimentId = stringValue(payload.get("experimentId"));
             if (campaignId == null || experimentId == null) {
+                sideEffectsComplete = true;
+                completeEvent(registration);
                 return;
             }
             @SuppressWarnings("unchecked")
@@ -224,13 +255,18 @@ public class CampaignEventConsumer {
                     stringValue(payload.get("variantId")),
                     stringValue(payload.get("eventType")),
                     metadata);
+            sideEffectsComplete = true;
+            completeEvent(registration);
         } catch (Exception e) {
+            releaseEventClaim(registration, sideEffectsComplete);
             log.error("Failed handling TOPIC_TRACKING_INGESTED {}", eventId(event), e);
             throw new IllegalStateException("Failed handling TOPIC_TRACKING_INGESTED", e);
         }
     }
 
     private void reconcileDeliveryFeedback(EventEnvelope<Map<String, Object>> event, boolean failed) {
+        EventRegistration registration = null;
+        boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = resolveWorkspaceId(event, payload);
@@ -238,7 +274,8 @@ public class CampaignEventConsumer {
                 return;
             }
             String topic = failed ? AppConstants.TOPIC_EMAIL_FAILED : AppConstants.TOPIC_EMAIL_SENT;
-            if (!registerEvent(event, topic, workspaceId)) {
+            registration = registerEvent(event, topic, workspaceId);
+            if (!registration.claimed()) {
                 return;
             }
             TenantContext.setTenantId(event.getTenantId());
@@ -247,6 +284,8 @@ public class CampaignEventConsumer {
             SendJob job = findSendJob(event.getTenantId(), workspaceId, payload);
             if (job == null) {
                 log.warn("No send job found for delivery feedback event {}", event.getEventId());
+                sideEffectsComplete = true;
+                completeEvent(registration);
                 return;
             }
 
@@ -295,7 +334,10 @@ public class CampaignEventConsumer {
             sendJobRepository.save(job);
 
             reconcileJobAndCampaignState(job);
+            sideEffectsComplete = true;
+            completeEvent(registration);
         } catch (Exception e) {
+            releaseEventClaim(registration, sideEffectsComplete);
             log.error("Failed reconciling delivery feedback {}", eventId(event), e);
             throw new IllegalStateException("Failed reconciling delivery feedback", e);
         } finally {
@@ -366,14 +408,70 @@ public class CampaignEventConsumer {
         ).orElse(null);
     }
 
-    private boolean registerEvent(EventEnvelope<?> event, String eventType, String workspaceId) {
-        return idempotencyService.registerIfNew(
+    private EventRegistration registerEvent(EventEnvelope<?> event, String eventType, String workspaceId) {
+        boolean claimed = idempotencyService.registerIfNew(
                 event.getTenantId(),
                 workspaceId,
                 eventType,
                 event.getEventId(),
                 event.getIdempotencyKey()
         );
+        return new EventRegistration(
+                event.getTenantId(),
+                workspaceId,
+                eventType,
+                event.getEventId(),
+                event.getIdempotencyKey(),
+                claimed
+        );
+    }
+
+    private void completeEvent(EventRegistration registration) {
+        if (registration == null || !registration.claimed()) {
+            return;
+        }
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    markProcessed(registration);
+                }
+
+                @Override
+                public void afterCompletion(int status) {
+                    if (status != STATUS_COMMITTED) {
+                        releaseClaim(registration);
+                    }
+                }
+            });
+            return;
+        }
+        markProcessed(registration);
+    }
+
+    private void releaseEventClaim(EventRegistration registration, boolean sideEffectsComplete) {
+        if (registration == null || !registration.claimed() || sideEffectsComplete) {
+            return;
+        }
+        releaseClaim(registration);
+    }
+
+    private void markProcessed(EventRegistration registration) {
+        idempotencyService.markProcessed(
+                registration.tenantId(),
+                registration.workspaceId(),
+                registration.eventType(),
+                registration.eventId(),
+                registration.idempotencyKey());
+    }
+
+    private void releaseClaim(EventRegistration registration) {
+        idempotencyService.releaseClaim(
+                registration.tenantId(),
+                registration.workspaceId(),
+                registration.eventType(),
+                registration.eventId(),
+                registration.idempotencyKey());
     }
 
     private String resolveWorkspaceId(EventEnvelope<?> event, Map<String, ?> payload) {
@@ -400,5 +498,13 @@ public class CampaignEventConsumer {
 
     private String eventId(EventEnvelope<?> event) {
         return event == null ? "unknown" : event.getEventId();
+    }
+
+    private record EventRegistration(String tenantId,
+                                     String workspaceId,
+                                     String eventType,
+                                     String eventId,
+                                     String idempotencyKey,
+                                     boolean claimed) {
     }
 }

@@ -3,6 +3,7 @@ package com.legent.campaign.service;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.common.exception.ValidationException;
 import java.util.List;
 import org.mockito.ArgumentCaptor;
 
@@ -23,6 +24,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -107,5 +109,54 @@ class BatchingServiceTest {
         batchingService.processResolvedAudienceChunk("tenant", "job", List.of(), true);
 
         verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void processResolvedAudienceChunk_RequeuesExistingBatchesWhenJobAlreadySending() {
+        SendJob job = new SendJob();
+        job.setId("job-1");
+        job.setStatus(SendJob.JobStatus.SENDING);
+        job.setWorkspaceId("workspace-test");
+
+        SendBatch pending = new SendBatch();
+        pending.setId("batch-1");
+        pending.setStatus(SendBatch.BatchStatus.PENDING);
+        SendBatch completed = new SendBatch();
+        completed.setId("batch-2");
+        completed.setStatus(SendBatch.BatchStatus.COMPLETED);
+
+        when(jobRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "job-1")).thenReturn(Optional.of(job));
+        when(batchRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-test", "job-1")).thenReturn(List.of(pending, completed));
+
+        batchingService.processResolvedAudienceChunk(
+                "tenant-1",
+                "job-1",
+                List.of(Map.of("email", "one@example.com")),
+                true);
+
+        verify(eventPublisher).publishBatchCreated("tenant-1", "job-1", "batch-1");
+        verify(eventPublisher, never()).publishBatchCreated("tenant-1", "job-1", "batch-2");
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void processResolvedAudienceChunk_RethrowsUnexpectedFailure() throws Exception {
+        SendJob job = new SendJob();
+        job.setId("job-1");
+        job.setCampaignId("camp-1");
+        job.setStatus(SendJob.JobStatus.RESOLVING);
+        job.setTotalTarget(0L);
+        job.setWorkspaceId("workspace-test");
+
+        when(jobRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "job-1")).thenReturn(Optional.of(job));
+        when(objectMapper.writeValueAsString(any())).thenThrow(new ValidationException("payload", "invalid"));
+
+        assertThrows(IllegalStateException.class,
+                () -> batchingService.processResolvedAudienceChunk(
+                        "tenant-1",
+                        "job-1",
+                        List.of(Map.of("email", "one@example.com")),
+                        false));
     }
 }

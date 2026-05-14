@@ -52,8 +52,6 @@ export async function ensureActiveContext(
   const preferredTenantId = normalize(options.preferredTenantId) ?? normalize(localStorage.getItem(TENANT_STORAGE_KEY));
   const preferredWorkspaceId =
     normalize(options.preferredWorkspaceId) ?? normalize(localStorage.getItem(WORKSPACE_STORAGE_KEY));
-  const preferredEnvironmentId =
-    normalize(options.preferredEnvironmentId) ?? normalize(localStorage.getItem(ENVIRONMENT_STORAGE_KEY));
   const contexts = await get<AccountContext[]>('/auth/contexts');
   if (!Array.isArray(contexts) || contexts.length === 0) {
     return null;
@@ -75,7 +73,7 @@ export async function ensureActiveContext(
 
   const targetTenantId = target.tenantId;
   const targetWorkspaceId = normalize(target.workspaceId);
-  const targetEnvironmentId = normalize(target.environmentId) ?? preferredEnvironmentId;
+  const targetEnvironmentId = normalize(target.environmentId);
   if (!targetWorkspaceId) {
     return null;
   }

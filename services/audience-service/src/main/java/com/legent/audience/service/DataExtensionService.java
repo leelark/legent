@@ -49,8 +49,9 @@ public class DataExtensionService {
 
     @Transactional(readOnly = true)
     public Page<DataExtensionDto.Response> list(Pageable pageable) {
-        String tenantId = TenantContext.requireTenantId();
-        return deRepository.findAllByTenant(tenantId, pageable).map(this::toResponse);
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        return deRepository.findAllByTenantAndWorkspace(tenantId, workspaceId, pageable).map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
@@ -61,14 +62,16 @@ public class DataExtensionService {
 
     @Transactional
     public DataExtensionDto.Response create(DataExtensionDto.CreateRequest request) {
-        String tenantId = TenantContext.requireTenantId();
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
         validateFieldDefinitions(request.getFields());
-        if (deRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+        if (deRepository.existsByTenantWorkspaceAndName(tenantId, workspaceId, request.getName())) {
             throw new ConflictException("DataExtension", "name", request.getName());
         }
 
         DataExtension de = new DataExtension();
         de.setTenantId(tenantId);
+        de.setWorkspaceId(workspaceId);
         de.setName(request.getName());
         de.setDescription(request.getDescription());
         de.setSendable(request.isSendable());
@@ -140,18 +143,20 @@ public class DataExtensionService {
 
     @Transactional
     public DataExtensionDto.RecordResponse addRecord(String deId, DataExtensionDto.RecordRequest request) {
-        String tenantId = TenantContext.requireTenantId();
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
         DataExtension de = requireDataExtension(deId);
 
         Map<String, Object> normalizedData = validateRecord(de.getId(), request.getData());
 
         DataExtensionRecord record = new DataExtensionRecord();
         record.setTenantId(tenantId);
+        record.setWorkspaceId(workspaceId);
         record.setDataExtensionId(deId);
         record.setRecordData(normalizedData);
         DataExtensionRecord saved = recordRepository.save(record);
 
-        de.setRecordCount(recordRepository.countByTenantAndDataExtension(tenantId, deId));
+        de.setRecordCount(recordRepository.countByTenantWorkspaceAndDataExtension(tenantId, workspaceId, deId));
         deRepository.save(de);
 
         return mapRecord(saved);
@@ -159,15 +164,17 @@ public class DataExtensionService {
 
     @Transactional(readOnly = true)
     public Page<DataExtensionDto.RecordResponse> listRecords(String deId, Pageable pageable) {
-        String tenantId = TenantContext.requireTenantId();
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
         requireDataExtension(deId);
-        return recordRepository.findByTenantIdAndDataExtensionId(tenantId, deId, pageable)
+        return recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId(tenantId, workspaceId, deId, pageable)
                 .map(this::mapRecord);
     }
 
     @Transactional(readOnly = true)
     public DataExtensionDto.QueryPreviewResponse previewQuery(String deId, DataExtensionDto.QueryPreviewRequest request) {
-        String tenantId = TenantContext.requireTenantId();
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
         DataExtension de = requireDataExtension(deId);
         List<DataExtensionField> fields = fieldRepository.findByDataExtensionIdOrderByOrdinalAsc(de.getId());
         Map<String, DataExtensionField> fieldMap = fieldMap(fields);
@@ -176,7 +183,7 @@ public class DataExtensionService {
         int limit = Math.min(safeRequest.getLimit() == null ? 100 : safeRequest.getLimit(), MAX_PREVIEW_LIMIT);
 
         List<DataExtensionRecord> records = recordRepository
-                .findByTenantIdAndDataExtensionId(tenantId, deId, PageRequest.of(0, limit))
+                .findByTenantIdAndWorkspaceIdAndDataExtensionId(tenantId, workspaceId, deId, PageRequest.of(0, limit))
                 .getContent();
 
         List<Map<String, Object>> rows = records.stream()
@@ -187,7 +194,7 @@ public class DataExtensionService {
                 .limit(limit)
                 .toList();
 
-        long total = recordRepository.countByTenantAndDataExtension(tenantId, deId);
+        long total = recordRepository.countByTenantWorkspaceAndDataExtension(tenantId, workspaceId, deId);
         if (total > limit) {
             warnings.add("Preview is capped at " + limit + " rows; use exports for full result sets.");
         }
@@ -273,12 +280,13 @@ public class DataExtensionService {
 
     @Transactional(readOnly = true)
     public long count() {
-        return deRepository.countByTenant(TenantContext.requireTenantId());
+        return deRepository.countByTenantAndWorkspace(AudienceScope.tenantId(), AudienceScope.workspaceId());
     }
 
     private DataExtension requireDataExtension(String id) {
-        String tenantId = TenantContext.requireTenantId();
-        return deRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, id)
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        return deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, id)
                 .orElseThrow(() -> new NotFoundException("DataExtension", id));
     }
 
@@ -379,7 +387,8 @@ public class DataExtensionService {
             if (!sourceFields.containsKey(relationship.getSourceField())) {
                 throw new ValidationException("sourceField", "Relationship source field does not exist: " + relationship.getSourceField());
             }
-            DataExtension target = deRepository.findByTenantIdAndIdAndDeletedAtIsNull(source.getTenantId(), relationship.getTargetDataExtensionId())
+            DataExtension target = deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                            source.getTenantId(), source.getWorkspaceId(), relationship.getTargetDataExtensionId())
                     .orElseThrow(() -> new NotFoundException("Target DataExtension", relationship.getTargetDataExtensionId()));
             Map<String, DataExtensionField> targetFields = fieldMap(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc(target.getId()));
             if (!targetFields.containsKey(relationship.getTargetField())) {

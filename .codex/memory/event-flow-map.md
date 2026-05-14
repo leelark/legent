@@ -13,6 +13,6 @@ Source: `shared/legent-common/src/main/java/com/legent/common/constant/AppConsta
 - Automation: `workflow.trigger`, `workflow.started`, `workflow.step.started`, `workflow.step.completed`, `workflow.step.failed`, `workflow.completed`.
 - Deliverability/platform: domain/reputation/bounce/complaint/suppression/spam/compliance/search/notification/webhook/integration topics.
 
-Open risk:
+Resolved:
 
-- `shared/legent-kafka/.../EventPublisher.java` defaults event key to tenant ID. High-volume topics need job/batch/provider/domain/shard-aware keys.
+- 2026-05-13, source `shared/legent-kafka/.../EventPublisher.java`: high-volume topics no longer use tenant ID as the default key. Publisher derives routing keys from explicit/payload/event metadata and tests cover tenant-key replacement and missing-routing behavior. Low-volume topics still fall back to tenant ID by design.

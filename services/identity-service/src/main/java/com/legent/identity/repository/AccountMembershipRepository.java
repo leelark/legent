@@ -9,6 +9,12 @@ import java.util.Optional;
 public interface AccountMembershipRepository extends JpaRepository<AccountMembership, String> {
     List<AccountMembership> findByAccountIdAndStatus(String accountId, String status);
     Optional<AccountMembership> findByAccountIdAndTenantId(String accountId, String tenantId);
+    List<AccountMembership> findAllByAccountIdAndTenantIdAndStatus(String accountId, String tenantId, String status);
+    Optional<AccountMembership> findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+            String accountId,
+            String tenantId,
+            String workspaceId,
+            String status);
     Optional<AccountMembership> findByUserIdAndTenantId(String userId, String tenantId);
     List<AccountMembership> findAllByUserIdAndTenantId(String userId, String tenantId);
 }

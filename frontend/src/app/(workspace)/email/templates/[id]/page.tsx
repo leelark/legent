@@ -16,6 +16,7 @@ import { TemplateBuilder, ContentBlock } from '@/components/content/TemplateBuil
 import { VersionHistory } from '@/components/content/VersionHistory';
 import { AssetUploader } from '@/components/content/AssetUploader';
 import { PersonalizationTester } from '@/components/content/PersonalizationTester';
+import { sanitizeEmailHtml } from '@/lib/sanitize-html';
 import {
   Asset,
   BrandKit,
@@ -779,7 +780,7 @@ export default function TemplateStudioPage() {
                   <Card>
                     <CardHeader title={previewSubject || subject || 'Preview Subject'} />
                     <div className="rounded-lg border border-border-default bg-white p-4 text-black">
-                      <div dangerouslySetInnerHTML={{ __html: previewHtml || htmlFromBlocks }} />
+                      <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(previewHtml || htmlFromBlocks) }} />
                     </div>
                   </Card>
 

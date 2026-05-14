@@ -1,15 +1,19 @@
 package com.legent.campaign.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.SendBatch;
+import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
 import com.legent.campaign.repository.SendJobRepository;
+import com.legent.common.constant.AppConstants;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.security.TenantContext;
 import java.math.BigDecimal;
+import java.util.concurrent.CompletableFuture;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,10 +29,14 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class SendExecutionServiceTest {
@@ -102,14 +110,172 @@ class SendExecutionServiceTest {
         verify(eventPublisher, times(2)).publish(anyString(), any());
     }
 
-    private void stubBatchExecution(SendBatch batch,
-                                    Campaign campaign,
-                                    List<Map<String, String>> subscribers) {
+    @Test
+    void clearsBatchPayloadWhenBatchCompletes() throws Exception {
+        SendBatch batch = batch();
+        Campaign campaign = campaign();
+        List<Map<String, String>> subscribers = List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
+                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+        batch.setPayload(objectMapper.writeValueAsString(subscribers));
+
+        stubBatchExecution(batch, campaign, subscribers);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
+        assertEquals("[]", batch.getPayload());
+        verify(batchRepository, times(1)).save(batch);
+    }
+
+    @Test
+    void preservesRemainingPayloadWhenBatchIsPartial() throws Exception {
+        SendBatch batch = batch();
+        Campaign campaign = campaign();
+        List<Map<String, String>> subscribers = List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
+                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+        batch.setPayload(objectMapper.writeValueAsString(subscribers));
+
+        stubBatchExecution(batch, campaign, subscribers, 1);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.PARTIAL, batch.getStatus());
+        List<Map<String, String>> remaining = objectMapper.readValue(
+                batch.getPayload(), new TypeReference<>() {});
+        assertEquals(List.of(Map.of("email", "two@example.com", "subscriberId", "sub-2")), remaining);
+        verify(batchRepository, times(1)).save(batch);
+    }
+
+    @Test
+    void retainsFailedPublishPayloadAndLeavesDeliveryCountersForFeedback() throws Exception {
+        SendBatch batch = batch();
+        Campaign campaign = campaign();
+        List<Map<String, String>> subscribers = List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
+                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+        batch.setPayload(objectMapper.writeValueAsString(subscribers));
+
+        stubBatchExecution(batch, campaign, subscribers);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("kafka unavailable")));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.PARTIAL, batch.getStatus());
+        assertEquals(0, batch.getProcessedCount());
+        assertEquals(0, batch.getSuccessCount());
+        assertEquals(0, batch.getFailureCount());
+        List<Map<String, String>> retryPayload = objectMapper.readValue(
+                batch.getPayload(), new TypeReference<>() {});
+        assertEquals(List.of(Map.of("email", "two@example.com", "subscriberId", "sub-2")), retryPayload);
+    }
+
+    @Test
+    void rethrowsUnexpectedExecutionFailureAfterProcessingState() throws Exception {
+        SendBatch batch = batch();
+        Campaign campaign = campaign();
+        List<Map<String, String>> subscribers = List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"));
+        batch.setPayload(objectMapper.writeValueAsString(subscribers));
+
+        stubBatchExecution(batch, campaign, subscribers);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+                .thenThrow(new RuntimeException("render failed"));
+
+        assertThrows(IllegalStateException.class,
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
+
+        assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
+        verify(batchRepository).saveAndFlush(batch);
+        verify(batchRepository, never()).save(batch);
+    }
+
+    @Test
+    void reconcilesJobAndCampaignWhenBatchFailsTerminally() throws Exception {
+        SendBatch batch = batch();
+        batch.setBatchSize(1);
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        Campaign campaign = campaign();
+        campaign.setContentId(null);
+        campaign.setStatus(Campaign.CampaignStatus.SENDING);
+        SendJob job = new SendJob();
+        job.setId("job-1");
+        job.setTenantId("tenant-1");
+        job.setWorkspaceId("workspace-1");
+        job.setCampaignId("campaign-1");
+        job.setStatus(SendJob.JobStatus.SENDING);
+
         when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
         when(batchRepository.saveAndFlush(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(batchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1")).thenReturn(1L);
-        when(batchRepository.countByTenantWorkspaceAndJobAndStatuses(anyString(), anyString(), anyString(), any()))
+        when(campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "campaign-1"))
+                .thenReturn(Optional.of(campaign));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+        when(batchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1"))
+                .thenReturn(1L);
+        when(batchRepository.countByTenantWorkspaceAndJobAndStatuses(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), any()))
+                .thenAnswer(invocation -> {
+                    @SuppressWarnings("unchecked")
+                    List<SendBatch.BatchStatus> statuses = invocation.getArgument(3);
+                    return statuses.contains(SendBatch.BatchStatus.FAILED) ? 1L : 0L;
+                });
+        when(sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "job-1")).thenReturn(Optional.of(job));
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1")).thenReturn(Optional.of(campaign));
+        doAnswer(invocation -> {
+            SendJob target = invocation.getArgument(0);
+            SendJob.JobStatus status = invocation.getArgument(1);
+            target.setStatus(status);
+            target.setErrorMessage(invocation.getArgument(2));
+            return null;
+        }).when(stateMachine).transitionJob(any(SendJob.class), any(SendJob.JobStatus.class), anyString());
+        doAnswer(invocation -> {
+            Campaign target = invocation.getArgument(0);
+            Campaign.CampaignStatus status = invocation.getArgument(1);
+            target.setStatus(status);
+            target.setLifecycleNote(invocation.getArgument(2));
+            return null;
+        }).when(stateMachine).transitionCampaign(any(Campaign.class), any(Campaign.CampaignStatus.class), anyString());
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
+        assertEquals(SendJob.JobStatus.FAILED, job.getStatus());
+        assertEquals(Campaign.CampaignStatus.FAILED, campaign.getStatus());
+        verify(sendJobRepository).save(job);
+        verify(campaignRepository).save(campaign);
+    }
+
+    private void stubBatchExecution(SendBatch batch,
+                                    Campaign campaign,
+                                    List<Map<String, String>> subscribers) {
+        stubBatchExecution(batch, campaign, subscribers, subscribers.size());
+    }
+
+    private void stubBatchExecution(SendBatch batch,
+                                    Campaign campaign,
+                                    List<Map<String, String>> subscribers,
+                                    int acquiredPermits) {
+        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+        when(batchRepository.saveAndFlush(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        lenient().when(batchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1")).thenReturn(1L);
+        lenient().when(batchRepository.countByTenantWorkspaceAndJobAndStatuses(anyString(), anyString(), anyString(), any()))
                 .thenReturn(1L);
         when(campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "campaign-1"))
                 .thenReturn(Optional.of(campaign));
@@ -128,7 +294,9 @@ class SendExecutionServiceTest {
                     BigDecimal.ZERO);
         }).when(sendSafetyService).prepareRecipient(eq(campaign), eq(batch), any(), any(), anyString());
         when(throttlingService.acquirePermits(eq("tenant-1"), eq("example.com"), anyInt()))
-                .thenReturn(subscribers.size());
+                .thenReturn(acquiredPermits);
+        lenient().when(eventPublisher.publish(anyString(), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
     }
 
     private SendBatch batch() {

@@ -7,7 +7,7 @@ Source: `docker-compose.yml`, `rg --files services | rg 'db[\\/]migration'`.
 - PostgreSQL init creates one DB per service: foundation, identity, audience, content, campaign, delivery, tracking, automation, deliverability, platform.
 - ClickHouse database `legent_analytics` is used by tracking.
 - Flyway migrations exist under each service `src/main/resources/db/migration`; read-only agent counted 93 SQL migrations.
-- Migration counts seen in scan: foundation V1-V15, audience V1-V14, campaign V1-V13, delivery V1-V12, identity V1 and V3-V10, tracking V1 and V3-V9, content V1-V7, deliverability V1-V7, automation V1 and V3-V5, platform V1-V4.
+- Migration counts seen in scan: foundation V1-V15, audience V1-V16, campaign V1-V13, delivery V1-V12, identity V1 and V3-V10, tracking V1 and V3-V9, content V1-V7, deliverability V1-V7, automation V1 and V3-V5, platform V1-V4.
 - Do not edit historical migrations. Missing version numbers can be valid historical gaps; never renumber applied migrations.
 
 Open risk:
@@ -16,7 +16,7 @@ Open risk:
 
 Workspace maturity notes from 2026-05-13 DB/API audit:
 
-- Audience workspace hardening covers subscribers/lists/segments/suppressions/imports/memberships/consent/idempotency, but data extension tables remain tenant-only.
+- Audience workspace hardening covers subscribers/lists/segments/suppressions/imports/memberships/consent/idempotency plus data extensions and data extension records after V16. Data extension fields remain children of workspace-scoped data extensions.
 - Content tables are tenant-only; no workspace migration/filter found for templates/assets/snippets/tokens/brand kits/landing pages/test sends.
 - Campaign send-job core is workspace-scoped, but approvals/checkpoints/resume/throttling are tenant/job scoped.
 - Delivery message/rate/warmup/safety/replay/capacity/idempotency tables are workspace-aware; SMTP providers/IP pools/routing/provider scores remain tenant-only.

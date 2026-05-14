@@ -1,10 +1,16 @@
 package com.legent.content.service;
 
 import com.legent.content.dto.EmailStudioDto;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Attribute;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.parser.Parser;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -16,15 +22,24 @@ import java.util.regex.Pattern;
 public class EmailContentValidationService {
 
     private static final Pattern UNSUPPORTED_TAG_PATTERN = Pattern.compile(
-            "(?is)<\\s*/?\\s*(script|iframe|object|embed|form|input|button|select|textarea|video|audio|canvas|base|meta|link|amp-[a-z0-9-]+)\\b[^>]*>");
+            "(?is)<\\s*/?\\s*(script|iframe|object|embed|form|input|button|select|textarea|video|audio|canvas|base|meta|link|svg|math|amp-[a-z0-9-]+)\\b[^>]*>");
     private static final Pattern EVENT_ATTRIBUTE_PATTERN = Pattern.compile(
             "(?is)\\s+on[a-z]+\\s*=\\s*(\"[^\"]*\"|'[^']*'|[^\\s>]+)");
-    private static final Pattern LANDING_UNSAFE_TAG_PATTERN = Pattern.compile(
-            "(?is)<\\s*/?\\s*(script|iframe|object|embed|base|meta|link|amp-[a-z0-9-]+)\\b[^>]*>");
-    private static final Pattern STYLE_ATTRIBUTE_PATTERN = Pattern.compile(
-            "(?is)\\sstyle\\s*=\\s*(\"([^\"]*)\"|'([^']*)')");
-    private static final Pattern HREF_PATTERN = Pattern.compile(
-            "(?is)\\b(?:href|src)\\s*=\\s*(\"([^\"]*)\"|'([^']*)')");
+    private static final Set<String> DANGEROUS_TAGS = Set.of(
+            "script", "iframe", "object", "embed", "video", "audio", "canvas", "base", "meta", "link", "svg", "math");
+    private static final Set<String> FORM_TAGS = Set.of("form", "input", "button", "select", "textarea", "option", "label");
+    private static final Set<String> COMMON_TAGS = Set.of(
+            "a", "abbr", "b", "blockquote", "br", "caption", "cite", "code", "col", "colgroup", "div", "em", "font",
+            "h1", "h2", "h3", "h4", "h5", "h6", "hr", "i", "img", "li", "ol", "p", "pre", "s", "small", "span",
+            "strong", "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "u", "ul");
+    private static final Set<String> COMMON_ATTRIBUTES = Set.of(
+            "align", "alt", "aria-label", "bgcolor", "border", "cellpadding", "cellspacing", "class", "colspan",
+            "dir", "height", "id", "lang", "role", "rowspan", "style", "target", "title", "valign", "width");
+    private static final Set<String> FORM_ATTRIBUTES = Set.of(
+            "accept", "checked", "disabled", "for", "maxlength", "method", "multiple", "name", "placeholder",
+            "readonly", "required", "selected", "type", "value");
+    private static final Set<String> URL_ATTRIBUTES = Set.of("href", "src", "action", "formaction");
+    private static final Set<String> BLOCKED_ATTRIBUTES = Set.of("srcset");
     private static final Pattern LINK_PATTERN = Pattern.compile("(?is)<a\\b[^>]*>");
     private static final Pattern IMG_PATTERN = Pattern.compile("(?is)<img\\b[^>]*>");
     private static final Pattern ALT_PATTERN = Pattern.compile("(?is)\\balt\\s*=");
@@ -99,29 +114,14 @@ public class EmailContentValidationService {
         if (htmlContent == null || htmlContent.isBlank()) {
             return "";
         }
-        String sanitized = UNSUPPORTED_TAG_PATTERN.matcher(htmlContent).replaceAll("");
-        sanitized = EVENT_ATTRIBUTE_PATTERN.matcher(sanitized).replaceAll("");
-        sanitized = sanitizeStyles(sanitized);
-        sanitized = HREF_PATTERN.matcher(sanitized).replaceAll(matchResult -> {
-            String quote = matchResult.group(1).startsWith("\"") ? "\"" : "'";
-            String url = matchResult.group(2) != null ? matchResult.group(2) : matchResult.group(3);
-            return isAllowedUrl(url) ? matchResult.group() : "";
-        });
-        return sanitized;
+        return sanitizeFragment(htmlContent, false);
     }
 
     public String sanitizeLandingPage(String htmlContent) {
         if (htmlContent == null || htmlContent.isBlank()) {
             return "";
         }
-        String sanitized = LANDING_UNSAFE_TAG_PATTERN.matcher(htmlContent).replaceAll("");
-        sanitized = EVENT_ATTRIBUTE_PATTERN.matcher(sanitized).replaceAll("");
-        sanitized = sanitizeStyles(sanitized);
-        sanitized = HREF_PATTERN.matcher(sanitized).replaceAll(matchResult -> {
-            String url = matchResult.group(2) != null ? matchResult.group(2) : matchResult.group(3);
-            return isAllowedUrl(url) ? matchResult.group() : "";
-        });
-        return sanitized;
+        return sanitizeFragment(htmlContent, true);
     }
 
     public String generateTextFallback(String htmlContent) {
@@ -156,34 +156,44 @@ public class EmailContentValidationService {
     }
 
     private void inspectUrls(String html, List<String> errors, List<String> warnings) {
-        Matcher matcher = HREF_PATTERN.matcher(html);
-        while (matcher.find()) {
-            String url = matcher.group(2) != null ? matcher.group(2) : matcher.group(3);
-            if (url == null || url.isBlank() || url.trim().startsWith("{{")) {
-                continue;
+        Document document = parseFragment(html);
+        for (Element element : document.body().getAllElements()) {
+            for (String attribute : URL_ATTRIBUTES) {
+                if (!element.hasAttr(attribute)) {
+                    continue;
+                }
+                String url = element.attr(attribute);
+                if (url.isBlank() || url.trim().startsWith("{{")) {
+                    continue;
+                }
+                String normalized = normalizeUrlForPolicy(url);
+                if (normalized.startsWith("javascript:") || normalized.startsWith("data:") || normalized.startsWith("vbscript:")) {
+                    errors.add("Unsafe URL scheme is not allowed: " + url);
+                    continue;
+                }
+                if (normalized.startsWith("http://")) {
+                    warnings.add("Non-HTTPS URL should be avoided in email content: " + url);
+                    continue;
+                }
+                if (!isAllowedUrl(url)) {
+                    errors.add("Unsupported URL scheme in email content: " + url);
+                }
             }
-            String normalized = url.trim().toLowerCase(Locale.ROOT);
-            if (normalized.startsWith("javascript:") || normalized.startsWith("data:") || normalized.startsWith("vbscript:")) {
-                errors.add("Unsafe URL scheme is not allowed: " + url);
-                continue;
-            }
-            if (normalized.startsWith("http://")) {
-                warnings.add("Non-HTTPS URL should be avoided in email content: " + url);
-                continue;
-            }
-            if (!isAllowedUrl(url)) {
-                errors.add("Unsupported URL scheme in email content: " + url);
+            if (element.hasAttr("srcset")) {
+                errors.add("Responsive image srcset is not allowed in email HTML.");
             }
         }
     }
 
     private void inspectCss(String html, List<String> errors, List<String> compatibilityWarnings) {
-        Matcher matcher = STYLE_ATTRIBUTE_PATTERN.matcher(html);
-        while (matcher.find()) {
-            String css = matcher.group(2) != null ? matcher.group(2) : matcher.group(3);
+        Document document = parseFragment(html);
+        for (Element element : document.body().getAllElements()) {
+            if (!element.hasAttr("style")) {
+                continue;
+            }
+            String css = element.attr("style");
             String lower = css.toLowerCase(Locale.ROOT);
-            if (lower.contains("expression(") || lower.contains("behavior:") || lower.contains("@import")
-                    || lower.contains("-moz-binding") || lower.contains("url(javascript:")) {
+            if (containsUnsafeCss(css)) {
                 errors.add("Unsafe CSS rule detected in inline styles.");
             }
             if (lower.contains("display:flex") || lower.contains("display: grid") || lower.contains("position:fixed")
@@ -193,36 +203,148 @@ public class EmailContentValidationService {
         }
     }
 
-    private String sanitizeStyles(String html) {
-        return STYLE_ATTRIBUTE_PATTERN.matcher(html).replaceAll(matchResult -> {
-            String quote = matchResult.group(1).startsWith("\"") ? "\"" : "'";
-            String css = matchResult.group(2) != null ? matchResult.group(2) : matchResult.group(3);
-            List<String> safeRules = new ArrayList<>();
-            for (String rawRule : css.split(";")) {
-                String rule = rawRule.trim();
-                String lower = rule.toLowerCase(Locale.ROOT);
-                if (rule.isBlank()
-                        || lower.contains("expression(")
-                        || lower.contains("behavior:")
-                        || lower.contains("@import")
-                        || lower.contains("-moz-binding")
-                        || lower.contains("url(javascript:")
-                        || lower.contains("url(data:")) {
-                    continue;
-                }
-                safeRules.add(rule);
+    private String sanitizeFragment(String htmlContent, boolean allowForms) {
+        Document document = parseFragment(htmlContent);
+        sanitizeChildren(document.body(), allowForms);
+        return document.body().html();
+    }
+
+    private Document parseFragment(String htmlContent) {
+        Document document = Jsoup.parseBodyFragment(htmlContent);
+        document.outputSettings()
+                .prettyPrint(false)
+                .syntax(Document.OutputSettings.Syntax.html)
+                .escapeMode(org.jsoup.nodes.Entities.EscapeMode.base);
+        return document;
+    }
+
+    private void sanitizeChildren(Element parent, boolean allowForms) {
+        for (Element child : new ArrayList<>(parent.children())) {
+            String tag = child.normalName();
+            if (isDangerousTag(tag) || (!allowForms && FORM_TAGS.contains(tag))) {
+                child.remove();
+                continue;
             }
-            return safeRules.isEmpty() ? "" : " style=" + quote + String.join("; ", safeRules) + quote;
-        });
+
+            sanitizeChildren(child, allowForms);
+            if (!isAllowedTag(tag, allowForms)) {
+                child.unwrap();
+                continue;
+            }
+            sanitizeAttributes(child, allowForms);
+        }
+    }
+
+    private boolean isDangerousTag(String tag) {
+        return DANGEROUS_TAGS.contains(tag) || tag.startsWith("amp-");
+    }
+
+    private boolean isAllowedTag(String tag, boolean allowForms) {
+        return COMMON_TAGS.contains(tag) || (allowForms && FORM_TAGS.contains(tag));
+    }
+
+    private void sanitizeAttributes(Element element, boolean allowForms) {
+        for (Attribute attribute : new ArrayList<>(element.attributes().asList())) {
+            String key = attribute.getKey().toLowerCase(Locale.ROOT);
+            if (key.startsWith("on") || BLOCKED_ATTRIBUTES.contains(key) || !isAllowedAttribute(element, key, allowForms)) {
+                element.removeAttr(attribute.getKey());
+                continue;
+            }
+            if (URL_ATTRIBUTES.contains(key) && !isAllowedUrl(attribute.getValue())) {
+                element.removeAttr(attribute.getKey());
+                continue;
+            }
+            if ("style".equals(key)) {
+                String safeStyle = sanitizeCss(attribute.getValue());
+                if (safeStyle.isBlank()) {
+                    element.removeAttr(attribute.getKey());
+                } else {
+                    element.attr(attribute.getKey(), safeStyle);
+                }
+            }
+        }
+    }
+
+    private boolean isAllowedAttribute(Element element, String key, boolean allowForms) {
+        String tag = element.normalName();
+        if (URL_ATTRIBUTES.contains(key)) {
+            return ("href".equals(key) && "a".equals(tag))
+                    || ("src".equals(key) && "img".equals(tag));
+        }
+        return COMMON_ATTRIBUTES.contains(key) || (allowForms && FORM_TAGS.contains(tag) && FORM_ATTRIBUTES.contains(key));
+    }
+
+    private String sanitizeCss(String css) {
+        List<String> safeRules = new ArrayList<>();
+        for (String rawRule : css.split(";")) {
+            String rule = rawRule.trim();
+            if (rule.isBlank() || containsUnsafeCss(rule)) {
+                continue;
+            }
+            safeRules.add(rule);
+        }
+        return String.join("; ", safeRules);
+    }
+
+    private boolean containsUnsafeCss(String css) {
+        String lower = normalizeCssEscapes(Parser.unescapeEntities(css, true)).toLowerCase(Locale.ROOT);
+        String compact = lower.replaceAll("[\\u0000-\\u001F\\u007F\\s]+", "");
+        return compact.contains("expression(")
+                || compact.contains("behavior:")
+                || compact.contains("@import")
+                || compact.contains("-moz-binding")
+                || Arrays.stream(compact.split("url\\(", -1))
+                .skip(1)
+                .map(part -> part.replaceFirst("^[\"']?", ""))
+                .anyMatch(part -> part.startsWith("javascript:") || part.startsWith("data:") || part.startsWith("vbscript:"));
+    }
+
+    private String normalizeCssEscapes(String css) {
+        StringBuilder normalized = new StringBuilder(css.length());
+        for (int i = 0; i < css.length(); i++) {
+            char current = css.charAt(i);
+            if (current != '\\' || i + 1 >= css.length()) {
+                normalized.append(current);
+                continue;
+            }
+
+            int escapeStart = i + 1;
+            int escapeEnd = escapeStart;
+            while (escapeEnd < css.length()
+                    && escapeEnd - escapeStart < 6
+                    && Character.digit(css.charAt(escapeEnd), 16) >= 0) {
+                escapeEnd++;
+            }
+
+            if (escapeEnd > escapeStart) {
+                int codePoint = Integer.parseInt(css.substring(escapeStart, escapeEnd), 16);
+                if (Character.isValidCodePoint(codePoint)) {
+                    normalized.appendCodePoint(codePoint);
+                }
+                i = escapeEnd - 1;
+                if (i + 1 < css.length() && Character.isWhitespace(css.charAt(i + 1))) {
+                    i++;
+                }
+                continue;
+            }
+
+            normalized.append(css.charAt(escapeStart));
+            i = escapeStart;
+        }
+        return normalized.toString();
     }
 
     private boolean isAllowedUrl(String url) {
         if (url == null || url.isBlank()) {
             return false;
         }
-        String trimmed = url.trim();
+        String trimmed = Parser.unescapeEntities(url, true).trim();
         if (trimmed.startsWith("{{") || trimmed.startsWith("#")) {
             return true;
+        }
+        String normalized = normalizeUrlForPolicy(trimmed);
+        if (normalized.startsWith("javascript:") || normalized.startsWith("data:") || normalized.startsWith("vbscript:")) {
+            return false;
         }
         try {
             URI uri = URI.create(trimmed);
@@ -238,6 +360,13 @@ public class EmailContentValidationService {
         } catch (IllegalArgumentException ex) {
             return false;
         }
+    }
+
+    private String normalizeUrlForPolicy(String url) {
+        return Parser.unescapeEntities(url, true)
+                .trim()
+                .replaceAll("[\\u0000-\\u001F\\u007F\\s]+", "")
+                .toLowerCase(Locale.ROOT);
     }
 
     private boolean containsAmp(String html) {

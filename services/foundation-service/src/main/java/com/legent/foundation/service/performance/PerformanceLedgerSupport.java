@@ -32,9 +32,10 @@ public abstract class PerformanceLedgerSupport {
 
     protected Map<String, Object> requireById(String table, String id) {
         String safeTable = CorePlatformRepository.safeTable(table);
+        String workspaceId = workspace(null);
         List<Map<String, Object>> rows = repository.queryForList(
-                "SELECT * FROM " + safeTable + " WHERE tenant_id = :tenantId AND id = :id AND deleted_at IS NULL LIMIT 1",
-                map("tenantId", tenant(), "id", id)
+                "SELECT * FROM " + safeTable + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND id = :id AND deleted_at IS NULL LIMIT 1",
+                map("tenantId", tenant(), "workspaceId", workspaceId, "id", id)
         );
         if (rows.isEmpty()) {
             throw new IllegalArgumentException(safeTable + " not found: " + id);
@@ -59,6 +60,9 @@ public abstract class PerformanceLedgerSupport {
         }
         Map<String, Object> updates = new LinkedHashMap<>(values);
         updates.keySet().removeAll(List.of("id", "tenant_id", "workspace_id", "created_at", "created_by", "deleted_at", "version"));
+        if (workspaceId != null) {
+            return repository.updateByIdAndWorkspace(table, String.valueOf(existing.get(0).get("id")), tenant(), workspaceId, updates, jsonColumns);
+        }
         return repository.updateById(table, String.valueOf(existing.get(0).get("id")), tenant(), updates, jsonColumns);
     }
 
@@ -255,7 +259,11 @@ public abstract class PerformanceLedgerSupport {
 
     protected String workspace(String workspaceId) {
         String resolved = blankToNull(workspaceId);
-        return resolved == null ? TenantContext.getWorkspaceId() : resolved;
+        String contextWorkspaceId = blankToNull(TenantContext.getWorkspaceId());
+        if (resolved != null && contextWorkspaceId != null && !contextWorkspaceId.equals(resolved)) {
+            throw new IllegalArgumentException("workspaceId does not match the current workspace");
+        }
+        return resolved == null ? contextWorkspaceId : resolved;
     }
 
     protected String actor() {

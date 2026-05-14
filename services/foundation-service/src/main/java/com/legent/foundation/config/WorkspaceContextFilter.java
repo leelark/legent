@@ -3,6 +3,7 @@ package com.legent.foundation.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
+import com.legent.security.TenantContext;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,7 +26,11 @@ public class WorkspaceContextFilter extends OncePerRequestFilter {
             "/api/v1/admin/configs",
             "/api/v1/admin/settings",
             "/api/v1/admin/public-content",
-            "/api/v1/admin/branding"
+            "/api/v1/admin/branding",
+            "/api/v1/performance-intelligence",
+            "/api/v1/global",
+            "/api/v1/differentiation",
+            "/api/v1/compliance"
     );
 
     @Override
@@ -52,6 +57,18 @@ public class WorkspaceContextFilter extends OncePerRequestFilter {
             return;
         }
 
+        String contextWorkspaceId = normalize(TenantContext.getWorkspaceId());
+        String queryWorkspaceId = normalize(request.getParameter("workspaceId"));
+        if (contextWorkspaceId != null && queryWorkspaceId != null && !contextWorkspaceId.equals(queryWorkspaceId)) {
+            log.warn("Workspace query parameter conflicts with context for path: {}", path);
+            writeError(response,
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "WORKSPACE_MISMATCH",
+                    "workspaceId does not match the current workspace",
+                    "Path: " + path);
+            return;
+        }
+
         filterChain.doFilter(request, response);
     }
 
@@ -65,5 +82,23 @@ public class WorkspaceContextFilter extends OncePerRequestFilter {
             }
         }
         return false;
+    }
+
+    private void writeError(HttpServletResponse response,
+                            int status,
+                            String code,
+                            String message,
+                            String detail) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json");
+        ApiResponse<Void> apiResponse = ApiResponse.error(code, message, detail);
+        OBJECT_MAPPER.writeValue(response.getWriter(), apiResponse);
+    }
+
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

@@ -39,6 +39,10 @@ public class BatchingService {
     public void processResolvedAudienceChunk(String tenantId, String jobId, List<Map<String, String>> subscribers, boolean isLastChunk) {
         try {
             SendJob job = jobRepository.findByTenantIdAndIdAndDeletedAtIsNull(tenantId, jobId).orElseThrow();
+            if (job.getStatus() == SendJob.JobStatus.BATCHING || job.getStatus() == SendJob.JobStatus.SENDING) {
+                requeueExistingBatches(tenantId, job);
+                return;
+            }
             if (job.getStatus() != SendJob.JobStatus.RESOLVING) {
                 log.warn("Ignoring chunk for job {} in state {}", jobId, job.getStatus());
                 return;
@@ -100,7 +104,25 @@ public class BatchingService {
             publishBatchEventsAfterCommit(tenantId, jobId, createdBatchIds);
         } catch (Exception e) {
             log.error("Failed to process chunk for job {}", jobId, e);
+            throw new IllegalStateException("Failed to process resolved audience chunk for job " + jobId, e);
         }
+    }
+
+    private void requeueExistingBatches(String tenantId, SendJob job) {
+        List<String> batchIds = batchRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
+                        tenantId,
+                        job.getWorkspaceId(),
+                        job.getId()).stream()
+                .filter(batch -> batch.getStatus() == SendBatch.BatchStatus.PENDING
+                        || batch.getStatus() == SendBatch.BatchStatus.PARTIAL)
+                .map(SendBatch::getId)
+                .toList();
+        if (batchIds.isEmpty()) {
+            log.warn("No unfinished batches found to requeue for job {} in state {}", job.getId(), job.getStatus());
+            return;
+        }
+        log.info("Requeueing {} unfinished batches for already batched job {}", batchIds.size(), job.getId());
+        publishBatchEventsAfterCommit(tenantId, job.getId(), batchIds);
     }
 
     private String extractDomain(String email) {

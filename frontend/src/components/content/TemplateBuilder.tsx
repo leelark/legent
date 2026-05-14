@@ -3,8 +3,8 @@
 import React, { useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import DOMPurify from 'isomorphic-dompurify';
 import { Input } from '@/components/ui/Input';
+import { sanitizeEmailHtml } from '@/lib/sanitize-html';
 
 export interface ContentBlock {
   id: string;
@@ -19,15 +19,6 @@ interface TemplateBuilderProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
 }
-
-const sanitizeHtml = (html: string) => {
-  if (!html) return '';
-  return DOMPurify.sanitize(html, {
-    USE_PROFILES: { html: true },
-    FORBID_TAGS: ['script', 'style', 'iframe', 'object', 'embed'],
-    FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'style']
-  });
-};
 
 const BLOCK_LIBRARY: Array<{ type: string; label: string; defaultContent: string }> = [
   { type: 'HEADER', label: 'Header', defaultContent: '<h2>Header Title</h2>' },
@@ -194,7 +185,7 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
                       borderRadius: `${Number(blockStyles.borderRadius ?? 8)}px`,
                     }}
                   >
-                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(block.content) }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(block.content) }} />
                   </div>
                 </Card>
               );

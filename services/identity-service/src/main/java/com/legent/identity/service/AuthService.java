@@ -289,29 +289,31 @@ public class AuthService {
 
         Optional<Account> accountOpt = accountRepository.findByEmailIgnoreCase(user.getEmail());
         if (accountOpt.isEmpty()) {
+            if (blankToNull(request.getWorkspaceId()) != null
+                    && !DEFAULT_WORKSPACE_ID.equals(normalizeWorkspaceId(request.getWorkspaceId()))) {
+                throw new IllegalArgumentException("Membership not found for target workspace");
+            }
             return tokenProvider.generateToken(
                     userId,
                     request.getTenantId(),
-                    normalizeWorkspaceId(request.getWorkspaceId()),
-                    request.getEnvironmentId(),
+                    DEFAULT_WORKSPACE_ID,
+                    null,
                     Map.of("roles", List.of(user.getRole()))
             );
         }
 
         Account account = accountOpt.get();
-        AccountMembership membership = accountMembershipRepository
-                .findByAccountIdAndTenantId(account.getId(), request.getTenantId())
-                .orElseThrow(() -> new IllegalArgumentException("Membership not found for target tenant"));
+        AccountMembership membership = resolveActiveMembershipForContext(
+                account.getId(),
+                request.getTenantId(),
+                request.getWorkspaceId());
 
         List<String> roles = resolveMembershipRoles(account.getId(), membership.getId(), user.getRole());
-        String selectedWorkspace = blankToNull(request.getWorkspaceId()) != null
-                ? request.getWorkspaceId()
-                : membership.getWorkspaceId();
         return tokenProvider.generateToken(
                 userId,
                 request.getTenantId(),
-                normalizeWorkspaceId(selectedWorkspace),
-                blankToNull(request.getEnvironmentId()),
+                normalizeWorkspaceId(membership.getWorkspaceId()),
+                null,
                 Map.of(
                 "roles", roles,
                 "email", user.getEmail(),
@@ -322,8 +324,33 @@ public class AuthService {
 
     @Transactional
     public String exchangeDelegationToken(String userId, String tenantId, AuthBridgeDto.DelegationRequest request) {
-        User user = userRepository.findByTenantIdAndId(tenantId, userId)
+        User requester = userRepository.findByTenantIdAndId(tenantId, userId)
+                .filter(User::isActive)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        Account requesterAccount = accountRepository.findByEmailIgnoreCase(requester.getEmail())
+                .filter(this::isActiveAccount)
+                .orElseThrow(() -> new IllegalArgumentException("Requester account not found"));
+        AccountMembership requesterMembership = resolveActiveMembershipForContext(
+                requesterAccount.getId(),
+                tenantId,
+                request.getWorkspaceId());
+        if (!Objects.equals(requesterMembership.getUserId(), requester.getId())) {
+            throw new IllegalArgumentException("Requester membership not found");
+        }
+        User delegatedUser = userRepository.findByTenantIdAndId(tenantId, request.getDelegatedUserId())
+                .filter(User::isActive)
+                .orElseThrow(() -> new IllegalArgumentException("Delegated user not found"));
+        Account delegatedAccount = accountRepository.findByEmailIgnoreCase(delegatedUser.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Delegated user account not found"));
+        AccountMembership delegatedMembership = resolveActiveMembershipForContext(
+                delegatedAccount.getId(),
+                tenantId,
+                request.getWorkspaceId());
+        if (!Objects.equals(delegatedMembership.getUserId(), delegatedUser.getId())) {
+            throw new IllegalArgumentException("Delegated user membership not found");
+        }
+        String workspaceId = delegatedMembership.getWorkspaceId();
+
         List<String> delegatedRoles = request.getPermissions() == null || request.getPermissions().isEmpty()
                 ? List.of("VIEWER")
                 : request.getPermissions();
@@ -339,7 +366,7 @@ public class AuthService {
         return tokenProvider.generateToken(
                 request.getDelegatedUserId(),
                 tenantId,
-                normalizeWorkspaceId(request.getWorkspaceId()),
+                normalizeWorkspaceId(workspaceId),
                 null,
                 extraClaims
         );
@@ -468,6 +495,32 @@ public class AuthService {
             return List.of(fallbackRole.toUpperCase(Locale.ROOT));
         }
         return List.of("USER");
+    }
+
+    private boolean isActiveAccount(Account account) {
+        return account != null && "ACTIVE".equalsIgnoreCase(account.getStatus());
+    }
+
+    private AccountMembership resolveActiveMembershipForContext(String accountId, String tenantId, String workspaceId) {
+        String requestedWorkspace = blankToNull(workspaceId);
+        if (requestedWorkspace != null) {
+            return accountMembershipRepository
+                    .findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                            accountId,
+                            tenantId,
+                            normalizeWorkspaceId(requestedWorkspace),
+                            "ACTIVE")
+                    .orElseThrow(() -> new IllegalArgumentException("Membership not found for target workspace"));
+        }
+
+        return accountMembershipRepository
+                .findAllByAccountIdAndTenantIdAndStatus(accountId, tenantId, "ACTIVE")
+                .stream()
+                .filter(AccountMembership::isDefaultMembership)
+                .reduce((left, right) -> {
+                    throw new IllegalArgumentException("Ambiguous default membership for target tenant");
+                })
+                .orElseThrow(() -> new IllegalArgumentException("Default membership not found for target tenant"));
     }
 
     private String blankToNull(String value) {
