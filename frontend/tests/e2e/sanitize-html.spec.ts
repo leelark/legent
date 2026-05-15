@@ -61,12 +61,12 @@ test.describe('HTML sanitization regressions', () => {
   ];
 
   for (const vector of landingFormTargetVectors) {
-    test(`keeps landing forms inert by unwrapping ${vector.name}`, () => {
+    test(`removes landing form controls and targets for ${vector.name}`, () => {
       const sanitized = sanitizeLandingPageHtml(
         `<form action="${vector.action}" method="post"><button formaction="${vector.formaction}" type="submit">Send</button></form>`
       );
 
-      expect(sanitized).toContain('<button type="submit">Send</button>');
+      expect(sanitized).not.toContain('<button');
       expect(sanitized).not.toContain('<form');
       expect(sanitized).not.toContain('action=');
       expect(sanitized).not.toContain('formaction');
@@ -77,7 +77,7 @@ test.describe('HTML sanitization regressions', () => {
   test('does not add a default landing page form target', () => {
     const sanitized = sanitizeLandingPageHtml('<form method="post"><input name="email"></form>');
 
-    expect(sanitized).toContain('<input name="email">');
+    expect(sanitized).not.toContain('<input');
     expect(sanitized).not.toContain('<form');
     expect(sanitized).not.toContain('action=');
   });

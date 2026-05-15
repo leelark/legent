@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { clsx } from 'clsx';
 import {
   Activity,
@@ -28,6 +27,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { MetricCard, PageHeader, Panel } from '@/components/ui/PageChrome';
 import { useToast } from '@/components/ui/Toast';
 import { useUIStore } from '@/stores/uiStore';
 import { getUserPreferences, updateUserPreferences, type UserPreferences } from '@/lib/user-preferences-api';
@@ -155,8 +155,8 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
         setDensity(next.density);
       }
       addToast({ type: 'success', title: 'Settings saved', message: 'Preferences synced across the workspace shell.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Settings save failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Settings save failed', message: getErrorMessage(error, 'Unable to save settings.') });
     } finally {
       setSaving(false);
     }
@@ -179,8 +179,8 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
       setSelectedDomain(domainName);
       await load();
       addToast({ type: 'success', title: 'Sender domain added', message: 'DNS verification can run after records propagate.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Domain add failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Domain add failed', message: getErrorMessage(error, 'Unable to add sender domain.') });
     } finally {
       setSaving(false);
     }
@@ -196,8 +196,8 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
       await validateDomain(domainId);
       await load();
       addToast({ type: 'success', title: 'DNS verification refreshed' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'DNS verification failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'DNS verification failed', message: getErrorMessage(error, 'Unable to verify sender domain.') });
     } finally {
       setSaving(false);
     }
@@ -207,8 +207,8 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
     try {
       await post('/auth/logout-all');
       addToast({ type: 'success', title: 'Other sessions revoked', message: 'Current browser may need to sign in again after refresh.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Session revoke failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Session revoke failed', message: getErrorMessage(error, 'Unable to revoke sessions.') });
     }
   };
 
@@ -223,53 +223,49 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
   }, [domains, providers]);
 
   return (
-    <div className="space-y-5">
-      <section className="overflow-hidden rounded-lg border border-border-default bg-surface-elevated shadow-[0_18px_70px_rgba(14,116,144,0.10)]">
-        <div className="relative grid gap-6 p-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:p-7">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(14,165,233,0.10),transparent_40%,rgba(16,185,129,0.10))]" />
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300">
-              <Palette className="h-3.5 w-3.5" />
-              Personal operating console
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-normal text-content-primary md:text-4xl">
-              Settings that reshape the shell, alerts, modules, and integration behavior without stale state.
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-content-secondary md:text-base">
-              Profile preferences persist in identity service, theme updates apply immediately, and module-level defaults are stored as structured metadata for every workspace session.
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Workspace settings"
+        title="Enterprise Settings"
+        description="Manage shell preferences, profile defaults, notifications, integrations, and deliverability controls."
+        action={(
+          <>
+            <Button onClick={() => save()} loading={saving} icon={<Save className="h-4 w-4" />}>
+              Save settings
+            </Button>
+            <Button variant="secondary" onClick={load} icon={<RefreshCcw className="h-4 w-4" />}>
+              Refresh
+            </Button>
+          </>
+        )}
+      />
+
+      <Panel className="p-4">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-content-muted">Live preference mesh</p>
+            <p className="mt-1 max-w-2xl text-sm text-content-secondary">
+              Identity preferences sync to the active workspace shell without changing section behavior.
             </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={() => save()} loading={saving} icon={<Save className="h-4 w-4" />}>
-                Save settings
-              </Button>
-              <Button variant="secondary" onClick={load} icon={<RefreshCcw className="h-4 w-4" />}>
-                Refresh
-              </Button>
-            </div>
           </div>
-          <div className="relative rounded-lg border border-border-default bg-white/80 p-4 shadow-inner dark:bg-white/5">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-muted">Live preference mesh</p>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              <MeshStat label="Theme" value={theme} />
-              <MeshStat label="Mode" value={uiMode} />
-              <MeshStat label="Density" value={density} />
-            </div>
-            <div className="mt-5 space-y-2">
-              {['Shell', 'Modules', 'Notifications', 'Integrations'].map((item, index) => (
-                <motion.div
-                  key={item}
-                  animate={{ x: [0, 4, 0] }}
-                  transition={{ duration: 2.8, repeat: Infinity, delay: index * 0.14 }}
-                  className="flex items-center justify-between rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-xs"
-                >
-                  <span className="font-semibold">{item}</span>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                </motion.div>
-              ))}
-            </div>
+          <div className="grid min-w-0 grid-cols-3 gap-2 sm:min-w-[360px]">
+            <MeshStat label="Theme" value={theme} />
+            <MeshStat label="Mode" value={uiMode} />
+            <MeshStat label="Density" value={density} />
           </div>
         </div>
-      </section>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {['Shell', 'Modules', 'Notifications', 'Integrations'].map((item) => (
+            <div
+              key={item}
+              className="flex items-center justify-between rounded-lg bg-surface-secondary px-3 py-2 text-xs text-content-secondary"
+            >
+              <span className="font-semibold">{item}</span>
+              <CheckCircle2 className="h-4 w-4 text-success" />
+            </div>
+          ))}
+        </div>
+      </Panel>
 
       {loadIssues.length ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
@@ -278,8 +274,8 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
         </div>
       ) : null}
 
-      <div className="grid gap-4 lg:grid-cols-[270px_minmax(0,1fr)]">
-        <aside className="h-fit rounded-lg border border-border-default bg-surface-elevated p-2 shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="h-fit rounded-xl border border-border-default bg-surface-elevated/95 p-2 shadow-[0_18px_45px_rgba(76,29,149,0.08)] backdrop-blur-xl">
           {sectionDefs.map((section) => {
             const Icon = section.icon;
             const selected = active === section.id;
@@ -289,8 +285,8 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
                 type="button"
                 onClick={() => setActive(section.id)}
                 className={clsx(
-                  'mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-all',
-                  selected ? 'bg-blue-50 text-blue-800 dark:bg-blue-950/30 dark:text-blue-200' : 'text-content-secondary hover:bg-surface-secondary hover:text-content-primary'
+                  'mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left',
+                  selected ? 'bg-brand-500/10 text-brand-700 dark:text-brand-300' : 'text-content-secondary hover:bg-surface-secondary hover:text-content-primary'
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -306,12 +302,12 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
 
         <main className="min-w-0">
           {loading ? (
-            <div className="rounded-lg border border-border-default bg-surface-elevated p-8 text-center">
-              <Loader2 className="mx-auto h-8 w-8 animate-spin text-blue-500" />
+            <Panel className="p-8 text-center">
+              <Loader2 className="mx-auto h-8 w-8 text-brand-500" />
               <p className="mt-4 text-sm font-semibold">Loading settings</p>
-            </div>
+            </Panel>
           ) : (
-            <AnimatePresence mode="wait">
+            <>
               {active === 'profile' && <ProfileSettings key="profile" preferences={preferences} metadata={metadata} updateMeta={updateMeta} save={save} />}
               {active === 'security' && <SecuritySettings key="security" metadata={metadata} updateMeta={updateMeta} save={save} logoutAll={logoutAll} />}
               {active === 'notifications' && <NotificationSettings key="notifications" metadata={metadata} updateMeta={updateMeta} save={save} />}
@@ -331,7 +327,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
                   saving={saving}
                 />
               )}
-            </AnimatePresence>
+            </>
           )}
         </main>
       </div>
@@ -345,7 +341,7 @@ function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPa
   return (
     <Pane>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+        <Panel>
           <PaneHeader icon={UserRound} title="Profile Settings" detail="Personal profile, localization, theme preference, and workspace display behavior." />
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <Field label="Display name" value={asText(profile.displayName)} onChange={(value) => updateMeta('profile', 'displayName', value)} />
@@ -364,7 +360,7 @@ function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPa
                 key={item}
                 type="button"
                 onClick={() => setDensity(item)}
-                className={clsx('rounded-lg border px-3 py-2 text-sm font-semibold capitalize transition', density === item ? 'border-blue-300 bg-blue-50 text-blue-700 dark:bg-blue-950/30' : 'border-border-default bg-surface-secondary text-content-secondary hover:text-content-primary')}
+                className={clsx('rounded-lg border px-3 py-2 text-sm font-semibold capitalize', density === item ? 'border-brand-300 bg-brand-500/10 text-brand-700 dark:border-brand-700 dark:text-brand-300' : 'border-border-default bg-surface-secondary text-content-secondary hover:text-content-primary')}
               >
                 {item}
               </button>
@@ -373,8 +369,8 @@ function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPa
           <Button className="mt-5" onClick={() => save({ theme, uiMode, density })} icon={<Save className="h-4 w-4" />}>
             Save profile
           </Button>
-        </section>
-        <aside className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+        </Panel>
+        <Panel>
           <PaneHeader icon={Laptop} title="Session Context" detail="Hydrated from identity preferences and active tenant session." />
           <div className="mt-5 space-y-3">
             <InfoLine label="User ID" value={preferences?.userId || 'current session'} />
@@ -382,7 +378,7 @@ function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPa
             <InfoLine label="Sidebar" value={preferences?.sidebarCollapsed ? 'collapsed' : 'expanded'} />
             <InfoLine label="Sync source" value="identity user_preferences" />
           </div>
-        </aside>
+        </Panel>
       </div>
     </Pane>
   );
@@ -393,7 +389,7 @@ function SecuritySettings({ metadata, updateMeta, save, logoutAll }: SettingsPan
   return (
     <Pane>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+        <Panel>
           <PaneHeader icon={LockKeyhole} title="Security Settings" detail="Password, MFA readiness, session revocation, trusted devices, and recovery controls." />
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <Toggle label="Require MFA prompt" value={Boolean(security.mfaPrompt)} onChange={(value) => updateMeta('security', 'mfaPrompt', value)} />
@@ -405,8 +401,8 @@ function SecuritySettings({ metadata, updateMeta, save, logoutAll }: SettingsPan
             <Button onClick={() => save()} icon={<Save className="h-4 w-4" />}>Save security</Button>
             <Button variant="danger" onClick={logoutAll} icon={<RotateCcw className="h-4 w-4" />}>Revoke sessions</Button>
           </div>
-        </section>
-        <aside className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+        </Panel>
+        <Panel>
           <PaneHeader icon={ShieldCheck} title="Security Posture" detail="Controls currently enforced or ready for enforcement." />
           <div className="mt-5 space-y-3">
             <Posture label="HTTP-only auth cookies" ok />
@@ -414,7 +410,7 @@ function SecuritySettings({ metadata, updateMeta, save, logoutAll }: SettingsPan
             <Posture label="Password reset tokens" ok />
             <Posture label="MFA provider binding" ok={Boolean(security.mfaPrompt)} />
           </div>
-        </aside>
+        </Panel>
       </div>
     </Pane>
   );
@@ -424,7 +420,7 @@ function NotificationSettings({ metadata, updateMeta, save }: SettingsPaneProps)
   const notifications = metadata.notifications || {};
   return (
     <Pane>
-      <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+      <Panel>
         <PaneHeader icon={Bell} title="Notification Settings" detail="Choose which workflow, delivery, and governance signals reach you." />
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <Toggle label="Email notifications" value={notifications.email !== false} onChange={(value) => updateMeta('notifications', 'email', value)} />
@@ -438,7 +434,7 @@ function NotificationSettings({ metadata, updateMeta, save }: SettingsPaneProps)
           <SelectField label="Digest schedule" value={asText(notifications.digest, 'daily')} options={digestOptions} onChange={(value) => updateMeta('notifications', 'digest', value)} />
         </div>
         <Button className="mt-5" onClick={() => save()} icon={<Save className="h-4 w-4" />}>Save notifications</Button>
-      </section>
+      </Panel>
     </Pane>
   );
 }
@@ -447,15 +443,15 @@ function ModuleSettings({ metadata, updateMeta, save }: SettingsPaneProps) {
   const modules = metadata.modules || {};
   return (
     <Pane>
-      <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+      <Panel>
         <PaneHeader icon={Grid2X2} title="Module Preferences" detail="User-specific defaults for dashboards, filters, grids, saved views, and widgets." />
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
           {['Dashboard', 'Audience', 'Campaigns', 'Automation', 'Delivery', 'Analytics'].map((module) => {
             const key = module.toLowerCase();
             const value = (modules[key] || {}) as Record<string, unknown>;
             return (
-              <motion.div key={module} whileHover={{ y: -3 }} className="rounded-lg border border-border-default bg-surface-secondary p-4">
-                <Database className="h-5 w-5 text-blue-500" />
+              <div key={module} className="rounded-lg border border-border-default bg-surface-secondary p-4">
+                <Database className="h-5 w-5 text-brand-500" />
                 <p className="mt-3 font-semibold">{module}</p>
                 <div className="mt-3 space-y-2">
                   <SelectField
@@ -470,12 +466,12 @@ function ModuleSettings({ metadata, updateMeta, save }: SettingsPaneProps) {
                     onChange={(next) => updateMeta('modules', key, { ...value, advanced: next })}
                   />
                 </div>
-              </motion.div>
+              </div>
             );
           })}
         </div>
         <Button className="mt-5" onClick={() => save()} icon={<Save className="h-4 w-4" />}>Save module preferences</Button>
-      </section>
+      </Panel>
     </Pane>
   );
 }
@@ -485,7 +481,7 @@ function IntegrationSettings({ providers, metadata, updateMeta, save }: Settings
   return (
     <Pane>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+        <Panel>
           <PaneHeader icon={PlugZap} title="Integration Settings" detail="API token posture, webhook delivery, provider health, and sync schedules." />
           <div className="mt-5 grid gap-4 md:grid-cols-2">
             <Field label="Primary webhook owner" value={asText(integrations.owner)} onChange={(value) => updateMeta('integrations', 'owner', value)} />
@@ -497,8 +493,8 @@ function IntegrationSettings({ providers, metadata, updateMeta, save }: Settings
           <div className="mt-5">
             <WebhookPanel />
           </div>
-        </section>
-        <aside className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+        </Panel>
+        <Panel>
           <PaneHeader icon={Activity} title="Provider Health" detail="Delivery provider status from platform service." />
           <div className="mt-5 space-y-3">
             {providers.map((provider, index) => (
@@ -514,7 +510,7 @@ function IntegrationSettings({ providers, metadata, updateMeta, save }: Settings
             ))}
             {!providers.length && <Empty text="No provider health records available." />}
           </div>
-        </aside>
+        </Panel>
       </div>
     </Pane>
   );
@@ -544,7 +540,7 @@ function DeliverabilitySettings({
   return (
     <Pane>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+        <Panel>
           <PaneHeader icon={Globe2} title="Deliverability Settings" detail="Authenticated domains, DNS checks, reputation posture, and compliance visibility." />
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <input
@@ -571,8 +567,8 @@ function DeliverabilitySettings({
                     const id = asText(readDomainValue(domain, ['id']));
                     const selected = selectedDomain === name;
                     return (
-                      <div key={`${id || name}-${index}`} className={clsx('grid grid-cols-[minmax(180px,1fr)_82px_82px_82px_190px] items-center gap-0 px-3 py-3 text-sm transition', selected ? 'bg-blue-50/70 dark:bg-blue-950/20' : 'hover:bg-surface-secondary/70')}>
-                        <button type="button" onClick={() => setSelectedDomain(name)} className="truncate text-left font-semibold text-content-primary hover:text-blue-600">{name}</button>
+                      <div key={`${id || name}-${index}`} className={clsx('grid grid-cols-[minmax(180px,1fr)_82px_82px_82px_190px] items-center gap-0 px-3 py-3 text-sm', selected ? 'bg-brand-500/10' : 'hover:bg-surface-secondary/70')}>
+                        <button type="button" onClick={() => setSelectedDomain(name)} className="truncate text-left font-semibold text-content-primary hover:text-brand-600">{name}</button>
                         <DnsIcon ok={isDomainFlag(domain, 'spf')} />
                         <DnsIcon ok={isDomainFlag(domain, 'dkim')} />
                         <DnsIcon ok={isDomainFlag(domain, 'dmarc')} />
@@ -588,7 +584,7 @@ function DeliverabilitySettings({
               </div>
             </div>
           </div>
-        </section>
+        </Panel>
         <aside className="space-y-4">
           <MetricBox label="Reputation" value={`${summary.score}/100`} icon={Activity} />
           <MetricBox label="Compliance alerts" value={String(summary.alerts)} icon={ShieldAlert} />
@@ -611,18 +607,14 @@ type SettingsPaneProps = {
   save: (patch?: Partial<UserPreferences>) => Promise<void>;
 };
 
-function Pane({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.22 }}>
-      {children}
-    </motion.div>
-  );
+function Pane({ children }: { children: ReactNode }) {
+  return <div>{children}</div>;
 }
 
 function PaneHeader({ icon: Icon, title, detail }: { icon: typeof UserRound; title: string; detail: string }) {
   return (
     <div className="flex items-start gap-3">
-      <div className="rounded-lg border border-border-default bg-surface-secondary p-2 text-blue-600 dark:text-blue-300">
+      <div className="rounded-lg border border-border-default bg-surface-secondary p-2 text-brand-600 dark:text-brand-300">
         <Icon className="h-4 w-4" />
       </div>
       <div>
@@ -649,7 +641,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary outline-none transition focus:border-blue-400 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-950"
+        className="mt-1 w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary outline-none focus:border-accent focus:ring-2 focus:ring-accent/20"
       />
     </label>
   );
@@ -675,11 +667,11 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
     <button
       type="button"
       onClick={() => onChange(!value)}
-      className="flex items-center justify-between gap-4 rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-left transition hover:border-blue-300"
+      className="flex items-center justify-between gap-4 rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-left hover:border-brand-300"
     >
       <span className="text-sm font-semibold">{label}</span>
-      <span className={clsx('relative h-6 w-11 rounded-full transition', value ? 'bg-blue-500' : 'bg-border-strong')}>
-        <span className={clsx('absolute top-1 h-4 w-4 rounded-full bg-white transition', value ? 'left-6' : 'left-1')} />
+      <span className={clsx('relative h-6 w-11 rounded-full', value ? 'bg-brand-600' : 'bg-border-strong')}>
+        <span className={clsx('absolute top-1 h-4 w-4 rounded-full bg-white', value ? 'left-6' : 'left-1')} />
       </span>
     </button>
   );
@@ -690,7 +682,7 @@ function Choice({ label, selected, onClick, icon: Icon }: { label: string; selec
     <button
       type="button"
       onClick={onClick}
-      className={clsx('rounded-lg border p-4 text-left transition hover:-translate-y-0.5', selected ? 'border-blue-300 bg-blue-50 text-blue-800 dark:bg-blue-950/30 dark:text-blue-200' : 'border-border-default bg-surface-secondary text-content-secondary')}
+      className={clsx('rounded-lg border p-4 text-left', selected ? 'border-brand-300 bg-brand-500/10 text-brand-700 dark:border-brand-700 dark:text-brand-300' : 'border-border-default bg-surface-secondary text-content-secondary hover:text-content-primary')}
     >
       <Icon className="h-5 w-5" />
       <span className="mt-3 block text-sm font-semibold">{label}</span>
@@ -730,11 +722,7 @@ function DnsIcon({ ok }: { ok: boolean }) {
 
 function MetricBox({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Activity }) {
   return (
-    <div className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
-      <Icon className="h-5 w-5 text-blue-500" />
-      <p className="mt-4 text-3xl font-semibold">{value}</p>
-      <p className="text-sm text-content-secondary">{label}</p>
-    </div>
+    <MetricCard label={label} value={value} icon={<Icon className="h-5 w-5" />} />
   );
 }
 
@@ -783,4 +771,18 @@ function normalizeDomainName(value: string) {
 
 function isValidDomainName(value: string) {
   return /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(value);
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null) {
+    const normalized = 'normalized' in error ? (error as { normalized?: { message?: unknown } }).normalized : undefined;
+    if (typeof normalized?.message === 'string' && normalized.message.trim()) {
+      return normalized.message;
+    }
+    const message = 'message' in error ? (error as { message?: unknown }).message : undefined;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
 }

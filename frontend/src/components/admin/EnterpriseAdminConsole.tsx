@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
 import { clsx } from 'clsx';
 import {
   Activity,
@@ -41,6 +40,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { MetricCard, PageHeader } from '@/components/ui/PageChrome';
 import { useToast } from '@/components/ui/Toast';
 import {
   AdminConfigPanel,
@@ -240,8 +241,8 @@ export function EnterpriseAdminConsole() {
       setUsers((prev) => [created, ...prev]);
       setUserDraft(defaultUserDraft);
       addToast({ type: 'success', title: 'User created', message: 'Access context is available for assignment.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'User create failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'User create failed', message: getErrorMessage(error, 'Unable to create user.') });
     } finally {
       setSavingUser(false);
     }
@@ -260,8 +261,8 @@ export function EnterpriseAdminConsole() {
       const updated = await updateAdminUser(user.id, payload);
       setUsers((prev) => prev.map((candidate) => (candidate.id === user.id ? updated : candidate)));
       addToast({ type: 'success', title: 'User policy updated', message: 'Menus and API checks refresh on next session validation.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'User update failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'User update failed', message: getErrorMessage(error, 'Unable to update user.') });
     } finally {
       setUserPending(user.id, false);
     }
@@ -272,8 +273,8 @@ export function EnterpriseAdminConsole() {
     try {
       await requestUserPasswordReset(user.email);
       addToast({ type: 'success', title: 'Reset workflow queued', message: user.email });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Reset request failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Reset request failed', message: getErrorMessage(error, 'Unable to queue reset workflow.') });
     } finally {
       setUserPending(user.id, false);
     }
@@ -291,8 +292,8 @@ export function EnterpriseAdminConsole() {
       });
       addToast({ type: 'success', title: 'Role created', message: 'Propagation event recorded by the access engine.' });
       load(true);
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Role create failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Role create failed', message: getErrorMessage(error, 'Unable to create role.') });
     }
   };
 
@@ -301,75 +302,67 @@ export function EnterpriseAdminConsole() {
   }
 
   return (
-    <div className="space-y-5 text-content-primary">
-      <section className="overflow-hidden rounded-lg border border-border-default bg-surface-elevated shadow-[0_20px_80px_rgba(31,41,55,0.10)]">
-        <div className="relative grid gap-6 p-5 md:grid-cols-[minmax(0,1fr)_360px] md:p-7">
-          <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(16,185,129,0.10),transparent_38%,rgba(59,130,246,0.10))]" />
-          <div className="relative">
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Enterprise administration fabric
-            </div>
-            <h1 className="mt-4 text-3xl font-semibold tracking-normal text-content-primary md:text-4xl">
-              Govern users, runtime policy, audit evidence, and configuration propagation from one control plane.
-            </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-content-secondary md:text-base">
-              Admin reads live operational state, records propagation events for access/config changes, and keeps settings, workflows, menus, and API permissions aligned with tenant context.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Button onClick={() => load(true)} loading={refreshing} icon={<RefreshCcw className="h-4 w-4" />}>
-                Refresh console
-              </Button>
-              <Button variant="secondary" onClick={() => setActive('configuration')} icon={<Settings2 className="h-4 w-4" />}>
-                Runtime controls
-              </Button>
-            </div>
+    <div className="space-y-6 text-content-primary">
+      <PageHeader
+        eyebrow="Enterprise administration"
+        title="Admin Control Plane"
+        description="Govern users, runtime policy, audit evidence, and configuration propagation while keeping menus, workflows, and API permissions aligned with tenant context."
+        action={(
+          <div className="flex flex-wrap items-center gap-2">
+            <Button onClick={() => load(true)} loading={refreshing} icon={<RefreshCcw className="h-4 w-4" />}>
+              Refresh
+            </Button>
+            <Button variant="secondary" onClick={() => setActive('configuration')} icon={<Settings2 className="h-4 w-4" />}>
+              Runtime controls
+            </Button>
           </div>
-          <motion.div
-            initial={{ opacity: 0, y: 18 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="relative min-h-[220px] rounded-lg border border-border-default bg-white/80 p-4 shadow-inner dark:bg-white/5"
-          >
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-content-muted">Propagation mesh</p>
-              <StatusBadge status={asText(dashboard?.health?.status, 'SYNCING')} />
-            </div>
-            <div className="mt-5 flex flex-wrap items-center gap-2">
+        )}
+      />
+
+      <Card className="overflow-hidden !p-0">
+        <div className="border-b border-border-default bg-surface-elevated/70 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <SectionHeader
+              icon={ShieldCheck}
+              title="Propagation Mesh"
+              subtitle="Live admin state, access changes, and dependent module sync events."
+            />
+            <StatusBadge status={asText(dashboard?.health?.status, 'SYNCING')} />
+          </div>
+        </div>
+        <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-muted">Module path</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {moduleFlow.map((item, index) => (
                 <div key={item} className="flex items-center gap-2">
-                  <motion.div
-                    animate={{ y: [0, -4, 0] }}
-                    transition={{ duration: 2.6, repeat: Infinity, delay: index * 0.16 }}
-                    className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-xs font-semibold shadow-sm"
-                  >
+                  <div className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-xs font-semibold text-content-primary">
                     {item}
-                  </motion.div>
+                  </div>
                   {index < moduleFlow.length - 1 && <ArrowRight className="h-4 w-4 text-content-muted" />}
                 </div>
               ))}
             </div>
-            <div className="mt-5 space-y-2">
-              {(dashboard?.syncEvents?.slice(0, 4) || syncEvents.slice(0, 4)).map((event, index) => (
-                <motion.div
-                  key={`${asText(event.event_type || event.eventType, 'sync')}-${index}`}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.08 }}
-                  className="flex items-center justify-between rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-xs"
-                >
-                  <span className="font-semibold text-content-primary">{asText(event.event_type || event.eventType, 'SYNC_EVENT')}</span>
-                  <span className="text-content-secondary">{formatTime(event.created_at || event.createdAt)}</span>
-                </motion.div>
-              ))}
-              {!dashboard?.syncEvents?.length && !syncEvents.length ? (
-                <p className="rounded-lg border border-dashed border-border-default bg-surface-secondary px-3 py-2 text-xs text-content-muted">
-                  No propagation events recorded yet.
-                </p>
-              ) : null}
-            </div>
-          </motion.div>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-muted">Recent sync</p>
+            {(dashboard?.syncEvents?.slice(0, 4) || syncEvents.slice(0, 4)).map((event, index) => (
+              <div
+                key={`${asText(event.event_type || event.eventType, 'sync')}-${index}`}
+                className="flex items-center justify-between gap-3 rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-xs"
+              >
+                <span className="font-semibold text-content-primary">{asText(event.event_type || event.eventType, 'SYNC_EVENT')}</span>
+                <span className="text-content-secondary">{formatTime(event.created_at || event.createdAt)}</span>
+              </div>
+            ))}
+            {!dashboard?.syncEvents?.length && !syncEvents.length ? (
+              <p className="rounded-lg border border-dashed border-border-default bg-surface-secondary px-3 py-2 text-xs text-content-muted">
+                No propagation events recorded yet.
+              </p>
+            ) : null}
+          </div>
         </div>
-      </section>
+      </Card>
 
       {loadIssues.length ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
@@ -378,36 +371,38 @@ export function EnterpriseAdminConsole() {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
-        <aside className="h-fit rounded-lg border border-border-default bg-surface-elevated p-2 shadow-sm">
-          {sections.map((section) => {
-            const Icon = section.icon;
-            const selected = active === section.id;
-            return (
-              <button
-                key={section.id}
-                type="button"
-                onClick={() => setActive(section.id)}
-                className={clsx(
-                  'mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
-                  selected ? 'bg-brand-50 text-brand-800 dark:bg-brand-900/30 dark:text-brand-100' : 'text-content-secondary hover:bg-surface-secondary hover:text-content-primary'
-                )}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold">{section.label}</span>
-                  <span className="block truncate text-xs opacity-75">{section.kicker}</span>
-                </span>
-                {selected && <ChevronRight className="h-4 w-4" />}
-              </button>
-            );
-          })}
+        <aside className="h-fit">
+          <Card className="!p-2">
+            {sections.map((section) => {
+              const Icon = section.icon;
+              const selected = active === section.id;
+              return (
+                <button
+                  key={section.id}
+                  type="button"
+                  onClick={() => setActive(section.id)}
+                  className={clsx(
+                    'mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
+                    selected ? 'bg-brand-50 text-brand-800 dark:bg-brand-900/30 dark:text-brand-100' : 'text-content-secondary hover:bg-surface-secondary hover:text-content-primary'
+                  )}
+                >
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold">{section.label}</span>
+                    <span className="block truncate text-xs opacity-75">{section.kicker}</span>
+                  </span>
+                  {selected && <ChevronRight className="h-4 w-4" />}
+                </button>
+              );
+            })}
+          </Card>
         </aside>
 
         <main className="min-w-0">
           {loading ? (
             <LoadingPanel />
           ) : (
-            <AnimatePresence mode="wait">
+            <>
               {active === 'command' && <CommandDashboard key="command" dashboard={dashboard} syncEvents={syncEvents} />}
               {active === 'users' && (
                 <UserManagement
@@ -432,7 +427,7 @@ export function EnterpriseAdminConsole() {
               {active === 'differentiation' && <DifferentiationPlatform key="differentiation" />}
               {active === 'global' && <GlobalEnterprise key="global" />}
               {active === 'performance' && <PerformanceIntelligence key="performance" />}
-            </AnimatePresence>
+            </>
           )}
         </main>
       </div>
@@ -442,33 +437,33 @@ export function EnterpriseAdminConsole() {
 
 function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperationsDashboard | null; syncEvents: Array<Record<string, unknown>> }) {
   const stats = dashboard?.stats || {};
-  const metrics = [
-    { label: 'Workspaces', value: asNumber(stats.workspaces), icon: Boxes, tone: 'blue' },
-    { label: 'Active users', value: asNumber(stats.memberships), icon: Users, tone: 'emerald' },
-    { label: 'Runtime configs', value: asNumber(stats.runtimeConfigs), icon: DatabaseZap, tone: 'violet' },
-    { label: 'Audit 24h', value: asNumber(stats.auditEvents24h), icon: Activity, tone: 'amber' },
+  const metrics: Array<{
+    label: string;
+    value: number;
+    helper: string;
+    icon: typeof Gauge;
+    accent: 'brand' | 'success' | 'warning' | 'danger';
+  }> = [
+    { label: 'Workspaces', value: asNumber(stats.workspaces), helper: 'Tenant workspace records', icon: Boxes, accent: 'brand' },
+    { label: 'Active users', value: asNumber(stats.memberships), helper: 'Current memberships', icon: Users, accent: 'success' },
+    { label: 'Runtime configs', value: asNumber(stats.runtimeConfigs), helper: 'Governed config entries', icon: DatabaseZap, accent: 'warning' },
+    { label: 'Audit 24h', value: asNumber(stats.auditEvents24h), helper: 'Recent admin evidence', icon: Activity, accent: 'danger' },
   ];
 
   return (
-    <PanelMotion>
+    <PanelContent>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric, index) => {
+        {metrics.map((metric) => {
           const Icon = metric.icon;
           return (
-            <motion.div
+            <MetricCard
               key={metric.label}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="rounded-lg border border-border-default bg-surface-elevated p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between">
-                <Icon className={clsx('h-5 w-5', toneText(metric.tone))} />
-                <span className="text-xs font-semibold text-content-muted">LIVE</span>
-              </div>
-              <p className="mt-4 text-3xl font-semibold">{metric.value}</p>
-              <p className="text-sm text-content-secondary">{metric.label}</p>
-            </motion.div>
+              label={metric.label}
+              value={metric.value}
+              helper={metric.helper}
+              icon={<Icon size={18} />}
+              accent={metric.accent}
+            />
           );
         })}
       </div>
@@ -482,9 +477,8 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
           />
           <div className="mt-5 grid gap-3 md:grid-cols-2">
             {(dashboard?.modules || []).map((module, index) => (
-              <motion.div
+              <div
                 key={asText(module.key, String(index))}
-                whileHover={{ y: -3, scale: 1.01 }}
                 className="group rounded-lg border border-border-default bg-surface-secondary p-4"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -500,14 +494,12 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
                   <MiniStat label="sync" value={asNumber(module.syncEvents)} />
                 </div>
                 <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-primary">
-                  <motion.div
+                  <div
                     className="h-full rounded-full bg-gradient-to-r from-emerald-400 via-blue-500 to-brand-500"
-                    initial={{ width: '18%' }}
-                    animate={{ width: `${Math.min(96, 28 + asNumber(module.configs) * 8 + asNumber(module.syncEvents) * 10)}%` }}
-                    transition={{ duration: 0.8 }}
+                    style={{ width: `${Math.min(96, 28 + asNumber(module.configs) * 8 + asNumber(module.syncEvents) * 10)}%` }}
                   />
                 </div>
-              </motion.div>
+              </div>
             ))}
             {!dashboard?.modules?.length ? (
               <EmptyBlock title="No module activity" detail="Operational modules will appear when admin telemetry is available." />
@@ -563,7 +555,7 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
         <SectionHeader icon={Clock3} title="Recent Critical Actions" subtitle="Audit trail from core governance workflows." />
         <ActivityList items={dashboard?.activity || []} empty="No audit activity reported." />
       </section>
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
@@ -591,7 +583,7 @@ function UserManagement({
   sendReset: (user: AdminUser) => Promise<void>;
 }) {
   return (
-    <PanelMotion>
+    <PanelContent>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="rounded-lg border border-border-default bg-surface-elevated shadow-sm">
           <div className="border-b border-border-default p-5">
@@ -602,7 +594,7 @@ function UserManagement({
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  className="w-full rounded-lg border border-border-default bg-surface-primary py-2 pl-10 pr-3 text-sm outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900"
+                  className="w-full rounded-lg border border-border-default bg-surface-primary py-2 pl-10 pr-3 text-sm outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900"
                   placeholder="Search users, roles, status"
                 />
               </label>
@@ -692,7 +684,7 @@ function UserManagement({
           </section>
         </aside>
       </div>
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
@@ -703,7 +695,7 @@ function RoleEngine({ access, createOperatorRole }: { access: Record<string, Arr
   const propagation = access.propagation || [];
 
   return (
-    <PanelMotion>
+    <PanelContent>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -719,9 +711,8 @@ function RoleEngine({ access, createOperatorRole }: { access: Record<string, Arr
           </div>
           <div className="mt-5 grid gap-3 lg:grid-cols-2">
             {roles.map((role, index) => (
-              <motion.div
+              <div
                 key={`${asText(role.role_key || role.roleKey, 'role')}-${index}`}
-                whileHover={{ y: -2 }}
                 className="rounded-lg border border-border-default bg-surface-secondary p-4"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -732,7 +723,7 @@ function RoleEngine({ access, createOperatorRole }: { access: Record<string, Arr
                   {role.is_system || role.isSystem ? <StatusBadge status="SYSTEM" /> : <StatusBadge status="CUSTOM" />}
                 </div>
                 <PermissionChips permissions={role.permissions} />
-              </motion.div>
+              </div>
             ))}
             {!roles.length && <EmptyBlock title="No roles available" detail="Role definitions will appear after platform core sync completes." />}
           </div>
@@ -770,13 +761,13 @@ function RoleEngine({ access, createOperatorRole }: { access: Record<string, Arr
           </section>
         </aside>
       </div>
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
 function AuditCenter({ syncEvents }: { syncEvents: Array<Record<string, unknown>> }) {
   return (
-    <PanelMotion>
+    <PanelContent>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <AuditPanel />
         <aside className="space-y-4">
@@ -794,13 +785,13 @@ function AuditCenter({ syncEvents }: { syncEvents: Array<Record<string, unknown>
           </section>
         </aside>
       </div>
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
 function ConfigurationCenter() {
   return (
-    <PanelMotion>
+    <PanelContent>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <AdminConfigPanel />
         <aside className="space-y-4">
@@ -808,64 +799,55 @@ function ConfigurationCenter() {
           <PlatformCorePanel />
         </aside>
       </div>
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
 function PlatformOperations() {
   return (
-    <PanelMotion>
+    <PanelContent>
       <div className="grid gap-4 xl:grid-cols-2">
         <BrandingPanel />
         <WebhookPanel />
         <PublicContentPanel />
         <ContactRequestsPanel />
       </div>
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
 function DifferentiationPlatform() {
   return (
-    <PanelMotion>
+    <PanelContent>
       <DifferentiationPlatformPanel />
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
 function GlobalEnterprise() {
   return (
-    <PanelMotion>
+    <PanelContent>
       <GlobalEnterprisePanel />
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
 function PerformanceIntelligence() {
   return (
-    <PanelMotion>
+    <PanelContent>
       <PerformanceIntelligencePanel />
-    </PanelMotion>
+    </PanelContent>
   );
 }
 
-function PanelMotion({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.22 }}
-    >
-      {children}
-    </motion.div>
-  );
+function PanelContent({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
 }
 
 function LoadingPanel() {
   return (
     <div className="rounded-lg border border-border-default bg-surface-elevated p-8 text-center shadow-sm">
-      <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-500" />
+      <Loader2 className="mx-auto h-8 w-8 text-brand-500" />
       <p className="mt-4 text-sm font-semibold">Loading admin control plane</p>
       <p className="mt-1 text-xs text-content-secondary">Reading health, access, audit, and sync state.</p>
     </div>
@@ -931,11 +913,11 @@ function ActivityList({ items, empty }: { items: Array<Record<string, unknown>>;
 
 function EngineNode({ icon: Icon, title, detail }: { icon: typeof Gauge; title: string; detail: string }) {
   return (
-    <motion.div whileHover={{ y: -3 }} className="rounded-lg border border-border-default bg-surface-secondary p-4">
+    <div className="rounded-lg border border-border-default bg-surface-secondary p-4">
       <Icon className="h-5 w-5 text-brand-500" />
       <p className="mt-3 font-semibold">{title}</p>
       <p className="mt-1 text-xs text-content-secondary">{detail}</p>
-    </motion.div>
+    </div>
   );
 }
 
@@ -976,7 +958,7 @@ function Input({ label, value, onChange, type = 'text' }: { label: string; value
         type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900"
+        className="mt-1 w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900"
       />
     </label>
   );
@@ -1045,12 +1027,16 @@ function statusTone(status: string) {
   return 'border-red-200 bg-red-50 text-red-700 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300';
 }
 
-function toneText(tone: string) {
-  const map: Record<string, string> = {
-    blue: 'text-blue-500',
-    emerald: 'text-emerald-500',
-    violet: 'text-brand-500',
-    amber: 'text-amber-500',
-  };
-  return map[tone] || 'text-brand-500';
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null) {
+    const normalized = 'normalized' in error ? (error as { normalized?: { message?: unknown } }).normalized : undefined;
+    if (typeof normalized?.message === 'string' && normalized.message.trim()) {
+      return normalized.message;
+    }
+    const message = 'message' in error ? (error as { message?: unknown }).message : undefined;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+  return fallback;
 }

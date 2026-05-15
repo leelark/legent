@@ -26,7 +26,6 @@ import java.util.Map;
 public class GlobalEnterpriseService {
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
-    private static final TypeReference<List<Map<String, Object>>> MAP_LIST = new TypeReference<>() {};
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final List<String> TOPOLOGY_MODES = List.of("ACTIVE_WARM", "ACTIVE_ACTIVE");
     private static final List<String> OPTIMIZATION_MODES = List.of("SUGGEST_ONLY", "AUTO_APPLY_WITH_GUARDRAILS");
@@ -935,25 +934,6 @@ public class GlobalEnterpriseService {
                     .filter(item -> !item.isBlank())
                     .distinct()
                     .toList();
-        } catch (Exception ignored) {
-            return List.of();
-        }
-    }
-
-    @SuppressWarnings("unused")
-    private List<Map<String, Object>> readMapList(Object value) {
-        if (value == null) {
-            return List.of();
-        }
-        if (value instanceof List<?> list) {
-            List<Map<String, Object>> rows = new ArrayList<>();
-            for (Object item : list) {
-                rows.add(readMap(item));
-            }
-            return rows;
-        }
-        try {
-            return objectMapper.readValue(String.valueOf(value), MAP_LIST);
         } catch (Exception ignored) {
             return List.of();
         }

@@ -268,7 +268,7 @@ test('admin console shows operations, users, and role engine', async ({ page }) 
   await mockAdminApis(page);
   await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: /Admin Control Plane/ })).toBeVisible({ timeout: 45000 });
   await expect(page.getByText('Module Activity Graph')).toBeVisible();
 
   await page.getByRole('button', { name: /Users/ }).click();
@@ -287,7 +287,7 @@ test('settings console persists preferences and supports deliverability', async 
   await mockAdminApis(page);
   await page.goto('/app/settings/platform', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: /Settings that reshape/ })).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: /Enterprise Settings/ })).toBeVisible({ timeout: 45000 });
   await page.getByRole('button', { name: /^Dark$/ }).click();
   await page.getByRole('button', { name: 'Save profile' }).click();
   await expect(page.getByText('Settings saved')).toBeVisible();
@@ -304,7 +304,7 @@ test('admin console keeps mobile navigation usable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 760 });
   await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: /Admin Control Plane/ })).toBeVisible({ timeout: 45000 });
   await page.getByRole('button', { name: /Users/ }).click();
   await expect(page.getByText('User Management')).toBeVisible();
   await expect(page.locator('main.app-surface')).not.toHaveCSS('overflow-x', 'visible');
@@ -314,7 +314,7 @@ test('admin console exposes performance intelligence evidence and demo flow', as
   await mockAdminApis(page);
   await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
 
-  await expect(page.getByRole('heading', { name: /Govern users, runtime policy/ })).toBeVisible({ timeout: 45000 });
+  await expect(page.getByRole('heading', { name: /Admin Control Plane/ })).toBeVisible({ timeout: 45000 });
   await page.getByRole('button', { name: /Performance Intelligence/ }).click();
   await expect(page.getByRole('heading', { name: 'Performance Intelligence' })).toBeVisible();
   await expect(page.getByText('Realtime Personalization', { exact: true })).toBeVisible();

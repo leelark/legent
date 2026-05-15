@@ -6,8 +6,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +21,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FoundationSettingsBridgeService {
+
+    private static final String TOKEN_COOKIE_NAME = "legent_token";
 
     private final WebClient webClient;
 
@@ -48,6 +55,7 @@ public class FoundationSettingsBridgeService {
                 .header("X-Tenant-Id", tenantId)
                 .header("X-Workspace-Id", workspaceId)
                 .header("X-Request-Id", UUID.randomUUID().toString())
+                .header(HttpHeaders.AUTHORIZATION, callerAuthorizationHeader())
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
                 .bodyToMono(Map.class)
@@ -78,6 +86,7 @@ public class FoundationSettingsBridgeService {
                 .header("X-Tenant-Id", tenantId)
                 .header("X-Workspace-Id", workspaceId)
                 .header("X-Request-Id", UUID.randomUUID().toString())
+                .header(HttpHeaders.AUTHORIZATION, callerAuthorizationHeader())
                 .header(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .bodyValue(payload)
                 .retrieve()
@@ -97,5 +106,28 @@ public class FoundationSettingsBridgeService {
 
     private String safe(String value, String fallback) {
         return (value == null || value.isBlank()) ? fallback : value;
+    }
+
+    private String callerAuthorizationHeader() {
+        ServletRequestAttributes attributes = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attributes == null) {
+            throw new IllegalStateException("Caller authorization is required for foundation settings bridge");
+        }
+
+        HttpServletRequest request = attributes.getRequest();
+        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
+            return header;
+        }
+
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if (TOKEN_COOKIE_NAME.equals(cookie.getName()) && StringUtils.hasText(cookie.getValue())) {
+                    return "Bearer " + cookie.getValue().trim();
+                }
+            }
+        }
+
+        throw new IllegalStateException("Caller authorization is required for foundation settings bridge");
     }
 }

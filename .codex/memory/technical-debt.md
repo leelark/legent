@@ -1,10 +1,10 @@
 # Technical Debt
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-16.
 
 Open:
 
-- Large frontend route/components over 700-1200 lines make UI changes risky: `PublicPageView.tsx`, workspace template editor, admin/settings consoles, campaign creation page.
+- Large frontend route/components over 700-1200 lines make UI changes risky: `PublicPageView.tsx`, workspace template editor, admin/settings consoles, campaign creation page. Admin/settings visual chrome was aligned on 2026-05-16, but the consoles remain large and should still be split by panel/domain when next touched.
 - Large backend services over 600-990 lines concentrate too many responsibilities: foundation global/core platform, identity federation, campaign launch orchestration, delivery orchestration.
 - Docs/scripts may drift around ports and validation flags; verify scripts before relying on docs.
 - Generated `target/classes/db/migration` directories exist locally; do not modify generated outputs.

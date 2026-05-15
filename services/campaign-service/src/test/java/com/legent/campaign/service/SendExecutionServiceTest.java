@@ -67,6 +67,7 @@ class SendExecutionServiceTest {
                 sendSafetyService,
                 stateMachine);
         ReflectionTestUtils.setField(service, "maxRenderCacheEntries", 16);
+        ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1024 * 1024);
     }
 
     @AfterEach
@@ -179,6 +180,37 @@ class SendExecutionServiceTest {
         List<Map<String, String>> retryPayload = objectMapper.readValue(
                 batch.getPayload(), new TypeReference<>() {});
         assertEquals(List.of(Map.of("email", "two@example.com", "subscriberId", "sub-2")), retryPayload);
+    }
+
+    @Test
+    void rejectsOversizedRenderedPayloadBeforePublishingSendRequest() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        Campaign campaign = campaign();
+        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 256);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent(
+                        "Rendered",
+                        "<p>" + "x".repeat(512) + "</p>",
+                        "Hello"));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
+        assertEquals("Rendered email payload exceeded configured cap", batch.getLastError());
+        assertEquals("[]", batch.getPayload());
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_FAILED), any());
+        verify(sendSafetyService).recordDeliveryFeedback(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1:batch-1:sub-1:r0"),
+                eq(true),
+                org.mockito.ArgumentMatchers.contains("CONTENT_PAYLOAD_TOO_LARGE"));
     }
 
     @Test

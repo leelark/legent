@@ -53,25 +53,6 @@ const emailProfile: SanitizeOptions = {
 
 const landingPageProfile: SanitizeOptions = {
   ...emailProfile,
-  ADD_TAGS: ['input', 'textarea', 'select', 'option', 'button'],
-  ADD_ATTR: [
-    ...emailAdditionalAttrs,
-    'autocomplete',
-    'checked',
-    'disabled',
-    'for',
-    'method',
-    'name',
-    'placeholder',
-    'readonly',
-    'required',
-    'selected',
-    'type',
-    'value',
-  ],
-  FORBID_TAGS: emailProfile.FORBID_TAGS?.filter(
-    (tag) => !['input', 'textarea', 'select', 'option', 'button'].includes(tag)
-  ),
   FORBID_ATTR: [...(emailProfile.FORBID_ATTR ?? []), 'action', 'formaction'],
 };
 

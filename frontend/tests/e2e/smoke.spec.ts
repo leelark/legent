@@ -13,8 +13,8 @@ test('release smoke: health endpoint and public shell render', async ({ page, re
 const workspaceRoutes = [
   { path: '/app/audience', heading: /Audience/i },
   { path: '/app/campaigns', heading: /Campaign Studio/i },
-  { path: '/app/admin', heading: /Govern users, runtime policy/i },
-  { path: '/app/settings/platform', heading: /Settings that reshape/i },
+  { path: '/app/admin', heading: /Admin Control Plane/i },
+  { path: '/app/settings/platform', heading: /Enterprise Settings/i },
 ];
 
 for (const route of workspaceRoutes) {

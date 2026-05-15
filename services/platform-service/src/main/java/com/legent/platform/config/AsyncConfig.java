@@ -55,11 +55,19 @@ public class AsyncConfig {
         @Override
         public Runnable decorate(Runnable runnable) {
             String tenantId = TenantContext.getTenantId();
+            String workspaceId = TenantContext.getWorkspaceId();
+            String environmentId = TenantContext.getEnvironmentId();
             String userId = TenantContext.getUserId();
             return () -> {
                 try {
                     if (tenantId != null) {
                         TenantContext.setTenantId(tenantId);
+                    }
+                    if (workspaceId != null) {
+                        TenantContext.setWorkspaceId(workspaceId);
+                    }
+                    if (environmentId != null) {
+                        TenantContext.setEnvironmentId(environmentId);
                     }
                     if (userId != null) {
                         TenantContext.setUserId(userId);

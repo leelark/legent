@@ -1,6 +1,30 @@
 # Active Work Items
 
-Last updated: 2026-05-14.
+Last updated: 2026-05-16.
+
+FrontendAdminSettingsUi-20260516:
+assigned_task: align internal admin dashboard and settings UI with workspace screen chrome, remove local animation usage, and verify relevant frontend suites
+task_type: ENHANCEMENT/REFACTOR/TESTING
+priority_score: 24
+risk_level: MEDIUM
+status: completed
+changed_files: `frontend/src/components/admin/EnterpriseAdminConsole.tsx`, `frontend/src/components/settings/EnterpriseSettingsConsole.tsx`, `frontend/tests/e2e/admin.spec.ts`, `frontend/tests/e2e/smoke.spec.ts`, `frontend/tests/e2e/visual-smoke.spec.ts`
+branch_or_worktree: main
+dependencies: workspace `PageHeader`/`Card`/`Panel`/`MetricCard`, existing admin/settings API mocks, `.codex` pending-work audit
+blockers: none for local UI work; production egress and data/workspace blockers remain external and unresolved
+next_actions: no commit or push performed; keep large admin/settings console split as residual debt when next touched
+
+PendingSweep-20260514:
+assigned_task: implement remaining locally actionable `.codex` pending items with parallel subagents
+task_type: SECURITY/PERFORMANCE/RELEASE/REFACTOR
+priority_score: 34
+risk_level: HIGH
+status: completed
+changed_files: platform foundation-settings bridge caller-token relay/tests, platform async/event workspace context tests, landing-page no-form sanitizer/default UX/tests/docs, campaign oversized send-request guard/tests, README env command, foundation dead helper removal, `.codex` memory
+branch_or_worktree: main
+dependencies: `.codex/bootstrap.md`, `.codex/memory/unresolved-risks.md`, `.codex/memory/blocked-items.md`, current codebase
+blockers: production egress CIDR/FQDN policy, content/platform workspace product semantics and legacy mapping, campaign rendered-content externalization storage contract, audience production mapping metadata still require external decisions
+next_actions: focused backend/frontend/route/env validations passed; keep external blockers fail-closed and do not commit or push
 
 Resume-org-20260514:
 assigned_task: mandatory five-loop repository organization execution using .codex operating system
@@ -11,7 +35,7 @@ status: completed
 changed_files: delivery/tracking event scope/idempotency, platform/content RBAC and webhook secrets, landing-page sanitizers, release/load/route/prod validators, Flyway defaults, docs and .codex memory
 branch_or_worktree: main
 dependencies: AGENTS.md, .codex/bootstrap.md, .codex/commands, .codex/memory, .codex/checkpoints, CTO/PM/repository intelligence/specialized agents
-blockers: production egress still requires reviewed provider/VPC CIDRs or approved CNI FQDN policy model; foundation bridge service auth and content/platform workspace-scoping require product/security design
+blockers: production egress still requires reviewed provider/VPC CIDRs or approved CNI FQDN policy model; content/platform workspace-scoping requires product/security design
 next_actions: final validation sweep recorded; resolve approval-bound blockers before release; do not commit or push
 
 Copernicus:

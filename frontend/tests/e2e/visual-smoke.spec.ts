@@ -44,14 +44,14 @@ const cases = [
     name: 'admin desktop',
     path: '/app/admin',
     viewport: { width: 1440, height: 900 },
-    heading: /Govern users, runtime policy/i,
+    heading: /Admin Control Plane/i,
     authenticated: true,
   },
   {
     name: 'settings mobile',
     path: '/app/settings/platform',
     viewport: { width: 390, height: 844 },
-    heading: /Settings that reshape/i,
+    heading: /Enterprise Settings/i,
     authenticated: true,
   },
 ];

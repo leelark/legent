@@ -23,10 +23,7 @@ import {
 const defaultLandingHtml = `<section style="max-width:720px;margin:0 auto;padding:48px 24px;font-family:Arial,sans-serif">
   <h1>Campaign Landing Page</h1>
   <p>Use this page for gated content and post-click campaign experiences.</p>
-  <div aria-label="Inert signup preview" style="display:grid;gap:12px;max-width:360px">
-    <label>Email<br><input name="email" type="email" placeholder="preview only" disabled style="padding:10px;width:100%"></label>
-    <button type="button" disabled style="padding:10px 16px">Preview only</button>
-  </div>
+  <p><a href="#">Link to a governed capture flow</a></p>
 </section>`;
 
 const slugify = (value: string) =>
@@ -183,7 +180,7 @@ export default function LandingPageStudio() {
           <Card>
             <CardHeader
               title="Builder"
-              subtitle="Form controls can be previewed, but browser submission is stripped unless a governed capture flow is added."
+              subtitle="Forms and input controls are removed until a governed capture flow is added."
               action={selected ? <Button size="sm" variant="secondary" onClick={() => handleArchive(selected)}>Archive</Button> : null}
             />
             <div className="grid gap-4 p-4 md:grid-cols-2">

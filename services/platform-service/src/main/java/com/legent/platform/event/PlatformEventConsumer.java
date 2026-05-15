@@ -30,8 +30,8 @@ public class PlatformEventConsumer {
     @KafkaListener(topics = {AppConstants.TOPIC_WEBHOOK_TRIGGERED}, groupId = AppConstants.GROUP_PLATFORM)
     public void consumeWebhookTriggers(EventEnvelope<String> event) {
         try {
-            TenantContext.setTenantId(event.getTenantId());
             Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+            setEventContext(event, payload);
             
             String eventTypeToDispatch = (String) payload.get("eventToDispatch");
             Object data = payload.get("data");
@@ -49,8 +49,8 @@ public class PlatformEventConsumer {
     @KafkaListener(topics = {AppConstants.TOPIC_NOTIFICATION_CREATED}, groupId = AppConstants.GROUP_PLATFORM)
     public void consumeNotificationEvents(EventEnvelope<String> event) {
         try {
-            TenantContext.setTenantId(event.getTenantId());
             Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+            setEventContext(event, payload);
             
             String userId = (String) payload.get("userId");
             String title = (String) payload.get("title");
@@ -72,8 +72,8 @@ public class PlatformEventConsumer {
     @KafkaListener(topics = {AppConstants.TOPIC_SEARCH_INDEX_UPDATED}, groupId = AppConstants.GROUP_PLATFORM)
     public void consumeSearchIndexUpdates(EventEnvelope<String> event) {
         try {
-            TenantContext.setTenantId(event.getTenantId());
             Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+            setEventContext(event, payload);
             
             String entityType = (String) payload.get("entityType");
             String entityId = (String) payload.get("entityId");
@@ -89,5 +89,42 @@ public class PlatformEventConsumer {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private void setEventContext(EventEnvelope<?> event, Map<String, Object> payload) {
+        String tenantId = normalize(event.getTenantId());
+        if (tenantId == null) {
+            throw new IllegalArgumentException("Event tenantId is required");
+        }
+        TenantContext.setTenantId(tenantId);
+
+        String workspaceId = firstNonBlank(event.getWorkspaceId(), stringValue(payload.get("workspaceId")));
+        if ("WORKSPACE".equalsIgnoreCase(String.valueOf(event.getOwnershipScope())) && workspaceId == null) {
+            throw new IllegalArgumentException("Workspace-scoped platform event requires workspaceId");
+        }
+        if (workspaceId != null) {
+            TenantContext.setWorkspaceId(workspaceId);
+        }
+
+        String environmentId = firstNonBlank(event.getEnvironmentId(), stringValue(payload.get("environmentId")));
+        if (environmentId != null) {
+            TenantContext.setEnvironmentId(environmentId);
+        }
+    }
+
+    private String firstNonBlank(String first, String second) {
+        String normalizedFirst = normalize(first);
+        return normalizedFirst != null ? normalizedFirst : normalize(second);
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }

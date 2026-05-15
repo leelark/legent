@@ -75,7 +75,7 @@ Edit `.env` with local values. Do not commit `.env`.
 Validate environment:
 
 ```powershell
-.\scripts\ops\validate-env.ps1 -Path .\.env -AllowLocalDefaults
+.\scripts\ops\validate-env.ps1 -EnvFile .env
 ```
 
 Install backend/frontend dependencies:

@@ -59,7 +59,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<button"));
+        assertFalse(sanitized.contains("Go"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.toLowerCase().contains("javascript:"));
         assertFalse(sanitized.contains("action="));
@@ -74,7 +75,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<button"));
+        assertFalse(sanitized.contains("Go"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("https://attacker.example"));
         assertFalse(sanitized.contains("action="));
@@ -89,7 +91,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<button"));
+        assertFalse(sanitized.contains("Go"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("/__blocked-landing-form-submit__"));
         assertFalse(sanitized.contains("action="));
@@ -104,7 +107,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<button"));
+        assertFalse(sanitized.contains("Go"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("//attacker.example"));
         assertFalse(sanitized.contains("action="));
@@ -119,7 +123,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<button>Go</button>"));
+        assertFalse(sanitized.contains("<button"));
+        assertFalse(sanitized.contains("Go"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("attacker.example"));
         assertFalse(sanitized.contains("action="));
@@ -135,8 +140,8 @@ class EmailContentValidationServiceTest {
                 </form>
                 """);
 
-        assertTrue(sanitized.contains("<input name=\"email\" type=\"email\">"));
-        assertTrue(sanitized.contains("<button type=\"submit\">Go</button>"));
+        assertFalse(sanitized.contains("<input"));
+        assertFalse(sanitized.contains("<button"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("action="));
         assertFalse(sanitized.contains("formaction="));
@@ -180,10 +185,10 @@ class EmailContentValidationServiceTest {
     }
 
     @Test
-    void landingPageSanitizerUnwrapsFormsButKeepsControls() {
+    void landingPageSanitizerRemovesFormsAndControls() {
         String sanitized = service.sanitizeLandingPage("<form><input name=\"email\"><script>alert(1)</script></form>");
 
-        assertTrue(sanitized.contains("<input"));
+        assertFalse(sanitized.contains("<input"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("<script"));
     }

@@ -1,6 +1,7 @@
 package com.legent.campaign.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.domain.Campaign;
@@ -56,6 +57,9 @@ public class SendExecutionService {
 
     @Value("${legent.campaign.send.render-cache-max-entries:1000}")
     private int maxRenderCacheEntries;
+
+    @Value("${legent.campaign.send.max-email-payload-bytes:1048576}")
+    private int maxEmailPayloadBytes;
 
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
@@ -122,6 +126,7 @@ public class SendExecutionService {
             int requestedPermits = throttlingService.acquirePermits(tenantId, batch.getDomain(), preparedRecipients.size());
             int acquiredPermits = Math.min(preparedRecipients.size(), Math.max(0, requestedPermits));
             int publishFailures = 0;
+            int oversizedPayloads = 0;
             List<Map<String, String>> retrySubscribers = new java.util.ArrayList<>();
             Map<RenderCacheKey, ContentServiceClient.RenderedContent> renderCache = newRenderCache();
             
@@ -192,6 +197,20 @@ public class SendExecutionService {
                 if (sub.get("lastName") != null) {
                     emailPayload.put("lastName", sub.get("lastName"));
                 }
+                int payloadBytes = serializedPayloadBytes(emailPayload);
+                if (payloadBytes > maxEmailPayloadBytes) {
+                    String reason = "Rendered email payload " + payloadBytes + " bytes exceeds cap " + maxEmailPayloadBytes;
+                    log.error("Rejecting oversized send request for message {}: {}", prepared.messageId(), reason);
+                    sendSafetyService.recordDeliveryFeedback(
+                            tenantId,
+                            batch.getWorkspaceId(),
+                            prepared.messageId(),
+                            true,
+                            "CONTENT_PAYLOAD_TOO_LARGE: " + reason);
+                    publishFailures++;
+                    oversizedPayloads++;
+                    continue;
+                }
 
                 EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
                         AppConstants.TOPIC_EMAIL_SEND_REQUESTED, tenantId, "campaign-service",
@@ -225,7 +244,23 @@ public class SendExecutionService {
             
             // Delivery feedback owns success/failure recipient counters; handoff counters stay out of them.
             
-            if (publishFailures > 0 || acquiredPermits < preparedRecipients.size()) {
+            if (oversizedPayloads > 0) {
+                batch.setStatus(SendBatch.BatchStatus.FAILED);
+                batch.setPayload(EMPTY_BATCH_PAYLOAD);
+                batch.setLastError("Rendered email payload exceeded configured cap");
+                EventEnvelope<Map<String, Object>> failedEvent = EventEnvelope.wrap(
+                        AppConstants.TOPIC_SEND_FAILED, tenantId, "campaign-service",
+                        Map.of(
+                                "batchId", batchId,
+                                "jobId", batch.getJobId(),
+                                "campaignId", batch.getCampaignId(),
+                                "workspaceId", batch.getWorkspaceId(),
+                                "reason", "CONTENT_PAYLOAD_TOO_LARGE",
+                                "oversizedCount", oversizedPayloads
+                        )
+                );
+                publishAndAwait(AppConstants.TOPIC_SEND_FAILED, failedEvent);
+            } else if (publishFailures > 0 || acquiredPermits < preparedRecipients.size()) {
                 batch.setStatus(SendBatch.BatchStatus.PARTIAL); // Requires retry later
                 
                 // Active DLQ / DL-Routing
@@ -302,6 +337,14 @@ public class SendExecutionService {
                 return size() > maxEntries;
             }
         };
+    }
+
+    private int serializedPayloadBytes(Map<String, Object> payload) {
+        try {
+            return objectMapper.writeValueAsBytes(payload).length;
+        } catch (JsonProcessingException e) {
+            throw new ValidationException("payload", "Unable to serialize send request payload");
+        }
     }
 
     private ContentServiceClient.RenderedContent renderWithBatchCache(

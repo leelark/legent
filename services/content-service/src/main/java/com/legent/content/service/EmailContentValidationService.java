@@ -35,10 +35,7 @@ public class EmailContentValidationService {
     private static final Set<String> COMMON_ATTRIBUTES = Set.of(
             "align", "alt", "aria-label", "bgcolor", "border", "cellpadding", "cellspacing", "class", "colspan",
             "dir", "height", "id", "lang", "role", "rowspan", "style", "target", "title", "valign", "width");
-    private static final Set<String> FORM_ATTRIBUTES = Set.of(
-            "accept", "checked", "disabled", "for", "maxlength", "method", "multiple", "name", "placeholder",
-            "readonly", "required", "selected", "type", "value");
-    private static final Set<String> URL_ATTRIBUTES = Set.of("href", "src", "action", "formaction");
+    private static final Set<String> URL_ATTRIBUTES = Set.of("href", "src");
     private static final Set<String> BLOCKED_ATTRIBUTES = Set.of("srcset");
     private static final Pattern LINK_PATTERN = Pattern.compile("(?is)<a\\b[^>]*>");
     private static final Pattern IMG_PATTERN = Pattern.compile("(?is)<img\\b[^>]*>");
@@ -114,14 +111,14 @@ public class EmailContentValidationService {
         if (htmlContent == null || htmlContent.isBlank()) {
             return "";
         }
-        return sanitizeFragment(htmlContent, false);
+        return sanitizeFragment(htmlContent);
     }
 
     public String sanitizeLandingPage(String htmlContent) {
         if (htmlContent == null || htmlContent.isBlank()) {
             return "";
         }
-        return sanitizeFragment(htmlContent, true);
+        return sanitizeFragment(htmlContent);
     }
 
     public String generateTextFallback(String htmlContent) {
@@ -203,9 +200,9 @@ public class EmailContentValidationService {
         }
     }
 
-    private String sanitizeFragment(String htmlContent, boolean allowForms) {
+    private String sanitizeFragment(String htmlContent) {
         Document document = parseFragment(htmlContent);
-        sanitizeChildren(document.body(), allowForms);
+        sanitizeChildren(document.body());
         return document.body().html();
     }
 
@@ -218,24 +215,20 @@ public class EmailContentValidationService {
         return document;
     }
 
-    private void sanitizeChildren(Element parent, boolean allowForms) {
+    private void sanitizeChildren(Element parent) {
         for (Element child : new ArrayList<>(parent.children())) {
             String tag = child.normalName();
-            if (isDangerousTag(tag) || (!allowForms && FORM_TAGS.contains(tag))) {
+            if (isDangerousTag(tag) || FORM_TAGS.contains(tag)) {
                 child.remove();
                 continue;
             }
 
-            sanitizeChildren(child, allowForms);
-            if (allowForms && "form".equals(tag)) {
+            sanitizeChildren(child);
+            if (!isAllowedTag(tag)) {
                 child.unwrap();
                 continue;
             }
-            if (!isAllowedTag(tag, allowForms)) {
-                child.unwrap();
-                continue;
-            }
-            sanitizeAttributes(child, allowForms);
+            sanitizeAttributes(child);
         }
     }
 
@@ -243,14 +236,14 @@ public class EmailContentValidationService {
         return DANGEROUS_TAGS.contains(tag) || tag.startsWith("amp-");
     }
 
-    private boolean isAllowedTag(String tag, boolean allowForms) {
-        return COMMON_TAGS.contains(tag) || (allowForms && FORM_TAGS.contains(tag));
+    private boolean isAllowedTag(String tag) {
+        return COMMON_TAGS.contains(tag);
     }
 
-    private void sanitizeAttributes(Element element, boolean allowForms) {
+    private void sanitizeAttributes(Element element) {
         for (Attribute attribute : new ArrayList<>(element.attributes().asList())) {
             String key = attribute.getKey().toLowerCase(Locale.ROOT);
-            if (key.startsWith("on") || BLOCKED_ATTRIBUTES.contains(key) || !isAllowedAttribute(element, key, allowForms)) {
+            if (key.startsWith("on") || BLOCKED_ATTRIBUTES.contains(key) || !isAllowedAttribute(element, key)) {
                 element.removeAttr(attribute.getKey());
                 continue;
             }
@@ -269,13 +262,13 @@ public class EmailContentValidationService {
         }
     }
 
-    private boolean isAllowedAttribute(Element element, String key, boolean allowForms) {
+    private boolean isAllowedAttribute(Element element, String key) {
         String tag = element.normalName();
         if (URL_ATTRIBUTES.contains(key)) {
             return ("href".equals(key) && "a".equals(tag))
                     || ("src".equals(key) && "img".equals(tag));
         }
-        return COMMON_ATTRIBUTES.contains(key) || (allowForms && FORM_TAGS.contains(tag) && FORM_ATTRIBUTES.contains(key));
+        return COMMON_ATTRIBUTES.contains(key);
     }
 
     private String sanitizeCss(String css) {

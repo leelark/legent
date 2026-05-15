@@ -4,7 +4,7 @@ Last reviewed: 2026-05-14
 
 ## Current policy
 
-Landing page HTML may keep form controls for preview and authoring fidelity, but submitted targets are intentionally inert. The frontend sanitizer (`frontend/src/lib/sanitize-html.ts`) and content-service sanitizer (`EmailContentValidationService.sanitizeLandingPage`) unwrap `<form>` tags and strip `formaction` from submit controls. Inputs, buttons, selects, and textareas may remain as visual controls, but there is no form element left for browser-default submission to the current page URL.
+Landing page HTML must not include form controls until Legent ships a controlled capture flow. The frontend sanitizer (`frontend/src/lib/sanitize-html.ts`) and content-service sanitizer (`EmailContentValidationService.sanitizeLandingPage`) remove `<form>`, `<input>`, `<button>`, `<select>`, `<textarea>`, `<option>`, and `<label>` tags. Target attributes such as `action` and `formaction` are not allowed.
 
 This applies to every target shape until Legent ships a controlled submission endpoint:
 
@@ -19,8 +19,8 @@ Landing pages are tenant-owned content, but arbitrary form targets would let aut
 
 ## Regression coverage
 
-- Frontend: `frontend/tests/e2e/sanitize-html.spec.ts` verifies external, relative, protocol-relative, and encoded `action`/`formaction` vectors are stripped, `<form>` tags are removed, and no default form target is added.
-- Backend: `services/content-service/src/test/java/com/legent/content/service/EmailContentValidationServiceTest.java` verifies the same inert-form policy for content-service sanitization.
+- Frontend: `frontend/tests/e2e/sanitize-html.spec.ts` verifies external, relative, protocol-relative, and encoded form vectors are removed, `<form>` tags are removed, and no default form target is added.
+- Backend: `services/content-service/src/test/java/com/legent/content/service/EmailContentValidationServiceTest.java` verifies the same no-form policy for content-service sanitization.
 
 ## Future change gate
 

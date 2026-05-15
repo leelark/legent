@@ -13,9 +13,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 
 @ExtendWith(MockitoExtension.class)
@@ -39,6 +41,46 @@ class PlatformEventConsumerTest {
 
         EventEnvelope<String> event = EventEnvelope.<String>builder()
                 .tenantId("t1")
+                .payload("{\"eventToDispatch\":\"email.bounced\",\"data\":{\"id\":\"m1\"}}")
+                .build();
+
+        assertThrows(IllegalStateException.class, () -> consumer.consumeWebhookTriggers(event));
+        assertNull(TenantContext.getTenantId());
+    }
+
+    @Test
+    void consumeWebhookTriggers_setsWorkspaceContextFromEnvelopeDuringDispatch() {
+        PlatformEventConsumer consumer = new PlatformEventConsumer(
+                new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
+        doAnswer(invocation -> {
+            assertEquals("t1", TenantContext.getTenantId());
+            assertEquals("w1", TenantContext.getWorkspaceId());
+            assertEquals("e1", TenantContext.getEnvironmentId());
+            return null;
+        }).when(webhookDispatcherService).dispatch(eq("t1"), eq("email.bounced"), any());
+
+        EventEnvelope<String> event = EventEnvelope.<String>builder()
+                .tenantId("t1")
+                .workspaceId("w1")
+                .environmentId("e1")
+                .ownershipScope("WORKSPACE")
+                .payload("{\"eventToDispatch\":\"email.bounced\",\"data\":{\"id\":\"m1\"}}")
+                .build();
+
+        consumer.consumeWebhookTriggers(event);
+
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
+        assertNull(TenantContext.getEnvironmentId());
+    }
+
+    @Test
+    void consumeWebhookTriggers_rejectsWorkspaceScopedEventWithoutWorkspaceId() {
+        PlatformEventConsumer consumer = new PlatformEventConsumer(
+                new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
+        EventEnvelope<String> event = EventEnvelope.<String>builder()
+                .tenantId("t1")
+                .ownershipScope("WORKSPACE")
                 .payload("{\"eventToDispatch\":\"email.bounced\",\"data\":{\"id\":\"m1\"}}")
                 .build();
 
