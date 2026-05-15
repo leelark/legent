@@ -1,6 +1,6 @@
 # Unresolved Risks
 
-Last updated: 2026-05-14.
+Last updated: 2026-05-16.
 
 Priority scoring uses `(ProductionReadinessImpact * 5) + (SecurityRisk * 4) + (UserImpact * 3) + (PerformanceImpact * 2) + TechnicalDebtImpact`, each 0-5.
 
@@ -42,6 +42,11 @@ Resolved:
 - 2026-05-14: platform async task decoration and platform event consumers now propagate workspace/environment context where present and reject workspace-scoped platform events without workspace ID. Residual platform/content schema workspace scoping remains open above.
 - 2026-05-14: release gate now checks native command exit codes, load live mode rejects placeholder or under-specified campaign IDs, route validation checks broad controller mappings, and production overlay validation checks DDL/Flyway invariants.
 - 2026-05-14: service-local Flyway defaults now use baseline false, validation true, and out-of-order false across all service `application.yml` files.
+- 2026-05-16: foundation bootstrap no longer silently acknowledges failed signup bootstrap work; critical bootstrap requested/completed publishes are awaited and unexpected failures rethrow for Kafka retry/DLQ.
+- 2026-05-16: automation workflow trigger idempotency now uses pending claim/mark/release semantics and validates payload before claiming; workflow action publish failures rethrow.
+- 2026-05-16: deliverability feedback-loop idempotency now uses pending claim/mark/release semantics, and suppression/reputation side-effect failures release claims and rethrow.
+- 2026-05-16: audience subscriber intelligence no longer swallows parse/repository failures after idempotency registration; failures propagate so transaction rollback and Kafka retry can engage.
+- 2026-05-16: frontend workspace search no longer routes all results to admin, mobile shell exposes Admin/Settings through a More menu, and dependency-proven dead frontend/shared/delivery code was removed.
 - 2026-05-13: campaign handoff failures now rethrow for retry/DLQ and failed publish payloads remain for retry; recipient counters remain delivery-feedback owned.
 - 2026-05-13: foundation public-content admin update/publish and workspace-aware foundation APIs now reject cross-workspace mismatches.
 - 2026-05-13: audience resolution idempotency now rolls back on listener/publish failure and waits for `send.audience.resolved` publish futures.

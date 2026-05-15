@@ -646,11 +646,10 @@ legent-email-studio/
 │   │   │   │   ├── Pagination.tsx
 │   │   │   │   └── EmptyState.tsx
 │   │   │   ├── email/                    # Email module components
-│   │   │   │   ├── DragDropCanvas.tsx
-│   │   │   │   ├── BlockPalette.tsx
-│   │   │   │   ├── PropertyPanel.tsx
-│   │   │   │   ├── HtmlEditor.tsx
-│   │   │   │   └── PreviewFrame.tsx
+│   │   │   │   ├── TemplateBuilder.tsx
+│   │   │   │   ├── AssetUploader.tsx
+│   │   │   │   ├── PersonalizationTester.tsx
+│   │   │   │   └── VersionHistory.tsx
 │   │   │   ├── audience/                 # Audience module components
 │   │   │   │   ├── SubscriberTable.tsx
 │   │   │   │   ├── SegmentBuilder.tsx
@@ -663,19 +662,16 @@ legent-email-studio/
 │   │   │   │   ├── JourneyCanvas.tsx
 │   │   │   │   ├── StepNode.tsx
 │   │   │   │   └── TriggerConfig.tsx
-│   │   │   ├── tracking/                # Analytics module components
-│   │   │   │   ├── DashboardWidget.tsx
-│   │   │   │   ├── MetricCard.tsx
-│   │   │   │   └── ChartPanel.tsx
+│   │   │   ├── deliverability/          # Deliverability module components
+│   │   │   │   ├── DmarcDashboard.tsx
+│   │   │   │   └── ReputationDashboard.tsx
 │   │   │   └── shared/                   # Cross-module shared
-│   │   │       ├── FeatureFlag.tsx
-│   │   │       ├── TenantSwitcher.tsx
-│   │   │       └── LoadingOverlay.tsx
+│   │   │       ├── ErrorBoundary.tsx
+│   │   │       └── ThemeInitializer.tsx
 │   │   │
 │   │   ├── hooks/
 │   │   │   ├── useAuth.ts
 │   │   │   ├── useTenant.ts
-│   │   │   ├── useFeatureFlag.ts
 │   │   │   ├── useApi.ts
 │   │   │   └── useDebounce.ts
 │   │   │

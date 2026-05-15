@@ -1,15 +1,15 @@
 # Enhancement Log
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-16.
 
 - 2026-05-13: Orchestration enhancement added. No product feature behavior changed.
 
 Candidate enhancements:
 
-- Chunked audience resolution with cursor checkpoints.
-- Shard-aware Kafka keys for high-volume topics.
-- Send render cache/pre-render strategy.
-- Production-safe config defaults for Kafka trust and JPA DDL.
+- Chunked audience resolution with cursor checkpoints. Current state: chunked/keyset resolution is implemented; manifest/checkpoint snapshot flow remains future work.
+- Shard-aware Kafka keys for high-volume topics. Current state: high-volume tenant-key fallback has been reduced; service-level event contract tests remain useful.
+- Send render cache/pre-render strategy. Current state: bounded render cache and oversized payload guard exist; object-storage content reference handoff remains future work.
+- Production-safe config defaults for Kafka trust and JPA DDL. Current state: Kafka trust and JPA/Flyway defaults are hardened; keep validators current.
 - Modular split for largest UI/backend files.
 
 Product capability scan, 2026-05-13:

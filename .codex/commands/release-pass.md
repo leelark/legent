@@ -10,7 +10,7 @@ git status --short --branch
 cd frontend
 npm run lint
 $env:PLAYWRIGHT_SKIP_WEB_SERVER = "1"; npm run test:e2e:sanitize; Remove-Item Env:\PLAYWRIGHT_SKIP_WEB_SERVER -ErrorAction SilentlyContinue
-npm run build
+npm run build:ci
 npm run test:e2e:smoke
 cd ..
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1

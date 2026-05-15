@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 
 @Slf4j
 @Service
@@ -60,7 +61,7 @@ public class TenantBootstrapService {
                 "foundation-service",
                 payload
         );
-        eventPublisher.publish(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED, envelope);
+        publishAndAwait(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED, envelope);
     }
 
     @Transactional
@@ -119,7 +120,7 @@ public class TenantBootstrapService {
                     "foundation-service",
                     payload
             );
-            eventPublisher.publish(AppConstants.TOPIC_TENANT_BOOTSTRAP_COMPLETED, envelope);
+            publishAndAwait(AppConstants.TOPIC_TENANT_BOOTSTRAP_COMPLETED, envelope);
         } catch (Exception ex) {
             status.setStatus("FAILED");
             status.setMessage(ex.getMessage());
@@ -339,6 +340,22 @@ public class TenantBootstrapService {
         }
         String trimmed = value.trim();
         return trimmed.isBlank() ? null : trimmed;
+    }
+
+    private <T> void publishAndAwait(String topic, EventEnvelope<T> envelope) {
+        try {
+            eventPublisher.publish(topic, envelope).join();
+        } catch (CompletionException e) {
+            throw publishFailure(topic, e);
+        }
+    }
+
+    private RuntimeException publishFailure(String topic, CompletionException e) {
+        Throwable cause = e.getCause() != null ? e.getCause() : e;
+        if (cause instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        return new IllegalStateException("Failed to publish event to " + topic, cause);
     }
 
 }

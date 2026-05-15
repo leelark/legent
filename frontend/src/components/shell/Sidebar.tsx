@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -12,6 +13,7 @@ import {
   Gauge,
   LayoutTemplate,
   Megaphone,
+  MoreHorizontal,
   RadioTower,
   Rocket,
   Settings,
@@ -93,28 +95,73 @@ export function Sidebar() {
 export function MobileNav() {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
-  const items = NAV_ITEMS.filter((item) => !item.admin || isAdmin()).slice(0, 5);
+  const [overflowOpen, setOverflowOpen] = useState(false);
+  const items = NAV_ITEMS.filter((item) => !item.admin || isAdmin());
+  const primaryItems = items.slice(0, 4);
+  const overflowItems = items.slice(4);
+  const overflowActive = overflowItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-border-default bg-surface-primary/95 px-2 py-2 shadow-[0_-16px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl md:hidden">
-      {items.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={clsx(
-              'flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium transition-colors',
-              active ? 'bg-brand-50 text-accent dark:bg-brand-900/20 dark:text-brand-300' : 'text-content-secondary'
-            )}
-            aria-current={active ? 'page' : undefined}
-          >
-            <Icon size={18} />
-            <span className="max-w-full truncate">{item.label}</span>
-          </Link>
-        );
-      })}
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border-default bg-surface-primary/95 px-2 py-2 shadow-[0_-16px_40px_rgba(0,0,0,0.18)] backdrop-blur-xl md:hidden" aria-label="Mobile workspace navigation">
+      {overflowOpen && overflowItems.length > 0 && (
+        <div className="mb-2 grid grid-cols-2 gap-1 rounded-xl border border-border-default bg-surface-elevated p-2 shadow-2xl">
+          {overflowItems.map((item) => {
+            const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setOverflowOpen(false)}
+                className={clsx(
+                  'flex min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold',
+                  active ? 'bg-brand-50 text-accent dark:bg-brand-900/20 dark:text-brand-300' : 'text-content-secondary'
+                )}
+                data-advanced={item.advanced ? 'true' : undefined}
+                aria-current={active ? 'page' : undefined}
+              >
+                <Icon size={16} className="shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="grid grid-cols-5 gap-1">
+        {primaryItems.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => setOverflowOpen(false)}
+              className={clsx(
+                'flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium',
+                active ? 'bg-brand-50 text-accent dark:bg-brand-900/20 dark:text-brand-300' : 'text-content-secondary'
+              )}
+              aria-current={active ? 'page' : undefined}
+            >
+              <Icon size={18} />
+              <span className="max-w-full truncate">{item.label}</span>
+            </Link>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => setOverflowOpen((open) => !open)}
+          className={clsx(
+            'flex min-w-0 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[11px] font-medium',
+            overflowActive || overflowOpen ? 'bg-brand-50 text-accent dark:bg-brand-900/20 dark:text-brand-300' : 'text-content-secondary'
+          )}
+          aria-expanded={overflowOpen}
+          aria-label="More navigation"
+        >
+          <MoreHorizontal size={18} />
+          <span className="max-w-full truncate">More</span>
+        </button>
+      </div>
     </nav>
   );
 }

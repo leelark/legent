@@ -229,8 +229,6 @@ export const saveWebhook = async (wh: WebhookIntegration) => {
   return toUiWebhook(saved);
 };
 
-export const search = async (q: string) => get<unknown>('/platform/search', { params: { q } });
-
 export const listContactRequests = async (params?: {
   status?: ContactRequestStatus | 'ALL';
   page?: number;

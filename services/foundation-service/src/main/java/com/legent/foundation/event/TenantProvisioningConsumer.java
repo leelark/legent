@@ -65,6 +65,10 @@ public class TenantProvisioningConsumer {
 
         } catch (Exception e) {
             log.error("Failed to process tenant provisioning for eventId={}", envelope != null ? envelope.getEventId() : "unknown", e);
+            if (e instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new IllegalStateException("Failed to process tenant provisioning", e);
         }
     }
 

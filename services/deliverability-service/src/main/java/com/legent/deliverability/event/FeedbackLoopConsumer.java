@@ -39,20 +39,20 @@ public class FeedbackLoopConsumer {
     @KafkaListener(topics = {AppConstants.TOPIC_EMAIL_BOUNCED, AppConstants.TOPIC_EMAIL_COMPLAINT}, groupId = AppConstants.GROUP_DELIVERABILITY)
     public void consumeDeliveryFailedEvents(EventEnvelope<?> event,
                                             @Header(KafkaHeaders.RECEIVED_TOPIC) String receivedTopic) {
+        String tenantId = event == null ? null : event.getTenantId();
+        String workspaceId = null;
+        String eventType = null;
+        String eventId = event == null ? null : event.getEventId();
+        String idempotencyKey = event == null ? null : event.getIdempotencyKey();
+        boolean claimed = false;
         try {
-            Map<String, Object> payload = toPayloadMap(event.getPayload());
-            String workspaceId = resolveWorkspaceId(event, payload);
-            String eventType = resolveCanonicalEventType(event.getEventType(), receivedTopic);
-            if (!idempotencyService.registerIfNew(
-                    event.getTenantId(),
-                    workspaceId,
-                    eventType,
-                    event.getEventId(),
-                    event.getIdempotencyKey())) {
+            if (event == null) {
+                log.warn("Dropping feedback loop event: null envelope");
                 return;
             }
-            TenantContext.setTenantId(event.getTenantId());
-            TenantContext.setWorkspaceId(workspaceId);
+            Map<String, Object> payload = toPayloadMap(event.getPayload());
+            workspaceId = resolveWorkspaceId(event, payload);
+            eventType = resolveCanonicalEventType(event.getEventType(), receivedTopic);
             if (payload == null || payload.isEmpty()) {
                 log.warn("Skipping feedback event {}: empty payload", event.getEventId());
                 return;
@@ -66,7 +66,28 @@ public class FeedbackLoopConsumer {
             String domainId = (String) payload.get("domainId");
             String senderDomain = (String) payload.get("senderDomain");
 
-            if (email == null || email.isBlank()) return;
+            if (email == null || email.isBlank()) {
+                log.warn("Skipping feedback event {}: missing email", event.getEventId());
+                return;
+            }
+
+            if (!hasClaimKey(eventId, idempotencyKey)) {
+                log.warn("Dropping feedback event {}: missing idempotency key", event.getEventId());
+                return;
+            }
+
+            claimed = idempotencyService.claimIfNew(
+                    tenantId,
+                    workspaceId,
+                    eventType,
+                    eventId,
+                    idempotencyKey);
+            if (!claimed) {
+                return;
+            }
+
+            TenantContext.setTenantId(tenantId);
+            TenantContext.setWorkspaceId(workspaceId);
 
             // Handle Hard Bounces & Complaints
             boolean isHardBounce = bounceType != null && bounceType.contains("HARD");
@@ -93,18 +114,21 @@ public class FeedbackLoopConsumer {
                 // Penalize domain reputation if applicable - must resolve to sender_domains.id
                 String reputationDomainId = resolveDomainId(event.getTenantId(), workspaceId, domainId, senderDomain);
                 if (reputationDomainId != null) {
-                    try {
-                        reputationEngine.recordNegativeSignal(event.getTenantId(), workspaceId, reputationDomainId, reason);
-                    } catch (Exception ex) {
-                        log.warn("Reputation update skipped for tenant {} domain {}: {}",
-                                event.getTenantId(), reputationDomainId, ex.getMessage());
-                    }
+                    reputationEngine.recordNegativeSignal(tenantId, workspaceId, reputationDomainId, reason);
                 }
             }
 
+            idempotencyService.markProcessed(tenantId, workspaceId, eventType, eventId, idempotencyKey);
+
         } catch (JsonProcessingException e) {
             log.warn("Dropping malformed feedback loop event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
+        } catch (InvalidFeedbackEventException e) {
+            log.warn("Dropping invalid feedback loop event. eventId={}, reason={}",
+                    event == null ? "unknown" : event.getEventId(), e.getMessage());
         } catch (Exception e) {
+            if (claimed) {
+                releaseClaim(tenantId, workspaceId, eventType, eventId, idempotencyKey, e);
+            }
             log.error("Failed to process feedback loop event", e);
             throw new IllegalStateException("Failed to process feedback loop event", e);
         } finally {
@@ -142,6 +166,20 @@ public class FeedbackLoopConsumer {
                 .orElse(null);
     }
 
+    private void releaseClaim(String tenantId,
+                              String workspaceId,
+                              String eventType,
+                              String eventId,
+                              String idempotencyKey,
+                              Exception processingFailure) {
+        try {
+            idempotencyService.releaseClaim(tenantId, workspaceId, eventType, eventId, idempotencyKey);
+        } catch (Exception releaseFailure) {
+            processingFailure.addSuppressed(releaseFailure);
+            log.error("Failed to release feedback-loop idempotency claim eventId={}", eventId, releaseFailure);
+        }
+    }
+
     private String resolveWorkspaceId(EventEnvelope<?> event, Map<String, Object> payload) {
         if (event.getWorkspaceId() != null && !event.getWorkspaceId().isBlank()) {
             return event.getWorkspaceId();
@@ -155,7 +193,7 @@ public class FeedbackLoopConsumer {
                 }
             }
         }
-        throw new IllegalArgumentException("Missing workspaceId for feedback event " + event.getEventId());
+        throw new InvalidFeedbackEventException("Missing workspaceId for feedback event " + event.getEventId());
     }
 
     private String resolveCanonicalEventType(String envelopeEventType, String receivedTopic) {
@@ -163,14 +201,25 @@ public class FeedbackLoopConsumer {
                 ? envelopeEventType.trim()
                 : (receivedTopic == null ? null : receivedTopic.trim());
         if (eventType == null || eventType.isBlank()) {
-            throw new IllegalArgumentException("Missing eventType for deliverability feedback event");
+            throw new InvalidFeedbackEventException("Missing eventType for deliverability feedback event");
         }
         if (!AppConstants.TOPIC_EMAIL_BOUNCED.equals(eventType) && !AppConstants.TOPIC_EMAIL_COMPLAINT.equals(eventType)) {
-            throw new IllegalArgumentException("Unsupported feedback event type: " + eventType);
+            throw new InvalidFeedbackEventException("Unsupported feedback event type: " + eventType);
         }
         if (receivedTopic != null && !receivedTopic.isBlank() && !eventType.equals(receivedTopic.trim())) {
-            throw new IllegalArgumentException("Event type/topic mismatch: eventType=" + eventType + ", topic=" + receivedTopic);
+            throw new InvalidFeedbackEventException("Event type/topic mismatch: eventType=" + eventType + ", topic=" + receivedTopic);
         }
         return eventType;
+    }
+
+    private boolean hasClaimKey(String eventId, String idempotencyKey) {
+        return eventId != null && !eventId.isBlank()
+                || idempotencyKey != null && !idempotencyKey.isBlank();
+    }
+
+    private static class InvalidFeedbackEventException extends RuntimeException {
+        private InvalidFeedbackEventException(String message) {
+            super(message);
+        }
     }
 }

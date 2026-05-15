@@ -76,7 +76,6 @@ public class WorkflowEngine {
             ));
         }
 
-    @Async("workflowExecutor")
     @Transactional
     public void startWorkflow(String tenantId,
                               String workspaceId,

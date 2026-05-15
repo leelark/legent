@@ -3,6 +3,7 @@ package com.legent.automation.event;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
@@ -25,9 +26,21 @@ public class WorkflowEventPublisher {
             EventEnvelope<String> envelope = EventEnvelope.wrap(
                     topic, tenantId, SOURCE, objectMapper.writeValueAsString(payload)
             );
-            eventPublisher.publish(topic, jobId, envelope);
+            eventPublisher.publish(topic, jobId, envelope).join();
+        } catch (CompletionException e) {
+            throw publishFailure(topic, e);
         } catch (Exception e) {
-            log.error("Failed to publish workflow action", e);
+            log.error("Failed to publish workflow action to {}", topic, e);
+            throw new IllegalStateException("Failed to publish workflow action to " + topic, e);
         }
+    }
+
+    private RuntimeException publishFailure(String topic, CompletionException e) {
+        Throwable cause = e.getCause() != null ? e.getCause() : e;
+        log.error("Failed to publish workflow action to {}", topic, cause);
+        if (cause instanceof RuntimeException runtimeException) {
+            return runtimeException;
+        }
+        return new IllegalStateException("Failed to publish workflow action to " + topic, cause);
     }
 }

@@ -17,7 +17,21 @@ import {
 import { clsx } from 'clsx';
 
 type ContextItem = { tenantId: string; workspaceId?: string | null };
-type SearchResult = { id?: string; title?: string; name?: string; entityType?: string; type?: string; payload?: unknown };
+type SearchResult = {
+  id?: string;
+  entityId?: string;
+  title?: string;
+  name?: string;
+  entityType?: string;
+  type?: string;
+  href?: string;
+  path?: string;
+  url?: string;
+  linkUrl?: string;
+  route?: string;
+  metadata?: unknown;
+  payload?: unknown;
+};
 type NotificationItem = { id: string; title?: string; message?: string; type?: string; createdAt?: string };
 
 const normalizeContextPart = (value?: string | null) => {
@@ -63,6 +77,117 @@ const moduleFromPath: Record<string, string> = {
   admin: 'Admin',
   settings: 'Settings',
 };
+
+function readString(value: unknown) {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function readObject(value: unknown): Record<string, unknown> {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+    } catch {
+      return {};
+    }
+  }
+  return typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function workspaceHref(value: unknown) {
+  const href = readString(value);
+  return href && (href === '/app' || href.startsWith('/app/')) ? href : null;
+}
+
+function entityIdFrom(result: SearchResult, metadata: Record<string, unknown>) {
+  const direct = readString(result.entityId) ?? readString(metadata.entityId) ?? readString(metadata.id);
+  if (direct) return direct;
+  const composite = readString(result.id);
+  return composite?.includes(':') ? composite.split(':').pop() ?? null : composite;
+}
+
+function resolveSearchResultHref(result: SearchResult) {
+  const metadata = readObject(result.metadata);
+  const payload = readObject(result.payload);
+  const explicitHref =
+    workspaceHref(result.href) ??
+    workspaceHref(result.path) ??
+    workspaceHref(result.url) ??
+    workspaceHref(result.linkUrl) ??
+    workspaceHref(result.route) ??
+    workspaceHref(metadata.href) ??
+    workspaceHref(metadata.path) ??
+    workspaceHref(metadata.url) ??
+    workspaceHref(metadata.linkUrl) ??
+    workspaceHref(metadata.route) ??
+    workspaceHref(payload.href) ??
+    workspaceHref(payload.path);
+  if (explicitHref) return explicitHref;
+
+  const entityId = entityIdFrom(result, metadata);
+  const encodedId = entityId ? encodeURIComponent(entityId) : null;
+  const entityType = (readString(result.entityType) ?? readString(result.type) ?? '')
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase();
+
+  switch (entityType) {
+    case 'CAMPAIGN':
+    case 'CAMPAIGN_EXPERIMENT':
+    case 'SEND_JOB':
+      return '/app/campaigns';
+    case 'CAMPAIGN_TRACKING':
+      return encodedId ? `/app/campaigns/${encodedId}/tracking` : '/app/campaigns';
+    case 'TEMPLATE':
+    case 'EMAIL_TEMPLATE':
+    case 'CONTENT_TEMPLATE':
+      return encodedId ? `/app/email/templates/${encodedId}` : '/app/email/templates';
+    case 'LANDING_PAGE':
+      return '/app/email/landing-pages';
+    case 'SUBSCRIBER':
+    case 'AUDIENCE_MEMBER':
+      return '/app/audience/subscribers';
+    case 'SEGMENT':
+      return encodedId ? `/app/audience/segments/${encodedId}` : '/app/audience/segments';
+    case 'LIST':
+    case 'AUDIENCE_LIST':
+      return '/app/audience/lists';
+    case 'IMPORT':
+    case 'AUDIENCE_IMPORT':
+      return encodedId ? `/app/audience/imports/${encodedId}` : '/app/audience/imports';
+    case 'DATA_EXTENSION':
+      return '/app/audience/data-extensions';
+    case 'WORKFLOW':
+    case 'JOURNEY':
+    case 'AUTOMATION':
+      return '/app/automation';
+    case 'DELIVERABILITY':
+    case 'PROVIDER':
+    case 'REPUTATION':
+      return '/app/deliverability';
+    case 'DOMAIN':
+    case 'SENDER_DOMAIN':
+    case 'DNS':
+    case 'DMARC':
+      return '/app/settings/deliverability';
+    case 'ANALYTICS':
+    case 'TRACKING':
+    case 'EVENT':
+      return '/app/analytics';
+    case 'SETTING':
+    case 'CONFIG':
+    case 'PREFERENCE':
+      return '/app/settings/platform';
+    case 'USER':
+    case 'ROLE':
+    case 'WEBHOOK':
+    case 'INTEGRATION':
+    case 'AUDIT':
+      return '/app/admin';
+    default:
+      return '/app/admin';
+  }
+}
 
 export function Header() {
   const router = useRouter();
@@ -339,7 +464,7 @@ export function Header() {
                 searchResults.map((result, index) => (
                   <Link
                     key={result.id || index}
-                    href="/app/admin"
+                    href={resolveSearchResultHref(result)}
                     onClick={() => setSearchOpen(false)}
                     className="block rounded-lg px-3 py-3 transition hover:bg-surface-secondary"
                   >

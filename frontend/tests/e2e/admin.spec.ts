@@ -205,6 +205,12 @@ async function mockAdminApis(page: Page) {
     if (path === '/platform/webhooks') {
       return fulfill(route, ok([{ id: 'wh-1', name: 'Delivery events', endpointUrl: 'https://example.com/webhook', eventsSubscribed: '["delivery.failed"]', isActive: true }]));
     }
+    if (path === '/platform/search') {
+      return fulfill(route, ok([
+        { id: 'tenant-1:CAMPAIGN:camp-1', entityId: 'camp-1', entityType: 'CAMPAIGN', title: 'Spring Launch' },
+        { id: 'tenant-1:TEMPLATE:tpl-1', entityId: 'tpl-1', entityType: 'TEMPLATE', title: 'Welcome Template' },
+      ]));
+    }
     if (path === '/admin/public-content') {
       return fulfill(route, ok([{ id: 'content-1', contentType: 'PAGE', pageKey: 'home', title: 'Home', status: 'PUBLISHED', updatedAt: '2026-05-07T09:00:00Z' }]));
     }
@@ -308,6 +314,30 @@ test('admin console keeps mobile navigation usable', async ({ page }) => {
   await page.getByRole('button', { name: /Users/ }).click();
   await expect(page.getByText('User Management')).toBeVisible();
   await expect(page.locator('main.app-surface')).not.toHaveCSS('overflow-x', 'visible');
+});
+
+test('workspace search routes results to owning screens', async ({ page }) => {
+  await mockAdminApis(page);
+  await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('button', { name: /Search campaigns/ }).click();
+  await page.getByLabel('Search workspace').fill('Spring');
+  const result = page.getByRole('link', { name: /Spring Launch/ }).first();
+  await expect(result).toHaveAttribute('href', '/app/campaigns');
+  await result.click();
+  await expect(page).toHaveURL(/\/app\/campaigns$/);
+});
+
+test('mobile shell exposes admin and settings through more navigation', async ({ page }) => {
+  await mockAdminApis(page);
+  await page.setViewportSize({ width: 390, height: 760 });
+  await page.goto('/app/email', { waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('button', { name: 'More navigation' }).click();
+  await expect(page.getByRole('link', { name: /^Admin$/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: /^Settings$/ })).toBeVisible();
+  await page.getByRole('link', { name: /^Settings$/ }).click();
+  await expect(page).toHaveURL(/\/app\/settings\/platform$/);
 });
 
 test('admin console exposes performance intelligence evidence and demo flow', async ({ page }) => {

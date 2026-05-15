@@ -1,8 +1,8 @@
 # Refactor Log
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-16.
 
-- No code refactor performed during orchestration bootstrap.
+- 2026-05-16: Dependency-proven dead-code cleanup removed unreachable frontend tracking/content/admin/layout components, obsolete frontend tracking helpers, dead `TenantException`, and an unused delivery fallback method. Search/mobile shell behavior was kept through active components instead of retaining dead alternatives.
 
 Refactor candidates:
 

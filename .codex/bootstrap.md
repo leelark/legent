@@ -1,6 +1,6 @@
 # Legent Codex Bootstrap
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-16.
 
 Use this before any non-trivial work. Never restart from zero when memory exists.
 
@@ -30,9 +30,10 @@ assign next highest priority task immediately.
 8. Select smallest coherent change. Add rollback checkpoint for code/config changes.
 9. Run impacted validation. Update memory after fix, failure, risk, refactor, or decision.
 
-Current baseline from 2026-05-13 scan:
+Current baseline from 2026-05-16 scan:
 
-- Branch: `main...origin/main`; `AGENTS.md` was already modified before orchestration setup.
+- Branch baseline for this sweep was `main...origin/main`; repo file count after cleanup is 1183 from `rg --files`.
 - Repo shape: Maven parent with shared modules plus 10 Spring Boot services, Next.js frontend, Docker Compose local runtime, Kubernetes overlays, GitHub CI/security workflow.
-- `.codex/memory` was missing and created during orchestration setup.
-- Critical open risks: wildcard Kafka trusted packages in 6 services, service defaults for `ddl-auto:update`, tenant-key Kafka publishing default, full resolved audience payload in one event, per-recipient render in send loop, large frontend/backend hotspots.
+- Resolved since original bootstrap: Kafka wildcard trust narrowed, non-test DDL defaults fail closed with `validate`, high-volume Kafka keys avoid tenant-only fallback, audience resolution payloads are chunked/keyset-paged, campaign render/cache and payload guards reduce send pressure, and the dead frontend/source cleanup from 2026-05-16 removed unreachable source files.
+- Current local high-priority work completed on 2026-05-16: foundation bootstrap failures rethrow and await critical publishes; automation, deliverability, and audience intelligence idempotency/failure paths now retry instead of silently marking failed side effects as processed; frontend search/mobile shell routing was fixed.
+- Current external blockers: production egress needs real CIDR/FQDN/CNI policy data; content/platform workspace-scope semantics need product/security decision; audience V17 production mapping metadata and real GA/load/restore/security evidence remain required.

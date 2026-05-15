@@ -39,7 +39,6 @@ class FeedbackLoopConsumerTest {
     @BeforeEach
     void setup() {
         consumer = new FeedbackLoopConsumer(objectMapper, suppressionRepository, senderDomainRepository, reputationEngine, idempotencyService);
-        when(idempotencyService.registerIfNew(anyString(), anyString(), anyString(), anyString(), anyString())).thenReturn(true);
     }
 
     @Test
@@ -48,6 +47,8 @@ class FeedbackLoopConsumerTest {
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
         envelope.setWorkspaceId("w1");
 
+        when(idempotencyService.claimIfNew("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey())).thenReturn(true);
         when(suppressionRepository.findByTenantIdAndWorkspaceIdAndEmail("t1", "w1", "bad@example.com")).thenReturn(Optional.empty());
 
         consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED);
@@ -60,6 +61,8 @@ class FeedbackLoopConsumerTest {
         assertEquals("HARD_BOUNCE", saved.getReason());
 
         verify(reputationEngine).recordNegativeSignal("t1", "w1", "d1", "HARD_BOUNCE");
+        verify(idempotencyService).markProcessed("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey());
     }
 
     @Test
@@ -68,6 +71,8 @@ class FeedbackLoopConsumerTest {
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_COMPLAINT, "t1", "test", jsonPayload);
         envelope.setWorkspaceId("w1");
 
+        when(idempotencyService.claimIfNew("t1", "w1", AppConstants.TOPIC_EMAIL_COMPLAINT,
+                envelope.getEventId(), envelope.getIdempotencyKey())).thenReturn(true);
         when(suppressionRepository.findByTenantIdAndWorkspaceIdAndEmail("t1", "w1", "complaint@example.com"))
                 .thenReturn(Optional.empty());
 
@@ -77,6 +82,8 @@ class FeedbackLoopConsumerTest {
         verify(suppressionRepository, times(1)).save(captor.capture());
         assertEquals("COMPLAINT", captor.getValue().getReason());
         verify(reputationEngine).recordNegativeSignal("t1", "w1", "d2", "COMPLAINT");
+        verify(idempotencyService).markProcessed("t1", "w1", AppConstants.TOPIC_EMAIL_COMPLAINT,
+                envelope.getEventId(), envelope.getIdempotencyKey());
     }
 
     @Test
@@ -85,9 +92,14 @@ class FeedbackLoopConsumerTest {
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
         envelope.setWorkspaceId("w1");
 
+        when(idempotencyService.claimIfNew("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey())).thenReturn(true);
+
         consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED);
 
         verifyNoInteractions(suppressionRepository, reputationEngine);
+        verify(idempotencyService).markProcessed("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey());
     }
 
     @Test
@@ -96,6 +108,8 @@ class FeedbackLoopConsumerTest {
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
         envelope.setWorkspaceId("w1");
 
+        when(idempotencyService.claimIfNew("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey())).thenReturn(true);
         when(suppressionRepository.findByTenantIdAndWorkspaceIdAndEmail("t1", "w1", "bad@example.com"))
                 .thenReturn(Optional.empty());
         when(suppressionRepository.save(any(SuppressionList.class)))
@@ -103,5 +117,56 @@ class FeedbackLoopConsumerTest {
 
         assertThrows(IllegalStateException.class,
                 () -> consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED));
+
+        verify(idempotencyService).releaseClaim("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey());
+        verify(idempotencyService, never()).markProcessed(anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void consumeDeliveryFailedEvents_ReputationFailure_ReleasesClaimAndRethrowsForRetry() {
+        String jsonPayload = "{\"email\":\"bad@example.com\", \"bounceType\":\"HARD\", \"domainId\":\"d1\"}";
+        EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId("w1");
+
+        when(idempotencyService.claimIfNew("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey())).thenReturn(true);
+        when(suppressionRepository.findByTenantIdAndWorkspaceIdAndEmail("t1", "w1", "bad@example.com"))
+                .thenReturn(Optional.of(new SuppressionList()));
+        doThrow(new RuntimeException("reputation store unavailable"))
+                .when(reputationEngine).recordNegativeSignal("t1", "w1", "d1", "HARD_BOUNCE");
+
+        assertThrows(IllegalStateException.class,
+                () -> consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED));
+
+        verify(idempotencyService).releaseClaim("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey());
+        verify(idempotencyService, never()).markProcessed(anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void consumeDeliveryFailedEvents_DuplicateClaim_SkipsSideEffects() {
+        String jsonPayload = "{\"email\":\"bad@example.com\", \"bounceType\":\"HARD\", \"domainId\":\"d1\"}";
+        EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId("w1");
+
+        when(idempotencyService.claimIfNew("t1", "w1", AppConstants.TOPIC_EMAIL_BOUNCED,
+                envelope.getEventId(), envelope.getIdempotencyKey())).thenReturn(false);
+
+        consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED);
+
+        verifyNoInteractions(suppressionRepository, reputationEngine);
+        verify(idempotencyService, never()).markProcessed(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(idempotencyService, never()).releaseClaim(anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void consumeDeliveryFailedEvents_MalformedPayload_DropsWithoutClaim() {
+        EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", "{not-json");
+        envelope.setWorkspaceId("w1");
+
+        consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED);
+
+        verifyNoInteractions(idempotencyService, suppressionRepository, reputationEngine);
     }
 }

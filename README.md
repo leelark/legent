@@ -158,7 +158,7 @@ Frontend lint/build/E2E:
 ```powershell
 cd frontend
 npm run lint
-npm run build
+npm run build:ci
 npm run test:e2e:smoke
 ```
 

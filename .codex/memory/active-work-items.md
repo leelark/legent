@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-16.
 
+CodexPendingSweep-20260516:
+assigned_task: read `.codex`, implement locally actionable pending fixes, remove dependency-proven dead code, and refresh stale memory/docs
+task_type: SECURITY/BUG_FIX/REFACTOR/RELEASE/TESTING
+priority_score: 34
+risk_level: HIGH
+status: completed
+changed_files: foundation bootstrap consumer/service/tests, automation workflow trigger/idempotency/publisher/migration/tests, deliverability feedback idempotency/migration/tests, audience subscriber intelligence/tests, frontend shell search/mobile nav/tests, dead frontend/shared/delivery code cleanup, scripts/docs/.codex memory
+branch_or_worktree: main
+dependencies: `.codex/bootstrap.md`, `.codex/memory/*`, route map validators, frontend workspace shell, backend Kafka/idempotency services
+blockers: production egress CIDR/FQDN/CNI policy data, content/platform workspace-scope product semantics, audience V17 production mapping metadata, full GA/load/restore/security evidence
+next_actions: no commit or push performed; transactional outbox remains a future reliability improvement for DB+Kafka atomicity; run full release gate after external blockers are resolved
+
 FrontendAdminSettingsUi-20260516:
 assigned_task: align internal admin dashboard and settings UI with workspace screen chrome, remove local animation usage, and verify relevant frontend suites
 task_type: ENHANCEMENT/REFACTOR/TESTING

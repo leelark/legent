@@ -141,34 +141,6 @@ public class ProviderSelectionStrategy {
         return new ProviderSelectionResult(adapter, selectedProvider);
     }
 
-    /**
-     * Selects a fallback provider when the primary provider's circuit is open.
-     */
-    private SmtpProvider selectFallbackProvider(String tenantId, RoutingRule rule, SmtpProvider primaryProvider) {
-        // First check if routing rule has a fallback provider configured
-        if (rule != null && rule.getFallbackProvider() != null) {
-            SmtpProvider fallback = rule.getFallbackProvider();
-            if (fallback.isActive() && circuitBreaker.isCircuitClosed(fallback.getId())) {
-                log.info("Using routing rule fallback provider: {}", fallback.getId());
-                return fallback;
-            }
-        }
-
-        // Otherwise, find next available provider by priority
-        List<SmtpProvider> providers = smtpProviderRepository
-                .findByTenantIdAndIsActiveTrueOrderByPriorityAsc(tenantId);
-
-        for (SmtpProvider provider : providers) {
-            // Skip the primary provider and any with open circuits
-            if (!provider.getId().equals(primaryProvider.getId()) && circuitBreaker.isCircuitClosed(provider.getId())) {
-                log.info("Using fallback provider {} for tenant {}", provider.getId(), tenantId);
-                return provider;
-            }
-        }
-
-        return null; // No fallback available
-    }
-
     public record ProviderSelectionResult(ProviderAdapter adapter, SmtpProvider dbRecord) {}
 
     /**
