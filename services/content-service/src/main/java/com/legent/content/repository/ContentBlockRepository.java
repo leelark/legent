@@ -11,9 +11,11 @@ import java.util.List;
 @Repository
 public interface ContentBlockRepository extends JpaRepository<ContentBlock, String> {
 
-    Page<ContentBlock> findByTenantIdAndDeletedAtIsNull(String tenantId, Pageable pageable);
+    Page<ContentBlock> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId, Pageable pageable);
 
-    List<ContentBlock> findByTenantIdAndIsGlobalIsTrueAndDeletedAtIsNull(String tenantId);
+    List<ContentBlock> findByTenantIdAndWorkspaceIdAndIsGlobalIsTrueAndDeletedAtIsNull(String tenantId, String workspaceId);
 
-    boolean existsByTenantIdAndNameAndDeletedAtIsNull(String tenantId, String name);
+    java.util.Optional<ContentBlock> findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(String id, String tenantId, String workspaceId);
+
+    boolean existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(String tenantId, String workspaceId, String name);
 }

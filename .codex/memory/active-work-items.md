@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-16.
 
+ProductionBlockerWave-20260516:
+assigned_task: close locally actionable production blockers from unresolved-risk list using parallel backend/infra workers
+task_type: SECURITY/PERFORMANCE/RELEASE/DATA/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: production Kubernetes egress overlay and validator; campaign readiness clients/gate/tests; delivery reservation lease domain/repository/migration/tests; content/platform workspace-scope migrations/repositories/services/controllers/tests; webhook connector-time DNS defense; campaign/delivery content-reference externalization; docs and `.codex` memory
+branch_or_worktree: main
+dependencies: `.codex/bootstrap.md`, `.codex/memory/unresolved-risks.md`, production Kustomize overlay, campaign/delivery/content/platform/shared-common services, release gate
+blockers: exact production external egress CIDRs/FQDN policy data, live target synthetic smoke/load/restore/security/monitoring evidence, shared workspace membership authorization contract, audience production mapping metadata, stale platform webhook retry lease recovery
+next_actions: no commit or push performed; run live release gate with target `-RunSyntheticSmoke`, high-volume live load, restore drill, gitleaks/Trivy CI, and monitoring handoff before GA
+
 CodexPendingSweep-20260516:
 assigned_task: read `.codex`, implement locally actionable pending fixes, remove dependency-proven dead code, and refresh stale memory/docs
 task_type: SECURITY/BUG_FIX/REFACTOR/RELEASE/TESTING
@@ -491,5 +503,5 @@ status: completed
 changed_files: shared security origin/tenant filters/tests; frontend API client/admin UI/tests; identity federation/SCIM services/tests; audience/delivery controllers/RBAC tests; campaign launch services/tests; tracking ingestion/tests; platform webhook retry service/repository/tests; .codex report and memory
 branch_or_worktree: main
 dependencies: six explorer agents and six disjoint worker agents
-blockers: production egress policy data, content/platform workspace-scope decisions, verified DNS/warmup/provider-capacity launch gate design, atomic delivery rate reservation, webhook DNS rebinding protection, payload externalization, full GA evidence
-next_actions: address remaining release blockers in priority order; do not release until production overlay validation, full frontend build/E2E smoke, load/restore/security evidence, and external egress policy data are complete
+blockers: production external egress policy data and target-environment GA evidence remain; content/platform workspace scope, campaign readiness gate, delivery atomic reservations, payload externalization, frontend build/E2E smoke, and release gate were addressed in `ProductionBlockerWave-20260516`
+next_actions: address remaining release blockers in priority order; do not release until live load/restore/security/monitoring evidence and external egress policy data are complete

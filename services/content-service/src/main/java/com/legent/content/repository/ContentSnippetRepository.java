@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ContentSnippetRepository extends JpaRepository<ContentSnippet, String> {
-    Page<ContentSnippet> findByTenantIdAndDeletedAtIsNull(String tenantId, Pageable pageable);
-    List<ContentSnippet> findByTenantIdAndDeletedAtIsNull(String tenantId);
-    Optional<ContentSnippet> findByTenantIdAndSnippetKeyAndDeletedAtIsNull(String tenantId, String snippetKey);
-    Optional<ContentSnippet> findByIdAndTenantIdAndDeletedAtIsNull(String id, String tenantId);
-    boolean existsByTenantIdAndSnippetKeyAndDeletedAtIsNull(String tenantId, String snippetKey);
+    Page<ContentSnippet> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId, Pageable pageable);
+    List<ContentSnippet> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId);
+    Optional<ContentSnippet> findByTenantIdAndWorkspaceIdAndSnippetKeyAndDeletedAtIsNull(String tenantId, String workspaceId, String snippetKey);
+    Optional<ContentSnippet> findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(String id, String tenantId, String workspaceId);
+    boolean existsByTenantIdAndWorkspaceIdAndSnippetKeyAndDeletedAtIsNull(String tenantId, String workspaceId, String snippetKey);
 }

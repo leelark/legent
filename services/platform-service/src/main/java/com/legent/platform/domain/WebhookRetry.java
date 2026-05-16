@@ -25,6 +25,9 @@ public class WebhookRetry {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id")
+    private String workspaceId;
+
     @Column(name = "webhook_id", nullable = false)
     private String webhookId;
 

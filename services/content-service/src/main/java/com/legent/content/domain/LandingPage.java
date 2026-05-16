@@ -20,6 +20,9 @@ import java.time.Instant;
 @Getter
 @Setter
 public class LandingPage extends TenantAwareEntity {
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(nullable = false)
     private String name;
 

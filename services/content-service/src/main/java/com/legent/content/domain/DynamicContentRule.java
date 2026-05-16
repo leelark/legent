@@ -12,6 +12,9 @@ import lombok.Setter;
 @Getter
 @Setter
 public class DynamicContentRule extends TenantAwareEntity {
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(name = "template_id", nullable = false, length = 36)
     private String templateId;
 

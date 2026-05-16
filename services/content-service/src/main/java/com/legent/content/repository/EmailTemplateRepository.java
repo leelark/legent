@@ -14,17 +14,24 @@ import java.util.Optional;
 @Repository
 public interface EmailTemplateRepository extends JpaRepository<EmailTemplate, String> {
 
-    Page<EmailTemplate> findByTenantIdAndDeletedAtIsNull(String tenantId, Pageable pageable);
+    Page<EmailTemplate> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId, Pageable pageable);
 
-    List<EmailTemplate> findByTenantIdAndDeletedAtIsNull(String tenantId);
+    List<EmailTemplate> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId);
 
-    Optional<EmailTemplate> findByIdAndTenantIdAndDeletedAtIsNull(String id, String tenantId);
+    Optional<EmailTemplate> findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(String id, String tenantId, String workspaceId);
 
-    boolean existsByTenantIdAndNameAndDeletedAtIsNull(String tenantId, String name);
+    boolean existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(String tenantId, String workspaceId, String name);
 
-    @Query("SELECT t FROM EmailTemplate t WHERE t.tenantId = :tenantId AND t.deletedAt IS NULL AND t.templateType = :templateType")
-    Page<EmailTemplate> findByTenantIdAndTemplateTypeAndDeletedAtIsNull(@Param("tenantId") String tenantId, @Param("templateType") EmailTemplate.TemplateType templateType, Pageable pageable);
+    @Query("SELECT t FROM EmailTemplate t WHERE t.tenantId = :tenantId AND t.workspaceId = :workspaceId AND t.deletedAt IS NULL AND t.templateType = :templateType")
+    Page<EmailTemplate> findByTenantIdAndWorkspaceIdAndTemplateTypeAndDeletedAtIsNull(
+            @Param("tenantId") String tenantId,
+            @Param("workspaceId") String workspaceId,
+            @Param("templateType") EmailTemplate.TemplateType templateType,
+            Pageable pageable);
 
-    @Query("SELECT t FROM EmailTemplate t WHERE t.tenantId = :tenantId AND t.deletedAt IS NULL AND LOWER(t.name) LIKE LOWER(CONCAT('%', :query, '%'))")
-    List<EmailTemplate> searchByName(@Param("tenantId") String tenantId, @Param("query") String query);
+    @Query("SELECT t FROM EmailTemplate t WHERE t.tenantId = :tenantId AND t.workspaceId = :workspaceId AND t.deletedAt IS NULL AND LOWER(t.name) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<EmailTemplate> searchByName(
+            @Param("tenantId") String tenantId,
+            @Param("workspaceId") String workspaceId,
+            @Param("query") String query);
 }

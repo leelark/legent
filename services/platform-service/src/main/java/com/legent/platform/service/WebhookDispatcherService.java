@@ -9,17 +9,18 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.legent.common.security.OutboundUrlGuard;
+import com.legent.platform.config.WebhookWebClient;
 import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.domain.WebhookLog;
 import com.legent.platform.domain.WebhookRetry;
 import com.legent.platform.repository.WebhookConfigRepository;
 import com.legent.platform.repository.WebhookLogRepository;
 import com.legent.platform.repository.WebhookRetryRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 
@@ -40,15 +41,16 @@ public class WebhookDispatcherService {
     private final WebhookConfigRepository configRepository;
     private final WebhookLogRepository logRepository;
     private final WebhookRetryRepository retryRepository;
-    private final WebClient webClient;
+    private final WebhookWebClient webClient;
     private final ObjectMapper objectMapper;
 
     /**
      * Dispatches matching webhooks and only returns after delivery succeeds or a retry is durably stored.
      */
     public void dispatch(String tenantId, String eventType, Object payload) {
-        
-        List<WebhookConfig> configs = configRepository.findByTenantIdAndIsActiveTrue(tenantId);
+
+        String workspaceId = TenantContext.getWorkspaceId();
+        List<WebhookConfig> configs = findActiveConfigs(tenantId, workspaceId);
         if (configs.isEmpty()) {
             return;
         }
@@ -97,16 +99,19 @@ public class WebhookDispatcherService {
                     .exchangeToMono(response -> {
                         return response.bodyToMono(String.class).defaultIfEmpty("").map(body -> {
                             boolean isSuccess = response.statusCode().is2xxSuccessful();
-                            logDelivery(tenantId, config.getId(), normalizedEventType, response.statusCode().value(), body, isSuccess);
+                            logDelivery(tenantId, workspaceId, config.getId(), normalizedEventType,
+                                    response.statusCode().value(), body, isSuccess);
                             return isSuccess;
                         });
                     })
                     .timeout(Duration.ofSeconds(5))
                     .retryWhen(Retry.backoff(2, Duration.ofMillis(300)).filter(this::isTransientWebhookError))
                     .onErrorResume(e -> {
-                        logDelivery(tenantId, config.getId(), normalizedEventType, 0, e.getMessage(), false);
+                        logDelivery(tenantId, workspaceId, config.getId(), normalizedEventType, 0,
+                                e.getMessage(), false);
                         // AUDIT-015: Store failed webhook for retry
-                        storeFailedWebhookForRetry(tenantId, config.getId(), normalizedEventType, jsonPayload, e.getMessage());
+                        storeFailedWebhookForRetry(tenantId, workspaceId, config.getId(), normalizedEventType,
+                                jsonPayload, e.getMessage());
                         return Mono.just(false);
                     });
             
@@ -123,11 +128,13 @@ public class WebhookDispatcherService {
      * AUDIT-015: Store failed webhook for retry processing.
      * Persists failed webhook to database with exponential backoff schedule.
      */
-    private void storeFailedWebhookForRetry(String tenantId, String webhookId, String eventType, String payload, String errorMessage) {
+    private void storeFailedWebhookForRetry(
+            String tenantId, String workspaceId, String webhookId, String eventType, String payload, String errorMessage) {
         try {
             WebhookRetry retry = new WebhookRetry();
             retry.setId(UUID.randomUUID().toString());
             retry.setTenantId(tenantId);
+            retry.setWorkspaceId(workspaceId);
             retry.setWebhookId(webhookId);
             retry.setEventType(eventType);
             retry.setPayload(payload);
@@ -139,11 +146,11 @@ public class WebhookDispatcherService {
             retry.setNextRetryAt(Instant.now().plusSeconds(30)); // First retry in 30 seconds
             
             retryRepository.save(retry);
-            log.info("Stored failed webhook for retry: id={}, tenant={}, webhook={}, event={}", 
-                    retry.getId(), tenantId, webhookId, eventType);
+            log.info("Stored failed webhook for retry: id={}, tenant={}, workspace={}, webhook={}, event={}",
+                    retry.getId(), tenantId, workspaceId, webhookId, eventType);
         } catch (Exception e) {
-            log.error("Failed to store webhook retry: tenant={}, webhook={}, error={}", 
-                    tenantId, webhookId, e.getMessage(), e);
+            log.error("Failed to store webhook retry: tenant={}, workspace={}, webhook={}, error={}",
+                    tenantId, workspaceId, webhookId, e.getMessage(), e);
             throw new IllegalStateException("Failed to store webhook retry", e);
         }
     }
@@ -167,10 +174,21 @@ public class WebhookDispatcherService {
         }
     }
 
-    private void logDelivery(String tenantId, String webhookId, String eventType, int statusCode, String responseBody, boolean isSuccess) {
+    private List<WebhookConfig> findActiveConfigs(String tenantId, String workspaceId) {
+        if (workspaceId == null || workspaceId.isBlank()) {
+            // Tenant-global platform events intentionally dispatch only tenant-global webhooks.
+            return configRepository.findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrue(tenantId);
+        }
+        return configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue(tenantId, workspaceId);
+    }
+
+    private void logDelivery(
+            String tenantId, String workspaceId, String webhookId, String eventType, int statusCode,
+            String responseBody, boolean isSuccess) {
         WebhookLog whLog = new WebhookLog();
         whLog.setId(UUID.randomUUID().toString());
         whLog.setTenantId(tenantId);
+        whLog.setWorkspaceId(workspaceId);
         whLog.setWebhookId(webhookId);
         whLog.setEventType(eventType);
         whLog.setStatusCode(statusCode);

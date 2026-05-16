@@ -51,6 +51,7 @@ public class CampaignLaunchOrchestrationService {
     private final CampaignWorkflowService workflowService;
     private final CampaignService campaignService;
     private final OrchestrationService orchestrationService;
+    private final CampaignLaunchReadinessGate launchReadinessGate;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -217,17 +218,25 @@ public class CampaignLaunchOrchestrationService {
         score += contentScore(campaign, blockers, warnings, recommendations, steps);
         score += deliverabilityScore(campaign, blockers, warnings, recommendations, steps);
         score += deliveryScore(campaign, warnings, recommendations, steps);
+        CampaignLaunchReadinessGate.GateResult authoritativeGate = launchReadinessGate.evaluate(campaign);
+        addUnique(blockers, authoritativeGate.blockers());
+        addUnique(warnings, authoritativeGate.warnings());
+        recommendations.addAll(authoritativeGate.recommendations());
+        steps.addAll(authoritativeGate.steps());
         score += governanceScore(campaign, request, blockers, warnings, recommendations, steps);
         evaluateLaunchControls(campaign, request, blockers, warnings, recommendations, steps);
 
-        CampaignEngineDto.SendPreflightReport preflight = campaignEngineService.preflight(campaign.getId());
+        CampaignEngineDto.SendPreflightReport preflight = campaignEngineService.preflight(campaign.getId(), false);
         if (preflight.getErrors() != null && !preflight.getErrors().isEmpty()) {
-            blockers.addAll(preflight.getErrors());
+            addUnique(blockers, preflight.getErrors());
         }
         if (preflight.getWarnings() != null && !preflight.getWarnings().isEmpty()) {
-            warnings.addAll(preflight.getWarnings());
+            addUnique(warnings, preflight.getWarnings());
         }
         if (preflight.getErrors() != null && !preflight.getErrors().isEmpty()) {
+            score = Math.min(score, 64);
+        }
+        if (authoritativeGate.blocked()) {
             score = Math.min(score, 64);
         }
 
@@ -240,6 +249,16 @@ public class CampaignLaunchOrchestrationService {
                 steps,
                 primaryAction
         );
+    }
+
+    private void addUnique(List<String> target, List<String> values) {
+        if (values == null) {
+            return;
+        }
+        values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .filter(value -> !target.contains(value))
+                .forEach(target::add);
     }
 
     private int audienceScore(Campaign campaign,

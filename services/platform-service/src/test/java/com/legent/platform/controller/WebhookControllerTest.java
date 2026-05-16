@@ -29,6 +29,7 @@ class WebhookControllerTest {
     @BeforeEach
     void setUpTenantContext() {
         TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
     }
 
     @AfterEach
@@ -41,12 +42,14 @@ class WebhookControllerTest {
         WebhookConfig config = new WebhookConfig();
         config.setId("webhook-1");
         config.setTenantId("tenant-1");
+        config.setWorkspaceId("workspace-1");
         config.setName("Delivery events");
         config.setEndpointUrl("https://example.com/webhook");
         config.setEventsSubscribed("[\"email.sent\"]");
         config.setSecretKey("secret-value");
         config.setIsActive(true);
-        when(repository.findByTenantIdAndIsActiveTrue("tenant-1")).thenReturn(List.of(config));
+        when(repository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("tenant-1", "workspace-1"))
+                .thenReturn(List.of(config));
 
         String json = objectMapper.writeValueAsString(controller.listWebhooks().getData());
 
@@ -70,9 +73,20 @@ class WebhookControllerTest {
         WebhookConfig saved = captor.getValue();
         assertThat(saved.getId()).isNotBlank();
         assertThat(saved.getTenantId()).isEqualTo("tenant-1");
+        assertThat(saved.getWorkspaceId()).isEqualTo("workspace-1");
         assertThat(saved.getEndpointUrl()).isEqualTo("https://93.184.216.34/webhook");
         assertThat(saved.getEventsSubscribed()).isEqualTo("[\"email.sent\",\"email.failed\"]");
         assertThat(saved.getSecretKey()).isEqualTo("0123456789abcdefABCDEF!@#$%^&*()");
+    }
+
+    @Test
+    void listWebhooksFailsClosedWithoutWorkspaceContext() {
+        TenantContext.clear();
+        TenantContext.setTenantId("tenant-1");
+
+        assertThatThrownBy(controller::listWebhooks)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
     }
 
     @Test

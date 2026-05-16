@@ -10,10 +10,13 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "brand_kits",
-        uniqueConstraints = @UniqueConstraint(name = "uq_brand_kit_name", columnNames = {"tenant_id", "name"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_brand_kit_workspace_name", columnNames = {"tenant_id", "workspace_id", "name"}))
 @Getter
 @Setter
 public class BrandKit extends TenantAwareEntity {
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(nullable = false)
     private String name;
 

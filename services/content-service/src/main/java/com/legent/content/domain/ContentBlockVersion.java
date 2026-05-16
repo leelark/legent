@@ -17,6 +17,9 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @Setter
 public class ContentBlockVersion extends TenantAwareEntity {
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "block_id", nullable = false)
     private ContentBlock block;

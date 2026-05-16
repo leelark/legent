@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Optional;
 
 public interface DynamicContentRuleRepository extends JpaRepository<DynamicContentRule, String> {
-    List<DynamicContentRule> findByTenantIdAndTemplateIdAndDeletedAtIsNullOrderByPriorityAsc(String tenantId, String templateId);
-    List<DynamicContentRule> findByTenantIdAndTemplateIdAndSlotKeyAndActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(String tenantId, String templateId, String slotKey);
-    Optional<DynamicContentRule> findByIdAndTenantIdAndDeletedAtIsNull(String id, String tenantId);
+    List<DynamicContentRule> findByTenantIdAndWorkspaceIdAndTemplateIdAndDeletedAtIsNullOrderByPriorityAsc(String tenantId, String workspaceId, String templateId);
+    List<DynamicContentRule> findByTenantIdAndWorkspaceIdAndTemplateIdAndSlotKeyAndActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(String tenantId, String workspaceId, String templateId, String slotKey);
+    Optional<DynamicContentRule> findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(String id, String tenantId, String workspaceId);
 }

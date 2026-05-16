@@ -10,13 +10,13 @@ import java.util.Optional;
 @Repository
 public interface TemplateVersionRepository extends JpaRepository<TemplateVersion, String> {
 
-    Optional<TemplateVersion> findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(String templateId, String tenantId);
+    Optional<TemplateVersion> findFirstByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(String templateId, String tenantId, String workspaceId);
 
-    Optional<TemplateVersion> findByTemplate_IdAndVersionNumberAndTenantId(String templateId, Integer versionNumber, String tenantId);
+    Optional<TemplateVersion> findByTemplate_IdAndVersionNumberAndTenantIdAndWorkspaceId(String templateId, Integer versionNumber, String tenantId, String workspaceId);
 
-    Integer countByTemplate_IdAndTenantId(String templateId, String tenantId);
+    Integer countByTemplate_IdAndTenantIdAndWorkspaceId(String templateId, String tenantId, String workspaceId);
 
-    Optional<TemplateVersion> findFirstByTemplate_IdAndTenantIdAndIsPublishedTrueOrderByVersionNumberDesc(String templateId, String tenantId);
+    Optional<TemplateVersion> findFirstByTemplate_IdAndTenantIdAndWorkspaceIdAndIsPublishedTrueOrderByVersionNumberDesc(String templateId, String tenantId, String workspaceId);
 
-    List<TemplateVersion> findByTemplate_IdAndTenantIdOrderByVersionNumberDesc(String templateId, String tenantId);
+    List<TemplateVersion> findByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(String templateId, String tenantId, String workspaceId);
 }

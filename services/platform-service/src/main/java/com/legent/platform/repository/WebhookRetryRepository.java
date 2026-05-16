@@ -47,10 +47,11 @@ public interface WebhookRetryRepository extends JpaRepository<WebhookRetry, Stri
     /**
      * Count pending retries for a tenant.
      */
-    Long countByTenantIdAndStatus(String tenantId, String status);
+    Long countByTenantIdAndWorkspaceIdAndStatus(String tenantId, String workspaceId, String status);
 
     /**
      * Find all failed records for a tenant.
      */
-    List<WebhookRetry> findByTenantIdAndStatusOrderByCreatedAtDesc(String tenantId, String status);
+    List<WebhookRetry> findByTenantIdAndWorkspaceIdAndStatusOrderByCreatedAtDesc(
+            String tenantId, String workspaceId, String status);
 }

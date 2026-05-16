@@ -1,10 +1,15 @@
 package com.legent.platform.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.platform.config.WebhookWebClient;
 import com.legent.platform.domain.WebhookConfig;
+import com.legent.platform.domain.WebhookLog;
+import com.legent.platform.domain.WebhookRetry;
 import com.legent.platform.repository.WebhookConfigRepository;
 import com.legent.platform.repository.WebhookLogRepository;
 import com.legent.platform.repository.WebhookRetryRepository;
+import com.legent.security.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,10 +22,12 @@ import java.net.URI;
 import java.util.List;
 import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -42,13 +49,24 @@ class WebhookDispatcherServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new WebhookDispatcherService(configRepository, logRepository, retryRepository, webClient, new ObjectMapper());
+        service = new WebhookDispatcherService(
+                configRepository,
+                logRepository,
+                retryRepository,
+                new WebhookWebClient(webClient),
+                new ObjectMapper());
+        TenantContext.setWorkspaceId("w1");
+    }
+
+    @AfterEach
+    void clearTenantContext() {
+        TenantContext.clear();
     }
 
     @Test
     void dispatch_whenJsonArrayHasExactEvent_dispatches() {
         WebhookConfig config = config("hk1", "[\"email.bounced\",\"workflow.completed\"]");
-        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
         mockPostChain();
 
         service.dispatch("t1", "email.bounced", Map.of("test", "data"));
@@ -59,7 +77,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenEventOnlyPartiallyMatches_doesNotDispatch() {
         WebhookConfig config = config("hk1", "[\"email.bounced\"]");
-        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
 
         service.dispatch("t1", "email.bounce", Map.of("test", "data"));
 
@@ -69,7 +87,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenCommaSeparatedSubscriptionMatches_dispatches() {
         WebhookConfig config = config("hk1", "email.sent, email.failed");
-        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
         mockPostChain();
 
         service.dispatch("t1", "EMAIL.SENT", Map.of("test", "data"));
@@ -80,7 +98,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenSubscriptionPayloadMalformed_doesNotDispatch() {
         WebhookConfig config = config("hk1", "[invalid-json");
-        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
 
         service.dispatch("t1", "email.bounced", Map.of("test", "data"));
 
@@ -90,23 +108,44 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenDeliveryFails_persistsRetryBeforeReturning() {
         WebhookConfig config = config("hk1", "[\"email.bounced\"]");
-        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
         mockPostChainWithError();
 
         assertDoesNotThrow(() -> service.dispatch("t1", "email.bounced", Map.of("test", "data")));
 
-        verify(retryRepository).save(any());
+        var retryCaptor = forClass(WebhookRetry.class);
+        verify(retryRepository).save(retryCaptor.capture());
+        assertThat(retryCaptor.getValue().getWorkspaceId()).isEqualTo("w1");
+
+        var logCaptor = forClass(WebhookLog.class);
+        verify(logRepository).save(logCaptor.capture());
+        assertThat(logCaptor.getValue().getWorkspaceId()).isEqualTo("w1");
     }
 
     @Test
     void dispatch_whenRetryPersistenceFails_throws() {
         WebhookConfig config = config("hk1", "[\"email.bounced\"]");
-        when(configRepository.findByTenantIdAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
         doThrow(new IllegalStateException("database unavailable")).when(retryRepository).save(any());
         mockPostChainWithError();
 
         assertThrows(IllegalStateException.class,
                 () -> service.dispatch("t1", "email.bounced", Map.of("test", "data")));
+    }
+
+    @Test
+    void dispatch_withoutWorkspaceContextUsesTenantGlobalWebhooksOnly() {
+        TenantContext.clear();
+        WebhookConfig config = config("hk1", "[\"email.bounced\"]");
+        config.setWorkspaceId(null);
+        when(configRepository.findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        mockPostChain();
+
+        service.dispatch("t1", "email.bounced", Map.of("test", "data"));
+
+        verify(configRepository).findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrue("t1");
+        verify(configRepository, never()).findByTenantIdAndWorkspaceIdAndIsActiveTrue(anyString(), anyString());
+        verify(webClient).post();
     }
 
     private void mockPostChain() {
@@ -131,6 +170,7 @@ class WebhookDispatcherServiceTest {
         WebhookConfig config = new WebhookConfig();
         config.setId(id);
         config.setTenantId("t1");
+        config.setWorkspaceId("w1");
         config.setEventsSubscribed(eventsSubscribed);
         config.setEndpointUrl("https://example.com/webhook");
         config.setSecretKey("test-webhook-secret");

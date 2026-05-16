@@ -23,8 +23,9 @@ public class NotificationController {
     public ApiResponse<List<Notification>> getUnreadNotifications() {
         // SECURITY: Get userId from authenticated security context, not from request
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         String userId = getCurrentUserId();
-        return ApiResponse.ok(notificationEngine.getUnreadNotifications(tenantId, userId));
+        return ApiResponse.ok(notificationEngine.getUnreadNotifications(tenantId, workspaceId, userId));
     }
 
     @PostMapping("/{id}/read")
@@ -32,8 +33,9 @@ public class NotificationController {
             @PathVariable String id) {
         // SECURITY: Get userId from authenticated security context
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         String userId = getCurrentUserId();
-        notificationEngine.markAsRead(id, tenantId, userId);
+        notificationEngine.markAsRead(id, tenantId, workspaceId, userId);
         return ApiResponse.ok(null);
     }
 

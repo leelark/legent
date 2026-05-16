@@ -1,11 +1,12 @@
 # Performance Bottlenecks
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-16.
 
 Open:
 
 - 2026-05-13, source `services/campaign-service/.../BatchingService.java` and `SendExecutionService.java`: campaign batching groups full subscriber chunk in memory, stores batch payload JSON until processing, and send execution reads full batch JSON. Completed batches now clear payload retention, but active/retry pressure remains. Impact: high-volume memory and database payload pressure. Next action: store recipient checkpoint/chunk references or bounded payload pages.
 - 2026-05-13, source `config/nginx/nginx.conf`: tracking gateway rate limit is 200 r/s per IP. Impact: may be too low for legitimate high-volume tracking behind shared NAT; must validate against load model before production.
+- 2026-05-16, source `docs/operations/ga-evidence-matrix.md` and load harness dry-run: no live high-volume load transcript exists for the current release candidate after delivery reservation and payload externalization changes. Impact: rate/warmup correctness is unit/integration tested, not proven under live broker/database/provider-like pressure. Next action: run `phase3-high-volume-load.ps1 -RequireLive -FailOnErrors` with real seeded campaign/data-extension IDs and collect platform metrics.
 
 Resolved:
 
@@ -19,3 +20,5 @@ Resolved:
 - 2026-05-13, source `infrastructure/kubernetes/ingress/ingress.yml`: production tracking and analytics ingress no longer inherits the shared API `100r/s` ingress-nginx annotation. Residual gateway-side tracking limit remains open above pending load model. Validation: route validation and production Kustomize render passed.
 - 2026-05-13, source `services/audience-service/.../AudienceResolutionConsumer.java`: resolved-audience publish handoff now waits for Kafka futures and rolls back idempotency on failure, preventing invisible throughput loss under broker/backpressure failures. Validation: focused and full audience-service Maven tests passed.
 - 2026-05-13, source `services/campaign-service/.../BatchingService.java` and `SendExecutionService.java`: campaign batch and send handoffs now wait for critical Kafka futures, requeue unfinished batches after failed publish handoff, and reconcile terminal batch failure. Residual active/retry payload pressure remains open above. Validation: focused campaign Maven tests passed.
+- 2026-05-16, source `services/delivery-service/.../SendRateControlService.java`, `WarmupService.java`, `DeliverySendReservation.java`: delivery rate and warmup counters now reserve capacity through idempotent durable leases under DB row locks, release on provider pre-acceptance failure, settle accepted sends, and release expired leases opportunistically. Validation: delivery-service tests and combined backend Maven reactor sweep passed.
+- 2026-05-16, source `services/campaign-service/.../SendExecutionService.java` and `services/delivery-service/.../DeliveryOrchestrationService.java`: large rendered send payloads externalize to durable content references when required, reference-only Kafka payloads omit inline HTML/text, and delivery resolves `cr_...` references on first attempt. Validation: focused campaign/delivery tests and combined backend Maven reactor sweep passed.

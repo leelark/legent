@@ -28,6 +28,21 @@ public final class OutboundUrlGuard {
         return validate(rawUrl, label, requireHttps);
     }
 
+    public static InetAddress requirePublicResolvedAddress(InetAddress address, String label) {
+        String displayLabel = label == null || label.isBlank() ? "outbound URL" : label;
+        if (address == null) {
+            throw new IllegalArgumentException(displayLabel + " resolved address is required");
+        }
+        if (isBlockedAddress(address)) {
+            throw new IllegalArgumentException(displayLabel + " resolves to a private or reserved address");
+        }
+        return address;
+    }
+
+    public static boolean isPublicAddress(InetAddress address) {
+        return address != null && !isBlockedAddress(address);
+    }
+
     private static URI validate(String rawUrl, String label, boolean requireHttps) {
         String displayLabel = label == null || label.isBlank() ? "outbound URL" : label;
         if (rawUrl == null || rawUrl.isBlank()) {
@@ -71,9 +86,7 @@ public final class OutboundUrlGuard {
             throw new IllegalArgumentException(displayLabel + " host could not be resolved");
         }
         for (InetAddress address : addresses) {
-            if (isBlockedAddress(address)) {
-                throw new IllegalArgumentException(displayLabel + " resolves to a private or reserved address");
-            }
+            requirePublicResolvedAddress(address, displayLabel);
         }
 
         return uri;
@@ -99,20 +112,30 @@ public final class OutboundUrlGuard {
     private static boolean isBlockedIpv4(byte[] bytes) {
         int first = bytes[0] & 0xff;
         int second = bytes[1] & 0xff;
+        int third = bytes[2] & 0xff;
         return first == 0
                 || first == 10
                 || first == 127
+                || first >= 224
                 || (first == 100 && second >= 64 && second <= 127)
                 || (first == 169 && second == 254)
                 || (first == 172 && second >= 16 && second <= 31)
+                || (first == 192 && second == 0 && third == 0)
+                || (first == 192 && second == 0 && third == 2)
+                || (first == 192 && second == 88 && third == 99)
                 || (first == 192 && second == 168)
-                || (first == 198 && (second == 18 || second == 19));
+                || (first == 198 && (second == 18 || second == 19))
+                || (first == 198 && second == 51 && third == 100)
+                || (first == 203 && second == 0 && third == 113);
     }
 
     private static boolean isBlockedIpv6(byte[] bytes) {
         int first = bytes[0] & 0xff;
         int second = bytes[1] & 0xff;
+        int third = bytes[2] & 0xff;
+        int fourth = bytes[3] & 0xff;
         return (first & 0xfe) == 0xfc
-                || (first == 0xfe && (second & 0xc0) == 0x80);
+                || (first == 0xfe && (second & 0xc0) == 0x80)
+                || (first == 0x20 && second == 0x01 && third == 0x0d && fourth == 0xb8);
     }
 }

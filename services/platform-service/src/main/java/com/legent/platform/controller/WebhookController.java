@@ -94,15 +94,18 @@ public class WebhookController {
     @GetMapping
     public ApiResponse<List<WebhookConfig>> listWebhooks() {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(webhookRepository.findByTenantIdAndIsActiveTrue(tenantId));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(webhookRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue(tenantId, workspaceId));
     }
 
     @PostMapping
     public ApiResponse<WebhookConfig> createWebhook(@RequestBody WebhookConfig hook) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         validateWebhookForCreate(hook);
         hook.setId(UUID.randomUUID().toString());
         hook.setTenantId(tenantId);
+        hook.setWorkspaceId(workspaceId);
         return ApiResponse.ok(webhookRepository.save(hook));
     }
 

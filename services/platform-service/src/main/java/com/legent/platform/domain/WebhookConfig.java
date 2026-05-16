@@ -20,6 +20,9 @@ public class WebhookConfig extends BaseEntity {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id")
+    private String workspaceId;
+
     @Column(nullable = false)
     private String name;
 

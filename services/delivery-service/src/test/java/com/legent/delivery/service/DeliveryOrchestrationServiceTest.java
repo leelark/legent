@@ -53,8 +53,8 @@ class DeliveryOrchestrationServiceTest {
         WarmupState warmup = new WarmupState();
         warmup.setStage("NEW");
         lenient().when(inboxSafetyService.evaluate(any())).thenReturn(allow);
-        lenient().when(sendRateControlService.reserve(anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyInt()))
-                .thenReturn(new SendRateControlService.RateLimitDecision(true, "key", 1, null, "ok", null));
+        lenient().when(sendRateControlService.reserve(anyString(), anyString(), anyString(), anyString(), anyString(), any(), anyInt(), anyString()))
+                .thenReturn(new SendRateControlService.RateLimitDecision(true, "key", 1, null, "ok", null, "evt-123", "NEW"));
         lenient().when(warmupService.getOrCreate(anyString(), anyString(), anyString(), anyString())).thenReturn(warmup);
         lenient().when(retryPolicyService.classify(any())).thenReturn("TRANSIENT");
     }
@@ -90,6 +90,7 @@ class DeliveryOrchestrationServiceTest {
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
         verify(mockAdapter).sendEmail(eq("test@example.com"), anyString(), anyString(), anyMap(), eq(mockProvider));
+        verify(sendRateControlService).settle("tenant-1", "workspace-1", "evt-123");
         verify(eventPublisher).publishEmailSent(eq("tenant-1"), anyString(), eq("evt-123"), eq("camp-1"), any(), any(), eq("sub-1"), anyMap());
     }
 
@@ -126,6 +127,53 @@ class DeliveryOrchestrationServiceTest {
         ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
         verify(messageLogRepository).saveAndFlush(logCaptor.capture());
         assertEquals("cr_1234567890abcdef1234567890abcdef", logCaptor.getValue().getContentReference());
+    }
+
+    @Test
+    void processSendRequest_ResolvesPayloadContentReferenceWhenInlineBodyMissing() throws Exception {
+        Map<String, Object> payload = Map.of(
+                "email", "test@example.com",
+                "subscriberId", "sub-1",
+                "campaignId", "camp-1",
+                "workspaceId", "workspace-1",
+                "messageId", "msg-1",
+                "contentReference", "cr_1234567890abcdef1234567890abcdef"
+        );
+        Map<String, String> cachedContent = Map.of(
+                "tenantId", "tenant-1",
+                "workspaceId", "workspace-1",
+                "campaignId", "camp-1",
+                "messageId", "msg-1",
+                "subject", "Cached subject",
+                "htmlBody", "<p>Cached body</p>"
+        );
+
+        MockProviderAdapter mockAdapter = mock(MockProviderAdapter.class);
+        SmtpProvider mockProvider = new SmtpProvider();
+        mockProvider.setId("prov-1");
+        ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
+
+        when(cacheService.get("email:content:cr_1234567890abcdef1234567890abcdef", String.class))
+                .thenReturn(Optional.of("{\"subject\":\"Cached subject\"}"));
+        when(objectMapper.readValue(anyString(), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+                .thenReturn(cachedContent);
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId("tenant-1", "workspace-1", "msg-1"))
+                .thenReturn(Optional.empty());
+        when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
+            MessageLog log = invocation.getArgument(0, MessageLog.class);
+            log.setId("log-1");
+            return log;
+        });
+        when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
+        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(contentProcessingService.processContent(eq("<p>Cached body</p>"), eq("tenant-1"), eq("camp-1"),
+                eq("sub-1"), eq("msg-1"), eq("workspace-1"), isNull(), isNull(), eq(false)))
+                .thenReturn("Processed HTML");
+
+        orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
+
+        verify(mockAdapter).sendEmail(eq("test@example.com"), eq("Cached subject"), eq("Processed HTML"), anyMap(), eq(mockProvider));
+        verify(contentServiceClient, never()).fetchCampaignContent(anyString());
     }
 
     @Test
@@ -269,6 +317,7 @@ class DeliveryOrchestrationServiceTest {
 
         verify(eventPublisher).publishEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString(), anyMap());
         verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("workspace-1"), eq("bounce@example.com"), anyString(), eq("example.com"), anyMap());
+        verify(sendRateControlService).release(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), contains("PROVIDER_SEND_FAILED"));
     }
 
     @Test
@@ -304,6 +353,7 @@ class DeliveryOrchestrationServiceTest {
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
         verify(eventPublisher).publishRetryScheduled(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), eq(1L), anyString(), anyMap());
+        verify(sendRateControlService).release(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), contains("PROVIDER_SEND_FAILED"));
     }
 
     @Test

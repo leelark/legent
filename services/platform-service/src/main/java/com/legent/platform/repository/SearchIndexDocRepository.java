@@ -9,5 +9,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SearchIndexDocRepository extends JpaRepository<SearchIndexDoc, String> {
-    List<SearchIndexDoc> findByTenantIdAndSearchableTextContainingIgnoreCase(String tenantId, String query);
+    List<SearchIndexDoc> findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
+            String tenantId, String workspaceId, String query);
 }

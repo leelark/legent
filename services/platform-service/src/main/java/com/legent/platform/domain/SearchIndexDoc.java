@@ -24,6 +24,9 @@ public class SearchIndexDoc {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id")
+    private String workspaceId;
+
     @Column(name = "entity_type", nullable = false)
     private String entityType; // SUBSCRIBER, CAMPAIGN, WORKFLOW
 

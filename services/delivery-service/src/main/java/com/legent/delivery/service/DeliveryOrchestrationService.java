@@ -95,13 +95,6 @@ public class DeliveryOrchestrationService {
         String fromName = normalize(payload.get("fromName"));
         String replyToEmail = normalize(payload.get("replyToEmail"));
         String contentReference = normalizeContentReference(payload.get("contentReference"));
-        if (htmlBody == null) {
-            htmlBody = "<html><body>Email content</body></html>";
-        }
-        if (subject == null) {
-            subject = "Legent Campaign";
-        }
-
         // messageId could be passed or generated.
         // For idempotency we prefer payload messageId, then eventId, and finally generate a UUID.
         String messageId = normalize(payload.get("messageId"));
@@ -110,6 +103,26 @@ public class DeliveryOrchestrationService {
         }
         if (messageId == null) {
             messageId = UUID.randomUUID().toString();
+        }
+        if (htmlBody == null && contentReference != null) {
+            Map<String, String> referencedContent = fetchContentForRetry(
+                    normalizedTenantId,
+                    workspaceId,
+                    campaignId,
+                    messageId,
+                    contentReference);
+            if (!referencedContent.isEmpty()) {
+                if (subject == null) {
+                    subject = normalize(referencedContent.get("subject"));
+                }
+                htmlBody = normalize(referencedContent.get("htmlBody"));
+            }
+        }
+        if (htmlBody == null) {
+            htmlBody = "<html><body>Email content</body></html>";
+        }
+        if (subject == null) {
+            subject = "Legent Campaign";
         }
 
         String previousTenant = TenantContext.getTenantId();
@@ -227,6 +240,10 @@ public class DeliveryOrchestrationService {
         // Note: For retries, content is re-fetched from the original event or content-service
         // This prevents 20-100GB/day storage growth from storing full HTML bodies
 
+        String activeRateReservationId = null;
+        boolean rateReservationHeld = false;
+        boolean providerDispatchAccepted = false;
+
         try {
             String recipientDomain = extractDomain(email);
             String senderDomain = extractDomain(fromEmail);
@@ -277,14 +294,17 @@ public class DeliveryOrchestrationService {
                     strategyResult.dbRecord().getId(),
                     recipientDomain,
                     strategyResult.dbRecord().getMaxSendRate(),
-                    safety.riskScore());
-            String warmupStage = warmupService.getOrCreate(normalizedTenantId, workspaceId, senderDomain, strategyResult.dbRecord().getId()).getStage();
+                    safety.riskScore(),
+                    messageId);
+            activeRateReservationId = rateLimit.reservationId();
+            String warmupStage = rateLimit.warmupStage();
             applySafetyResult(logEntry, safety, rateLimit.rateLimitKey(), warmupStage);
             if (!rateLimit.allowed()) {
                 deferUnsafeSend(logEntry, normalizedTenantId, workspaceId, messageId, safety,
                         rateLimit.retryAfter() != null ? rateLimit.retryAfter() : Instant.now().plus(1, ChronoUnit.MINUTES));
                 return;
             }
+            rateReservationHeld = true;
 
             int previousAttempts = logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0;
             logEntry.setAttemptCount(previousAttempts + 1);
@@ -311,13 +331,15 @@ public class DeliveryOrchestrationService {
 
             // Dispatch
             adapter.sendEmail(java.util.Objects.requireNonNull(email), java.util.Objects.requireNonNull(subject), java.util.Objects.requireNonNull(processedHtml), metadata, strategyResult.dbRecord());
+            providerDispatchAccepted = true;
 
             // Fix 31: Clear sensitive/large content from memory after sending
             // (content is not persisted in message_logs to save storage)
 
             // Success - record with circuit breaker
             providerStrategy.recordProviderSuccess(strategyResult.dbRecord().getId());
-            warmupService.recordSent(normalizedTenantId, workspaceId, senderDomain, strategyResult.dbRecord().getId());
+            sendRateControlService.settle(normalizedTenantId, workspaceId, activeRateReservationId);
+            rateReservationHeld = false;
             logEntry.setStatus(MessageLog.DeliveryStatus.SENT.name());
             logEntry.setProviderResponse("250 OK");
             logEntry.setNextRetryAt(null);
@@ -326,6 +348,7 @@ public class DeliveryOrchestrationService {
                     safetyMetadata(logEntry));
 
         } catch (ProviderDispatchException e) {
+            releaseRateReservationIfNeeded(normalizedTenantId, workspaceId, activeRateReservationId, rateReservationHeld, providerDispatchAccepted, e.getMessage());
             // Record failure with circuit breaker for non-transient failures
             if (e.isPermanent() && logEntry.getProviderId() != null) {
                 providerStrategy.recordProviderFailure(logEntry.getProviderId());
@@ -333,6 +356,7 @@ public class DeliveryOrchestrationService {
             recordWarmupFailure(normalizedTenantId, workspaceId, logEntry, e);
             handleDispatchFailure(logEntry, normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e);
         } catch (Exception e) {
+            releaseRateReservationIfNeeded(normalizedTenantId, workspaceId, activeRateReservationId, rateReservationHeld, providerDispatchAccepted, e.getMessage());
             // General hard failure - record with circuit breaker
             if (logEntry.getProviderId() != null) {
                 providerStrategy.recordProviderFailure(logEntry.getProviderId());
@@ -344,6 +368,26 @@ public class DeliveryOrchestrationService {
         } finally {
             messageLogRepository.save(logEntry);
             restoreContext(previousTenant, previousWorkspace, previousRequest);
+        }
+    }
+
+    private void releaseRateReservationIfNeeded(String tenantId,
+                                                String workspaceId,
+                                                String reservationId,
+                                                boolean reservationHeld,
+                                                boolean providerDispatchAccepted,
+                                                String reason) {
+        if (!reservationHeld || providerDispatchAccepted || reservationId == null || reservationId.isBlank()) {
+            return;
+        }
+        try {
+            sendRateControlService.release(
+                    tenantId,
+                    workspaceId,
+                    reservationId,
+                    reason == null || reason.isBlank() ? "PROVIDER_SEND_FAILED" : "PROVIDER_SEND_FAILED: " + reason);
+        } catch (Exception releaseFailure) {
+            log.error("Failed to release delivery rate reservation {}", reservationId, releaseFailure);
         }
     }
 

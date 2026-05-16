@@ -68,9 +68,19 @@ foreach ($secretKey in $requiredSecretKeys) {
 
 $documents = $rendered -split "(?m)^---\s*$"
 $egressFindings = @()
+$hasProductionDefaultDeny = $false
+$hasProductionInternalEgress = $false
 foreach ($document in $documents) {
     if ($document -notmatch "(?m)^kind:\s+NetworkPolicy\s*$") {
         continue
+    }
+
+    if ($document -match "(?m)^\s+name:\s+production-default-deny\s*$") {
+        $hasProductionDefaultDeny = $true
+    }
+
+    if ($document -match "(?m)^\s+name:\s+production-internal-egress\s*$") {
+        $hasProductionInternalEgress = $true
     }
 
     if ($document -match "(?m)^\s+name:\s+allow-legent-egress\s*$") {
@@ -87,6 +97,14 @@ foreach ($document in $documents) {
 
 if ($egressFindings.Count -gt 0) {
     throw (($egressFindings + "Define reviewed production-specific egress before release.") -join "; ")
+}
+
+if (-not $hasProductionDefaultDeny) {
+    throw "Production overlay must render production-default-deny NetworkPolicy"
+}
+
+if (-not $hasProductionInternalEgress) {
+    throw "Production overlay must render production-internal-egress for same-namespace and DNS egress"
 }
 
 Write-Host "Production overlay validation passed"

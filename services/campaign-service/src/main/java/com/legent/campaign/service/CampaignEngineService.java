@@ -3,6 +3,7 @@ package com.legent.campaign.service;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -47,6 +48,7 @@ public class CampaignEngineService {
     private final CampaignDeadLetterRepository deadLetterRepository;
     private final CampaignMetricsService metricsService;
     private final CampaignEventPublisher eventPublisher;
+    private final CampaignLaunchReadinessGate launchReadinessGate;
 
     @Transactional(readOnly = true)
     public List<CampaignEngineDto.ExperimentResponse> listExperiments(String campaignId) {
@@ -184,6 +186,11 @@ public class CampaignEngineService {
 
     @Transactional(readOnly = true)
     public CampaignEngineDto.SendPreflightReport preflight(String campaignId) {
+        return preflight(campaignId, true);
+    }
+
+    @Transactional(readOnly = true)
+    CampaignEngineDto.SendPreflightReport preflight(String campaignId, boolean includeAuthoritativeGate) {
         Campaign campaign = findCampaign(campaignId);
         List<String> errors = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
@@ -236,21 +243,39 @@ public class CampaignEngineService {
             }
         });
 
+        CampaignLaunchReadinessGate.GateResult authoritativeGate = includeAuthoritativeGate
+                ? launchReadinessGate.evaluate(campaign)
+                : CampaignLaunchReadinessGate.GateResult.empty();
+        addUnique(errors, authoritativeGate.blockers());
+        addUnique(warnings, authoritativeGate.warnings());
+
         String senderDomain = domainFromEmail(campaign.getSenderEmail());
         String sendingDomain = normalizeDomain(campaign.getSendingDomain());
+        Map<String, Object> checks = new LinkedHashMap<>();
+        checks.put("audienceRules", campaign.getAudiences() == null ? 0 : campaign.getAudiences().size());
+        checks.put("senderDomain", senderDomain == null ? "" : senderDomain);
+        checks.put("sendingDomain", sendingDomain == null ? "" : sendingDomain);
+        checks.put("experiments", experiments.size());
+        checks.put("budgetEnforced", budget.isEnforced());
+        checks.put("frequencyEnabled", policy.isEnabled());
+        checks.put("authoritativeLaunchGate", authoritativeGate.checks());
         return CampaignEngineDto.SendPreflightReport.builder()
                 .campaignId(campaign.getId())
                 .sendAllowed(errors.isEmpty())
                 .errors(errors)
                 .warnings(warnings)
-                .checks(Map.of(
-                        "audienceRules", campaign.getAudiences() == null ? 0 : campaign.getAudiences().size(),
-                        "senderDomain", senderDomain == null ? "" : senderDomain,
-                        "sendingDomain", sendingDomain == null ? "" : sendingDomain,
-                        "experiments", experiments.size(),
-                        "budgetEnforced", budget.isEnforced(),
-                        "frequencyEnabled", policy.isEnabled()))
+                .checks(checks)
                 .build();
+    }
+
+    private void addUnique(List<String> target, List<String> values) {
+        if (values == null) {
+            return;
+        }
+        values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .filter(value -> !target.contains(value))
+                .forEach(target::add);
     }
 
     private void validateSenderDomainAlignment(Campaign campaign, List<String> errors) {

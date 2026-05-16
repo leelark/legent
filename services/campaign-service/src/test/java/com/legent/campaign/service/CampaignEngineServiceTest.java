@@ -39,6 +39,7 @@ class CampaignEngineServiceTest {
     @Mock private CampaignDeadLetterRepository deadLetterRepository;
     @Mock private CampaignMetricsService metricsService;
     @Mock private CampaignEventPublisher eventPublisher;
+    @Mock private CampaignLaunchReadinessGate launchReadinessGate;
 
     @InjectMocks private CampaignEngineService service;
 
@@ -52,6 +53,8 @@ class CampaignEngineServiceTest {
                 anyString(), anyString(), anyString())).thenReturn(Optional.empty());
         lenient().when(experimentRepository.findByTenantIdAndWorkspaceIdAndCampaignIdAndDeletedAtIsNullOrderByCreatedAtDesc(
                 anyString(), anyString(), anyString())).thenReturn(List.of());
+        lenient().when(launchReadinessGate.evaluate(org.mockito.ArgumentMatchers.any(Campaign.class)))
+                .thenReturn(CampaignLaunchReadinessGate.GateResult.empty());
     }
 
     @AfterEach

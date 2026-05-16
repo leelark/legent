@@ -121,14 +121,16 @@ public class AssetService {
     @Transactional
     public Asset createAsset(AssetDto.Create request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
         String fileName = extractFileName(request.getUrl(), request.getName());
-        if (assetRepository.existsByTenantIdAndFileNameAndDeletedAtIsNull(tenantId, fileName)) {
+        if (assetRepository.existsByTenantIdAndWorkspaceIdAndFileNameAndDeletedAtIsNull(tenantId, workspaceId, fileName)) {
             throw new ConflictException("Asset with name '" + fileName + "' already exists");
         }
 
         Asset asset = new Asset();
         asset.setTenantId(tenantId);
+        asset.setWorkspaceId(workspaceId);
         asset.setName(request.getName());
         asset.setFileName(fileName);
         asset.setContentType(request.getContentType());
@@ -143,27 +145,39 @@ public class AssetService {
     }
 
     public Asset getAsset(@NonNull String tenantId, @NonNull String id) {
-        return assetRepository.findById(id)
-                .filter(asset -> tenantId.equals(asset.getTenantId()) && asset.getDeletedAt() == null)
+        return getAsset(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    public Asset getAsset(@NonNull String tenantId, @NonNull String workspaceId, @NonNull String id) {
+        return assetRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Asset not found"));
     }
 
     public Page<Asset> listAssets(String tenantId, Pageable pageable) {
-        return assetRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
+        return listAssets(tenantId, TenantContext.requireWorkspaceId(), pageable);
+    }
+
+    public Page<Asset> listAssets(String tenantId, String workspaceId, Pageable pageable) {
+        return assetRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId, pageable);
     }
 
     public Page<Asset> searchAssets(String tenantId, String query, String contentType, Pageable pageable) {
+        return searchAssets(tenantId, TenantContext.requireWorkspaceId(), query, contentType, pageable);
+    }
+
+    public Page<Asset> searchAssets(String tenantId, String workspaceId, String query, String contentType, Pageable pageable) {
         String normalizedQuery = query == null || query.isBlank() ? null : query.trim();
         String normalizedContentType = contentType == null || contentType.isBlank() ? null : contentType.trim();
-        return assetRepository.searchAssets(tenantId, normalizedQuery, normalizedContentType, pageable);
+        return assetRepository.searchAssets(tenantId, workspaceId, normalizedQuery, normalizedContentType, pageable);
     }
 
     @Transactional
     public Asset uploadAsset(MultipartFile file, Map<String, String> metadata) {
         validateUploadFile(file);
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         String safeFileName = sanitizeFileName(file.getOriginalFilename());
-        String objectName = tenantId + "/" + UUID.randomUUID() + "_" + safeFileName;
+        String objectName = tenantId + "/" + workspaceId + "/" + UUID.randomUUID() + "_" + safeFileName;
         String url = uploadToMinio(file, objectName);
         AssetDto.Create create = AssetDto.Create.builder()
                 .name(safeFileName)
@@ -182,13 +196,14 @@ public class AssetService {
             return uploadedAssets;
         }
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         for (MultipartFile file : files) {
             if (file == null || file.isEmpty()) {
                 continue;
             }
             validateUploadFile(file);
             String safeFileName = sanitizeFileName(file.getOriginalFilename());
-            String objectName = tenantId + "/" + UUID.randomUUID() + "_" + safeFileName;
+            String objectName = tenantId + "/" + workspaceId + "/" + UUID.randomUUID() + "_" + safeFileName;
             String url = uploadToMinio(file, objectName);
             AssetDto.Create create = AssetDto.Create.builder()
                     .name(safeFileName)
@@ -204,7 +219,12 @@ public class AssetService {
 
     @Transactional
     public void deleteAsset(@NonNull String tenantId, @NonNull String id) {
-        Asset asset = getAsset(tenantId, id);
+        deleteAsset(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public void deleteAsset(@NonNull String tenantId, @NonNull String workspaceId, @NonNull String id) {
+        Asset asset = getAsset(tenantId, workspaceId, id);
         String objectName = resolveObjectName(asset);
         
         // Delete from storage first (external operation) - if this fails, DB won't be modified

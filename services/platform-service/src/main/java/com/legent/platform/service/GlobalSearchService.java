@@ -10,6 +10,7 @@ import java.time.Instant;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.legent.platform.domain.SearchIndexDoc;
 import com.legent.platform.repository.SearchIndexDocRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,12 +25,14 @@ public class GlobalSearchService {
     private final ObjectMapper objectMapper;
 
     public void indexDocument(String tenantId, String entityType, String entityId, String title, String searchableText, Map<String, Object> metadata) {
-        // Find existing or composite ID logic. For brevity we just use entityId
-        String idDoc = tenantId + ":" + entityType + ":" + entityId;
+        String workspaceId = TenantContext.getWorkspaceId();
+        String idDoc = documentId(tenantId, workspaceId, entityType, entityId);
 
         SearchIndexDoc doc = searchRepository.findById(idDoc).orElse(new SearchIndexDoc());
         doc.setId(idDoc);
         doc.setTenantId(tenantId);
+        // Tenant-global platform events can intentionally omit workspace context; workspace search APIs below do not expose them.
+        doc.setWorkspaceId(workspaceId);
         doc.setEntityType(entityType);
         doc.setEntityId(entityId);
         doc.setTitle(title);
@@ -48,9 +51,17 @@ public class GlobalSearchService {
         searchRepository.save(doc);
     }
 
-    public List<SearchIndexDoc> search(String tenantId, String query) {
+    public List<SearchIndexDoc> search(String tenantId, String workspaceId, String query) {
         // Simplified ILIKE search mapping over all entities.
         // In a true OpenSearch implementation, this constructs a boolean query targeting ngram analyzers.
-        return searchRepository.findByTenantIdAndSearchableTextContainingIgnoreCase(tenantId, query);
+        return searchRepository.findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
+                tenantId, workspaceId, query);
+    }
+
+    private String documentId(String tenantId, String workspaceId, String entityType, String entityId) {
+        if (workspaceId == null || workspaceId.isBlank()) {
+            return tenantId + ":" + entityType + ":" + entityId;
+        }
+        return tenantId + ":" + workspaceId + ":" + entityType + ":" + entityId;
     }
 }

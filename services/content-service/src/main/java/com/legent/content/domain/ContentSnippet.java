@@ -10,10 +10,13 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "content_snippets",
-        uniqueConstraints = @UniqueConstraint(name = "uq_content_snippet_key", columnNames = {"tenant_id", "snippet_key"}))
+        uniqueConstraints = @UniqueConstraint(name = "uq_content_snippet_workspace_key", columnNames = {"tenant_id", "workspace_id", "snippet_key"}))
 @Getter
 @Setter
 public class ContentSnippet extends TenantAwareEntity {
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(name = "snippet_key", nullable = false, length = 128)
     private String snippetKey;
 

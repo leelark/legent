@@ -51,7 +51,7 @@ public class ContentController {
     public ApiResponse<RenderedContent> renderTemplate(
             @PathVariable String templateId,
             @RequestBody Map<String, Object> variables) {
-        return renderTemplateForTenant(TenantContext.requireTenantId(), templateId, variables);
+        return renderTemplateForTenant(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), templateId, variables);
     }
 
     @PostMapping("/{templateId}/render/internal")
@@ -63,14 +63,14 @@ public class ContentController {
         if (token == null || !token.equals(internalApiToken)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
-        return renderTemplateForTenant(TenantContext.requireTenantId(), templateId, variables);
+        return renderTemplateForTenant(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), templateId, variables);
     }
 
-    private ApiResponse<RenderedContent> renderTemplateForTenant(String tenantId, String templateId, Map<String, Object> variables) {
+    private ApiResponse<RenderedContent> renderTemplateForTenant(String tenantId, String workspaceId, String templateId, Map<String, Object> variables) {
         EmailStudioDto.RenderRequest request = new EmailStudioDto.RenderRequest();
         request.setVariables(variables);
         request.setPublishedOnly(true);
-        EmailStudioDto.RenderResponse rendered = renderService.render(tenantId, templateId, request);
+        EmailStudioDto.RenderResponse rendered = renderService.render(tenantId, workspaceId, templateId, request);
         return ApiResponse.ok(new RenderedContent(rendered.getSubject(), rendered.getHtmlContent(), rendered.getTextContent()));
     }
 
@@ -82,6 +82,7 @@ public class ContentController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateVersionDto> getLatestVersion(@PathVariable String templateId) {
         TenantContext.requireTenantId();
+        TenantContext.requireWorkspaceId();
         TemplateVersion latestVersion = versionService.getLatestPublishedVersion(templateId);
         return ApiResponse.ok(new TemplateVersionDto(
                 latestVersion.getSubject(),

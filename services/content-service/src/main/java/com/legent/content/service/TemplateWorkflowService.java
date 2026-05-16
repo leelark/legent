@@ -43,12 +43,17 @@ public class TemplateWorkflowService {
      */
     @Transactional
     public TemplateApproval submitForApproval(String tenantId, String templateId, String comments) {
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        return submitForApproval(tenantId, TenantContext.requireWorkspaceId(), templateId, comments);
+    }
+
+    @Transactional
+    public TemplateApproval submitForApproval(String tenantId, String workspaceId, String templateId, String comments) {
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateId));
         String userId = resolveActor(TenantContext.getUserId(), template.getCreatedBy(), "system");
 
         // Check if there's already a pending approval
-        if (approvalRepository.findPendingApproval(tenantId, templateId).isPresent()) {
+        if (approvalRepository.findPendingApproval(tenantId, workspaceId, templateId).isPresent()) {
             throw new ConflictException("Template already has a pending approval request");
         }
 
@@ -59,13 +64,14 @@ public class TemplateWorkflowService {
         }
 
         // Get the next version number
-        int nextVersion = versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId)
+        int nextVersion = versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(templateId, tenantId, workspaceId)
                 .map(TemplateVersion::getVersionNumber)
                 .orElse(0) + 1;
 
         // Snapshot current draft/content for review and future publish.
         TemplateVersion snapshot = new TemplateVersion();
         snapshot.setTenantId(tenantId);
+        snapshot.setWorkspaceId(workspaceId);
         snapshot.setTemplate(template);
         snapshot.setVersionNumber(nextVersion);
         snapshot.setSubject(template.getDraftSubject() != null ? template.getDraftSubject() : template.getSubject());
@@ -78,6 +84,7 @@ public class TemplateWorkflowService {
         // Create approval request
         TemplateApproval approval = new TemplateApproval();
         approval.setTenantId(tenantId);
+        approval.setWorkspaceId(workspaceId);
         approval.setTemplateId(templateId);
         approval.setVersionNumber(nextVersion);
         approval.setRequestedBy(userId);
@@ -105,19 +112,20 @@ public class TemplateWorkflowService {
      */
     @Transactional
     public TemplateApproval approveTemplate(String tenantId, String approvalId, String comments) {
-        TemplateApproval approval = approvalRepository.findById(approvalId)
-                .orElseThrow(() -> new NotFoundException("TemplateApproval", approvalId));
+        return approveTemplate(tenantId, TenantContext.requireWorkspaceId(), approvalId, comments);
+    }
 
-        if (!approval.getTenantId().equals(tenantId)) {
-            throw new ValidationException("tenant", "Approval does not belong to this tenant");
-        }
+    @Transactional
+    public TemplateApproval approveTemplate(String tenantId, String workspaceId, String approvalId, String comments) {
+        TemplateApproval approval = approvalRepository.findByIdAndTenantIdAndWorkspaceId(approvalId, tenantId, workspaceId)
+                .orElseThrow(() -> new NotFoundException("TemplateApproval", approvalId));
 
         if (approval.getStatus() != TemplateApproval.ApprovalStatus.PENDING) {
             throw new ValidationException("status", "Approval is not in PENDING state");
         }
 
         String templateIdFromApproval = approval.getTemplateId();
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateIdFromApproval, tenantId)
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateIdFromApproval, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateIdFromApproval));
         String userId = resolveActor(TenantContext.getUserId(), approval.getRequestedBy(), template.getCreatedBy(), "system");
 
@@ -150,19 +158,20 @@ public class TemplateWorkflowService {
      */
     @Transactional
     public TemplateApproval rejectTemplate(String tenantId, String approvalId, String reason) {
-        TemplateApproval approval = approvalRepository.findById(approvalId)
-                .orElseThrow(() -> new NotFoundException("TemplateApproval", approvalId));
+        return rejectTemplate(tenantId, TenantContext.requireWorkspaceId(), approvalId, reason);
+    }
 
-        if (!approval.getTenantId().equals(tenantId)) {
-            throw new ValidationException("tenant", "Approval does not belong to this tenant");
-        }
+    @Transactional
+    public TemplateApproval rejectTemplate(String tenantId, String workspaceId, String approvalId, String reason) {
+        TemplateApproval approval = approvalRepository.findByIdAndTenantIdAndWorkspaceId(approvalId, tenantId, workspaceId)
+                .orElseThrow(() -> new NotFoundException("TemplateApproval", approvalId));
 
         if (approval.getStatus() != TemplateApproval.ApprovalStatus.PENDING) {
             throw new ValidationException("status", "Approval is not in PENDING state");
         }
 
         String templateIdFromApproval = approval.getTemplateId();
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateIdFromApproval, tenantId)
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateIdFromApproval, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateIdFromApproval));
         String userId = resolveActor(TenantContext.getUserId(), approval.getRequestedBy(), template.getCreatedBy(), "system");
 
@@ -193,7 +202,7 @@ public class TemplateWorkflowService {
      */
     @Transactional
     public TemplateVersion publishTemplate(String tenantId, String templateId, Integer versionNumber) {
-        return publishTemplate(tenantId, templateId, versionNumber, false, null);
+        return publishTemplate(tenantId, TenantContext.requireWorkspaceId(), templateId, versionNumber, false, null);
     }
 
     /**
@@ -202,18 +211,24 @@ public class TemplateWorkflowService {
     @Transactional
     public TemplateVersion publishTemplate(String tenantId, String templateId, Integer versionNumber,
                                            boolean adminBypass, String bypassReason) {
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        return publishTemplate(tenantId, TenantContext.requireWorkspaceId(), templateId, versionNumber, adminBypass, bypassReason);
+    }
+
+    @Transactional
+    public TemplateVersion publishTemplate(String tenantId, String workspaceId, String templateId, Integer versionNumber,
+                                           boolean adminBypass, String bypassReason) {
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateId));
         String userId = resolveActor(TenantContext.getUserId(), template.getCurrentApprover(), template.getCreatedBy(), "system");
 
         TemplateVersion version;
         if (versionNumber != null) {
             // Publish specific version
-            version = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, versionNumber, tenantId)
+            version = versionRepository.findByTemplate_IdAndVersionNumberAndTenantIdAndWorkspaceId(templateId, versionNumber, tenantId, workspaceId)
                     .orElseThrow(() -> new NotFoundException("TemplateVersion", templateId + " v" + versionNumber));
         } else {
             // Get the latest version
-            version = versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId)
+            version = versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(templateId, tenantId, workspaceId)
                     .orElseGet(() -> {
                         TemplateVersionDto.Create initialVersion = new TemplateVersionDto.Create();
                         initialVersion.setSubject(template.getDraftSubject() != null ? template.getDraftSubject() : template.getSubject());
@@ -227,7 +242,7 @@ public class TemplateWorkflowService {
 
         boolean approvalRequired = approvalRequiredByDefault || template.isApprovalRequired();
         boolean approvedForVersion = template.getStatus() == EmailTemplate.TemplateStatus.APPROVED
-                && approvalRepository.hasApprovedApproval(tenantId, templateId, version.getVersionNumber());
+                && approvalRepository.hasApprovedApproval(tenantId, workspaceId, templateId, version.getVersionNumber());
         if (approvalRequired && !approvedForVersion) {
             if (!adminBypass) {
                 throw new ValidationException("status", "Template version must be approved before publishing");
@@ -237,7 +252,7 @@ public class TemplateWorkflowService {
                     tenantId, templateId, version.getVersionNumber(), userId, bypassReason);
         }
 
-        renderService.requirePublishable(tenantId, templateId, version.getVersionNumber());
+        renderService.requirePublishable(tenantId, workspaceId, templateId, version.getVersionNumber());
 
         // Publish the version
         versionService.publishVersion(templateId, version.getVersionNumber());
@@ -264,7 +279,13 @@ public class TemplateWorkflowService {
     @Transactional
     public EmailTemplate saveDraft(String tenantId, String templateId, String subject,
                                     String htmlContent, String textContent) {
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        return saveDraft(tenantId, TenantContext.requireWorkspaceId(), templateId, subject, htmlContent, textContent);
+    }
+
+    @Transactional
+    public EmailTemplate saveDraft(String tenantId, String workspaceId, String templateId, String subject,
+                                    String htmlContent, String textContent) {
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateId));
 
         // Only allow draft updates for certain statuses
@@ -294,7 +315,12 @@ public class TemplateWorkflowService {
      */
     @Transactional(readOnly = true)
     public List<TemplateApproval> getPendingApprovals(String tenantId) {
-        return approvalRepository.findByTenantIdAndStatus(tenantId, TemplateApproval.ApprovalStatus.PENDING);
+        return getPendingApprovals(tenantId, TenantContext.requireWorkspaceId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateApproval> getPendingApprovals(String tenantId, String workspaceId) {
+        return approvalRepository.findByTenantIdAndWorkspaceIdAndStatus(tenantId, workspaceId, TemplateApproval.ApprovalStatus.PENDING);
     }
 
     /**
@@ -302,7 +328,14 @@ public class TemplateWorkflowService {
      */
     @Transactional(readOnly = true)
     public List<TemplateApproval> getTemplateApprovalHistory(String tenantId, String templateId) {
-        return approvalRepository.findByTenantIdAndTemplateIdOrderByRequestedAtDesc(tenantId, templateId);
+        return getTemplateApprovalHistory(tenantId, TenantContext.requireWorkspaceId(), templateId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateApproval> getTemplateApprovalHistory(String tenantId, String workspaceId, String templateId) {
+        templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
+                .orElseThrow(() -> new NotFoundException("Template", templateId));
+        return approvalRepository.findByTenantIdAndWorkspaceIdAndTemplateIdOrderByRequestedAtDesc(tenantId, workspaceId, templateId);
     }
 
     /**
@@ -310,13 +343,14 @@ public class TemplateWorkflowService {
      */
     @Transactional
     public TemplateApproval cancelApproval(String tenantId, String approvalId) {
-        TemplateApproval approval = approvalRepository.findById(approvalId)
+        return cancelApproval(tenantId, TenantContext.requireWorkspaceId(), approvalId);
+    }
+
+    @Transactional
+    public TemplateApproval cancelApproval(String tenantId, String workspaceId, String approvalId) {
+        TemplateApproval approval = approvalRepository.findByIdAndTenantIdAndWorkspaceId(approvalId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("TemplateApproval", approvalId));
         String userId = resolveActor(TenantContext.getUserId(), approval.getRequestedBy(), "system");
-
-        if (!approval.getTenantId().equals(tenantId)) {
-            throw new ValidationException("tenant", "Approval does not belong to this tenant");
-        }
 
         if (approval.getStatus() != TemplateApproval.ApprovalStatus.PENDING) {
             throw new ValidationException("status", "Can only cancel PENDING approvals");
@@ -328,7 +362,7 @@ public class TemplateWorkflowService {
         }
 
         String templateIdFromApproval = approval.getTemplateId();
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateIdFromApproval, tenantId)
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateIdFromApproval, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateIdFromApproval));
 
         approval.setStatus(TemplateApproval.ApprovalStatus.CANCELLED);

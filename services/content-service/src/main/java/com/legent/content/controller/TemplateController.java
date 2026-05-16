@@ -34,6 +34,7 @@ public class TemplateController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> createTemplate(@Valid @RequestBody TemplateDto.Create request) {
+        TenantContext.requireWorkspaceId();
         EmailTemplate template = templateService.createTemplate(request);
         return ApiResponse.ok(mapToResponse(template));
     }
@@ -41,7 +42,8 @@ public class TemplateController {
     @GetMapping("/{id}")
     public ApiResponse<TemplateDto.Response> getTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateService.getTemplate(tenantId, id);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateService.getTemplate(tenantId, workspaceId, id);
         return ApiResponse.ok(mapToResponse(template));
     }
 
@@ -49,7 +51,8 @@ public class TemplateController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> updateTemplate(@PathVariable String id, @Valid @RequestBody TemplateDto.Update request) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateService.updateTemplate(tenantId, id, request);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateService.updateTemplate(tenantId, workspaceId, id, request);
         return ApiResponse.ok(mapToResponse(template));
     }
 
@@ -58,14 +61,16 @@ public class TemplateController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        templateService.deleteTemplate(tenantId, id);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        templateService.deleteTemplate(tenantId, workspaceId, id);
     }
 
     @PostMapping("/{id}/clone")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> cloneTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateService.cloneTemplate(tenantId, id);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateService.cloneTemplate(tenantId, workspaceId, id);
         return ApiResponse.ok(mapToResponse(template));
     }
 
@@ -74,7 +79,8 @@ public class TemplateController {
     public ApiResponse<TemplateDto.Response> archiveTemplate(@PathVariable String id,
                                                              @RequestBody(required = false) Map<String, Object> request) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateService.archiveTemplate(tenantId, id);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateService.archiveTemplate(tenantId, workspaceId, id);
         return ApiResponse.ok(mapToResponse(template));
     }
 
@@ -83,7 +89,8 @@ public class TemplateController {
     public ApiResponse<TemplateDto.Response> restoreTemplate(@PathVariable String id,
                                                              @RequestBody(required = false) Map<String, Object> request) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateService.restoreTemplate(tenantId, id);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateService.restoreTemplate(tenantId, workspaceId, id);
         return ApiResponse.ok(mapToResponse(template));
     }
 
@@ -92,7 +99,8 @@ public class TemplateController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.requireTenantId();
-        Page<EmailTemplate> templates = templateService.listTemplates(tenantId, PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        Page<EmailTemplate> templates = templateService.listTemplates(tenantId, workspaceId, PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
         return PagedResponse.of(
                 templates.getContent().stream().map(this::mapToResponse).toList(),
                 page,
@@ -105,7 +113,8 @@ public class TemplateController {
     @GetMapping("/search")
     public ApiResponse<List<TemplateDto.Response>> searchTemplates(@RequestParam String q) {
         String tenantId = TenantContext.requireTenantId();
-        List<EmailTemplate> templates = templateService.searchTemplates(tenantId, q);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        List<EmailTemplate> templates = templateService.searchTemplates(tenantId, workspaceId, q);
         return ApiResponse.ok(templates.stream().map(this::mapToResponse).toList());
     }
 
@@ -113,6 +122,7 @@ public class TemplateController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> importTemplate(@Valid @RequestBody TemplateWorkflowDto.ImportHtmlRequest request) {
+        TenantContext.requireWorkspaceId();
         EmailTemplate template = templateService.importTemplate(request);
         return ApiResponse.ok(mapToResponse(template));
     }
@@ -120,7 +130,8 @@ public class TemplateController {
     @GetMapping("/{id}/export/html")
     public ApiResponse<TemplateWorkflowDto.ExportHtmlResponse> exportTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(templateService.exportTemplate(tenantId, id));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(templateService.exportTemplate(tenantId, workspaceId, id));
     }
 
     @PostMapping("/{id}/preview")
@@ -129,11 +140,12 @@ public class TemplateController {
             @PathVariable String id,
             @RequestBody(required = false) TemplateWorkflowDto.PreviewRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         TemplateWorkflowDto.PreviewRequest safeRequest = request != null ? request : new TemplateWorkflowDto.PreviewRequest();
         EmailStudioDto.RenderRequest renderRequest = new EmailStudioDto.RenderRequest();
         renderRequest.setVariables(safeRequest.getVariables());
         renderRequest.setPublishedOnly(false);
-        EmailStudioDto.RenderResponse rendered = renderService.render(tenantId, id, renderRequest);
+        EmailStudioDto.RenderResponse rendered = renderService.render(tenantId, workspaceId, id, renderRequest);
         TemplateWorkflowDto.PreviewResponse response = new TemplateWorkflowDto.PreviewResponse();
         response.setSubject(rendered.getSubject());
         response.setHtmlContent(rendered.getHtmlContent());
@@ -146,6 +158,7 @@ public class TemplateController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.ValidateResponse> validateTemplate(
             @RequestBody(required = false) TemplateWorkflowDto.ValidateRequest request) {
+        TenantContext.requireWorkspaceId();
         String htmlContent = request != null ? request.getHtmlContent() : "";
         return ApiResponse.ok(templateService.validateTemplateHtml(htmlContent));
     }
@@ -156,11 +169,12 @@ public class TemplateController {
             @PathVariable String id,
             @Valid @RequestBody TemplateWorkflowDto.TestSendRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         EmailStudioDto.TestSendRequest testSendRequest = new EmailStudioDto.TestSendRequest();
         testSendRequest.setEmail(request.getEmail());
         testSendRequest.setSubjectOverride(request.getSubjectOverride());
         testSendRequest.setVariables(request.getVariables());
-        testSendService.send(tenantId, id, testSendRequest);
+        testSendService.send(tenantId, workspaceId, id, testSendRequest);
         return ApiResponse.ok(Map.of(
                 "status", "queued",
                 "message", "Test email queued for delivery"

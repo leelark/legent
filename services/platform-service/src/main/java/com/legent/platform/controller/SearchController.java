@@ -23,6 +23,7 @@ public class SearchController {
     @GetMapping
     public ApiResponse<List<SearchIndexDoc>> search(@RequestParam String q) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(searchService.search(tenantId, q));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(searchService.search(tenantId, workspaceId, q));
     }
 }

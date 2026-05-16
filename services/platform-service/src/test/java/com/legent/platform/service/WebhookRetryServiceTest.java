@@ -1,5 +1,6 @@
 package com.legent.platform.service;
 
+import com.legent.platform.config.WebhookWebClient;
 import com.legent.platform.domain.WebhookRetry;
 import com.legent.platform.repository.WebhookConfigRepository;
 import com.legent.platform.repository.WebhookLogRepository;
@@ -39,22 +40,43 @@ class WebhookRetryServiceTest {
     @BeforeEach
     void setUp() {
         Executor directExecutor = Runnable::run;
-        service = new WebhookRetryService(retryRepository, configRepository, logRepository, webClient, directExecutor);
+        service = new WebhookRetryService(
+                retryRepository,
+                configRepository,
+                logRepository,
+                new WebhookWebClient(webClient),
+                directExecutor);
     }
 
     @Test
-    void processRetryLooksUpWebhookConfigByIdAndTenant() {
+    void processRetryLooksUpWebhookConfigByIdTenantAndWorkspace() {
         WebhookRetry retry = retry("retry-1", "tenant-a", "webhook-1");
-        when(configRepository.findByIdAndTenantId("webhook-1", "tenant-a")).thenReturn(Optional.empty());
+        when(configRepository.findByIdAndTenantIdAndWorkspaceId("webhook-1", "tenant-a", "workspace-a"))
+                .thenReturn(Optional.empty());
 
         service.processRetry(retry);
 
-        verify(configRepository).findByIdAndTenantId("webhook-1", "tenant-a");
+        verify(configRepository).findByIdAndTenantIdAndWorkspaceId("webhook-1", "tenant-a", "workspace-a");
         verify(configRepository, never()).findById("webhook-1");
+        verify(configRepository, never()).findByIdAndTenantIdAndWorkspaceIdIsNull("webhook-1", "tenant-a");
         verify(retryRepository, times(2)).save(retry);
         verifyNoInteractions(webClient, logRepository);
         assertThat(retry.getStatus()).isEqualTo("FAILED");
         assertThat(retry.getLastError()).contains("Webhook configuration not found or inactive");
+    }
+
+    @Test
+    void processRetryWithoutWorkspaceLooksUpTenantGlobalWebhookConfig() {
+        WebhookRetry retry = retry("retry-1", "tenant-a", "webhook-1");
+        retry.setWorkspaceId(null);
+        when(configRepository.findByIdAndTenantIdAndWorkspaceIdIsNull("webhook-1", "tenant-a"))
+                .thenReturn(Optional.empty());
+
+        service.processRetry(retry);
+
+        verify(configRepository).findByIdAndTenantIdAndWorkspaceIdIsNull("webhook-1", "tenant-a");
+        verify(configRepository, never()).findByIdAndTenantIdAndWorkspaceId(any(), any(), any());
+        assertThat(retry.getStatus()).isEqualTo("FAILED");
     }
 
     @Test
@@ -75,12 +97,13 @@ class WebhookRetryServiceTest {
         WebhookRetry retry = retry("retry-1", "tenant-a", "webhook-1");
         when(retryRepository.findPendingRetries(any(Instant.class), any(Pageable.class))).thenReturn(List.of(retry));
         when(retryRepository.claimPendingRetry(eq("retry-1"), any(Instant.class), any(Instant.class))).thenReturn(1);
-        when(configRepository.findByIdAndTenantId("webhook-1", "tenant-a")).thenReturn(Optional.empty());
+        when(configRepository.findByIdAndTenantIdAndWorkspaceId("webhook-1", "tenant-a", "workspace-a"))
+                .thenReturn(Optional.empty());
 
         service.processRetries();
 
         verify(retryRepository).claimPendingRetry(eq("retry-1"), any(Instant.class), any(Instant.class));
-        verify(configRepository).findByIdAndTenantId("webhook-1", "tenant-a");
+        verify(configRepository).findByIdAndTenantIdAndWorkspaceId("webhook-1", "tenant-a", "workspace-a");
         assertThat(retry.getStatus()).isEqualTo("FAILED");
         assertThat(retry.getLastError()).contains("Webhook configuration not found or inactive");
     }
@@ -103,6 +126,7 @@ class WebhookRetryServiceTest {
         WebhookRetry retry = new WebhookRetry();
         retry.setId(id);
         retry.setTenantId(tenantId);
+        retry.setWorkspaceId("workspace-a");
         retry.setWebhookId(webhookId);
         retry.setEventType("email.bounced");
         retry.setPayload("{\"id\":\"message-1\"}");

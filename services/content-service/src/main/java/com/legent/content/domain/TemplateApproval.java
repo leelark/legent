@@ -20,6 +20,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 @NoArgsConstructor
 public class TemplateApproval extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(name = "template_id", nullable = false, length = 36)
     private String templateId;
 

@@ -47,13 +47,15 @@ public class TemplateService {
     @Transactional
     public EmailTemplate createTemplate(TemplateDto.Create request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
-        if (templateRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+        if (templateRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(tenantId, workspaceId, request.getName())) {
             throw new ConflictException("Template with name '" + request.getName() + "' already exists");
         }
 
         EmailTemplate template = new EmailTemplate();
         template.setTenantId(tenantId);
+        template.setWorkspaceId(workspaceId);
         template.setName(request.getName());
         template.setSubject(request.getSubject());
         String html = request.getBody() != null ? request.getBody() : request.getHtmlContent();
@@ -73,16 +75,25 @@ public class TemplateService {
     }
 
     public EmailTemplate getTemplate(String tenantId, String id) {
-        return templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+        return getTemplate(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    public EmailTemplate getTemplate(String tenantId, String workspaceId, String id) {
+        return templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
     }
 
     @Transactional
     public EmailTemplate updateTemplate(String tenantId, String id, TemplateDto.Update request) {
-        EmailTemplate template = getTemplate(tenantId, id);
+        return updateTemplate(tenantId, TenantContext.requireWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    public EmailTemplate updateTemplate(String tenantId, String workspaceId, String id, TemplateDto.Update request) {
+        EmailTemplate template = getTemplate(tenantId, workspaceId, id);
 
         if (request.getName() != null && !request.getName().equals(template.getName())) {
-            if (templateRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+            if (templateRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(tenantId, workspaceId, request.getName())) {
                 throw new ConflictException("Template with name '" + request.getName() + "' already exists");
             }
             template.setName(request.getName());
@@ -132,18 +143,29 @@ public class TemplateService {
 
     @Transactional
     public void deleteTemplate(String tenantId, String id) {
-        EmailTemplate template = getTemplate(tenantId, id);
+        deleteTemplate(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public void deleteTemplate(String tenantId, String workspaceId, String id) {
+        EmailTemplate template = getTemplate(tenantId, workspaceId, id);
         template.setDeletedAt(java.time.Instant.now());
         templateRepository.save(template);
     }
 
     @Transactional
     public EmailTemplate cloneTemplate(String tenantId, String id) {
-        EmailTemplate source = getTemplate(tenantId, id);
+        return cloneTemplate(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public EmailTemplate cloneTemplate(String tenantId, String workspaceId, String id) {
+        EmailTemplate source = getTemplate(tenantId, workspaceId, id);
 
         EmailTemplate clone = new EmailTemplate();
         clone.setTenantId(tenantId);
-        clone.setName(resolveCloneName(tenantId, source.getName()));
+        clone.setWorkspaceId(workspaceId);
+        clone.setName(resolveCloneName(tenantId, workspaceId, source.getName()));
         clone.setSubject(source.getSubject());
         clone.setHtmlContent(source.getHtmlContent());
         clone.setTextContent(source.getTextContent());
@@ -166,14 +188,24 @@ public class TemplateService {
 
     @Transactional
     public EmailTemplate archiveTemplate(String tenantId, String id) {
-        EmailTemplate template = getTemplate(tenantId, id);
+        return archiveTemplate(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public EmailTemplate archiveTemplate(String tenantId, String workspaceId, String id) {
+        EmailTemplate template = getTemplate(tenantId, workspaceId, id);
         template.setStatus(EmailTemplate.TemplateStatus.ARCHIVED);
         return templateRepository.save(template);
     }
 
     @Transactional
     public EmailTemplate restoreTemplate(String tenantId, String id) {
-        EmailTemplate template = getTemplate(tenantId, id);
+        return restoreTemplate(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public EmailTemplate restoreTemplate(String tenantId, String workspaceId, String id) {
+        EmailTemplate template = getTemplate(tenantId, workspaceId, id);
         if (template.getStatus() == EmailTemplate.TemplateStatus.ARCHIVED) {
             template.setStatus(EmailTemplate.TemplateStatus.DRAFT);
         }
@@ -181,11 +213,19 @@ public class TemplateService {
     }
 
     public Page<EmailTemplate> listTemplates(String tenantId, Pageable pageable) {
-        return templateRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
+        return listTemplates(tenantId, TenantContext.requireWorkspaceId(), pageable);
+    }
+
+    public Page<EmailTemplate> listTemplates(String tenantId, String workspaceId, Pageable pageable) {
+        return templateRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId, pageable);
     }
 
     public List<EmailTemplate> searchTemplates(String tenantId, String query) {
-        return templateRepository.searchByName(tenantId, query);
+        return searchTemplates(tenantId, TenantContext.requireWorkspaceId(), query);
+    }
+
+    public List<EmailTemplate> searchTemplates(String tenantId, String workspaceId, String query) {
+        return templateRepository.searchByName(tenantId, workspaceId, query);
     }
 
     @Transactional
@@ -209,12 +249,16 @@ public class TemplateService {
         version.setPublish(false);
         versionService.createVersion(template.getId(), version);
 
-        return templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(template.getId(), template.getTenantId())
+        return templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(template.getId(), template.getTenantId(), template.getWorkspaceId())
                 .orElse(template);
     }
 
     public TemplateWorkflowDto.ExportHtmlResponse exportTemplate(String tenantId, String templateId) {
-        EmailTemplate template = getTemplate(tenantId, templateId);
+        return exportTemplate(tenantId, TenantContext.requireWorkspaceId(), templateId);
+    }
+
+    public TemplateWorkflowDto.ExportHtmlResponse exportTemplate(String tenantId, String workspaceId, String templateId) {
+        EmailTemplate template = getTemplate(tenantId, workspaceId, templateId);
         TemplateWorkflowDto.ExportHtmlResponse response = new TemplateWorkflowDto.ExportHtmlResponse();
         response.setId(template.getId());
         response.setName(template.getName());
@@ -226,7 +270,7 @@ public class TemplateService {
     }
 
     public TemplateWorkflowDto.PreviewResponse previewTemplate(String tenantId, String templateId, Map<String, Object> variables, String mode, Boolean darkMode) {
-        EmailTemplate template = getTemplate(tenantId, templateId);
+        EmailTemplate template = getTemplate(tenantId, TenantContext.requireWorkspaceId(), templateId);
         RenderedParts rendered = renderTemplateParts(template, variables);
 
         List<String> warnings = new ArrayList<>();
@@ -299,7 +343,7 @@ public class TemplateService {
     }
 
     public void sendTestEmail(String tenantId, String templateId, String toEmail, String subjectOverride, Map<String, Object> variables) {
-        EmailTemplate template = getTemplate(tenantId, templateId);
+        EmailTemplate template = getTemplate(tenantId, TenantContext.requireWorkspaceId(), templateId);
         RenderedParts rendered = renderTemplateParts(template, variables);
 
         Map<String, Object> payload = Map.of(
@@ -332,11 +376,11 @@ public class TemplateService {
         }
     }
 
-    private String resolveCloneName(String tenantId, String baseName) {
+    private String resolveCloneName(String tenantId, String workspaceId, String baseName) {
         String seed = (baseName == null || baseName.isBlank()) ? "Template" : baseName.trim();
         String candidate = seed + " Copy";
         int index = 2;
-        while (templateRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, candidate)) {
+        while (templateRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(tenantId, workspaceId, candidate)) {
             candidate = seed + " Copy " + index;
             index++;
         }

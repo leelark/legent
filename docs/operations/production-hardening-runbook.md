@@ -17,6 +17,7 @@ Expected gates:
 - Docker Compose config renders.
 - Synthetic API smoke passes against the target environment.
 - Production Kustomize overlay renders.
+- Production overlay deletes broad base egress, renders default deny, and only permits reviewed egress. Current repo overlay allows same-namespace pod egress plus DNS; target clusters still need reviewed managed-service/provider CIDR or FQDN policy overlays before real promotion.
 
 ## Actuator And Internal Endpoints
 

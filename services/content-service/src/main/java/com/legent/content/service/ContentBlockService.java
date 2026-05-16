@@ -30,13 +30,15 @@ public class ContentBlockService {
     @Transactional
     public ContentBlock createBlock(ContentBlockDto.Create request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
-        if (blockRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+        if (blockRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(tenantId, workspaceId, request.getName())) {
             throw new ConflictException("Block with name '" + request.getName() + "' already exists");
         }
 
         ContentBlock block = new ContentBlock();
         block.setTenantId(tenantId);
+        block.setWorkspaceId(workspaceId);
         block.setName(request.getName());
         block.setBlockType(request.getBlockType());
         block.setContent(request.getContent());
@@ -51,17 +53,26 @@ public class ContentBlockService {
 
     @NonNull
     public ContentBlock getBlock(@NonNull String tenantId, @NonNull String id) {
-        return java.util.Objects.requireNonNull(blockRepository.findById(id)
-                .filter(block -> tenantId.equals(block.getTenantId()) && block.getDeletedAt() == null)
+        return getBlock(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @NonNull
+    public ContentBlock getBlock(@NonNull String tenantId, @NonNull String workspaceId, @NonNull String id) {
+        return java.util.Objects.requireNonNull(blockRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Content block not found")));
     }
 
     @Transactional
     public ContentBlock updateBlock(@NonNull String tenantId, @NonNull String id, ContentBlockDto.Create request) {
-        ContentBlock block = getBlock(tenantId, id);
+        return updateBlock(tenantId, TenantContext.requireWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    public ContentBlock updateBlock(@NonNull String tenantId, @NonNull String workspaceId, @NonNull String id, ContentBlockDto.Create request) {
+        ContentBlock block = getBlock(tenantId, workspaceId, id);
 
         if (request.getName() != null && !request.getName().equals(block.getName())) {
-            if (blockRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+            if (blockRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(tenantId, workspaceId, request.getName())) {
                 throw new ConflictException("Block with name '" + request.getName() + "' already exists");
             }
             block.setName(request.getName());
@@ -88,26 +99,45 @@ public class ContentBlockService {
 
     @Transactional
     public void deleteBlock(@NonNull String tenantId, @NonNull String id) {
-        ContentBlock block = getBlock(tenantId, id);
+        deleteBlock(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public void deleteBlock(@NonNull String tenantId, @NonNull String workspaceId, @NonNull String id) {
+        ContentBlock block = getBlock(tenantId, workspaceId, id);
         block.setDeletedAt(Instant.now());
         blockRepository.save(block);
     }
 
     public Page<ContentBlock> listBlocks(String tenantId, Pageable pageable) {
-        return blockRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
+        return listBlocks(tenantId, TenantContext.requireWorkspaceId(), pageable);
+    }
+
+    public Page<ContentBlock> listBlocks(String tenantId, String workspaceId, Pageable pageable) {
+        return blockRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId, pageable);
     }
 
     public List<ContentBlock> listGlobalBlocks(String tenantId) {
-        return blockRepository.findByTenantIdAndIsGlobalIsTrueAndDeletedAtIsNull(tenantId);
+        return listGlobalBlocks(tenantId, TenantContext.requireWorkspaceId());
+    }
+
+    public List<ContentBlock> listGlobalBlocks(String tenantId, String workspaceId) {
+        return blockRepository.findByTenantIdAndWorkspaceIdAndIsGlobalIsTrueAndDeletedAtIsNull(tenantId, workspaceId);
     }
 
     @Transactional
     public ContentBlockVersion createVersion(String tenantId, String blockId, EmailStudioDto.ContentBlockVersionRequest request) {
-        ContentBlock block = getBlock(tenantId, blockId);
+        return createVersion(tenantId, TenantContext.requireWorkspaceId(), blockId, request);
+    }
+
+    @Transactional
+    public ContentBlockVersion createVersion(String tenantId, String workspaceId, String blockId, EmailStudioDto.ContentBlockVersionRequest request) {
+        ContentBlock block = getBlock(tenantId, workspaceId, blockId);
         ContentBlockVersion version = new ContentBlockVersion();
         version.setTenantId(tenantId);
+        version.setWorkspaceId(workspaceId);
         version.setBlock(block);
-        version.setVersionNumber(nextVersionNumber(blockId, tenantId));
+        version.setVersionNumber(nextVersionNumber(blockId, tenantId, workspaceId));
         version.setContent(request.getContent());
         version.setStyles(request.getStyles() != null ? request.getStyles() : block.getStyles());
         version.setSettings(request.getSettings() != null ? request.getSettings() : block.getSettings());
@@ -115,23 +145,33 @@ public class ContentBlockService {
         version.setIsPublished(false);
         version = blockVersionRepository.save(version);
         if (Boolean.TRUE.equals(request.getPublish())) {
-            return publishVersion(tenantId, blockId, version.getVersionNumber());
+            return publishVersion(tenantId, workspaceId, blockId, version.getVersionNumber());
         }
         return version;
     }
 
     @Transactional(readOnly = true)
     public List<ContentBlockVersion> listVersions(String tenantId, String blockId) {
-        getBlock(tenantId, blockId);
-        return blockVersionRepository.findByBlock_IdAndTenantIdOrderByVersionNumberDesc(blockId, tenantId);
+        return listVersions(tenantId, TenantContext.requireWorkspaceId(), blockId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContentBlockVersion> listVersions(String tenantId, String workspaceId, String blockId) {
+        getBlock(tenantId, workspaceId, blockId);
+        return blockVersionRepository.findByBlock_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(blockId, tenantId, workspaceId);
     }
 
     @Transactional
     public ContentBlockVersion publishVersion(String tenantId, String blockId, Integer versionNumber) {
-        ContentBlock block = getBlock(tenantId, blockId);
-        ContentBlockVersion version = blockVersionRepository.findByBlock_IdAndVersionNumberAndTenantId(blockId, versionNumber, tenantId)
+        return publishVersion(tenantId, TenantContext.requireWorkspaceId(), blockId, versionNumber);
+    }
+
+    @Transactional
+    public ContentBlockVersion publishVersion(String tenantId, String workspaceId, String blockId, Integer versionNumber) {
+        ContentBlock block = getBlock(tenantId, workspaceId, blockId);
+        ContentBlockVersion version = blockVersionRepository.findByBlock_IdAndVersionNumberAndTenantIdAndWorkspaceId(blockId, versionNumber, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("ContentBlockVersion", blockId + " v" + versionNumber));
-        for (ContentBlockVersion current : blockVersionRepository.findByBlock_IdAndTenantIdOrderByVersionNumberDesc(blockId, tenantId)) {
+        for (ContentBlockVersion current : blockVersionRepository.findByBlock_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(blockId, tenantId, workspaceId)) {
             boolean published = Objects.equals(current.getVersionNumber(), versionNumber);
             if (!Objects.equals(current.getIsPublished(), published)) {
                 current.setIsPublished(published);
@@ -147,25 +187,32 @@ public class ContentBlockService {
 
     @Transactional
     public ContentBlockVersion rollbackVersion(String tenantId, String blockId, Integer versionNumber) {
-        ContentBlock block = getBlock(tenantId, blockId);
-        ContentBlockVersion source = blockVersionRepository.findByBlock_IdAndVersionNumberAndTenantId(blockId, versionNumber, tenantId)
+        return rollbackVersion(tenantId, TenantContext.requireWorkspaceId(), blockId, versionNumber);
+    }
+
+    @Transactional
+    public ContentBlockVersion rollbackVersion(String tenantId, String workspaceId, String blockId, Integer versionNumber) {
+        ContentBlock block = getBlock(tenantId, workspaceId, blockId);
+        ContentBlockVersion source = blockVersionRepository.findByBlock_IdAndVersionNumberAndTenantIdAndWorkspaceId(blockId, versionNumber, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("ContentBlockVersion", blockId + " v" + versionNumber));
         ContentBlockVersion rollback = new ContentBlockVersion();
         rollback.setTenantId(tenantId);
+        rollback.setWorkspaceId(workspaceId);
         rollback.setBlock(block);
-        rollback.setVersionNumber(nextVersionNumber(blockId, tenantId));
+        rollback.setVersionNumber(nextVersionNumber(blockId, tenantId, workspaceId));
         rollback.setContent(source.getContent());
         rollback.setStyles(source.getStyles());
         rollback.setSettings(source.getSettings());
         rollback.setChanges("Rollback from block version " + versionNumber);
         rollback.setIsPublished(false);
         rollback = blockVersionRepository.save(rollback);
-        return publishVersion(tenantId, blockId, rollback.getVersionNumber());
+        return publishVersion(tenantId, workspaceId, blockId, rollback.getVersionNumber());
     }
 
     private void createInitialVersion(ContentBlock block) {
         ContentBlockVersion version = new ContentBlockVersion();
         version.setTenantId(block.getTenantId());
+        version.setWorkspaceId(block.getWorkspaceId());
         version.setBlock(block);
         version.setVersionNumber(1);
         version.setContent(block.getContent());
@@ -176,8 +223,8 @@ public class ContentBlockService {
         blockVersionRepository.save(version);
     }
 
-    private int nextVersionNumber(String blockId, String tenantId) {
-        return blockVersionRepository.findFirstByBlock_IdAndTenantIdOrderByVersionNumberDesc(blockId, tenantId)
+    private int nextVersionNumber(String blockId, String tenantId, String workspaceId) {
+        return blockVersionRepository.findFirstByBlock_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(blockId, tenantId, workspaceId)
                 .map(ContentBlockVersion::getVersionNumber)
                 .orElse(0) + 1;
     }

@@ -36,22 +36,33 @@ public class EmailStudioResourceService {
 
     @Transactional
     public ContentSnippet createSnippet(String tenantId, EmailStudioDto.SnippetRequest request) {
+        return createSnippet(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), request);
+    }
+
+    @Transactional
+    public ContentSnippet createSnippet(String tenantId, String workspaceId, EmailStudioDto.SnippetRequest request) {
         validateKey("snippetKey", request.getSnippetKey());
-        if (snippetRepository.existsByTenantIdAndSnippetKeyAndDeletedAtIsNull(tenantId, request.getSnippetKey())) {
+        if (snippetRepository.existsByTenantIdAndWorkspaceIdAndSnippetKeyAndDeletedAtIsNull(tenantId, workspaceId, request.getSnippetKey())) {
             throw new ConflictException("Content snippet already exists: " + request.getSnippetKey());
         }
         ContentSnippet snippet = new ContentSnippet();
         snippet.setTenantId(tenantId);
+        snippet.setWorkspaceId(workspaceId);
         applySnippet(snippet, request);
         return snippetRepository.save(snippet);
     }
 
     @Transactional
     public ContentSnippet updateSnippet(String tenantId, String id, EmailStudioDto.SnippetRequest request) {
-        ContentSnippet snippet = getSnippet(tenantId, id);
+        return updateSnippet(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    public ContentSnippet updateSnippet(String tenantId, String workspaceId, String id, EmailStudioDto.SnippetRequest request) {
+        ContentSnippet snippet = getSnippet(tenantId, workspaceId, id);
         if (request.getSnippetKey() != null && !request.getSnippetKey().equals(snippet.getSnippetKey())) {
             validateKey("snippetKey", request.getSnippetKey());
-            if (snippetRepository.existsByTenantIdAndSnippetKeyAndDeletedAtIsNull(tenantId, request.getSnippetKey())) {
+            if (snippetRepository.existsByTenantIdAndWorkspaceIdAndSnippetKeyAndDeletedAtIsNull(tenantId, workspaceId, request.getSnippetKey())) {
                 throw new ConflictException("Content snippet already exists: " + request.getSnippetKey());
             }
         }
@@ -61,83 +72,135 @@ public class EmailStudioResourceService {
 
     @Transactional(readOnly = true)
     public ContentSnippet getSnippet(String tenantId, String id) {
-        return snippetRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+        return getSnippet(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional(readOnly = true)
+    public ContentSnippet getSnippet(String tenantId, String workspaceId, String id) {
+        return snippetRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("ContentSnippet", id));
     }
 
     @Transactional(readOnly = true)
     public Page<ContentSnippet> listSnippets(String tenantId, Pageable pageable) {
-        return snippetRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
+        return listSnippets(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ContentSnippet> listSnippets(String tenantId, String workspaceId, Pageable pageable) {
+        return snippetRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId, pageable);
     }
 
     @Transactional
     public void deleteSnippet(String tenantId, String id) {
-        ContentSnippet snippet = getSnippet(tenantId, id);
+        deleteSnippet(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public void deleteSnippet(String tenantId, String workspaceId, String id) {
+        ContentSnippet snippet = getSnippet(tenantId, workspaceId, id);
         snippet.setDeletedAt(Instant.now());
         snippetRepository.save(snippet);
     }
 
     @Transactional
     public BrandKit createBrandKit(String tenantId, EmailStudioDto.BrandKitRequest request) {
-        if (brandKitRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+        return createBrandKit(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), request);
+    }
+
+    @Transactional
+    public BrandKit createBrandKit(String tenantId, String workspaceId, EmailStudioDto.BrandKitRequest request) {
+        if (brandKitRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(tenantId, workspaceId, request.getName())) {
             throw new ConflictException("Brand kit already exists: " + request.getName());
         }
         BrandKit brandKit = new BrandKit();
         brandKit.setTenantId(tenantId);
+        brandKit.setWorkspaceId(workspaceId);
         applyBrandKit(brandKit, request);
         if (Boolean.TRUE.equals(brandKit.getIsDefault())) {
-            clearDefaultBrandKits(tenantId);
+            clearDefaultBrandKits(tenantId, workspaceId);
         }
         return brandKitRepository.save(brandKit);
     }
 
     @Transactional
     public BrandKit updateBrandKit(String tenantId, String id, EmailStudioDto.BrandKitRequest request) {
-        BrandKit brandKit = getBrandKit(tenantId, id);
+        return updateBrandKit(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    public BrandKit updateBrandKit(String tenantId, String workspaceId, String id, EmailStudioDto.BrandKitRequest request) {
+        BrandKit brandKit = getBrandKit(tenantId, workspaceId, id);
         if (request.getName() != null && !request.getName().equals(brandKit.getName())
-                && brandKitRepository.existsByTenantIdAndNameAndDeletedAtIsNull(tenantId, request.getName())) {
+                && brandKitRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(tenantId, workspaceId, request.getName())) {
             throw new ConflictException("Brand kit already exists: " + request.getName());
         }
         applyBrandKit(brandKit, request);
         if (Boolean.TRUE.equals(brandKit.getIsDefault())) {
-            clearDefaultBrandKits(tenantId, id);
+            clearDefaultBrandKits(tenantId, workspaceId, id);
         }
         return brandKitRepository.save(brandKit);
     }
 
     @Transactional(readOnly = true)
     public BrandKit getBrandKit(String tenantId, String id) {
-        return brandKitRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+        return getBrandKit(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional(readOnly = true)
+    public BrandKit getBrandKit(String tenantId, String workspaceId, String id) {
+        return brandKitRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("BrandKit", id));
     }
 
     @Transactional(readOnly = true)
     public Page<BrandKit> listBrandKits(String tenantId, Pageable pageable) {
-        return brandKitRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
+        return listBrandKits(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BrandKit> listBrandKits(String tenantId, String workspaceId, Pageable pageable) {
+        return brandKitRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId, pageable);
     }
 
     @Transactional
     public void deleteBrandKit(String tenantId, String id) {
-        BrandKit brandKit = getBrandKit(tenantId, id);
+        deleteBrandKit(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public void deleteBrandKit(String tenantId, String workspaceId, String id) {
+        BrandKit brandKit = getBrandKit(tenantId, workspaceId, id);
         brandKit.setDeletedAt(Instant.now());
         brandKitRepository.save(brandKit);
     }
 
     @Transactional
     public LandingPage createLandingPage(String tenantId, EmailStudioDto.LandingPageRequest request) {
+        return createLandingPage(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), request);
+    }
+
+    @Transactional
+    public LandingPage createLandingPage(String tenantId, String workspaceId, EmailStudioDto.LandingPageRequest request) {
         validateSlug(request.getSlug());
         if (landingPageRepository.existsBySlugAndDeletedAtIsNull(request.getSlug())) {
             throw new ConflictException("Landing page slug already exists: " + request.getSlug());
         }
         LandingPage landingPage = new LandingPage();
         landingPage.setTenantId(tenantId);
+        landingPage.setWorkspaceId(workspaceId);
         applyLandingPage(landingPage, request);
         return landingPageRepository.save(landingPage);
     }
 
     @Transactional
     public LandingPage updateLandingPage(String tenantId, String id, EmailStudioDto.LandingPageRequest request) {
-        LandingPage landingPage = getLandingPage(tenantId, id);
+        return updateLandingPage(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    public LandingPage updateLandingPage(String tenantId, String workspaceId, String id, EmailStudioDto.LandingPageRequest request) {
+        LandingPage landingPage = getLandingPage(tenantId, workspaceId, id);
         if (request.getSlug() != null && !request.getSlug().equals(landingPage.getSlug())) {
             validateSlug(request.getSlug());
             if (landingPageRepository.existsBySlugAndDeletedAtIsNull(request.getSlug())) {
@@ -150,13 +213,23 @@ public class EmailStudioResourceService {
 
     @Transactional(readOnly = true)
     public LandingPage getLandingPage(String tenantId, String id) {
-        return landingPageRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+        return getLandingPage(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional(readOnly = true)
+    public LandingPage getLandingPage(String tenantId, String workspaceId, String id) {
+        return landingPageRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("LandingPage", id));
     }
 
     @Transactional(readOnly = true)
     public Page<LandingPage> listLandingPages(String tenantId, Pageable pageable) {
-        return landingPageRepository.findByTenantIdAndDeletedAtIsNull(tenantId, pageable);
+        return listLandingPages(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<LandingPage> listLandingPages(String tenantId, String workspaceId, Pageable pageable) {
+        return landingPageRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -167,7 +240,12 @@ public class EmailStudioResourceService {
 
     @Transactional
     public LandingPage publishLandingPage(String tenantId, String id) {
-        LandingPage landingPage = getLandingPage(tenantId, id);
+        return publishLandingPage(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public LandingPage publishLandingPage(String tenantId, String workspaceId, String id) {
+        LandingPage landingPage = getLandingPage(tenantId, workspaceId, id);
         landingPage.setHtmlContent(validationService.sanitizeLandingPage(landingPage.getHtmlContent()));
         landingPage.setStatus(LandingPage.Status.PUBLISHED);
         landingPage.setPublishedAt(Instant.now());
@@ -176,14 +254,24 @@ public class EmailStudioResourceService {
 
     @Transactional
     public LandingPage archiveLandingPage(String tenantId, String id) {
-        LandingPage landingPage = getLandingPage(tenantId, id);
+        return archiveLandingPage(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public LandingPage archiveLandingPage(String tenantId, String workspaceId, String id) {
+        LandingPage landingPage = getLandingPage(tenantId, workspaceId, id);
         landingPage.setStatus(LandingPage.Status.ARCHIVED);
         return landingPageRepository.save(landingPage);
     }
 
     @Transactional
     public void deleteLandingPage(String tenantId, String id) {
-        LandingPage landingPage = getLandingPage(tenantId, id);
+        deleteLandingPage(tenantId, com.legent.security.TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public void deleteLandingPage(String tenantId, String workspaceId, String id) {
+        LandingPage landingPage = getLandingPage(tenantId, workspaceId, id);
         landingPage.setDeletedAt(Instant.now());
         landingPageRepository.save(landingPage);
     }
@@ -226,12 +314,12 @@ public class EmailStudioResourceService {
         }
     }
 
-    private void clearDefaultBrandKits(String tenantId) {
-        clearDefaultBrandKits(tenantId, null);
+    private void clearDefaultBrandKits(String tenantId, String workspaceId) {
+        clearDefaultBrandKits(tenantId, workspaceId, null);
     }
 
-    private void clearDefaultBrandKits(String tenantId, String exceptId) {
-        List<BrandKit> brandKits = brandKitRepository.findByTenantIdAndDeletedAtIsNull(tenantId);
+    private void clearDefaultBrandKits(String tenantId, String workspaceId, String exceptId) {
+        List<BrandKit> brandKits = brandKitRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(tenantId, workspaceId);
         for (BrandKit current : brandKits) {
             if ((exceptId == null || !exceptId.equals(current.getId())) && Boolean.TRUE.equals(current.getIsDefault())) {
                 current.setIsDefault(false);

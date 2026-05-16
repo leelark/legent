@@ -32,9 +32,11 @@ public class TemplateWorkflowController {
             @PathVariable String templateId,
             @RequestBody(required = false) TemplateWorkflowDto.DraftRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         TemplateWorkflowDto.DraftRequest safeRequest = request != null ? request : new TemplateWorkflowDto.DraftRequest();
         EmailTemplate template = workflowService.saveDraft(
                 tenantId,
+                workspaceId,
                 templateId,
                 safeRequest.getSubject(),
                 safeRequest.getHtmlContent(),
@@ -52,22 +54,25 @@ public class TemplateWorkflowController {
             @PathVariable String templateId,
             @RequestBody(required = false) TemplateWorkflowDto.SubmitApprovalRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         String comments = request != null ? request.getComments() : null;
-        TemplateApproval approval = workflowService.submitForApproval(tenantId, templateId, comments);
+        TemplateApproval approval = workflowService.submitForApproval(tenantId, workspaceId, templateId, comments);
         return ApiResponse.ok(mapApproval(approval));
     }
 
     @GetMapping("/{templateId}/approvals")
     public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> approvalHistory(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
-        List<TemplateApproval> approvals = workflowService.getTemplateApprovalHistory(tenantId, templateId);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        List<TemplateApproval> approvals = workflowService.getTemplateApprovalHistory(tenantId, workspaceId, templateId);
         return ApiResponse.ok(approvals.stream().map(this::mapApproval).toList());
     }
 
     @GetMapping("/approvals/pending")
     public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> pendingApprovals() {
         String tenantId = TenantContext.requireTenantId();
-        List<TemplateApproval> approvals = workflowService.getPendingApprovals(tenantId);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        List<TemplateApproval> approvals = workflowService.getPendingApprovals(tenantId, workspaceId);
         return ApiResponse.ok(approvals.stream().map(this::mapApproval).toList());
     }
 
@@ -77,8 +82,9 @@ public class TemplateWorkflowController {
             @PathVariable String approvalId,
             @RequestBody(required = false) TemplateWorkflowDto.ApprovalActionRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         String comments = request != null ? request.getComments() : null;
-        TemplateApproval approval = workflowService.approveTemplate(tenantId, approvalId, comments);
+        TemplateApproval approval = workflowService.approveTemplate(tenantId, workspaceId, approvalId, comments);
         return ApiResponse.ok(mapApproval(approval));
     }
 
@@ -88,8 +94,9 @@ public class TemplateWorkflowController {
             @PathVariable String approvalId,
             @RequestBody(required = false) TemplateWorkflowDto.ApprovalActionRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         String reason = request != null ? request.getReason() : null;
-        TemplateApproval approval = workflowService.rejectTemplate(tenantId, approvalId, reason);
+        TemplateApproval approval = workflowService.rejectTemplate(tenantId, workspaceId, approvalId, reason);
         return ApiResponse.ok(mapApproval(approval));
     }
 
@@ -97,7 +104,8 @@ public class TemplateWorkflowController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.TemplateApprovalResponse> cancelApproval(@PathVariable String approvalId) {
         String tenantId = TenantContext.requireTenantId();
-        TemplateApproval approval = workflowService.cancelApproval(tenantId, approvalId);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        TemplateApproval approval = workflowService.cancelApproval(tenantId, workspaceId, approvalId);
         return ApiResponse.ok(mapApproval(approval));
     }
 
@@ -107,10 +115,11 @@ public class TemplateWorkflowController {
             @PathVariable String templateId,
             @RequestBody(required = false) TemplateWorkflowDto.PublishRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         Integer versionNumber = request != null ? request.getVersionNumber() : null;
         boolean adminBypass = request != null && Boolean.TRUE.equals(request.getAdminBypass());
         String bypassReason = request != null ? request.getBypassReason() : null;
-        TemplateVersion version = workflowService.publishTemplate(tenantId, templateId, versionNumber, adminBypass, bypassReason);
+        TemplateVersion version = workflowService.publishTemplate(tenantId, workspaceId, templateId, versionNumber, adminBypass, bypassReason);
         return ApiResponse.ok(mapVersion(version));
     }
 
@@ -121,6 +130,7 @@ public class TemplateWorkflowController {
             @PathVariable Integer versionNumber,
             @Valid @RequestBody(required = false) TemplateVersionDto.RollbackRequest request) {
         TemplateVersionDto.RollbackRequest safeRequest = request != null ? request : new TemplateVersionDto.RollbackRequest();
+        TenantContext.requireWorkspaceId();
         TemplateVersion version = versionService.rollbackVersion(
                 templateId,
                 versionNumber,

@@ -42,6 +42,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class SendExecutionService {
 
     private static final String EMPTY_BATCH_PAYLOAD = "[]";
+    private static final String CONTENT_PAYLOAD_TOO_LARGE = "CONTENT_PAYLOAD_TOO_LARGE";
+    private static final String CONTENT_REFERENCE_DISABLED = "CONTENT_REFERENCE_DISABLED";
+    private static final String CONTENT_REFERENCE_UNAVAILABLE = "CONTENT_REFERENCE_UNAVAILABLE";
 
     private final SendBatchRepository batchRepository;
     private final CampaignRepository campaignRepository;
@@ -72,11 +75,6 @@ public class SendExecutionService {
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
         try {
-            if (!includeInlineRenderedContent) {
-                throw new ValidationException(
-                        "includeInlineRenderedContent",
-                        "Inline rendered content cannot be disabled until delivery content-reference resolution is enabled");
-            }
             SendBatch batch = findBatchWithRetry(tenantId, batchId);
             if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) return;
             if (batch.getStatus() == SendBatch.BatchStatus.PROCESSING) {
@@ -140,6 +138,7 @@ public class SendExecutionService {
             int acquiredPermits = Math.min(preparedRecipients.size(), Math.max(0, requestedPermits));
             int publishFailures = 0;
             int oversizedPayloads = 0;
+            int contentReferenceFailures = 0;
             List<Map<String, String>> retrySubscribers = new java.util.ArrayList<>();
             Map<RenderCacheKey, ContentServiceClient.RenderedContent> renderCache = newRenderCache();
             
@@ -176,28 +175,18 @@ public class SendExecutionService {
                 if (subject == null || subject.isBlank() || rendered.htmlBody() == null || rendered.htmlBody().isBlank()) {
                     throw new ValidationException("content", "Rendered email content is missing subject or HTML body");
                 }
-                EmailContentReference contentReference = null;
-                if (contentReferenceEnabled) {
-                    try {
-                        contentReference = contentReferenceService.createReference(
-                                new RenderedContentReferenceService.CreateRequest(
-                                        tenantId,
-                                        batch.getWorkspaceId(),
-                                        batch.getCampaignId(),
-                                        batch.getJobId(),
-                                        batchId,
-                                        prepared.messageId(),
-                                        renderContentId,
-                                        subject,
-                                        rendered.htmlBody(),
-                                        rendered.textBody()),
-                                includeInlineRenderedContent);
-                    } catch (RuntimeException e) {
-                        log.warn("Unable to create rendered content reference for message {}; continuing with inline content",
-                                prepared.messageId(), e);
-                    }
-                }
-
+                RenderedContentReferenceService.CreateRequest contentReferenceRequest =
+                        new RenderedContentReferenceService.CreateRequest(
+                                tenantId,
+                                batch.getWorkspaceId(),
+                                batch.getCampaignId(),
+                                batch.getJobId(),
+                                batchId,
+                                prepared.messageId(),
+                                renderContentId,
+                                subject,
+                                rendered.htmlBody(),
+                                rendered.textBody());
                 Map<String, Object> emailPayload = new java.util.HashMap<>();
                 emailPayload.put("email", sub.get("email"));
                 emailPayload.put("subscriberId", sub.get("subscriberId"));
@@ -217,16 +206,6 @@ public class SendExecutionService {
                 emailPayload.put("holdout", false);
                 emailPayload.put("costReserved", prepared.costReserved());
                 emailPayload.put("subject", subject);
-                if (contentReference != null) {
-                    emailPayload.put("contentReference", contentReference.getReferenceId());
-                    emailPayload.put("contentReferenceMetadata", contentReference);
-                }
-                if (includeInlineRenderedContent) {
-                    emailPayload.put("htmlBody", rendered.htmlBody());
-                    if (rendered.textBody() != null && !rendered.textBody().isBlank()) {
-                        emailPayload.put("textBody", rendered.textBody());
-                    }
-                }
                 emailPayload.put("fromEmail", campaign.getSenderEmail());
                 emailPayload.put("fromName", campaign.getSenderName());
                 emailPayload.put("replyToEmail", campaign.getReplyToEmail());
@@ -237,7 +216,74 @@ public class SendExecutionService {
                 if (sub.get("lastName") != null) {
                     emailPayload.put("lastName", sub.get("lastName"));
                 }
+                if (includeInlineRenderedContent) {
+                    putInlineRenderedContent(emailPayload, rendered);
+                }
+
+                boolean referenceModeRequired = !includeInlineRenderedContent;
+                if (!referenceModeRequired && serializedPayloadBytes(emailPayload) > maxEmailPayloadBytes) {
+                    referenceModeRequired = true;
+                }
+
+                EmailContentReference contentReference = null;
+                if (contentReferenceEnabled || referenceModeRequired) {
+                    if (!contentReferenceEnabled) {
+                        String reason = "Rendered content reference is required but content references are disabled";
+                        log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason);
+                        recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_DISABLED, reason);
+                        publishFailures++;
+                        contentReferenceFailures++;
+                        continue;
+                    }
+                    try {
+                        contentReference = contentReferenceService.createReference(
+                                contentReferenceRequest,
+                                !referenceModeRequired && includeInlineRenderedContent);
+                    } catch (RuntimeException e) {
+                        String reason = referenceModeRequired
+                                ? "Rendered content reference is required but could not be created"
+                                : "Rendered content reference creation failed while content references are enabled";
+                        log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason, e);
+                        recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_UNAVAILABLE, reason);
+                        publishFailures++;
+                        contentReferenceFailures++;
+                        continue;
+                    }
+                }
+
+                if (referenceModeRequired) {
+                    removeInlineRenderedContent(emailPayload);
+                }
+                putContentReference(emailPayload, contentReference);
+
                 int payloadBytes = serializedPayloadBytes(emailPayload);
+                if (payloadBytes > maxEmailPayloadBytes && !referenceModeRequired) {
+                    referenceModeRequired = true;
+                    if (!contentReferenceEnabled) {
+                        String reason = "Rendered email payload " + payloadBytes
+                                + " bytes exceeds cap " + maxEmailPayloadBytes
+                                + " and content references are disabled";
+                        recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_PAYLOAD_TOO_LARGE, reason);
+                        publishFailures++;
+                        oversizedPayloads++;
+                        continue;
+                    }
+                    try {
+                        contentReference = contentReferenceService.createReference(contentReferenceRequest, false);
+                    } catch (RuntimeException e) {
+                        String reason = "Rendered email payload " + payloadBytes
+                                + " bytes exceeds cap " + maxEmailPayloadBytes
+                                + " and content reference creation failed";
+                        log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason, e);
+                        recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_UNAVAILABLE, reason);
+                        publishFailures++;
+                        contentReferenceFailures++;
+                        continue;
+                    }
+                    removeInlineRenderedContent(emailPayload);
+                    putContentReference(emailPayload, contentReference);
+                    payloadBytes = serializedPayloadBytes(emailPayload);
+                }
                 if (payloadBytes > maxEmailPayloadBytes) {
                     String reason = "Rendered email payload " + payloadBytes + " bytes exceeds cap " + maxEmailPayloadBytes;
                     log.error("Rejecting oversized send request for message {}: {}", prepared.messageId(), reason);
@@ -284,10 +330,15 @@ public class SendExecutionService {
             
             // Delivery feedback owns success/failure recipient counters; handoff counters stay out of them.
             
-            if (oversizedPayloads > 0) {
+            if (oversizedPayloads > 0 || contentReferenceFailures > 0) {
                 batch.setStatus(SendBatch.BatchStatus.FAILED);
                 batch.setPayload(EMPTY_BATCH_PAYLOAD);
-                batch.setLastError("Rendered email payload exceeded configured cap");
+                batch.setLastError(contentReferenceFailures > 0
+                        ? "Rendered content reference unavailable"
+                        : "Rendered email payload exceeded configured cap");
+                String failureReason = contentReferenceFailures > 0
+                        ? CONTENT_REFERENCE_UNAVAILABLE
+                        : CONTENT_PAYLOAD_TOO_LARGE;
                 EventEnvelope<Map<String, Object>> failedEvent = EventEnvelope.wrap(
                         AppConstants.TOPIC_SEND_FAILED, tenantId, "campaign-service",
                         Map.of(
@@ -295,8 +346,9 @@ public class SendExecutionService {
                                 "jobId", batch.getJobId(),
                                 "campaignId", batch.getCampaignId(),
                                 "workspaceId", batch.getWorkspaceId(),
-                                "reason", "CONTENT_PAYLOAD_TOO_LARGE",
-                                "oversizedCount", oversizedPayloads
+                                "reason", failureReason,
+                                "oversizedCount", oversizedPayloads,
+                                "contentReferenceFailureCount", contentReferenceFailures
                         )
                 );
                 publishAndAwait(AppConstants.TOPIC_SEND_FAILED, failedEvent);
@@ -387,6 +439,41 @@ public class SendExecutionService {
         } catch (JsonProcessingException e) {
             throw new ValidationException("payload", "Unable to serialize send request payload");
         }
+    }
+
+    private void putInlineRenderedContent(Map<String, Object> emailPayload,
+                                          ContentServiceClient.RenderedContent rendered) {
+        emailPayload.put("htmlBody", rendered.htmlBody());
+        if (rendered.textBody() != null && !rendered.textBody().isBlank()) {
+            emailPayload.put("textBody", rendered.textBody());
+        }
+    }
+
+    private void removeInlineRenderedContent(Map<String, Object> emailPayload) {
+        emailPayload.remove("htmlBody");
+        emailPayload.remove("textBody");
+    }
+
+    private void putContentReference(Map<String, Object> emailPayload, EmailContentReference contentReference) {
+        emailPayload.remove("contentReference");
+        emailPayload.remove("contentReferenceMetadata");
+        if (contentReference != null) {
+            emailPayload.put("contentReference", contentReference.getReferenceId());
+            emailPayload.put("contentReferenceMetadata", contentReference);
+        }
+    }
+
+    private void recordContentHandoffFailure(String tenantId,
+                                             SendBatch batch,
+                                             CampaignSendSafetyService.PreparedRecipient prepared,
+                                             String failureCode,
+                                             String reason) {
+        sendSafetyService.recordDeliveryFeedback(
+                tenantId,
+                batch.getWorkspaceId(),
+                prepared.messageId(),
+                true,
+                failureCode + ": " + reason);
     }
 
     private ContentServiceClient.RenderedContent renderWithBatchCache(

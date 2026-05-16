@@ -13,6 +13,9 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "template_versions")
 public class TemplateVersion extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "template_id", nullable = false)
     private EmailTemplate template;

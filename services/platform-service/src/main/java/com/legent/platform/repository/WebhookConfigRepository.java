@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface WebhookConfigRepository extends JpaRepository<WebhookConfig, String> {
-    List<WebhookConfig> findByTenantIdAndIsActiveTrue(String tenantId);
-    Optional<WebhookConfig> findByIdAndTenantId(String id, String tenantId);
+    List<WebhookConfig> findByTenantIdAndWorkspaceIdAndIsActiveTrue(String tenantId, String workspaceId);
+    List<WebhookConfig> findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrue(String tenantId);
+    Optional<WebhookConfig> findByIdAndTenantIdAndWorkspaceId(String id, String tenantId, String workspaceId);
+    Optional<WebhookConfig> findByIdAndTenantIdAndWorkspaceIdIsNull(String id, String tenantId);
 }

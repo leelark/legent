@@ -9,9 +9,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface BrandKitRepository extends JpaRepository<BrandKit, String> {
-    Page<BrandKit> findByTenantIdAndDeletedAtIsNull(String tenantId, Pageable pageable);
-    List<BrandKit> findByTenantIdAndDeletedAtIsNull(String tenantId);
-    Optional<BrandKit> findByIdAndTenantIdAndDeletedAtIsNull(String id, String tenantId);
-    Optional<BrandKit> findFirstByTenantIdAndIsDefaultTrueAndDeletedAtIsNull(String tenantId);
-    boolean existsByTenantIdAndNameAndDeletedAtIsNull(String tenantId, String name);
+    Page<BrandKit> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId, Pageable pageable);
+    List<BrandKit> findByTenantIdAndWorkspaceIdAndDeletedAtIsNull(String tenantId, String workspaceId);
+    Optional<BrandKit> findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(String id, String tenantId, String workspaceId);
+    Optional<BrandKit> findFirstByTenantIdAndWorkspaceIdAndIsDefaultTrueAndDeletedAtIsNull(String tenantId, String workspaceId);
+    boolean existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(String tenantId, String workspaceId, String name);
 }

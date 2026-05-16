@@ -1,11 +1,12 @@
 # Deployment Flow
 
-Last updated: 2026-05-14.
+Last updated: 2026-05-16.
 
 Sources: `.github/workflows/ci-security.yml`, `docker-compose.yml`, `infrastructure/kubernetes/**`, `scripts/ops/release-gate.ps1`.
 
 - 2026-05-14 final validation: `docker compose config --quiet`, `docker compose build`, `docker compose up -d`, `scripts/ops/validate-compose-health.ps1`, direct gateway/frontend health probes, and recent Compose log error scan passed. All app services reported healthy; frontend host port was 3003 from live Compose metadata.
-- 2026-05-14 release-gate infra slice: route validation and Kustomize overlay render passed; production overlay drift check failed intentionally on inherited broad egress.
+- 2026-05-16 release gate: full `scripts/ops/release-gate.ps1` passed locally, including backend Maven clean package, frontend lint/sanitize/build/smoke/visual, Compose config, Kubernetes renders, and production overlay drift checks.
+- 2026-05-16 production egress update: production overlay deletes inherited broad base egress and renders default-deny plus internal/DNS-only egress. Live external egress policy still needs reviewed provider/managed-service CIDRs/ports or approved CNI FQDN policy before promotion.
 - CI backend job runs `./mvnw test -DskipITs`.
 - CI frontend job runs `npm ci`, `npm run lint`, `npm run build:ci`, Playwright Chromium smoke, and `npm audit --omit=dev --audit-level=high`.
 - CI compose smoke runs `docker compose config --quiet` and Kustomize production render.
@@ -15,9 +16,9 @@ Sources: `.github/workflows/ci-security.yml`, `docker-compose.yml`, `infrastruct
 - 2026-05-13 read-only agent ran `scripts\ops\validate-route-map.ps1`; result passed for 41 routes.
 - 2026-05-13 main thread validation: `scripts\ops\validate-route-map.ps1` passed for 41 routes; `docker compose config --quiet` exited 0.
 
-Open deployment drift from 2026-05-14 runtime/container scan:
+Open deployment drift from 2026-05-16 runtime/container scan:
 
-- Production overlay validation fails closed because production still inherits broad base `allow-legent-egress` with `0.0.0.0/0` TCP 443. Exact provider CIDRs/ports or CNI FQDN-policy support are needed before replacing it.
+- Production overlay validation passes locally, but live production egress remains incomplete until exact provider/managed-service CIDRs/ports or CNI FQDN-policy support are reviewed and encoded.
 - Production ingress hosts and image tags were hardened on 2026-05-13; keep release validators in CI/release gate to prevent regression.
 - Compose service Dockerfiles copy prebuilt `target/*-SNAPSHOT.jar`; clean checkout needs Maven package before `docker compose up -d --build`.
 - Resolved 2026-05-13: `scripts/ops/validate-compose-health.ps1` now probes `FRONTEND_HOST_PORT` or 3000.

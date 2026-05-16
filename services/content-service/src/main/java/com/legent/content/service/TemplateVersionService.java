@@ -27,13 +27,15 @@ public class TemplateVersionService {
     @Transactional
     public TemplateVersion createVersion(String templateId, TemplateVersionDto.Create request) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
 
-        int nextVersion = nextVersionNumber(templateId, tenantId);
+        int nextVersion = nextVersionNumber(templateId, tenantId, workspaceId);
 
         TemplateVersion version = new TemplateVersion();
         version.setTenantId(tenantId);
+        version.setWorkspaceId(workspaceId);
         version.setTemplate(template);
         version.setVersionNumber(nextVersion);
         version.setSubject(request.getSubject() != null ? request.getSubject() : template.getSubject());
@@ -53,19 +55,20 @@ public class TemplateVersionService {
     @Transactional
     public TemplateVersion publishVersion(String templateId, Integer versionNumber) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
 
-        TemplateVersion version = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, versionNumber, tenantId)
+        TemplateVersion version = versionRepository.findByTemplate_IdAndVersionNumberAndTenantIdAndWorkspaceId(templateId, versionNumber, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template version not found"));
 
         version.setIsPublished(true);
         versionRepository.save(version);
-        return publishTemplateVersion(template, version, tenantId);
+        return publishTemplateVersion(template, version, tenantId, workspaceId);
     }
 
-    private TemplateVersion publishTemplateVersion(EmailTemplate template, TemplateVersion version, String tenantId) {
-        List<TemplateVersion> allVersions = versionRepository.findByTemplate_IdAndTenantIdOrderByVersionNumberDesc(template.getId(), tenantId);
+    private TemplateVersion publishTemplateVersion(EmailTemplate template, TemplateVersion version, String tenantId, String workspaceId) {
+        List<TemplateVersion> allVersions = versionRepository.findByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(template.getId(), tenantId, workspaceId);
         for (TemplateVersion current : allVersions) {
             boolean shouldBePublished = Objects.equals(current.getVersionNumber(), version.getVersionNumber());
             if (!Objects.equals(current.getIsPublished(), shouldBePublished)) {
@@ -92,37 +95,42 @@ public class TemplateVersionService {
     @Transactional(readOnly = true)
     public TemplateVersion getLatestVersion(String templateId) {
         String tenantId = TenantContext.requireTenantId();
-        return versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("No versions found for template: " + templateId));
     }
 
     @Transactional(readOnly = true)
     public TemplateVersion getLatestPublishedVersion(String templateId) {
         String tenantId = TenantContext.requireTenantId();
-        return versionRepository.findFirstByTemplate_IdAndTenantIdAndIsPublishedTrueOrderByVersionNumberDesc(templateId, tenantId)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdAndIsPublishedTrueOrderByVersionNumberDesc(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Published template version not found"));
     }
 
     @Transactional(readOnly = true)
     public List<TemplateVersion> listVersions(String templateId) {
         String tenantId = TenantContext.requireTenantId();
-        templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
-        return versionRepository.findByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId);
+        return versionRepository.findByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(templateId, tenantId, workspaceId);
     }
 
     @Transactional
     public TemplateVersion rollbackVersion(String templateId, Integer versionNumber, String reason, boolean publish) {
         String tenantId = TenantContext.requireTenantId();
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
-        TemplateVersion sourceVersion = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, versionNumber, tenantId)
+        TemplateVersion sourceVersion = versionRepository.findByTemplate_IdAndVersionNumberAndTenantIdAndWorkspaceId(templateId, versionNumber, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template version not found"));
 
         TemplateVersion rollbackVersion = new TemplateVersion();
         rollbackVersion.setTenantId(tenantId);
+        rollbackVersion.setWorkspaceId(workspaceId);
         rollbackVersion.setTemplate(template);
-        rollbackVersion.setVersionNumber(nextVersionNumber(templateId, tenantId));
+        rollbackVersion.setVersionNumber(nextVersionNumber(templateId, tenantId, workspaceId));
         rollbackVersion.setSubject(sourceVersion.getSubject());
         rollbackVersion.setHtmlContent(sourceVersion.getHtmlContent());
         rollbackVersion.setTextContent(sourceVersion.getTextContent());
@@ -141,9 +149,10 @@ public class TemplateVersionService {
     @Transactional(readOnly = true)
     public TemplateVersionDto.CompareResponse compareVersions(String templateId, Integer leftVersionNumber, Integer rightVersionNumber) {
         String tenantId = TenantContext.requireTenantId();
-        TemplateVersion left = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, leftVersionNumber, tenantId)
+        String workspaceId = TenantContext.requireWorkspaceId();
+        TemplateVersion left = versionRepository.findByTemplate_IdAndVersionNumberAndTenantIdAndWorkspaceId(templateId, leftVersionNumber, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template version not found: " + leftVersionNumber));
-        TemplateVersion right = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(templateId, rightVersionNumber, tenantId)
+        TemplateVersion right = versionRepository.findByTemplate_IdAndVersionNumberAndTenantIdAndWorkspaceId(templateId, rightVersionNumber, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template version not found: " + rightVersionNumber));
 
         TemplateVersionDto.CompareResponse response = new TemplateVersionDto.CompareResponse();
@@ -161,8 +170,8 @@ public class TemplateVersionService {
         return response;
     }
 
-    private int nextVersionNumber(String templateId, String tenantId) {
-        return versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(templateId, tenantId)
+    private int nextVersionNumber(String templateId, String tenantId, String workspaceId) {
+        return versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(templateId, tenantId, workspaceId)
                 .map(TemplateVersion::getVersionNumber)
                 .orElse(0) + 1;
     }

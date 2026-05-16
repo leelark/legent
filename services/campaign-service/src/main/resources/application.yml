@@ -81,6 +81,12 @@ management:
 legent:
   internal:
     api-token: ${LEGENT_INTERNAL_API_TOKEN}
+  service-auth:
+    bearer-token: ${LEGENT_SERVICE_AUTH_BEARER_TOKEN:}
+  deliverability-service:
+    url: ${LEGENT_DELIVERABILITY_SERVICE_URL:http://deliverability-service:8087}
+  delivery-service:
+    url: ${LEGENT_DELIVERY_SERVICE_URL:http://delivery-service:8084}
   campaign:
     send:
       content-reference-enabled: ${LEGENT_CAMPAIGN_CONTENT_REFERENCE_ENABLED:false}

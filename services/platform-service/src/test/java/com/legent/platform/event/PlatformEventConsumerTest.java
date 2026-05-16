@@ -89,6 +89,30 @@ class PlatformEventConsumerTest {
     }
 
     @Test
+    void consumeNotificationEvents_setsWorkspaceContextDuringCreation() {
+        PlatformEventConsumer consumer = new PlatformEventConsumer(
+                new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
+        doAnswer(invocation -> {
+            assertEquals("t1", TenantContext.getTenantId());
+            assertEquals("w1", TenantContext.getWorkspaceId());
+            return null;
+        }).when(notificationEngine).createNotification(
+                eq("t1"), eq("user-1"), eq("Title"), eq("Message"), eq("INFO"), eq("/app"));
+
+        EventEnvelope<String> event = EventEnvelope.<String>builder()
+                .tenantId("t1")
+                .workspaceId("w1")
+                .ownershipScope("WORKSPACE")
+                .payload("{\"userId\":\"user-1\",\"title\":\"Title\",\"message\":\"Message\",\"severity\":\"INFO\",\"linkUrl\":\"/app\"}")
+                .build();
+
+        consumer.consumeNotificationEvents(event);
+
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
+    }
+
+    @Test
     void consumeSearchIndexUpdates_whenIndexingFails_rethrowsAndClearsTenantContext() {
         PlatformEventConsumer consumer = new PlatformEventConsumer(
                 new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
@@ -102,5 +126,29 @@ class PlatformEventConsumerTest {
 
         assertThrows(IllegalStateException.class, () -> consumer.consumeSearchIndexUpdates(event));
         assertNull(TenantContext.getTenantId());
+    }
+
+    @Test
+    void consumeSearchIndexUpdates_setsWorkspaceContextDuringIndexing() {
+        PlatformEventConsumer consumer = new PlatformEventConsumer(
+                new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
+        doAnswer(invocation -> {
+            assertEquals("t1", TenantContext.getTenantId());
+            assertEquals("w1", TenantContext.getWorkspaceId());
+            return null;
+        }).when(searchService).indexDocument(
+                eq("t1"), eq("CAMPAIGN"), eq("c1"), eq("Campaign"), eq("copy"), any());
+
+        EventEnvelope<String> event = EventEnvelope.<String>builder()
+                .tenantId("t1")
+                .workspaceId("w1")
+                .ownershipScope("WORKSPACE")
+                .payload("{\"entityType\":\"CAMPAIGN\",\"entityId\":\"c1\",\"title\":\"Campaign\",\"searchableText\":\"copy\",\"metadata\":{\"key\":\"value\"}}")
+                .build();
+
+        consumer.consumeSearchIndexUpdates(event);
+
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
     }
 }

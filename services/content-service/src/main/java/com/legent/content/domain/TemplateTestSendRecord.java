@@ -14,6 +14,9 @@ import org.hibernate.type.SqlTypes;
 @Getter
 @Setter
 public class TemplateTestSendRecord extends TenantAwareEntity {
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(name = "template_id", nullable = false, length = 36)
     private String templateId;
 

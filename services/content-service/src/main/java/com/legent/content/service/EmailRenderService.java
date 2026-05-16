@@ -19,6 +19,7 @@ import com.legent.content.repository.ContentSnippetRepository;
 import com.legent.content.repository.EmailTemplateRepository;
 import com.legent.content.repository.RenderValidationReportRepository;
 import com.legent.content.repository.TemplateVersionRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,13 +55,23 @@ public class EmailRenderService {
 
     @Transactional(readOnly = true)
     public EmailStudioDto.RenderResponse render(String tenantId, String templateId, EmailStudioDto.RenderRequest request) {
-        RenderComputation computation = compute(tenantId, templateId, request != null ? request : new EmailStudioDto.RenderRequest());
+        return render(tenantId, TenantContext.requireWorkspaceId(), templateId, request);
+    }
+
+    @Transactional(readOnly = true)
+    public EmailStudioDto.RenderResponse render(String tenantId, String workspaceId, String templateId, EmailStudioDto.RenderRequest request) {
+        RenderComputation computation = compute(tenantId, workspaceId, templateId, request != null ? request : new EmailStudioDto.RenderRequest());
         return computation.response();
     }
 
     @Transactional
     public EmailStudioDto.ValidationResponse validateAndPersist(String tenantId, String templateId, EmailStudioDto.RenderRequest request) {
-        RenderComputation computation = compute(tenantId, templateId, request != null ? request : new EmailStudioDto.RenderRequest());
+        return validateAndPersist(tenantId, TenantContext.requireWorkspaceId(), templateId, request);
+    }
+
+    @Transactional
+    public EmailStudioDto.ValidationResponse validateAndPersist(String tenantId, String workspaceId, String templateId, EmailStudioDto.RenderRequest request) {
+        RenderComputation computation = compute(tenantId, workspaceId, templateId, request != null ? request : new EmailStudioDto.RenderRequest());
         EmailStudioDto.ValidationResponse validation = validationService.validate(
                 computation.response().getHtmlContent(),
                 computation.response().getTextContent());
@@ -71,16 +82,21 @@ public class EmailRenderService {
         validation.setErrors(errors);
         validation.setWarnings(warnings);
         validation.setStatus(errors.isEmpty() ? "PASS" : "FAIL");
-        persistReport(tenantId, templateId, validation);
+        persistReport(tenantId, workspaceId, templateId, validation);
         return validation;
     }
 
     @Transactional(readOnly = true)
     public RenderComputation compute(String tenantId, String templateId, EmailStudioDto.RenderRequest request) {
-        EmailTemplate template = templateRepository.findByIdAndTenantIdAndDeletedAtIsNull(templateId, tenantId)
+        return compute(tenantId, TenantContext.requireWorkspaceId(), templateId, request);
+    }
+
+    @Transactional(readOnly = true)
+    public RenderComputation compute(String tenantId, String workspaceId, String templateId, EmailStudioDto.RenderRequest request) {
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateId));
         boolean publishedOnly = Boolean.TRUE.equals(request.getPublishedOnly());
-        TemplateContent source = resolveTemplateContent(tenantId, template, request.getVersionNumber(), publishedOnly);
+        TemplateContent source = resolveTemplateContent(tenantId, workspaceId, template, request.getVersionNumber(), publishedOnly);
 
         Map<String, Object> variables = request.getVariables() == null ? Map.of() : request.getVariables();
         List<String> errors = new ArrayList<>();
@@ -92,20 +108,20 @@ public class EmailRenderService {
         String text = source.textContent();
         String subject = source.subject();
 
-        html = replaceSnippets(tenantId, html, errors);
-        html = replaceBlocks(tenantId, html, publishedOnly, errors, warnings);
-        DynamicReplacement htmlDynamic = replaceDynamicContent(tenantId, templateId, html, variables, false);
+        html = replaceSnippets(tenantId, workspaceId, html, errors);
+        html = replaceBlocks(tenantId, workspaceId, html, publishedOnly, errors, warnings);
+        DynamicReplacement htmlDynamic = replaceDynamicContent(tenantId, workspaceId, templateId, html, variables, false);
         html = htmlDynamic.content();
         dynamicSlots.addAll(htmlDynamic.slotKeys());
         warnings.addAll(htmlDynamic.warnings());
 
-        text = replaceSnippets(tenantId, text, errors);
-        DynamicReplacement textDynamic = replaceDynamicContent(tenantId, templateId, text, variables, true);
+        text = replaceSnippets(tenantId, workspaceId, text, errors);
+        DynamicReplacement textDynamic = replaceDynamicContent(tenantId, workspaceId, templateId, text, variables, true);
         text = textDynamic.content();
         dynamicSlots.addAll(textDynamic.slotKeys());
         warnings.addAll(textDynamic.warnings());
 
-        BrandKit brandKit = resolveBrandKit(tenantId, request.getBrandKitId()).orElse(null);
+        BrandKit brandKit = resolveBrandKit(tenantId, workspaceId, request.getBrandKitId()).orElse(null);
         html = applyBrandKit(html, brandKit);
         subject = applyBrandTokens(subject, brandKit);
         text = applyBrandTokens(text, brandKit);
@@ -153,18 +169,22 @@ public class EmailRenderService {
     }
 
     public void requirePublishable(String tenantId, String templateId, Integer versionNumber) {
+        requirePublishable(tenantId, TenantContext.requireWorkspaceId(), templateId, versionNumber);
+    }
+
+    public void requirePublishable(String tenantId, String workspaceId, String templateId, Integer versionNumber) {
         EmailStudioDto.RenderRequest request = new EmailStudioDto.RenderRequest();
         request.setVersionNumber(versionNumber);
         request.setPublishedOnly(false);
-        EmailStudioDto.RenderResponse response = render(tenantId, templateId, request);
+        EmailStudioDto.RenderResponse response = render(tenantId, workspaceId, templateId, request);
         if (!response.getErrors().isEmpty()) {
             throw new ValidationException("content", "Template cannot be published until validation passes: " + String.join("; ", response.getErrors()));
         }
     }
 
-    private TemplateContent resolveTemplateContent(String tenantId, EmailTemplate template, Integer versionNumber, boolean publishedOnly) {
+    private TemplateContent resolveTemplateContent(String tenantId, String workspaceId, EmailTemplate template, Integer versionNumber, boolean publishedOnly) {
         if (versionNumber != null) {
-            TemplateVersion version = versionRepository.findByTemplate_IdAndVersionNumberAndTenantId(template.getId(), versionNumber, tenantId)
+            TemplateVersion version = versionRepository.findByTemplate_IdAndVersionNumberAndTenantIdAndWorkspaceId(template.getId(), versionNumber, tenantId, workspaceId)
                     .orElseThrow(() -> new NotFoundException("TemplateVersion", template.getId() + " v" + versionNumber));
             if (publishedOnly && !Boolean.TRUE.equals(version.getIsPublished())) {
                 throw new ValidationException("versionNumber", "Requested template version is not published");
@@ -172,20 +192,20 @@ public class EmailRenderService {
             return new TemplateContent(version.getVersionNumber(), nullToEmpty(version.getSubject()), nullToEmpty(version.getHtmlContent()), nullToEmpty(version.getTextContent()));
         }
         if (publishedOnly) {
-            TemplateVersion version = versionRepository.findFirstByTemplate_IdAndTenantIdAndIsPublishedTrueOrderByVersionNumberDesc(template.getId(), tenantId)
+            TemplateVersion version = versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdAndIsPublishedTrueOrderByVersionNumberDesc(template.getId(), tenantId, workspaceId)
                     .orElseThrow(() -> new NotFoundException("Published template version not found"));
             return new TemplateContent(version.getVersionNumber(), nullToEmpty(version.getSubject()), nullToEmpty(version.getHtmlContent()), nullToEmpty(version.getTextContent()));
         }
         String subject = template.getDraftSubject() != null ? template.getDraftSubject() : template.getSubject();
         String html = template.getDraftHtmlContent() != null ? template.getDraftHtmlContent() : template.getHtmlContent();
         String text = template.getDraftTextContent() != null ? template.getDraftTextContent() : template.getTextContent();
-        Integer latestVersion = versionRepository.findFirstByTemplate_IdAndTenantIdOrderByVersionNumberDesc(template.getId(), tenantId)
+        Integer latestVersion = versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(template.getId(), tenantId, workspaceId)
                 .map(TemplateVersion::getVersionNumber)
                 .orElse(null);
         return new TemplateContent(latestVersion, nullToEmpty(subject), nullToEmpty(html), nullToEmpty(text));
     }
 
-    private String replaceSnippets(String tenantId, String content, List<String> errors) {
+    private String replaceSnippets(String tenantId, String workspaceId, String content, List<String> errors) {
         if (content == null || content.isBlank()) {
             return "";
         }
@@ -193,7 +213,7 @@ public class EmailRenderService {
         StringBuffer rendered = new StringBuffer();
         while (matcher.find()) {
             String key = matcher.group(1);
-            ContentSnippet snippet = snippetRepository.findByTenantIdAndSnippetKeyAndDeletedAtIsNull(tenantId, key).orElse(null);
+            ContentSnippet snippet = snippetRepository.findByTenantIdAndWorkspaceIdAndSnippetKeyAndDeletedAtIsNull(tenantId, workspaceId, key).orElse(null);
             if (snippet == null) {
                 errors.add("Unknown content snippet: " + key);
                 matcher.appendReplacement(rendered, "");
@@ -205,7 +225,7 @@ public class EmailRenderService {
         return rendered.toString();
     }
 
-    private String replaceBlocks(String tenantId, String content, boolean publishedOnly, List<String> errors, List<String> warnings) {
+    private String replaceBlocks(String tenantId, String workspaceId, String content, boolean publishedOnly, List<String> errors, List<String> warnings) {
         if (content == null || content.isBlank()) {
             return "";
         }
@@ -213,16 +233,14 @@ public class EmailRenderService {
         StringBuffer rendered = new StringBuffer();
         while (matcher.find()) {
             String blockId = matcher.group(1);
-            ContentBlock block = blockRepository.findById(blockId)
-                    .filter(candidate -> tenantId.equals(candidate.getTenantId()) && candidate.getDeletedAt() == null)
-                    .orElse(null);
+            ContentBlock block = blockRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(blockId, tenantId, workspaceId).orElse(null);
             if (block == null) {
                 errors.add("Unknown content block: " + blockId);
                 matcher.appendReplacement(rendered, "");
                 continue;
             }
             Optional<ContentBlockVersion> published = blockVersionRepository
-                    .findFirstByBlock_IdAndTenantIdAndIsPublishedTrueOrderByVersionNumberDesc(block.getId(), tenantId);
+                    .findFirstByBlock_IdAndTenantIdAndWorkspaceIdAndIsPublishedTrueOrderByVersionNumberDesc(block.getId(), tenantId, workspaceId);
             if (published.isPresent()) {
                 matcher.appendReplacement(rendered, Matcher.quoteReplacement(published.get().getContent()));
                 continue;
@@ -239,7 +257,7 @@ public class EmailRenderService {
         return rendered.toString();
     }
 
-    private DynamicReplacement replaceDynamicContent(String tenantId, String templateId, String content, Map<String, Object> variables, boolean textContext) {
+    private DynamicReplacement replaceDynamicContent(String tenantId, String workspaceId, String templateId, String content, Map<String, Object> variables, boolean textContext) {
         if (content == null || content.isBlank()) {
             return new DynamicReplacement("", Set.of(), List.of());
         }
@@ -251,7 +269,7 @@ public class EmailRenderService {
             String slotKey = matcher.group(1);
             slots.add(slotKey);
             DynamicContentRuleService.DynamicRuleRenderResult result =
-                    dynamicRuleService.resolveSlot(tenantId, templateId, slotKey, variables);
+                    dynamicRuleService.resolveSlot(tenantId, workspaceId, templateId, slotKey, variables);
             warnings.addAll(result.warnings());
             String replacement = textContext && result.textContent() != null && !result.textContent().isBlank()
                     ? result.textContent()
@@ -262,11 +280,11 @@ public class EmailRenderService {
         return new DynamicReplacement(rendered.toString(), slots, warnings);
     }
 
-    private Optional<BrandKit> resolveBrandKit(String tenantId, String brandKitId) {
+    private Optional<BrandKit> resolveBrandKit(String tenantId, String workspaceId, String brandKitId) {
         if (brandKitId != null && !brandKitId.isBlank()) {
-            return brandKitRepository.findByIdAndTenantIdAndDeletedAtIsNull(brandKitId, tenantId);
+            return brandKitRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(brandKitId, tenantId, workspaceId);
         }
-        return brandKitRepository.findFirstByTenantIdAndIsDefaultTrueAndDeletedAtIsNull(tenantId);
+        return brandKitRepository.findFirstByTenantIdAndWorkspaceIdAndIsDefaultTrueAndDeletedAtIsNull(tenantId, workspaceId);
     }
 
     private String applyBrandKit(String html, BrandKit brandKit) {
@@ -303,9 +321,10 @@ public class EmailRenderService {
                 .replace("{{brand.secondaryColor}}", brandKit.getSecondaryColor() == null ? "" : brandKit.getSecondaryColor());
     }
 
-    private void persistReport(String tenantId, String templateId, EmailStudioDto.ValidationResponse validation) {
+    private void persistReport(String tenantId, String workspaceId, String templateId, EmailStudioDto.ValidationResponse validation) {
         RenderValidationReport report = new RenderValidationReport();
         report.setTenantId(tenantId);
+        report.setWorkspaceId(workspaceId);
         report.setTemplateId(templateId);
         report.setStatus(validation.getStatus());
         try {

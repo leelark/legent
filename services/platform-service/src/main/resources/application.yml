@@ -77,6 +77,10 @@ management:
 legent:
   foundation:
     base-url: ${FOUNDATION_BASE_URL:http://foundation-service:8081/api/v1}
+  webhooks:
+    outbound:
+      proxy-url: ${WEBHOOK_OUTBOUND_PROXY_URL:}
+      require-proxy-in-production: ${WEBHOOK_REQUIRE_OUTBOUND_PROXY_IN_PRODUCTION:true}
   security:
     jwt:
       secret: ${LEGENT_SECURITY_JWT_SECRET}

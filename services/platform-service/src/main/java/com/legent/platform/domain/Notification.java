@@ -22,6 +22,9 @@ public class Notification {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id")
+    private String workspaceId;
+
     @Column(name = "user_id")
     private String userId; // Null if tenant-wide broadcast
 

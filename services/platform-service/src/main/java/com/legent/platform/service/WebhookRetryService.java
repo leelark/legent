@@ -3,12 +3,14 @@ package com.legent.platform.service;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import com.legent.common.security.OutboundUrlGuard;
+import com.legent.platform.config.WebhookWebClient;
 import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.domain.WebhookLog;
 import com.legent.platform.domain.WebhookRetry;
@@ -24,7 +26,6 @@ import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.Mac;
@@ -45,7 +46,7 @@ public class WebhookRetryService {
     private final WebhookRetryRepository retryRepository;
     private final WebhookConfigRepository configRepository;
     private final WebhookLogRepository logRepository;
-    private final WebClient webClient;
+    private final WebhookWebClient webClient;
     @Qualifier("webhookRetryExecutor")
     private final Executor webhookRetryExecutor;
 
@@ -110,6 +111,9 @@ public class WebhookRetryService {
     private void processRetryAsync(WebhookRetry retry) {
         // Set tenant context for this async execution
         TenantContext.setTenantId(retry.getTenantId());
+        if (retry.getWorkspaceId() != null && !retry.getWorkspaceId().isBlank()) {
+            TenantContext.setWorkspaceId(retry.getWorkspaceId());
+        }
         try {
             processRetry(retry);
         } finally {
@@ -125,8 +129,8 @@ public class WebhookRetryService {
             retry.setUpdatedAt(Instant.now());
             retryRepository.save(retry);
 
-            // Get webhook config within the retry tenant to avoid cross-tenant delivery.
-            WebhookConfig config = configRepository.findByIdAndTenantId(retry.getWebhookId(), retry.getTenantId()).orElse(null);
+            // Get webhook config within the retry tenant/workspace to avoid cross-scope delivery.
+            WebhookConfig config = findWebhookConfig(retry).orElse(null);
             if (config == null || !Boolean.TRUE.equals(config.getIsActive())) {
                 log.warn("Webhook config {} not found or inactive, marking retry as FAILED", retry.getWebhookId());
                 markRetryFailed(retry, "Webhook configuration not found or inactive");
@@ -178,8 +182,8 @@ public class WebhookRetryService {
                         return response.bodyToMono(String.class).defaultIfEmpty("").map(body -> {
                             boolean isSuccess = response.statusCode().is2xxSuccessful();
                             // Log the retry attempt
-                            logDelivery(retry.getTenantId(), retry.getWebhookId(), retry.getEventType(), 
-                                    response.statusCode().value(), body, isSuccess);
+                            logDelivery(retry.getTenantId(), retry.getWorkspaceId(), retry.getWebhookId(),
+                                    retry.getEventType(), response.statusCode().value(), body, isSuccess);
                             return isSuccess;
                         });
                     })
@@ -187,7 +191,8 @@ public class WebhookRetryService {
 
             return Boolean.TRUE.equals(dispatchMono.block());
         } catch (Exception e) {
-            logDelivery(retry.getTenantId(), retry.getWebhookId(), retry.getEventType(), 0, e.getMessage(), false);
+            logDelivery(retry.getTenantId(), retry.getWorkspaceId(), retry.getWebhookId(), retry.getEventType(),
+                    0, e.getMessage(), false);
             return false;
         }
     }
@@ -230,11 +235,23 @@ public class WebhookRetryService {
         log.warn("Webhook retry {} failed permanently: {}", retry.getId(), errorMessage);
     }
 
-    private void logDelivery(String tenantId, String webhookId, String eventType, int statusCode, String responseBody, boolean isSuccess) {
+    private Optional<WebhookConfig> findWebhookConfig(WebhookRetry retry) {
+        if (retry.getWorkspaceId() == null || retry.getWorkspaceId().isBlank()) {
+            // Tenant-global retry records are preserved for legacy/platform events without workspace context.
+            return configRepository.findByIdAndTenantIdAndWorkspaceIdIsNull(retry.getWebhookId(), retry.getTenantId());
+        }
+        return configRepository.findByIdAndTenantIdAndWorkspaceId(
+                retry.getWebhookId(), retry.getTenantId(), retry.getWorkspaceId());
+    }
+
+    private void logDelivery(
+            String tenantId, String workspaceId, String webhookId, String eventType, int statusCode,
+            String responseBody, boolean isSuccess) {
         try {
             WebhookLog whLog = new WebhookLog();
             whLog.setId(UUID.randomUUID().toString());
             whLog.setTenantId(tenantId);
+            whLog.setWorkspaceId(workspaceId);
             whLog.setWebhookId(webhookId);
             whLog.setEventType(eventType);
             whLog.setStatusCode(statusCode);

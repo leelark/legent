@@ -1,8 +1,10 @@
 package com.legent.delivery.service;
 
+import com.legent.common.util.IdGenerator;
 import com.legent.delivery.domain.WarmupState;
 import com.legent.delivery.repository.WarmupStateRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,8 +33,48 @@ public class WarmupService {
 
     @Transactional
     public WarmupDecision reserve(String tenantId, String workspaceId, String senderDomain, String providerId) {
-        WarmupState state = getOrCreate(tenantId, workspaceId, senderDomain, providerId);
-        Instant now = Instant.now();
+        WarmupState state = getOrCreateForUpdate(tenantId, workspaceId, senderDomain, providerId);
+        WarmupDecision decision = evaluateCapacity(state, Instant.now());
+        if (decision.allowed()) {
+            reserveLocked(state);
+            warmupStateRepository.save(state);
+        }
+        return decision;
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public WarmupState getOrCreateForUpdate(String tenantId, String workspaceId, String senderDomain, String providerId) {
+        String normalizedDomain = normalize(senderDomain);
+        String normalizedProvider = normalize(providerId);
+        if (normalizedDomain == null || normalizedProvider == null) {
+            throw new IllegalArgumentException("senderDomain and providerId are required for warm-up");
+        }
+        WarmupState existing = warmupStateRepository
+                .findActiveForUpdate(tenantId, workspaceId, normalizedDomain, normalizedProvider)
+                .map(this::rollWindows)
+                .orElse(null);
+        if (existing != null) {
+            return existing;
+        }
+        WarmupState created = newState(tenantId, workspaceId, normalizedDomain, normalizedProvider);
+        warmupStateRepository.insertIfAbsent(
+                IdGenerator.newId(),
+                tenantId,
+                workspaceId,
+                normalizedDomain,
+                normalizedProvider,
+                created.getStage(),
+                created.getHourlyLimit(),
+                created.getDailyLimit(),
+                created.getHourWindowStartedAt(),
+                created.getDayWindowStartedAt(),
+                created.getNextIncreaseAt());
+        return warmupStateRepository.findActiveForUpdate(tenantId, workspaceId, normalizedDomain, normalizedProvider)
+                .map(this::rollWindows)
+                .orElseThrow(() -> new IllegalStateException("Unable to create warm-up state"));
+    }
+
+    public WarmupDecision evaluateCapacity(WarmupState state, Instant now) {
         if (state.getRollbackReason() != null && !state.getRollbackReason().isBlank()) {
             return new WarmupDecision(false, state, now.plus(1, ChronoUnit.HOURS), state.getRollbackReason());
         }
@@ -43,6 +85,24 @@ public class WarmupService {
             return new WarmupDecision(false, state, state.getHourWindowStartedAt().plus(1, ChronoUnit.HOURS), "hourly warm-up cap reached");
         }
         return new WarmupDecision(true, state, null, "warm-up capacity available");
+    }
+
+    public void reserveLocked(WarmupState state) {
+        state.setSentThisHour(state.getSentThisHour() + 1);
+        state.setSentToday(state.getSentToday() + 1);
+    }
+
+    public void releaseLocked(WarmupState state, Instant hourWindowStartedAt, Instant dayWindowStartedAt) {
+        if (hourWindowStartedAt != null && hourWindowStartedAt.equals(state.getHourWindowStartedAt())) {
+            state.setSentThisHour(Math.max(0, state.getSentThisHour() - 1));
+        }
+        if (dayWindowStartedAt != null && dayWindowStartedAt.equals(state.getDayWindowStartedAt())) {
+            state.setSentToday(Math.max(0, state.getSentToday() - 1));
+        }
+    }
+
+    public void settleLocked(WarmupState state) {
+        maybeAdvance(state);
     }
 
     @Transactional

@@ -55,7 +55,8 @@ public class EmailStudioController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.SnippetResponse> createSnippet(@Valid @RequestBody EmailStudioDto.SnippetRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapSnippet(resourceService.createSnippet(tenantId, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapSnippet(resourceService.createSnippet(tenantId, workspaceId, request)));
     }
 
     @GetMapping("/content/snippets")
@@ -63,7 +64,8 @@ public class EmailStudioController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.requireTenantId();
-        Page<ContentSnippet> snippets = resourceService.listSnippets(tenantId,
+        String workspaceId = TenantContext.requireWorkspaceId();
+        Page<ContentSnippet> snippets = resourceService.listSnippets(tenantId, workspaceId,
                 PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
         return PagedResponse.of(snippets.getContent().stream().map(this::mapSnippet).toList(),
                 page, size, snippets.getTotalElements(), snippets.getTotalPages());
@@ -75,14 +77,15 @@ public class EmailStudioController {
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.SnippetRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapSnippet(resourceService.updateSnippet(tenantId, id, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapSnippet(resourceService.updateSnippet(tenantId, workspaceId, id, request)));
     }
 
     @DeleteMapping("/content/snippets/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteSnippet(@PathVariable String id) {
-        resourceService.deleteSnippet(TenantContext.requireTenantId(), id);
+        resourceService.deleteSnippet(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), id);
     }
 
     @PostMapping("/personalization-tokens")
@@ -127,19 +130,22 @@ public class EmailStudioController {
             @PathVariable String templateId,
             @Valid @RequestBody EmailStudioDto.DynamicRuleRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapDynamicRule(dynamicRuleService.create(tenantId, templateId, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapDynamicRule(dynamicRuleService.create(tenantId, workspaceId, templateId, request)));
     }
 
     @GetMapping("/templates/{templateId}/dynamic-content")
     public ApiResponse<List<EmailStudioDto.DynamicRuleResponse>> listDynamicRules(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(dynamicRuleService.list(tenantId, templateId).stream().map(this::mapDynamicRule).toList());
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(dynamicRuleService.list(tenantId, workspaceId, templateId).stream().map(this::mapDynamicRule).toList());
     }
 
     @PostMapping("/content/builder/render")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.BuilderLayoutResponse> renderBuilderLayout(
             @Valid @RequestBody EmailStudioDto.BuilderLayoutRequest request) {
+        TenantContext.requireWorkspaceId();
         return ApiResponse.ok(contentBuilderService.renderLayout(request));
     }
 
@@ -150,7 +156,8 @@ public class EmailStudioController {
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.DynamicRuleRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        DynamicContentRule rule = dynamicRuleService.update(tenantId, id, request);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        DynamicContentRule rule = dynamicRuleService.update(tenantId, workspaceId, id, request);
         return ApiResponse.ok(mapDynamicRule(rule));
     }
 
@@ -158,7 +165,7 @@ public class EmailStudioController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteDynamicRule(@PathVariable String templateId, @PathVariable String id) {
-        dynamicRuleService.delete(TenantContext.requireTenantId(), id);
+        dynamicRuleService.delete(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), id);
     }
 
     @PostMapping("/brand-kits")
@@ -166,7 +173,8 @@ public class EmailStudioController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.BrandKitResponse> createBrandKit(@Valid @RequestBody EmailStudioDto.BrandKitRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapBrandKit(resourceService.createBrandKit(tenantId, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapBrandKit(resourceService.createBrandKit(tenantId, workspaceId, request)));
     }
 
     @GetMapping("/brand-kits")
@@ -174,7 +182,8 @@ public class EmailStudioController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.requireTenantId();
-        Page<BrandKit> brandKits = resourceService.listBrandKits(tenantId,
+        String workspaceId = TenantContext.requireWorkspaceId();
+        Page<BrandKit> brandKits = resourceService.listBrandKits(tenantId, workspaceId,
                 PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
         return PagedResponse.of(brandKits.getContent().stream().map(this::mapBrandKit).toList(),
                 page, size, brandKits.getTotalElements(), brandKits.getTotalPages());
@@ -186,14 +195,15 @@ public class EmailStudioController {
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.BrandKitRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapBrandKit(resourceService.updateBrandKit(tenantId, id, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapBrandKit(resourceService.updateBrandKit(tenantId, workspaceId, id, request)));
     }
 
     @DeleteMapping("/brand-kits/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteBrandKit(@PathVariable String id) {
-        resourceService.deleteBrandKit(TenantContext.requireTenantId(), id);
+        resourceService.deleteBrandKit(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), id);
     }
 
     @PostMapping("/landing-pages")
@@ -201,7 +211,8 @@ public class EmailStudioController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.LandingPageResponse> createLandingPage(@Valid @RequestBody EmailStudioDto.LandingPageRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapLandingPage(resourceService.createLandingPage(tenantId, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapLandingPage(resourceService.createLandingPage(tenantId, workspaceId, request)));
     }
 
     @GetMapping("/landing-pages")
@@ -209,7 +220,8 @@ public class EmailStudioController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.requireTenantId();
-        Page<LandingPage> pages = resourceService.listLandingPages(tenantId,
+        String workspaceId = TenantContext.requireWorkspaceId();
+        Page<LandingPage> pages = resourceService.listLandingPages(tenantId, workspaceId,
                 PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
         return PagedResponse.of(pages.getContent().stream().map(this::mapLandingPage).toList(),
                 page, size, pages.getTotalElements(), pages.getTotalPages());
@@ -221,28 +233,31 @@ public class EmailStudioController {
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.LandingPageRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapLandingPage(resourceService.updateLandingPage(tenantId, id, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapLandingPage(resourceService.updateLandingPage(tenantId, workspaceId, id, request)));
     }
 
     @PostMapping("/landing-pages/{id}/publish")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.LandingPageResponse> publishLandingPage(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapLandingPage(resourceService.publishLandingPage(tenantId, id)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapLandingPage(resourceService.publishLandingPage(tenantId, workspaceId, id)));
     }
 
     @PostMapping("/landing-pages/{id}/archive")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.LandingPageResponse> archiveLandingPage(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapLandingPage(resourceService.archiveLandingPage(tenantId, id)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapLandingPage(resourceService.archiveLandingPage(tenantId, workspaceId, id)));
     }
 
     @DeleteMapping("/landing-pages/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteLandingPage(@PathVariable String id) {
-        resourceService.deleteLandingPage(TenantContext.requireTenantId(), id);
+        resourceService.deleteLandingPage(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), id);
     }
 
     @GetMapping("/public/landing-pages/{slug}")
@@ -256,7 +271,8 @@ public class EmailStudioController {
             @PathVariable String templateId,
             @RequestBody(required = false) EmailStudioDto.RenderRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(renderService.render(tenantId, templateId, request));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(renderService.render(tenantId, workspaceId, templateId, request));
     }
 
     @PostMapping("/templates/{templateId}/validate")
@@ -265,7 +281,8 @@ public class EmailStudioController {
             @PathVariable String templateId,
             @RequestBody(required = false) EmailStudioDto.RenderRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(renderService.validateAndPersist(tenantId, templateId, request));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(renderService.validateAndPersist(tenantId, workspaceId, templateId, request));
     }
 
     @PostMapping("/templates/{templateId}/test-sends")
@@ -275,14 +292,16 @@ public class EmailStudioController {
             @PathVariable String templateId,
             @Valid @RequestBody EmailStudioDto.TestSendRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapTestSend(testSendService.send(tenantId, templateId, request)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapTestSend(testSendService.send(tenantId, workspaceId, templateId, request)));
     }
 
     @GetMapping("/templates/{templateId}/test-sends")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<EmailStudioDto.TestSendRecordResponse>> listTestSends(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(testSendService.list(tenantId, templateId).stream().map(this::mapTestSend).toList());
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(testSendService.list(tenantId, workspaceId, templateId).stream().map(this::mapTestSend).toList());
     }
 
     @PostMapping("/templates/{templateId}/test-send-matrix")
@@ -292,6 +311,7 @@ public class EmailStudioController {
             @PathVariable String templateId,
             @Valid @RequestBody EmailStudioDto.TestSendMatrixRequest request) {
         String tenantId = TenantContext.requireTenantId();
+        TenantContext.requireWorkspaceId();
         return ApiResponse.ok(contentBuilderService.sendMatrix(tenantId, templateId, request));
     }
 
@@ -376,8 +396,12 @@ public class EmailStudioController {
     }
 
     private EmailStudioDto.LandingPageResponse mapPublicLandingPage(LandingPage landingPage) {
-        EmailStudioDto.LandingPageResponse response = mapLandingPage(landingPage);
-        response.setHtmlContent(validationService.sanitizeLandingPage(response.getHtmlContent()));
+        EmailStudioDto.LandingPageResponse response = new EmailStudioDto.LandingPageResponse();
+        response.setName(landingPage.getName());
+        response.setSlug(landingPage.getSlug());
+        response.setStatus(landingPage.getStatus() != null ? landingPage.getStatus().name() : null);
+        response.setHtmlContent(validationService.sanitizeLandingPage(landingPage.getHtmlContent()));
+        response.setPublishedAt(landingPage.getPublishedAt() != null ? landingPage.getPublishedAt().toString() : null);
         return response;
     }
 

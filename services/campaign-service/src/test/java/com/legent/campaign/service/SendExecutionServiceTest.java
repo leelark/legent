@@ -195,53 +195,66 @@ class SendExecutionServiceTest {
     }
 
     @Test
-    void rejectsOversizedRenderedPayloadBeforePublishingSendRequest() throws Exception {
+    void externalizesOversizedRenderedPayloadBeforePublishingSendRequest() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
                 Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
         Campaign campaign = campaign();
         stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
-        ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 256);
+        ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1200);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent(
                         "Rendered",
-                        "<p>" + "x".repeat(512) + "</p>",
+                        "<p>" + "x".repeat(2048) + "</p>",
                         "Hello"));
-        when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
-                .thenReturn(CompletableFuture.completedFuture(null));
 
         service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
 
-        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
-        assertEquals("Rendered email payload exceeded configured cap", batch.getLastError());
+        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
         assertEquals("[]", batch.getPayload());
-        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
-        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_FAILED), any());
-        verify(sendSafetyService).recordDeliveryFeedback(
-                eq("tenant-1"),
-                eq("workspace-1"),
-                eq("job-1:batch-1:sub-1:r0"),
-                eq(true),
-                org.mockito.ArgumentMatchers.contains("CONTENT_PAYLOAD_TOO_LARGE"));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), captor.capture());
+        Map<String, Object> payload = captor.getValue().getPayload();
+        assertEquals("content-ref-1", payload.get("contentReference"));
+        assertFalse(payload.containsKey("htmlBody"));
+        assertFalse(payload.containsKey("textBody"));
+        EmailContentReference metadata = (EmailContentReference) payload.get("contentReferenceMetadata");
+        assertNotNull(metadata);
+        assertEquals(Boolean.FALSE, metadata.getInlineFallbackIncluded());
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_SEND_FAILED), any());
+        verify(sendSafetyService, never()).recordDeliveryFeedback(anyString(), anyString(), anyString(), eq(true), anyString());
+        verify(contentReferenceService).createReference(any(), eq(false));
     }
 
     @Test
-    void rejectsInlineContentDisableUntilDeliveryReferenceResolutionIsAvailable() throws Exception {
+    void publishesReferenceOnlyPayloadWhenInlineContentDisabled() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
                 Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        Campaign campaign = campaign();
+        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", false);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
 
-        ValidationException exception = assertThrows(
-                ValidationException.class,
-                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
 
-        org.junit.jupiter.api.Assertions.assertTrue(exception.getMessage().contains("includeInlineRenderedContent"));
-        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), captor.capture());
+        Map<String, Object> payload = captor.getValue().getPayload();
+        assertEquals("content-ref-1", payload.get("contentReference"));
+        assertFalse(payload.containsKey("htmlBody"));
+        assertFalse(payload.containsKey("textBody"));
+        EmailContentReference metadata = (EmailContentReference) payload.get("contentReferenceMetadata");
+        assertNotNull(metadata);
+        assertEquals(Boolean.FALSE, metadata.getInlineFallbackIncluded());
+        verify(contentReferenceService).createReference(any(), eq(false));
     }
 
     @Test
-    void continuesInlineSendWhenContentReferenceCreationFails() throws Exception {
+    void failsClosedWhenContentReferenceCreationFailsWithInlineFallbackConfigured() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
                 Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
@@ -254,14 +267,17 @@ class SendExecutionServiceTest {
 
         service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
 
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<EventEnvelope<Map<String, Object>>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
-        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), captor.capture());
-        Map<String, Object> payload = captor.getValue().getPayload();
-        assertFalse(payload.containsKey("contentReference"));
-        assertFalse(payload.containsKey("contentReferenceMetadata"));
-        assertEquals("<p>Hello</p>", payload.get("htmlBody"));
-        assertEquals("Hello", payload.get("textBody"));
+        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
+        assertEquals("Rendered content reference unavailable", batch.getLastError());
+        assertEquals("[]", batch.getPayload());
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_FAILED), any());
+        verify(sendSafetyService).recordDeliveryFeedback(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1:batch-1:sub-1:r0"),
+                eq(true),
+                org.mockito.ArgumentMatchers.contains("CONTENT_REFERENCE_UNAVAILABLE"));
         verify(contentReferenceService).createReference(
                 argThat(request -> "tenant-1".equals(request.tenantId())
                         && "workspace-1".equals(request.workspaceId())

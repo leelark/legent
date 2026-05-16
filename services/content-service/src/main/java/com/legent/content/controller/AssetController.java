@@ -31,11 +31,12 @@ public class AssetController {
             @RequestParam(required = false) String q,
             @RequestParam(required = false) String contentType) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         Page<Asset> page;
         if ((q != null && !q.isBlank()) || (contentType != null && !contentType.isBlank())) {
-            page = assetService.searchAssets(tenantId, q, contentType, pageable);
+            page = assetService.searchAssets(tenantId, workspaceId, q, contentType, pageable);
         } else {
-            page = assetService.listAssets(tenantId, pageable);
+            page = assetService.listAssets(tenantId, workspaceId, pageable);
         }
         return PagedResponse.from(page);
     }
@@ -44,12 +45,14 @@ public class AssetController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles)")
     public ApiResponse<Asset> uploadAsset(@RequestParam("file") MultipartFile file) {
         TenantContext.requireTenantId();
+        TenantContext.requireWorkspaceId();
         return ApiResponse.ok(assetService.uploadAsset(file, Map.of("source", "single-upload")));
     }
 
     @PostMapping(value = "/bulk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles)")
     public ApiResponse<List<Asset>> bulkUpload(@RequestParam("files") MultipartFile[] files) {
+        TenantContext.requireWorkspaceId();
         List<Asset> uploaded = assetService.uploadAssets(files == null ? List.of() : List.of(files));
         return ApiResponse.ok(uploaded);
     }
@@ -58,6 +61,7 @@ public class AssetController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles)")
     public void deleteAsset(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        assetService.deleteAsset(java.util.Objects.requireNonNull(tenantId), java.util.Objects.requireNonNull(id));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        assetService.deleteAsset(java.util.Objects.requireNonNull(tenantId), workspaceId, java.util.Objects.requireNonNull(id));
     }
 }

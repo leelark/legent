@@ -28,6 +28,7 @@ public class TemplateVersionController {
     public ApiResponse<TemplateVersionDto.Response> createVersion(
             @PathVariable String templateId,
             @Valid @RequestBody TemplateVersionDto.Create request) {
+        TenantContext.requireWorkspaceId();
         TemplateVersion version = versionService.createVersion(templateId, request);
         return ApiResponse.ok(mapToResponse(version));
     }
@@ -37,18 +38,26 @@ public class TemplateVersionController {
     public ApiResponse<TemplateVersionDto.Response> publishVersion(
             @PathVariable String templateId,
             @PathVariable Integer versionNumber) {
-        TemplateVersion version = workflowService.publishTemplate(TenantContext.requireTenantId(), templateId, versionNumber);
+        TemplateVersion version = workflowService.publishTemplate(
+                TenantContext.requireTenantId(),
+                TenantContext.requireWorkspaceId(),
+                templateId,
+                versionNumber,
+                false,
+                null);
         return ApiResponse.ok(mapToResponse(version));
     }
 
     @GetMapping
     public ApiResponse<List<TemplateVersionDto.Response>> listVersions(@PathVariable String templateId) {
+        TenantContext.requireWorkspaceId();
         List<TemplateVersion> versions = versionService.listVersions(templateId);
         return ApiResponse.ok(versions.stream().map(this::mapToResponse).toList());
     }
 
     @GetMapping("/latest")
     public ApiResponse<TemplateVersionDto.Response> getLatestVersion(@PathVariable String templateId) {
+        TenantContext.requireWorkspaceId();
         TemplateVersion version = versionService.getLatestPublishedVersion(templateId);
         return ApiResponse.ok(mapToResponse(version));
     }
@@ -58,6 +67,7 @@ public class TemplateVersionController {
             @PathVariable String templateId,
             @RequestParam("left") Integer leftVersion,
             @RequestParam("right") Integer rightVersion) {
+        TenantContext.requireWorkspaceId();
         return ApiResponse.ok(versionService.compareVersions(templateId, leftVersion, rightVersion));
     }
 

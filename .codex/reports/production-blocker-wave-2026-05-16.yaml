@@ -1,0 +1,98 @@
+report:
+  name: production-blocker-wave
+  date: 2026-05-16
+  status: not_released
+  summary: >
+    Locally actionable production blockers were implemented across infrastructure,
+    campaign launch readiness, delivery rate reservations, workspace scoping,
+    webhook egress defense, and large send payload handling. Remaining blockers
+    require target-environment or operator-provided evidence.
+
+fixed:
+  production_egress:
+    status: partially_fixed
+    implementation:
+      - production overlay deletes inherited base allow-legent-egress.
+      - production network policy permits same-namespace pod egress and kube-system DNS only.
+      - production overlay validator requires production-default-deny and production-internal-egress and rejects allow-legent-egress or 0.0.0.0/0.
+    residual:
+      - exact managed-service/provider CIDRs and ports or approved CNI FQDN policies are still required for live production external egress.
+  campaign_launch_gate:
+    status: fixed_locally
+    implementation:
+      - launch/direct-send path calls deliverability readiness for sender-domain DNS/auth verification and suppression health.
+      - launch/direct-send path calls delivery readiness for warmup state and provider capacity.
+      - missing/rejected readiness dependencies fail closed.
+  delivery_reservation:
+    status: fixed_locally
+    implementation:
+      - delivery_send_reservations lease table added.
+      - rate and warmup counters reserve under DB row locks.
+      - reservation id is idempotent.
+      - provider pre-acceptance failures release reservations.
+      - accepted sends settle reservations.
+      - expired leases release opportunistically for active rate keys.
+  content_platform_workspace_scope:
+    status: fixed_locally
+    implementation:
+      - content resources have workspace columns and workspace-scoped repository/service filters.
+      - platform resources have workspace columns and workspace-scoped repository/service filters.
+      - authenticated APIs require workspace context.
+      - public landing responses remain public but trimmed/sanitized.
+    residual:
+      - legacy nullable rows require reviewed operator backfill before workspace-scoped visibility.
+  webhook_dns_rebinding:
+    status: fixed_locally
+    implementation:
+      - webhook dispatch/retry uses dedicated WebClient.
+      - connector-time resolver rejects private/reserved resolved addresses.
+      - production direct webhook egress fails closed unless outbound webhook proxy is configured.
+    residual:
+      - production operators must configure and validate WEBHOOK_OUTBOUND_PROXY_URL/proxy enforcement.
+  large_send_payload_externalization:
+    status: fixed_locally
+    implementation:
+      - required reference creation failure marks handoff terminal before Kafka publish.
+      - reference-only send events omit htmlBody/textBody.
+      - delivery resolves cr_ rendered references on first-attempt sends.
+
+validation:
+  backend_combined:
+    command: .\mvnw.cmd -pl shared/legent-common,services/campaign-service,services/delivery-service,services/content-service,services/platform-service -am test
+    result: pass
+  release_gate:
+    command: powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1
+    result: pass
+  route_map:
+    command: powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1
+    result: pass
+  production_overlay:
+    command: powershell -ExecutionPolicy Bypass -File scripts\ops\validate-production-overlay.ps1
+    result: pass
+  compose_config:
+    command: docker compose config --quiet
+    result: pass
+  frontend_security_audit:
+    command: npm audit --omit=dev --audit-level=high
+    working_directory: frontend
+    result: pass
+    vulnerabilities: 0
+  load_harness:
+    command: powershell -ExecutionPolicy Bypass -File scripts\load\phase3-high-volume-load.ps1 -DryRun
+    result: pass
+    note: dry run only; not production load evidence
+  diff_check:
+    command: git diff --check -- services shared infrastructure docs .codex config frontend
+    result: pass
+    note: line-ending warnings only
+
+remaining_blockers:
+  - exact production external egress CIDR/FQDN/CNI policy data
+  - target synthetic smoke with release gate -RunSyntheticSmoke
+  - live high-volume load with real token and non-synthetic data profile
+  - restore drill for PostgreSQL, ClickHouse, and MinIO
+  - CI gitleaks and Trivy transcript
+  - monitoring/alert routing handoff evidence
+  - shared workspace membership authorization contract across services
+  - audience production mapping metadata for legacy data-extension rows
+  - stale RETRYING webhook retry lease recovery

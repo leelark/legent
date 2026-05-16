@@ -27,6 +27,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -43,6 +44,7 @@ class CampaignLaunchOrchestrationServiceTest {
     @Mock private CampaignWorkflowService workflowService;
     @Mock private CampaignService campaignService;
     @Mock private OrchestrationService orchestrationService;
+    @Mock private CampaignLaunchReadinessGate launchReadinessGate;
 
     private CampaignLaunchOrchestrationService service;
 
@@ -61,6 +63,7 @@ class CampaignLaunchOrchestrationServiceTest {
                 workflowService,
                 campaignService,
                 orchestrationService,
+                launchReadinessGate,
                 new ObjectMapper()
         );
         lenient().when(launchPlanRepository.findByTenantIdAndWorkspaceIdAndIdempotencyKeyAndDeletedAtIsNull(
@@ -81,7 +84,7 @@ class CampaignLaunchOrchestrationServiceTest {
         lenient().when(launchStepRepository.findByTenantIdAndWorkspaceIdAndLaunchPlanIdAndDeletedAtIsNullOrderBySortOrderAsc(
                 anyString(), anyString(), anyString())).thenReturn(List.of());
         lenient().when(launchStepRepository.save(any(CampaignLaunchStep.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        lenient().when(campaignEngineService.preflight(anyString())).thenReturn(CampaignEngineDto.SendPreflightReport.builder()
+        lenient().when(campaignEngineService.preflight(anyString(), eq(false))).thenReturn(CampaignEngineDto.SendPreflightReport.builder()
                 .campaignId("campaign-1")
                 .sendAllowed(true)
                 .errors(List.of())
@@ -92,6 +95,7 @@ class CampaignLaunchOrchestrationServiceTest {
                 .thenReturn(Optional.empty());
         lenient().when(frequencyPolicyRepository.findByTenantIdAndWorkspaceIdAndCampaignIdAndDeletedAtIsNull(anyString(), anyString(), anyString()))
                 .thenReturn(Optional.empty());
+        lenient().when(launchReadinessGate.evaluate(any(Campaign.class))).thenReturn(CampaignLaunchReadinessGate.GateResult.empty());
     }
 
     @AfterEach
@@ -213,6 +217,36 @@ class CampaignLaunchOrchestrationServiceTest {
             assertThat(step.getStatus()).isEqualTo("BLOCKED");
             assertThat(step.getDetails()).containsEntry("senderDomain", "example.com");
             assertThat(step.getDetails()).containsEntry("sendingDomain", "other.example");
+        });
+    }
+
+    @Test
+    void previewBlocksAuthoritativeLaunchGateFailure() {
+        Campaign campaign = completeCampaign();
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "campaign-1"))
+                .thenReturn(Optional.of(campaign));
+        when(launchReadinessGate.evaluate(campaign)).thenReturn(new CampaignLaunchReadinessGate.GateResult(
+                List.of("Deliverability authentication check unavailable: service bearer token is not configured for deliverability readiness checks."),
+                List.of(),
+                List.of(),
+                List.of(CampaignLaunchDto.LaunchStepResult.builder()
+                        .key("authoritative_launch_gate")
+                        .label("Authoritative Launch Gate")
+                        .status("BLOCKED")
+                        .score(0)
+                        .message("Service-backed launch blockers found.")
+                        .details(Map.of("auth", Map.of("available", false)))
+                        .build()),
+                Map.of("auth", Map.of("available", false))
+        ));
+
+        CampaignLaunchDto.LaunchPlanResponse response = service.preview(request(CampaignLaunchDto.LaunchAction.PREVIEW));
+
+        assertThat(response.getBlockers()).contains("Deliverability authentication check unavailable: service bearer token is not configured for deliverability readiness checks.");
+        assertThat(response.getReadinessScore()).isLessThanOrEqualTo(64);
+        assertThat(response.getSteps()).anySatisfy(step -> {
+            assertThat(step.getKey()).isEqualTo("authoritative_launch_gate");
+            assertThat(step.getStatus()).isEqualTo("BLOCKED");
         });
     }
 

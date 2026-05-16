@@ -13,6 +13,9 @@ import org.hibernate.type.SqlTypes;
 @Table(name = "content_blocks")
 public class ContentBlock extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(nullable = false, length = 255)
     private String name;
 

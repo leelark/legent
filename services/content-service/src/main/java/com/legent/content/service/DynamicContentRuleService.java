@@ -5,6 +5,7 @@ import com.legent.common.exception.ValidationException;
 import com.legent.content.domain.DynamicContentRule;
 import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.repository.DynamicContentRuleRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,8 +24,14 @@ public class DynamicContentRuleService {
 
     @Transactional
     public DynamicContentRule create(String tenantId, String templateId, EmailStudioDto.DynamicRuleRequest request) {
+        return create(tenantId, TenantContext.requireWorkspaceId(), templateId, request);
+    }
+
+    @Transactional
+    public DynamicContentRule create(String tenantId, String workspaceId, String templateId, EmailStudioDto.DynamicRuleRequest request) {
         DynamicContentRule rule = new DynamicContentRule();
         rule.setTenantId(tenantId);
+        rule.setWorkspaceId(workspaceId);
         rule.setTemplateId(templateId);
         apply(rule, request);
         return ruleRepository.save(rule);
@@ -32,33 +39,58 @@ public class DynamicContentRuleService {
 
     @Transactional
     public DynamicContentRule update(String tenantId, String id, EmailStudioDto.DynamicRuleRequest request) {
-        DynamicContentRule rule = get(tenantId, id);
+        return update(tenantId, TenantContext.requireWorkspaceId(), id, request);
+    }
+
+    @Transactional
+    public DynamicContentRule update(String tenantId, String workspaceId, String id, EmailStudioDto.DynamicRuleRequest request) {
+        DynamicContentRule rule = get(tenantId, workspaceId, id);
         apply(rule, request);
         return ruleRepository.save(rule);
     }
 
     @Transactional(readOnly = true)
     public DynamicContentRule get(String tenantId, String id) {
-        return ruleRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+        return get(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional(readOnly = true)
+    public DynamicContentRule get(String tenantId, String workspaceId, String id) {
+        return ruleRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("DynamicContentRule", id));
     }
 
     @Transactional(readOnly = true)
     public List<DynamicContentRule> list(String tenantId, String templateId) {
-        return ruleRepository.findByTenantIdAndTemplateIdAndDeletedAtIsNullOrderByPriorityAsc(tenantId, templateId);
+        return list(tenantId, TenantContext.requireWorkspaceId(), templateId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DynamicContentRule> list(String tenantId, String workspaceId, String templateId) {
+        return ruleRepository.findByTenantIdAndWorkspaceIdAndTemplateIdAndDeletedAtIsNullOrderByPriorityAsc(tenantId, workspaceId, templateId);
     }
 
     @Transactional
     public void delete(String tenantId, String id) {
-        DynamicContentRule rule = get(tenantId, id);
+        delete(tenantId, TenantContext.requireWorkspaceId(), id);
+    }
+
+    @Transactional
+    public void delete(String tenantId, String workspaceId, String id) {
+        DynamicContentRule rule = get(tenantId, workspaceId, id);
         rule.setDeletedAt(Instant.now());
         ruleRepository.save(rule);
     }
 
     @Transactional(readOnly = true)
     public DynamicRuleRenderResult resolveSlot(String tenantId, String templateId, String slotKey, Map<String, Object> variables) {
+        return resolveSlot(tenantId, TenantContext.requireWorkspaceId(), templateId, slotKey, variables);
+    }
+
+    @Transactional(readOnly = true)
+    public DynamicRuleRenderResult resolveSlot(String tenantId, String workspaceId, String templateId, String slotKey, Map<String, Object> variables) {
         List<DynamicContentRule> rules = ruleRepository
-                .findByTenantIdAndTemplateIdAndSlotKeyAndActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(tenantId, templateId, slotKey);
+                .findByTenantIdAndWorkspaceIdAndTemplateIdAndSlotKeyAndActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(tenantId, workspaceId, templateId, slotKey);
         for (DynamicContentRule rule : rules) {
             if (matches(rule, variables)) {
                 return new DynamicRuleRenderResult(rule.getHtmlContent() == null ? "" : rule.getHtmlContent(),

@@ -15,6 +15,9 @@ import java.util.List;
 @Table(name = "assets")
 public class Asset extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
+
     @Column(nullable = false, length = 255)
     private String name;
 

@@ -15,9 +15,12 @@ import java.util.List;
 @Entity
 @Table(name = "email_templates",
        uniqueConstraints = {
-           @UniqueConstraint(name = "uk_template_tenant_name", columnNames = {"tenant_id", "name"})
+           @UniqueConstraint(name = "uq_template_tenant_workspace_name", columnNames = {"tenant_id", "workspace_id", "name"})
        })
 public class EmailTemplate extends TenantAwareEntity {
+
+    @Column(name = "workspace_id", length = 36)
+    private String workspaceId;
 
     @Column(nullable = false, length = 255)
     private String name;

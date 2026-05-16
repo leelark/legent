@@ -45,6 +45,10 @@ patches:
     target:
       kind: NetworkPolicy
       name: allow-ingress-to-legent-apps
+  - path: delete-base-egress-policy.yml
+    target:
+      kind: NetworkPolicy
+      name: allow-legent-egress
   - path: delete-nonprod-stateful.yml
   - path: production-configmap-patch.yml
     target:

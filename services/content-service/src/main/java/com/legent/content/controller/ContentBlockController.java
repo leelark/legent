@@ -30,6 +30,7 @@ public class ContentBlockController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<ContentBlockDto.Response> createBlock(@Valid @RequestBody ContentBlockDto.Create request) {
+        TenantContext.requireWorkspaceId();
         ContentBlock block = blockService.createBlock(request);
         return ApiResponse.ok(mapToResponse(block));
     }
@@ -38,8 +39,9 @@ public class ContentBlockController {
     public ApiResponse<ContentBlockDto.Response> getBlock(@PathVariable @org.springframework.lang.NonNull String id) {
 
         final String tenantId = TenantContext.requireTenantId();
+        final String workspaceId = TenantContext.requireWorkspaceId();
 
-        ContentBlock block = blockService.getBlock(tenantId, id);
+        ContentBlock block = blockService.getBlock(tenantId, workspaceId, id);
         return ApiResponse.ok(mapToResponse(block));
     }
 
@@ -48,7 +50,8 @@ public class ContentBlockController {
     public ApiResponse<ContentBlockDto.Response> updateBlock(@PathVariable @org.springframework.lang.NonNull String id,
             @Valid @RequestBody ContentBlockDto.Create request) {
         final String tenantId = TenantContext.requireTenantId();
-        ContentBlock updatedBlock = blockService.updateBlock(tenantId, id, request);
+        final String workspaceId = TenantContext.requireWorkspaceId();
+        ContentBlock updatedBlock = blockService.updateBlock(tenantId, workspaceId, id, request);
         return ApiResponse.ok(mapToResponse(updatedBlock));
     }
 
@@ -57,7 +60,8 @@ public class ContentBlockController {
     @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteBlock(@PathVariable @org.springframework.lang.NonNull String id) {
         final String tenantId = TenantContext.requireTenantId();
-        blockService.deleteBlock(tenantId, id);
+        final String workspaceId = TenantContext.requireWorkspaceId();
+        blockService.deleteBlock(tenantId, workspaceId, id);
     }
 
     @GetMapping
@@ -65,7 +69,8 @@ public class ContentBlockController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.requireTenantId();
-        Page<ContentBlock> blocks = blockService.listBlocks(tenantId,
+        String workspaceId = TenantContext.requireWorkspaceId();
+        Page<ContentBlock> blocks = blockService.listBlocks(tenantId, workspaceId,
                 PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
         return PagedResponse.of(
                 blocks.getContent().stream().map(this::mapToResponse).toList(),
@@ -78,7 +83,8 @@ public class ContentBlockController {
     @GetMapping("/global")
     public ApiResponse<List<ContentBlockDto.Response>> listGlobalBlocks() {
         String tenantId = TenantContext.requireTenantId();
-        List<ContentBlock> blocks = blockService.listGlobalBlocks(tenantId);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        List<ContentBlock> blocks = blockService.listGlobalBlocks(tenantId, workspaceId);
         return ApiResponse.ok(blocks.stream().map(this::mapToResponse).toList());
     }
 
@@ -89,14 +95,16 @@ public class ContentBlockController {
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.ContentBlockVersionRequest request) {
         String tenantId = TenantContext.requireTenantId();
-        ContentBlockVersion version = blockService.createVersion(tenantId, id, request);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        ContentBlockVersion version = blockService.createVersion(tenantId, workspaceId, id, request);
         return ApiResponse.ok(mapVersion(version));
     }
 
     @GetMapping("/{id}/versions")
     public ApiResponse<List<EmailStudioDto.ContentBlockVersionResponse>> listVersions(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(blockService.listVersions(tenantId, id).stream().map(this::mapVersion).toList());
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(blockService.listVersions(tenantId, workspaceId, id).stream().map(this::mapVersion).toList());
     }
 
     @PostMapping("/{id}/versions/{versionNumber}/publish")
@@ -105,7 +113,8 @@ public class ContentBlockController {
             @PathVariable String id,
             @PathVariable Integer versionNumber) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapVersion(blockService.publishVersion(tenantId, id, versionNumber)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapVersion(blockService.publishVersion(tenantId, workspaceId, id, versionNumber)));
     }
 
     @PostMapping("/{id}/rollback/{versionNumber}")
@@ -114,7 +123,8 @@ public class ContentBlockController {
             @PathVariable String id,
             @PathVariable Integer versionNumber) {
         String tenantId = TenantContext.requireTenantId();
-        return ApiResponse.ok(mapVersion(blockService.rollbackVersion(tenantId, id, versionNumber)));
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(mapVersion(blockService.rollbackVersion(tenantId, workspaceId, id, versionNumber)));
     }
 
     private ContentBlockDto.Response mapToResponse(ContentBlock block) {

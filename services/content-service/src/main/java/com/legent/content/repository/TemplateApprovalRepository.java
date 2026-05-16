@@ -15,18 +15,31 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface TemplateApprovalRepository extends JpaRepository<TemplateApproval, String> {
 
-    List<TemplateApproval> findByTenantIdAndTemplateIdOrderByRequestedAtDesc(String tenantId, String templateId);
+    List<TemplateApproval> findByTenantIdAndWorkspaceIdAndTemplateIdOrderByRequestedAtDesc(String tenantId, String workspaceId, String templateId);
 
-    @Query("SELECT a FROM TemplateApproval a WHERE a.tenantId = :tid AND a.templateId = :templateId AND a.status = 'PENDING'")
-    Optional<TemplateApproval> findPendingApproval(@Param("tid") String tenantId, @Param("templateId") String templateId);
+    @Query("SELECT a FROM TemplateApproval a WHERE a.tenantId = :tid AND a.workspaceId = :workspaceId AND a.templateId = :templateId AND a.status = 'PENDING'")
+    Optional<TemplateApproval> findPendingApproval(
+            @Param("tid") String tenantId,
+            @Param("workspaceId") String workspaceId,
+            @Param("templateId") String templateId);
 
-    List<TemplateApproval> findByTenantIdAndStatus(String tenantId, TemplateApproval.ApprovalStatus status);
+    Optional<TemplateApproval> findByIdAndTenantIdAndWorkspaceId(String id, String tenantId, String workspaceId);
+
+    List<TemplateApproval> findByTenantIdAndWorkspaceIdAndStatus(String tenantId, String workspaceId, TemplateApproval.ApprovalStatus status);
 
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM TemplateApproval a " +
-           "WHERE a.tenantId = :tid AND a.templateId = :templateId AND a.versionNumber = :version AND a.status = 'PENDING'")
-    boolean hasPendingApproval(@Param("tid") String tenantId, @Param("templateId") String templateId, @Param("version") int version);
+           "WHERE a.tenantId = :tid AND a.workspaceId = :workspaceId AND a.templateId = :templateId AND a.versionNumber = :version AND a.status = 'PENDING'")
+    boolean hasPendingApproval(
+            @Param("tid") String tenantId,
+            @Param("workspaceId") String workspaceId,
+            @Param("templateId") String templateId,
+            @Param("version") int version);
 
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM TemplateApproval a " +
-           "WHERE a.tenantId = :tid AND a.templateId = :templateId AND a.versionNumber = :version AND a.status = 'APPROVED'")
-    boolean hasApprovedApproval(@Param("tid") String tenantId, @Param("templateId") String templateId, @Param("version") int version);
+           "WHERE a.tenantId = :tid AND a.workspaceId = :workspaceId AND a.templateId = :templateId AND a.versionNumber = :version AND a.status = 'APPROVED'")
+    boolean hasApprovedApproval(
+            @Param("tid") String tenantId,
+            @Param("workspaceId") String workspaceId,
+            @Param("templateId") String templateId,
+            @Param("version") int version);
 }

@@ -2,6 +2,8 @@ package com.legent.common.security;
 
 import org.junit.jupiter.api.Test;
 
+import java.net.InetAddress;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -26,5 +28,21 @@ class OutboundUrlGuardTest {
     void requirePublicHttpsUri_rejectsHttpByDefault() {
         assertThrows(IllegalArgumentException.class,
                 () -> OutboundUrlGuard.requirePublicHttpsUri("http://93.184.216.34/webhook", "webhook"));
+    }
+
+    @Test
+    void requirePublicResolvedAddress_rejectsPrivateAndReservedRebindAddresses() throws Exception {
+        assertDoesNotThrow(() -> OutboundUrlGuard.requirePublicResolvedAddress(
+                InetAddress.getByName("93.184.216.34"), "webhook"));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicResolvedAddress(
+                        InetAddress.getByName("10.0.0.5"), "webhook"));
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicResolvedAddress(
+                        InetAddress.getByName("192.0.2.10"), "webhook"));
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicResolvedAddress(
+                        InetAddress.getByName("2001:db8::1"), "webhook"));
     }
 }
