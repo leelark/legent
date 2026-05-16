@@ -59,6 +59,50 @@ class TenantFilterTest {
     }
 
     @Test
+    void doFilter_whenTenantQueryParamOnProtectedPath_returnsBadRequest() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");
+        request.setParameter("t", "tenant-1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertEquals(400, response.getStatus());
+        assertTrue(!chainCalled.get());
+    }
+
+    @Test
+    void doFilter_whenTenantFreePrefixOnlyMatchesBoundary_returnsBadRequestForSiblingPath() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/authentication/status");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertEquals(400, response.getStatus());
+        assertTrue(!chainCalled.get());
+    }
+
+    @Test
+    void doFilter_onTrackingPath_acceptsTenantQueryParameter() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/tracking/o.gif");
+        request.setParameter("t", "tenant-1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean sawTenantInChain = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> sawTenantInChain.set("tenant-1".equals(TenantContext.getTenantId()));
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertTrue(sawTenantInChain.get());
+        assertNull(TenantContext.getTenantId());
+    }
+
+    @Test
     void doFilter_whenHeaderConflictsWithAuthenticatedTenant_returnsForbiddenAndClearsContext() throws Exception {
         TenantContext.setTenantId("tenant-a");
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");

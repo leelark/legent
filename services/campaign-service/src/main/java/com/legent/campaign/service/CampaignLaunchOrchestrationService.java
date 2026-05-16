@@ -290,7 +290,8 @@ public class CampaignLaunchOrchestrationService {
                                     List<CampaignLaunchDto.LaunchRecommendation> recommendations,
                                     List<CampaignLaunchDto.LaunchStepResult> steps) {
         boolean hasSender = campaign.getSenderEmail() != null && !campaign.getSenderEmail().isBlank();
-        boolean hasDomain = campaign.getSendingDomain() != null && !campaign.getSendingDomain().isBlank();
+        String senderDomain = domainFromEmail(campaign.getSenderEmail());
+        String sendingDomain = normalizeDomain(campaign.getSendingDomain());
         if (!hasSender) {
             blockers.add("Sender email is required for compliance and authentication alignment.");
             recommendations.add(recommend("deliverability.sender", "BLOCKER", "Set sender email",
@@ -298,15 +299,54 @@ public class CampaignLaunchOrchestrationService {
             steps.add(step("deliverability", "Deliverability", "BLOCKED", 0, "Missing sender", Map.of()));
             return 0;
         }
-        if (!hasDomain) {
-            warnings.add("Sending domain is not selected.");
-            recommendations.add(recommend("deliverability.domain", "WARN", "Select sending domain",
-                    "Use a verified domain to improve authentication confidence.", false));
-            steps.add(step("deliverability", "Deliverability", "WARN", 12, "Sender set, domain not selected", Map.of("senderEmail", campaign.getSenderEmail())));
-            return 12;
+        if (senderDomain == null) {
+            blockers.add("Sender email must include a valid domain before launch.");
+            recommendations.add(recommend("deliverability.sender_domain", "BLOCKER", "Fix sender email domain",
+                    "Use a valid from address so authentication alignment can be checked.", false));
+            steps.add(step("deliverability", "Deliverability", "BLOCKED", 0, "Sender domain missing", Map.of("senderEmail", campaign.getSenderEmail())));
+            return 0;
         }
-        steps.add(step("deliverability", "Deliverability", "PASS", 20, "Sender and domain ready", Map.of("sendingDomain", campaign.getSendingDomain())));
+        if (sendingDomain == null) {
+            blockers.add("Sending domain is required before launch.");
+            recommendations.add(recommend("deliverability.domain", "BLOCKER", "Select sending domain",
+                    "Use a verified domain before launch so authentication alignment can be enforced.", false));
+            steps.add(step("deliverability", "Deliverability", "BLOCKED", 0, "Sending domain missing", Map.of("senderEmail", campaign.getSenderEmail())));
+            return 0;
+        }
+        if (!senderDomain.equals(sendingDomain)) {
+            blockers.add("Sender email domain must match the selected sending domain before launch.");
+            recommendations.add(recommend("deliverability.domain_alignment", "BLOCKER", "Align sender and sending domain",
+                    "Set the sending domain to match the sender email domain before launch.", false));
+            steps.add(step("deliverability", "Deliverability", "BLOCKED", 0, "Sender and sending domain mismatch",
+                    Map.of("senderDomain", senderDomain, "sendingDomain", sendingDomain)));
+            return 0;
+        }
+        steps.add(step("deliverability", "Deliverability", "PASS", 20, "Sender and domain ready",
+                Map.of("senderDomain", senderDomain, "sendingDomain", sendingDomain)));
         return 20;
+    }
+
+    private String domainFromEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        String trimmed = email.trim();
+        int at = trimmed.lastIndexOf('@');
+        if (at <= 0 || at != trimmed.indexOf('@') || at == trimmed.length() - 1) {
+            return null;
+        }
+        return normalizeDomain(trimmed.substring(at + 1));
+    }
+
+    private String normalizeDomain(String domain) {
+        if (domain == null || domain.isBlank()) {
+            return null;
+        }
+        String normalized = domain.trim().toLowerCase(Locale.ROOT);
+        while (normalized.endsWith(".")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized.isBlank() ? null : normalized;
     }
 
     private int deliveryScore(Campaign campaign,

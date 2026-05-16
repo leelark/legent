@@ -29,13 +29,21 @@ public class TenantFilter extends OncePerRequestFilter {
     /**
      * Paths that do NOT require a tenant context.
      */
-    private static final Set<String> TENANT_FREE_PATHS = Set.of(
+    private static final Set<String> TENANT_FREE_PREFIXES = Set.of(
             "/actuator",
             "/api/v1/health",
             "/api/v1/auth",
             "/api/v1/sso",
             "/api/v1/scim/v2",
-            "/api/v1/public",
+            "/api/v1/public"
+    );
+
+    private static final Set<String> TENANT_FREE_EXACT_PATHS = Set.of(
+            "/api/v1/tracking/o.gif",
+            "/api/v1/tracking/c"
+    );
+
+    private static final Set<String> TENANT_QUERY_PARAM_PATHS = Set.of(
             "/api/v1/tracking/o.gif",
             "/api/v1/tracking/c"
     );
@@ -52,7 +60,7 @@ public class TenantFilter extends OncePerRequestFilter {
             String environmentId = blankToNull(request.getHeader(AppConstants.HEADER_ENVIRONMENT_ID));
             String requestId = blankToNull(request.getHeader(AppConstants.HEADER_REQUEST_ID));
             String correlationId = blankToNull(request.getHeader(AppConstants.HEADER_CORRELATION_ID));
-            if (tenantId == null) {
+            if (tenantId == null && allowsTenantQueryParam(path)) {
                 tenantId = blankToNull(request.getParameter("t"));
             }
 
@@ -127,7 +135,16 @@ public class TenantFilter extends OncePerRequestFilter {
     }
 
     private boolean isTenantFreePath(String path) {
-        return TENANT_FREE_PATHS.stream().anyMatch(path::startsWith);
+        return TENANT_FREE_EXACT_PATHS.contains(path)
+                || TENANT_FREE_PREFIXES.stream().anyMatch(prefix -> matchesPrefix(path, prefix));
+    }
+
+    private boolean allowsTenantQueryParam(String path) {
+        return TENANT_QUERY_PARAM_PATHS.contains(path);
+    }
+
+    private boolean matchesPrefix(String path, String prefix) {
+        return path.equals(prefix) || path.startsWith(prefix + "/");
     }
 
     private String blankToNull(String value) {

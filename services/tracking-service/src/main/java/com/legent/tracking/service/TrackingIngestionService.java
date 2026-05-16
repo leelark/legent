@@ -42,7 +42,7 @@ public class TrackingIngestionService {
         requireTenantAndMessage(tenantId, messageId);
         String resolvedWorkspaceId = resolveWorkspaceId(tenantId, messageId, workspaceId);
         if (isDuplicateInDatabase(tenantId, resolvedWorkspaceId, "OPEN", messageId, subscriberId) ||
-            isDuplicateInRedis(tenantId, "OPEN", messageId, subscriberId, "")) {
+            isDuplicateInRedis(tenantId, resolvedWorkspaceId, "OPEN", messageId, subscriberId, "")) {
             log.debug("Duplicate OPEN event detected for message {} subscriber {}", messageId, subscriberId);
             return;
         }
@@ -66,7 +66,7 @@ public class TrackingIngestionService {
         requireTenantAndMessage(tenantId, messageId);
         String resolvedWorkspaceId = resolveWorkspaceId(tenantId, messageId, workspaceId);
         if (isDuplicateInDatabase(tenantId, resolvedWorkspaceId, "CLICK", messageId, subscriberId) ||
-            isDuplicateInRedis(tenantId, "CLICK", messageId, subscriberId, linkUrl)) {
+            isDuplicateInRedis(tenantId, resolvedWorkspaceId, "CLICK", messageId, subscriberId, linkUrl)) {
             log.debug("Duplicate CLICK event detected for message {} subscriber {}", messageId, subscriberId);
             return;
         }
@@ -103,14 +103,14 @@ public class TrackingIngestionService {
      * Checks Redis for recent duplicate (fast path).
      * Uses SHA-256 for URL hashing to prevent collision attacks.
      */
-    private boolean isDuplicateInRedis(String tenantId, String type, String msgId, String subId, String url) {
+    private boolean isDuplicateInRedis(String tenantId, String workspaceId, String type, String msgId, String subId, String url) {
         String urlHash = "";
         if (url != null && !url.isEmpty()) {
             urlHash = ":" + sha256Hash(url);
         }
         // Use 7-day window for click deduplication, 2 hours for opens
         java.time.Duration ttl = "CLICK".equals(type) ? java.time.Duration.ofDays(7) : java.time.Duration.ofHours(2);
-        String key = "track:dedup:" + tenantId + ":" + type + ":" + msgId + ":" + subId + urlHash;
+        String key = "track:dedup:" + tenantId + ":" + workspaceId + ":" + type + ":" + msgId + ":" + subId + urlHash;
         if (cacheService.get(key, String.class).isPresent()) {
             return true;
         }

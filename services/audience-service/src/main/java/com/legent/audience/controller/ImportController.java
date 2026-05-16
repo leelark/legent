@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,6 +21,7 @@ public class ImportController {
 
     @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<ImportDto.StatusResponse> uploadImport(
             @RequestPart("file") org.springframework.web.multipart.MultipartFile file,
             @RequestPart("request") @Valid ImportDto.StartRequest request) {
@@ -27,11 +29,13 @@ public class ImportController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<ImportDto.StatusResponse> getStatus(@PathVariable String id) {
         return ApiResponse.ok(importService.getStatus(id));
     }
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public PagedResponse<ImportDto.StatusResponse> listImports(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -40,6 +44,7 @@ public class ImportController {
     }
 
     @PostMapping("/{id}/cancel")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<String> cancelImport(@PathVariable String id) {
         importService.cancelImport(id);
         return ApiResponse.ok("Import cancelled");

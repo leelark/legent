@@ -59,6 +59,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
@@ -70,6 +71,12 @@ public class FederatedIdentityService {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String DEFAULT_WORKSPACE_ID = "workspace-default";
+    private static final Set<String> PRIVILEGED_ROLE_KEYS = Set.of(
+            "ADMIN",
+            "PLATFORM_ADMIN",
+            "ORG_ADMIN",
+            "SECURITY_ADMIN",
+            "WORKSPACE_OWNER");
 
     private final FederationJdbcRepository repository;
     private final UserRepository userRepository;
@@ -262,14 +269,16 @@ public class FederatedIdentityService {
         List<String> roles = roleKeys(provider, attributes);
         String workspaceId = defaultValue(asString(provider.get("default_workspace_id")), DEFAULT_WORKSPACE_ID);
 
-        User user = userRepository.findByTenantIdAndIdentityProviderIdAndExternalId(tenantId, String.valueOf(provider.get("id")), externalId)
-                .or(() -> userRepository.findByTenantIdAndEmailIgnoreCase(tenantId, normalizedEmail))
+        String providerId = String.valueOf(provider.get("id"));
+        User user = userRepository.findByTenantIdAndIdentityProviderIdAndExternalId(tenantId, providerId, externalId)
+                .or(() -> userRepository.findByTenantIdAndEmailIgnoreCase(tenantId, normalizedEmail)
+                        .map(existing -> requireExistingProviderBinding(existing, providerId)))
                 .map(existing -> {
                     existing.setEmail(normalizedEmail);
                     existing.setFirstName(firstName);
                     existing.setLastName(lastName);
                     existing.setExternalId(externalId);
-                    existing.setIdentityProviderId(String.valueOf(provider.get("id")));
+                    existing.setIdentityProviderId(providerId);
                     existing.setRole(roles.get(0));
                     existing.setActive(true);
                     existing.setLastLoginAt(Instant.now());
@@ -284,7 +293,7 @@ public class FederatedIdentityService {
                         .role(roles.get(0))
                         .isActive(true)
                         .externalId(externalId)
-                        .identityProviderId(String.valueOf(provider.get("id")))
+                        .identityProviderId(providerId)
                         .lastLoginAt(Instant.now())
                         .build()));
 
@@ -636,19 +645,57 @@ public class FederatedIdentityService {
         accountRoleBindingRepository.save(binding);
     }
 
+    private User requireExistingProviderBinding(User existing, String providerId) {
+        if (!providerId.equals(existing.getIdentityProviderId())) {
+            throw new IllegalArgumentException("Federated user is already owned by another identity source");
+        }
+        return existing;
+    }
+
     private List<String> roleKeys(Map<String, Object> provider, Map<String, Object> attributes) {
-        List<String> roles = readStringList(provider.get("default_role_keys"));
+        List<String> roles = new ArrayList<>(readStringList(provider.get("default_role_keys")));
         Object groups = attributes.get("groups");
         if (groups instanceof Iterable<?> iterable) {
+            Map<String, String> mappedGroupRoles = mappedGroupRoles(provider);
             for (Object item : iterable) {
-                String role = String.valueOf(item).trim().toUpperCase(Locale.ROOT);
+                String group = String.valueOf(item).trim();
+                String role = mappedGroupRoles.get(group.toLowerCase(Locale.ROOT));
+                if (role == null) {
+                    role = normalize(group);
+                    if (PRIVILEGED_ROLE_KEYS.contains(role)) {
+                        continue;
+                    }
+                }
                 if (!role.isBlank() && !roles.contains(role)) {
-                    roles = new ArrayList<>(roles);
                     roles.add(role);
                 }
             }
         }
         return roles.isEmpty() ? List.of("USER") : roles.stream().map(this::normalize).distinct().toList();
+    }
+
+    private Map<String, String> mappedGroupRoles(Map<String, Object> provider) {
+        List<Map<String, Object>> rows = repository.queryForList("""
+                SELECT display_name, external_id, role_key
+                FROM federation_scim_groups
+                WHERE tenant_id = :tenantId AND provider_id = :providerId AND deleted_at IS NULL
+                """, Map.of("tenantId", provider.get("tenant_id"), "providerId", provider.get("id")));
+        Map<String, String> roles = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            String roleKey = normalize(asString(row.get("role_key")));
+            if (roleKey.isBlank()) {
+                continue;
+            }
+            String displayName = asString(row.get("display_name"));
+            if (displayName != null && !displayName.isBlank()) {
+                roles.put(displayName.trim().toLowerCase(Locale.ROOT), roleKey);
+            }
+            String externalId = asString(row.get("external_id"));
+            if (externalId != null && !externalId.isBlank()) {
+                roles.put(externalId.trim().toLowerCase(Locale.ROOT), roleKey);
+            }
+        }
+        return roles;
     }
 
     private Map<String, Object> redactProvider(Map<String, Object> provider) {

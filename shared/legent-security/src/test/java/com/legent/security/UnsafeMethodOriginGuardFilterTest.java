@@ -1,6 +1,7 @@
 package com.legent.security;
 
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -54,6 +55,32 @@ class UnsafeMethodOriginGuardFilterTest {
         assertEquals(403, response.getStatus());
         assertTrue(response.getContentAsString().contains("CSRF_ORIGIN_REJECTED"));
         assertTrue(!chainCalled.get());
+    }
+
+    @Test
+    void unsafeCookieRequestWithoutOriginOrReferer_isRejected() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/campaigns");
+        request.setCookies(new Cookie("legent_token", "access-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.doFilter(request, response, chain(chainCalled));
+
+        assertEquals(403, response.getStatus());
+        assertTrue(response.getContentAsString().contains("CSRF_ORIGIN_MISSING"));
+        assertTrue(!chainCalled.get());
+    }
+
+    @Test
+    void unsafeNonCookieRequestWithoutOriginOrReferer_passes() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/internal/jobs");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        filter.doFilter(request, response, chain(chainCalled));
+
+        assertTrue(chainCalled.get());
+        assertEquals(200, response.getStatus());
     }
 
     @Test

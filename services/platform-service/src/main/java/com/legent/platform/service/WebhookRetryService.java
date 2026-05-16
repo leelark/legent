@@ -19,6 +19,7 @@ import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,8 @@ public class WebhookRetryService {
     @Qualifier("webhookRetryExecutor")
     private final Executor webhookRetryExecutor;
 
+    private static final int MAX_RETRIES_PER_BATCH = 50;
+
     // Exponential backoff delays: 30s, 2min, 10min
     private static final Duration[] RETRY_DELAYS = {
         Duration.ofSeconds(30),
@@ -57,21 +60,22 @@ public class WebhookRetryService {
 
     /**
      * LEGENT-CRIT-005: Process pending webhook retries every 30 seconds with parallelism.
-     * Uses parallel stream with limit of 10 concurrent retries to prevent queue buildup.
+     * Uses a bounded query and configured retry executor to prevent queue buildup.
      */
     @Scheduled(fixedDelay = 30000)
-    @Transactional(readOnly = true)
     public void processRetries() {
         Instant now = Instant.now();
 
         // Process PENDING retries with parallel processing
-        List<WebhookRetry> pendingRetries = retryRepository.findPendingRetries(now);
+        List<WebhookRetry> pendingRetries = retryRepository.findPendingRetries(
+                now, PageRequest.of(0, MAX_RETRIES_PER_BATCH));
         if (!pendingRetries.isEmpty()) {
-            log.info("Processing {} pending webhook retries (max 10 concurrent)", pendingRetries.size());
+            log.info("Processing {} pending webhook retries (max {} per batch)",
+                    pendingRetries.size(), MAX_RETRIES_PER_BATCH);
 
-            // Process in parallel with max 10 concurrent
+            // Claim rows before async handoff so concurrent nodes do not process the same retry.
             List<CompletableFuture<Void>> futures = pendingRetries.stream()
-                    .limit(50) // Max 50 retries per batch to prevent memory issues
+                    .filter(retry -> claimPendingRetry(retry, now))
                     .map(retry -> CompletableFuture.runAsync(() -> processRetryAsync(retry), webhookRetryExecutor))
                     .toList();
 
@@ -84,6 +88,20 @@ public class WebhookRetryService {
                 log.warn("Some webhook retries timed out or failed: {}", ex.getMessage());
             }
         }
+    }
+
+    private boolean claimPendingRetry(WebhookRetry retry, Instant now) {
+        Instant claimedAt = Instant.now();
+        // This is a row claim, not an expiring lease; stale RETRYING recovery still needs a reconciler.
+        int claimed = retryRepository.claimPendingRetry(retry.getId(), now, claimedAt);
+        if (claimed == 0) {
+            log.debug("Skipping webhook retry {} because another worker claimed it", retry.getId());
+            return false;
+        }
+
+        retry.setStatus("RETRYING");
+        retry.setUpdatedAt(claimedAt);
+        return true;
     }
 
     /**

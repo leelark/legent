@@ -5,16 +5,21 @@ import com.legent.platform.repository.WebhookConfigRepository;
 import com.legent.platform.repository.WebhookLogRepository;
 import com.legent.platform.repository.WebhookRetryRepository;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -50,6 +55,48 @@ class WebhookRetryServiceTest {
         verifyNoInteractions(webClient, logRepository);
         assertThat(retry.getStatus()).isEqualTo("FAILED");
         assertThat(retry.getLastError()).contains("Webhook configuration not found or inactive");
+    }
+
+    @Test
+    void processRetriesRequestsBoundedPageOfPendingRetries() {
+        when(retryRepository.findPendingRetries(any(Instant.class), any(Pageable.class))).thenReturn(List.of());
+
+        service.processRetries();
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(retryRepository).findPendingRetries(any(Instant.class), pageableCaptor.capture());
+        Pageable pageable = pageableCaptor.getValue();
+        assertThat(pageable.getPageNumber()).isZero();
+        assertThat(pageable.getPageSize()).isEqualTo(50);
+    }
+
+    @Test
+    void processRetriesClaimsPendingRetryBeforeProcessing() {
+        WebhookRetry retry = retry("retry-1", "tenant-a", "webhook-1");
+        when(retryRepository.findPendingRetries(any(Instant.class), any(Pageable.class))).thenReturn(List.of(retry));
+        when(retryRepository.claimPendingRetry(eq("retry-1"), any(Instant.class), any(Instant.class))).thenReturn(1);
+        when(configRepository.findByIdAndTenantId("webhook-1", "tenant-a")).thenReturn(Optional.empty());
+
+        service.processRetries();
+
+        verify(retryRepository).claimPendingRetry(eq("retry-1"), any(Instant.class), any(Instant.class));
+        verify(configRepository).findByIdAndTenantId("webhook-1", "tenant-a");
+        assertThat(retry.getStatus()).isEqualTo("FAILED");
+        assertThat(retry.getLastError()).contains("Webhook configuration not found or inactive");
+    }
+
+    @Test
+    void processRetriesSkipsRetryClaimedByAnotherWorker() {
+        WebhookRetry retry = retry("retry-1", "tenant-a", "webhook-1");
+        when(retryRepository.findPendingRetries(any(Instant.class), any(Pageable.class))).thenReturn(List.of(retry));
+        when(retryRepository.claimPendingRetry(eq("retry-1"), any(Instant.class), any(Instant.class))).thenReturn(0);
+
+        service.processRetries();
+
+        verify(retryRepository).claimPendingRetry(eq("retry-1"), any(Instant.class), any(Instant.class));
+        verify(retryRepository, never()).save(retry);
+        verifyNoInteractions(configRepository, webClient, logRepository);
+        assertThat(retry.getStatus()).isEqualTo("PENDING");
     }
 
     private WebhookRetry retry(String id, String tenantId, String webhookId) {

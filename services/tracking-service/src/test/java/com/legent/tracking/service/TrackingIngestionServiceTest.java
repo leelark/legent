@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
@@ -82,6 +83,46 @@ class TrackingIngestionServiceTest {
         TrackingDto.RawEventPayload payload = captor.getValue();
         assertEquals("CLICK", payload.getEventType());
         assertEquals(url, payload.getLinkUrl());
+    }
+
+    @Test
+    void processOpen_RedisDeduplicationIsScopedByWorkspace() {
+        java.util.Set<String> redisKeys = new java.util.HashSet<>();
+        org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
+                .thenAnswer(invocation -> redisKeys.contains(invocation.getArgument(0))
+                        ? java.util.Optional.of("1")
+                        : java.util.Optional.empty());
+        org.mockito.Mockito.doAnswer(invocation -> {
+                    redisKeys.add(invocation.getArgument(0));
+                    return null;
+                })
+                .when(cacheService).set(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.eq("1"),
+                        org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any()))
+                .thenReturn(java.util.Optional.empty());
+
+        ingestionService.processOpen("tenant-1", "campaign-1", "subscriber-1", "message-1",
+                "workspace-a", "idem-a", null, "192.168.1.1");
+        ingestionService.processOpen("tenant-1", "campaign-1", "subscriber-1", "message-1",
+                "workspace-b", "idem-b", null, "192.168.1.1");
+
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(cacheService, times(2)).set(
+                keyCaptor.capture(),
+                org.mockito.ArgumentMatchers.eq("1"),
+                org.mockito.ArgumentMatchers.any());
+        assertEquals(java.util.List.of(
+                "track:dedup:tenant-1:workspace-a:OPEN:message-1:subscriber-1",
+                "track:dedup:tenant-1:workspace-b:OPEN:message-1:subscriber-1"), keyCaptor.getAllValues());
+        verify(outboxService, times(2)).enqueue(org.mockito.ArgumentMatchers.any());
     }
 
     @Test

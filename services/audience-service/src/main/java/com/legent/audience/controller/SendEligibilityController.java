@@ -20,7 +20,7 @@ public class SendEligibilityController {
     private final SendEligibilityService sendEligibilityService;
 
     @PostMapping("/send-eligibility")
-    @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER', 'ANALYST')")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<List<SendEligibilityService.EligibilityResult>> check(@RequestBody EligibilityRequest request) {
         return ApiResponse.ok(sendEligibilityService.check(
                 TenantContext.requireTenantId(),

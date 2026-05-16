@@ -178,6 +178,44 @@ class CampaignLaunchOrchestrationServiceTest {
         });
     }
 
+    @Test
+    void previewBlocksMissingSendingDomain() {
+        Campaign campaign = completeCampaign();
+        campaign.setSendingDomain(null);
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "campaign-1"))
+                .thenReturn(Optional.of(campaign));
+
+        CampaignLaunchDto.LaunchPlanResponse response = service.preview(request(CampaignLaunchDto.LaunchAction.PREVIEW));
+
+        assertThat(response.getBlockers()).contains("Sending domain is required before launch.");
+        assertThat(response.getWarnings()).doesNotContain("Sending domain is not selected.");
+        assertThat(response.getPrimaryAction()).isEqualTo("FIX_BLOCKERS");
+        assertThat(response.getSteps()).anySatisfy(step -> {
+            assertThat(step.getKey()).isEqualTo("deliverability");
+            assertThat(step.getStatus()).isEqualTo("BLOCKED");
+        });
+    }
+
+    @Test
+    void previewBlocksSenderAndSendingDomainMismatch() {
+        Campaign campaign = completeCampaign();
+        campaign.setSenderEmail("marketing@example.com");
+        campaign.setSendingDomain("other.example");
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "campaign-1"))
+                .thenReturn(Optional.of(campaign));
+
+        CampaignLaunchDto.LaunchPlanResponse response = service.preview(request(CampaignLaunchDto.LaunchAction.PREVIEW));
+
+        assertThat(response.getBlockers()).contains("Sender email domain must match the selected sending domain before launch.");
+        assertThat(response.getPrimaryAction()).isEqualTo("FIX_BLOCKERS");
+        assertThat(response.getSteps()).anySatisfy(step -> {
+            assertThat(step.getKey()).isEqualTo("deliverability");
+            assertThat(step.getStatus()).isEqualTo("BLOCKED");
+            assertThat(step.getDetails()).containsEntry("senderDomain", "example.com");
+            assertThat(step.getDetails()).containsEntry("sendingDomain", "other.example");
+        });
+    }
+
     private CampaignLaunchDto.LaunchPlanRequest request(CampaignLaunchDto.LaunchAction action) {
         return CampaignLaunchDto.LaunchPlanRequest.builder()
                 .campaignId("campaign-1")

@@ -75,6 +75,7 @@ public class ScimProvisioningService {
                 : userRepository.findByTenantIdAndEmailIgnoreCase(context.tenantId(), emailFilter).map(List::of).orElse(List.of());
         List<Map<String, Object>> resources = users.stream()
                 .filter(User::isActive)
+                .filter(user -> isOwnedByProvider(user, context))
                 .skip(Math.max(0, startIndex - 1L))
                 .limit(Math.max(1, Math.min(count, 200)))
                 .map(user -> toScimUser(user, context))
@@ -97,14 +98,14 @@ public class ScimProvisioningService {
     @Transactional(readOnly = true)
     public Map<String, Object> getUser(String authorization, String id) {
         ScimContext context = authenticate(authorization, "scim:users");
-        User user = findUser(context.tenantId(), id);
+        User user = findUser(context, id);
         return toScimUser(user, context);
     }
 
     @Transactional
     public Map<String, Object> replaceUser(String authorization, String id, FederationDto.ScimUserRequest request) {
         ScimContext context = authenticate(authorization, "scim:users");
-        User user = findUser(context.tenantId(), id);
+        User user = findUser(context, id);
         applyScimUser(user, request, context);
         return toScimUser(userRepository.save(user), context);
     }
@@ -112,7 +113,7 @@ public class ScimProvisioningService {
     @Transactional
     public Map<String, Object> patchUser(String authorization, String id, FederationDto.ScimPatchRequest request) {
         ScimContext context = authenticate(authorization, "scim:users");
-        User user = findUser(context.tenantId(), id);
+        User user = findUser(context, id);
         if (request.getOperations() != null) {
             for (FederationDto.ScimPatchOperation op : request.getOperations()) {
                 applyPatch(user, op);
@@ -124,7 +125,7 @@ public class ScimProvisioningService {
     @Transactional
     public void deleteUser(String authorization, String id) {
         ScimContext context = authenticate(authorization, "scim:users");
-        User user = findUser(context.tenantId(), id);
+        User user = findUser(context, id);
         user.setActive(false);
         userRepository.save(user);
     }
@@ -278,9 +279,14 @@ public class ScimProvisioningService {
         }
     }
 
-    private User findUser(String tenantId, String id) {
-        return userRepository.findByTenantIdAndId(tenantId, id)
+    private User findUser(ScimContext context, String id) {
+        return userRepository.findByTenantIdAndId(context.tenantId(), id)
+                .filter(user -> isOwnedByProvider(user, context))
                 .orElseThrow(() -> new IllegalArgumentException("SCIM user not found: " + id));
+    }
+
+    private boolean isOwnedByProvider(User user, ScimContext context) {
+        return String.valueOf(context.provider().get("id")).equals(user.getIdentityProviderId());
     }
 
     private Map<String, Object> findGroup(ScimContext context, String id) {

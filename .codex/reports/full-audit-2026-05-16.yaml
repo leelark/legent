@@ -1,0 +1,394 @@
+audit:
+  id: full-audit-2026-05-16
+  date: 2026-05-16
+  repo: "Legent - v1.0.2"
+  branch: "main...origin/main"
+  file_count: 1192
+  method:
+    - "Read AGENTS.md instructions supplied in thread and .codex/bootstrap.md."
+    - "Read active-work-items, blocked-items, unresolved-risks, full-audit command."
+    - "Ran parallel subagent audits for security, backend event flow, frontend, infra, DB, code quality."
+    - "Ran targeted rg scans for Kafka, DDL, TODO/FIXME, public routes, unsafe HTML, large files, migrations, routes, configs."
+    - "Compared visible repo capability against official/current public docs for Salesforce Marketing Cloud Engagement, Adobe Journey Optimizer, Braze, Klaviyo, Iterable, and Customer.io."
+  limitation:
+    - "This is code-proven audit plus targeted line-level review. It excludes generated dependency folders and cannot truthfully certify every runtime path without live production credentials, real provider CIDRs, load evidence, restore drills, and security scans."
+    - "Historical migrations were not edited in this audit report; repo rules forbid editing applied migrations blindly."
+    - "No secret files were read."
+
+executive_summary:
+  release_status: "not production ready"
+  top_blockers:
+    - id: PRD-001
+      severity: P0
+      reason: "Production egress policy still inherits broad 0.0.0.0/0 TCP 443 and release validator fails closed; safe replacement needs reviewed CIDRs/FQDN-capable CNI model."
+    - id: BE-EVENT-001
+      severity: P0
+      reason: "Campaign launch gate does not require verified sender domain/DNS/warmup/provider capacity before send orchestration."
+    - id: BE-EVENT-002
+      severity: P0
+      reason: "Delivery rate and warmup reservations are not atomic under concurrent workers."
+    - id: AUTH-RBAC-001
+      severity: P1
+      reason: "Audience/delivery mutating APIs rely mostly on authentication, not least-privilege method RBAC."
+    - id: SSO-LINK-001
+      severity: P1
+      reason: "Federated JIT can attach to existing tenant user by email and rewrite provider binding."
+    - id: DB-SCOPE-002
+      severity: P1
+      reason: "Content and platform ownership remains tenant-only unless product decides these are tenant-global surfaces."
+  things_already_hardened_before_this_audit:
+    - "Kafka trusted packages narrowed."
+    - "Non-test ddl-auto defaults validate."
+    - "Audience resolution chunking/keyset paging improved."
+    - "Campaign render cache and oversized payload cap added."
+    - "Tracking WebSocket auth/workspace handshake added."
+    - "Several event consumers now rethrow for retry/DLQ."
+  remediation_completed_this_wave:
+    - "AUTH-RBAC-001: audience/delivery method-level RBAC added with focused controller tests."
+    - "SSO-RBAC-001 and SSO-LINK-001: privileged raw SSO group grants blocked unless mapped, and federation JIT cannot attach native/other-provider users by email fallback."
+    - "SCIM-TENANT-001: SCIM user operations are identity-provider bound."
+    - "FE-PRD-001 and FE-PRD-006: frontend protected API context enforcement added and SCIM copy failure no longer exposes raw tokens."
+    - "CSRF-001: cookie-authenticated unsafe requests without Origin/Referer now fail closed."
+    - "TENANT-CTX-001: `t=` tenant query fallback is limited to signed public tracking open/click paths and tenant-free path matching is boundary-aware."
+    - "BE-EVENT-001 partial: campaign launch now blocks missing/invalid/mismatched sender/sending-domain alignment; DNS verification, warmup, and provider-capacity checks remain open."
+    - "DB-PERF-008 partial: webhook retries now use bounded fetch and claim-before-dispatch; stale RETRYING lease recovery remains open."
+    - "Tracking dedupe now includes workspace ID in Redis keys."
+
+competitor_baseline:
+  sources:
+    - vendor: "Salesforce Marketing Cloud Engagement"
+      url: "https://www.salesforce.com/marketing/engagement/"
+      observed_capabilities:
+        - "Journey Builder at core of Marketing Engagement."
+        - "Embedded AI features: send-time optimization, engagement frequency, multi-variant testing."
+        - "Channels include email, mobile messages, WhatsApp, custom channels, and advertising audiences."
+        - "Evaluation criteria explicitly include data connectivity, channel breadth, measurement, embedded AI, dependability, scalability."
+    - vendor: "Adobe Journey Optimizer"
+      url: "https://business.adobe.com/products/journey-optimizer.html"
+      observed_capabilities:
+        - "Unified profiles and audiences."
+        - "Journey orchestration across email, web, app, mobile, in-person."
+        - "AI decisioning, campaign orchestration, privacy/governance."
+        - "Journey Agent for creating/analyzing/optimizing journeys."
+    - vendor: "Adobe Experience League Journey Optimizer"
+      url: "https://experienceleague.adobe.com/en/docs/journey-optimizer/using/get-started/essentials/get-started"
+      observed_capabilities:
+        - "Dynamic event-based journeys reacting to real-time signals."
+        - "Centralized offer decisioning and AI/ML predictive insights."
+        - "Use cases include delayed shipment recovery, geofence push, cart recovery, welcome journeys."
+    - vendor: "Braze"
+      url: "https://www.braze.com/product/overview"
+      observed_capabilities:
+        - "Real-time customer data platform."
+        - "Canvas journey orchestration."
+        - "Cross-channel email/mobile/web/advertising touchpoints."
+        - "BrazeAI experimentation and optimization."
+    - vendor: "Klaviyo"
+      url: "https://www.klaviyo.com/features"
+      observed_capabilities:
+        - "350+ integrations/APIs."
+        - "Automated email/SMS/push flows with AI."
+        - "Web forms, reporting, predictive analytics, product recommendations, benchmarks."
+    - vendor: "Iterable"
+      url: "https://support.iterable.com/hc/en-us/articles/204780379-Product-Overview"
+      observed_capabilities:
+        - "Cross-channel email, SMS, embedded, in-app, push, web push."
+        - "Drag-and-drop journey Studio with entry rules, messages, delays, profile updates."
+        - "Experiments can A/B test campaign aspects and auto-select winners."
+    - vendor: "Customer.io"
+      url: "https://docs.customer.io/journeys/journeys-overview/"
+      observed_capabilities:
+        - "Real-time product data activates people, objects, segments, campaigns, broadcasts, transactional messages."
+        - "Campaigns can trigger from events or segment membership."
+
+salesforce_gap_analysis:
+  legent_strengths_visible_in_code:
+    - "Dedicated microservices for identity, foundation, audience, content, campaign, delivery, tracking, automation, deliverability, platform."
+    - "Strong deliverability-specific domain model: sender domains, suppressions, DMARC, reputation, warmup, inbox safety."
+    - "Enterprise admin/governance surfaces exist for feature flags, evidence, global operations, SSO/SCIM, settings."
+    - "Tracking/analytics stack includes ClickHouse and WebSocket analytics."
+  gaps_vs_salesforce_marketing_cloud:
+    - id: SFMC-GAP-001
+      area: "Journey orchestration"
+      gap: "Legent automation/workflows exist, but code audit found scheduler locking/resume atomicity risks and delay scheduling before committed state."
+      best_world_target: "Durable, versioned journey runtime with idempotent event entry, pause/resume, path experimentation, simulation, rollback, and audit trail."
+    - id: SFMC-GAP-002
+      area: "AI optimization"
+      gap: "Legent has heuristic/static performance intelligence and differentiation endpoints, but no measured model evaluation or live decisioning evidence."
+      best_world_target: "Human-reviewed AI for journey creation, send-time optimization, frequency capping, product/offer decisioning, and explainable lift reporting."
+    - id: SFMC-GAP-003
+      area: "Channels"
+      gap: "Legent is email-first; code has limited visible support for SMS/push/WhatsApp/in-app/advertising activation."
+      best_world_target: "Unified channel abstraction with consent, templates, rate limits, provider adapters, attribution, and channel fallback strategy."
+    - id: SFMC-GAP-004
+      area: "Data model"
+      gap: "Audience/data-extension code exists, but content/platform workspace scope is unresolved and some legacy mapping requires operator review."
+      best_world_target: "Workspace-safe CDP-like profile/object graph, real-time events, identity graph, schema governance, dedupe, and reverse ETL/warehouse activation."
+    - id: SFMC-GAP-005
+      area: "Operational maturity"
+      gap: "Release evidence, production egress, TLS, observability, load/restore evidence remain blockers."
+      best_world_target: "GA evidence pack with load, backup/restore, failover drills, alert firing, security scans, SBOM/provenance, runbooks, SLO burn alerts."
+
+findings:
+  security:
+    - id: AUTH-RBAC-001
+      severity: P1
+      type: "RBAC gap"
+      evidence_files:
+        - "services/audience-service/src/main/java/com/legent/audience/config/SecurityConfig.java:39"
+        - "services/audience-service/src/main/java/com/legent/audience/controller/SubscriberController.java:48"
+        - "services/delivery-service/src/main/java/com/legent/delivery/controller/DeliveryOperationsController.java:61"
+      impact: "Any authenticated tenant user can reach mutating audience/delivery APIs that should be permission-gated."
+      fix: "Add method-level least-privilege RBAC and denial tests."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+    - id: SSO-RBAC-001
+      severity: P1
+      type: "SSO role escalation"
+      evidence_files:
+        - "services/identity-service/src/main/java/com/legent/identity/service/FederatedIdentityService.java:323"
+        - "services/identity-service/src/main/java/com/legent/identity/service/FederatedIdentityService.java:639"
+      impact: "Federated group names can map directly to privileged application roles."
+      fix: "Require explicit provider group-to-role allow-list; deny admin/platform roles by default."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+    - id: SSO-LINK-001
+      severity: P1
+      type: "account takeover"
+      evidence_files:
+        - "services/identity-service/src/main/java/com/legent/identity/service/FederatedIdentityService.java:245"
+        - "services/identity-service/src/main/java/com/legent/identity/service/FederatedIdentityService.java:265"
+      impact: "JIT federation can attach to an existing native/admin account by email."
+      fix: "Require verified email plus explicit auto-link policy or pre-linked accounts."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+    - id: SCIM-TENANT-001
+      severity: P1
+      type: "SCIM provider boundary"
+      evidence_files:
+        - "services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java:69"
+        - "services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java:281"
+      impact: "SCIM token for one provider can enumerate/modify native or other-provider users in same tenant."
+      fix: "Restrict default SCIM operations to users owned by token provider; add scoped admin exception only by design."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+    - id: CSRF-001
+      severity: P2
+      type: "cookie-auth CSRF hardening"
+      evidence_files:
+        - "shared/legent-security/src/main/java/com/legent/security/UnsafeMethodOriginGuardFilter.java:43"
+      impact: "Cookie-authenticated unsafe requests without Origin or Referer could pass the guard."
+      fix: "Reject unsafe cookie-authenticated requests missing Origin/Referer while allowing non-cookie service clients."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+    - id: TENANT-CTX-001
+      severity: P2
+      type: "tenant context fallback"
+      evidence_files:
+        - "shared/legent-security/src/main/java/com/legent/security/TenantFilter.java:47"
+      impact: "`t=` tenant fallback and tenant-free path prefix matching were broader than documented tracking-only behavior."
+      fix: "Limit `t=` to signed tracking open/click paths and make tenant-free matching boundary-aware."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+    - id: PRD-006
+      severity: P2
+      type: "webhook SSRF DNS rebinding"
+      evidence_files:
+        - "shared/legent-common/src/main/java/com/legent/common/security/OutboundUrlGuard.java:64"
+        - "services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java:91"
+      impact: "Pre-dispatch host validation can be bypassed if WebClient resolves a different address later."
+      fix: "Pin/validate addresses in HTTP connector or force webhooks through hardened egress proxy."
+      locally_actionable: true
+
+  backend_event_flow:
+    - id: BE-EVENT-001
+      severity: P0
+      type: "deliverability launch gate"
+      evidence_files:
+        - "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignLaunchOrchestrationService.java:292"
+        - "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignEngineService.java:190"
+      impact: "Campaigns can proceed without verified/warmed sender-domain and provider capacity checks."
+      fix: "Block launch unless sender email domain aligns with verified SPF/DKIM/DMARC and warmup/provider capacity permits send."
+      locally_actionable: true
+      status: "partially fixed 2026-05-16: sender/sending-domain alignment now blocks; verified DNS/warmup/provider checks remain open"
+    - id: BE-EVENT-002
+      severity: P0
+      type: "rate-control concurrency"
+      evidence_files:
+        - "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java:30"
+        - "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java:33"
+      impact: "Concurrent workers can overshoot warmup/provider/domain caps."
+      fix: "Use Redis token bucket or SQL conditional reservation with commit-before-provider-send and settlement/release."
+      locally_actionable: true
+    - id: BE-EVENT-003
+      severity: P1
+      type: "Kafka payload scalability"
+      evidence_files:
+        - "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java:75"
+        - "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java:224"
+      impact: "Rendered HTML/text can still flow through Kafka per recipient."
+      fix: "Finish content-reference mode and make large-send externalization fail-closed."
+      locally_actionable: true
+    - id: BE-EVENT-004
+      severity: P1
+      type: "event consistency"
+      evidence_files:
+        - "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java:321"
+        - "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventPublisher.java:37"
+      impact: "Provider send can commit while lifecycle event publish fails asynchronously."
+      fix: "Transactional outbox or await durable publish before final status commit."
+      locally_actionable: true
+    - id: BE-EVENT-006
+      severity: P1
+      type: "suppression scalability/isolation"
+      evidence_files:
+        - "services/audience-service/src/main/java/com/legent/audience/client/DeliverabilityServiceClient.java:53"
+        - "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java:48"
+      impact: "Suppression checks materialize full lists and can miss mixed-case emails."
+      fix: "Add normalized batch suppression endpoint scoped by tenant/workspace."
+      locally_actionable: true
+
+  frontend:
+    - id: FE-PRD-001
+      severity: P1
+      type: "tenant isolation"
+      evidence_files:
+        - "frontend/src/lib/api-client.ts:39"
+        - "frontend/src/lib/api-client.ts:101"
+      impact: "Frontend can issue workspace/admin requests without tenant header when local storage is missing tenant."
+      fix: "Bound public matchers and require tenant for non-public endpoints before dispatch."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+    - id: FE-PRD-003
+      severity: P1
+      type: "campaign safety"
+      evidence_files:
+        - "frontend/src/app/(workspace)/campaigns/page.tsx:91"
+        - "frontend/src/app/(workspace)/campaigns/new/page.tsx:801"
+      impact: "UI can attempt send outside launch/preflight guardrails."
+      fix: "Route send execution through launch plan/preflight and hide send for non-ready states."
+      locally_actionable: true
+    - id: FE-PRD-006
+      severity: P2
+      type: "secret handling"
+      evidence_files:
+        - "frontend/src/components/admin/FederationConfigPanel.tsx:392"
+      impact: "SCIM token may be rendered into toast DOM on copy failure."
+      fix: "Generic copy failure message; never put raw bearer token in toast."
+      locally_actionable: true
+      status: "fixed 2026-05-16"
+
+  database:
+    - id: DB-JPA-001
+      severity: P1
+      type: "schema mismatch"
+      evidence_files:
+        - "services/tracking-service/src/main/resources/db/migration/V7__tracking_workspace_and_idempotency.sql:16"
+        - "services/tracking-service/src/main/java/com/legent/tracking/repository/TrackingEventRepository.java:14"
+      impact: "Migrated raw_events requires workspace_id/ownership_scope but legacy writers can omit them."
+      fix: "Update/remove legacy writers and add migrated-schema persistence tests."
+      locally_actionable: true
+    - id: DB-SCOPE-002
+      severity: P1
+      type: "content workspace isolation"
+      evidence_files:
+        - "services/content-service/src/main/resources/db/migration/V1__content_schema.sql:8"
+        - "services/content-service/src/main/java/com/legent/content/repository/EmailTemplateRepository.java:17"
+      impact: "Tenant workspaces can see/conflict on content unless content is intentionally tenant-global."
+      fix: "Product/security decision, then workspace_id migrations and repository filters."
+      locally_actionable: false
+      blocker: "Workspace semantics decision required."
+    - id: DB-PERF-008
+      severity: P2
+      type: "unbounded webhook retry query"
+      evidence_files:
+        - "services/platform-service/src/main/java/com/legent/platform/repository/WebhookRetryRepository.java:21"
+        - "services/platform-service/src/main/java/com/legent/platform/service/WebhookRetryService.java:68"
+      impact: "Retry backlog can materialize all pending rows before stream limit."
+      fix: "Push limit into query and add lease/SKIP LOCKED when schema allows."
+      locally_actionable: true
+      status: "partially fixed 2026-05-16: bounded fetch and claim-before-dispatch added; stale RETRYING lease recovery remains open"
+
+  infrastructure:
+    - id: INFRA-001
+      severity: P0
+      type: "network policy"
+      evidence_files:
+        - "infrastructure/kubernetes/base/network-policy.yml:45"
+        - "scripts/ops/validate-production-overlay.ps1:88"
+      impact: "Production overlay is intentionally blocked and broad egress weakens SSRF containment."
+      fix: "Need exact managed-service/provider CIDRs/ports or approved FQDN-policy CNI model."
+      locally_actionable: false
+      blocker: "External infra data required."
+    - id: INFRA-002
+      severity: P1
+      type: "TLS"
+      evidence_files:
+        - "infrastructure/kubernetes/ingress/ingress.yml:12"
+        - "infrastructure/kubernetes/ingress/ingress.yml:25"
+      impact: "Ingress redirects to HTTPS but no TLS secret/issuer rendered."
+      fix: "Add cert-manager issuer or pre-provisioned TLS secrets."
+      locally_actionable: false
+      blocker: "Certificate/issuer decision required."
+    - id: INFRA-004
+      severity: P1
+      type: "container build reproducibility"
+      evidence_files:
+        - "services/campaign-service/Dockerfile:8"
+        - "services/foundation-service/Dockerfile:11"
+      impact: "Clean image builds can fail or copy stale target jars."
+      fix: "Multi-stage Dockerfiles or CI Maven package before image build; add image build smoke."
+      locally_actionable: true
+
+  code_quality:
+    - id: PRD-009
+      severity: P2
+      type: "large files/type debt"
+      evidence_files:
+        - "frontend/src/components/marketing/PublicPageView.tsx:1"
+        - "frontend/src/app/(workspace)/email/templates/[id]/page.tsx:1"
+        - "services/foundation-service/src/main/java/com/legent/foundation/service/GlobalEnterpriseService.java:1"
+      impact: "Review and regression blast radius remains high."
+      fix: "Split by workflow/domain when touched; add DTO typing and component tests."
+      locally_actionable: true
+    - id: PRD-012
+      severity: P3
+      type: "dead/stale repo artifacts"
+      evidence_files:
+        - ".dockerignore:21"
+        - "simulate_e2e_flow.py:124"
+        - "Issues - fixed/EXHAUSTIVE_SYSTEM_AUDIT.yaml:1"
+      impact: "Search noise and stale audit drift."
+      fix: "Archive/remove obsolete generated bundles after confirming not needed."
+      locally_actionable: true
+
+next_work_queue:
+  immediate_local:
+    - "Complete in-flight FE api-client/SCIM token UI fix."
+    - "Complete in-flight platform webhook retry bounded query fix."
+    - "Complete in-flight tracking Redis idempotency workspace-key fix."
+    - "Patch SSO JIT account-link and role allow-list."
+    - "Patch SCIM provider-boundary ownership."
+    - "Patch audience/delivery method RBAC."
+    - "Patch campaign launch deliverability gate."
+  blocked_external:
+    - "Production egress CIDR/FQDN/CNI model."
+    - "Production TLS secret/issuer."
+    - "Content/platform workspace-scope product/security decision."
+    - "Audience V17 production mapping metadata."
+    - "Real GA/load/restore/security evidence."
+
+validation_plan:
+  focused:
+    - ".\\mvnw.cmd -pl services/identity-service -am test"
+    - ".\\mvnw.cmd -pl services/platform-service -am test"
+    - ".\\mvnw.cmd -pl services/tracking-service -am test"
+    - "cd frontend; npm run lint"
+  release:
+    - ".\\mvnw.cmd test"
+    - "cd frontend; npm run build"
+    - "cd frontend; npm run test:e2e:smoke"
+    - "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1"
+    - "docker compose config --quiet"
+    - "kubectl kustomize infrastructure/kubernetes/overlays/production"
+    - "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1"

@@ -4,6 +4,7 @@ import com.legent.common.dto.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -30,6 +32,7 @@ import java.util.regex.Pattern;
 public class UnsafeMethodOriginGuardFilter extends OncePerRequestFilter {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().findAndRegisterModules();
+    private static final Set<String> AUTH_COOKIE_NAMES = Set.of("legent_token", "legent_refresh_token");
 
     private final Optional<SecurityProperties> securityProperties;
 
@@ -48,19 +51,38 @@ public class UnsafeMethodOriginGuardFilter extends OncePerRequestFilter {
         String referer = request.getHeader("Referer");
         String candidateOrigin = hasText(origin) ? origin : originFromReferer(referer);
 
-        if (securityProperties.isEmpty() || !hasText(candidateOrigin)
-                || isAllowedOrigin(securityProperties.get(), candidateOrigin)) {
+        if (securityProperties.isEmpty()) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (!hasText(candidateOrigin)) {
+            if (hasAuthCookie(request)) {
+                log.warn("Blocked unsafe cookie-authenticated request without Origin/Referer to {}", request.getRequestURI());
+                reject(response, "CSRF_ORIGIN_MISSING", "Origin or Referer is required for unsafe requests");
+                return;
+            }
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        if (isAllowedOrigin(securityProperties.get(), candidateOrigin)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         log.warn("Blocked unsafe request from disallowed origin {} to {}", candidateOrigin, request.getRequestURI());
+        reject(response, "CSRF_ORIGIN_REJECTED", "Origin is not in the configured CORS allow-list");
+    }
+
+    private void reject(HttpServletResponse response, String code, String detail) throws IOException {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setContentType("application/json");
         OBJECT_MAPPER.writeValue(response.getWriter(), ApiResponse.error(
-                "CSRF_ORIGIN_REJECTED",
+                code,
                 "Unsafe cross-site request rejected",
-                "Origin is not in the configured CORS allow-list"
+                detail
         ));
     }
 
@@ -127,6 +149,19 @@ public class UnsafeMethodOriginGuardFilter extends OncePerRequestFilter {
         } catch (IllegalArgumentException ex) {
             return null;
         }
+    }
+
+    private boolean hasAuthCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null || cookies.length == 0) {
+            return false;
+        }
+        for (Cookie cookie : cookies) {
+            if (cookie != null && AUTH_COOKIE_NAMES.contains(cookie.getName()) && hasText(cookie.getValue())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean hasText(String value) {

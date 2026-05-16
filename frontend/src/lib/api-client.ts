@@ -29,25 +29,76 @@ function resolveApiUrl(url: string | undefined) {
   return `${API_BASE_URL}/api/v1${normalizedUrl}`;
 }
 
-function isAuthEndpoint(url: string | undefined): boolean {
+function getApiPath(url: string | undefined): string {
   if (!url) {
-    return false;
+    return '';
   }
-  return /\/api\/v1\/auth(?:\/|$)/.test(url);
+
+  try {
+    const path = new URL(url, 'http://legent.local').pathname;
+    const apiIndex = path.indexOf('/api/v1');
+    return (apiIndex >= 0 ? path.slice(apiIndex) : path).replace(/\/+$/, '') || '/';
+  } catch {
+    return '';
+  }
+}
+
+function matchesPath(path: string, route: string): boolean {
+  return path === route || path.startsWith(`${route}/`);
+}
+
+function isAuthEndpoint(url: string | undefined): boolean {
+  return matchesPath(getApiPath(url), '/api/v1/auth');
 }
 
 function isTenantFreeEndpoint(url: string | undefined): boolean {
-  if (!url) {
-    return false;
-  }
-  return /\/api\/v1\/(?:health|public|tracking\/o\.gif|tracking\/c)/.test(url);
+  const path = getApiPath(url);
+  return (
+    matchesPath(path, '/api/v1/health') ||
+    matchesPath(path, '/api/v1/public') ||
+    path === '/api/v1/tracking/o.gif' ||
+    matchesPath(path, '/api/v1/tracking/c')
+  );
 }
 
 function isWorkspaceOptionalEndpoint(url: string | undefined): boolean {
-  if (!url) {
-    return false;
+  const path = getApiPath(url);
+  return [
+    '/api/v1/users/preferences',
+    '/api/v1/admin/bootstrap',
+    '/api/v1/admin/branding',
+    '/api/v1/admin/configs',
+    '/api/v1/admin/contact-requests',
+    '/api/v1/admin/operations',
+    '/api/v1/admin/public-content',
+    '/api/v1/admin/settings',
+    '/api/v1/core',
+    '/api/v1/differentiation',
+    '/api/v1/federation',
+    '/api/v1/global',
+    '/api/v1/performance-intelligence',
+    '/api/v1/platform/notifications',
+    '/api/v1/platform/search',
+    '/api/v1/platform/webhooks',
+  ].some((route) => matchesPath(path, route));
+}
+
+function hasHeader(headers: NonNullable<AxiosRequestConfig['headers']>, name: string): boolean {
+  const axiosHeaders = headers as { get?: (headerName: string) => unknown };
+  const value =
+    typeof axiosHeaders.get === 'function'
+      ? axiosHeaders.get(name)
+      : (headers as Record<string, unknown>)[name] ?? (headers as Record<string, unknown>)[name.toLowerCase()];
+  return value !== undefined && value !== null && String(value).trim() !== '';
+}
+
+function setHeader(headers: NonNullable<AxiosRequestConfig['headers']>, name: string, value: string): void {
+  const axiosHeaders = headers as { set?: (headerName: string, headerValue: string) => void };
+  if (typeof axiosHeaders.set === 'function') {
+    axiosHeaders.set(name, value);
+    return;
   }
-  return /\/api\/v1\/(?:users\/preferences|admin\/(?:bootstrap|branding|configs|contact-requests|operations|public-content|settings)|core|differentiation|federation|global|performance-intelligence|platform\/(?:notifications|search|webhooks))(?:\/|$)/.test(url);
+  (headers as Record<string, string>)[name] = value;
 }
 
 function parseApiError(error: any) {
@@ -93,31 +144,51 @@ apiClient.interceptors.request.use(async (config) => {
     const workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
     const environmentId = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
     const isAuthRequest = isAuthEndpoint(resolvedUrl);
+    const isTenantFreeRequest = isTenantFreeEndpoint(resolvedUrl);
     const requestId =
       (window.crypto && 'randomUUID' in window.crypto)
         ? window.crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
+    const needsTenantContext = !isAuthRequest && !isTenantFreeRequest;
     const needsWorkspaceContext =
-      !isAuthRequest &&
-      !isTenantFreeEndpoint(resolvedUrl) &&
+      needsTenantContext &&
       !isWorkspaceOptionalEndpoint(resolvedUrl);
 
     config.headers = config.headers ?? {};
-    if (!isAuthRequest && tenantId && !config.headers['X-Tenant-Id']) {
-      config.headers['X-Tenant-Id'] = tenantId;
+    if (!isAuthRequest && tenantId && !hasHeader(config.headers, 'X-Tenant-Id')) {
+      setHeader(config.headers, 'X-Tenant-Id', tenantId);
     }
-    if (!isAuthRequest && workspaceId && !config.headers['X-Workspace-Id']) {
-      config.headers['X-Workspace-Id'] = workspaceId;
+    if (!isAuthRequest && workspaceId && !hasHeader(config.headers, 'X-Workspace-Id')) {
+      setHeader(config.headers, 'X-Workspace-Id', workspaceId);
     }
-    if (!isAuthRequest && environmentId && !config.headers['X-Environment-Id']) {
-      config.headers['X-Environment-Id'] = environmentId;
+    if (!isAuthRequest && environmentId && !hasHeader(config.headers, 'X-Environment-Id')) {
+      setHeader(config.headers, 'X-Environment-Id', environmentId);
     }
-    if (!config.headers['X-Request-Id']) {
-      config.headers['X-Request-Id'] = requestId;
+    if (!hasHeader(config.headers, 'X-Request-Id')) {
+      setHeader(config.headers, 'X-Request-Id', requestId);
     }
 
-    if (needsWorkspaceContext && !workspaceId) {
+    if (needsTenantContext && !hasHeader(config.headers, 'X-Tenant-Id')) {
+      console.warn('[context-check] Missing tenant header', {
+        url: resolvedUrl,
+      });
+      const contextError: any = new Error('Tenant context is required. Please select a tenant.');
+      contextError.response = {
+        status: 400,
+        data: {
+          success: false,
+          error: {
+            errorCode: 'MISSING_TENANT',
+            message: 'Tenant context is required',
+            details: 'X-Tenant-Id is missing from request context.',
+          },
+        },
+      };
+      throw contextError;
+    }
+
+    if (needsWorkspaceContext && !hasHeader(config.headers, 'X-Workspace-Id')) {
       console.warn('[context-check] Missing workspace header', {
         url: resolvedUrl,
         tenantId,

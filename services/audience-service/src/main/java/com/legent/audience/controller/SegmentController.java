@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,6 +22,7 @@ public class SegmentController {
     private final SegmentEvaluationService evaluationService;
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public PagedResponse<SegmentDto.Response> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -29,17 +31,20 @@ public class SegmentController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<SegmentDto.Response> getById(@PathVariable String id) {
         return ApiResponse.ok(segmentService.getById(id));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SegmentDto.Response> create(@Valid @RequestBody SegmentDto.CreateRequest request) {
         return ApiResponse.ok(segmentService.create(request));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SegmentDto.Response> update(@PathVariable String id,
                                                     @Valid @RequestBody SegmentDto.UpdateRequest request) {
         return ApiResponse.ok(segmentService.update(id, request));
@@ -47,17 +52,20 @@ public class SegmentController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:delete', principal.roles)")
     public void delete(@PathVariable String id) {
         segmentService.delete(id);
     }
 
     @GetMapping("/{id}/evaluate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<SegmentDto.CountPreview> evaluate(@PathVariable String id) {
         return ApiResponse.ok(evaluationService.evaluateCount(id));
     }
 
     @PostMapping("/{id}/recompute")
     @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<String> recompute(@PathVariable @org.springframework.lang.NonNull String id) {
         evaluationService.recompute(
                 id,

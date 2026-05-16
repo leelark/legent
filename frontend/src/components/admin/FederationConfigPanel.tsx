@@ -204,7 +204,7 @@ export function FederationConfigPanel() {
       await navigator.clipboard.writeText(value);
       addToast({ type: 'success', title: `${label} copied` });
     } catch {
-      addToast({ type: 'warning', title: 'Copy unavailable', message: value });
+      addToast({ type: 'warning', title: 'Copy unavailable', message: 'Unable to copy value to clipboard.' });
     }
   };
 

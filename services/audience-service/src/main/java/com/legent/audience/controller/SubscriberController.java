@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,6 +21,7 @@ public class SubscriberController {
     private final SubscriberService subscriberService;
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public PagedResponse<SubscriberDto.Response> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -36,22 +38,26 @@ public class SubscriberController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<SubscriberDto.Response> getById(@PathVariable String id) {
         return ApiResponse.ok(subscriberService.getById(id));
     }
 
     @GetMapping("/key/{subscriberKey}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<SubscriberDto.Response> getByKey(@PathVariable String subscriberKey) {
         return ApiResponse.ok(subscriberService.getBySubscriberKey(subscriberKey));
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SubscriberDto.Response> create(@Valid @RequestBody SubscriberDto.CreateRequest request) {
         return ApiResponse.ok(subscriberService.create(request));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SubscriberDto.Response> update(@PathVariable String id,
                                                        @Valid @RequestBody SubscriberDto.UpdateRequest request) {
         return ApiResponse.ok(subscriberService.update(id, request));
@@ -59,43 +65,51 @@ public class SubscriberController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:delete', principal.roles)")
     public void delete(@PathVariable String id) {
         subscriberService.delete(id);
     }
 
     @PostMapping("/bulk")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SubscriberDto.BulkUpsertResponse> bulkUpsert(@Valid @RequestBody SubscriberDto.BulkUpsertRequest request) {
         return ApiResponse.ok(subscriberService.bulkUpsert(request));
     }
 
     @PostMapping("/merge")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SubscriberDto.Response> merge(@Valid @RequestBody SubscriberDto.MergeRequest request) {
         return ApiResponse.ok(subscriberService.merge(request));
     }
 
     @PostMapping("/bulk-actions")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<Long> bulkActions(@Valid @RequestBody SubscriberDto.BulkActionRequest request) {
         return ApiResponse.ok(subscriberService.bulkAction(request));
     }
 
     @PutMapping("/{id}/lifecycle")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SubscriberDto.Response> updateLifecycle(@PathVariable String id,
                                                                @Valid @RequestBody SubscriberDto.LifecycleUpdateRequest request) {
         return ApiResponse.ok(subscriberService.updateLifecycle(id, request));
     }
 
     @PutMapping("/{id}/score")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SubscriberDto.Response> updateScore(@PathVariable String id,
                                                            @Valid @RequestBody SubscriberDto.ScoreUpdateRequest request) {
         return ApiResponse.ok(subscriberService.updateScore(id, request));
     }
 
     @GetMapping("/{id}/activity")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<SubscriberDto.ActivityTimelineResponse> activity(@PathVariable String id) {
         return ApiResponse.ok(subscriberService.activity(id));
     }
 
     @GetMapping("/count")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
     public ApiResponse<Long> count() {
         return ApiResponse.ok(subscriberService.count());
     }

@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import com.legent.campaign.domain.Campaign;
@@ -193,6 +194,7 @@ public class CampaignEngineService {
         if (campaign.getAudiences() == null || campaign.getAudiences().isEmpty()) {
             errors.add("At least one include or exclude audience rule is required.");
         }
+        validateSenderDomainAlignment(campaign, errors);
         if (campaign.isApprovalRequired() && campaign.getStatus() != Campaign.CampaignStatus.APPROVED) {
             errors.add("Campaign approval is required before send.");
         }
@@ -234,6 +236,8 @@ public class CampaignEngineService {
             }
         });
 
+        String senderDomain = domainFromEmail(campaign.getSenderEmail());
+        String sendingDomain = normalizeDomain(campaign.getSendingDomain());
         return CampaignEngineDto.SendPreflightReport.builder()
                 .campaignId(campaign.getId())
                 .sendAllowed(errors.isEmpty())
@@ -241,10 +245,51 @@ public class CampaignEngineService {
                 .warnings(warnings)
                 .checks(Map.of(
                         "audienceRules", campaign.getAudiences() == null ? 0 : campaign.getAudiences().size(),
+                        "senderDomain", senderDomain == null ? "" : senderDomain,
+                        "sendingDomain", sendingDomain == null ? "" : sendingDomain,
                         "experiments", experiments.size(),
                         "budgetEnforced", budget.isEnforced(),
                         "frequencyEnabled", policy.isEnabled()))
                 .build();
+    }
+
+    private void validateSenderDomainAlignment(Campaign campaign, List<String> errors) {
+        String senderDomain = domainFromEmail(campaign.getSenderEmail());
+        String sendingDomain = normalizeDomain(campaign.getSendingDomain());
+        if (senderDomain == null) {
+            errors.add("Sender email must include a valid domain before send.");
+            return;
+        }
+        if (sendingDomain == null) {
+            errors.add("Sending domain is required before send.");
+            return;
+        }
+        if (!senderDomain.equals(sendingDomain)) {
+            errors.add("Sender email domain must match the selected sending domain before send.");
+        }
+    }
+
+    private String domainFromEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        String trimmed = email.trim();
+        int at = trimmed.lastIndexOf('@');
+        if (at <= 0 || at != trimmed.indexOf('@') || at == trimmed.length() - 1) {
+            return null;
+        }
+        return normalizeDomain(trimmed.substring(at + 1));
+    }
+
+    private String normalizeDomain(String domain) {
+        if (domain == null || domain.isBlank()) {
+            return null;
+        }
+        String normalized = domain.trim().toLowerCase(Locale.ROOT);
+        while (normalized.endsWith(".")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized.isBlank() ? null : normalized;
     }
 
     @Transactional(readOnly = true)

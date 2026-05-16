@@ -22,6 +22,7 @@ import com.legent.delivery.service.WarmupService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
@@ -45,6 +46,7 @@ public class DeliveryOperationsController {
     private final ProviderCapacityService providerCapacityService;
 
     @GetMapping("/queue/stats")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<Map<String, Object>> queueStats() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -52,6 +54,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/messages")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<MessageLog>> messages(@RequestParam(defaultValue = "50") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -59,6 +62,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/messages/{messageId}/retry")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<MessageLog> retryMessage(@PathVariable String messageId,
                                                 @RequestBody(required = false) RetryRequest request) {
         String tenantId = TenantContext.requireTenantId();
@@ -68,6 +72,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/replay")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<DeliveryReplayQueue> enqueueReplay(@RequestBody ReplayRequest request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -78,6 +83,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/replay/process")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<Map<String, Object>> processReplay(@RequestBody(required = false) ReplayProcessRequest request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -90,6 +96,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/diagnostics/failures")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<Map<String, Object>> failureDiagnostics() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -97,6 +104,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/safety/evaluate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<InboxSafetyService.InboxSafetyResult> evaluateSafety(@RequestBody SafetyEvaluateRequest request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -122,6 +130,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/safety/evaluations")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<InboxSafetyEvaluation>> safetyEvaluations(@RequestParam(defaultValue = "50") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -130,6 +139,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/rate-limits")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<SendRateState>> rateLimits() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -137,6 +147,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/warmup/status")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<Map<String, Object>> warmupStatus() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -172,6 +183,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/routing/decision-trace")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<ProviderDecisionTrace>> routingDecisionTrace(@RequestParam(defaultValue = "50") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -180,6 +192,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/provider-capacity")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<ProviderCapacityProfile> upsertProviderCapacity(@RequestBody ProviderCapacityService.ProviderCapacityRequest request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -187,6 +200,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/provider-capacity")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<ProviderCapacityProfile>> providerCapacity() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -194,6 +208,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/provider-capacity/evaluate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<ProviderCapacityService.ThrottleDecision> evaluateProviderCapacity(@RequestBody ProviderCapacityService.ThrottleRequest request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -201,6 +216,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/provider-failover/tests")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<ProviderFailoverTest> runFailoverTest(@RequestBody ProviderCapacityService.FailoverTestRequest request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -208,6 +224,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/provider-failover/tests")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<ProviderFailoverTest>> failoverTests(@RequestParam(defaultValue = "25") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -215,6 +232,7 @@ public class DeliveryOperationsController {
     }
 
     @GetMapping("/dead-letters")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<Map<String, Object>> deadLetters(@RequestParam(defaultValue = "100") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -222,6 +240,7 @@ public class DeliveryOperationsController {
     }
 
     @PostMapping("/dead-letters/replay")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<Map<String, Object>> replayDeadLetters(@RequestBody ProviderCapacityService.DeadLetterReplayRequest request) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();

@@ -171,4 +171,32 @@ class OrchestrationServiceTest {
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("cannot be sent from status");
     }
+
+    @Test
+    void triggerSend_PreflightBlocked_ThrowsException() {
+        String campaignId = "camp-1";
+        Campaign campaign = new Campaign();
+        campaign.setId(campaignId);
+        campaign.setTenantId(TENANT_ID);
+        campaign.setWorkspaceId(WORKSPACE_ID);
+        campaign.setStatus(Campaign.CampaignStatus.APPROVED);
+        campaign.addAudience("LIST", "audience-1");
+
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, campaignId))
+                .thenReturn(Optional.of(campaign));
+        when(campaignEngineService.preflight(campaignId)).thenReturn(
+                CampaignEngineDto.SendPreflightReport.builder()
+                        .campaignId(campaignId)
+                        .sendAllowed(false)
+                        .errors(java.util.List.of("Sender email domain must match the selected sending domain before send."))
+                        .warnings(java.util.List.of())
+                        .checks(java.util.Map.of())
+                        .build());
+
+        assertThatThrownBy(() -> orchestrationService.triggerSend(campaignId, new SendJobDto.TriggerRequest()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Sender email domain must match");
+        verify(sendJobRepository, never()).save(any(SendJob.class));
+        verify(eventPublisher, never()).publishAudienceResolutionRequested(anyString(), anyString(), anyString(), anyList());
+    }
 }
