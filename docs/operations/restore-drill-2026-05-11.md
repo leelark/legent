@@ -11,15 +11,15 @@ Status: procedure defined, execution required in target cluster
 
 ## Commands
 
-Run the existing backup/restore automation:
+Run the existing backup/restore automation. Backups may contain customer data; use the default external backup directory or set `$env:LEGENT_BACKUP_DIR` outside the repository.
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Target postgres -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target postgres -Action backup
 .\scripts\ops\backup-restore.ps1 -Target postgres -Action restore -InputFile <postgres-backup>
-.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action backup
 .\scripts\ops\backup-restore.ps1 -Target clickhouse -Action drill -InputFile <clickhouse-backup>
 .\scripts\ops\backup-restore.ps1 -Target clickhouse -Action restore -InputFile <clickhouse-backup>
-.\scripts\ops\backup-restore.ps1 -Target minio -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target minio -Action backup
 .\scripts\ops\backup-restore.ps1 -Target minio -Action restore -InputFile <minio-backup>
 ```
 

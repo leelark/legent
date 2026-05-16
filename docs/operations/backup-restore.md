@@ -2,12 +2,14 @@
 
 All backup commands are environment driven. Do not place credentials in scripts or Git. Provide credentials through Kubernetes secrets, the current shell, or the cluster auth context.
 
+Backups may contain customer data. By default, the script writes to a `legent-backups` directory under `$HOME`, or to `$env:LEGENT_BACKUP_DIR` when set. Prefer storage outside the repository. Repo-local `.\backups` is git-ignored for short-lived local drills only.
+
 ## Postgres
 
 Backup:
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Target postgres -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target postgres -Action backup
 ```
 
 Restore:
@@ -21,7 +23,7 @@ Restore:
 Backup:
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target clickhouse -Action backup
 ```
 
 Restore:
@@ -41,7 +43,7 @@ Drill:
 Backup:
 
 ```powershell
-.\scripts\ops\backup-restore.ps1 -Target minio -Action backup -OutputDir .\backups
+.\scripts\ops\backup-restore.ps1 -Target minio -Action backup
 ```
 
 Restore:

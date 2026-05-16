@@ -21,6 +21,11 @@ metadata:
       }
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.legent.com
+        - app.legent.com
+      secretName: legent-public-tls
   rules:
     - host: api.legent.com
       http:
@@ -156,6 +161,10 @@ metadata:
     nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Tenant-Id, X-Workspace-Id, X-Environment-Id, X-Correlation-Id, X-Request-Id"
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.legent.com
+      secretName: legent-public-tls
   rules:
     - host: api.legent.com
       http:

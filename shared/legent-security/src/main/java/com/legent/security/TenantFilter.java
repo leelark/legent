@@ -8,6 +8,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -74,6 +76,10 @@ public class TenantFilter extends OncePerRequestFilter {
             String currentTenantId = TenantContext.getTenantId();
             String currentWorkspaceId = TenantContext.getWorkspaceId();
             String currentEnvironmentId = TenantContext.getEnvironmentId();
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            boolean authenticatedUserContext = authentication != null
+                    && authentication.isAuthenticated()
+                    && authentication.getPrincipal() instanceof UserPrincipal;
 
             // If tenant is missing and path is NOT tenant-free, fail
             if (tenantId == null && currentTenantId == null) {
@@ -103,6 +109,13 @@ public class TenantFilter extends OncePerRequestFilter {
 
             if (workspaceId != null && currentWorkspaceId != null && !currentWorkspaceId.equals(workspaceId)) {
                 log.error("Workspace ID conflict: JWT={}, Provided={}", currentWorkspaceId, workspaceId);
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
+
+            if (workspaceId != null && currentTenantId != null && currentWorkspaceId == null && authenticatedUserContext) {
+                log.error("Authenticated workspace header rejected because JWT has no workspace claim. tenant={}, providedWorkspace={}",
+                        currentTenantId, workspaceId);
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 return;
             }

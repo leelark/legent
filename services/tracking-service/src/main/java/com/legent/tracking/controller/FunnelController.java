@@ -5,6 +5,7 @@ import com.legent.security.TenantContext;
 import com.legent.tracking.service.FunnelService;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 
@@ -19,6 +20,7 @@ public class FunnelController {
     private final FunnelService funnelService;
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> getFunnel(@RequestParam @NotBlank String campaignId) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();

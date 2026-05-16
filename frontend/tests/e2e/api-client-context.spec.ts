@@ -1,7 +1,13 @@
 import { expect, test } from '@playwright/test';
 import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import apiClient from '../../src/lib/api-client';
-import { TENANT_STORAGE_KEY, WORKSPACE_STORAGE_KEY } from '../../src/lib/auth';
+import apiClient, { postPublic } from '../../src/lib/api-client';
+import {
+  ENVIRONMENT_STORAGE_KEY,
+  ROLES_STORAGE_KEY,
+  TENANT_STORAGE_KEY,
+  USER_STORAGE_KEY,
+  WORKSPACE_STORAGE_KEY,
+} from '../../src/lib/auth';
 
 function installBrowserContext(values: Record<string, string> = {}) {
   const store = new Map(Object.entries(values));
@@ -41,6 +47,32 @@ function captureAdapter(seen: InternalAxiosRequestConfig[]): AxiosAdapter {
       status: 200,
       statusText: 'OK',
     } satisfies AxiosResponse;
+  };
+}
+
+function rejectAdapter(status: number): AxiosAdapter {
+  return async (config) => {
+    const response = {
+      config,
+      data: {
+        success: false,
+        error: {
+          errorCode: status === 401 ? 'UNAUTHORIZED' : 'REQUEST_FAILED',
+          message: status === 401 ? 'Unauthorized' : 'Request failed',
+        },
+      },
+      headers: {},
+      request: {},
+      status,
+      statusText: status === 401 ? 'Unauthorized' : 'Error',
+    } satisfies AxiosResponse;
+    const error = new Error(`Request failed with status code ${status}`) as Error & {
+      config: InternalAxiosRequestConfig;
+      response: AxiosResponse;
+    };
+    error.config = config;
+    error.response = response;
+    throw error;
   };
 }
 
@@ -91,6 +123,27 @@ test.describe('api client context preflight', () => {
     await expectBlocked('/tracking/campaigns', 'MISSING_TENANT');
   });
 
+  test('rejects external absolute URLs before dispatch', async () => {
+    installBrowserContext({ [TENANT_STORAGE_KEY]: 'tenant-1', [WORKSPACE_STORAGE_KEY]: 'workspace-1' });
+
+    await expectBlocked('https://evil.example/api/v1/subscribers', 'EXTERNAL_API_URL');
+    await expectBlocked('//evil.example/api/v1/subscribers', 'EXTERNAL_API_URL');
+
+    const seen: InternalAxiosRequestConfig[] = [];
+    let thrown: unknown;
+    try {
+      await apiClient.get('/subscribers', {
+        adapter: captureAdapter(seen),
+        baseURL: 'https://evil.example/api/v1',
+      });
+    } catch (error) {
+      thrown = error;
+    }
+
+    expect(seen).toHaveLength(0);
+    expect(getErrorCode(thrown)).toBe('EXTERNAL_API_URL');
+  });
+
   test('allows auth, public, health, and signed tracking endpoints without tenant context', async () => {
     installBrowserContext();
     const seen: InternalAxiosRequestConfig[] = [];
@@ -105,6 +158,25 @@ test.describe('api client context preflight', () => {
     }
   });
 
+  test('public helper sends without credentials or tenant headers', async () => {
+    installBrowserContext({
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+      [ENVIRONMENT_STORAGE_KEY]: 'production',
+    });
+    const seen: InternalAxiosRequestConfig[] = [];
+
+    const response = await postPublic('/public/contact', { workEmail: 'ada@example.com' }, { adapter: captureAdapter(seen) });
+
+    expect(response).toEqual({ ok: true });
+    expect(seen).toHaveLength(1);
+    expect(seen[0].withCredentials).toBe(false);
+    expect(getHeader(seen[0], 'X-Tenant-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Environment-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Request-Id')).toBeUndefined();
+  });
+
   test('preserves workspace requirements for workspace-scoped endpoints', async () => {
     installBrowserContext({ [TENANT_STORAGE_KEY]: 'tenant-1' });
     const seen: InternalAxiosRequestConfig[] = [];
@@ -115,5 +187,28 @@ test.describe('api client context preflight', () => {
     expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
 
     await expectBlocked('/subscribers', 'MISSING_WORKSPACE');
+  });
+
+  test('clears stored auth and context on non-auth 401 before redirect', async () => {
+    installBrowserContext({
+      [USER_STORAGE_KEY]: 'user-1',
+      [ROLES_STORAGE_KEY]: '["ADMIN"]',
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+      [ENVIRONMENT_STORAGE_KEY]: 'production',
+      legent_public_theme: 'dark',
+    });
+
+    await expect(apiClient.get('/subscribers', { adapter: rejectAdapter(401) })).rejects.toMatchObject({
+      normalized: { status: 401, errorCode: 'UNAUTHORIZED' },
+    });
+
+    expect(localStorage.getItem(USER_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(ROLES_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(TENANT_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(WORKSPACE_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem(ENVIRONMENT_STORAGE_KEY)).toBeNull();
+    expect(localStorage.getItem('legent_public_theme')).toBe('dark');
+    expect((globalThis.window as unknown as { location: { href: string } }).location.href).toBe('/login');
   });
 });

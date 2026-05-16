@@ -12,6 +12,7 @@ import com.legent.security.TenantContext;
 import eu.bitwalker.useragentutils.UserAgent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,13 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class TrackingIngestionService {
+
+    private static final RedisScript<Long> RESERVE_DEDUP_KEY_SCRIPT = RedisScript.of("""
+            if redis.call('SET', KEYS[1], ARGV[1], 'NX', 'PX', ARGV[2]) then
+              return 1
+            end
+            return 0
+            """, Long.class);
 
     private final com.legent.cache.service.CacheService cacheService;
     private final RawEventRepository rawEventRepository;
@@ -111,11 +119,15 @@ public class TrackingIngestionService {
         // Use 7-day window for click deduplication, 2 hours for opens
         java.time.Duration ttl = "CLICK".equals(type) ? java.time.Duration.ofDays(7) : java.time.Duration.ofHours(2);
         String key = "track:dedup:" + tenantId + ":" + workspaceId + ":" + type + ":" + msgId + ":" + subId + urlHash;
-        if (cacheService.get(key, String.class).isPresent()) {
-            return true;
+        Long reserved = cacheService.executeScript(
+                RESERVE_DEDUP_KEY_SCRIPT,
+                java.util.List.of(key),
+                "1",
+                String.valueOf(ttl.toMillis()));
+        if (reserved == null) {
+            throw new IllegalStateException("Redis dedupe reservation returned no result");
         }
-        cacheService.set(key, "1", ttl);
-        return false;
+        return reserved == 0L;
     }
 
     /**

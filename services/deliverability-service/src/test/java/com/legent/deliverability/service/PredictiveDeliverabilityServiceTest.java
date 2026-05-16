@@ -27,12 +27,13 @@ class PredictiveDeliverabilityServiceTest {
     @Mock private SenderDomainRepository senderDomainRepository;
     @Mock private DomainReputationRepository domainReputationRepository;
     @Mock private SuppressionListRepository suppressionListRepository;
+    @Mock private DomainVerificationService domainVerificationService;
 
     private PredictiveDeliverabilityService service;
 
     @BeforeEach
     void setUp() {
-        service = new PredictiveDeliverabilityService(senderDomainRepository, domainReputationRepository, suppressionListRepository);
+        service = new PredictiveDeliverabilityService(senderDomainRepository, domainReputationRepository, suppressionListRepository, domainVerificationService);
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
     }

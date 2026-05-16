@@ -51,6 +51,8 @@ public class WebhookRetryService {
     private final Executor webhookRetryExecutor;
 
     private static final int MAX_RETRIES_PER_BATCH = 50;
+    private static final int MAX_STALE_RECOVERIES_PER_BATCH = 50;
+    private static final Duration RETRY_CLAIM_TIMEOUT = Duration.ofMinutes(2);
 
     // Exponential backoff delays: 30s, 2min, 10min
     private static final Duration[] RETRY_DELAYS = {
@@ -66,6 +68,7 @@ public class WebhookRetryService {
     @Scheduled(fixedDelay = 30000)
     public void processRetries() {
         Instant now = Instant.now();
+        recoverStaleRetryingClaims(now);
 
         // Process PENDING retries with parallel processing
         List<WebhookRetry> pendingRetries = retryRepository.findPendingRetries(
@@ -93,7 +96,6 @@ public class WebhookRetryService {
 
     private boolean claimPendingRetry(WebhookRetry retry, Instant now) {
         Instant claimedAt = Instant.now();
-        // This is a row claim, not an expiring lease; stale RETRYING recovery still needs a reconciler.
         int claimed = retryRepository.claimPendingRetry(retry.getId(), now, claimedAt);
         if (claimed == 0) {
             log.debug("Skipping webhook retry {} because another worker claimed it", retry.getId());
@@ -102,7 +104,26 @@ public class WebhookRetryService {
 
         retry.setStatus("RETRYING");
         retry.setUpdatedAt(claimedAt);
+        retry.setClaimStartedAt(claimedAt);
         return true;
+    }
+
+    private void recoverStaleRetryingClaims(Instant now) {
+        Instant staleBefore = now.minus(RETRY_CLAIM_TIMEOUT);
+        List<WebhookRetry> staleRetries = retryRepository.findStaleRetryingRecords(
+                staleBefore, PageRequest.of(0, MAX_STALE_RECOVERIES_PER_BATCH));
+        if (staleRetries == null || staleRetries.isEmpty()) {
+            return;
+        }
+
+        int released = 0;
+        String reason = "Recovered stale webhook retry claim after " + RETRY_CLAIM_TIMEOUT;
+        for (WebhookRetry retry : staleRetries) {
+            released += retryRepository.releaseStaleRetryingRecord(retry.getId(), staleBefore, now, reason);
+        }
+        if (released > 0) {
+            log.warn("Recovered {} stale webhook retry claims older than {}", released, RETRY_CLAIM_TIMEOUT);
+        }
     }
 
     /**
@@ -125,8 +146,12 @@ public class WebhookRetryService {
     public void processRetry(WebhookRetry retry) {
         try {
             // Mark as retrying
+            Instant processingStartedAt = Instant.now();
             retry.setStatus("RETRYING");
-            retry.setUpdatedAt(Instant.now());
+            retry.setUpdatedAt(processingStartedAt);
+            if (retry.getClaimStartedAt() == null) {
+                retry.setClaimStartedAt(processingStartedAt);
+            }
             retryRepository.save(retry);
 
             // Get webhook config within the retry tenant/workspace to avoid cross-scope delivery.
@@ -211,6 +236,7 @@ public class WebhookRetryService {
             retry.setStatus("PENDING");
             retry.setNextRetryAt(nextRetryAt);
             retry.setLastError(errorMessage);
+            retry.setClaimStartedAt(null);
             retry.setUpdatedAt(Instant.now());
             retryRepository.save(retry);
             
@@ -223,6 +249,7 @@ public class WebhookRetryService {
         retry.setStatus("SUCCESS");
         retry.setUpdatedAt(Instant.now());
         retry.setLastError(null);
+        retry.setClaimStartedAt(null);
         retryRepository.save(retry);
         log.info("Webhook retry {} succeeded after {} attempts", retry.getId(), retry.getRetryCount() + 1);
     }
@@ -231,6 +258,7 @@ public class WebhookRetryService {
         retry.setStatus("FAILED");
         retry.setUpdatedAt(Instant.now());
         retry.setLastError(errorMessage);
+        retry.setClaimStartedAt(null);
         retryRepository.save(retry);
         log.warn("Webhook retry {} failed permanently: {}", retry.getId(), errorMessage);
     }

@@ -6,6 +6,7 @@ import com.legent.deliverability.domain.SenderDomain;
 import com.legent.deliverability.repository.DomainReputationRepository;
 import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.repository.SuppressionListRepository;
+import com.legent.deliverability.service.DomainVerificationService;
 import com.legent.deliverability.service.PredictiveDeliverabilityService;
 import com.legent.deliverability.service.SpamScoringEngine;
 import com.legent.security.TenantContext;
@@ -30,6 +31,7 @@ public class DeliverabilityInsightsController {
     private final SuppressionListRepository suppressionListRepository;
     private final SpamScoringEngine spamScoringEngine;
     private final PredictiveDeliverabilityService predictiveDeliverabilityService;
+    private final DomainVerificationService domainVerificationService;
 
     @GetMapping("/auth/checks")
     public ApiResponse<List<Map<String, Object>>> authChecks() {
@@ -37,17 +39,20 @@ public class DeliverabilityInsightsController {
         String workspaceId = TenantContext.requireWorkspaceId();
         List<SenderDomain> domains = senderDomainRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId);
         List<Map<String, Object>> result = domains.stream().map(domain -> {
+            boolean freshProof = domainVerificationService.hasFreshOwnershipProof(domain);
             Map<String, Object> row = new HashMap<>();
             row.put("domainId", domain.getId());
             row.put("domain", domain.getDomainName());
-            row.put("status", domain.getStatus() != null ? domain.getStatus().name() : "PENDING");
-            row.put("spf", domain.getSpfVerified());
-            row.put("dkim", domain.getDkimVerified());
-            row.put("dmarc", domain.getDmarcVerified());
+            row.put("status", freshProof ? "VERIFIED" : "FAILED");
+            row.put("spf", freshProof && Boolean.TRUE.equals(domain.getSpfVerified()));
+            row.put("dkim", freshProof && Boolean.TRUE.equals(domain.getDkimVerified()));
+            row.put("dmarc", freshProof && Boolean.TRUE.equals(domain.getDmarcVerified()));
+            row.put("ownershipToken", freshProof);
             row.put("bimi", false);
-            row.put("reverseDns", Boolean.TRUE.equals(domain.getSpfVerified()) && Boolean.TRUE.equals(domain.getDmarcVerified()));
+            row.put("reverseDns", freshProof);
             row.put("trackingDomain", domain.getDomainName());
             row.put("lastVerifiedAt", domain.getLastVerifiedAt());
+            row.put("ownershipTokenVerifiedAt", domain.getOwnershipTokenVerifiedAt());
             return row;
         }).toList();
         return ApiResponse.ok(result);
@@ -136,6 +141,9 @@ public class DeliverabilityInsightsController {
                 .findFirst()
                 .orElse(domains.get(0));
         int risk = 0;
+        if (!domainVerificationService.hasFreshOwnershipProof(selected)) {
+            return 100;
+        }
         if (!Boolean.TRUE.equals(selected.getSpfVerified())) {
             risk += 25;
         }

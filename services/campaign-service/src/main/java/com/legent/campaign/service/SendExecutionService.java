@@ -7,6 +7,8 @@ import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.domain.Campaign;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.event.EmailContentReference;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,6 +62,9 @@ public class SendExecutionService {
     @Value("${legent.campaign.send.max-batch-retries:5}")
     private int maxBatchRetries;
 
+    @Value("${legent.campaign.send.processing-lease-timeout:PT15M}")
+    private Duration processingLeaseTimeout;
+
     @Value("${legent.campaign.send.render-cache-max-entries:1000}")
     private int maxRenderCacheEntries;
 
@@ -84,6 +89,7 @@ public class SendExecutionService {
             if (batch.getCampaignId() == null || batch.getCampaignId().isBlank()) {
                 throw new ValidationException("campaignId", "Batch campaignId is required");
             }
+            String workspaceId = requireWorkspaceId(batch.getWorkspaceId(), batchId);
 
             batch.setStatus(SendBatch.BatchStatus.PROCESSING);
             batchRepository.saveAndFlush(batch);
@@ -164,6 +170,7 @@ public class SendExecutionService {
                 ContentServiceClient.RenderedContent rendered = renderWithBatchCache(
                         renderCache,
                         tenantId,
+                        workspaceId,
                         renderContentId,
                         prepared.subjectOverride(),
                         variables);
@@ -479,20 +486,28 @@ public class SendExecutionService {
     private ContentServiceClient.RenderedContent renderWithBatchCache(
             Map<RenderCacheKey, ContentServiceClient.RenderedContent> renderCache,
             String tenantId,
+            String workspaceId,
             String renderContentId,
             String subjectOverride,
             Map<String, Object> variables) {
         if (renderCache.isEmpty() && maxRenderCacheEntries <= 0) {
-            return contentServiceClient.renderTemplate(tenantId, renderContentId, variables);
+            return contentServiceClient.renderTemplate(tenantId, workspaceId, renderContentId, variables);
         }
         RenderCacheKey key = RenderCacheKey.from(renderContentId, subjectOverride, variables);
         ContentServiceClient.RenderedContent cached = renderCache.get(key);
         if (cached != null) {
             return cached;
         }
-        ContentServiceClient.RenderedContent rendered = contentServiceClient.renderTemplate(tenantId, renderContentId, variables);
+        ContentServiceClient.RenderedContent rendered = contentServiceClient.renderTemplate(tenantId, workspaceId, renderContentId, variables);
         renderCache.put(key, rendered);
         return rendered;
+    }
+
+    private String requireWorkspaceId(String workspaceId, String batchId) {
+        if (workspaceId == null || workspaceId.isBlank()) {
+            throw new ValidationException("workspaceId", "Send batch " + batchId + " is missing workspace context");
+        }
+        return workspaceId.trim();
     }
 
     private record RenderCacheKey(String renderContentId,
@@ -565,8 +580,18 @@ public class SendExecutionService {
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 300000)
     @Transactional
     public void retryPartialBatches() {
+        List<SendBatch> staleProcessingBatches = batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
+                SendBatch.BatchStatus.PROCESSING,
+                Instant.now().minus(processingLeaseTimeout));
+        staleProcessingBatches.forEach(batch -> {
+            batch.setStatus(SendBatch.BatchStatus.PARTIAL);
+            batch.setLastError("Recovered stale campaign batch processing lease");
+            batchRepository.save(batch);
+        });
+
         List<SendBatch> partialBatches = batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL);
-        log.info("Found {} PARTIAL batches to retry", partialBatches.size());
+        log.info("Found {} stale PROCESSING and {} PARTIAL batches to retry",
+                staleProcessingBatches.size(), partialBatches.size());
 
         for (SendBatch batch : partialBatches) {
             try {

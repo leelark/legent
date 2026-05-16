@@ -17,7 +17,18 @@ Expected gates:
 - Docker Compose config renders.
 - Synthetic API smoke passes against the target environment.
 - Production Kustomize overlay renders.
+- Production ingress renders TLS for `api.legent.com` and `app.legent.com` through `legent-public-tls`.
+- Production namespace enforces restricted Pod Security and Deployments render non-root, no privilege escalation, and dropped Linux capabilities.
 - Production overlay deletes broad base egress, renders default deny, and only permits reviewed egress. Current repo overlay allows same-namespace pod egress plus DNS; target clusters still need reviewed managed-service/provider CIDR or FQDN policy overlays before real promotion.
+- CI uploads a filesystem SBOM and a rendered image supply-chain checklist. Target release evidence must still include registry-backed image digests, signatures, SBOM references, and provenance attestations.
+
+Strict image digest validation is available once registry digests are pinned:
+
+```powershell
+.\scripts\ops\validate-production-overlay.ps1 -RequireImageDigests
+```
+
+Without real digest pins this command must fail; do not replace the failure with invented digests.
 
 ## Actuator And Internal Endpoints
 
@@ -64,6 +75,19 @@ Triage:
 2. Confirm `MANAGEMENT_OTLP_TRACING_ENDPOINT` is set in `legent-config`.
 3. Search logs by `correlationId`.
 4. Use traces to join ingress, service, database, Kafka, and outbound provider latency.
+
+## TLS And Pod Security
+
+Production ingress must reference `legent-public-tls` for both `api.legent.com` and `app.legent.com`. The repository can validate the reference, but operators must attach certificate-manager or ingress-controller evidence proving the secret is issued for the expected hosts by the approved owner.
+
+Production must render restricted Pod Security labels and deployment security contexts:
+
+```powershell
+kubectl kustomize infrastructure/kubernetes/overlays/production
+.\scripts\ops\validate-production-overlay.ps1
+```
+
+Target-cluster evidence must include a server-side dry run or admission/audit transcript showing restricted Pod Security is enforced in the cluster.
 
 ## Rollback
 

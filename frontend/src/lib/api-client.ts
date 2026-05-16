@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosRequestConfig } from 'axios';
 import {
+  clearStoredAuth,
   getStoredTenantId,
   WORKSPACE_STORAGE_KEY,
   ENVIRONMENT_STORAGE_KEY,
@@ -11,6 +12,140 @@ const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
   ''
 ).replace(/\/$/, '');
+
+const ABSOLUTE_URL_PATTERN = /^[a-z][a-z\d+\-.]*:/i;
+
+type ApiErrorDetail = {
+  errorCode?: unknown;
+  code?: unknown;
+  message?: unknown;
+  details?: unknown;
+};
+
+type ApiErrorPayload = {
+  data?: unknown;
+  error?: ApiErrorDetail;
+  message?: unknown;
+  pagination?: unknown;
+  success?: boolean;
+};
+
+type ApiClientError = Error & {
+  config?: AxiosRequestConfig;
+  normalized?: NormalizedApiError;
+  response?: {
+    status?: number;
+    data?: ApiErrorPayload;
+  };
+};
+
+type NormalizedApiError = {
+  status?: number;
+  errorCode: string;
+  message: string;
+  details?: unknown;
+};
+
+// Existing API wrappers have many call sites that intentionally omit a response generic.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LegacyApiData = any;
+
+function readString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value : undefined;
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function createApiClientError(errorCode: string, message: string, details: string): ApiClientError {
+  const contextError = new Error(message) as ApiClientError;
+  contextError.response = {
+    status: 400,
+    data: {
+      success: false,
+      error: {
+        errorCode,
+        message,
+        details,
+      },
+    },
+  };
+  return contextError;
+}
+
+function getRuntimeOrigin(): string | null {
+  if (typeof window === 'undefined' || !window.location?.href) {
+    return null;
+  }
+
+  try {
+    return new URL(window.location.href).origin;
+  } catch {
+    return null;
+  }
+}
+
+function getConfiguredApiOrigin(): string | null {
+  if (!API_BASE_URL) {
+    return null;
+  }
+
+  try {
+    return new URL(API_BASE_URL).origin;
+  } catch {
+    const runtimeOrigin = getRuntimeOrigin();
+    if (!runtimeOrigin) {
+      return null;
+    }
+
+    try {
+      return new URL(API_BASE_URL, runtimeOrigin).origin;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function isAbsoluteRequestUrl(url: string): boolean {
+  return ABSOLUTE_URL_PATTERN.test(url) || url.startsWith('//');
+}
+
+function parseRequestUrl(url: string): URL | null {
+  const base = getRuntimeOrigin() ?? getConfiguredApiOrigin() ?? 'http://legent.local';
+  try {
+    return new URL(url, base);
+  } catch {
+    return null;
+  }
+}
+
+function assertCredentialedApiUrlAllowed(url: string | undefined): void {
+  const rawUrl = url?.trim();
+  if (!rawUrl || !isAbsoluteRequestUrl(rawUrl)) {
+    return;
+  }
+
+  const parsedUrl = parseRequestUrl(rawUrl);
+  const allowedOrigin = getConfiguredApiOrigin() ?? getRuntimeOrigin();
+  const allowedHttpUrl =
+    parsedUrl &&
+    (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
+    allowedOrigin &&
+    parsedUrl.origin === allowedOrigin;
+
+  if (allowedHttpUrl) {
+    return;
+  }
+
+  throw createApiClientError(
+    'EXTERNAL_API_URL',
+    'External API URLs are not allowed',
+    'Credentialed API requests cannot target an external absolute URL.'
+  );
+}
 
 function resolveApiUrl(url: string | undefined) {
   if (!url) {
@@ -101,16 +236,35 @@ function setHeader(headers: NonNullable<AxiosRequestConfig['headers']>, name: st
   (headers as Record<string, string>)[name] = value;
 }
 
-function parseApiError(error: any) {
-  const response = error?.response;
+function parseApiError(error: unknown): NormalizedApiError {
+  const clientError = error as ApiClientError | null | undefined;
+  const response = clientError?.response;
   const payload = response?.data;
   const errorDetail = payload?.error ?? {};
   return {
     status: response?.status,
-    errorCode: errorDetail?.errorCode || errorDetail?.code || 'UNKNOWN_ERROR',
-    message: errorDetail?.message || payload?.message || error?.message || 'Request failed',
+    errorCode: readString(errorDetail.errorCode) ?? readString(errorDetail.code) ?? 'UNKNOWN_ERROR',
+    message: readString(errorDetail.message) ?? readString(payload?.message) ?? readString(clientError?.message) ?? 'Request failed',
     details: errorDetail?.details,
   };
+}
+
+function unwrapApiData<T>(data: unknown): T {
+  const record = readRecord(data);
+  if (!record) {
+    return data as T;
+  }
+
+  if (record.pagination) {
+    const pagination = readRecord(record.pagination) ?? {};
+    return {
+      content: record.data,
+      data: record.data,
+      ...pagination,
+    } as T;
+  }
+
+  return (record.data ?? record) as T;
 }
 
 /**
@@ -136,8 +290,12 @@ const publicApiClient: AxiosInstance = axios.create({
 
 // -- Request Interceptor --
 apiClient.interceptors.request.use(async (config) => {
+  assertCredentialedApiUrlAllowed(config.baseURL);
+  assertCredentialedApiUrlAllowed(config.url);
+
   const resolvedUrl = resolveApiUrl(config.url);
   config.url = resolvedUrl;
+  config.baseURL = undefined;
 
   if (typeof window !== 'undefined') {
     const tenantId = getStoredTenantId();
@@ -173,19 +331,11 @@ apiClient.interceptors.request.use(async (config) => {
       console.warn('[context-check] Missing tenant header', {
         url: resolvedUrl,
       });
-      const contextError: any = new Error('Tenant context is required. Please select a tenant.');
-      contextError.response = {
-        status: 400,
-        data: {
-          success: false,
-          error: {
-            errorCode: 'MISSING_TENANT',
-            message: 'Tenant context is required',
-            details: 'X-Tenant-Id is missing from request context.',
-          },
-        },
-      };
-      throw contextError;
+      throw createApiClientError(
+        'MISSING_TENANT',
+        'Tenant context is required',
+        'X-Tenant-Id is missing from request context.'
+      );
     }
 
     if (needsWorkspaceContext && !hasHeader(config.headers, 'X-Workspace-Id')) {
@@ -193,19 +343,11 @@ apiClient.interceptors.request.use(async (config) => {
         url: resolvedUrl,
         tenantId,
       });
-      const contextError: any = new Error('Workspace context is required. Please select a workspace.');
-      contextError.response = {
-        status: 400,
-        data: {
-          success: false,
-          error: {
-            errorCode: 'MISSING_WORKSPACE',
-            message: 'Workspace context is required',
-            details: 'X-Workspace-Id is missing from request context.',
-          },
-        },
-      };
-      throw contextError;
+      throw createApiClientError(
+        'MISSING_WORKSPACE',
+        'Workspace context is required',
+        'X-Workspace-Id is missing from request context.'
+      );
     }
   }
 
@@ -216,14 +358,15 @@ apiClient.interceptors.request.use(async (config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    error.normalized = parseApiError(error);
-    if (error.response?.status === 401 && !isAuthEndpoint(error.config?.url)) {
-      // Handle unauthorized - redirect to login
+    const clientError = error as ApiClientError;
+    clientError.normalized = parseApiError(clientError);
+    if (clientError.response?.status === 401 && !isAuthEndpoint(clientError.config?.url)) {
       if (typeof window !== 'undefined') {
+        clearStoredAuth();
         window.location.href = '/login';
       }
     }
-    return Promise.reject(error);
+    return Promise.reject(clientError);
   }
 );
 
@@ -231,36 +374,32 @@ export default apiClient;
 export const getApiError = parseApiError;
 
 // -- Convenience helpers --
-export async function get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-  const response = await apiClient.get<any>(url, config);
-  const resData = response.data;
-  if (resData?.pagination) {
-    return {
-      content: resData.data,
-      data: resData.data,
-      ...resData.pagination
-    } as any;
-  }
-  return resData?.data ?? resData;
+export async function get<T = LegacyApiData>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.get<unknown>(url, config);
+  return unwrapApiData<T>(response.data);
 }
 
-export async function getPublic<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-  const response = await publicApiClient.get<any>(resolveApiUrl(url), config);
-  const resData = response.data;
-  return resData?.data ?? resData;
+export async function getPublic<T = LegacyApiData>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  const response = await publicApiClient.get<unknown>(resolveApiUrl(url), config);
+  return unwrapApiData<T>(response.data);
 }
 
-export async function post<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-  const response = await apiClient.post<any>(url, data, config);
-  return response.data?.data ?? response.data;
+export async function postPublic<T = LegacyApiData>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  const response = await publicApiClient.post<unknown>(resolveApiUrl(url), data, config);
+  return unwrapApiData<T>(response.data);
 }
 
-export async function put<T = any>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
-  const response = await apiClient.put<any>(url, data, config);
-  return response.data?.data ?? response.data;
+export async function post<T = LegacyApiData>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.post<unknown>(url, data, config);
+  return unwrapApiData<T>(response.data);
 }
 
-export async function del<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
-  const response = await apiClient.delete<any>(url, config);
-  return response.data?.data ?? response.data;
+export async function put<T = LegacyApiData>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.put<unknown>(url, data, config);
+  return unwrapApiData<T>(response.data);
+}
+
+export async function del<T = LegacyApiData>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  const response = await apiClient.delete<unknown>(url, config);
+  return unwrapApiData<T>(response.data);
 }

@@ -26,7 +26,7 @@ public class ClickHouseRollupService {
     }
 
     public Map<String, Object> ensureRollupSchema() {
-        List<String> statements = rollupSchemaStatements();
+        List<String> statements = analyticsSchemaStatements();
         JdbcTemplate jdbc = clickHouseJdbcTemplateProvider.getIfAvailable();
         if (jdbc == null) {
             return Map.of("status", "SKIPPED", "reason", "ClickHouse JdbcTemplate not configured", "statements", statements);
@@ -138,6 +138,36 @@ public class ClickHouseRollupService {
                 PARTITION BY toYYYYMM(bucket_date)
                 ORDER BY (tenant_id, workspace_id, campaign_id, bucket_date)
                 """);
+    }
+
+    List<String> rawEventSchemaStatements() {
+        return List.of("""
+                CREATE TABLE IF NOT EXISTS raw_events (
+                    id String,
+                    tenant_id String,
+                    workspace_id String,
+                    event_type LowCardinality(String),
+                    campaign_id Nullable(String),
+                    subscriber_id Nullable(String),
+                    message_id Nullable(String),
+                    user_agent Nullable(String),
+                    ip_address Nullable(String),
+                    link_url Nullable(String),
+                    timestamp DateTime64(3, 'UTC'),
+                    metadata String
+                )
+                ENGINE = MergeTree()
+                PARTITION BY toYYYYMM(timestamp)
+                ORDER BY (tenant_id, workspace_id, event_type, timestamp, id)
+                TTL timestamp + INTERVAL 180 DAY DELETE
+                """);
+    }
+
+    List<String> analyticsSchemaStatements() {
+        List<String> statements = new ArrayList<>();
+        statements.addAll(rawEventSchemaStatements());
+        statements.addAll(rollupSchemaStatements());
+        return statements;
     }
 
     String campaignDayRefreshSql() {

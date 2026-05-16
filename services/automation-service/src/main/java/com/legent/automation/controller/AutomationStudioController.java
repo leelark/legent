@@ -5,6 +5,7 @@ import com.legent.automation.service.AutomationStudioService;
 import com.legent.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,23 +27,27 @@ public class AutomationStudioController {
     private final AutomationStudioService automationStudioService;
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<List<AutomationStudioDto.ActivityResponse>> listActivities() {
         return ApiResponse.ok(automationStudioService.listActivities());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<AutomationStudioDto.ActivityResponse> createActivity(
             @Valid @RequestBody AutomationStudioDto.ActivityRequest request) {
         return ApiResponse.ok(automationStudioService.createActivity(request));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<AutomationStudioDto.ActivityResponse> getActivity(@PathVariable String id) {
         return ApiResponse.ok(automationStudioService.getActivity(id));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<AutomationStudioDto.ActivityResponse> updateActivity(
             @PathVariable String id,
             @Valid @RequestBody AutomationStudioDto.ActivityRequest request) {
@@ -51,16 +56,19 @@ public class AutomationStudioController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public void archiveActivity(@PathVariable String id) {
         automationStudioService.archiveActivity(id);
     }
 
     @PostMapping("/{id}/verify")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<AutomationStudioDto.VerificationResponse> verifyActivity(@PathVariable String id) {
         return ApiResponse.ok(automationStudioService.verifyActivity(id));
     }
 
     @PostMapping("/{id}/runs")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<AutomationStudioDto.RunResponse> runActivity(
             @PathVariable String id,
             @RequestBody(required = false) AutomationStudioDto.RunRequest request) {
@@ -68,6 +76,7 @@ public class AutomationStudioController {
     }
 
     @GetMapping("/{id}/runs")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<List<AutomationStudioDto.RunResponse>> listRuns(@PathVariable String id) {
         return ApiResponse.ok(automationStudioService.listRuns(id));
     }

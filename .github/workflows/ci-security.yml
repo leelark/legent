@@ -78,6 +78,14 @@ jobs:
       - name: Production overlay validator
         shell: pwsh
         run: ./scripts/ops/validate-production-overlay.ps1
+      - name: Production image supply-chain checklist
+        shell: pwsh
+        run: ./scripts/ops/write-image-supply-chain-checklist.ps1 -OutputPath /tmp/legent-image-supply-chain-checklist.md
+      - name: Upload production image evidence checklist
+        uses: actions/upload-artifact@v4
+        with:
+          name: legent-image-supply-chain-checklist
+          path: /tmp/legent-image-supply-chain-checklist.md
 
   security:
     runs-on: ubuntu-latest
@@ -92,3 +100,15 @@ jobs:
           scan-ref: .
           severity: CRITICAL,HIGH
           exit-code: "1"
+      - name: Filesystem SBOM
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: cyclonedx
+          output: legent-fs-sbom.cdx.json
+      - name: Upload filesystem SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: legent-fs-sbom
+          path: legent-fs-sbom.cdx.json

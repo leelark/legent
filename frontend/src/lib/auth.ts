@@ -58,22 +58,6 @@ export function parseJwtClaims(token: string): JwtClaims | null {
   }
 }
 
-export function getStoredRoles(): string[] {
-  if (typeof window === 'undefined') {
-    return [];
-  }
-  const raw = localStorage.getItem(ROLES_STORAGE_KEY);
-  if (!raw) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return [];
-  }
-}
-
 /**
  * AUDIT-020: Centralized auth state management.
  * Clears all stored authentication data from localStorage.
@@ -103,15 +87,5 @@ export function initializeAuthState(): { userId: string | null; roles: string[] 
     return { userId: null, roles: [] };
   }
   const userId = localStorage.getItem(USER_STORAGE_KEY);
-  const rolesRaw = localStorage.getItem(ROLES_STORAGE_KEY);
-  let roles: string[] = [];
-  if (rolesRaw) {
-    try {
-      const parsed = JSON.parse(rolesRaw);
-      roles = Array.isArray(parsed) ? parsed.map(String) : [];
-    } catch {
-      roles = [];
-    }
-  }
-  return { userId, roles };
+  return { userId: userId && userId.trim() ? userId : null, roles: [] };
 }

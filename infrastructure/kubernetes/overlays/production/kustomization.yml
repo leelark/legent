@@ -54,6 +54,13 @@ patches:
     target:
       kind: ConfigMap
       name: legent-config
+  - path: namespace-restricted-patch.yml
+    target:
+      kind: Namespace
+      name: legent
   - path: deployment-rollout-patch.yml
+    target:
+      kind: Deployment
+  - path: deployment-security-patch.yml
     target:
       kind: Deployment

@@ -78,7 +78,14 @@ async function fulfill(route: Route, data: unknown) {
   });
 }
 
-async function mockAdminApis(page: Page) {
+type MockAdminApiOptions = {
+  omitSessionRoles?: boolean;
+  searchResults?: unknown[];
+  seenPaths?: string[];
+  sessionRoles?: string[];
+};
+
+async function mockAdminApis(page: Page, options: MockAdminApiOptions = {}) {
   await page.addInitScript(() => {
     localStorage.setItem('legent_user_id', 'admin-user');
     localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
@@ -91,9 +98,19 @@ async function mockAdminApis(page: Page) {
     const url = new URL(request.url());
     const path = url.pathname.replace('/api/v1', '');
     const method = request.method();
+    options.seenPaths?.push(path);
 
     if (path === '/auth/session') {
-      return fulfill(route, ok({ status: 'success', userId: 'admin-user', tenantId: 'tenant-1', workspaceId: 'workspace-1', roles: ['ADMIN'] }));
+      const session: Record<string, unknown> = {
+        status: 'success',
+        userId: 'admin-user',
+        tenantId: 'tenant-1',
+        workspaceId: 'workspace-1',
+      };
+      if (!options.omitSessionRoles) {
+        session.roles = options.sessionRoles ?? ['ADMIN'];
+      }
+      return fulfill(route, ok(session));
     }
     if (path === '/auth/contexts') {
       return fulfill(route, ok([{ tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: true }]));
@@ -206,7 +223,7 @@ async function mockAdminApis(page: Page) {
       return fulfill(route, ok([{ id: 'wh-1', name: 'Delivery events', endpointUrl: 'https://example.com/webhook', eventsSubscribed: '["delivery.failed"]', isActive: true }]));
     }
     if (path === '/platform/search') {
-      return fulfill(route, ok([
+      return fulfill(route, ok(options.searchResults ?? [
         { id: 'tenant-1:CAMPAIGN:camp-1', entityId: 'camp-1', entityType: 'CAMPAIGN', title: 'Spring Launch' },
         { id: 'tenant-1:TEMPLATE:tpl-1', entityId: 'tpl-1', entityType: 'TEMPLATE', title: 'Welcome Template' },
       ]));
@@ -289,6 +306,15 @@ test('admin console shows operations, users, and role engine', async ({ page }) 
   await expect(page.getByText('Role created')).toBeVisible();
 });
 
+test('admin route uses session roles instead of stored role fallback', async ({ page }) => {
+  const seenPaths: string[] = [];
+  await mockAdminApis(page, { omitSessionRoles: true, seenPaths });
+  await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
+
+  await expect(page).toHaveURL(/\/app\/email$/, { timeout: 45000 });
+  expect(seenPaths).not.toContain('/admin/operations/dashboard');
+});
+
 test('settings console persists preferences and supports deliverability', async ({ page }) => {
   await mockAdminApis(page);
   await page.goto('/app/settings/platform', { waitUntil: 'domcontentloaded' });
@@ -338,6 +364,25 @@ test('mobile shell exposes admin and settings through more navigation', async ({
   await expect(page.getByRole('link', { name: /^Settings$/ })).toBeVisible();
   await page.getByRole('link', { name: /^Settings$/ }).click();
   await expect(page).toHaveURL(/\/app\/settings\/platform$/);
+});
+
+test('workspace search routes unknown result types to workspace home', async ({ page }) => {
+  await mockAdminApis(page, {
+    searchResults: [{ id: 'tenant-1:UNKNOWN:object-1', entityId: 'object-1', entityType: 'UNSUPPORTED_OBJECT', title: 'Mystery Signal' }],
+  });
+  await page.goto('/app/email', { waitUntil: 'domcontentloaded' });
+
+  await page.getByRole('button', { name: /Search campaigns/ }).click();
+  await page.getByLabel('Search workspace').fill('Mystery');
+  const result = page.getByRole('link', { name: /Mystery Signal/ }).first();
+  await expect(result).toHaveAttribute('href', '/app/email');
+});
+
+test('tracking compatibility route redirects to analytics', async ({ page }) => {
+  await mockAdminApis(page);
+  await page.goto('/app/tracking', { waitUntil: 'domcontentloaded' });
+
+  await expect(page).toHaveURL(/\/app\/analytics$/, { timeout: 45000 });
 });
 
 test('admin console exposes performance intelligence evidence and demo flow', async ({ page }) => {

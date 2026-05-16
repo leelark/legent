@@ -10,6 +10,7 @@ import com.legent.automation.service.WorkflowScheduleService;
 import com.legent.automation.service.WorkflowStudioService;
 import com.legent.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,41 +25,49 @@ public class WorkflowController {
     private final WorkflowScheduleService workflowScheduleService;
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<List<Workflow>> listWorkflows() {
         return ApiResponse.ok(workflowStudioService.listWorkflows());
     }
 
     @PostMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> createWorkflow(@RequestBody Map<String, Object> request) {
         return ApiResponse.ok(workflowStudioService.createWorkflow(request));
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<Workflow> getWorkflow(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.getWorkflow(id));
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> updateWorkflow(@PathVariable String id, @RequestBody Map<String, Object> request) {
         return ApiResponse.ok(workflowStudioService.updateWorkflow(id, request));
     }
 
     @PostMapping("/{id}/validate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Map<String, Object>> validateWorkflow(@PathVariable String id, @RequestBody WorkflowGraphDto graph) {
         return ApiResponse.ok(workflowStudioService.validateGraph(graph));
     }
 
     @GetMapping("/{id}/capabilities")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<Map<String, Object>> journeyCapabilities(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.journeyCapabilities(id));
     }
 
     @GetMapping("/{id}/analytics")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<Map<String, Object>> journeyAnalytics(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.journeyAnalytics(id));
     }
 
     @PostMapping("/{id}/definitions")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<WorkflowDefinition> saveWorkflowDefinition(@PathVariable String id,
                                                                   @RequestBody WorkflowGraphDto graph,
                                                                   @RequestParam(required = false) Integer version,
@@ -67,52 +76,62 @@ public class WorkflowController {
     }
 
     @PostMapping("/{id}/publish")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> publishWorkflow(@PathVariable String id, @RequestBody(required = false) Map<String, Object> request) {
         Integer version = request == null ? null : asInteger(request.get("version"));
         return ApiResponse.ok(workflowStudioService.publish(id, version));
     }
 
     @PostMapping("/{id}/pause")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> pauseWorkflow(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.pause(id));
     }
 
     @PostMapping("/{id}/resume")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> resumeWorkflow(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.resume(id));
     }
 
     @PostMapping("/{id}/stop")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> stopWorkflow(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.stop(id));
     }
 
     @PostMapping("/{id}/archive")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> archiveWorkflow(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.archive(id));
     }
 
     @PostMapping("/{id}/rollback")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> rollbackWorkflow(@PathVariable String id, @RequestBody Map<String, Object> request) {
         return ApiResponse.ok(workflowStudioService.rollback(id, asInteger(request.get("version"))));
     }
 
     @PostMapping("/{id}/clone")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Workflow> cloneWorkflow(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.cloneWorkflow(id));
     }
 
     @GetMapping("/{id}/versions")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<List<WorkflowDefinition>> listWorkflowVersions(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.listVersions(id));
     }
 
     @GetMapping("/{id}/versions/{version}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<WorkflowDefinition> getWorkflowVersion(@PathVariable String id, @PathVariable Integer version) {
         return ApiResponse.ok(workflowStudioService.getDefinitionVersion(id, version));
     }
 
     @PostMapping("/{id}/compare")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<Map<String, Object>> compareVersions(@PathVariable String id, @RequestBody Map<String, Object> request) {
         Integer leftVersion = asInteger(request.get("leftVersion"));
         Integer rightVersion = asInteger(request.get("rightVersion"));
@@ -120,31 +139,37 @@ public class WorkflowController {
     }
 
     @PostMapping("/{id}/trigger")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Map<String, Object>> triggerWorkflow(@PathVariable String id, @RequestBody Map<String, Object> request) {
         return ApiResponse.ok(workflowStudioService.triggerWorkflow(id, request));
     }
 
     @GetMapping("/{id}/runs")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<List<WorkflowInstance>> listWorkflowRuns(@PathVariable String id) {
         return ApiResponse.ok(workflowStudioService.listRuns(id));
     }
 
     @GetMapping("/runs/{runId}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<WorkflowInstance> getRun(@PathVariable String runId) {
         return ApiResponse.ok(workflowStudioService.getRun(runId));
     }
 
     @GetMapping("/runs/{runId}/steps")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<List<InstanceHistory>> getRunSteps(@PathVariable String runId) {
         return ApiResponse.ok(workflowStudioService.getRunSteps(runId));
     }
 
     @GetMapping("/runs/{runId}/trace")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<Map<String, Object>> getRunTrace(@PathVariable String runId) {
         return ApiResponse.ok(workflowStudioService.getRunTrace(runId));
     }
 
     @PostMapping("/{id}/simulate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Map<String, Object>> simulate(@PathVariable String id, @RequestBody(required = false) Map<String, Object> request) {
         WorkflowGraphDto graph = request == null ? null : coerceGraph(request.get("graph"));
         @SuppressWarnings("unchecked")
@@ -155,6 +180,7 @@ public class WorkflowController {
     }
 
     @PostMapping("/{id}/dry-run")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Map<String, Object>> dryRun(@PathVariable String id, @RequestBody(required = false) Map<String, Object> request) {
         WorkflowGraphDto graph = request == null ? null : coerceGraph(request.get("graph"));
         @SuppressWarnings("unchecked")
@@ -165,16 +191,19 @@ public class WorkflowController {
     }
 
     @GetMapping("/{id}/schedules")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<List<WorkflowSchedule>> listSchedules(@PathVariable String id) {
         return ApiResponse.ok(workflowScheduleService.listSchedules(id));
     }
 
     @PostMapping("/{id}/schedules")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<WorkflowSchedule> createSchedule(@PathVariable String id, @RequestBody Map<String, Object> request) {
         return ApiResponse.ok(workflowScheduleService.createSchedule(id, request));
     }
 
     @PutMapping("/{id}/schedules/{scheduleId}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<WorkflowSchedule> updateSchedule(@PathVariable String id,
                                                         @PathVariable String scheduleId,
                                                         @RequestBody Map<String, Object> request) {
@@ -182,6 +211,7 @@ public class WorkflowController {
     }
 
     @DeleteMapping("/{id}/schedules/{scheduleId}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<Map<String, Object>> deleteSchedule(@PathVariable String id, @PathVariable String scheduleId) {
         workflowScheduleService.deleteSchedule(id, scheduleId);
         return ApiResponse.ok(Map.of("deleted", true));

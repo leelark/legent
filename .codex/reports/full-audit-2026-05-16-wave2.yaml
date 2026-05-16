@@ -1,0 +1,351 @@
+audit:
+  id: full-audit-2026-05-16-wave2
+  date: 2026-05-16
+  repo: "Legent - v1.0.2"
+  branch: "main...origin/main"
+  file_count_after_wave: 1220
+  mode: "parallel audit plus locally actionable fixes"
+  no_release_or_commit: true
+  constraints:
+    - "No secrets or .env values were read."
+    - "Historical Flyway migrations were not edited."
+    - "Claims below are static/source/test evidence, not live production certification."
+    - "Production readiness still requires live egress, load, restore, security, monitoring, and synthetic-smoke evidence."
+
+method:
+  local_sources:
+    - ".codex/bootstrap.md"
+    - ".codex/memory/active-work-items.md"
+    - ".codex/memory/blocked-items.md"
+    - ".codex/memory/unresolved-risks.md"
+    - ".codex/reports/full-audit-2026-05-16.yaml"
+    - "services/**, shared/**, frontend/**, infrastructure/**, scripts/**, config/**, docs/**"
+  parallel_agents:
+    - area: "product and competitor parity"
+      output: "Salesforce/Braze/Iterable/Klaviyo/Customer.io/Adobe gaps, product feature gaps, GA evidence blockers"
+    - area: "database, event flow, and performance"
+      output: "tracking retention, ClickHouse mismatch, outbox claim race, long send transaction, retry leases"
+    - area: "frontend"
+      output: "API credential safety, stale auth state, route/auth/search debt, a11y and large-file debt"
+    - area: "code quality"
+      output: "OIDC/JWKS egress risk, config drift, large files, artifact bloat, workspace auth residuals"
+    - area: "infrastructure"
+      output: "egress, restore, observability packaging, ingress TLS, restricted policy, supply-chain evidence"
+    - area: "backend services"
+      output: "tracking signature mismatch, campaign content headers, suppression scope, RBAC/readiness gaps"
+  current_external_sources:
+    - vendor: "Salesforce Marketing Cloud Engagement"
+      url: "https://www.salesforce.com/marketing/engagement/"
+      observed: "email, mobile, advertising engagement, Journey Builder, Content Builder, platform scale, AI inbox optimization"
+    - vendor: "Salesforce Einstein Send Time Optimization"
+      url: "https://help.salesforce.com/s/articleView?id=sf.mc_jb_einstein_sto.htm&language=en_US&type=5"
+      observed: "machine-learning send-time optimization uses recent engagement data to choose a send window"
+    - vendor: "Adobe Journey Optimizer"
+      url: "https://business.adobe.com/products/journey-optimizer.html"
+      observed: "unified profiles, omnichannel journey orchestration, AI decisioning, campaign orchestration"
+    - vendor: "Adobe Experience League Journey Optimizer"
+      url: "https://experienceleague.adobe.com/en/docs/journey-optimizer/using/get-started/essentials/get-started"
+      observed: "real-time profile, API-first framework, centralized offer decisioning, AI/ML capabilities"
+    - vendor: "Braze"
+      url: "https://www.braze.com/product/overview"
+      observed: "real-time data platform, Canvas orchestration, cross-channel delivery, BrazeAI"
+    - vendor: "Iterable"
+      url: "https://iterable.com/product/journeys/"
+      observed: "adaptive cross-channel journeys, real-time signals, AI decisioning, visual studio"
+    - vendor: "Klaviyo"
+      url: "https://www.klaviyo.com/features"
+      observed: "customer profiles, segmentation, integrations/APIs, automated flows, omnichannel campaigns, AI analytics"
+    - vendor: "Customer.io"
+      url: "https://customer.io/features"
+      observed: "visual workflow builder, multi-channel campaigns, transactional messages, webhooks, subscription center, localization"
+
+verdict:
+  production_ready: false
+  reason: "The local codebase is materially stronger after this wave, but production release still depends on external environment facts and live evidence that cannot be invented from source."
+  release_gate_position: "do not GA until P1 blockers below are closed and evidence is attached"
+
+fixed_this_wave:
+  - id: REL-PLATFORM-WEBHOOK-LEASE
+    status: "fixed"
+    impact: "Platform webhook retries no longer strand RETRYING records forever after worker crash."
+    changed_files:
+      - "services/platform-service/src/main/java/com/legent/platform/domain/WebhookRetry.java"
+      - "services/platform-service/src/main/java/com/legent/platform/repository/WebhookRetryRepository.java"
+      - "services/platform-service/src/main/java/com/legent/platform/service/WebhookRetryService.java"
+      - "services/platform-service/src/main/resources/db/migration/V6__webhook_retry_claim_leases.sql"
+      - "services/platform-service/src/test/java/com/legent/platform/service/WebhookRetryServiceTest.java"
+    evidence:
+      - "claim_started_at added and indexed"
+      - "bounded stale RETRYING recovery before pending dispatch"
+      - "claim cleared on success, failure, and reschedule"
+    validation:
+      - ".\\mvnw.cmd -pl services/platform-service -am -Dtest=WebhookRetryServiceTest \"-Dsurefire.failIfNoSpecifiedTests=false\" test: passed"
+  - id: TRK-SIGNATURE-CONTRACT
+    status: "fixed"
+    impact: "Delivery-generated open/click signatures and tracking verification now share one canonical key derivation and payload contract."
+    changed_files:
+      - "shared/legent-common/src/main/java/com/legent/common/tracking/TrackingSignatureSupport.java"
+      - "shared/legent-common/src/test/java/com/legent/common/tracking/TrackingSignatureSupportTest.java"
+      - "services/delivery-service/src/main/java/com/legent/delivery/service/TrackingUrlSigner.java"
+      - "services/delivery-service/src/test/java/com/legent/delivery/service/TrackingUrlSignerTest.java"
+      - "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingUrlVerifier.java"
+      - "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingUrlVerifierTest.java"
+    evidence:
+      - "versioned cache key format tracking:signing-key:<version>:<tenant>"
+      - "shared HMAC URL-safe signing and constant-time verification"
+      - "legacy workspace-less signature rejected when workspace is present"
+    validation:
+      - ".\\mvnw.cmd -pl shared/legent-common,services/delivery-service,services/tracking-service -am \"-Dtest=TrackingSignatureSupportTest,TrackingUrlSignerTest,TrackingUrlVerifierTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test: passed"
+  - id: DLV-SUPPRESSION-SCOPE
+    status: "fixed"
+    impact: "Inbox safety suppression checks no longer treat deleted or wrong-workspace signals as active suppression evidence."
+    changed_files:
+      - "services/delivery-service/src/main/java/com/legent/delivery/service/InboxSafetyService.java"
+      - "services/delivery-service/src/test/java/com/legent/delivery/service/InboxSafetyServiceTest.java"
+    evidence:
+      - "suppression_signals filtered by tenant_id, workspace_id, lower(email), active hard/soft bounce or complaint type, deleted_at IS NULL"
+      - "tests cover cross-workspace, deleted suppression, and active suppression"
+    validation:
+      - ".\\mvnw.cmd -pl services/delivery-service -am -Dtest=InboxSafetyServiceTest \"-Dsurefire.failIfNoSpecifiedTests=false\" test: passed"
+  - id: FE-CREDENTIAL-SAFETY
+    status: "fixed"
+    impact: "Credentialed browser API client cannot be pointed at external absolute URLs, public contact form no longer sends cookies, and protected 401 clears local auth/context."
+    changed_files:
+      - "frontend/src/lib/api-client.ts"
+      - "frontend/src/components/marketing/PublicPageView.tsx"
+      - "frontend/tests/e2e/api-client-context.spec.ts"
+    evidence:
+      - "external absolute URL and protocol-relative URL rejected with EXTERNAL_API_URL"
+      - "postPublic uses no-credential public client for /public/contact"
+      - "non-auth 401 calls clearStoredAuth before login redirect"
+    validation:
+      - "$env:PLAYWRIGHT_SKIP_WEB_SERVER='1'; npx playwright test tests/e2e/api-client-context.spec.ts --project=chromium: passed"
+      - "npx tsc --noEmit --pretty false --incremental false: passed"
+      - "initial targeted eslint attempts timed out without output; later touched-file ESLint passed after frontend worker follow-up"
+  - id: INFRA-BACKUP-SECRET-HYGIENE
+    status: "fixed"
+    impact: "Repository and Docker context are less likely to capture .env files or backup artifacts containing customer data."
+    changed_files:
+      - ".dockerignore"
+      - ".gitignore"
+      - "scripts/ops/backup-restore.ps1"
+      - "docs/operations/backup-restore.md"
+      - "docs/operations/restore-drill-2026-05-11.md"
+      - "docs/operations/ga-evidence-matrix.md"
+    evidence:
+      - ".env and .env.* ignored while .env.example remains tracked"
+      - "backups ignored by git/docker context"
+      - "backup script defaults to LEGENT_BACKUP_DIR or HOME/legent-backups"
+      - "repo-local backup output refused except ignored ./backups"
+    validation:
+      - "git diff --check: passed"
+      - "PowerShell AST parse: passed"
+      - "backup output guard negative test: passed"
+      - "git check-ignore for .env/.env.production/backups and .env.example behavior: passed"
+  - id: CAMPAIGN-CONTENT-SCOPE
+    status: "fixed after initial report write"
+    impact: "Campaign send rendering now carries workspace/environment/request/correlation scope to content-service and fails closed when a send batch lacks workspace context."
+    changed_files:
+      - "services/campaign-service/src/main/java/com/legent/campaign/client/ContentServiceClient.java"
+      - "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java"
+      - "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java"
+      - "services/campaign-service/src/test/java/com/legent/campaign/client/ContentServiceClientTest.java"
+      - "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+      - "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java"
+    validation:
+      - "combined focused Maven sweep over changed backend tests: passed"
+  - id: TRACKING-OUTBOX-CLAIM
+    status: "reduced after initial report write"
+    impact: "Concurrent tracking outbox pollers now must win a conditional DB claim before publishing."
+    changed_files:
+      - "services/tracking-service/src/main/java/com/legent/tracking/repository/TrackingOutboxEventRepository.java"
+      - "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingOutboxService.java"
+      - "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingOutboxServiceTest.java"
+    validation:
+      - ".\\mvnw.cmd -pl services/tracking-service -am test: passed"
+    residual:
+      - "raw_events retention/partitioning remains open"
+      - "Redis dedupe remains non-atomic"
+      - "publishes exceeding five-minute lease still rely on downstream idempotency"
+  - id: FRONTEND-AUTH-ROUTE-CLEANUP
+    status: "fixed after initial report write"
+    impact: "Frontend admin UI no longer trusts stored role fallback, unknown search results do not route to admin, and orphan tracking route redirects to analytics."
+    changed_files:
+      - "frontend/src/app/(workspace)/layout.tsx"
+      - "frontend/src/app/(workspace)/tracking/page.tsx"
+      - "frontend/src/components/shell/Header.tsx"
+      - "frontend/src/lib/auth.ts"
+      - "frontend/src/lib/constants.ts"
+      - "frontend/src/stores/authStore.ts"
+      - "frontend/tests/e2e/admin.spec.ts"
+      - "frontend/tests/e2e/api-client-context.spec.ts"
+    validation:
+      - "touched-file ESLint: passed"
+      - "npm run build:next: passed"
+      - "api-client-context Playwright: passed"
+      - "admin Playwright: passed"
+  - id: INFRA-OBSERVABILITY-RENDER
+    status: "reduced after initial report write"
+    impact: "Production validation now proves observability alert rules render through Kustomize."
+    changed_files:
+      - "infrastructure/kubernetes/observability/kustomization.yml"
+      - "scripts/ops/validate-production-overlay.ps1"
+    validation:
+      - "kubectl kustomize infrastructure/kubernetes/observability: passed"
+      - "validate-production-overlay.ps1: passed"
+      - "release-gate infra slice: passed"
+    residual:
+      - "live Prometheus load and Alertmanager firing proof remains required"
+
+open_blockers:
+  - id: RELEASE-EGRESS-DATA
+    severity: P1
+    category: "infrastructure"
+    evidence: "Production overlay now deletes broad inherited egress, but live managed-service/provider CIDRs or approved FQDN egress model are still absent."
+    next_action: "Get reviewed egress data for database, Redis, Kafka, ClickHouse, object storage, email providers, observability, and webhook proxy."
+  - id: RELEASE-GA-EVIDENCE
+    severity: P1
+    category: "release"
+    evidence: "Local gates exist, but no current target-environment synthetic smoke, live high-volume load, restore drill, gitleaks/Trivy transcript, or monitoring handoff package is attached."
+    next_action: "Run release gate against target URL with live smoke, live load harness, restore drill, CI security scans, and alert routing tests."
+  - id: AUTH-WORKSPACE-MEMBERSHIP
+    severity: P1
+    category: "security"
+    evidence: "Services generally trust scoped JWT/header context; a shared service-level workspace membership/authorization contract is still missing."
+    next_action: "Define membership verification boundary and enforce it in workspace-scoped services."
+  - id: AUDIENCE-V17-PROD-MAPPING
+    severity: P1
+    category: "data migration"
+    evidence: "Audience V17 fails closed for ambiguous legacy workspace mapping but production requires operator-reviewed mapping metadata."
+    next_action: "Run staging preflight, populate reviewed mapping table, and verify target workspaces from authoritative source."
+  - id: TRACKING-RAW-EVENTS-RETENTION
+    severity: P1
+    category: "database/performance"
+    evidence: "Tracking raw_events still need partitioning/retention validation for high-volume open/click/conversion ingest."
+    next_action: "Add retention/partitioning policy and live ingest/load proof."
+  - id: TRACKING-CLICKHOUSE-SCHEMA
+    severity: P1
+    category: "analytics/data"
+    evidence: "Audit found ClickHouse/Postgres workspace schema mismatch risk; analytics correctness depends on consistent workspace lineage."
+    next_action: "Map tracking event fields into ClickHouse DDL and add contract tests."
+  - id: TRACKING-OUTBOX-LONG-LEASE
+    severity: P2
+    category: "event reliability"
+    evidence: "Tracking outbox concurrent-poller race is reduced by conditional claim-before-publish, but publish calls exceeding the five-minute lease still rely on downstream idempotency; Redis dedupe remains non-atomic."
+    next_action: "Add publish lease metrics/alerts, exactly-once contract tests for long publishes, and atomic Redis dedupe reservations."
+  - id: SEND-LONG-TX-REMOTE-IO
+    severity: P1
+    category: "campaign performance"
+    evidence: "Send execution still has high-volume remote rendering and handoff complexity; reference externalization reduces payload risk but does not prove worker saturation behavior."
+    next_action: "Measure live queue/database/provider pressure and move remaining remote I/O outside hot transactions where needed."
+  - id: CAMPAIGN-BATCH-LEASE
+    severity: P1
+    category: "campaign reliability"
+    evidence: "Partial batch retry/lease semantics still need stale-processing recovery proof."
+    next_action: "Add batch claim leases and reconciliation tests if not already covered by live failure drills."
+  - id: DOMAIN-VERIFICATION-OWNERSHIP
+    severity: P1
+    category: "deliverability/security"
+    evidence: "Domain verification should prove exact tenant-owned DNS token, not generic DNS presence."
+    next_action: "Require tenant/workspace-specific DNS challenge tokens with freshness and audit history."
+  - id: SERVICE-RBAC-REMAINING
+    severity: P2
+    category: "authorization"
+    evidence: "Audit still flagged provider/admin, automation workflow, and analytics export/BI surfaces for RBAC review."
+    next_action: "Inventory all controllers for permitAll/authenticated-only drift and add method-level permission tests."
+  - id: RESTORE-MANAGED-SERVICES
+    severity: P2
+    category: "operations"
+    evidence: "Backup/restore script now protects local artifacts, but production restore runbook must align with managed services and deleted in-cluster statefuls."
+    next_action: "Run restore drill in target-like environment and record transcript/checksums."
+  - id: OBSERVABILITY-LIVE-PROOF
+    severity: P2
+    category: "infra"
+    evidence: "Alert rules now render through Kustomize and production validation, but live Prometheus rule load plus Alertmanager warning/critical route firing proof is still missing."
+    next_action: "Run alert rule load and route-firing tests in target environment."
+  - id: INGRESS-TLS-PROOF
+    severity: P2
+    category: "infra/security"
+    evidence: "Ingress TLS certificate issuer/secret proof not yet attached."
+    next_action: "Validate cert-manager or external TLS secret ownership in production overlay."
+  - id: POD-RESTRICTED-HARDENING
+    severity: P2
+    category: "infra/security"
+    evidence: "Kubernetes restricted security context coverage needs complete render-level validation."
+    next_action: "Check runAsNonRoot, readOnlyRootFilesystem, capabilities drop, seccomp, and resource limits for every workload."
+  - id: SUPPLY-CHAIN-PROVENANCE
+    severity: P2
+    category: "supply chain"
+    evidence: "Pinned tags exist, but digest pinning, SBOM, signing, and image provenance evidence remain open."
+    next_action: "Add CI gate for digest/SBOM/signature verification before promotion."
+  - id: FRONTEND-LARGE-FILES-LINT
+    severity: P2
+    category: "frontend quality"
+    evidence: "Touched-file ESLint passed after worker follow-up, but large route/components and full-project lint warning debt still increase blast radius."
+    next_action: "Split large consoles/routes when touched and continue typed API wrapper cleanup domain by domain."
+
+feature_gap_analysis:
+  vs_salesforce_marketing_cloud:
+    strengths:
+      - "Microservice decomposition maps well to enterprise ownership."
+      - "Deliverability domain model is more explicit than a generic email sender."
+      - "Tracking, ClickHouse analytics, SCIM/SSO, RBAC, release gates, and Kubernetes overlays already exist."
+    gaps_to_best_world:
+      - "Full no-code Journey Builder parity with versioned journey drafts, simulation, rollback, and path experimentation."
+      - "Einstein-like send-time/frequency/content optimization with measured lift, guardrails, and explainability."
+      - "Cross-channel messaging beyond email: SMS, WhatsApp, push, in-app, web push, ads, direct mail connectors."
+      - "Data Cloud/CDP parity: identity graph, unified real-time profile, schema registry, object relationships, consent graph, warehouse/reverse ETL."
+      - "Content Builder parity: approvals, reusable blocks, localization, render previews, spam tests, inbox previews, brand governance."
+      - "Enterprise intelligence: attribution, anomaly detection, audience overlap controls, offer decisioning, predictive segments, budget/ROI views."
+      - "Operations parity: live scale proofs, restore evidence, alert firing, security scans, audit exports, data residency controls."
+  vs_other_best_in_class:
+    braze_iterable_adobe:
+      - "Real-time adaptive journey decisions based on live behavioral signals."
+      - "AI decisioning at journey steps with automatic exploration/exploitation and eligibility constraints."
+      - "Multi-channel orchestration in one visual studio."
+    klaviyo_customerio:
+      - "Marketer-friendly integrations, web forms, subscription centers, localization, benchmarks, and transactional messaging workflows."
+      - "Customer-service/marketing unification and agentic campaign assistants are becoming table stakes."
+
+quality_assessment:
+  security: "improved this wave; still blocked by workspace-membership contract, domain proof, remaining RBAC inventory, OIDC/JWKS egress review, and live scans"
+  reliability: "improved for platform retries, tracking signatures, tracking outbox concurrent claims, and campaign content-scope propagation; still needs raw tracking retention, Redis dedupe atomics, campaign batch lease proof, and transactional outbox strategy"
+  performance: "large-payload and rate-control work from earlier waves reduced risk; raw_events retention, ClickHouse contract, live load, and long send execution paths remain"
+  frontend: "credentialed API safety, session role handling, unknown search fallback, and tracking compatibility improved; large files, full-project lint warning debt, typed API wrappers, and accessibility debt remain"
+  database: "new migrations are additive; production still needs audience mapping metadata, tracking retention, and workspace lineage checks"
+  infrastructure: "backup artifact hygiene and observability render validation improved; egress data, live alert firing, TLS evidence, restricted policies, and supply-chain provenance remain"
+  code_quality: "shared tracking signature support reduced duplication; large services/components and weak event payload contracts remain debt"
+
+validation_summary:
+  passed:
+    - "platform WebhookRetryServiceTest"
+    - "shared TrackingSignatureSupportTest"
+    - "delivery TrackingUrlSignerTest"
+    - "tracking TrackingUrlVerifierTest"
+    - "delivery InboxSafetyServiceTest"
+    - "frontend api-client Playwright test"
+    - "frontend TypeScript no-emit"
+    - "git diff --check"
+    - "PowerShell backup script parse/guard checks"
+    - "combined focused Maven sweep for shared common, campaign, delivery, tracking, and platform changed tests"
+    - "touched frontend ESLint"
+    - "api-client-context Playwright via local binary, 6 tests"
+    - "kubectl kustomize infrastructure/kubernetes/observability"
+    - "production overlay validation"
+    - "release-gate infra slice"
+  not_run_or_incomplete:
+    - "full Maven reactor after this wave"
+    - "full frontend lint after this wave"
+    - "Docker Compose runtime health after this wave"
+    - "live high-volume load"
+    - "live target synthetic smoke"
+    - "restore drill"
+    - "gitleaks/Trivy transcript"
+    - "observability alert firing"
+
+next_best_work_order:
+  - "Close external release blockers: exact egress data, live smoke/load/restore/security/monitoring evidence."
+  - "Implement tracking raw_events retention/partitioning, ClickHouse workspace contract tests, and atomic Redis dedupe."
+  - "Add exact sender-domain ownership DNS challenge tokens and finish remaining RBAC controller inventory."
+  - "Run full frontend lint/build and Docker Compose runtime health when release evidence is being assembled."
+  - "Do not claim GA until external blockers and live evidence are closed."

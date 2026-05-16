@@ -21,7 +21,7 @@ Open deployment drift from 2026-05-16 runtime/container scan:
 - Production overlay validation passes locally, but live production egress remains incomplete until exact provider/managed-service CIDRs/ports or CNI FQDN-policy support are reviewed and encoded.
 - Production ingress hosts and image tags were hardened on 2026-05-13; keep release validators in CI/release gate to prevent regression.
 - Compose service Dockerfiles copy prebuilt `target/*-SNAPSHOT.jar`; clean checkout needs Maven package before `docker compose up -d --build`.
-- Resolved 2026-05-13: `scripts/ops/validate-compose-health.ps1` now probes `FRONTEND_HOST_PORT` or 3000.
+- Resolved 2026-05-16: `scripts/ops/validate-compose-health.ps1` resolves the frontend host port from live `docker compose ps --format json` publishers first, then legacy port text, then `FRONTEND_HOST_PORT`, then default 3000. Source: `scripts/ops/validate-compose-health.ps1`; impact: local health validation no longer assumes a stale frontend host port when Compose publishes another host port such as 3003.
 - Resolved 2026-05-13: Redis Compose healthcheck now authenticates with `REDISCLI_AUTH` when `REDIS_PASSWORD` is present.
 - Observability Kustomize omits `prometheus-alerts.yml`; OTEL exporter currently logs traces only.
 - Resolved 2026-05-13: production overlay sets `CLICKHOUSE_DB=legent_analytics`.

@@ -11,7 +11,7 @@ export const ROUTES = {
   AUDIENCE: '/app/audience',
   CAMPAIGNS: '/app/campaigns',
   AUTOMATION: '/app/automation',
-  TRACKING: '/app/tracking',
+  TRACKING: '/app/analytics',
   DELIVERABILITY: '/app/deliverability',
   ADMIN: '/app/admin',
   LOGIN: '/login',

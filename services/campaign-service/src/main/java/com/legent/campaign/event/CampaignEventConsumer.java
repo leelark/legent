@@ -66,8 +66,7 @@ public class CampaignEventConsumer {
             if (!registration.claimed()) {
                 return;
             }
-            TenantContext.setTenantId(event.getTenantId());
-            TenantContext.setWorkspaceId(workspaceId);
+            applyTenantContext(event, workspaceId);
             String jobId = (String) payload.get("jobId");
             boolean isLastChunk = Boolean.parseBoolean(String.valueOf(payload.getOrDefault("isLastChunk", true)));
             
@@ -107,8 +106,7 @@ public class CampaignEventConsumer {
             if (!registration.claimed()) {
                 return;
             }
-            TenantContext.setTenantId(event.getTenantId());
-            TenantContext.setWorkspaceId(workspaceId);
+            applyTenantContext(event, workspaceId);
             String jobId = String.valueOf(payload.getOrDefault("jobId", ""));
             String batchId = String.valueOf(payload.getOrDefault("batchId", ""));
             if (!jobId.isBlank() && !batchId.isBlank()) {
@@ -141,8 +139,7 @@ public class CampaignEventConsumer {
             if (!registration.claimed()) {
                 return;
             }
-            TenantContext.setTenantId(event.getTenantId());
-            TenantContext.setWorkspaceId(workspaceId);
+            applyTenantContext(event, workspaceId);
             String jobId = payload.get("jobId");
             String batchId = payload.get("batchId");
             
@@ -186,8 +183,7 @@ public class CampaignEventConsumer {
             if (!registration.claimed()) {
                 return;
             }
-            TenantContext.setTenantId(event.getTenantId());
-            TenantContext.setWorkspaceId(workspaceId);
+            applyTenantContext(event, workspaceId);
 
             CampaignDto.TriggerLaunchRequest request = CampaignDto.TriggerLaunchRequest.builder()
                     .triggerSource(stringValue(payload.getOrDefault("triggerSource", "AUTOMATION")))
@@ -297,8 +293,7 @@ public class CampaignEventConsumer {
             if (!registration.claimed()) {
                 return;
             }
-            TenantContext.setTenantId(event.getTenantId());
-            TenantContext.setWorkspaceId(workspaceId);
+            applyTenantContext(event, workspaceId);
 
             SendJob job = findSendJob(event.getTenantId(), workspaceId, payload);
             if (job == null) {
@@ -513,6 +508,17 @@ public class CampaignEventConsumer {
         }
         log.error("Dropping campaign event without workspaceId. eventId={}, eventType={}", event.getEventId(), event.getEventType());
         return null;
+    }
+
+    private void applyTenantContext(EventEnvelope<?> event, String workspaceId) {
+        TenantContext.setTenantId(event.getTenantId());
+        TenantContext.setWorkspaceId(workspaceId);
+        if (event.getEnvironmentId() != null && !event.getEnvironmentId().isBlank()) {
+            TenantContext.setEnvironmentId(event.getEnvironmentId());
+        }
+        if (event.getCorrelationId() != null && !event.getCorrelationId().isBlank()) {
+            TenantContext.setCorrelationId(event.getCorrelationId());
+        }
     }
 
     private String audienceChunkIdentity(EventEnvelope<?> event, Map<String, ?> payload) {

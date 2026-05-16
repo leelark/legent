@@ -8,7 +8,7 @@ param(
     [string] $Action,
 
     [string] $Namespace = "legent",
-    [string] $OutputDir = ".\backups",
+    [string] $OutputDir,
     [string] $InputFile
 )
 
@@ -67,6 +67,41 @@ function Quote-ClickHouseString($Value) {
 
 function Invoke-ClickHouseQuery($Query) {
     kubectl exec -n $Namespace deploy/legent-clickhouse -- clickhouse-client --query $Query
+}
+
+function Get-DefaultBackupDir {
+    if (-not [string]::IsNullOrWhiteSpace($env:LEGENT_BACKUP_DIR)) {
+        return $env:LEGENT_BACKUP_DIR
+    }
+    if (-not [string]::IsNullOrWhiteSpace($HOME)) {
+        return Join-Path $HOME "legent-backups"
+    }
+    return Join-Path ([System.IO.Path]::GetTempPath()) "legent-backups"
+}
+
+function Resolve-WritePath($Path) {
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $Path))
+}
+
+function Test-PathInside($Path, $ParentPath) {
+    $trimChars = [char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
+    $fullPath = ([System.IO.Path]::GetFullPath($Path)).TrimEnd($trimChars)
+    $fullParentPath = ([System.IO.Path]::GetFullPath($ParentPath)).TrimEnd($trimChars)
+    return $fullPath.Equals($fullParentPath, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $fullPath.StartsWith("$fullParentPath$([System.IO.Path]::DirectorySeparatorChar)", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $fullPath.StartsWith("$fullParentPath$([System.IO.Path]::AltDirectorySeparatorChar)", [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Assert-BackupOutputDir($Path) {
+    $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
+    $outputPath = Resolve-WritePath $Path
+    $ignoredRepoBackupDir = Resolve-WritePath (Join-Path $repoRoot "backups")
+    if ((Test-PathInside $outputPath $repoRoot) -and -not (Test-PathInside $outputPath $ignoredRepoBackupDir)) {
+        throw "Refusing repo-local backup output: $outputPath. Use -OutputDir outside the repo, or .\backups for ignored local-only output."
+    }
 }
 
 function Backup-ClickHouse {
@@ -184,6 +219,14 @@ function Drill-ClickHouseBackup($ArchivePath) {
     } finally {
         Remove-Item -LiteralPath $workDir -Recurse -Force
     }
+}
+
+if ([string]::IsNullOrWhiteSpace($OutputDir)) {
+    $OutputDir = Get-DefaultBackupDir
+}
+
+if ($Action -eq "backup") {
+    Assert-BackupOutputDir $OutputDir
 }
 
 Require-Command kubectl

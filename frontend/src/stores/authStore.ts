@@ -20,7 +20,7 @@ interface AuthState {
 
 // AUDIT-020: Initialize state from centralized source to prevent drift
 const initialState = initializeAuthState();
-const hasAuthData = initialState.userId !== null && initialState.roles.length > 0;
+const hasAuthData = initialState.userId !== null;
 
 export const useAuthStore = create<AuthState>((set) => ({
   // AUDIT-020: Initialize from centralized source instead of hardcoded defaults

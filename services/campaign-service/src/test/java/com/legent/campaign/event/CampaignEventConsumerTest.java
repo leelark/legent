@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
@@ -203,6 +204,44 @@ class CampaignEventConsumerTest {
                 AppConstants.TOPIC_SEND_PROCESSING,
                 "processing-event-1",
                 "idem-processing-1");
+    }
+
+    @Test
+    void handleBatchCreatedAppliesEnvironmentContextBeforeExecution() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("batch-event-1")
+                .eventType(AppConstants.TOPIC_BATCH_CREATED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .environmentId("environment-1")
+                .correlationId("correlation-1")
+                .idempotencyKey("idem-batch-1")
+                .payload(Map.of(
+                        "workspaceId", "workspace-1",
+                        "jobId", "job-1",
+                        "batchId", "batch-1"))
+                .build();
+        when(idempotencyService.registerIfNew(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_BATCH_CREATED,
+                "batch-event-1",
+                "idem-batch-1")).thenReturn(true);
+        doAnswer(invocation -> {
+            assertEquals("environment-1", TenantContext.getEnvironmentId());
+            assertEquals("correlation-1", TenantContext.getCorrelationId());
+            return null;
+        }).when(executionService).executeBatch("tenant-1", "job-1", "batch-1", null);
+
+        consumer.handleBatchCreated(event);
+
+        verify(executionService).executeBatch("tenant-1", "job-1", "batch-1", null);
+        verify(idempotencyService).markProcessed(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_BATCH_CREATED,
+                "batch-event-1",
+                "idem-batch-1");
     }
 
     @Test

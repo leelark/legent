@@ -10,8 +10,9 @@ Legent uses bearer JWTs and HTTP-only auth cookies (`legent_token`, `legent_refr
 
 - Auth cookies are `HttpOnly`, `Secure` by default, and `SameSite=Strict` by default.
 - CORS origins must be explicitly configured through `legent.security.cors.allowed-origins`; startup fails when the list is absent.
-- `UnsafeMethodOriginGuardFilter` blocks unsafe browser requests (`POST`, `PUT`, `PATCH`, `DELETE`, and other non-safe methods) when `Origin` or `Referer` is present and outside the configured allow-list.
-- Requests without browser origin headers are allowed so service-to-service calls, CLI calls, health probes, and webhooks keep working.
+- `UnsafeMethodOriginGuardFilter` blocks unsafe browser requests (`POST`, `PUT`, `PATCH`, `DELETE`, and other non-safe methods) when `Origin` or `Referer` is outside the configured allow-list.
+- Unsafe requests authenticated by Legent auth cookies must include an allowed `Origin` or `Referer`; missing browser origin headers fail closed for cookie-authenticated writes.
+- Unsafe requests without Legent auth cookies may omit browser origin headers so service-to-service calls, CLI calls, health probes, and webhooks keep working through bearer/internal-token validation.
 - `X-Tenant-Id`, `X-Workspace-Id`, `X-Request-Id`, and `X-Correlation-Id` remain explicit request headers and are not trusted when they conflict with authenticated tenant context.
 
 ## Residual Risk

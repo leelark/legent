@@ -10,8 +10,6 @@ node_modules/
 .next/
 out/
 build/
-.env
-.env*.local
 npm-debug.log*
 package-lock.json.bak
 frontend/test-results/
@@ -21,11 +19,19 @@ frontend/playwright-report/
 # (Optional: ignore local data volumes if any)
 docker_data/
 
+# Local backup output may contain customer data
+/backups/
+
 # IDE & OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+
+# Environment files
+.env
+.env.*
+!.env.example
 
 # Local auth/runtime artifacts
 auth.cookies

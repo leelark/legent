@@ -46,7 +46,20 @@ public class DomainController {
         request.setOwnershipScope("WORKSPACE");
         request.setId(java.util.UUID.randomUUID().toString());
         request.setDomainName(domainName);
+        domainVerificationService.issueChallenge(request);
         return ApiResponse.ok(domainRepository.save(request));
+    }
+
+    @PostMapping("/{domainId}/challenge")
+    public ApiResponse<SenderDomain> regenerateChallenge(@PathVariable String domainId) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        SenderDomain domain = domainRepository.findByTenantIdAndId(tenantId, domainId)
+                .orElseThrow(() -> new com.legent.common.exception.NotFoundException("Domain", domainId));
+        if (!tenantId.equals(domain.getTenantId()) || !workspaceId.equals(domain.getWorkspaceId())) {
+            throw new org.springframework.security.access.AccessDeniedException("You do not have permission to rotate this domain challenge");
+        }
+        return ApiResponse.ok(domainVerificationService.regenerateChallenge(domainId));
     }
 
     @PostMapping("/{domainId}/verify")

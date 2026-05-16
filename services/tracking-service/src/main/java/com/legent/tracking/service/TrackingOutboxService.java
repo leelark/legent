@@ -5,6 +5,10 @@ import com.legent.tracking.domain.TrackingOutboxEvent;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.event.TrackingEventPublisher;
 import com.legent.tracking.repository.TrackingOutboxEventRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,9 +27,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TrackingOutboxService {
 
+    private static final Duration PUBLISHING_LEASE = Duration.ofMinutes(5);
+
     private final TrackingOutboxEventRepository outboxRepository;
     private final TrackingEventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final MeterRegistry meterRegistry;
 
     @Value("${legent.tracking.outbox.max-attempts:8}")
     private int maxAttempts;
@@ -63,28 +70,33 @@ public class TrackingOutboxService {
     }
 
     public void publishPending(String outboxId) {
+        Instant now = Instant.now();
+        int claimed = outboxRepository.claimReadyForPublish(
+                outboxId,
+                List.of(TrackingOutboxEvent.STATUS_PENDING, TrackingOutboxEvent.STATUS_PUBLISHING),
+                now,
+                TrackingOutboxEvent.STATUS_PUBLISHING,
+                now.plus(PUBLISHING_LEASE));
+        if (claimed == 0) {
+            return;
+        }
+
         TrackingOutboxEvent event = outboxRepository.findById(outboxId).orElse(null);
-        if (event == null || TrackingOutboxEvent.STATUS_PUBLISHED.equals(event.getStatus())) {
-            return;
-        }
-        if (event.getNextAttemptAt() != null && event.getNextAttemptAt().isAfter(Instant.now())) {
+        if (event == null) {
             return;
         }
 
-        event.setStatus(TrackingOutboxEvent.STATUS_PUBLISHING);
-        event.setAttempts(event.getAttempts() + 1);
-        event.setLastError(null);
-        event.setNextAttemptAt(Instant.now().plus(Duration.ofMinutes(5)));
-        outboxRepository.save(event);
-
+        long publishStartedNanos = System.nanoTime();
         try {
             TrackingDto.RawEventPayload payload = objectMapper.readValue(event.getPayloadJson(), TrackingDto.RawEventPayload.class);
             eventPublisher.publishIngestedEventOrThrow(payload);
+            recordPublishDuration(publishStartedNanos, event, "published");
             event.setStatus(TrackingOutboxEvent.STATUS_PUBLISHED);
             event.setPublishedAt(Instant.now());
             event.setLastError(null);
             outboxRepository.save(event);
         } catch (Exception ex) {
+            recordPublishDuration(publishStartedNanos, event, "failed");
             int attempts = event.getAttempts();
             boolean exhausted = attempts >= maxAttempts;
             event.setStatus(exhausted ? TrackingOutboxEvent.STATUS_FAILED : TrackingOutboxEvent.STATUS_PENDING);
@@ -115,5 +127,27 @@ public class TrackingOutboxService {
     private String trimError(Exception ex) {
         String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
         return message.length() <= 1000 ? message : message.substring(0, 1000);
+    }
+
+    private void recordPublishDuration(long startedNanos, TrackingOutboxEvent event, String outcome) {
+        Duration duration = Duration.ofNanos(System.nanoTime() - startedNanos);
+        Timer.builder("legent.tracking.outbox.publish.duration")
+                .description("Time spent publishing a claimed tracking outbox event to Kafka")
+                .tag("outcome", outcome)
+                .register(meterRegistry)
+                .record(duration);
+        DistributionSummary.builder("legent.tracking.outbox.publish.lease.utilization")
+                .description("Ratio of publish duration to tracking outbox publishing lease")
+                .tag("outcome", outcome)
+                .register(meterRegistry)
+                .record((double) duration.toNanos() / PUBLISHING_LEASE.toNanos());
+        if (!duration.minus(PUBLISHING_LEASE).isNegative()) {
+            Counter.builder("legent.tracking.outbox.publish.lease.exceeded")
+                    .description("Tracking outbox publishes that exceeded the claim lease")
+                    .tag("eventType", event.getEventType() == null ? "UNKNOWN" : event.getEventType())
+                    .tag("outcome", outcome)
+                    .register(meterRegistry)
+                    .increment();
+        }
     }
 }

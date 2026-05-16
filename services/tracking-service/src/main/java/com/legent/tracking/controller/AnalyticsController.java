@@ -11,6 +11,7 @@ import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.repository.CampaignSummaryRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -25,6 +26,7 @@ public class AnalyticsController {
     private final com.legent.tracking.service.AnalyticsService analyticsService;
 
     @GetMapping("/campaigns")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries() {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -32,6 +34,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/campaigns/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<CampaignSummary> getCampaignSummary(@PathVariable String id) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -41,6 +44,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/events/counts")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> getEventCounts() {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -48,6 +52,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/events/timeline")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> getEventTimeline(@RequestParam String eventType) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -55,6 +60,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/campaigns/{id}/experiments/{experimentId}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> getExperimentMetrics(@PathVariable String id,
                                                                        @PathVariable String experimentId) {
         String tenantId = TenantContext.getTenantId();
@@ -63,6 +69,7 @@ public class AnalyticsController {
     }
 
     @PostMapping("/events/export")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<TrackingDto.EventExportResponse> exportEvents(@RequestBody(required = false) TrackingDto.EventExportRequest request) {
         TrackingDto.EventExportRequest safeRequest = request == null ? new TrackingDto.EventExportRequest() : request;
         String tenantId = TenantContext.getTenantId();
@@ -86,6 +93,7 @@ public class AnalyticsController {
     }
 
     @GetMapping("/rollups")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<TrackingDto.RollupResponse> getRollups(@RequestParam(required = false) String campaignId,
                                                               @RequestParam(defaultValue = "hour") String grain) {
         String tenantId = TenantContext.getTenantId();
@@ -98,11 +106,13 @@ public class AnalyticsController {
     }
 
     @GetMapping("/taxonomy")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> taxonomy() {
         return ApiResponse.ok(analyticsService.taxonomy());
     }
 
     @GetMapping("/campaigns/{id}/reconciliation")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<TrackingDto.ReconciliationResponse> reconcileCampaign(@PathVariable String id) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();

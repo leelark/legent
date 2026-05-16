@@ -2,6 +2,30 @@
 
 Last updated: 2026-05-16.
 
+UnresolvedRiskSweep-20260516:
+assigned_task: fix all locally actionable items from `.codex/memory/unresolved-risks.md` using max parallel subagents while preserving prior dirty hardening wave
+task_type: SECURITY/RELIABILITY/PERFORMANCE/RELEASE/REFACTOR/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: shared tenant filter/tests; tracking Redis dedupe, ClickHouse workspace-lineage/TTL contract, Postgres retention, outbox metrics/tests; deliverability sender-domain DNS challenge ownership proof/history/tests; campaign stale batch recovery/tests; automation/platform/tracking RBAC gates/tests; production TLS/pod/security/supply-chain validation and CI checklist; docs/scripts drift report and `.codex` memory
+branch_or_worktree: main
+dependencies: `.codex/memory/unresolved-risks.md`, `.codex/memory/blocked-items.md`, prior full-audit wave 2 dirty work, tracking/deliverability/campaign/RBAC/infra/refactor workers
+blockers: production external egress data, audience V17 operator mapping metadata, live target GA/load/restore/security/monitoring evidence, live TLS/observability/admission/provenance proof, and live ClickHouse/high-volume performance proof remain external and cannot be guessed from source
+next_actions: no commit or push performed; attach external evidence and run full target release gate before GA
+
+FullAuditWave2-20260516:
+assigned_task: parallel full-audit follow-up plus locally actionable fixes for retry leases, signed tracking URLs, suppression scope, frontend credential safety, backup artifact hygiene, and durable YAML reporting
+task_type: SECURITY/RELIABILITY/PERFORMANCE/RELEASE/REFACTOR/TESTING
+priority_score: 38
+risk_level: HIGH
+status: completed
+changed_files: platform webhook retry domain/repository/service/migration/tests; shared tracking signature support/tests; delivery tracking signer/tests and inbox safety/tests; tracking verifier/outbox/tests; campaign content render scope/tests; frontend API client/public contact/session role/search/tracking compatibility tests; infra observability Kustomize/production validator; backup ignore/script/docs; `.codex` report and memory
+branch_or_worktree: main
+dependencies: `.codex/bootstrap.md`, `.codex/memory/unresolved-risks.md`, full-audit subagent results, official competitor docs checked on 2026-05-16
+blockers: exact production egress data, live target evidence, audience V17 production mapping, live ClickHouse/high-volume load proof, and live observability/TLS/restricted-pod/supply-chain proof
+next_actions: completed locally; no commit or push performed; run full release gate, live synthetic smoke, high-volume load, restore drill, security scans, and monitoring proof before GA
+
 ProductionBlockerWave-20260516:
 assigned_task: close locally actionable production blockers from unresolved-risk list using parallel backend/infra workers
 task_type: SECURITY/PERFORMANCE/RELEASE/DATA/TESTING

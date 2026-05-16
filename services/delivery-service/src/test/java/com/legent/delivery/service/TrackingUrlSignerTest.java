@@ -22,6 +22,7 @@ class TrackingUrlSignerTest {
         when(cacheService.get(anyString(), eq(String.class))).thenReturn(Optional.empty());
         TrackingUrlSigner signer = new TrackingUrlSigner(cacheService);
         ReflectionTestUtils.setField(signer, "globalSigningKey", "test-signing-key-that-is-long-enough");
+        ReflectionTestUtils.setField(signer, "currentKeyVersion", 1);
 
         String first = signer.generateClickSignature("tenant-1", "campaign-1", "subscriber-1", "message-1", "workspace-1", "https://example.com/a");
         String second = signer.generateClickSignature("tenant-1", "campaign-1", "subscriber-1", "message-1", "workspace-1", "https://example.com/b");

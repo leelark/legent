@@ -1,5 +1,6 @@
 param(
-    [string] $OverlayPath = "infrastructure/kubernetes/overlays/production"
+    [string] $OverlayPath = "infrastructure/kubernetes/overlays/production",
+    [switch] $RequireImageDigests
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,6 +19,16 @@ try {
 
 if ($rendered -match "image:\s+legent/[^:\s]+:latest\b") {
     throw "Production overlay renders a legent/*:latest image"
+}
+
+$legentImageLines = @([regex]::Matches($rendered, "(?m)^\s*image:\s+(legent/[^\s]+)\s*$") | ForEach-Object { $_.Groups[1].Value })
+if ($RequireImageDigests) {
+    $missingDigests = @($legentImageLines | Where-Object { $_ -notmatch "@sha256:[a-f0-9]{64}$" })
+    if ($missingDigests.Count -gt 0) {
+        throw "Production image digest evidence is required but these legent images are not digest-pinned: $($missingDigests -join ', ')"
+    }
+} elseif ($legentImageLines | Where-Object { $_ -notmatch "@sha256:[a-f0-9]{64}$" }) {
+    Write-Warning "Production legent images are version-tagged but not digest-pinned. Attach registry digest/signature/provenance evidence before promotion, or rerun with -RequireImageDigests after pinning digests."
 }
 
 if ($rendered -match "\.local\b") {
@@ -67,6 +78,79 @@ foreach ($secretKey in $requiredSecretKeys) {
 }
 
 $documents = $rendered -split "(?m)^---\s*$"
+
+$namespaceDocument = @($documents | Where-Object {
+        $_ -match "(?m)^kind:\s+Namespace\s*$" -and
+        $_ -match "(?m)^\s+name:\s+legent\s*$"
+    })
+
+if ($namespaceDocument.Count -ne 1) {
+    throw "Production overlay must render exactly one legent Namespace"
+}
+
+foreach ($label in @("enforce", "audit", "warn")) {
+    if ($namespaceDocument[0] -notmatch "(?m)^\s+pod-security\.kubernetes\.io/${label}:\s+restricted\s*$") {
+        throw "Production Namespace must set pod-security.kubernetes.io/$label to restricted"
+    }
+}
+
+$ingressDocuments = @($documents | Where-Object { $_ -match "(?m)^kind:\s+Ingress\s*$" })
+$requiredTlsHosts = @("api.legent.com", "app.legent.com")
+foreach ($tlsHost in $requiredTlsHosts) {
+    $tlsCovered = @($ingressDocuments | Where-Object {
+            $_ -match "(?ms)^\s*tls:\s*\r?\n(?:\s+.*\r?\n)*?\s+-\s+$([regex]::Escape($tlsHost))\s*$" -and
+            $_ -match "(?m)^\s+secretName:\s+legent-public-tls\s*$"
+        })
+    if ($tlsCovered.Count -lt 1) {
+        throw "Production ingress TLS must cover $tlsHost with secret legent-public-tls"
+    }
+}
+
+$deploymentDocuments = @($documents | Where-Object { $_ -match "(?m)^kind:\s+Deployment\s*$" })
+if ($deploymentDocuments.Count -eq 0) {
+    throw "Production overlay must render application Deployments"
+}
+
+foreach ($deployment in $deploymentDocuments) {
+    $deploymentName = if ($deployment -match "(?m)^\s+name:\s+([A-Za-z0-9_.-]+)\s*$") { $Matches[1] } else { "<unknown>" }
+    if ($deployment -notmatch "(?m)^\s+runAsNonRoot:\s+true\s*$") {
+        throw "Deployment $deploymentName must set pod securityContext.runAsNonRoot=true"
+    }
+    if ($deployment -notmatch "(?m)^\s+seccompProfile:\s*$" -or $deployment -notmatch "(?m)^\s+type:\s+RuntimeDefault\s*$") {
+        throw "Deployment $deploymentName must set seccompProfile RuntimeDefault"
+    }
+    if ($deployment -notmatch "(?m)^\s+allowPrivilegeEscalation:\s+false\s*$") {
+        throw "Deployment $deploymentName must set container securityContext.allowPrivilegeEscalation=false"
+    }
+    if ($deployment -notmatch "(?ms)^\s+capabilities:\s*\r?\n\s+drop:\s*\r?\n\s+-\s+ALL\s*$") {
+        throw "Deployment $deploymentName must drop all Linux capabilities"
+    }
+}
+
+$requiredAlerts = @(
+    "LegentServiceHighErrorRate",
+    "LegentKafkaConsumerLagHigh",
+    "LegentPodRestarting",
+    "LegentExecutorSaturationCritical",
+    "LegentOtlpCollectorDown"
+)
+
+$alertRulesConfigMap = @($documents | Where-Object {
+        $_ -match "(?m)^kind:\s+ConfigMap\s*$" -and
+        $_ -match "(?m)^\s+name:\s+prometheus-legent-alert-rules\s*$" -and
+        $_ -match "(?m)^\s+prometheus-alerts\.yml:\s+\|"
+    })
+
+if ($alertRulesConfigMap.Count -ne 1) {
+    throw "Production overlay must render prometheus-legent-alert-rules ConfigMap from observability/prometheus-alerts.yml"
+}
+
+foreach ($alert in $requiredAlerts) {
+    if ($rendered -notmatch "(?m)^\s*-\s*alert:\s+$([regex]::Escape($alert))\s*$") {
+        throw "Production overlay must render required observability alert $alert"
+    }
+}
+
 $egressFindings = @()
 $hasProductionDefaultDeny = $false
 $hasProductionInternalEgress = $false

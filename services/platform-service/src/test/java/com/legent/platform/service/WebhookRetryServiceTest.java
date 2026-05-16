@@ -93,6 +93,29 @@ class WebhookRetryServiceTest {
     }
 
     @Test
+    void processRetriesReleasesBoundedStaleRetryingClaimsBeforePendingScan() {
+        WebhookRetry retry = retry("retry-1", "tenant-a", "webhook-1");
+        retry.setStatus("RETRYING");
+        retry.setClaimStartedAt(Instant.now().minusSeconds(180));
+        when(retryRepository.findStaleRetryingRecords(any(Instant.class), any(Pageable.class)))
+                .thenReturn(List.of(retry));
+        when(retryRepository.releaseStaleRetryingRecord(
+                eq("retry-1"), any(Instant.class), any(Instant.class), any(String.class)))
+                .thenReturn(1);
+        when(retryRepository.findPendingRetries(any(Instant.class), any(Pageable.class))).thenReturn(List.of());
+
+        service.processRetries();
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(retryRepository).findStaleRetryingRecords(any(Instant.class), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(50);
+        verify(retryRepository).releaseStaleRetryingRecord(
+                eq("retry-1"), any(Instant.class), any(Instant.class), any(String.class));
+        verify(retryRepository).findPendingRetries(any(Instant.class), any(Pageable.class));
+        verifyNoInteractions(configRepository, webClient, logRepository);
+    }
+
+    @Test
     void processRetriesClaimsPendingRetryBeforeProcessing() {
         WebhookRetry retry = retry("retry-1", "tenant-a", "webhook-1");
         when(retryRepository.findPendingRetries(any(Instant.class), any(Pageable.class))).thenReturn(List.of(retry));
@@ -106,6 +129,7 @@ class WebhookRetryServiceTest {
         verify(configRepository).findByIdAndTenantIdAndWorkspaceId("webhook-1", "tenant-a", "workspace-a");
         assertThat(retry.getStatus()).isEqualTo("FAILED");
         assertThat(retry.getLastError()).contains("Webhook configuration not found or inactive");
+        assertThat(retry.getClaimStartedAt()).isNull();
     }
 
     @Test

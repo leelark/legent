@@ -185,7 +185,7 @@ function resolveSearchResultHref(result: SearchResult) {
     case 'AUDIT':
       return '/app/admin';
     default:
-      return '/app/admin';
+      return '/app/email';
   }
 }
 

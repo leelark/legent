@@ -60,4 +60,7 @@ public class WebhookRetry {
 
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
+
+    @Column(name = "claim_started_at")
+    private Instant claimStartedAt;
 }

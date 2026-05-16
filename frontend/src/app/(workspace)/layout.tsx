@@ -1,12 +1,19 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { MobileNav, Sidebar } from '@/components/shell/Sidebar';
 import { Header } from '@/components/shell/Header';
 import { useAuthStore } from '@/stores/authStore';
 import { useTenantStore } from '@/stores/tenantStore';
-import { getStoredRoles, TENANT_STORAGE_KEY, WORKSPACE_STORAGE_KEY, THEME_STORAGE_KEY } from '@/lib/auth';
+import {
+  ENVIRONMENT_STORAGE_KEY,
+  ROLES_STORAGE_KEY,
+  TENANT_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+  USER_STORAGE_KEY,
+  WORKSPACE_STORAGE_KEY,
+} from '@/lib/auth';
 import { useUIStore } from '@/stores/uiStore';
 import { ToastProvider } from '@/components/ui/Toast';
 import { ErrorBoundary } from '@/components/shared/ErrorBoundary';
@@ -15,6 +22,22 @@ import { get } from '@/lib/api-client';
 import { showToast } from '@/stores/toastStore';
 import { ensureActiveContext } from '@/lib/context-bootstrap';
 import { getUserPreferences } from '@/lib/user-preferences-api';
+
+const ADMIN_ROLES = new Set(['ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN']);
+
+function hasAdminRole(roles: string[]) {
+  return roles.some((role) => ADMIN_ROLES.has(role));
+}
+
+function isAdminRoute(pathname: string | null) {
+  const normalized = pathname?.replace(/\/+$/, '') || '';
+  return (
+    normalized === '/admin' ||
+    normalized.startsWith('/admin/') ||
+    normalized === '/app/admin' ||
+    normalized.startsWith('/app/admin/')
+  );
+}
 
 /**
  * Workspace layout provides the app shell with sidebar, header, and workspace area.
@@ -26,8 +49,10 @@ export default function WorkspaceLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [hydrated, setHydrated] = useState(false);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const roles = useAuthStore((state) => state.roles);
   const login = useAuthStore((state) => state.login);
   const logout = useAuthStore((state) => state.logout);
   const setCurrentTenant = useTenantStore((state) => state.setCurrentTenant);
@@ -53,8 +78,7 @@ export default function WorkspaceLayout({
         return;
       }
 
-      const storedRoles = getStoredRoles();
-      const storedUserId = localStorage.getItem('legent_user_id');
+      const storedUserId = localStorage.getItem(USER_STORAGE_KEY);
       let contextResolved = false;
       let sessionUser = false;
 
@@ -63,17 +87,17 @@ export default function WorkspaceLayout({
           status: string;
           userId: string;
           tenantId: string;
-          roles: string[];
+          roles?: unknown;
           workspaceId?: string | null;
           environmentId?: string | null;
         }>('/auth/session');
 
         if (!cancelled && session?.status === 'success' && session.userId) {
           sessionUser = true;
-          const roles = Array.isArray(session.roles) ? session.roles : storedRoles;
-          login(session.userId, roles);
-          localStorage.setItem('legent_user_id', session.userId);
-          localStorage.setItem('legent_roles', JSON.stringify(roles));
+          const sessionRoles = Array.isArray(session.roles) ? session.roles.map(String).filter(Boolean) : [];
+          login(session.userId, sessionRoles);
+          localStorage.setItem(USER_STORAGE_KEY, session.userId);
+          localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(sessionRoles));
           localStorage.setItem(TENANT_STORAGE_KEY, session.tenantId);
           setCurrentTenant({
             id: session.tenantId,
@@ -118,11 +142,11 @@ export default function WorkspaceLayout({
 
       if (!sessionUser && !cancelled && (isAuthenticated || storedUserId)) {
         logout();
-        localStorage.removeItem('legent_user_id');
-        localStorage.removeItem('legent_roles');
+        localStorage.removeItem(USER_STORAGE_KEY);
+        localStorage.removeItem(ROLES_STORAGE_KEY);
         localStorage.removeItem(TENANT_STORAGE_KEY);
         localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-        localStorage.removeItem('legent_environment_id');
+        localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
         showToast.error('Session expired', 'Please log in again to continue.', 5000);
       }
 
@@ -153,7 +177,10 @@ export default function WorkspaceLayout({
     if (hydrated && !isAuthenticated) {
       router.replace('/login');
     }
-  }, [hydrated, isAuthenticated, router]);
+    if (hydrated && isAuthenticated && isAdminRoute(pathname) && !hasAdminRole(roles)) {
+      router.replace('/app/email');
+    }
+  }, [hydrated, isAuthenticated, pathname, roles, router]);
 
   if (!hydrated) {
     return (
@@ -200,6 +227,18 @@ export default function WorkspaceLayout({
           <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-2 border-brand-500/20 border-b-brand-600" />
           <p className="font-semibold text-content-primary">Redirecting to login</p>
           <p className="mt-1 text-sm text-content-secondary">Session context is being refreshed.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isAdminRoute(pathname) && !hasAdminRole(roles)) {
+    return (
+      <div className="app-surface flex h-screen items-center justify-center p-6">
+        <div className="rounded-xl border border-border-default bg-surface-elevated/90 p-8 text-center shadow-[0_24px_70px_rgba(76,29,149,0.14)] backdrop-blur-xl">
+          <div className="mx-auto mb-4 h-9 w-9 animate-spin rounded-full border-2 border-brand-500/20 border-b-brand-600" />
+          <p className="font-semibold text-content-primary">Redirecting to workspace</p>
+          <p className="mt-1 text-sm text-content-secondary">Admin access is not available for this session.</p>
         </div>
       </div>
     );

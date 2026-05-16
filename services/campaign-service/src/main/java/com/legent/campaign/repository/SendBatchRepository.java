@@ -1,6 +1,7 @@
 package com.legent.campaign.repository;
 
 import java.util.List;
+import java.time.Instant;
 
 import com.legent.campaign.domain.SendBatch;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -23,6 +24,8 @@ public interface SendBatchRepository extends JpaRepository<SendBatch, String> {
     void updateStatusByJobId(@Param("tenantId") String tenantId, @Param("jobId") String jobId, @Param("status") SendBatch.BatchStatus status);
 
     List<SendBatch> findByStatus(SendBatch.BatchStatus status);
+
+    List<SendBatch> findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(SendBatch.BatchStatus status, Instant updatedBefore);
 
     List<SendBatch> findByJobIdAndStatus(String jobId, SendBatch.BatchStatus status);
 

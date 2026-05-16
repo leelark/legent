@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class TrackingIngestionServiceTest {
@@ -38,8 +39,7 @@ class TrackingIngestionServiceTest {
     @Test
     void processOpen_PublishesEventAndParsesUserAgent() {
         String ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
-        org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
-                .thenReturn(java.util.Optional.empty());
+        whenDedupReservationSucceeds();
         org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.anyString(),
@@ -65,8 +65,7 @@ class TrackingIngestionServiceTest {
     @Test
     void processClick_PublishesEventWithUrl() {
         String url = "https://example.com/promo";
-        org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
-                .thenReturn(java.util.Optional.empty());
+        whenDedupReservationSucceeds();
         org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.anyString(),
@@ -87,19 +86,7 @@ class TrackingIngestionServiceTest {
 
     @Test
     void processOpen_RedisDeduplicationIsScopedByWorkspace() {
-        java.util.Set<String> redisKeys = new java.util.HashSet<>();
-        org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
-                .thenAnswer(invocation -> redisKeys.contains(invocation.getArgument(0))
-                        ? java.util.Optional.of("1")
-                        : java.util.Optional.empty());
-        org.mockito.Mockito.doAnswer(invocation -> {
-                    redisKeys.add(invocation.getArgument(0));
-                    return null;
-                })
-                .when(cacheService).set(
-                        org.mockito.ArgumentMatchers.anyString(),
-                        org.mockito.ArgumentMatchers.eq("1"),
-                        org.mockito.ArgumentMatchers.any());
+        whenDedupReservationSucceeds();
         org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.anyString(),
@@ -114,21 +101,41 @@ class TrackingIngestionServiceTest {
         ingestionService.processOpen("tenant-1", "campaign-1", "subscriber-1", "message-1",
                 "workspace-b", "idem-b", null, "192.168.1.1");
 
-        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
-        verify(cacheService, times(2)).set(
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.List<String>> keyCaptor = ArgumentCaptor.forClass(java.util.List.class);
+        verify(cacheService, times(2)).executeScript(
+                org.mockito.ArgumentMatchers.any(),
                 keyCaptor.capture(),
                 org.mockito.ArgumentMatchers.eq("1"),
-                org.mockito.ArgumentMatchers.any());
+                org.mockito.ArgumentMatchers.anyString());
         assertEquals(java.util.List.of(
-                "track:dedup:tenant-1:workspace-a:OPEN:message-1:subscriber-1",
-                "track:dedup:tenant-1:workspace-b:OPEN:message-1:subscriber-1"), keyCaptor.getAllValues());
+                java.util.List.of("track:dedup:tenant-1:workspace-a:OPEN:message-1:subscriber-1"),
+                java.util.List.of("track:dedup:tenant-1:workspace-b:OPEN:message-1:subscriber-1")), keyCaptor.getAllValues());
         verify(outboxService, times(2)).enqueue(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
-    void processOpen_WhenDatabaseSaveFails_DoesNotPublishEvent() {
-        org.mockito.Mockito.when(cacheService.get(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.eq(String.class)))
+    void processOpen_WhenRedisReservationAlreadyExists_DoesNotPublish() {
+        whenDedupReservationFails();
+        org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.any()))
                 .thenReturn(java.util.Optional.empty());
+
+        ingestionService.processOpen("tenant-1", "campaign-1", "subscriber-1", "message-1",
+                "workspace-1", "idem-duplicate", null, "192.168.1.1");
+
+        verify(rawEventRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(outboxService, never()).enqueue(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void processOpen_WhenDatabaseSaveFails_DoesNotPublishEvent() {
+        whenDedupReservationSucceeds();
         org.mockito.Mockito.when(rawEventRepository.findTopByTenantIdAndWorkspaceIdAndEventTypeAndMessageIdAndSubscriberIdAndTimestampAfter(
                         org.mockito.ArgumentMatchers.anyString(),
                         org.mockito.ArgumentMatchers.anyString(),
@@ -155,5 +162,23 @@ class TrackingIngestionServiceTest {
                 () -> ingestionService.processOpen("t1", "c1", "s1", "m1", null, "idem-4", null, "192.168.1.1"));
 
         verify(outboxService, never()).enqueue(org.mockito.ArgumentMatchers.any());
+    }
+
+    private void whenDedupReservationSucceeds() {
+        when(cacheService.executeScript(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.eq("1"),
+                org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(1L);
+    }
+
+    private void whenDedupReservationFails() {
+        when(cacheService.executeScript(
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyList(),
+                org.mockito.ArgumentMatchers.eq("1"),
+                org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(0L);
     }
 }

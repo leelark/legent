@@ -3,9 +3,12 @@ package com.legent.security;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -19,6 +22,7 @@ class TenantFilterTest {
     @AfterEach
     void cleanup() {
         TenantContext.clear();
+        SecurityContextHolder.clearContext();
     }
 
     @Test
@@ -155,6 +159,28 @@ class TenantFilterTest {
         tenantFilter.doFilter(request, response, chain);
 
         assertTrue(sawWorkspaceInChain.get());
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
+    }
+
+    @Test
+    void doFilter_whenAuthenticatedJwtHasNoWorkspace_rejectsWorkspaceHeaderAdoption() throws Exception {
+        TenantContext.setTenantId("tenant-a");
+        UserPrincipal principal = new UserPrincipal("user-1", "tenant-a", null, null, Set.of("USER"));
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(principal, null, java.util.Collections.emptyList()));
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/campaigns");
+        request.addHeader("X-Tenant-Id", "tenant-a");
+        request.addHeader("X-Workspace-Id", "workspace-b");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        tenantFilter.doFilter(request, response, chain);
+
+        assertEquals(403, response.getStatus());
+        assertTrue(!chainCalled.get());
         assertNull(TenantContext.getTenantId());
         assertNull(TenantContext.getWorkspaceId());
     }

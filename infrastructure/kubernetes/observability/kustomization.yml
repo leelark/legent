@@ -4,3 +4,11 @@ kind: Kustomization
 resources:
   - otel-collector.yml
   - alertmanager.yml
+
+configMapGenerator:
+  - name: prometheus-legent-alert-rules
+    files:
+      - prometheus-alerts.yml
+
+generatorOptions:
+  disableNameSuffixHash: true

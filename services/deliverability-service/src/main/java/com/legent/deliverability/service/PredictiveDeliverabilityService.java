@@ -26,6 +26,7 @@ public class PredictiveDeliverabilityService {
     private final SenderDomainRepository senderDomainRepository;
     private final DomainReputationRepository domainReputationRepository;
     private final SuppressionListRepository suppressionListRepository;
+    private final DomainVerificationService domainVerificationService;
 
     @Transactional(readOnly = true)
     public Map<String, Object> predictRisk(String domainName, Integer plannedVolume, String isp) {
@@ -100,6 +101,9 @@ public class PredictiveDeliverabilityService {
     private int authenticationRisk(SenderDomain domain) {
         if (domain == null) {
             return 45;
+        }
+        if (!domainVerificationService.hasFreshOwnershipProof(domain)) {
+            return 70;
         }
         int risk = 0;
         if (!Boolean.TRUE.equals(domain.getSpfVerified())) {

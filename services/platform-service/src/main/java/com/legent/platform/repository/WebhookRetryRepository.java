@@ -31,7 +31,7 @@ public interface WebhookRetryRepository extends JpaRepository<WebhookRetry, Stri
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE WebhookRetry r
-            SET r.status = 'RETRYING', r.updatedAt = :claimedAt
+            SET r.status = 'RETRYING', r.updatedAt = :claimedAt, r.claimStartedAt = :claimedAt
             WHERE r.id = :id
               AND r.status = 'PENDING'
               AND r.nextRetryAt <= :now
@@ -39,10 +39,42 @@ public interface WebhookRetryRepository extends JpaRepository<WebhookRetry, Stri
     int claimPendingRetry(@Param("id") String id, @Param("now") Instant now, @Param("claimedAt") Instant claimedAt);
 
     /**
-     * Find all retrying records that should be processed.
+     * Find retrying records whose claim lease has expired.
      */
-    @Query("SELECT r FROM WebhookRetry r WHERE r.status = 'RETRYING' AND r.nextRetryAt <= :now ORDER BY r.createdAt ASC")
-    List<WebhookRetry> findRetryingRecords(@Param("now") Instant now);
+    @Query("""
+            SELECT r FROM WebhookRetry r
+            WHERE r.status = 'RETRYING'
+              AND (
+                r.claimStartedAt <= :staleBefore
+                OR (r.claimStartedAt IS NULL AND r.updatedAt <= :staleBefore)
+              )
+            ORDER BY r.updatedAt ASC, r.createdAt ASC
+            """)
+    List<WebhookRetry> findStaleRetryingRecords(@Param("staleBefore") Instant staleBefore, Pageable pageable);
+
+    /**
+     * Release a stale claim so a later scheduler tick can retry the webhook.
+     */
+    @Transactional
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE WebhookRetry r
+            SET r.status = 'PENDING',
+                r.nextRetryAt = :now,
+                r.lastError = :reason,
+                r.updatedAt = :now,
+                r.claimStartedAt = NULL
+            WHERE r.id = :id
+              AND r.status = 'RETRYING'
+              AND (
+                r.claimStartedAt <= :staleBefore
+                OR (r.claimStartedAt IS NULL AND r.updatedAt <= :staleBefore)
+              )
+            """)
+    int releaseStaleRetryingRecord(@Param("id") String id,
+                                   @Param("staleBefore") Instant staleBefore,
+                                   @Param("now") Instant now,
+                                   @Param("reason") String reason);
 
     /**
      * Count pending retries for a tenant.

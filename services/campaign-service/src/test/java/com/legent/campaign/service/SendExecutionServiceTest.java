@@ -16,7 +16,11 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.security.TenantContext;
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,12 +31,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.kafka.support.SendResult;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -42,6 +48,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -77,6 +84,8 @@ class SendExecutionServiceTest {
                 stateMachine,
                 contentReferenceService);
         ReflectionTestUtils.setField(service, "maxRenderCacheEntries", 16);
+        ReflectionTestUtils.setField(service, "maxBatchRetries", 5);
+        ReflectionTestUtils.setField(service, "processingLeaseTimeout", Duration.ofMinutes(15));
         ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1024 * 1024);
         ReflectionTestUtils.setField(service, "contentReferenceEnabled", true);
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
@@ -96,12 +105,12 @@ class SendExecutionServiceTest {
                 Map.of("email", "same@example.com", "subscriberId", "sub-1", "firstName", "Asha"));
 
         stubBatchExecution(batch, campaign, subscribers);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello Asha</p>", "Hello Asha"));
 
         service.executeBatch("tenant-1", "job-1", "batch-1", objectMapper.writeValueAsString(subscribers));
 
-        verify(contentServiceClient, times(1)).renderTemplate(eq("tenant-1"), eq("content-1"), any());
+        verify(contentServiceClient, times(1)).renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any());
         verify(eventPublisher, times(2)).publish(anyString(), any());
     }
 
@@ -114,12 +123,12 @@ class SendExecutionServiceTest {
                 Map.of("email", "two@example.com", "subscriberId", "sub-2", "firstName", "Ishan"));
 
         stubBatchExecution(batch, campaign, subscribers);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
 
         service.executeBatch("tenant-1", "job-1", "batch-1", objectMapper.writeValueAsString(subscribers));
 
-        verify(contentServiceClient, times(2)).renderTemplate(eq("tenant-1"), eq("content-1"), any());
+        verify(contentServiceClient, times(2)).renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any());
         verify(eventPublisher, times(2)).publish(anyString(), any());
     }
 
@@ -133,7 +142,7 @@ class SendExecutionServiceTest {
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
 
         service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
@@ -153,7 +162,7 @@ class SendExecutionServiceTest {
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers, 1);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
 
         service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
@@ -175,7 +184,7 @@ class SendExecutionServiceTest {
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
         when(eventPublisher.publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any()))
                 .thenReturn(CompletableFuture.completedFuture(null))
@@ -202,7 +211,7 @@ class SendExecutionServiceTest {
         Campaign campaign = campaign();
         stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
         ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1200);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent(
                         "Rendered",
                         "<p>" + "x".repeat(2048) + "</p>",
@@ -235,7 +244,7 @@ class SendExecutionServiceTest {
         Campaign campaign = campaign();
         stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", false);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
 
         service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
@@ -260,7 +269,7 @@ class SendExecutionServiceTest {
                 Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
         Campaign campaign = campaign();
         stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
         when(contentReferenceService.createReference(any(), eq(true)))
                 .thenThrow(new IllegalStateException("redis unavailable"));
@@ -299,7 +308,7 @@ class SendExecutionServiceTest {
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers);
-        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenThrow(new RuntimeException("render failed"));
 
         assertThrows(IllegalStateException.class,
@@ -308,6 +317,184 @@ class SendExecutionServiceTest {
         assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
         verify(batchRepository).saveAndFlush(batch);
         verify(batchRepository, never()).save(batch);
+    }
+
+    @Test
+    void waitsForDelayedPublishBeforeCompletingBatch() throws Exception {
+        SendBatch batch = batch();
+        Campaign campaign = campaign();
+        List<Map<String, String>> subscribers = List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"));
+        batch.setPayload(objectMapper.writeValueAsString(subscribers));
+        CompletableFuture<SendResult<String, Object>> handoff = new CompletableFuture<>();
+
+        stubBatchExecution(batch, campaign, subscribers);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any()))
+                .thenReturn(handoff);
+
+        CompletableFuture<Void> execution = CompletableFuture.runAsync(
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
+
+        verify(eventPublisher, timeout(1000)).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        assertFalse(execution.isDone());
+        assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
+
+        handoff.complete(null);
+
+        assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
+        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
+        verify(batchRepository).save(batch);
+    }
+
+    @Test
+    void waitsForDelayedRemoteRenderBeforePublishingAndCompletingBatch() throws Exception {
+        SendBatch batch = batch();
+        Campaign campaign = campaign();
+        List<Map<String, String>> subscribers = List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"));
+        batch.setPayload(objectMapper.writeValueAsString(subscribers));
+        CountDownLatch renderEntered = new CountDownLatch(1);
+        CountDownLatch releaseRender = new CountDownLatch(1);
+
+        stubBatchExecution(batch, campaign, subscribers);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
+                .thenAnswer(invocation -> {
+                    renderEntered.countDown();
+                    if (!releaseRender.await(2, TimeUnit.SECONDS)) {
+                        throw new IllegalStateException("render not released");
+                    }
+                    return new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello");
+                });
+
+        CompletableFuture<Void> execution = CompletableFuture.runAsync(
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
+
+        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
+            if (!renderEntered.await(1, TimeUnit.SECONDS)) {
+                throw new AssertionError("render was not invoked");
+            }
+        });
+        assertFalse(execution.isDone());
+        assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+
+        releaseRender.countDown();
+
+        assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
+        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+    }
+
+    @Test
+    void executeBatchFailsClosedBeforeRenderWhenBatchWorkspaceIsMissing() {
+        SendBatch batch = batch();
+        batch.setWorkspaceId(null);
+        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+
+        assertThrows(ValidationException.class,
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", null));
+
+        verify(batchRepository, never()).saveAndFlush(any(SendBatch.class));
+        verify(contentServiceClient, never()).renderTemplate(anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void retryPartialBatchesRecoversStaleProcessingBatchLeaseAndRequeues() {
+        SendBatch batch = batch();
+        batch.setStatus(SendBatch.BatchStatus.PROCESSING);
+        batch.setUpdatedAt(Instant.now().minus(Duration.ofMinutes(30)));
+        batch.setPayload("[{\"email\":\"one@example.com\",\"subscriberId\":\"sub-1\"}]");
+
+        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
+                eq(SendBatch.BatchStatus.PROCESSING), any())).thenReturn(List.of(batch));
+        when(batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL)).thenReturn(List.of(batch));
+        when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_BATCH_CREATED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        service.retryPartialBatches();
+
+        assertEquals(SendBatch.BatchStatus.PENDING, batch.getStatus());
+        assertEquals(1, batch.getRetryCount());
+        assertEquals("Recovered stale campaign batch processing lease", batch.getLastError());
+        verify(batchRepository, times(2)).save(batch);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> eventCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_BATCH_CREATED), eventCaptor.capture());
+        Map<String, Object> payload = eventCaptor.getValue().getPayload();
+        assertEquals("batch-1", payload.get("batchId"));
+        assertEquals("workspace-1", payload.get("workspaceId"));
+        assertEquals(Boolean.TRUE, payload.get("retry"));
+        assertEquals(1, payload.get("retryCount"));
+    }
+
+    @Test
+    void retryPartialBatchesMarksExhaustedBatchFailedAndReconcilesJobAndCampaign() {
+        SendBatch batch = batch();
+        batch.setStatus(SendBatch.BatchStatus.PARTIAL);
+        batch.setRetryCount(5);
+        batch.setPayload("[{\"email\":\"one@example.com\",\"subscriberId\":\"sub-1\"}]");
+        Campaign campaign = campaign();
+        campaign.setStatus(Campaign.CampaignStatus.SENDING);
+        SendJob job = new SendJob();
+        job.setId("job-1");
+        job.setTenantId("tenant-1");
+        job.setWorkspaceId("workspace-1");
+        job.setCampaignId("campaign-1");
+        job.setStatus(SendJob.JobStatus.SENDING);
+
+        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
+                eq(SendBatch.BatchStatus.PROCESSING), any())).thenReturn(List.of());
+        when(batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL)).thenReturn(List.of(batch));
+        when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(batchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1"))
+                .thenReturn(1L);
+        when(batchRepository.countByTenantWorkspaceAndJobAndStatuses(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), any()))
+                .thenAnswer(invocation -> {
+                    @SuppressWarnings("unchecked")
+                    List<SendBatch.BatchStatus> statuses = invocation.getArgument(3);
+                    return statuses.contains(SendBatch.BatchStatus.FAILED) ? 1L : 0L;
+                });
+        when(sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "job-1")).thenReturn(Optional.of(job));
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1")).thenReturn(Optional.of(campaign));
+        doAnswer(invocation -> {
+            SendJob target = invocation.getArgument(0);
+            SendJob.JobStatus status = invocation.getArgument(1);
+            target.setStatus(status);
+            target.setErrorMessage(invocation.getArgument(2));
+            return null;
+        }).when(stateMachine).transitionJob(any(SendJob.class), any(SendJob.JobStatus.class), anyString());
+        doAnswer(invocation -> {
+            Campaign target = invocation.getArgument(0);
+            Campaign.CampaignStatus status = invocation.getArgument(1);
+            target.setStatus(status);
+            target.setLifecycleNote(invocation.getArgument(2));
+            return null;
+        }).when(stateMachine).transitionCampaign(any(Campaign.class), any(Campaign.CampaignStatus.class), anyString());
+
+        service.retryPartialBatches();
+
+        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
+        assertEquals(6, batch.getRetryCount());
+        assertEquals("Max campaign batch retries exceeded", batch.getLastError());
+        assertEquals(SendJob.JobStatus.FAILED, job.getStatus());
+        assertEquals(Campaign.CampaignStatus.FAILED, campaign.getStatus());
+        verify(sendSafetyService).createDeadLetter(
+                "tenant-1",
+                "workspace-1",
+                "campaign-1",
+                "job-1",
+                "batch-1",
+                "MAX_BATCH_RETRIES_EXCEEDED",
+                batch.getPayload(),
+                6);
+        verify(sendJobRepository).save(job);
+        verify(campaignRepository).save(campaign);
     }
 
     @Test

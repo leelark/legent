@@ -6,6 +6,7 @@ import com.legent.automation.dto.WorkflowGraphDto;
 import com.legent.automation.service.WorkflowStudioService;
 import com.legent.common.dto.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -18,11 +19,13 @@ public class WorkflowDefinitionController {
     private final ObjectMapper objectMapper;
 
     @GetMapping("/{workflowId}/latest")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<WorkflowDefinition> getLatestDefinition(@PathVariable String workflowId) {
         return ApiResponse.ok(workflowStudioService.getLatestDefinition(workflowId));
     }
 
     @PostMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
     public ApiResponse<WorkflowDefinition> saveDefinition(@RequestBody Map<String, Object> request) {
         String workflowId = asString(request.get("workflowId"));
         if (workflowId == null) {
@@ -52,6 +55,7 @@ public class WorkflowDefinitionController {
     }
 
     @GetMapping("/{workflowId}/versions/{version}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
     public ApiResponse<WorkflowDefinition> getDefinitionVersion(@PathVariable String workflowId, @PathVariable Integer version) {
         return ApiResponse.ok(workflowStudioService.getDefinitionVersion(workflowId, version));
     }

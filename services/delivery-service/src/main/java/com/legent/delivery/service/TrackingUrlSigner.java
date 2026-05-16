@@ -1,18 +1,14 @@
 package com.legent.delivery.service;
 
 import com.legent.cache.service.CacheService;
+import com.legent.common.tracking.TrackingSignatureSupport;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import jakarta.annotation.PostConstruct;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.time.Duration;
-import java.util.Base64;
 import java.util.Optional;
 
 /**
@@ -63,15 +59,7 @@ public class TrackingUrlSigner {
     public String generateSignature(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId) {
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, null);
-
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(secretKey);
-            byte[] signatureBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-
-            // Use URL-safe Base64 encoding
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(signatureBytes);
+            return TrackingSignatureSupport.sign(signingKey, tenantId, campaignId, subscriberId, messageId, workspaceId, null);
         } catch (Exception e) {
             log.error("Failed to generate tracking URL signature", e);
             throw new RuntimeException("Failed to sign tracking URL", e);
@@ -81,14 +69,7 @@ public class TrackingUrlSigner {
     public String generateClickSignature(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) {
         try {
             String signingKey = getOrCreateSigningKey(tenantId);
-            String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, url);
-
-            Mac mac = Mac.getInstance("HmacSHA256");
-            SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-            mac.init(secretKey);
-            byte[] signatureBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-
-            return Base64.getUrlEncoder().withoutPadding().encodeToString(signatureBytes);
+            return TrackingSignatureSupport.sign(signingKey, tenantId, campaignId, subscriberId, messageId, workspaceId, url);
         } catch (Exception e) {
             log.error("Failed to generate tracking click URL signature", e);
             throw new RuntimeException("Failed to sign tracking click URL", e);
@@ -163,16 +144,8 @@ public class TrackingUrlSigner {
     }
 
     private boolean verifyWithKey(String signature, String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url, String signingKey) throws Exception {
-        String data = signaturePayload(tenantId, campaignId, subscriberId, messageId, workspaceId, url);
-
-        Mac mac = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secretKey = new SecretKeySpec(signingKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        mac.init(secretKey);
-        byte[] expectedSignatureBytes = mac.doFinal(data.getBytes(StandardCharsets.UTF_8));
-        String expectedSignature = Base64.getUrlEncoder().withoutPadding().encodeToString(expectedSignatureBytes);
-
-        // Constant-time comparison to prevent timing attacks
-        return constantTimeEquals(signature, expectedSignature);
+        return TrackingSignatureSupport.verify(
+                signature, signingKey, tenantId, campaignId, subscriberId, messageId, workspaceId, url);
     }
 
     /**
@@ -226,44 +199,6 @@ public class TrackingUrlSigner {
      * Generates a cryptographically secure signing key for a tenant with versioning.
      */
     private String generateSigningKey(String tenantId, int version) {
-        try {
-            String seed = globalSigningKey + ":" + normalize(tenantId) + ":" + version;
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(seed.getBytes(StandardCharsets.UTF_8));
-            return Base64.getEncoder().encodeToString(hash);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to generate signing key", e);
-        }
-    }
-
-    private String signaturePayload(String tenantId, String campaignId, String subscriberId, String messageId, String workspaceId, String url) {
-        return String.join(":",
-                normalize(tenantId),
-                normalize(campaignId),
-                normalize(subscriberId),
-                normalize(messageId),
-                normalize(workspaceId),
-                normalize(url));
-    }
-
-    private String normalize(String value) {
-        return value == null ? "" : value.trim();
-    }
-
-    /**
-     * Constant-time string comparison to prevent timing attacks.
-     */
-    private boolean constantTimeEquals(String a, String b) {
-        if (a == null || b == null) {
-            return a == b;
-        }
-        if (a.length() != b.length()) {
-            return false;
-        }
-        int result = 0;
-        for (int i = 0; i < a.length(); i++) {
-            result |= a.charAt(i) ^ b.charAt(i);
-        }
-        return result == 0;
+        return TrackingSignatureSupport.deriveTenantSigningKey(globalSigningKey, tenantId, version);
     }
 }

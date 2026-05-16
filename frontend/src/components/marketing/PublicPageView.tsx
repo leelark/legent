@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { MarketingShell } from '@/components/marketing/MarketingShell';
 import { Button } from '@/components/ui/Button';
-import { post } from '@/lib/api-client';
+import { postPublic } from '@/lib/api-client';
 import {
   contactRoutes,
   homeScenarios,
@@ -1143,6 +1143,21 @@ function SupportBlock({ card, icon: Icon, index }: { card: { title: string; body
   );
 }
 
+function getContactFormErrorMessage(error: unknown) {
+  const candidate = error as {
+    normalized?: { message?: unknown };
+    response?: { data?: { error?: { message?: unknown } } };
+  };
+  const normalized = candidate.normalized?.message;
+  if (typeof normalized === 'string' && normalized.trim()) {
+    return normalized;
+  }
+  const responseMessage = candidate.response?.data?.error?.message;
+  return typeof responseMessage === 'string' && responseMessage.trim()
+    ? responseMessage
+    : 'Could not submit request. Please try again.';
+}
+
 function PublicContactForm({ interests }: { interests: string[] }) {
   const [form, setForm] = useState({ name: '', workEmail: '', company: '', interest: interests[0] ?? '', message: '' });
   const [loading, setLoading] = useState(false);
@@ -1155,11 +1170,11 @@ function PublicContactForm({ interests }: { interests: string[] }) {
     setLoading(true);
     setStatus(null);
     try {
-      const response = await post<{ id: string; status: string; message: string }>('/public/contact', { ...form, sourcePage: 'contact' });
+      const response = await postPublic<{ id: string; status: string; message: string }>('/public/contact', { ...form, sourcePage: 'contact' });
       setStatus({ type: 'success', message: response.message || 'Request received. We will follow up shortly.' });
       setForm({ name: '', workEmail: '', company: '', interest: interests[0] ?? '', message: '' });
-    } catch (error: any) {
-      const message = error?.normalized?.message || error?.response?.data?.error?.message || 'Could not submit request. Please try again.';
+    } catch (error: unknown) {
+      const message = getContactFormErrorMessage(error);
       setStatus({ type: 'error', message });
     } finally {
       setLoading(false);
