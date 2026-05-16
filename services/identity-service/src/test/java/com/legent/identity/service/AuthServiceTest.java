@@ -2,8 +2,12 @@ package com.legent.identity.service;
 
 import com.legent.identity.domain.Account;
 import com.legent.identity.domain.AccountMembership;
+import com.legent.identity.domain.AccountRoleBinding;
+import com.legent.identity.domain.AuthInvitation;
 import com.legent.identity.domain.User;
 import com.legent.identity.dto.AuthBridgeDto;
+import com.legent.identity.repository.AccountRoleBindingRepository;
+import com.legent.identity.repository.AuthInvitationRepository;
 import com.legent.identity.repository.TenantRepository;
 import com.legent.identity.repository.UserRepository;
 import com.legent.identity.event.IdentityEventPublisher;
@@ -12,21 +16,28 @@ import com.legent.identity.repository.AccountRepository;
 import com.legent.security.JwtTokenProvider;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -256,6 +267,225 @@ class AuthServiceTest {
     }
 
     @Test
+    void createInvitation_whenRequestedRoleExceedsInviter_throwsAndDoesNotSave() {
+        AccountRepository accountRepository = mock(AccountRepository.class);
+        AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
+        AccountRoleBindingRepository roleBindingRepository = mock(AccountRoleBindingRepository.class);
+        AuthInvitationRepository invitationRepository = mock(AuthInvitationRepository.class);
+        AuthService service = authServiceWithIdentityBridgeRepositories(
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository,
+                invitationRepository);
+        User inviter = activeUser("user-1", "user@example.com");
+        Account inviterAccount = account("requester-account", "user@example.com");
+        AccountMembership inviterMembership = membership(
+                "membership-requester",
+                "requester-account",
+                "user-1",
+                "tenant-1",
+                "workspace-owned",
+                false);
+        AuthBridgeDto.InvitationRequest request = invitationRequest("invitee@example.com", "workspace-owned", List.of("ADMIN"));
+
+        when(userRepository.findByTenantIdAndId("tenant-1", "user-1")).thenReturn(Optional.of(inviter));
+        when(accountRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(inviterAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "requester-account",
+                "tenant-1",
+                "workspace-owned",
+                "ACTIVE"))
+                .thenReturn(Optional.of(inviterMembership));
+        when(roleBindingRepository.findByMembershipId("membership-requester"))
+                .thenReturn(List.of(roleBinding("requester-account", "membership-requester", "SECURITY_ADMIN")));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.createInvitation("tenant-1", "user-1", request));
+
+        verify(invitationRepository, never()).save(any(AuthInvitation.class));
+    }
+
+    @Test
+    void createInvitation_whenRoleAllowed_savesNormalizedRoleKeys() {
+        AccountRepository accountRepository = mock(AccountRepository.class);
+        AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
+        AccountRoleBindingRepository roleBindingRepository = mock(AccountRoleBindingRepository.class);
+        AuthInvitationRepository invitationRepository = mock(AuthInvitationRepository.class);
+        AuthService service = authServiceWithIdentityBridgeRepositories(
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository,
+                invitationRepository);
+        User inviter = activeUser("user-1", "user@example.com");
+        Account inviterAccount = account("requester-account", "user@example.com");
+        AccountMembership inviterMembership = membership(
+                "membership-requester",
+                "requester-account",
+                "user-1",
+                "tenant-1",
+                "workspace-owned",
+                false);
+        AuthBridgeDto.InvitationRequest request = invitationRequest(
+                "Invitee@Example.com",
+                "workspace-owned",
+                List.of(" viewer ", "ANALYST", "viewer"));
+
+        when(userRepository.findByTenantIdAndId("tenant-1", "user-1")).thenReturn(Optional.of(inviter));
+        when(accountRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(inviterAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "requester-account",
+                "tenant-1",
+                "workspace-owned",
+                "ACTIVE"))
+                .thenReturn(Optional.of(inviterMembership));
+        when(roleBindingRepository.findByMembershipId("membership-requester"))
+                .thenReturn(List.of(roleBinding("requester-account", "membership-requester", "ORG_ADMIN")));
+        when(invitationRepository.save(any(AuthInvitation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        Instant lowerBound = Instant.now().plus(Duration.ofDays(7)).minusSeconds(1);
+
+        AuthInvitation invitation = service.createInvitation("tenant-1", "user-1", request);
+
+        Instant upperBound = Instant.now().plus(Duration.ofDays(7)).plusSeconds(1);
+
+        ArgumentCaptor<AuthInvitation> invitationCaptor = ArgumentCaptor.forClass(AuthInvitation.class);
+        verify(invitationRepository).save(invitationCaptor.capture());
+        assertEquals("invitee@example.com", invitationCaptor.getValue().getEmail());
+        assertEquals(List.of("VIEWER", "ANALYST"), invitationCaptor.getValue().getRoleKeys());
+        assertNotNull(invitationCaptor.getValue().getExpiresAt());
+        assertTrue(!invitationCaptor.getValue().getExpiresAt().isBefore(lowerBound));
+        assertTrue(!invitationCaptor.getValue().getExpiresAt().isAfter(upperBound));
+        assertEquals("user-1", invitation.getInvitedByUserId());
+    }
+
+    @Test
+    void createInvitation_whenExpiryExceedsMax_clampsToSevenDays() {
+        AccountRepository accountRepository = mock(AccountRepository.class);
+        AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
+        AccountRoleBindingRepository roleBindingRepository = mock(AccountRoleBindingRepository.class);
+        AuthInvitationRepository invitationRepository = mock(AuthInvitationRepository.class);
+        AuthService service = authServiceWithIdentityBridgeRepositories(
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository,
+                invitationRepository);
+        User inviter = activeUser("user-1", "user@example.com");
+        Account inviterAccount = account("requester-account", "user@example.com");
+        AccountMembership inviterMembership = membership(
+                "membership-requester",
+                "requester-account",
+                "user-1",
+                "tenant-1",
+                "workspace-owned",
+                false);
+        AuthBridgeDto.InvitationRequest request = invitationRequest(
+                "invitee@example.com",
+                "workspace-owned",
+                List.of("VIEWER"));
+        request.setExpiresAt(Instant.now().plus(Duration.ofDays(30)));
+
+        when(userRepository.findByTenantIdAndId("tenant-1", "user-1")).thenReturn(Optional.of(inviter));
+        when(accountRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(inviterAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "requester-account",
+                "tenant-1",
+                "workspace-owned",
+                "ACTIVE"))
+                .thenReturn(Optional.of(inviterMembership));
+        when(roleBindingRepository.findByMembershipId("membership-requester"))
+                .thenReturn(List.of(roleBinding("requester-account", "membership-requester", "ORG_ADMIN")));
+        when(invitationRepository.save(any(AuthInvitation.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        Instant upperBound = Instant.now().plus(Duration.ofDays(7)).plusSeconds(1);
+
+        service.createInvitation("tenant-1", "user-1", request);
+
+        ArgumentCaptor<AuthInvitation> invitationCaptor = ArgumentCaptor.forClass(AuthInvitation.class);
+        verify(invitationRepository).save(invitationCaptor.capture());
+        assertNotNull(invitationCaptor.getValue().getExpiresAt());
+        assertTrue(!invitationCaptor.getValue().getExpiresAt().isAfter(upperBound));
+        assertTrue(invitationCaptor.getValue().getExpiresAt().isBefore(request.getExpiresAt()));
+    }
+
+    @Test
+    void acceptInvitation_bindsRolesToInvitationWorkspaceMembership() {
+        AccountRepository accountRepository = mock(AccountRepository.class);
+        AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
+        AccountRoleBindingRepository roleBindingRepository = mock(AccountRoleBindingRepository.class);
+        AuthInvitationRepository invitationRepository = mock(AuthInvitationRepository.class);
+        AuthService service = authServiceWithIdentityBridgeRepositories(
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository,
+                invitationRepository);
+
+        AuthInvitation invitation = new AuthInvitation();
+        invitation.setTenantId("tenant-1");
+        invitation.setWorkspaceId("workspace-2");
+        invitation.setEmail("invitee@example.com");
+        invitation.setToken("invite-token");
+        invitation.setRoleKeys(List.of("VIEWER"));
+        invitation.setInvitedByUserId("user-1");
+        invitation.setStatus("PENDING");
+        User inviter = activeUser("user-1", "user@example.com");
+        Account inviterAccount = account("requester-account", "user@example.com");
+        AccountMembership inviterMembership = membership(
+                "membership-requester",
+                "requester-account",
+                "user-1",
+                "tenant-1",
+                "workspace-2",
+                false);
+        Account inviteeAccount = account("invitee-account", "invitee@example.com");
+        User inviteeUser = activeUser("invitee-user", "invitee@example.com");
+        AccountMembership newWorkspaceMembership = membership(
+                "membership-workspace-2",
+                "invitee-account",
+                "invitee-user",
+                "tenant-1",
+                "workspace-2",
+                false);
+
+        when(invitationRepository.findByToken("invite-token")).thenReturn(Optional.of(invitation));
+        when(userRepository.findByTenantIdAndId("tenant-1", "user-1")).thenReturn(Optional.of(inviter));
+        when(accountRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(inviterAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "requester-account",
+                "tenant-1",
+                "workspace-2",
+                "ACTIVE"))
+                .thenReturn(Optional.of(inviterMembership));
+        when(roleBindingRepository.findByMembershipId("membership-requester"))
+                .thenReturn(List.of(roleBinding("requester-account", "membership-requester", "ORG_ADMIN")));
+        when(accountRepository.findByEmailIgnoreCase("invitee@example.com")).thenReturn(Optional.of(inviteeAccount));
+        when(userRepository.findByTenantIdAndEmailIgnoreCase("tenant-1", "invitee@example.com"))
+                .thenReturn(Optional.of(inviteeUser));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "invitee-account",
+                "tenant-1",
+                "workspace-2",
+                "ACTIVE"))
+                .thenReturn(Optional.empty());
+        when(membershipRepository.save(any(AccountMembership.class))).thenReturn(newWorkspaceMembership);
+        when(roleBindingRepository.findByMembershipId("membership-workspace-2")).thenReturn(List.of());
+        when(tokenProvider.generateToken(
+                eq("invitee-user"),
+                eq("tenant-1"),
+                eq("workspace-2"),
+                eq(null),
+                anyMap()))
+                .thenReturn("accepted-token");
+
+        String token = service.acceptInvitation(acceptRequest("invite-token"));
+
+        assertEquals("accepted-token", token);
+        verify(membershipRepository, never()).findByAccountIdAndTenantId("invitee-account", "tenant-1");
+        ArgumentCaptor<AccountRoleBinding> roleCaptor = ArgumentCaptor.forClass(AccountRoleBinding.class);
+        verify(roleBindingRepository).save(roleCaptor.capture());
+        assertEquals("membership-workspace-2", roleCaptor.getValue().getMembershipId());
+        assertEquals("VIEWER", roleCaptor.getValue().getRoleKey());
+    }
+
+    @Test
     void exchangeDelegationToken_whenDelegatedUserMissing_throws() {
         AccountRepository accountRepository = mock(AccountRepository.class);
         AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
@@ -350,6 +580,118 @@ class AuthServiceTest {
     }
 
     @Test
+    void exchangeDelegationToken_whenRequestedRoleExceedsRequester_throws() {
+        AccountRepository accountRepository = mock(AccountRepository.class);
+        AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
+        AccountRoleBindingRepository roleBindingRepository = mock(AccountRoleBindingRepository.class);
+        AuthService service = authServiceWithRoleBindings(
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository);
+        Account requesterAccount = account("requester-account", "user@example.com");
+        AccountMembership requesterMembership = membership(
+                "membership-requester",
+                "requester-account",
+                "user-1",
+                "tenant-1",
+                "workspace-owned",
+                false);
+        User delegatedUser = activeUser("delegated-1", "delegated@example.com");
+        Account delegatedAccount = account("delegated-account", "delegated@example.com");
+        AccountMembership delegatedMembership = membership(
+                "membership-delegated",
+                "delegated-account",
+                "delegated-1",
+                "tenant-1",
+                "workspace-owned",
+                false);
+        AuthBridgeDto.DelegationRequest request = delegationRequest("delegated-1", "workspace-owned");
+        request.setPermissions(List.of("ADMIN"));
+
+        when(userRepository.findByTenantIdAndId("tenant-1", "user-1")).thenReturn(Optional.of(activeUser()));
+        when(accountRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(requesterAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "requester-account",
+                "tenant-1",
+                "workspace-owned",
+                "ACTIVE"))
+                .thenReturn(Optional.of(requesterMembership));
+        when(roleBindingRepository.findByMembershipId("membership-requester"))
+                .thenReturn(List.of(roleBinding("requester-account", "membership-requester", "SECURITY_ADMIN")));
+        when(userRepository.findByTenantIdAndId("tenant-1", "delegated-1")).thenReturn(Optional.of(delegatedUser));
+        when(accountRepository.findByEmailIgnoreCase("delegated@example.com")).thenReturn(Optional.of(delegatedAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "delegated-account",
+                "tenant-1",
+                "workspace-owned",
+                "ACTIVE"))
+                .thenReturn(Optional.of(delegatedMembership));
+        when(roleBindingRepository.findByMembershipId("membership-delegated"))
+                .thenReturn(List.of(roleBinding("delegated-account", "membership-delegated", "ADMIN")));
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.exchangeDelegationToken("user-1", "tenant-1", request));
+
+        verifyNoInteractions(tokenProvider);
+    }
+
+    @Test
+    void exchangeDelegationToken_whenRequestedRoleExceedsDelegatedUser_throws() {
+        AccountRepository accountRepository = mock(AccountRepository.class);
+        AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
+        AccountRoleBindingRepository roleBindingRepository = mock(AccountRoleBindingRepository.class);
+        AuthService service = authServiceWithRoleBindings(
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository);
+        Account requesterAccount = account("requester-account", "user@example.com");
+        AccountMembership requesterMembership = membership(
+                "membership-requester",
+                "requester-account",
+                "user-1",
+                "tenant-1",
+                "workspace-owned",
+                false);
+        User delegatedUser = activeUser("delegated-1", "delegated@example.com");
+        delegatedUser.setRole("USER");
+        Account delegatedAccount = account("delegated-account", "delegated@example.com");
+        AccountMembership delegatedMembership = membership(
+                "membership-delegated",
+                "delegated-account",
+                "delegated-1",
+                "tenant-1",
+                "workspace-owned",
+                false);
+        AuthBridgeDto.DelegationRequest request = delegationRequest("delegated-1", "workspace-owned");
+        request.setPermissions(List.of("VIEWER"));
+
+        when(userRepository.findByTenantIdAndId("tenant-1", "user-1")).thenReturn(Optional.of(activeUser()));
+        when(accountRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(requesterAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "requester-account",
+                "tenant-1",
+                "workspace-owned",
+                "ACTIVE"))
+                .thenReturn(Optional.of(requesterMembership));
+        when(roleBindingRepository.findByMembershipId("membership-requester"))
+                .thenReturn(List.of(roleBinding("requester-account", "membership-requester", "ADMIN")));
+        when(userRepository.findByTenantIdAndId("tenant-1", "delegated-1")).thenReturn(Optional.of(delegatedUser));
+        when(accountRepository.findByEmailIgnoreCase("delegated@example.com")).thenReturn(Optional.of(delegatedAccount));
+        when(membershipRepository.findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                "delegated-account",
+                "tenant-1",
+                "workspace-owned",
+                "ACTIVE"))
+                .thenReturn(Optional.of(delegatedMembership));
+        when(roleBindingRepository.findByMembershipId("membership-delegated")).thenReturn(List.of());
+
+        assertThrows(AccessDeniedException.class,
+                () -> service.exchangeDelegationToken("user-1", "tenant-1", request));
+
+        verifyNoInteractions(tokenProvider);
+    }
+
+    @Test
     void exchangeDelegationToken_whenDelegatedUserOwnsWorkspace_returnsToken() {
         AccountRepository accountRepository = mock(AccountRepository.class);
         AccountMembershipRepository membershipRepository = mock(AccountMembershipRepository.class);
@@ -372,7 +714,7 @@ class AuthServiceTest {
                 "workspace-owned",
                 false);
         AuthBridgeDto.DelegationRequest request = delegationRequest("delegated-1", "workspace-owned");
-        request.setPermissions(List.of("READ_ANALYTICS"));
+        request.setPermissions(List.of("VIEWER"));
 
         when(userRepository.findByTenantIdAndId("tenant-1", "user-1")).thenReturn(Optional.of(activeUser()));
         when(accountRepository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(requesterAccount));
@@ -424,6 +766,39 @@ class AuthServiceTest {
                 eventPublisher);
     }
 
+    private AuthService authServiceWithRoleBindings(
+            AccountRepository accountRepository,
+            AccountMembershipRepository membershipRepository,
+            AccountRoleBindingRepository roleBindingRepository) {
+        return new AuthService(
+                userRepository,
+                tenantRepository,
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository,
+                null,
+                passwordEncoder,
+                tokenProvider,
+                eventPublisher);
+    }
+
+    private AuthService authServiceWithIdentityBridgeRepositories(
+            AccountRepository accountRepository,
+            AccountMembershipRepository membershipRepository,
+            AccountRoleBindingRepository roleBindingRepository,
+            AuthInvitationRepository invitationRepository) {
+        return new AuthService(
+                userRepository,
+                tenantRepository,
+                accountRepository,
+                membershipRepository,
+                roleBindingRepository,
+                invitationRepository,
+                passwordEncoder,
+                tokenProvider,
+                eventPublisher);
+    }
+
     private User activeUser() {
         return activeUser("user-1", "user@example.com");
     }
@@ -446,6 +821,7 @@ class AuthServiceTest {
         Account account = new Account();
         account.setId(id);
         account.setEmail(email);
+        account.setStatus("ACTIVE");
         return account;
     }
 
@@ -469,6 +845,28 @@ class AuthServiceTest {
         membership.setStatus("ACTIVE");
         membership.setDefaultMembership(defaultMembership);
         return membership;
+    }
+
+    private AccountRoleBinding roleBinding(String accountId, String membershipId, String roleKey) {
+        AccountRoleBinding binding = new AccountRoleBinding();
+        binding.setAccountId(accountId);
+        binding.setMembershipId(membershipId);
+        binding.setRoleKey(roleKey);
+        return binding;
+    }
+
+    private AuthBridgeDto.InvitationRequest invitationRequest(String email, String workspaceId, List<String> roleKeys) {
+        AuthBridgeDto.InvitationRequest request = new AuthBridgeDto.InvitationRequest();
+        request.setEmail(email);
+        request.setWorkspaceId(workspaceId);
+        request.setRoleKeys(roleKeys);
+        return request;
+    }
+
+    private AuthBridgeDto.InvitationAcceptRequest acceptRequest(String token) {
+        AuthBridgeDto.InvitationAcceptRequest request = new AuthBridgeDto.InvitationAcceptRequest();
+        request.setToken(token);
+        return request;
     }
 
     private AuthBridgeDto.DelegationRequest delegationRequest(String delegatedUserId, String workspaceId) {

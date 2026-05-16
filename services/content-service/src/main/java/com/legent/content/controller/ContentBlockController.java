@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -27,6 +28,7 @@ public class ContentBlockController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<ContentBlockDto.Response> createBlock(@Valid @RequestBody ContentBlockDto.Create request) {
         ContentBlock block = blockService.createBlock(request);
         return ApiResponse.ok(mapToResponse(block));
@@ -42,6 +44,7 @@ public class ContentBlockController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<ContentBlockDto.Response> updateBlock(@PathVariable @org.springframework.lang.NonNull String id,
             @Valid @RequestBody ContentBlockDto.Create request) {
         final String tenantId = TenantContext.requireTenantId();
@@ -51,6 +54,7 @@ public class ContentBlockController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteBlock(@PathVariable @org.springframework.lang.NonNull String id) {
         final String tenantId = TenantContext.requireTenantId();
         blockService.deleteBlock(tenantId, id);
@@ -80,6 +84,7 @@ public class ContentBlockController {
 
     @PostMapping("/{id}/versions")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.ContentBlockVersionResponse> createVersion(
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.ContentBlockVersionRequest request) {
@@ -95,6 +100,7 @@ public class ContentBlockController {
     }
 
     @PostMapping("/{id}/versions/{versionNumber}/publish")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.ContentBlockVersionResponse> publishVersion(
             @PathVariable String id,
             @PathVariable Integer versionNumber) {
@@ -103,6 +109,7 @@ public class ContentBlockController {
     }
 
     @PostMapping("/{id}/rollback/{versionNumber}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.ContentBlockVersionResponse> rollbackVersion(
             @PathVariable String id,
             @PathVariable Integer versionNumber) {

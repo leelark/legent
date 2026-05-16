@@ -11,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,6 +24,7 @@ public class TemplateVersionController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateVersionDto.Response> createVersion(
             @PathVariable String templateId,
             @Valid @RequestBody TemplateVersionDto.Create request) {
@@ -31,6 +33,7 @@ public class TemplateVersionController {
     }
 
     @PostMapping("/{versionNumber}/publish")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateVersionDto.Response> publishVersion(
             @PathVariable String templateId,
             @PathVariable Integer versionNumber) {

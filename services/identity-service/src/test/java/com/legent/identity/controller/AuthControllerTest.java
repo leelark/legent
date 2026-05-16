@@ -1,28 +1,40 @@
 package com.legent.identity.controller;
 
+import com.legent.identity.domain.AuthInvitation;
+import com.legent.identity.dto.AuthBridgeDto;
 import com.legent.identity.service.AuthService;
 import com.legent.identity.service.IdentityExperienceService;
 import com.legent.identity.service.RefreshTokenService;
 import com.legent.security.JwtTokenProvider;
+import com.legent.security.UserPrincipal;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 class AuthControllerTest {
 
@@ -99,6 +111,143 @@ class AuthControllerTest {
     }
 
     @Test
+    void invitationEndpoints_requireAuthenticatedRbac() throws Exception {
+        assertPreAuthorize(
+                AuthController.class.getMethod(
+                        "createInvitation",
+                        String.class,
+                        Authentication.class,
+                        AuthBridgeDto.InvitationRequest.class),
+                "isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)");
+        assertPreAuthorize(
+                AuthController.class.getMethod(
+                        "listInvitations",
+                        String.class,
+                        Authentication.class),
+                "isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)");
+    }
+
+    @Test
+    void createInvitation_whenPrincipalTenantDiffersFromHeader_rejectsBeforeServiceCall() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        AuthBridgeDto.InvitationRequest request = new AuthBridgeDto.InvitationRequest();
+        request.setEmail("invitee@example.com");
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authController.createInvitation(
+                        "tenant-1",
+                        authentication("user-1", "tenant-2", Set.of("ADMIN")),
+                        request));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void createInvitation_returnsTokenFreeResponse() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        AuthBridgeDto.InvitationRequest request = new AuthBridgeDto.InvitationRequest();
+        request.setEmail("invitee@example.com");
+        AuthInvitation invitation = new AuthInvitation();
+        invitation.setId("invitation-1");
+        invitation.setTenantId("tenant-1");
+        invitation.setWorkspaceId("workspace-1");
+        invitation.setEmail("invitee@example.com");
+        invitation.setToken("secret-token");
+        invitation.setRoleKeys(List.of("VIEWER"));
+        invitation.setInvitedByUserId("user-1");
+        invitation.setStatus("PENDING");
+        when(authService.createInvitation("tenant-1", "user-1", request)).thenReturn(invitation);
+
+        var response = authController.createInvitation(
+                "tenant-1",
+                authentication("user-1", "tenant-1", Set.of("ADMIN")),
+                request);
+
+        AuthBridgeDto.InvitationResponse data = response.getData();
+        assertEquals("invitation-1", data.getId());
+        assertEquals("invitee@example.com", data.getEmail());
+        assertEquals(List.of("VIEWER"), data.getRoleKeys());
+        assertFalse(hasTokenGetter(data));
+    }
+
+    @Test
+    void listInvitations_whenPrincipalTenantDiffersFromHeader_rejectsBeforeServiceCall() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authController.listInvitations(
+                        "tenant-1",
+                        authentication("user-1", "tenant-2", Set.of("ADMIN"))));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void listInvitations_returnsTokenFreeResponses() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        AuthInvitation invitation = new AuthInvitation();
+        invitation.setId("invitation-1");
+        invitation.setTenantId("tenant-1");
+        invitation.setWorkspaceId("workspace-1");
+        invitation.setEmail("invitee@example.com");
+        invitation.setToken("secret-token");
+        invitation.setRoleKeys(List.of("VIEWER"));
+        invitation.setInvitedByUserId("user-1");
+        invitation.setStatus("PENDING");
+        when(authService.listInvitations("tenant-1")).thenReturn(List.of(invitation));
+
+        var response = authController.listInvitations(
+                "tenant-1",
+                authentication("user-1", "tenant-1", Set.of("ADMIN")));
+
+        AuthBridgeDto.InvitationResponse data = response.getData().getFirst();
+        assertEquals("invitation-1", data.getId());
+        assertEquals("invitee@example.com", data.getEmail());
+        assertEquals(List.of("VIEWER"), data.getRoleKeys());
+        assertFalse(hasTokenGetter(data));
+    }
+
+    @Test
+    void delegationExchange_requiresAuthenticatedUserWriteRbac() throws Exception {
+        assertPreAuthorize(
+                AuthController.class.getMethod(
+                        "exchangeDelegation",
+                        String.class,
+                        Authentication.class,
+                        AuthBridgeDto.DelegationRequest.class,
+                        jakarta.servlet.http.HttpServletResponse.class),
+                "isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)");
+    }
+
+    @Test
     void login_setsSecureHttpOnlyStrictCookies() {
         AuthService authService = mock(AuthService.class);
         RefreshTokenService refreshTokenService = mock(RefreshTokenService.class);
@@ -135,5 +284,22 @@ class AuthControllerTest {
         request.setEmail("user@example.com");
         request.setPassword("password");
         authController.login("tenant-1", request, new MockHttpServletRequest(), response);
+    }
+
+    private void assertPreAuthorize(Method method, String expectedExpression) {
+        PreAuthorize annotation = method.getAnnotation(PreAuthorize.class);
+        assertNotNull(annotation);
+        assertEquals(expectedExpression, annotation.value());
+    }
+
+    private boolean hasTokenGetter(Object value) {
+        return List.of(value.getClass().getMethods()).stream()
+                .anyMatch(method -> method.getName().equals("getToken") && method.getParameterCount() == 0);
+    }
+
+    private Authentication authentication(String userId, String tenantId, Set<String> roles) {
+        return new UsernamePasswordAuthenticationToken(
+                new UserPrincipal(userId, tenantId, roles),
+                "token");
     }
 }

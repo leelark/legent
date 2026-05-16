@@ -10,6 +10,9 @@ import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import com.legent.common.constant.AppConstants;
+import com.legent.common.event.EmailContentReference;
+import com.legent.common.exception.ValidationException;
+import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.security.TenantContext;
 import java.math.BigDecimal;
@@ -21,22 +24,27 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 class SendExecutionServiceTest {
@@ -49,6 +57,7 @@ class SendExecutionServiceTest {
     @Mock private ContentServiceClient contentServiceClient;
     @Mock private CampaignSendSafetyService sendSafetyService;
     @Mock private CampaignStateMachineService stateMachine;
+    @Mock private RenderedContentReferenceService contentReferenceService;
 
     private SendExecutionService service;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -65,9 +74,12 @@ class SendExecutionServiceTest {
                 throttlingService,
                 contentServiceClient,
                 sendSafetyService,
-                stateMachine);
+                stateMachine,
+                contentReferenceService);
         ReflectionTestUtils.setField(service, "maxRenderCacheEntries", 16);
         ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1024 * 1024);
+        ReflectionTestUtils.setField(service, "contentReferenceEnabled", true);
+        ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
     }
 
     @AfterEach
@@ -214,6 +226,55 @@ class SendExecutionServiceTest {
     }
 
     @Test
+    void rejectsInlineContentDisableUntilDeliveryReferenceResolutionIsAvailable() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        ReflectionTestUtils.setField(service, "includeInlineRenderedContent", false);
+
+        ValidationException exception = assertThrows(
+                ValidationException.class,
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
+
+        org.junit.jupiter.api.Assertions.assertTrue(exception.getMessage().contains("includeInlineRenderedContent"));
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+    }
+
+    @Test
+    void continuesInlineSendWhenContentReferenceCreationFails() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        Campaign campaign = campaign();
+        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+        when(contentReferenceService.createReference(any(), eq(true)))
+                .thenThrow(new IllegalStateException("redis unavailable"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), captor.capture());
+        Map<String, Object> payload = captor.getValue().getPayload();
+        assertFalse(payload.containsKey("contentReference"));
+        assertFalse(payload.containsKey("contentReferenceMetadata"));
+        assertEquals("<p>Hello</p>", payload.get("htmlBody"));
+        assertEquals("Hello", payload.get("textBody"));
+        verify(contentReferenceService).createReference(
+                argThat(request -> "tenant-1".equals(request.tenantId())
+                        && "workspace-1".equals(request.workspaceId())
+                        && "campaign-1".equals(request.campaignId())
+                        && "job-1".equals(request.jobId())
+                        && "batch-1".equals(request.batchId())
+                        && "job-1:batch-1:sub-1:r0".equals(request.messageId())
+                        && "content-1".equals(request.contentId())
+                        && "<p>Hello</p>".equals(request.htmlBody())),
+                eq(true));
+    }
+
+    @Test
     void rethrowsUnexpectedExecutionFailureAfterProcessingState() throws Exception {
         SendBatch batch = batch();
         Campaign campaign = campaign();
@@ -327,6 +388,19 @@ class SendExecutionServiceTest {
         }).when(sendSafetyService).prepareRecipient(eq(campaign), eq(batch), any(), any(), anyString());
         when(throttlingService.acquirePermits(eq("tenant-1"), eq("example.com"), anyInt()))
                 .thenReturn(acquiredPermits);
+        lenient().when(contentReferenceService.createReference(any(), anyBoolean()))
+                .thenAnswer(invocation -> EmailContentReference.builder()
+                        .referenceId("content-ref-1")
+                        .storageBackend("redis")
+                        .tenantId("tenant-1")
+                        .workspaceId("workspace-1")
+                        .campaignId("campaign-1")
+                        .jobId("job-1")
+                        .batchId("batch-1")
+                        .messageId("message-1")
+                        .contentId("content-1")
+                        .inlineFallbackIncluded(invocation.getArgument(1))
+                        .build());
         lenient().when(eventPublisher.publish(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
     }

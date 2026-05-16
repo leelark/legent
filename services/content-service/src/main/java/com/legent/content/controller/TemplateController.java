@@ -18,6 +18,7 @@ import java.util.Map;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -31,6 +32,7 @@ public class TemplateController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> createTemplate(@Valid @RequestBody TemplateDto.Create request) {
         EmailTemplate template = templateService.createTemplate(request);
         return ApiResponse.ok(mapToResponse(template));
@@ -44,6 +46,7 @@ public class TemplateController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> updateTemplate(@PathVariable String id, @Valid @RequestBody TemplateDto.Update request) {
         String tenantId = TenantContext.requireTenantId();
         EmailTemplate template = templateService.updateTemplate(tenantId, id, request);
@@ -52,12 +55,14 @@ public class TemplateController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
         templateService.deleteTemplate(tenantId, id);
     }
 
     @PostMapping("/{id}/clone")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> cloneTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
         EmailTemplate template = templateService.cloneTemplate(tenantId, id);
@@ -65,6 +70,7 @@ public class TemplateController {
     }
 
     @PostMapping("/{id}/archive")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> archiveTemplate(@PathVariable String id,
                                                              @RequestBody(required = false) Map<String, Object> request) {
         String tenantId = TenantContext.requireTenantId();
@@ -73,6 +79,7 @@ public class TemplateController {
     }
 
     @PostMapping("/{id}/restore")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> restoreTemplate(@PathVariable String id,
                                                              @RequestBody(required = false) Map<String, Object> request) {
         String tenantId = TenantContext.requireTenantId();
@@ -104,6 +111,7 @@ public class TemplateController {
 
     @PostMapping("/import/html")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> importTemplate(@Valid @RequestBody TemplateWorkflowDto.ImportHtmlRequest request) {
         EmailTemplate template = templateService.importTemplate(request);
         return ApiResponse.ok(mapToResponse(template));
@@ -116,6 +124,7 @@ public class TemplateController {
     }
 
     @PostMapping("/{id}/preview")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.PreviewResponse> previewTemplate(
             @PathVariable String id,
             @RequestBody(required = false) TemplateWorkflowDto.PreviewRequest request) {
@@ -134,6 +143,7 @@ public class TemplateController {
     }
 
     @PostMapping("/validate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.ValidateResponse> validateTemplate(
             @RequestBody(required = false) TemplateWorkflowDto.ValidateRequest request) {
         String htmlContent = request != null ? request.getHtmlContent() : "";
@@ -141,6 +151,7 @@ public class TemplateController {
     }
 
     @PostMapping("/{id}/test-send")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<Map<String, String>> testSend(
             @PathVariable String id,
             @Valid @RequestBody TemplateWorkflowDto.TestSendRequest request) {

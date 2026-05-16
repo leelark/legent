@@ -93,7 +93,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             TenantContext.setEnvironmentId(environmentId);
         }
 
-        UserPrincipal principal = new UserPrincipal(userId, tenantId, roles);
+        UserPrincipal principal = new UserPrincipal(userId, tenantId, workspaceId, environmentId, roles);
         Collection<SimpleGrantedAuthority> authorities = roles.stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
                 .collect(Collectors.toSet());

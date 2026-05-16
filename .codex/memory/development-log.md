@@ -1,8 +1,9 @@
 # Development Log
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-16.
 
 - 2026-05-13: Started autonomous setup from user request. Read AGENTS, git state, Maven/frontend manifests, CI, Compose, route-map, Nginx, risk markers, tests, migrations, large-file hotspots. Created `.codex` dirs, bootstrap, command docs, checkpoint, report, and memory maps.
+- 2026-05-16: Superseding validation note: older entries that say production overlay validation passed predate the later broad-egress fail-closed validator. Current truth is route validation, Compose config, and production Kustomize render pass, while `validate-production-overlay.ps1` intentionally fails on inherited broad egress until reviewed CIDR/FQDN/CNI policy data exists.
 - 2026-05-13: Validation after setup: `scripts\ops\validate-route-map.ps1` passed for 41 routes; `docker compose config --quiet` passed.
 - 2026-05-13: Implemented first hardening batch: DDL defaults validate, Compose health drift fixed, Kafka trusted packages narrowed. Validation: shared Kafka Maven tests passed, Compose config passed with and without Redis password, PowerShell parser check passed, rg scans found no old DDL/Kafka wildcard defaults.
 - 2026-05-13: Resumed `start-org`, selected bounded P0 security risk in shared request context, and hardened workspace/environment conflict checks in `TenantFilter`. Validation: `.\mvnw.cmd -pl shared/legent-security -am test` passed.

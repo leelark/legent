@@ -1,6 +1,6 @@
 # Failed Fixes
 
-Last updated: 2026-05-14.
+Last updated: 2026-05-16.
 
 - No failed fix attempt recorded during orchestration bootstrap.
 - 2026-05-14: First pending-sweep frontend sanitizer rerun failed four landing-form assertions because DOMPurify removes forbidden `<button>` tags but preserves their text nodes. Cause: test expectation assumed content deletion instead of tag/control deletion. Fixed by asserting removal of form/control tags and target attributes, then rerunning `npm run test:e2e:sanitize` successfully.
@@ -15,6 +15,10 @@ Last updated: 2026-05-14.
 - 2026-05-13: Loop 5 foundation focused test first failed strict Mockito because the fixture model lacked `workspace_id`, causing workspace-scoped update stubs to mismatch with `null`. Cause: outdated fixture, not implementation failure. Fixed by adding fixture workspace metadata and stubbing `updateByIdAndWorkspace`.
 - 2026-05-13: Final sanitizer Playwright rerun with the default web-server path timed out after 20 minutes before output, while the backslash Windows path form failed immediately with "No tests found." Cause: command invocation/path handling for a spec that imports sanitizers and does not need a web server. Safer pattern: use Playwright's slash-style matcher and set `PLAYWRIGHT_SKIP_WEB_SERVER=1` for `sanitize-html.spec.ts`; that rerun exited 0.
 - 2026-05-13: Final `.env.example` validation first failed because placeholder values for `LEGENT_SECURITY_JWT_SECRET` and `LEGENT_DELIVERY_CREDENTIAL_KEY` were shorter than their validator minimums. Cause: example placeholder drift, not a runtime secret issue. Fixed by lengthening placeholders without adding secrets; `.env.example` validation then passed.
+- 2026-05-16: First full `.\mvnw.cmd clean compile` attempts during final validation failed with missing `com.legent.common.*`/shared classes while another Maven clean/build process was active in the same checkout. Cause: overlapping Maven `clean` executions deleted reactor outputs during compilation, not a POM dependency defect. Safer pattern: do not parallelize Maven clean/package/test in one worktree; close or wait for build agents, verify no Java/Maven process owns the workspace, then run serial `.\mvnw.cmd -T1 clean compile -DskipTests` or `.\mvnw.cmd -T1 test`. Serial reruns passed.
+- 2026-05-16: First `docker compose build` after full tests failed because service Dockerfiles copy already-packaged Spring Boot JARs from `services/*/target`, and `clean compile`/`test` did not create those artifacts. Cause: validation order, not Dockerfile dependency drift. Fixed by running serial `.\mvnw.cmd -T1 package -DskipTests`, then rerunning Compose build.
+- 2026-05-16: Second `docker compose build` failed in the frontend image at `RUN npm run build` with script exit `124` after the default 900s timeout while static generation was still progressing. Cause: Docker build resource budget was lower than host build runtime; the telemetry script already supported `LEGENT_BUILD_TIMEOUT_MS`, but `frontend/Dockerfile` did not set a larger container build budget. Fixed by adding Dockerfile `ARG/ENV LEGENT_BUILD_TIMEOUT_MS=1800000`; rerun completed.
+- 2026-05-16: First `docker compose up -d` after the Docker build marked `campaign-service` unhealthy. Cause: `services/campaign-service/src/main/resources/application.yml` now requires `LEGENT_INTERNAL_API_TOKEN`, but Compose only supplied that variable to audience/deliverability. Fixed by wiring the existing required env var into campaign and content service Compose definitions without adding secret values.
 
 Rule:
 

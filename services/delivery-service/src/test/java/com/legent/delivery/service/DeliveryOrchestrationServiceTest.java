@@ -21,7 +21,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -88,6 +91,148 @@ class DeliveryOrchestrationServiceTest {
 
         verify(mockAdapter).sendEmail(eq("test@example.com"), anyString(), anyString(), anyMap(), eq(mockProvider));
         verify(eventPublisher).publishEmailSent(eq("tenant-1"), anyString(), eq("evt-123"), eq("camp-1"), any(), any(), eq("sub-1"), anyMap());
+    }
+
+    @Test
+    void processSendRequest_PersistsPayloadContentReference() throws Exception {
+        Map<String, Object> payload = Map.of(
+                "email", "test@example.com",
+                "subscriberId", "sub-1",
+                "campaignId", "camp-1",
+                "workspaceId", "workspace-1",
+                "contentReference", "  cr_1234567890abcdef1234567890abcdef  ",
+                "htmlContent", "Hello",
+                "subject", "Hi"
+        );
+
+        MockProviderAdapter mockAdapter = mock(MockProviderAdapter.class);
+        SmtpProvider mockProvider = new SmtpProvider();
+        mockProvider.setId("prov-1");
+        ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
+
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(any(), any(), any())).thenReturn(Optional.empty());
+        when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
+            MessageLog log = invocation.getArgument(0, MessageLog.class);
+            log.setId("log-1");
+            return log;
+        });
+        when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
+        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
+                .thenReturn("Processed HTML");
+
+        orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
+
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).saveAndFlush(logCaptor.capture());
+        assertEquals("cr_1234567890abcdef1234567890abcdef", logCaptor.getValue().getContentReference());
+    }
+
+    @Test
+    void processScheduledRetries_ResolvesCrReferenceFromRedisContent() throws Exception {
+        MessageLog retry = retryLog("cr_1234567890abcdef1234567890abcdef");
+        DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
+        ReflectionTestUtils.setField(orchestrationService, "self", self);
+
+        Map<String, String> cachedContent = Map.of(
+                "tenantId", "tenant-1",
+                "workspaceId", "workspace-1",
+                "campaignId", "camp-1",
+                "messageId", "msg-1",
+                "subject", "Cached subject",
+                "htmlBody", "<p>Cached body</p>"
+        );
+        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(cacheService.get("email:content:cr_1234567890abcdef1234567890abcdef", String.class))
+                .thenReturn(Optional.of("{\"subject\":\"Cached subject\"}"));
+        when(objectMapper.readValue(anyString(), any(com.fasterxml.jackson.core.type.TypeReference.class)))
+                .thenReturn(cachedContent);
+
+        orchestrationService.processScheduledRetries();
+
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(self).processSendRequest(payloadCaptor.capture(), eq("tenant-1"), eq("msg-1"));
+        assertEquals("Cached subject", payloadCaptor.getValue().get("subject"));
+        assertEquals("<p>Cached body</p>", payloadCaptor.getValue().get("htmlBody"));
+        assertEquals("cr_1234567890abcdef1234567890abcdef", payloadCaptor.getValue().get("contentReference"));
+        verify(contentServiceClient, never()).fetchCampaignContent(anyString());
+    }
+
+    @Test
+    void processScheduledRetries_MissingCrReferenceDoesNotSendPlaceholderContent() {
+        MessageLog retry = retryLog("cr_missing");
+        DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
+        ReflectionTestUtils.setField(orchestrationService, "self", self);
+
+        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(cacheService.get("email:content:cr_missing", String.class)).thenReturn(Optional.empty());
+
+        orchestrationService.processScheduledRetries();
+
+        verify(self, never()).processSendRequest(anyMap(), anyString(), anyString());
+        verify(contentServiceClient, never()).fetchCampaignContent(anyString());
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).save(logCaptor.capture());
+        assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
+        assertEquals("CONTENT_UNAVAILABLE", logCaptor.getValue().getFailureClass());
+        verify(eventPublisher).publishEmailFailed(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("msg-1"),
+                eq("camp-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq("sub-1"),
+                contains("Rendered content reference is unavailable"),
+                anyMap());
+    }
+
+    @Test
+    void processScheduledRetries_NonCrContentMissDoesNotSendPlaceholderContent() {
+        MessageLog retry = retryLog("ref:camp-1:msg-1");
+        DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
+        ReflectionTestUtils.setField(orchestrationService, "self", self);
+
+        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(cacheService.get("email:content:ref:camp-1:msg-1", String.class)).thenReturn(Optional.empty());
+        when(contentServiceClient.fetchCampaignContent("camp-1")).thenReturn(Map.of());
+
+        orchestrationService.processScheduledRetries();
+
+        verify(self, never()).processSendRequest(anyMap(), anyString(), anyString());
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).save(logCaptor.capture());
+        assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
+        assertEquals("CONTENT_UNAVAILABLE", logCaptor.getValue().getFailureClass());
+        verify(eventPublisher).publishEmailFailed(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("msg-1"),
+                eq("camp-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq("sub-1"),
+                contains("subject/htmlBody"),
+                anyMap());
+    }
+
+    @Test
+    void processScheduledRetries_IncompleteNonCrContentDoesNotSendPlaceholderContent() {
+        MessageLog retry = retryLog("ref:camp-1:msg-1");
+        DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
+        ReflectionTestUtils.setField(orchestrationService, "self", self);
+
+        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(cacheService.get("email:content:ref:camp-1:msg-1", String.class)).thenReturn(Optional.empty());
+        when(contentServiceClient.fetchCampaignContent("camp-1")).thenReturn(Map.of("subject", "Recovered subject"));
+
+        orchestrationService.processScheduledRetries();
+
+        verify(self, never()).processSendRequest(anyMap(), anyString(), anyString());
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).save(logCaptor.capture());
+        assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
+        assertEquals("CONTENT_UNAVAILABLE", logCaptor.getValue().getFailureClass());
     }
 
     @Test
@@ -198,5 +343,21 @@ class DeliveryOrchestrationServiceTest {
         verify(providerStrategy, never()).selectProvider(anyString(), anyString());
         verify(eventPublisher, never()).publishEmailSent(anyString(), anyString(), anyString(), any(), any(), any(), any(), anyMap());
         verify(messageLogRepository, never()).save(any(MessageLog.class));
+    }
+
+    private MessageLog retryLog(String contentReference) {
+        MessageLog log = new MessageLog();
+        log.setId("log-1");
+        log.setTenantId("tenant-1");
+        log.setWorkspaceId("workspace-1");
+        log.setCampaignId("camp-1");
+        log.setJobId("job-1");
+        log.setBatchId("batch-1");
+        log.setMessageId("msg-1");
+        log.setSubscriberId("sub-1");
+        log.setEmail("test@example.com");
+        log.setFromEmail("sender@example.com");
+        log.setContentReference(contentReference);
+        return log;
     }
 }

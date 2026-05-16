@@ -2,6 +2,10 @@
 
 Purpose: release-readiness gate.
 
+Current expectation, 2026-05-16: this command set is expected to fail at
+`validate-production-overlay.ps1` / `release-gate.ps1` until production egress
+policy data is resolved. Do not bypass that failure.
+
 Commands:
 
 ```powershell

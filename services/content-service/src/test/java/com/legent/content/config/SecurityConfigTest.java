@@ -2,6 +2,7 @@ package com.legent.content.config;
 
 import com.legent.security.JwtAuthenticationFilter;
 import com.legent.security.JwtTokenProvider;
+import com.legent.security.RbacEvaluator;
 import com.legent.security.SecurityProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,15 +17,19 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -42,6 +47,9 @@ class SecurityConfigTest {
     @Autowired
     private MockMvc mockMvc;
 
+    @Autowired
+    private JwtTokenProvider jwtTokenProvider;
+
     @Test
     void publicLandingPagesAreAnonymous() throws Exception {
         mockMvc.perform(get("/api/v1/public/landing-pages/spring-sale")
@@ -55,6 +63,33 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/v1/landing-pages")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(result -> assertNotEquals(200, result.getResponse().getStatus()));
+    }
+
+    @Test
+    void methodSecurityDeniesContentWriteWithoutRequiredPermission() throws Exception {
+        mockMvc.perform(post("/api/v1/rbac/content-write")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken("ANALYST"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void methodSecurityAllowsContentWriteForTemplateManager() throws Exception {
+        mockMvc.perform(post("/api/v1/rbac/content-write")
+                        .header(HttpHeaders.AUTHORIZATION, bearerToken("CAMPAIGN_MANAGER"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"status\":\"allowed\"}"));
+    }
+
+    private String bearerToken(String role) {
+        String token = jwtTokenProvider.generateToken("user_123", "tenant_123", Map.of(
+                "roles", java.util.List.of(role),
+                "workspaceId", "workspace_123"
+        ));
+        return "Bearer " + token;
     }
 
     @SpringBootConfiguration
@@ -87,6 +122,11 @@ class SecurityConfigTest {
         JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenProvider jwtTokenProvider) {
             return new JwtAuthenticationFilter(jwtTokenProvider);
         }
+
+        @Bean
+        RbacEvaluator rbacEvaluator() {
+            return new RbacEvaluator();
+        }
     }
 
     @RestController
@@ -99,6 +139,12 @@ class SecurityConfigTest {
         @GetMapping("/api/v1/landing-pages")
         Map<String, String> privateLandingPages() {
             return Map.of("scope", "workspace");
+        }
+
+        @PostMapping("/api/v1/rbac/content-write")
+        @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
+        Map<String, String> contentWrite() {
+            return Map.of("status", "allowed");
         }
     }
 }

@@ -6,6 +6,7 @@ import com.legent.delivery.client.ContentServiceClient;
 import com.legent.delivery.domain.MessageLog;
 import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 import java.util.Map;
 import java.util.UUID;
@@ -30,6 +31,9 @@ import java.time.temporal.ChronoUnit;
 @Service
 @RequiredArgsConstructor
 public class DeliveryOrchestrationService {
+    private static final Pattern CONTENT_REFERENCE_PATTERN = Pattern.compile("^[A-Za-z0-9:_-]{1,160}$");
+    private static final String RENDERED_CONTENT_REFERENCE_PREFIX = "cr_";
+    private static final String CONTENT_UNAVAILABLE_FAILURE_CLASS = "CONTENT_UNAVAILABLE";
 
     private final ProviderSelectionStrategy providerStrategy;
     private final MessageLogRepository messageLogRepository;
@@ -90,6 +94,7 @@ public class DeliveryOrchestrationService {
         String fromEmail = normalize(payload.get("fromEmail"));
         String fromName = normalize(payload.get("fromName"));
         String replyToEmail = normalize(payload.get("replyToEmail"));
+        String contentReference = normalizeContentReference(payload.get("contentReference"));
         if (htmlBody == null) {
             htmlBody = "<html><body>Email content</body></html>";
         }
@@ -147,7 +152,7 @@ public class DeliveryOrchestrationService {
             newLog.setReplyToEmail(replyToEmail);
             // Fix 31: Don't store full HTML body in message_logs - only store references
             // Content is fetched from content-service at retry time if needed
-            newLog.setContentReference(generateContentReference(campaignId, messageId));
+            newLog.setContentReference(contentReference != null ? contentReference : generateContentReference(campaignId, messageId));
             newLog.setAttemptCount(0);
             try {
                 logEntry = messageLogRepository.saveAndFlush(newLog);
@@ -215,6 +220,9 @@ public class DeliveryOrchestrationService {
         }
         if (logEntry.getReplyToEmail() == null || logEntry.getReplyToEmail().isBlank()) {
             logEntry.setReplyToEmail(replyToEmail);
+        }
+        if ((logEntry.getContentReference() == null || logEntry.getContentReference().isBlank()) && contentReference != null) {
+            logEntry.setContentReference(contentReference);
         }
         // Note: For retries, content is re-fetched from the original event or content-service
         // This prevents 20-100GB/day storage growth from storing full HTML bodies
@@ -524,45 +532,90 @@ public class DeliveryOrchestrationService {
     public void processScheduledRetries() {
         java.util.List<MessageLog> retries = messageLogRepository.findEligibleForRetry(Instant.now());
         for (MessageLog logEntry : retries) {
-            if (normalize(logEntry.getEmail()) == null || normalize(logEntry.getMessageId()) == null) {
-                log.warn("Skipping scheduled retry for malformed message log {}", logEntry.getId());
-                continue;
-            }
-            if (normalize(logEntry.getWorkspaceId()) == null) {
-                log.warn("Skipping scheduled retry for message {} due to missing workspace", logEntry.getMessageId());
-                continue;
-            }
-
-            // Fix 31: Fetch content from content-service instead of message_logs
-            // (message_logs no longer stores full HTML to prevent 20-100GB/day storage growth)
-            Map<String, String> content = fetchContentForRetry(logEntry.getCampaignId(), logEntry.getContentReference());
-
-            // Build complete payload with all required fields for retry
-            Map<String, Object> payload = new java.util.HashMap<>();
-            payload.put("email", logEntry.getEmail());
-            payload.put("subscriberId", logEntry.getSubscriberId() != null ? logEntry.getSubscriberId() : "");
-            payload.put("campaignId", logEntry.getCampaignId() != null ? logEntry.getCampaignId() : "");
-            payload.put("workspaceId", logEntry.getWorkspaceId());
-            payload.put("jobId", logEntry.getJobId() != null ? logEntry.getJobId() : "");
-            payload.put("batchId", logEntry.getBatchId() != null ? logEntry.getBatchId() : "");
-            payload.put("experimentId", logEntry.getExperimentId() != null ? logEntry.getExperimentId() : "");
-            payload.put("variantId", logEntry.getVariantId() != null ? logEntry.getVariantId() : "");
-            payload.put("holdout", logEntry.isHoldout());
-            payload.put("costReserved", logEntry.getCostReserved() != null ? logEntry.getCostReserved() : BigDecimal.ZERO);
-            payload.put("messageId", logEntry.getMessageId());
-            payload.put("fromEmail", logEntry.getFromEmail() != null ? logEntry.getFromEmail() : "");
-            payload.put("fromName", logEntry.getFromName() != null ? logEntry.getFromName() : "");
-            payload.put("replyToEmail", logEntry.getReplyToEmail() != null ? logEntry.getReplyToEmail() : "");
-            // Use content from content-service or fallback defaults
-            payload.put("subject", content.getOrDefault("subject", "Legent Campaign"));
-            payload.put("htmlBody", content.getOrDefault("htmlBody", "<html><body>Email content</body></html>"));
             try {
+                if (normalize(logEntry.getEmail()) == null || normalize(logEntry.getMessageId()) == null) {
+                    log.warn("Skipping scheduled retry for malformed message log {}", logEntry.getId());
+                    continue;
+                }
+                if (normalize(logEntry.getWorkspaceId()) == null) {
+                    log.warn("Skipping scheduled retry for message {} due to missing workspace", logEntry.getMessageId());
+                    continue;
+                }
+
+                // Fix 31: Fetch content from content-service instead of message_logs
+                // (message_logs no longer stores full HTML to prevent 20-100GB/day storage growth)
+                Map<String, String> content;
+                try {
+                    content = fetchContentForRetry(
+                            logEntry.getTenantId(),
+                            logEntry.getWorkspaceId(),
+                            logEntry.getCampaignId(),
+                            logEntry.getMessageId(),
+                            logEntry.getContentReference());
+                } catch (IllegalStateException e) {
+                    failRetryForMissingContent(logEntry, e.getMessage());
+                    continue;
+                }
+                if (!hasResolvedRetryContent(content)) {
+                    failRetryForMissingContent(logEntry, "Retry content is missing required subject/htmlBody");
+                    continue;
+                }
+
+                // Build complete payload with all required fields for retry
+                Map<String, Object> payload = new java.util.HashMap<>();
+                payload.put("email", logEntry.getEmail());
+                payload.put("subscriberId", logEntry.getSubscriberId() != null ? logEntry.getSubscriberId() : "");
+                payload.put("campaignId", logEntry.getCampaignId() != null ? logEntry.getCampaignId() : "");
+                payload.put("workspaceId", logEntry.getWorkspaceId());
+                payload.put("jobId", logEntry.getJobId() != null ? logEntry.getJobId() : "");
+                payload.put("batchId", logEntry.getBatchId() != null ? logEntry.getBatchId() : "");
+                payload.put("experimentId", logEntry.getExperimentId() != null ? logEntry.getExperimentId() : "");
+                payload.put("variantId", logEntry.getVariantId() != null ? logEntry.getVariantId() : "");
+                payload.put("holdout", logEntry.isHoldout());
+                payload.put("costReserved", logEntry.getCostReserved() != null ? logEntry.getCostReserved() : BigDecimal.ZERO);
+                payload.put("messageId", logEntry.getMessageId());
+                payload.put("contentReference", logEntry.getContentReference());
+                payload.put("fromEmail", logEntry.getFromEmail() != null ? logEntry.getFromEmail() : "");
+                payload.put("fromName", logEntry.getFromName() != null ? logEntry.getFromName() : "");
+                payload.put("replyToEmail", logEntry.getReplyToEmail() != null ? logEntry.getReplyToEmail() : "");
+                payload.put("subject", content.get("subject"));
+                payload.put("htmlBody", content.get("htmlBody"));
                 // Call through self proxy to ensure @Transactional boundary is applied.
-                self.processSendRequest(payload, logEntry.getTenantId(), logEntry.getMessageId());
+                DeliveryOrchestrationService delegate = self != null ? self : this;
+                delegate.processSendRequest(payload, logEntry.getTenantId(), logEntry.getMessageId());
             } catch (Exception e) {
                 log.warn("Scheduled retry loop failure", e);
             }
         }
+    }
+
+    private boolean hasResolvedRetryContent(Map<String, String> content) {
+        return content != null
+                && normalize(content.get("subject")) != null
+                && normalize(content.get("htmlBody")) != null;
+    }
+
+    private void failRetryForMissingContent(MessageLog logEntry, String reason) {
+        String failureReason = normalize(reason);
+        if (failureReason == null) {
+            failureReason = "Retry content is unavailable";
+        }
+        log.warn("Failing retry for message {}: {}", logEntry.getMessageId(), failureReason);
+        logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
+        logEntry.setFailureClass(CONTENT_UNAVAILABLE_FAILURE_CLASS);
+        logEntry.setProviderResponse(failureReason);
+        logEntry.setNextRetryAt(null);
+        messageLogRepository.save(logEntry);
+        eventPublisher.publishEmailFailed(
+                logEntry.getTenantId(),
+                logEntry.getWorkspaceId(),
+                logEntry.getMessageId(),
+                logEntry.getCampaignId(),
+                logEntry.getJobId(),
+                logEntry.getBatchId(),
+                logEntry.getSubscriberId(),
+                failureReason,
+                safetyMetadata(logEntry));
     }
 
     private String extractDomain(String email) {
@@ -586,6 +639,17 @@ public class DeliveryOrchestrationService {
         }
         String normalized = String.valueOf(value).trim();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private String normalizeContentReference(Object value) {
+        String contentReference = normalize(value);
+        if (contentReference == null) {
+            return null;
+        }
+        if (!CONTENT_REFERENCE_PATTERN.matcher(contentReference).matches()) {
+            throw new IllegalArgumentException("contentReference contains unsupported characters");
+        }
+        return contentReference;
     }
 
     private void restoreContext(String tenantId, String workspaceId, String requestId) {
@@ -619,20 +683,26 @@ public class DeliveryOrchestrationService {
      * Fix 31: Content is no longer stored in message_logs to prevent storage bloat.
      * AUDIT-010: Now integrated with content-service for real content retrieval.
      */
-    private Map<String, String> fetchContentForRetry(String campaignId, String contentReference) {
+    private Map<String, String> fetchContentForRetry(String tenantId, String workspaceId, String campaignId, String messageId, String contentReference) {
         Map<String, String> result = new java.util.HashMap<>();
+        String normalizedReference = normalizeContentReference(contentReference);
 
         // Try to fetch from cache first (content may be cached for 24-48 hours)
-        if (contentReference != null && !contentReference.isBlank()) {
+        if (normalizedReference != null) {
             try {
                 // Attempt to get from Redis cache using contentReference as key
-                Optional<String> cached = cacheService.get("email:content:" + contentReference, String.class);
+                Optional<String> cached = cacheService.get("email:content:" + normalizedReference, String.class);
                 if (cached.isPresent()) {
                     // LEGENT-MED-001: Use injected ObjectMapper instead of creating new instance
-                    return objectMapper.readValue(cached.get(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+                    Map<String, String> cachedContent = objectMapper.readValue(cached.get(), new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+                    validateReferencedContent(cachedContent, tenantId, workspaceId, campaignId, messageId, normalizedReference);
+                    return cachedContent;
                 }
             } catch (Exception e) {
                 log.debug("Failed to fetch cached content for retry: {}", e.getMessage());
+            }
+            if (normalizedReference.startsWith(RENDERED_CONTENT_REFERENCE_PREFIX)) {
+                throw new IllegalStateException("Rendered content reference is unavailable for retry: " + normalizedReference);
             }
         }
 
@@ -650,9 +720,32 @@ public class DeliveryOrchestrationService {
         }
 
         // If all fetch attempts fail, return empty map - caller must handle failure
-        log.error("Content not found for retry - campaignId={}, reference={}. Retry will use fallback defaults.",
-                campaignId, contentReference);
+        log.error("Content not found for retry - campaignId={}, reference={}. Retry will not use placeholder content.",
+                campaignId, normalizedReference);
         return result;
+    }
+
+    private void validateReferencedContent(Map<String, String> content,
+                                           String tenantId,
+                                           String workspaceId,
+                                           String campaignId,
+                                           String messageId,
+                                           String contentReference) {
+        if (normalize(content.get("subject")) == null || normalize(content.get("htmlBody")) == null) {
+            throw new IllegalStateException("Rendered content reference is missing required content fields");
+        }
+        requireMatchingField(content, "tenantId", tenantId, contentReference);
+        requireMatchingField(content, "workspaceId", workspaceId, contentReference);
+        requireMatchingField(content, "campaignId", campaignId, contentReference);
+        requireMatchingField(content, "messageId", messageId, contentReference);
+    }
+
+    private void requireMatchingField(Map<String, String> content, String field, String expected, String contentReference) {
+        String actual = normalize(content.get(field));
+        String normalizedExpected = normalize(expected);
+        if (actual != null && normalizedExpected != null && !actual.equals(normalizedExpected)) {
+            throw new IllegalStateException("Rendered content reference " + contentReference + " does not match " + field);
+        }
     }
 
 }

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.domain.Campaign;
 import com.legent.common.constant.AppConstants;
+import com.legent.common.event.EmailContentReference;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,6 +52,7 @@ public class SendExecutionService {
     private final ContentServiceClient contentServiceClient;
     private final CampaignSendSafetyService sendSafetyService;
     private final CampaignStateMachineService stateMachine;
+    private final RenderedContentReferenceService contentReferenceService;
 
     @Value("${legent.campaign.send.max-batch-retries:5}")
     private int maxBatchRetries;
@@ -61,9 +63,20 @@ public class SendExecutionService {
     @Value("${legent.campaign.send.max-email-payload-bytes:1048576}")
     private int maxEmailPayloadBytes;
 
+    @Value("${legent.campaign.send.content-reference-enabled:false}")
+    private boolean contentReferenceEnabled;
+
+    @Value("${legent.campaign.send.include-inline-rendered-content:true}")
+    private boolean includeInlineRenderedContent;
+
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
         try {
+            if (!includeInlineRenderedContent) {
+                throw new ValidationException(
+                        "includeInlineRenderedContent",
+                        "Inline rendered content cannot be disabled until delivery content-reference resolution is enabled");
+            }
             SendBatch batch = findBatchWithRetry(tenantId, batchId);
             if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) return;
             if (batch.getStatus() == SendBatch.BatchStatus.PROCESSING) {
@@ -163,6 +176,27 @@ public class SendExecutionService {
                 if (subject == null || subject.isBlank() || rendered.htmlBody() == null || rendered.htmlBody().isBlank()) {
                     throw new ValidationException("content", "Rendered email content is missing subject or HTML body");
                 }
+                EmailContentReference contentReference = null;
+                if (contentReferenceEnabled) {
+                    try {
+                        contentReference = contentReferenceService.createReference(
+                                new RenderedContentReferenceService.CreateRequest(
+                                        tenantId,
+                                        batch.getWorkspaceId(),
+                                        batch.getCampaignId(),
+                                        batch.getJobId(),
+                                        batchId,
+                                        prepared.messageId(),
+                                        renderContentId,
+                                        subject,
+                                        rendered.htmlBody(),
+                                        rendered.textBody()),
+                                includeInlineRenderedContent);
+                    } catch (RuntimeException e) {
+                        log.warn("Unable to create rendered content reference for message {}; continuing with inline content",
+                                prepared.messageId(), e);
+                    }
+                }
 
                 Map<String, Object> emailPayload = new java.util.HashMap<>();
                 emailPayload.put("email", sub.get("email"));
@@ -183,9 +217,15 @@ public class SendExecutionService {
                 emailPayload.put("holdout", false);
                 emailPayload.put("costReserved", prepared.costReserved());
                 emailPayload.put("subject", subject);
-                emailPayload.put("htmlBody", rendered.htmlBody());
-                if (rendered.textBody() != null && !rendered.textBody().isBlank()) {
-                    emailPayload.put("textBody", rendered.textBody());
+                if (contentReference != null) {
+                    emailPayload.put("contentReference", contentReference.getReferenceId());
+                    emailPayload.put("contentReferenceMetadata", contentReference);
+                }
+                if (includeInlineRenderedContent) {
+                    emailPayload.put("htmlBody", rendered.htmlBody());
+                    if (rendered.textBody() != null && !rendered.textBody().isBlank()) {
+                        emailPayload.put("textBody", rendered.textBody());
+                    }
                 }
                 emailPayload.put("fromEmail", campaign.getSenderEmail());
                 emailPayload.put("fromName", campaign.getSenderName());
@@ -308,6 +348,8 @@ public class SendExecutionService {
             }
             batchRepository.save(batch);
             reconcileJobIfFinished(batch);
+        } catch (ValidationException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Failed to enqueue batch {}", batchId, e);
             throw new IllegalStateException("Failed to execute send batch " + batchId, e);

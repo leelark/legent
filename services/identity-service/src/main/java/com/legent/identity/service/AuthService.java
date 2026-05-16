@@ -10,10 +10,12 @@ import com.legent.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 
@@ -22,6 +24,82 @@ import java.util.*;
 @RequiredArgsConstructor
 public class AuthService {
     private static final String DEFAULT_WORKSPACE_ID = "workspace-default";
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_PLATFORM_ADMIN = "PLATFORM_ADMIN";
+    private static final String ROLE_ORG_ADMIN = "ORG_ADMIN";
+    private static final String ROLE_SECURITY_ADMIN = "SECURITY_ADMIN";
+    private static final String ROLE_WORKSPACE_OWNER = "WORKSPACE_OWNER";
+    private static final String ROLE_CAMPAIGN_MANAGER = "CAMPAIGN_MANAGER";
+    private static final String ROLE_DELIVERY_OPERATOR = "DELIVERY_OPERATOR";
+    private static final String ROLE_ANALYST = "ANALYST";
+    private static final String ROLE_VIEWER = "VIEWER";
+    private static final String ROLE_USER = "USER";
+    private static final Duration DEFAULT_INVITATION_TTL = Duration.ofDays(7);
+    private static final Duration MAX_INVITATION_TTL = Duration.ofDays(7);
+    private static final Set<String> ALL_ROLE_KEYS = Set.of(
+            ROLE_ADMIN,
+            ROLE_PLATFORM_ADMIN,
+            ROLE_ORG_ADMIN,
+            ROLE_SECURITY_ADMIN,
+            ROLE_WORKSPACE_OWNER,
+            ROLE_CAMPAIGN_MANAGER,
+            ROLE_DELIVERY_OPERATOR,
+            ROLE_ANALYST,
+            ROLE_VIEWER,
+            ROLE_USER);
+    private static final Set<String> USER_MANAGEMENT_ROLES = Set.of(
+            ROLE_ADMIN,
+            ROLE_PLATFORM_ADMIN,
+            ROLE_ORG_ADMIN,
+            ROLE_SECURITY_ADMIN);
+    private static final Map<String, Set<String>> ROLE_GRANT_MATRIX = Map.ofEntries(
+            Map.entry(ROLE_ADMIN, ALL_ROLE_KEYS),
+            Map.entry(ROLE_PLATFORM_ADMIN, Set.of(
+                    ROLE_PLATFORM_ADMIN,
+                    ROLE_ORG_ADMIN,
+                    ROLE_SECURITY_ADMIN,
+                    ROLE_WORKSPACE_OWNER,
+                    ROLE_CAMPAIGN_MANAGER,
+                    ROLE_DELIVERY_OPERATOR,
+                    ROLE_ANALYST,
+                    ROLE_VIEWER,
+                    ROLE_USER)),
+            Map.entry(ROLE_ORG_ADMIN, Set.of(
+                    ROLE_ORG_ADMIN,
+                    ROLE_WORKSPACE_OWNER,
+                    ROLE_CAMPAIGN_MANAGER,
+                    ROLE_DELIVERY_OPERATOR,
+                    ROLE_ANALYST,
+                    ROLE_VIEWER,
+                    ROLE_USER)),
+            Map.entry(ROLE_SECURITY_ADMIN, Set.of(
+                    ROLE_SECURITY_ADMIN,
+                    ROLE_ANALYST,
+                    ROLE_VIEWER,
+                    ROLE_USER)),
+            Map.entry(ROLE_WORKSPACE_OWNER, Set.of(
+                    ROLE_WORKSPACE_OWNER,
+                    ROLE_CAMPAIGN_MANAGER,
+                    ROLE_DELIVERY_OPERATOR,
+                    ROLE_ANALYST,
+                    ROLE_VIEWER,
+                    ROLE_USER)),
+            Map.entry(ROLE_CAMPAIGN_MANAGER, Set.of(
+                    ROLE_CAMPAIGN_MANAGER,
+                    ROLE_ANALYST,
+                    ROLE_VIEWER,
+                    ROLE_USER)),
+            Map.entry(ROLE_DELIVERY_OPERATOR, Set.of(
+                    ROLE_DELIVERY_OPERATOR,
+                    ROLE_ANALYST,
+                    ROLE_VIEWER,
+                    ROLE_USER)),
+            Map.entry(ROLE_ANALYST, Set.of(
+                    ROLE_ANALYST,
+                    ROLE_VIEWER,
+                    ROLE_USER)),
+            Map.entry(ROLE_VIEWER, Set.of(ROLE_VIEWER, ROLE_USER)),
+            Map.entry(ROLE_USER, Set.of(ROLE_USER)));
 
     private final UserRepository userRepository;
     private final TenantRepository tenantRepository;
@@ -160,17 +238,27 @@ public class AuthService {
 
     @Transactional
     public AuthInvitation createInvitation(String tenantId, String invitedByUserId, AuthBridgeDto.InvitationRequest request) {
+        User inviter = userRepository.findByTenantIdAndId(tenantId, invitedByUserId)
+                .filter(User::isActive)
+                .orElseThrow(() -> new AccessDeniedException("Inviter is not authorized for tenant"));
+        MembershipRoles inviterMembership = resolveUserMembershipRoles(
+                inviter,
+                tenantId,
+                request.getWorkspaceId(),
+                "Inviter membership not found");
+        List<String> requestedRoles = normalizeRoleKeys(request.getRoleKeys(), ROLE_USER);
+        assertUserManagementAllowed(inviterMembership.roles(), "Inviter is not authorized to invite users");
+        assertGrantAllowed(inviterMembership.roles(), requestedRoles, "Invitation roles exceed inviter roles");
+
         AuthInvitation invitation = new AuthInvitation();
         invitation.setTenantId(tenantId);
         invitation.setWorkspaceId(blankToNull(request.getWorkspaceId()));
         invitation.setEmail(request.getEmail().trim().toLowerCase(Locale.ROOT));
         invitation.setToken(UUID.randomUUID().toString().replace("-", ""));
-        invitation.setRoleKeys(request.getRoleKeys() == null || request.getRoleKeys().isEmpty()
-                ? List.of("USER")
-                : request.getRoleKeys());
+        invitation.setRoleKeys(requestedRoles);
         invitation.setInvitedByUserId(invitedByUserId);
         invitation.setStatus("PENDING");
-        invitation.setExpiresAt(request.getExpiresAt());
+        invitation.setExpiresAt(resolveInvitationExpiresAt(request.getExpiresAt()));
         invitation.setMetadata(request.getMetadata());
         return authInvitationRepository.save(invitation);
     }
@@ -191,6 +279,9 @@ public class AuthService {
         if (invitation.getExpiresAt() != null && invitation.getExpiresAt().isBefore(Instant.now())) {
             throw new IllegalStateException("Invitation has expired");
         }
+
+        List<String> roles = normalizeRoleKeys(invitation.getRoleKeys(), ROLE_USER);
+        assertInvitationGrantStillAllowed(invitation, roles);
 
         Account account = accountRepository.findByEmailIgnoreCase(invitation.getEmail())
                 .orElseGet(() -> {
@@ -226,9 +317,6 @@ public class AuthService {
                 invitation.getTenantId(),
                 invitation.getWorkspaceId());
 
-        List<String> roles = invitation.getRoleKeys() == null || invitation.getRoleKeys().isEmpty()
-                ? List.of("USER")
-                : invitation.getRoleKeys();
         for (String role : roles) {
             ensureRoleBinding(account.getId(), membership.getId(), role);
         }
@@ -337,6 +425,11 @@ public class AuthService {
         if (!Objects.equals(requesterMembership.getUserId(), requester.getId())) {
             throw new IllegalArgumentException("Requester membership not found");
         }
+        List<String> requesterRoles = resolveMembershipRoles(
+                requesterAccount.getId(),
+                requesterMembership.getId(),
+                requester.getRole());
+        assertUserManagementAllowed(requesterRoles, "Requester is not authorized to delegate users");
         User delegatedUser = userRepository.findByTenantIdAndId(tenantId, request.getDelegatedUserId())
                 .filter(User::isActive)
                 .orElseThrow(() -> new IllegalArgumentException("Delegated user not found"));
@@ -350,10 +443,14 @@ public class AuthService {
             throw new IllegalArgumentException("Delegated user membership not found");
         }
         String workspaceId = delegatedMembership.getWorkspaceId();
+        List<String> delegatedUserRoles = resolveMembershipRoles(
+                delegatedAccount.getId(),
+                delegatedMembership.getId(),
+                delegatedUser.getRole());
 
-        List<String> delegatedRoles = request.getPermissions() == null || request.getPermissions().isEmpty()
-                ? List.of("VIEWER")
-                : request.getPermissions();
+        List<String> delegatedRoles = normalizeRoleKeys(request.getPermissions(), ROLE_VIEWER);
+        assertGrantAllowed(requesterRoles, delegatedRoles, "Delegated roles exceed requester roles");
+        assertGrantAllowed(delegatedUserRoles, delegatedRoles, "Delegated roles exceed delegated user roles");
 
         Map<String, Object> extraClaims = new LinkedHashMap<>();
         extraClaims.put("roles", delegatedRoles);
@@ -420,34 +517,52 @@ public class AuthService {
     }
 
     private AccountMembership ensureMembership(Account account, User user, String tenantId, String workspaceId) {
+        String normalizedWorkspace = normalizeWorkspaceId(workspaceId);
         if (accountMembershipRepository == null) {
             AccountMembership membership = new AccountMembership();
             membership.setId(IdGenerator.newId());
             membership.setAccountId(account.getId());
             membership.setUserId(user.getId());
             membership.setTenantId(tenantId);
-            membership.setWorkspaceId(normalizeWorkspaceId(workspaceId));
+            membership.setWorkspaceId(normalizedWorkspace);
             membership.setStatus("ACTIVE");
             membership.setDefaultMembership(true);
             return membership;
         }
-        return accountMembershipRepository.findByAccountIdAndTenantId(account.getId(), tenantId)
-                .map(existing -> {
-                    String normalizedWorkspace = normalizeWorkspaceId(existing.getWorkspaceId());
-                    if (!Objects.equals(existing.getWorkspaceId(), normalizedWorkspace)) {
-                        existing.setWorkspaceId(normalizedWorkspace);
-                        return accountMembershipRepository.save(existing);
-                    }
-                    return existing;
-                })
+
+        Optional<AccountMembership> existingMembership = accountMembershipRepository
+                .findByAccountIdAndTenantIdAndWorkspaceIdAndStatus(
+                        account.getId(),
+                        tenantId,
+                        normalizedWorkspace,
+                        "ACTIVE");
+        if (existingMembership.isPresent()) {
+            return existingMembership.get();
+        }
+
+        Optional<AccountMembership> legacyDefaultMembership = DEFAULT_WORKSPACE_ID.equals(normalizedWorkspace)
+                ? accountMembershipRepository.findByAccountIdAndTenantId(account.getId(), tenantId)
+                        .filter(existing -> "ACTIVE".equalsIgnoreCase(existing.getStatus()))
+                        .filter(existing -> DEFAULT_WORKSPACE_ID.equals(normalizeWorkspaceId(existing.getWorkspaceId())))
+                : Optional.empty();
+        if (legacyDefaultMembership.isPresent()) {
+            AccountMembership existing = legacyDefaultMembership.get();
+            if (!Objects.equals(existing.getWorkspaceId(), normalizedWorkspace)) {
+                existing.setWorkspaceId(normalizedWorkspace);
+                return accountMembershipRepository.save(existing);
+            }
+            return existing;
+        }
+
+        return Optional.<AccountMembership>empty()
                 .orElseGet(() -> {
                     AccountMembership membership = new AccountMembership();
                     membership.setAccountId(account.getId());
                     membership.setUserId(user.getId());
                     membership.setTenantId(tenantId);
-                    membership.setWorkspaceId(normalizeWorkspaceId(workspaceId));
+                    membership.setWorkspaceId(normalizedWorkspace);
                     membership.setStatus("ACTIVE");
-                    membership.setDefaultMembership(true);
+                    membership.setDefaultMembership(DEFAULT_WORKSPACE_ID.equals(normalizedWorkspace));
                     membership.setMetadata(Map.of("legacyUserId", user.getId()));
                     return accountMembershipRepository.save(membership);
                 });
@@ -457,8 +572,9 @@ public class AuthService {
         if (accountRoleBindingRepository == null) {
             return;
         }
+        String roleKey = normalizeRoleKey(role);
         boolean exists = accountRoleBindingRepository.findByMembershipId(membershipId).stream()
-                .anyMatch(binding -> role.equalsIgnoreCase(binding.getRoleKey()));
+                .anyMatch(binding -> roleKey.equalsIgnoreCase(binding.getRoleKey()));
         if (exists) {
             return;
         }
@@ -466,10 +582,118 @@ public class AuthService {
         AccountRoleBinding binding = new AccountRoleBinding();
         binding.setAccountId(accountId);
         binding.setMembershipId(membershipId);
-        binding.setRoleKey(role.toUpperCase(Locale.ROOT));
+        binding.setRoleKey(roleKey);
         binding.setScopeType("TENANT");
         binding.setScopeId(null);
         accountRoleBindingRepository.save(binding);
+    }
+
+    private void assertInvitationGrantStillAllowed(AuthInvitation invitation, List<String> roles) {
+        String inviterUserId = blankToNull(invitation.getInvitedByUserId());
+        if (inviterUserId == null) {
+            throw new AccessDeniedException("Invitation inviter is not authorized");
+        }
+        User inviter = userRepository.findByTenantIdAndId(invitation.getTenantId(), inviterUserId)
+                .filter(User::isActive)
+                .orElseThrow(() -> new AccessDeniedException("Invitation inviter is not authorized"));
+        MembershipRoles inviterMembership = resolveUserMembershipRoles(
+                inviter,
+                invitation.getTenantId(),
+                invitation.getWorkspaceId(),
+                "Invitation inviter membership not found");
+        assertUserManagementAllowed(inviterMembership.roles(), "Invitation inviter is not authorized");
+        assertGrantAllowed(inviterMembership.roles(), roles, "Invitation roles exceed inviter roles");
+    }
+
+    private MembershipRoles resolveUserMembershipRoles(
+            User user,
+            String tenantId,
+            String workspaceId,
+            String missingMessage) {
+        if (accountRepository == null || accountMembershipRepository == null) {
+            String requestedWorkspace = blankToNull(workspaceId);
+            if (requestedWorkspace != null && !DEFAULT_WORKSPACE_ID.equals(normalizeWorkspaceId(requestedWorkspace))) {
+                throw new AccessDeniedException(missingMessage);
+            }
+            String fallbackRole = user.getRole() == null || user.getRole().isBlank() ? ROLE_USER : user.getRole();
+            return new MembershipRoles(null, null, List.of(normalizeRoleKey(fallbackRole)));
+        }
+
+        Account account = accountRepository.findByEmailIgnoreCase(user.getEmail())
+                .filter(this::isActiveAccount)
+                .orElseThrow(() -> new AccessDeniedException(missingMessage));
+        AccountMembership membership = resolveActiveMembershipForContext(
+                account.getId(),
+                tenantId,
+                workspaceId);
+        if (!Objects.equals(membership.getUserId(), user.getId())) {
+            throw new AccessDeniedException(missingMessage);
+        }
+        return new MembershipRoles(
+                account,
+                membership,
+                resolveMembershipRoles(account.getId(), membership.getId(), user.getRole()));
+    }
+
+    private void assertGrantAllowed(List<String> actorRoles, List<String> requestedRoles, String message) {
+        Set<String> assignableRoles = new LinkedHashSet<>();
+        List<String> roles = actorRoles == null || actorRoles.isEmpty() ? List.of(ROLE_USER) : actorRoles;
+        for (String role : roles) {
+            normalizeKnownRoleKey(role)
+                    .ifPresent(roleKey -> assignableRoles.addAll(ROLE_GRANT_MATRIX.getOrDefault(roleKey, Set.of())));
+        }
+        if (!assignableRoles.containsAll(requestedRoles)) {
+            throw new AccessDeniedException(message);
+        }
+    }
+
+    private void assertUserManagementAllowed(List<String> actorRoles, String message) {
+        boolean allowed = actorRoles != null && actorRoles.stream()
+                .map(this::normalizeKnownRoleKey)
+                .flatMap(Optional::stream)
+                .anyMatch(USER_MANAGEMENT_ROLES::contains);
+        if (!allowed) {
+            throw new AccessDeniedException(message);
+        }
+    }
+
+    private List<String> normalizeRoleKeys(List<String> roles, String defaultRole) {
+        if (roles == null || roles.isEmpty()) {
+            return List.of(normalizeRoleKey(defaultRole));
+        }
+
+        List<String> normalizedRoles = roles.stream()
+                .map(this::normalizeRoleKey)
+                .distinct()
+                .toList();
+        return normalizedRoles.isEmpty() ? List.of(normalizeRoleKey(defaultRole)) : normalizedRoles;
+    }
+
+    private String normalizeRoleKey(String role) {
+        if (role == null || role.isBlank()) {
+            throw new IllegalArgumentException("Role key is required");
+        }
+        String normalized = role.trim();
+        if (normalized.regionMatches(true, 0, "ROLE_", 0, 5)) {
+            normalized = normalized.substring(5);
+        }
+        normalized = normalized.toUpperCase(Locale.ROOT);
+        if (!ALL_ROLE_KEYS.contains(normalized)) {
+            throw new IllegalArgumentException("Unsupported role key");
+        }
+        return normalized;
+    }
+
+    private Optional<String> normalizeKnownRoleKey(String role) {
+        if (role == null || role.isBlank()) {
+            return Optional.empty();
+        }
+        String normalized = role.trim();
+        if (normalized.regionMatches(true, 0, "ROLE_", 0, 5)) {
+            normalized = normalized.substring(5);
+        }
+        normalized = normalized.toUpperCase(Locale.ROOT);
+        return ALL_ROLE_KEYS.contains(normalized) ? Optional.of(normalized) : Optional.empty();
     }
 
     private List<String> resolveMembershipRoles(String accountId, String membershipId, String fallbackRole) {
@@ -477,7 +701,7 @@ public class AuthService {
             if (fallbackRole != null && !fallbackRole.isBlank()) {
                 return List.of(fallbackRole.toUpperCase(Locale.ROOT));
             }
-            return List.of("USER");
+            return List.of(ROLE_USER);
         }
 
         List<String> roles = accountRoleBindingRepository.findByMembershipId(membershipId).stream()
@@ -494,7 +718,7 @@ public class AuthService {
         if (fallbackRole != null && !fallbackRole.isBlank()) {
             return List.of(fallbackRole.toUpperCase(Locale.ROOT));
         }
-        return List.of("USER");
+        return List.of(ROLE_USER);
     }
 
     private boolean isActiveAccount(Account account) {
@@ -533,5 +757,17 @@ public class AuthService {
     private String normalizeWorkspaceId(String workspaceId) {
         String normalized = blankToNull(workspaceId);
         return normalized != null ? normalized : DEFAULT_WORKSPACE_ID;
+    }
+
+    private Instant resolveInvitationExpiresAt(Instant requestedExpiresAt) {
+        Instant now = Instant.now();
+        Instant maxExpiresAt = now.plus(MAX_INVITATION_TTL);
+        if (requestedExpiresAt == null) {
+            return now.plus(DEFAULT_INVITATION_TTL);
+        }
+        return requestedExpiresAt.isAfter(maxExpiresAt) ? maxExpiresAt : requestedExpiresAt;
+    }
+
+    private record MembershipRoles(Account account, AccountMembership membership, List<String> roles) {
     }
 }

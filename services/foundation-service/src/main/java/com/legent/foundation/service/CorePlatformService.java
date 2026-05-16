@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.util.IdGenerator;
 import com.legent.foundation.dto.CorePlatformDto;
 import com.legent.foundation.repository.CorePlatformRepository;
+import com.legent.security.RbacEvaluator;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +22,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -31,6 +34,7 @@ public class CorePlatformService {
     private final CorePlatformRepository repository;
     private final ObjectMapper objectMapper;
     private final AdminOperationsService adminOperationsService;
+    private final RbacEvaluator rbacEvaluator;
 
     @Transactional
     public Map<String, Object> createOrganization(CorePlatformDto.OrganizationRequest request) {
@@ -160,6 +164,14 @@ public class CorePlatformService {
         return repository.listByTenant("workspaces", requireTenant(), "created_at DESC");
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listWorkspaces(Set<String> roles) {
+        if (canReadTenantWideCore(roles)) {
+            return listWorkspaces();
+        }
+        return listCurrentWorkspaceOnly();
+    }
+
     @Transactional
     public Map<String, Object> createTeam(CorePlatformDto.TeamRequest request) {
         assertExists("workspaces", request.getWorkspaceId(), "workspaceId");
@@ -179,6 +191,14 @@ public class CorePlatformService {
         return repository.listByTenant("teams", requireTenant(), "created_at DESC");
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listTeams(Set<String> roles) {
+        if (canReadTenantWideCore(roles)) {
+            return listTeams();
+        }
+        return listByCurrentWorkspace("teams", "created_at DESC");
+    }
+
     @Transactional
     public Map<String, Object> createDepartment(CorePlatformDto.DepartmentRequest request) {
         assertExists("workspaces", request.getWorkspaceId(), "workspaceId");
@@ -195,6 +215,14 @@ public class CorePlatformService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listDepartments() {
         return repository.listByTenant("departments", requireTenant(), "created_at DESC");
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listDepartments(Set<String> roles) {
+        if (canReadTenantWideCore(roles)) {
+            return listDepartments();
+        }
+        return listByCurrentWorkspace("departments", "created_at DESC");
     }
 
     @Transactional
@@ -238,10 +266,24 @@ public class CorePlatformService {
         return repository.listByTenant("membership_links", requireTenant(), "created_at DESC");
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listMemberships(Set<String> roles) {
+        if (canReadTenantWideCore(roles)) {
+            return listMemberships();
+        }
+        return listByCurrentWorkspace("membership_links", "created_at DESC");
+    }
+
     @Transactional
     public Map<String, Object> createRoleDefinition(CorePlatformDto.RoleDefinitionRequest request) {
-        Map<String, Object> values = baseValues(requireTenant());
-        values.put("tenant_id", nullable(request.getTenantId()) == null ? requireTenant() : request.getTenantId());
+        String tenantId = requireTenant();
+        String requestedTenantId = nullable(request.getTenantId());
+        if (requestedTenantId != null && !tenantId.equals(requestedTenantId)) {
+            throw new AccessDeniedException("tenantId does not match the current tenant");
+        }
+
+        Map<String, Object> values = baseValues(tenantId);
+        values.put("tenant_id", tenantId);
         values.put("role_key", request.getRoleKey());
         values.put("display_name", request.getDisplayName());
         values.put("description", nullable(request.getDescription()));
@@ -788,6 +830,18 @@ public class CorePlatformService {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listAuditEvents(String workspaceId, String action, int limit) {
+        return queryAuditEvents(nullable(workspaceId), action, limit);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listAuditEvents(String workspaceId, String action, int limit, Set<String> roles) {
+        String scopedWorkspaceId = canReadTenantWideCore(roles)
+                ? nullable(workspaceId)
+                : requireMatchingCurrentWorkspace(workspaceId);
+        return queryAuditEvents(scopedWorkspaceId, action, limit);
+    }
+
+    private List<Map<String, Object>> queryAuditEvents(String workspaceId, String action, int limit) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", requireTenant());
         params.put("limit", Math.max(1, Math.min(limit, 500)));
@@ -812,6 +866,46 @@ public class CorePlatformService {
 
         sql.append(" ORDER BY created_at DESC LIMIT :limit");
         return repository.queryForList(sql.toString(), params);
+    }
+
+    private List<Map<String, Object>> listCurrentWorkspaceOnly() {
+        String workspaceId = requireCurrentWorkspaceForScopedCoreRead();
+        return repository.queryForList("""
+                SELECT * FROM workspaces
+                WHERE tenant_id = :tenantId
+                  AND id = :workspaceId
+                  AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                """, Map.of("tenantId", requireTenant(), "workspaceId", workspaceId));
+    }
+
+    private List<Map<String, Object>> listByCurrentWorkspace(String table, String orderBy) {
+        String workspaceId = requireCurrentWorkspaceForScopedCoreRead();
+        String sql = "SELECT * FROM " + CorePlatformRepository.safeTable(table)
+                + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL ORDER BY "
+                + CorePlatformRepository.safeOrderBy(orderBy);
+        return repository.queryForList(sql, Map.of("tenantId", requireTenant(), "workspaceId", workspaceId));
+    }
+
+    private String requireMatchingCurrentWorkspace(String requestedWorkspaceId) {
+        String workspaceId = requireCurrentWorkspaceForScopedCoreRead();
+        String requested = nullable(requestedWorkspaceId);
+        if (requested != null && !workspaceId.equals(requested)) {
+            throw new AccessDeniedException("workspaceId does not match the current workspace");
+        }
+        return workspaceId;
+    }
+
+    private String requireCurrentWorkspaceForScopedCoreRead() {
+        String workspaceId = nullable(TenantContext.getWorkspaceId());
+        if (workspaceId == null) {
+            throw new AccessDeniedException("Workspace context is required for workspace-scoped core reads");
+        }
+        return workspaceId;
+    }
+
+    private boolean canReadTenantWideCore(Set<String> roles) {
+        return rbacEvaluator.hasPermission("tenant:*", roles);
     }
 
     private void recordAudit(String action, String resourceType, Object resourceId, Map<String, Object> details) {

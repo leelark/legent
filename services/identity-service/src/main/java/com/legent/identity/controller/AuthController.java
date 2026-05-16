@@ -11,6 +11,7 @@ import com.legent.identity.service.AuthService;
 import com.legent.identity.service.IdentityExperienceService;
 import com.legent.identity.service.RefreshTokenService;
 import com.legent.security.JwtTokenProvider;
+import com.legent.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -20,6 +21,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -190,18 +193,26 @@ public class AuthController {
     }
 
     @PostMapping("/invitations")
-    public ApiResponse<AuthInvitation> createInvitation(
+    @PreAuthorize("isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)")
+    public ApiResponse<AuthBridgeDto.InvitationResponse> createInvitation(
             @RequestHeader("X-Tenant-Id") String tenantId,
-            @CookieValue(name = TOKEN_COOKIE_NAME, required = false) String token,
+            Authentication authentication,
             @Valid @RequestBody AuthBridgeDto.InvitationRequest request) {
-        String inviterUserId = resolveUserId(token);
-        return ApiResponse.ok(authService.createInvitation(tenantId, inviterUserId, request));
+        UserPrincipal principal = requirePrincipal(authentication);
+        requireTenant(principal, tenantId);
+        return ApiResponse.ok(mapInvitation(authService.createInvitation(tenantId, principal.getUserId(), request)));
     }
 
     @GetMapping("/invitations")
-    public ApiResponse<List<AuthInvitation>> listInvitations(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
-        return ApiResponse.ok(authService.listInvitations(tenantId));
+    @PreAuthorize("isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)")
+    public ApiResponse<List<AuthBridgeDto.InvitationResponse>> listInvitations(
+            @RequestHeader("X-Tenant-Id") String tenantId,
+            Authentication authentication) {
+        UserPrincipal principal = requirePrincipal(authentication);
+        requireTenant(principal, tenantId);
+        return ApiResponse.ok(authService.listInvitations(tenantId).stream()
+                .map(this::mapInvitation)
+                .toList());
     }
 
     @PostMapping("/invitations/accept")
@@ -222,12 +233,15 @@ public class AuthController {
     }
 
     @PostMapping("/delegation/exchange")
+    @PreAuthorize("isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)")
     public ApiResponse<LoginResponse> exchangeDelegation(
             @RequestHeader("X-Tenant-Id") String tenantId,
-            @CookieValue(name = TOKEN_COOKIE_NAME, required = false) String token,
+            Authentication authentication,
             @Valid @RequestBody AuthBridgeDto.DelegationRequest request,
             HttpServletResponse response) {
-        String userId = resolveUserId(token);
+        UserPrincipal principal = requirePrincipal(authentication);
+        requireTenant(principal, tenantId);
+        String userId = principal.getUserId();
         String delegatedToken = authService.exchangeDelegationToken(userId, tenantId, request);
         String delegatedUserId = jwtTokenProvider.getUserId(delegatedToken).orElseThrow();
         List<String> roles = jwtTokenProvider.extractRoles(delegatedToken);
@@ -354,6 +368,36 @@ public class AuthController {
         }
         return jwtTokenProvider.getUserId(token)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid session"));
+    }
+
+    private UserPrincipal requirePrincipal(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal principal)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid session");
+        }
+        return principal;
+    }
+
+    private void requireTenant(UserPrincipal principal, String tenantId) {
+        if (tenantId == null || tenantId.isBlank()
+                || principal.getTenantId() == null
+                || !tenantId.equals(principal.getTenantId())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tenant context mismatch");
+        }
+    }
+
+    private AuthBridgeDto.InvitationResponse mapInvitation(AuthInvitation invitation) {
+        AuthBridgeDto.InvitationResponse response = new AuthBridgeDto.InvitationResponse();
+        response.setId(invitation.getId());
+        response.setTenantId(invitation.getTenantId());
+        response.setWorkspaceId(invitation.getWorkspaceId());
+        response.setEmail(invitation.getEmail());
+        response.setRoleKeys(invitation.getRoleKeys());
+        response.setInvitedByUserId(invitation.getInvitedByUserId());
+        response.setStatus(invitation.getStatus());
+        response.setExpiresAt(invitation.getExpiresAt());
+        response.setAcceptedAt(invitation.getAcceptedAt());
+        response.setMetadata(invitation.getMetadata());
+        return response;
     }
 
     private LoginResponse buildLoginResponse(String status, String userId, String tenantId, List<String> roles, String token) {

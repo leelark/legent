@@ -33,7 +33,35 @@ ORDER BY tenant_id, name, id;
 
 2. Review each row against an authoritative operator source such as tenant onboarding records, foundation workspace records, signed migration tickets, or customer-approved migration evidence.
 
-3. Create and populate the mapping table before Flyway reaches V17:
+3. Before writing the review table, verify every proposed `target_workspace_id` against the authoritative foundation workspace source for the same tenant. Because audience and foundation run in separate databases, use one of these approved workflows:
+
+- Export proposed mappings from the audience staging clone, import only `tenant_id`, `data_extension_id`, and `target_workspace_id` into a temporary review table in the foundation database or approved read replica, then run the query below.
+- Use an approved foreign-data-wrapper/read-replica workflow that lets the foundation workspace table and the proposed mapping table be joined without copying customer data beyond the reviewed migration workspace.
+- Attach a signed operator report from the foundation workspace source that proves every proposed `target_workspace_id` exists for the same tenant and is active/not deleted.
+
+Temporary-table example for the foundation database:
+
+```sql
+CREATE TEMP TABLE tmp_audience_data_extension_workspace_mapping_review (
+    tenant_id VARCHAR(36) NOT NULL,
+    data_extension_id VARCHAR(36) NOT NULL,
+    target_workspace_id VARCHAR(36) NOT NULL
+);
+
+-- Load reviewed proposed mappings into the temp table, then run:
+SELECT map.tenant_id, map.data_extension_id, map.target_workspace_id
+FROM tmp_audience_data_extension_workspace_mapping_review map
+LEFT JOIN workspaces w
+    ON w.tenant_id = map.tenant_id
+   AND w.id = TRIM(map.target_workspace_id)
+WHERE w.id IS NULL
+   OR COALESCE(w.status, '') <> 'ACTIVE'
+   OR w.deleted_at IS NOT NULL;
+```
+
+This query must return zero rows before V17 is allowed to run. If the foundation schema uses different status or deletion columns in the target environment, use the equivalent active-workspace predicate from the deployed foundation schema and attach that query to the change record.
+
+4. Create and populate the mapping table before Flyway reaches V17:
 
 ```sql
 CREATE TABLE IF NOT EXISTS public.audience_data_extension_workspace_mapping_review (
@@ -62,7 +90,7 @@ VALUES
     ('tenant-id', 'data-extension-id', 'workspace-id', 'operator@example.com', NOW(), 'CHANGE-1234');
 ```
 
-4. Check mapping row uniqueness before release:
+5. Check mapping row uniqueness before release:
 
 ```sql
 SELECT tenant_id, data_extension_id, COUNT(*)
@@ -73,7 +101,7 @@ HAVING COUNT(*) > 1;
 
 This query must return zero rows.
 
-5. Check completeness and target workspace hygiene before release:
+6. Check completeness and target workspace hygiene before release:
 
 ```sql
 SELECT de.tenant_id, de.id, de.name
@@ -94,7 +122,7 @@ WHERE de.workspace_id = 'workspace-default'
 
 This query must return zero rows.
 
-6. Check duplicate active names after reviewed remapping:
+7. Check duplicate active names after reviewed remapping:
 
 ```sql
 SELECT mapped.tenant_id, mapped.target_workspace_id, mapped.normalized_name, COUNT(*)
@@ -118,7 +146,7 @@ HAVING COUNT(*) > 1;
 
 This query must return zero rows. Resolve duplicates before release by correcting the mapping or renaming/deleting duplicate active data extensions through an approved change.
 
-7. Pre-V16 duplicate-name risk check:
+8. Pre-V16 duplicate-name risk check:
 
 ```sql
 SELECT tenant_id, lower(name) AS normalized_name, COUNT(*)
@@ -142,6 +170,36 @@ When reviewed mappings exist, V17:
 - Updates legacy `data_extensions.workspace_id` from `TRIM(target_workspace_id)`.
 - Fails if any legacy `data_extensions.workspace_id = 'workspace-default'` rows remain after the update.
 - Updates `data_extension_records.workspace_id` from the parent data extension.
+
+## Post-V17 Verification
+
+After V17 completes in staging or production, operators must capture evidence that the migration finished cleanly before releasing dependent changes.
+
+1. Confirm no legacy placeholder workspace remains:
+
+```sql
+SELECT COUNT(*) AS remaining_workspace_default_rows
+FROM data_extensions
+WHERE workspace_id = 'workspace-default';
+```
+
+Expected result: `0`.
+
+2. Confirm data-extension records still match their parent extension scope:
+
+```sql
+SELECT COUNT(*) AS orphaned_or_scope_mismatched_records
+FROM data_extension_records der
+LEFT JOIN data_extensions de
+    ON de.id = der.data_extension_id
+WHERE de.id IS NULL
+   OR der.tenant_id <> de.tenant_id
+   OR der.workspace_id <> de.workspace_id;
+```
+
+Expected result: `0`.
+
+3. Attach the pre-V17 authoritative foundation workspace verification evidence from the approved workflow above. Do not rely on a post-migration check as the first workspace-existence check.
 
 ## Flyway Defaults
 

@@ -52,6 +52,7 @@ public class EmailStudioController {
 
     @PostMapping("/content/snippets")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.SnippetResponse> createSnippet(@Valid @RequestBody EmailStudioDto.SnippetRequest request) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(mapSnippet(resourceService.createSnippet(tenantId, request)));
@@ -69,6 +70,7 @@ public class EmailStudioController {
     }
 
     @PutMapping("/content/snippets/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.SnippetResponse> updateSnippet(
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.SnippetRequest request) {
@@ -78,12 +80,14 @@ public class EmailStudioController {
 
     @DeleteMapping("/content/snippets/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteSnippet(@PathVariable String id) {
         resourceService.deleteSnippet(TenantContext.requireTenantId(), id);
     }
 
     @PostMapping("/personalization-tokens")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.TokenResponse> createToken(@Valid @RequestBody EmailStudioDto.TokenRequest request) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(mapToken(tokenService.create(tenantId, request)));
@@ -101,6 +105,7 @@ public class EmailStudioController {
     }
 
     @PutMapping("/personalization-tokens/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.TokenResponse> updateToken(
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.TokenRequest request) {
@@ -110,12 +115,14 @@ public class EmailStudioController {
 
     @DeleteMapping("/personalization-tokens/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteToken(@PathVariable String id) {
         tokenService.delete(TenantContext.requireTenantId(), id);
     }
 
     @PostMapping("/templates/{templateId}/dynamic-content")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.DynamicRuleResponse> createDynamicRule(
             @PathVariable String templateId,
             @Valid @RequestBody EmailStudioDto.DynamicRuleRequest request) {
@@ -130,12 +137,14 @@ public class EmailStudioController {
     }
 
     @PostMapping("/content/builder/render")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.BuilderLayoutResponse> renderBuilderLayout(
             @Valid @RequestBody EmailStudioDto.BuilderLayoutRequest request) {
         return ApiResponse.ok(contentBuilderService.renderLayout(request));
     }
 
     @PutMapping("/templates/{templateId}/dynamic-content/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.DynamicRuleResponse> updateDynamicRule(
             @PathVariable String templateId,
             @PathVariable String id,
@@ -147,12 +156,14 @@ public class EmailStudioController {
 
     @DeleteMapping("/templates/{templateId}/dynamic-content/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteDynamicRule(@PathVariable String templateId, @PathVariable String id) {
         dynamicRuleService.delete(TenantContext.requireTenantId(), id);
     }
 
     @PostMapping("/brand-kits")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.BrandKitResponse> createBrandKit(@Valid @RequestBody EmailStudioDto.BrandKitRequest request) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(mapBrandKit(resourceService.createBrandKit(tenantId, request)));
@@ -170,6 +181,7 @@ public class EmailStudioController {
     }
 
     @PutMapping("/brand-kits/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.BrandKitResponse> updateBrandKit(
             @PathVariable String id,
             @Valid @RequestBody EmailStudioDto.BrandKitRequest request) {
@@ -179,6 +191,7 @@ public class EmailStudioController {
 
     @DeleteMapping("/brand-kits/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:delete', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public void deleteBrandKit(@PathVariable String id) {
         resourceService.deleteBrandKit(TenantContext.requireTenantId(), id);
     }
@@ -238,6 +251,7 @@ public class EmailStudioController {
     }
 
     @PostMapping("/templates/{templateId}/render")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.RenderResponse> renderTemplate(
             @PathVariable String templateId,
             @RequestBody(required = false) EmailStudioDto.RenderRequest request) {
@@ -246,6 +260,7 @@ public class EmailStudioController {
     }
 
     @PostMapping("/templates/{templateId}/validate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.ValidationResponse> validateTemplate(
             @PathVariable String templateId,
             @RequestBody(required = false) EmailStudioDto.RenderRequest request) {
@@ -255,6 +270,7 @@ public class EmailStudioController {
 
     @PostMapping("/templates/{templateId}/test-sends")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.TestSendRecordResponse> createTestSend(
             @PathVariable String templateId,
             @Valid @RequestBody EmailStudioDto.TestSendRequest request) {
@@ -263,6 +279,7 @@ public class EmailStudioController {
     }
 
     @GetMapping("/templates/{templateId}/test-sends")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<EmailStudioDto.TestSendRecordResponse>> listTestSends(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
         return ApiResponse.ok(testSendService.list(tenantId, templateId).stream().map(this::mapTestSend).toList());
@@ -270,6 +287,7 @@ public class EmailStudioController {
 
     @PostMapping("/templates/{templateId}/test-send-matrix")
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<EmailStudioDto.TestSendMatrixResponse> createTestSendMatrix(
             @PathVariable String templateId,
             @Valid @RequestBody EmailStudioDto.TestSendMatrixRequest request) {

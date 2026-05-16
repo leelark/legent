@@ -4,6 +4,7 @@ import com.legent.security.ActuatorAccess;
 import com.legent.security.JwtAuthenticationFilter;
 import com.legent.security.SecurityProperties;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpMethod;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -41,6 +42,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/health/**").permitAll()
                         .requestMatchers(ActuatorAccess.PUBLIC_ENDPOINTS).permitAll()
                         .requestMatchers(ActuatorAccess.ADMIN_ENDPOINTS).hasRole(ActuatorAccess.ADMIN_ROLE)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/invitations").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/auth/invitations").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/auth/delegation/exchange").authenticated()
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/sso/**").permitAll()
                         .requestMatchers("/api/v1/scim/v2/**").permitAll()

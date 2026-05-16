@@ -3,13 +3,16 @@ package com.legent.foundation.controller;
 import com.legent.common.dto.ApiResponse;
 import com.legent.foundation.dto.CorePlatformDto;
 import com.legent.foundation.service.CorePlatformService;
+import com.legent.security.UserPrincipal;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/v1/core")
@@ -56,8 +59,8 @@ public class CorePlatformController {
 
     @GetMapping("/workspaces")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> listWorkspaces() {
-        return ApiResponse.ok(corePlatformService.listWorkspaces());
+    public ApiResponse<List<Map<String, Object>>> listWorkspaces(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(corePlatformService.listWorkspaces(rolesOf(principal)));
     }
 
     @PostMapping("/teams")
@@ -68,8 +71,8 @@ public class CorePlatformController {
 
     @GetMapping("/teams")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> listTeams() {
-        return ApiResponse.ok(corePlatformService.listTeams());
+    public ApiResponse<List<Map<String, Object>>> listTeams(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(corePlatformService.listTeams(rolesOf(principal)));
     }
 
     @PostMapping("/departments")
@@ -80,8 +83,8 @@ public class CorePlatformController {
 
     @GetMapping("/departments")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> listDepartments() {
-        return ApiResponse.ok(corePlatformService.listDepartments());
+    public ApiResponse<List<Map<String, Object>>> listDepartments(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(corePlatformService.listDepartments(rolesOf(principal)));
     }
 
     @PostMapping("/memberships")
@@ -92,8 +95,8 @@ public class CorePlatformController {
 
     @GetMapping("/memberships")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> listMemberships() {
-        return ApiResponse.ok(corePlatformService.listMemberships());
+    public ApiResponse<List<Map<String, Object>>> listMemberships(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(corePlatformService.listMemberships(rolesOf(principal)));
     }
 
     @PostMapping("/roles")
@@ -288,9 +291,14 @@ public class CorePlatformController {
     @GetMapping("/audit")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> listAuditEvents(
+            @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(required = false) String workspaceId,
             @RequestParam(required = false) String action,
             @RequestParam(defaultValue = "100") int limit) {
-        return ApiResponse.ok(corePlatformService.listAuditEvents(workspaceId, action, limit));
+        return ApiResponse.ok(corePlatformService.listAuditEvents(workspaceId, action, limit, rolesOf(principal)));
+    }
+
+    private Set<String> rolesOf(UserPrincipal principal) {
+        return principal == null || principal.getRoles() == null ? Set.of() : principal.getRoles();
     }
 }

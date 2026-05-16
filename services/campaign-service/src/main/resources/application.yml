@@ -79,6 +79,13 @@ management:
       show-details: always
 
 legent:
+  internal:
+    api-token: ${LEGENT_INTERNAL_API_TOKEN}
+  campaign:
+    send:
+      content-reference-enabled: ${LEGENT_CAMPAIGN_CONTENT_REFERENCE_ENABLED:false}
+      content-reference-ttl: ${LEGENT_CAMPAIGN_CONTENT_REFERENCE_TTL:PT72H}
+      include-inline-rendered-content: ${LEGENT_CAMPAIGN_INCLUDE_INLINE_RENDERED_CONTENT:true}
   security:
     jwt:
       secret: ${LEGENT_SECURITY_JWT_SECRET}

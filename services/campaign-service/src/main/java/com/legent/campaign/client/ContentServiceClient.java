@@ -12,6 +12,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -23,11 +24,14 @@ import java.util.Map;
 public class ContentServiceClient {
 
     private final WebClient webClient;
+    private final String internalApiToken;
     
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
 
     public ContentServiceClient(
-            @Value("${legent.content-service.url:http://content-service:8090}") String baseUrl) {
+            @Value("${legent.content-service.url:http://content-service:8090}") String baseUrl,
+            @Value("${legent.internal.api-token}") String internalApiToken) {
+        validateInternalApiToken(internalApiToken);
         // Configure HTTP client with timeouts
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(READ_TIMEOUT)
@@ -38,6 +42,7 @@ public class ContentServiceClient {
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
+        this.internalApiToken = internalApiToken;
     }
 
     /**
@@ -83,8 +88,9 @@ public class ContentServiceClient {
     public RenderedContent renderTemplate(String tenantId, String templateId, Map<String, Object> variables) {
         try {
             java.util.Map<String, Object> response = webClient.post()
-                    .uri("/api/v1/content/{templateId}/render", templateId)
+                    .uri("/api/v1/content/{templateId}/render/internal", templateId)
                     .header("X-Tenant-Id", tenantId)
+                    .header("X-Internal-Token", internalApiToken)
                     .bodyValue(variables != null ? variables : Map.of())
                     .retrieve()
                     .bodyToMono(new org.springframework.core.ParameterizedTypeReference<java.util.Map<String, Object>>() {})
@@ -168,5 +174,20 @@ public class ContentServiceClient {
         public ContentServiceNotFoundException(String message, Throwable cause) {
             super(message, cause);
         }
+    }
+
+    private void validateInternalApiToken(String token) {
+        if (token == null || token.isBlank() || isPlaceholderToken(token)) {
+            throw new IllegalStateException("legent.internal.api-token must be configured with a non-placeholder secret");
+        }
+    }
+
+    private boolean isPlaceholderToken(String token) {
+        String normalized = token.trim().toLowerCase(Locale.ROOT);
+        return normalized.contains("dev-token")
+                || normalized.contains("change_me")
+                || normalized.contains("changeme")
+                || normalized.contains("replace_in_production")
+                || normalized.equals("password");
     }
 }

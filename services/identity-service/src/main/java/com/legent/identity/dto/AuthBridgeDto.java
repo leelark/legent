@@ -35,6 +35,21 @@ public class AuthBridgeDto {
 
     @Getter
     @Setter
+    public static class InvitationResponse {
+        private String id;
+        private String tenantId;
+        private String workspaceId;
+        private String email;
+        private List<String> roleKeys;
+        private String invitedByUserId;
+        private String status;
+        private Instant expiresAt;
+        private Instant acceptedAt;
+        private Map<String, Object> metadata;
+    }
+
+    @Getter
+    @Setter
     public static class ContextSwitchRequest {
         @NotBlank
         private String tenantId;

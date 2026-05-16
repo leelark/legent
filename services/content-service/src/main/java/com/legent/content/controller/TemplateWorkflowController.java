@@ -12,6 +12,7 @@ import com.legent.content.service.TemplateWorkflowService;
 import com.legent.security.TenantContext;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,6 +27,7 @@ public class TemplateWorkflowController {
     private final TemplateVersionService versionService;
 
     @PostMapping("/{templateId}/draft")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<Map<String, Object>> saveDraft(
             @PathVariable String templateId,
             @RequestBody(required = false) TemplateWorkflowDto.DraftRequest request) {
@@ -45,6 +47,7 @@ public class TemplateWorkflowController {
     }
 
     @PostMapping("/{templateId}/submit-approval")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.TemplateApprovalResponse> submitForApproval(
             @PathVariable String templateId,
             @RequestBody(required = false) TemplateWorkflowDto.SubmitApprovalRequest request) {
@@ -69,6 +72,7 @@ public class TemplateWorkflowController {
     }
 
     @PostMapping("/approvals/{approvalId}/approve")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.TemplateApprovalResponse> approveTemplate(
             @PathVariable String approvalId,
             @RequestBody(required = false) TemplateWorkflowDto.ApprovalActionRequest request) {
@@ -79,6 +83,7 @@ public class TemplateWorkflowController {
     }
 
     @PostMapping("/approvals/{approvalId}/reject")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.TemplateApprovalResponse> rejectTemplate(
             @PathVariable String approvalId,
             @RequestBody(required = false) TemplateWorkflowDto.ApprovalActionRequest request) {
@@ -89,6 +94,7 @@ public class TemplateWorkflowController {
     }
 
     @PostMapping("/approvals/{approvalId}/cancel")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.TemplateApprovalResponse> cancelApproval(@PathVariable String approvalId) {
         String tenantId = TenantContext.requireTenantId();
         TemplateApproval approval = workflowService.cancelApproval(tenantId, approvalId);
@@ -96,6 +102,7 @@ public class TemplateWorkflowController {
     }
 
     @PostMapping("/{templateId}/publish")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:publish', principal.roles) or @rbacEvaluator.hasPermission('content:*', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateVersionDto.Response> publishTemplate(
             @PathVariable String templateId,
             @RequestBody(required = false) TemplateWorkflowDto.PublishRequest request) {
@@ -108,6 +115,7 @@ public class TemplateWorkflowController {
     }
 
     @PostMapping("/{templateId}/rollback/{versionNumber}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:write', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateVersionDto.Response> rollbackTemplate(
             @PathVariable String templateId,
             @PathVariable Integer versionNumber,

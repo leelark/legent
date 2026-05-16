@@ -107,8 +107,8 @@ public class WebhookRetryService {
             retry.setUpdatedAt(Instant.now());
             retryRepository.save(retry);
 
-            // Get webhook config
-            WebhookConfig config = configRepository.findById(retry.getWebhookId()).orElse(null);
+            // Get webhook config within the retry tenant to avoid cross-tenant delivery.
+            WebhookConfig config = configRepository.findByIdAndTenantId(retry.getWebhookId(), retry.getTenantId()).orElse(null);
             if (config == null || !Boolean.TRUE.equals(config.getIsActive())) {
                 log.warn("Webhook config {} not found or inactive, marking retry as FAILED", retry.getWebhookId());
                 markRetryFailed(retry, "Webhook configuration not found or inactive");

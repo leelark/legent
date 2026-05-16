@@ -32,7 +32,7 @@ assign next highest priority task immediately.
 
 Current baseline from 2026-05-16 scan:
 
-- Branch baseline for this sweep was `main...origin/main`; repo file count after cleanup is 1183 from `rg --files`.
+- Branch baseline for this sweep was `main...origin/main`; repo file count after Loop 5 hardening is 1192 from `rg --files` on 2026-05-16.
 - Repo shape: Maven parent with shared modules plus 10 Spring Boot services, Next.js frontend, Docker Compose local runtime, Kubernetes overlays, GitHub CI/security workflow.
 - Resolved since original bootstrap: Kafka wildcard trust narrowed, non-test DDL defaults fail closed with `validate`, high-volume Kafka keys avoid tenant-only fallback, audience resolution payloads are chunked/keyset-paged, campaign render/cache and payload guards reduce send pressure, and the dead frontend/source cleanup from 2026-05-16 removed unreachable source files.
 - Current local high-priority work completed on 2026-05-16: foundation bootstrap failures rethrow and await critical publishes; automation, deliverability, and audience intelligence idempotency/failure paths now retry instead of silently marking failed side effects as processed; frontend search/mobile shell routing was fixed.

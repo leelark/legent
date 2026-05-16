@@ -385,6 +385,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
       MINIO_BUCKET: legent-assets
+      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:?LEGENT_INTERNAL_API_TOKEN must be set}
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration,filesystem:/app/db/migration
     depends_on:
       postgres-init:
@@ -447,6 +448,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_campaign
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
+      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:?LEGENT_INTERNAL_API_TOKEN must be set}
     depends_on:
       postgres-init:
         condition: service_completed_successfully
