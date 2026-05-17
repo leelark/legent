@@ -13,6 +13,7 @@ import com.legent.delivery.service.ProviderHealthMonitoringService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -26,6 +27,7 @@ public class ProviderController {
     private final ProviderHealthMonitoringService healthMonitoringService;
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<SmtpProviderDto.Response>> list(
             @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive) {
         String tenantId = TenantContext.getTenantId();
@@ -39,6 +41,7 @@ public class ProviderController {
     }
 
     @GetMapping("/health")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<SmtpProviderDto.ProviderHealthResponse>> health() {
         String tenantId = TenantContext.getTenantId();
         List<SmtpProvider> providers = repository.findByTenantIdOrderByPriorityAsc(tenantId);
@@ -57,6 +60,7 @@ public class ProviderController {
     }
 
     @PostMapping("/{id}/test")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<SmtpProviderDto.Response> testProvider(@PathVariable String id) {
         SmtpProvider provider = repository.findById(id)
                 .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
@@ -68,6 +72,7 @@ public class ProviderController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<SmtpProviderDto.Response> create(@RequestBody SmtpProviderDto.CreateRequest request) {
         String tenantId = TenantContext.getTenantId();
         SmtpProvider provider = new SmtpProvider();
@@ -99,6 +104,7 @@ public class ProviderController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<SmtpProviderDto.Response> update(@PathVariable String id, @RequestBody SmtpProviderDto.CreateRequest request) {
         SmtpProvider provider = repository.findById(id)
             .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
@@ -139,6 +145,7 @@ public class ProviderController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<Void> delete(@PathVariable String id) {
         SmtpProvider provider = repository.findById(id)
             .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))

@@ -82,6 +82,10 @@ management:
 legent:
   tracking:
     signing-key: ${LEGENT_TRACKING_SIGNING_KEY}
+    raw-event-retention:
+      enabled: ${LEGENT_TRACKING_RAW_EVENT_RETENTION_ENABLED:true}
+      interval-ms: ${LEGENT_TRACKING_RAW_EVENT_RETENTION_INTERVAL_MS:3600000}
+      batch-size: ${LEGENT_TRACKING_RAW_EVENT_RETENTION_BATCH_SIZE:10000}
   security:
     jwt:
       secret: ${LEGENT_SECURITY_JWT_SECRET}

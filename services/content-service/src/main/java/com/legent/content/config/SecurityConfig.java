@@ -40,6 +40,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/health/**").permitAll()
                 .requestMatchers("/api/v1/public/landing-pages/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/content/*/render/internal").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/content/rendered-content/internal").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/content/rendered-content/*/internal").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

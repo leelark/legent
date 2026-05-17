@@ -85,6 +85,8 @@ management:
       show-details: always
 
 legent:
+  internal:
+    api-token: ${LEGENT_INTERNAL_API_TOKEN}
   delivery:
     credential-key: ${LEGENT_DELIVERY_CREDENTIAL_KEY}
     encryption-salt: ${LEGENT_DELIVERY_ENCRYPTION_SALT}

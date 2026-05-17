@@ -211,6 +211,7 @@ class SendExecutionServiceTest {
         Campaign campaign = campaign();
         stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
         ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1200);
+        ReflectionTestUtils.setField(service, "contentReferenceEnabled", false);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent(
                         "Rendered",
@@ -315,7 +316,16 @@ class SendExecutionServiceTest {
                 () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
 
         assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
-        verify(batchRepository).saveAndFlush(batch);
+        verify(batchRepository).claimRetryableBatchForProcessing(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(5),
+                any());
         verify(batchRepository, never()).save(batch);
     }
 
@@ -396,8 +406,63 @@ class SendExecutionServiceTest {
         assertThrows(ValidationException.class,
                 () -> service.executeBatch("tenant-1", "job-1", "batch-1", null));
 
-        verify(batchRepository, never()).saveAndFlush(any(SendBatch.class));
+        verify(batchRepository, never()).claimRetryableBatchForProcessing(
+                anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt(), any());
         verify(contentServiceClient, never()).renderTemplate(anyString(), anyString(), anyString(), any());
+    }
+
+    @Test
+    void executeBatchSkipsWhenConditionalClaimLosesRace() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+        when(batchRepository.claimRetryableBatchForProcessing(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(5),
+                any())).thenReturn(0);
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.PENDING, batch.getStatus());
+        verify(eventPublisher, never()).publish(anyString(), any());
+        verify(contentServiceClient, never()).renderTemplate(anyString(), anyString(), anyString(), any());
+        verify(batchRepository, never()).save(any(SendBatch.class));
+    }
+
+    @Test
+    void executeBatchCanClaimFailedRetryableBatchForProcessing() throws Exception {
+        SendBatch batch = batch();
+        batch.setStatus(SendBatch.BatchStatus.FAILED);
+        batch.setRetryCount(1);
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        Campaign campaign = campaign();
+
+        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
+        verify(batchRepository).claimRetryableBatchForProcessing(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(5),
+                any());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
     }
 
     @Test
@@ -428,6 +493,29 @@ class SendExecutionServiceTest {
         assertEquals("workspace-1", payload.get("workspaceId"));
         assertEquals(Boolean.TRUE, payload.get("retry"));
         assertEquals(1, payload.get("retryCount"));
+    }
+
+    @Test
+    void retryPartialBatchesFailsClosedWhenRequeuePublishFails() {
+        SendBatch batch = batch();
+        batch.setStatus(SendBatch.BatchStatus.PARTIAL);
+        batch.setRetryCount(2);
+        batch.setPayload("[{\"email\":\"one@example.com\",\"subscriberId\":\"sub-1\"}]");
+
+        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
+                eq(SendBatch.BatchStatus.PROCESSING), any())).thenReturn(List.of());
+        when(batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL)).thenReturn(List.of(batch));
+        when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_BATCH_CREATED), any()))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("kafka unavailable")));
+
+        assertThrows(IllegalStateException.class, () -> service.retryPartialBatches());
+
+        assertEquals(SendBatch.BatchStatus.PARTIAL, batch.getStatus());
+        assertEquals(2, batch.getRetryCount());
+        assertEquals("Failed to publish campaign batch retry requeue event", batch.getLastError());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_BATCH_CREATED), any());
+        verify(batchRepository, times(2)).save(batch);
     }
 
     @Test
@@ -514,7 +602,16 @@ class SendExecutionServiceTest {
         job.setStatus(SendJob.JobStatus.SENDING);
 
         when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
-        when(batchRepository.saveAndFlush(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(batchRepository.claimRetryableBatchForProcessing(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(5),
+                any())).thenReturn(1);
         when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "campaign-1"))
                 .thenReturn(Optional.of(campaign));
@@ -568,7 +665,16 @@ class SendExecutionServiceTest {
                                     List<Map<String, String>> subscribers,
                                     int acquiredPermits) {
         when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
-        when(batchRepository.saveAndFlush(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(batchRepository.claimRetryableBatchForProcessing(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(5),
+                any())).thenReturn(1);
         lenient().when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
         lenient().when(batchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1")).thenReturn(1L);
         lenient().when(batchRepository.countByTenantWorkspaceAndJobAndStatuses(anyString(), anyString(), anyString(), any()))

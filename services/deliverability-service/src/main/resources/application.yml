@@ -65,6 +65,8 @@ management:
         include: health,metrics,prometheus
 
 legent:
+  internal:
+    api-token: ${LEGENT_INTERNAL_API_TOKEN}
   deliverability:
     mock-dns: ${LEGENT_DELIVERABILITY_MOCK_DNS:false}
   security:

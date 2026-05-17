@@ -117,6 +117,9 @@ public class DeliveryOrchestrationService {
                 }
                 htmlBody = normalize(referencedContent.get("htmlBody"));
             }
+            if (htmlBody == null) {
+                throw new IllegalStateException("Rendered content reference is unavailable for delivery: " + contentReference);
+            }
         }
         if (htmlBody == null) {
             htmlBody = "<html><body>Email content</body></html>";
@@ -745,21 +748,24 @@ public class DeliveryOrchestrationService {
             } catch (Exception e) {
                 log.debug("Failed to fetch cached content for retry: {}", e.getMessage());
             }
-            if (normalizedReference.startsWith(RENDERED_CONTENT_REFERENCE_PREFIX)) {
-                throw new IllegalStateException("Rendered content reference is unavailable for retry: " + normalizedReference);
-            }
         }
 
-        // LEGENT-CRIT-003 & AUDIT-010: Call content-service API with connection pooling
-        if (campaignId != null && !campaignId.isBlank()) {
+        // Fetch only by scoped rendered-content reference. Campaign-only lookup is intentionally not supported.
+        if (normalizedReference != null) {
             try {
-                Map<String, String> contentFromService = contentServiceClient.fetchCampaignContent(campaignId);
+                Map<String, String> contentFromService = contentServiceClient.fetchRenderedContent(
+                        tenantId,
+                        workspaceId,
+                        normalizedReference);
                 if (!contentFromService.isEmpty()) {
-                    log.info("Retrieved content from content-service for campaign {}", campaignId);
+                    validateReferencedContent(contentFromService, tenantId, workspaceId, campaignId, messageId, normalizedReference);
+                    log.info("Retrieved content from content-service for rendered reference {}", normalizedReference);
                     return contentFromService;
                 }
             } catch (Exception e) {
-                log.error("Failed to fetch content from content-service for campaign {}: {}", campaignId, e.getMessage());
+                log.error("Failed to fetch content from content-service for rendered reference {}: {}",
+                        normalizedReference,
+                        e.getMessage());
             }
         }
 

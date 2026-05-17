@@ -213,7 +213,6 @@ function isWorkspaceOptionalEndpoint(url: string | undefined): boolean {
     '/api/v1/global',
     '/api/v1/performance-intelligence',
     '/api/v1/platform/notifications',
-    '/api/v1/platform/search',
     '/api/v1/platform/webhooks',
   ].some((route) => matchesPath(path, route));
 }

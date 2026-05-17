@@ -10,6 +10,7 @@ import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.service.DomainVerificationService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -22,6 +23,7 @@ public class DomainController {
     private final DomainVerificationService domainVerificationService;
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
     public ApiResponse<List<SenderDomain>> listDomains() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -29,6 +31,7 @@ public class DomainController {
     }
 
     @PostMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:write', principal.roles)")
     public ApiResponse<SenderDomain> registerDomain(
             @RequestBody SenderDomain request) {
         String tenantId = TenantContext.requireTenantId();
@@ -51,6 +54,7 @@ public class DomainController {
     }
 
     @PostMapping("/{domainId}/challenge")
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:write', principal.roles)")
     public ApiResponse<SenderDomain> regenerateChallenge(@PathVariable String domainId) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -63,6 +67,7 @@ public class DomainController {
     }
 
     @PostMapping("/{domainId}/verify")
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:write', principal.roles)")
     public ApiResponse<SenderDomain> verifyDomain(
             @PathVariable String domainId) {
         String tenantId = TenantContext.requireTenantId();

@@ -1,11 +1,227 @@
 param(
     [string] $OverlayPath = "infrastructure/kubernetes/overlays/production",
-    [switch] $RequireImageDigests
+    [switch] $RequireImageDigests,
+    [switch] $RequireImageEvidence,
+    [string] $ImageEvidenceManifest = $env:LEGENT_IMAGE_EVIDENCE_MANIFEST
 )
 
 $ErrorActionPreference = "Stop"
 
+function Test-EnvFlag {
+    param([string] $Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    $normalized = $Value.Trim().ToLowerInvariant()
+    return @("1", "true", "yes", "y", "on", "required") -contains $normalized
+}
+
+function Get-ObjectPropertyValue {
+    param(
+        $InputObject,
+        [Parameter(Mandatory = $true)] [string[]] $Names
+    )
+
+    if ($null -eq $InputObject) {
+        return $null
+    }
+
+    foreach ($name in $Names) {
+        $property = $InputObject.PSObject.Properties[$name]
+        if ($null -ne $property) {
+            return $property.Value
+        }
+    }
+
+    return $null
+}
+
+function Test-HasText {
+    param($Value)
+
+    if ($null -eq $Value) {
+        return $false
+    }
+
+    if ($Value -is [string]) {
+        return -not [string]::IsNullOrWhiteSpace($Value)
+    }
+
+    return $false
+}
+
+function Test-Verified {
+    param($Value)
+
+    if ($Value -is [bool]) {
+        return $Value
+    }
+
+    if ($Value -is [string]) {
+        return @("true", "verified", "pass", "passed", "success") -contains $Value.Trim().ToLowerInvariant()
+    }
+
+    return $false
+}
+
+function Get-ImageDigest {
+    param([string] $Image)
+
+    if ($Image -match "@(?<digest>sha256:[a-f0-9]{64})$") {
+        return $Matches["digest"]
+    }
+
+    return $null
+}
+
+function Get-EvidenceReference {
+    param($Evidence)
+
+    if ($Evidence -is [string]) {
+        if (Test-HasText $Evidence) {
+            return $Evidence
+        }
+
+        return $null
+    }
+
+    foreach ($name in @("transcript", "transcriptPath", "uri", "url", "path", "artifact", "artifactUri", "log", "command", "summary")) {
+        $value = Get-ObjectPropertyValue $Evidence @($name)
+        if (Test-HasText $value) {
+            return $value
+        }
+    }
+
+    return $null
+}
+
+function Assert-SbomEvidence {
+    param(
+        [Parameter(Mandatory = $true)] $Entry,
+        [Parameter(Mandatory = $true)] [string] $Image
+    )
+
+    $sbom = Get-ObjectPropertyValue $Entry @("sbom", "sbomEvidence")
+    if ($null -eq $sbom) {
+        throw "Image evidence manifest entry for $Image is missing sbom evidence"
+    }
+
+    if ($null -eq (Get-EvidenceReference $sbom)) {
+        throw "Image evidence manifest entry for $Image must include an SBOM uri/path/artifact reference"
+    }
+
+    $sbomDigest = Get-ObjectPropertyValue $sbom @("digest", "sbomDigest")
+    if ((Test-HasText $sbomDigest) -and $sbomDigest -notmatch "^sha256:[a-f0-9]{64}$") {
+        throw "Image evidence manifest entry for $Image has invalid SBOM digest $sbomDigest"
+    }
+}
+
+function Assert-VerificationEvidence {
+    param(
+        [Parameter(Mandatory = $true)] $Entry,
+        [Parameter(Mandatory = $true)] [string] $Image,
+        [Parameter(Mandatory = $true)] [string] $Kind,
+        [Parameter(Mandatory = $true)] [string[]] $PropertyNames
+    )
+
+    $evidence = Get-ObjectPropertyValue $Entry $PropertyNames
+    if ($null -eq $evidence) {
+        throw "Image evidence manifest entry for $Image is missing $Kind verification evidence"
+    }
+
+    $verified = Get-ObjectPropertyValue $evidence @("verified", "verificationPassed", "passed")
+    if (-not (Test-Verified $verified)) {
+        throw "Image evidence manifest entry for $Image must mark $Kind verification as verified"
+    }
+
+    if ($null -eq (Get-EvidenceReference $evidence)) {
+        throw "Image evidence manifest entry for $Image must include a $Kind verification transcript/path/command reference"
+    }
+}
+
+function Assert-ImageEvidenceManifest {
+    param(
+        [Parameter(Mandatory = $true)] [string] $ManifestPath,
+        [Parameter(Mandatory = $true)] [string[]] $RenderedImages
+    )
+
+    if (-not (Test-Path -LiteralPath $ManifestPath)) {
+        throw "Image evidence manifest not found: $ManifestPath"
+    }
+
+    $manifest = Get-Content -LiteralPath $ManifestPath -Raw | ConvertFrom-Json
+    $manifestImages = Get-ObjectPropertyValue $manifest @("images")
+    if ($null -eq $manifestImages) {
+        throw "Image evidence manifest must contain an images array"
+    }
+
+    $entries = @($manifestImages)
+    if ($entries.Count -eq 0) {
+        throw "Image evidence manifest must contain an images array"
+    }
+
+    $entryByImage = @{}
+    foreach ($entry in $entries) {
+        $image = Get-ObjectPropertyValue $entry @("image", "renderedImage", "imageReference")
+        if (-not (Test-HasText $image)) {
+            throw "Image evidence manifest contains an entry without an image reference"
+        }
+
+        if ($entryByImage.ContainsKey($image)) {
+            throw "Image evidence manifest contains duplicate entry for $image"
+        }
+
+        $entryByImage[$image] = $entry
+    }
+
+    $renderedSet = @{}
+    foreach ($image in $RenderedImages) {
+        $renderedSet[$image] = $true
+    }
+
+    $missing = @($RenderedImages | Where-Object { -not $entryByImage.ContainsKey($_) })
+    if ($missing.Count -gt 0) {
+        throw "Image evidence manifest is missing rendered legent images: $($missing -join ', ')"
+    }
+
+    $extra = @($entryByImage.Keys | Where-Object { -not $renderedSet.ContainsKey($_) } | Sort-Object)
+    if ($extra.Count -gt 0) {
+        throw "Image evidence manifest contains stale/non-rendered legent images: $($extra -join ', ')"
+    }
+
+    foreach ($image in $RenderedImages) {
+        $entry = $entryByImage[$image]
+        $renderedDigest = Get-ImageDigest $image
+        if (-not (Test-HasText $renderedDigest)) {
+            throw "Image evidence requires digest-pinned rendered images; tag-only image found: $image"
+        }
+
+        $manifestDigest = Get-ObjectPropertyValue $entry @("digest", "imageDigest")
+        if (-not (Test-HasText $manifestDigest)) {
+            throw "Image evidence manifest entry for $image is missing digest"
+        }
+
+        if ($manifestDigest -notmatch "^sha256:[a-f0-9]{64}$") {
+            throw "Image evidence manifest entry for $image has invalid digest $manifestDigest"
+        }
+
+        if ($manifestDigest -ne $renderedDigest) {
+            throw "Image evidence manifest digest for $image does not match rendered image digest"
+        }
+
+        Assert-SbomEvidence -Entry $entry -Image $image
+        Assert-VerificationEvidence -Entry $entry -Image $image -Kind "signature" -PropertyNames @("signature", "signatureVerification")
+        Assert-VerificationEvidence -Entry $entry -Image $image -Kind "provenance" -PropertyNames @("provenance", "provenanceVerification")
+    }
+
+    Write-Host "Image evidence manifest validation passed for $($RenderedImages.Count) legent images"
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
+$requireImageDigestsStrict = $RequireImageDigests -or (Test-EnvFlag $env:LEGENT_REQUIRE_IMAGE_DIGESTS)
+$requireImageEvidenceStrict = $RequireImageEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_IMAGE_EVIDENCE) -or (-not [string]::IsNullOrWhiteSpace($ImageEvidenceManifest))
 
 Push-Location $repoRoot
 try {
@@ -21,14 +237,28 @@ if ($rendered -match "image:\s+legent/[^:\s]+:latest\b") {
     throw "Production overlay renders a legent/*:latest image"
 }
 
-$legentImageLines = @([regex]::Matches($rendered, "(?m)^\s*image:\s+(legent/[^\s]+)\s*$") | ForEach-Object { $_.Groups[1].Value })
-if ($RequireImageDigests) {
+$legentImageLines = @([regex]::Matches($rendered, "(?m)^\s*image:\s+(legent/[^\s]+)\s*$") | ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique)
+if ($requireImageDigestsStrict -or $requireImageEvidenceStrict) {
     $missingDigests = @($legentImageLines | Where-Object { $_ -notmatch "@sha256:[a-f0-9]{64}$" })
     if ($missingDigests.Count -gt 0) {
         throw "Production image digest evidence is required but these legent images are not digest-pinned: $($missingDigests -join ', ')"
     }
 } elseif ($legentImageLines | Where-Object { $_ -notmatch "@sha256:[a-f0-9]{64}$" }) {
     Write-Warning "Production legent images are version-tagged but not digest-pinned. Attach registry digest/signature/provenance evidence before promotion, or rerun with -RequireImageDigests after pinning digests."
+}
+
+if ($requireImageEvidenceStrict) {
+    if ([string]::IsNullOrWhiteSpace($ImageEvidenceManifest)) {
+        throw "Production image evidence manifest is required. Provide -ImageEvidenceManifest or LEGENT_IMAGE_EVIDENCE_MANIFEST."
+    }
+
+    $manifestPath = if ([System.IO.Path]::IsPathRooted($ImageEvidenceManifest)) {
+        $ImageEvidenceManifest
+    } else {
+        Join-Path $repoRoot $ImageEvidenceManifest
+    }
+    $manifestPath = (Resolve-Path -LiteralPath $manifestPath).Path
+    Assert-ImageEvidenceManifest -ManifestPath $manifestPath -RenderedImages $legentImageLines
 }
 
 if ($rendered -match "\.local\b") {

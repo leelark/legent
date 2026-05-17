@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
+import com.legent.common.security.InternalApiTokenValidator;
+
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
@@ -56,13 +58,6 @@ public class RuntimeConfigurationGuard {
     }
 
     private boolean isPlaceholderSecret(String value) {
-        String normalized = value.trim().toLowerCase(Locale.ROOT);
-        return normalized.isBlank()
-                || normalized.contains("change_me")
-                || normalized.contains("changeme")
-                || normalized.contains("replace_in_production")
-                || normalized.contains("dev-token")
-                || normalized.equals("password")
-                || normalized.equals("minioadmin");
+        return InternalApiTokenValidator.isPlaceholderLikeSecret(value);
     }
 }

@@ -1,6 +1,7 @@
 package com.legent.campaign.client;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.common.security.InternalApiTokenValidator;
 import com.legent.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,15 +31,15 @@ public class DeliverabilityReadinessClient {
 
     private final WebClient webClient;
     private final String baseUrl;
-    private final String serviceBearerToken;
+    private final ServiceAuthTokenProvider serviceAuthTokenProvider;
     private final String internalApiToken;
 
     public DeliverabilityReadinessClient(
             @Value("${legent.deliverability-service.url:}") String baseUrl,
-            @Value("${legent.service-auth.bearer-token:}") String serviceBearerToken,
+            ServiceAuthTokenProvider serviceAuthTokenProvider,
             @Value("${legent.internal.api-token:}") String internalApiToken) {
         this.baseUrl = trimToNull(baseUrl);
-        this.serviceBearerToken = trimToNull(serviceBearerToken);
+        this.serviceAuthTokenProvider = serviceAuthTokenProvider;
         this.internalApiToken = trimToNull(internalApiToken);
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(READ_TIMEOUT)
@@ -54,7 +55,6 @@ public class DeliverabilityReadinessClient {
 
     public List<AuthCheck> authChecks(String tenantId, String workspaceId) {
         requireWebClient("deliverability-service URL is not configured");
-        requireBearerToken();
         try {
             Map<String, Object> response = webClient.get()
                     .uri("/api/v1/deliverability/auth/checks")
@@ -78,9 +78,7 @@ public class DeliverabilityReadinessClient {
 
     public SuppressionHealth suppressionHealth(String tenantId, String workspaceId) {
         requireWebClient("deliverability-service URL is not configured");
-        if (internalApiToken == null) {
-            throw new ReadinessDependencyException("internal API token is not configured for suppression health checks");
-        }
+        requireInternalApiToken("suppression health checks");
         try {
             Map<String, Object> response = webClient.get()
                     .uri("/api/v1/deliverability/suppressions/internal")
@@ -130,9 +128,7 @@ public class DeliverabilityReadinessClient {
         if (requestId != null && !requestId.isBlank()) {
             headers.set(AppConstants.HEADER_REQUEST_ID, requestId);
         }
-        if (serviceBearerToken != null) {
-            headers.setBearerAuth(serviceBearerToken);
-        }
+        headers.setBearerAuth(serviceAuthTokenProvider.tokenFor(tenantId, workspaceId));
     }
 
     private void requireWebClient(String message) {
@@ -141,9 +137,11 @@ public class DeliverabilityReadinessClient {
         }
     }
 
-    private void requireBearerToken() {
-        if (serviceBearerToken == null) {
-            throw new ReadinessDependencyException("service bearer token is not configured for deliverability readiness checks");
+    private void requireInternalApiToken(String purpose) {
+        try {
+            InternalApiTokenValidator.requireConfigured("legent.internal.api-token", internalApiToken);
+        } catch (IllegalStateException e) {
+            throw new ReadinessDependencyException("internal API token is not configured for " + purpose);
         }
     }
 

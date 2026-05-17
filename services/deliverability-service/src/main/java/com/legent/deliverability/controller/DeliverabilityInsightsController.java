@@ -11,6 +11,7 @@ import com.legent.deliverability.service.PredictiveDeliverabilityService;
 import com.legent.deliverability.service.SpamScoringEngine;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,6 +35,7 @@ public class DeliverabilityInsightsController {
     private final DomainVerificationService domainVerificationService;
 
     @GetMapping("/auth/checks")
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
     public ApiResponse<List<Map<String, Object>>> authChecks() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -195,4 +197,5 @@ public class DeliverabilityInsightsController {
         }
         return actions;
     }
+
 }

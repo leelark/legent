@@ -8,7 +8,14 @@ import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import com.legent.automation.domain.WorkflowDefinition;
 import com.legent.automation.domain.WorkflowInstance;
@@ -30,7 +37,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -147,5 +156,80 @@ class WorkflowEngineTest {
         WorkflowInstance lastSaved = captor.getValue();
         assertEquals("WAITING", lastSaved.getStatus());
         assertEquals("node-1", lastSaved.getCurrentNodeId()); // Context stays parked at the delay node
+    }
+
+    @Test
+    void resumeInstance_whenConcurrentResumeAttemptsOccur_onlyOneAcquiresLockAndExecutes() throws Exception {
+        WorkflowGraphDto graph = new WorkflowGraphDto();
+        graph.setInitialNodeId("node-1");
+
+        WorkflowGraphDto.WorkflowNode node1 = new WorkflowGraphDto.WorkflowNode();
+        node1.setId("node-1");
+        node1.setType("SEND_EMAIL");
+        node1.setNextNodeId("end");
+
+        WorkflowGraphDto.WorkflowNode end = new WorkflowGraphDto.WorkflowNode();
+        end.setId("end");
+        end.setType("END");
+
+        graph.setNodes(Map.of("node-1", node1, "end", end));
+
+        WorkflowDefinition def = new WorkflowDefinition();
+        def.setDefinition(objectMapper.writeValueAsString(graph));
+
+        when(instanceRepository.findById("instance-1")).thenAnswer(invocation -> Optional.of(waitingInstance()));
+        when(cacheService.setIfAbsent(eq("wf:lock:instance-1"), eq("1"), eq(Duration.ofMinutes(5))))
+                .thenAnswer(invocation -> lockHeld.compareAndSet(false, true));
+        when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(def));
+        when(instanceRepository.save(any(WorkflowInstance.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CountDownLatch firstExecutionStarted = new CountDownLatch(1);
+        CountDownLatch releaseFirstExecution = new CountDownLatch(1);
+        when(sendEmailHandler.execute(any(), any())).thenAnswer(invocation -> {
+            firstExecutionStarted.countDown();
+            assertTrue(releaseFirstExecution.await(5, TimeUnit.SECONDS));
+            return "end";
+        });
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> firstResume = executor.submit(() -> workflowEngine.resumeInstance("instance-1", "node-1", null));
+            assertTrue(firstExecutionStarted.await(5, TimeUnit.SECONDS));
+
+            Future<?> concurrentResume = executor.submit(() -> workflowEngine.resumeInstance("instance-1", "node-1", null));
+            concurrentResume.get(5, TimeUnit.SECONDS);
+
+            releaseFirstExecution.countDown();
+            firstResume.get(5, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+
+        verify(cacheService, times(2)).setIfAbsent("wf:lock:instance-1", "1", Duration.ofMinutes(5));
+        verify(cacheService, times(1)).delete("wf:lock:instance-1");
+        verify(cacheService, never()).get("wf:lock:instance-1", String.class);
+        verify(sendEmailHandler, times(1)).execute(any(), any());
+        verify(definitionRepository, times(1))
+                .findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1");
+    }
+
+    private final AtomicBoolean lockHeld = new AtomicBoolean(false);
+
+    private WorkflowInstance waitingInstance() {
+        WorkflowInstance instance = new WorkflowInstance();
+        instance.setId("instance-1");
+        instance.setTenantId("tenant-1");
+        instance.setWorkspaceId("workspace-1");
+        instance.setEnvironmentId("prod");
+        instance.setRequestId("req-1");
+        instance.setCorrelationId("corr-1");
+        instance.setWorkflowId("flow-1");
+        instance.setVersion(1);
+        instance.setSubscriberId("sub-1");
+        instance.setStatus("WAITING");
+        instance.setCurrentNodeId("node-1");
+        instance.setContext("{}");
+        return instance;
     }
 }

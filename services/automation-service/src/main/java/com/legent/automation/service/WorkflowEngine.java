@@ -4,6 +4,7 @@ import com.legent.cache.service.CacheService;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.constant.AppConstants;
+import java.time.Duration;
 import java.util.List;
 
 import java.util.Map;
@@ -33,6 +34,8 @@ import java.util.stream.Collectors;
 @Service
 
 public class WorkflowEngine {
+
+    private static final Duration RESUME_LOCK_TTL = Duration.ofMinutes(5);
 
     private final WorkflowInstanceRepository instanceRepository;
     private final WorkflowDefinitionRepository definitionRepository;
@@ -200,14 +203,12 @@ public class WorkflowEngine {
         }
 
         String lockKey = "wf:lock:" + instanceId;
-        if (cacheService.get(lockKey, String.class).isPresent()) {
+        if (!cacheService.setIfAbsent(lockKey, "1", RESUME_LOCK_TTL)) {
             log.warn("Instance {} is currently locked/processing. Dropping concurrent resume call.", instanceId);
             return;
         }
 
         try {
-            cacheService.set(lockKey, "1", java.time.Duration.ofMinutes(5));
-
             WorkflowDefinition def = definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId(
                 instance.getWorkflowId(), instance.getVersion(), instance.getTenantId(), instance.getWorkspaceId()
             ).orElseThrow();

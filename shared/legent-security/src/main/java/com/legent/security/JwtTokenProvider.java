@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -45,8 +46,19 @@ public class JwtTokenProvider {
      * Generates a JWT token with standard claims.
      */
     public String generateToken(String userId, String tenantId, Map<String, Object> extraClaims) {
+        return generateToken(userId, tenantId, extraClaims, Duration.ofMillis(expirationMs));
+    }
+
+    /**
+     * Generates a JWT token with an explicit TTL.
+     */
+    public String generateToken(String userId, String tenantId, Map<String, Object> extraClaims, Duration ttl) {
         Date now = new Date();
-        Date expiry = new Date(now.getTime() + expirationMs);
+        long ttlMillis = ttl == null ? expirationMs : ttl.toMillis();
+        if (ttlMillis <= 0 || ttlMillis > expirationMs) {
+            ttlMillis = expirationMs;
+        }
+        Date expiry = new Date(now.getTime() + ttlMillis);
 
         JwtBuilder builder = Jwts.builder()
                 .subject(userId)
@@ -82,6 +94,29 @@ public class JwtTokenProvider {
             claims.put("environmentId", environmentId);
         }
         return generateToken(userId, tenantId, claims);
+    }
+
+    /**
+     * Generates a token with workspace/environment scope claims and an explicit TTL.
+     */
+    public String generateToken(
+            String userId,
+            String tenantId,
+            String workspaceId,
+            String environmentId,
+            Map<String, Object> extraClaims,
+            Duration ttl) {
+        java.util.Map<String, Object> claims = new java.util.HashMap<>();
+        if (extraClaims != null) {
+            claims.putAll(extraClaims);
+        }
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            claims.put("workspaceId", workspaceId);
+        }
+        if (environmentId != null && !environmentId.isBlank()) {
+            claims.put("environmentId", environmentId);
+        }
+        return generateToken(userId, tenantId, claims, ttl);
     }
 
     /**

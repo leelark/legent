@@ -21,7 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContentServiceClientTest {
 
-    private static final String INTERNAL_TOKEN = "internal-service-token-123";
+    private static final String INTERNAL_TOKEN = "internal-service-token-1234567890abcdef";
 
     private HttpServer server;
     private ContentServiceClient client;
@@ -72,6 +72,14 @@ class ContentServiceClientTest {
         assertEquals("correlation-1", request.header(AppConstants.HEADER_CORRELATION_ID));
         assertEquals(INTERNAL_TOKEN, request.header("X-Internal-Token"));
         assertTrue(request.body().contains("Asha"));
+    }
+
+    @Test
+    void constructorRejectsDocumentedPlaceholderInternalToken() {
+        assertThrows(IllegalStateException.class, () ->
+                new ContentServiceClient(
+                        "http://localhost:" + server.getAddress().getPort(),
+                        "replace_with_32_plus_character_internal_api_token"));
     }
 
     @Test

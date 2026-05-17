@@ -18,6 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContentServiceClientTest {
 
+    private static final String INTERNAL_TOKEN = "internal-service-token-1234567890abcdef";
+
     private HttpServer server;
     private ExecutorService executorService;
 
@@ -36,34 +38,50 @@ class ContentServiceClientTest {
         AtomicInteger hits = new AtomicInteger();
         startServer(exchange -> {
             hits.incrementAndGet();
+            assertEquals("tenant-1", exchange.getRequestHeaders().getFirst("X-Tenant-Id"));
+            assertEquals("workspace-1", exchange.getRequestHeaders().getFirst("X-Workspace-Id"));
+            assertEquals(INTERNAL_TOKEN, exchange.getRequestHeaders().getFirst("X-Internal-Token"));
             writeJson(exchange, 200, """
-                    {"data":{"subject":"Launch","htmlBody":"<p>Hello</p>","textBody":"Hello"}}
+                    {"data":{"tenantId":"tenant-1","workspaceId":"workspace-1","campaignId":"campaign-1","messageId":"message-1","referenceId":"cr_ref","subject":"Launch","htmlBody":"<p>Hello</p>","textBody":"Hello"}}
                     """);
         });
 
-        ContentServiceClient client = new ContentServiceClient(baseUrl(), 5, 60);
+        ContentServiceClient client = new ContentServiceClient(baseUrl(), 5, 60, INTERNAL_TOKEN);
 
-        Map<String, String> first = client.fetchCampaignContent("campaign-1");
-        Map<String, String> second = client.fetchCampaignContent("campaign-1");
+        Map<String, String> first = client.fetchRenderedContent("tenant-1", "workspace-1", "cr_ref");
+        Map<String, String> second = client.fetchRenderedContent("tenant-1", "workspace-1", "cr_ref");
 
         assertEquals("Launch", first.get("subject"));
+        assertEquals("tenant-1", first.get("tenantId"));
+        assertEquals("workspace-1", first.get("workspaceId"));
+        assertEquals("cr_ref", first.get("referenceId"));
         assertEquals(first, second);
         assertEquals(1, hits.get());
+    }
+
+    @Test
+    void constructorRejectsDocumentedPlaceholderInternalToken() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () ->
+                new ContentServiceClient(
+                        "http://127.0.0.1:1",
+                        5,
+                        60,
+                        "replace_with_32_plus_character_internal_api_token"));
     }
 
     @Test
     void fetchCampaignContent_ReturnsEmptyMapOnHttpError() throws Exception {
         startServer(exchange -> writeJson(exchange, 404, "{\"error\":\"missing\"}"));
 
-        ContentServiceClient client = new ContentServiceClient(baseUrl(), 5, 60);
+        ContentServiceClient client = new ContentServiceClient(baseUrl(), 5, 60, INTERNAL_TOKEN);
 
-        assertTrue(client.fetchCampaignContent("missing-campaign").isEmpty());
+        assertTrue(client.fetchRenderedContent("tenant-1", "workspace-1", "missing-reference").isEmpty());
     }
 
     private void startServer(ExchangeHandler handler) throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
-        server.createContext("/api/v1/content/campaign/campaign-1", handler::handle);
-        server.createContext("/api/v1/content/campaign/missing-campaign", handler::handle);
+        server.createContext("/api/v1/content/rendered-content/cr_ref/internal", handler::handle);
+        server.createContext("/api/v1/content/rendered-content/missing-reference/internal", handler::handle);
         executorService = Executors.newSingleThreadExecutor();
         server.setExecutor(executorService);
         server.start();

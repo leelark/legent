@@ -45,7 +45,6 @@ public class SendExecutionService {
 
     private static final String EMPTY_BATCH_PAYLOAD = "[]";
     private static final String CONTENT_PAYLOAD_TOO_LARGE = "CONTENT_PAYLOAD_TOO_LARGE";
-    private static final String CONTENT_REFERENCE_DISABLED = "CONTENT_REFERENCE_DISABLED";
     private static final String CONTENT_REFERENCE_UNAVAILABLE = "CONTENT_REFERENCE_UNAVAILABLE";
 
     private final SendBatchRepository batchRepository;
@@ -91,8 +90,21 @@ public class SendExecutionService {
             }
             String workspaceId = requireWorkspaceId(batch.getWorkspaceId(), batchId);
 
+            int claimed = batchRepository.claimRetryableBatchForProcessing(
+                    tenantId,
+                    workspaceId,
+                    jobId,
+                    batchId,
+                    SendBatch.BatchStatus.PROCESSING,
+                    SendBatch.BatchStatus.PENDING,
+                    SendBatch.BatchStatus.FAILED,
+                    maxBatchRetries,
+                    Instant.now());
+            if (claimed == 0) {
+                log.info("Skipping batch {} because it was not claimable for processing from status {}", batchId, batch.getStatus());
+                return;
+            }
             batch.setStatus(SendBatch.BatchStatus.PROCESSING);
-            batchRepository.saveAndFlush(batch);
             
             if (payloadJson == null || payloadJson.isEmpty()) {
                 payloadJson = batch.getPayload();
@@ -234,14 +246,6 @@ public class SendExecutionService {
 
                 EmailContentReference contentReference = null;
                 if (contentReferenceEnabled || referenceModeRequired) {
-                    if (!contentReferenceEnabled) {
-                        String reason = "Rendered content reference is required but content references are disabled";
-                        log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason);
-                        recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_DISABLED, reason);
-                        publishFailures++;
-                        contentReferenceFailures++;
-                        continue;
-                    }
                     try {
                         contentReference = contentReferenceService.createReference(
                                 contentReferenceRequest,
@@ -266,15 +270,6 @@ public class SendExecutionService {
                 int payloadBytes = serializedPayloadBytes(emailPayload);
                 if (payloadBytes > maxEmailPayloadBytes && !referenceModeRequired) {
                     referenceModeRequired = true;
-                    if (!contentReferenceEnabled) {
-                        String reason = "Rendered email payload " + payloadBytes
-                                + " bytes exceeds cap " + maxEmailPayloadBytes
-                                + " and content references are disabled";
-                        recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_PAYLOAD_TOO_LARGE, reason);
-                        publishFailures++;
-                        oversizedPayloads++;
-                        continue;
-                    }
                     try {
                         contentReference = contentReferenceService.createReference(contentReferenceRequest, false);
                     } catch (RuntimeException e) {
@@ -614,6 +609,8 @@ public class SendExecutionService {
                     continue;
                 }
                 // Reset status to PENDING so it can be picked up again
+                SendBatch.BatchStatus previousStatus = batch.getStatus();
+                Integer previousRetryCount = batch.getRetryCount();
                 batch.setStatus(SendBatch.BatchStatus.PENDING);
                 batch.setRetryCount(nextRetryCount);
                 batchRepository.save(batch);
@@ -630,10 +627,22 @@ public class SendExecutionService {
                             "retryCount", batch.getRetryCount()
                         )
                 );
-                publishAndAwait(AppConstants.TOPIC_BATCH_CREATED, retryEvent);
+                try {
+                    publishAndAwait(AppConstants.TOPIC_BATCH_CREATED, retryEvent);
+                } catch (Exception publishFailure) {
+                    batch.setStatus(previousStatus);
+                    batch.setRetryCount(previousRetryCount);
+                    batch.setLastError("Failed to publish campaign batch retry requeue event");
+                    batchRepository.save(batch);
+                    throw new IllegalStateException("Failed to publish retry requeue event for batch " + batch.getId(), publishFailure);
+                }
                 log.info("Requeued PARTIAL batch {} for retry (attempt {})", batch.getId(), batch.getRetryCount());
             } catch (Exception e) {
                 log.error("Failed to requeue PARTIAL batch {} for retry", batch.getId(), e);
+                if (e instanceof RuntimeException runtimeException) {
+                    throw runtimeException;
+                }
+                throw new IllegalStateException("Failed to requeue PARTIAL batch " + batch.getId(), e);
             }
         }
     }

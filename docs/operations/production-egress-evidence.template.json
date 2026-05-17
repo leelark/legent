@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "legent.production-egress.v1",
+  "release": "<release-version>",
+  "environment": "<production-environment-name>",
+  "review": {
+    "owner": "<platform-security-or-network-owner>",
+    "reviewDate": "<yyyy-mm-dd>",
+    "changeTicket": "<ticket-or-review-url>",
+    "summary": "<short-review-summary>"
+  },
+  "fqdnPolicy": {
+    "approved": false,
+    "cni": "<cni-name-or-none>",
+    "policyReference": "<approved-cni-policy-name-or-path>",
+    "note": "<required-when-any-destination-type-is-fqdn>"
+  },
+  "dependencies": [
+    {
+      "name": "<provider-or-managed-service-name>",
+      "scope": "external",
+      "owner": "<owning-legent-team>",
+      "reviewDate": "<yyyy-mm-dd>",
+      "purpose": "<why-this-egress-is-required>",
+      "evidence": "<provider-doc-contract-change-ticket-or-approved-design-url>",
+      "destinations": [
+        {
+          "type": "cidr",
+          "value": "<exact-provider-cidr-from-reviewed-source>"
+        }
+      ],
+      "ports": [
+        {
+          "protocol": "TCP",
+          "port": 443
+        }
+      ]
+    }
+  ]
+}

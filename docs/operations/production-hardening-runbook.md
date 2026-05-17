@@ -30,6 +30,14 @@ Strict image digest validation is available once registry digests are pinned:
 
 Without real digest pins this command must fail; do not replace the failure with invented digests.
 
+Strict external egress evidence validation is available for target promotion:
+
+```powershell
+.\scripts\ops\release-gate.ps1 -RequireExternalEgressEvidence -ExternalEgressEvidencePath docs\operations\production-egress-evidence.json
+```
+
+Use `docs/operations/production-egress-evidence.template.json` and `docs/operations/production-egress-evidence.md` for the reviewed spec. Local release-gate runs do not require this evidence unless the flag or `LEGENT_REQUIRE_EXTERNAL_EGRESS_EVIDENCE=true` is set.
+
 ## Actuator And Internal Endpoints
 
 Allowed without application auth:

@@ -23,6 +23,34 @@ public interface SendBatchRepository extends JpaRepository<SendBatch, String> {
     @Query("UPDATE SendBatch b SET b.status = :status WHERE b.jobId = :jobId AND b.tenantId = :tenantId")
     void updateStatusByJobId(@Param("tenantId") String tenantId, @Param("jobId") String jobId, @Param("status") SendBatch.BatchStatus status);
 
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE SendBatch b
+            SET b.status = :processingStatus,
+                b.updatedAt = :claimedAt
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.jobId = :jobId
+              AND b.id = :batchId
+              AND b.deletedAt IS NULL
+              AND (
+                    b.status = :pendingStatus
+                    OR (
+                        b.status = :failedStatus
+                        AND (b.retryCount IS NULL OR b.retryCount < :maxRetries)
+                    )
+              )
+            """)
+    int claimRetryableBatchForProcessing(@Param("tenantId") String tenantId,
+                                         @Param("workspaceId") String workspaceId,
+                                         @Param("jobId") String jobId,
+                                         @Param("batchId") String batchId,
+                                         @Param("processingStatus") SendBatch.BatchStatus processingStatus,
+                                         @Param("pendingStatus") SendBatch.BatchStatus pendingStatus,
+                                         @Param("failedStatus") SendBatch.BatchStatus failedStatus,
+                                         @Param("maxRetries") int maxRetries,
+                                         @Param("claimedAt") Instant claimedAt);
+
     List<SendBatch> findByStatus(SendBatch.BatchStatus status);
 
     List<SendBatch> findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(SendBatch.BatchStatus status, Instant updatedBefore);

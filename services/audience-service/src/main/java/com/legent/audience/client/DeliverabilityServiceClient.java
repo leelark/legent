@@ -1,6 +1,7 @@
 package com.legent.audience.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.legent.common.security.InternalApiTokenValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -8,7 +9,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
-import java.util.Locale;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -103,17 +103,6 @@ public class DeliverabilityServiceClient {
     }
 
     private void validateInternalApiToken(String token) {
-        if (token == null || token.isBlank() || isPlaceholderToken(token)) {
-            throw new IllegalStateException("legent.internal.api-token must be configured with a non-placeholder secret");
-        }
-    }
-
-    private boolean isPlaceholderToken(String token) {
-        String normalized = token.trim().toLowerCase(Locale.ROOT);
-        return normalized.contains("dev-token")
-                || normalized.contains("change_me")
-                || normalized.contains("changeme")
-                || normalized.contains("replace_in_production")
-                || normalized.equals("password");
+        InternalApiTokenValidator.requireConfigured("legent.internal.api-token", token);
     }
 }

@@ -7,6 +7,7 @@ import org.springframework.expression.BeanResolver;
 import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -18,10 +19,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PlatformAdminControllerRbacTest {
 
     @Test
-    void adminAliasControllersKeepClassLevelRbac() {
+    void adminAliasControllersKeepRbac() {
         assertThat(classExpression(WebhookController.class)).contains("ADMIN", "PLATFORM_ADMIN", "ORG_ADMIN");
-        assertThat(classExpression(SearchController.class)).contains("ADMIN", "PLATFORM_ADMIN");
         assertThat(classExpression(PlatformConfigController.class)).contains("config:*", "platform:*");
+        assertThat(methodExpression(SearchController.class, "adminSearch")).contains("ADMIN", "PLATFORM_ADMIN");
     }
 
     @Test
@@ -34,9 +35,20 @@ class PlatformAdminControllerRbacTest {
 
     @Test
     void searchAdminAliasRequiresPlatformAdmin() {
-        assertThat(classPreAuthorizeGrants(SearchController.class, Set.of("VIEWER"))).isFalse();
-        assertThat(classPreAuthorizeGrants(SearchController.class, Set.of("ORG_ADMIN"))).isFalse();
-        assertThat(classPreAuthorizeGrants(SearchController.class, Set.of("PLATFORM_ADMIN"))).isTrue();
+        assertThat(getMappingValues(SearchController.class, "adminSearch")).containsExactly("/api/v1/admin/search");
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "adminSearch", Set.of("VIEWER"))).isFalse();
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "adminSearch", Set.of("ORG_ADMIN"))).isFalse();
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "adminSearch", Set.of("PLATFORM_ADMIN"))).isTrue();
+    }
+
+    @Test
+    void workspaceSearchAllowsReadPermissionWithoutAdminAliasAccess() {
+        assertThat(getMappingValues(SearchController.class, "search")).containsExactly("/api/v1/platform/search");
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "search", Set.of("VIEWER"))).isTrue();
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "search", Set.of("WORKSPACE_OWNER"))).isTrue();
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "search", Set.of("search:read"))).isTrue();
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "search", Set.of("CAMPAIGN_MANAGER"))).isFalse();
+        assertThat(methodPreAuthorizeGrants(SearchController.class, "adminSearch", Set.of("search:read"))).isFalse();
     }
 
     @Test
@@ -54,13 +66,44 @@ class PlatformAdminControllerRbacTest {
         return annotation.value();
     }
 
+    private static String methodExpression(Class<?> controller, String methodName) {
+        PreAuthorize annotation = AnnotatedElementUtils.findMergedAnnotation(method(controller, methodName), PreAuthorize.class);
+        assertThat(annotation)
+                .as("%s.%s @PreAuthorize", controller.getSimpleName(), methodName)
+                .isNotNull();
+        return annotation.value();
+    }
+
     private static boolean classPreAuthorizeGrants(Class<?> controller, Set<String> roles) {
+        return expressionGrants(classExpression(controller), roles);
+    }
+
+    private static boolean methodPreAuthorizeGrants(Class<?> controller, String methodName, Set<String> roles) {
+        return expressionGrants(methodExpression(controller, methodName), roles);
+    }
+
+    private static boolean expressionGrants(String expression, Set<String> roles) {
         StandardEvaluationContext context = new StandardEvaluationContext(new PrincipalRoot(new TestPrincipal(roles)));
         context.setBeanResolver(beanResolver());
         Boolean result = new SpelExpressionParser()
-                .parseExpression(classExpression(controller))
+                .parseExpression(expression)
                 .getValue(context, Boolean.class);
         return Boolean.TRUE.equals(result);
+    }
+
+    private static Method method(Class<?> controller, String methodName) {
+        return Arrays.stream(controller.getDeclaredMethods())
+                .filter(method -> method.getName().equals(methodName))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Missing method: " + controller.getSimpleName() + "." + methodName));
+    }
+
+    private static String[] getMappingValues(Class<?> controller, String methodName) {
+        GetMapping annotation = AnnotatedElementUtils.findMergedAnnotation(method(controller, methodName), GetMapping.class);
+        assertThat(annotation)
+                .as("%s.%s @GetMapping", controller.getSimpleName(), methodName)
+                .isNotNull();
+        return annotation.value();
     }
 
     private static BeanResolver beanResolver() {

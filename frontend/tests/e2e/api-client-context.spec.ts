@@ -186,6 +186,7 @@ test.describe('api client context preflight', () => {
     expect(getHeader(seen[0], 'X-Tenant-Id')).toBe('tenant-1');
     expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
 
+    await expectBlocked('/platform/search?q=campaign', 'MISSING_WORKSPACE');
     await expectBlocked('/subscribers', 'MISSING_WORKSPACE');
   });
 

@@ -78,14 +78,16 @@ jobs:
       - name: Production overlay validator
         shell: pwsh
         run: ./scripts/ops/validate-production-overlay.ps1
-      - name: Production image supply-chain checklist
+      - name: Production image supply-chain checklist and manifest template
         shell: pwsh
-        run: ./scripts/ops/write-image-supply-chain-checklist.ps1 -OutputPath /tmp/legent-image-supply-chain-checklist.md
-      - name: Upload production image evidence checklist
+        run: ./scripts/ops/write-image-supply-chain-checklist.ps1 -OutputPath /tmp/legent-image-supply-chain-checklist.md -ManifestOutputPath /tmp/legent-image-evidence-manifest.template.json
+      - name: Upload production image evidence checklist and template
         uses: actions/upload-artifact@v4
         with:
           name: legent-image-supply-chain-checklist
-          path: /tmp/legent-image-supply-chain-checklist.md
+          path: |
+            /tmp/legent-image-supply-chain-checklist.md
+            /tmp/legent-image-evidence-manifest.template.json
 
   security:
     runs-on: ubuntu-latest

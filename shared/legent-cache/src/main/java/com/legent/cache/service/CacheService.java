@@ -34,6 +34,15 @@ public class CacheService {
     }
 
     /**
+     * Stores a value with a TTL only when the key does not already exist.
+     * Redis-backed templates execute this as a single SET NX with expiry.
+     */
+    public boolean setIfAbsent(String key, Object value, Duration ttl) {
+        log.debug("Cache SET if absent: key={}, ttl={}s", key, ttl.getSeconds());
+        return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, value, ttl));
+    }
+
+    /**
      * Stores a value without expiry.
      */
     public void set(String key, Object value) {

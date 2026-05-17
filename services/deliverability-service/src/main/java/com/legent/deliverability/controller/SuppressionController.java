@@ -3,6 +3,7 @@ package com.legent.deliverability.controller;
 import java.util.List;
 
 import com.legent.common.dto.ApiResponse;
+import com.legent.common.security.InternalApiTokenValidator;
 import com.legent.deliverability.domain.SuppressionList;
 import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.security.TenantContext;
@@ -18,7 +19,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 
 
@@ -33,9 +33,7 @@ public class SuppressionController {
 
     @PostConstruct
     void validateInternalApiToken() {
-        if (internalApiToken == null || internalApiToken.isBlank() || isPlaceholderToken(internalApiToken)) {
-            throw new IllegalStateException("legent.internal.api-token must be configured with a non-placeholder secret");
-        }
+        InternalApiTokenValidator.requireConfigured("legent.internal.api-token", internalApiToken);
     }
 
     @GetMapping
@@ -48,7 +46,7 @@ public class SuppressionController {
     @GetMapping("/internal")
     public ApiResponse<List<SuppressionList>> listSuppressionsInternal(
             @RequestHeader(name = "X-Internal-Token", required = false) String token) {
-        if (token == null || !token.equals(internalApiToken)) {
+        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
         String tenantId = TenantContext.requireTenantId();
@@ -74,12 +72,4 @@ public class SuppressionController {
         return ApiResponse.ok(result);
     }
 
-    private boolean isPlaceholderToken(String token) {
-        String normalized = token.trim().toLowerCase(Locale.ROOT);
-        return normalized.contains("dev-token")
-                || normalized.contains("change_me")
-                || normalized.contains("changeme")
-                || normalized.contains("replace_in_production")
-                || normalized.equals("password");
-    }
 }

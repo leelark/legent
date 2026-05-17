@@ -8,10 +8,29 @@ param(
     [switch] $SkipVisualE2E,
     [switch] $SkipKustomize,
     [switch] $RunSyntheticSmoke,
-    [string] $SmokeBaseUrl = $env:LEGENT_SMOKE_BASE_URL
+    [string] $SmokeBaseUrl = $env:LEGENT_SMOKE_BASE_URL,
+    [switch] $RequireImageDigests,
+    [switch] $RequireImageEvidence,
+    [string] $ImageEvidenceManifest = $env:LEGENT_IMAGE_EVIDENCE_MANIFEST,
+    [string] $EvidenceDir = $env:LEGENT_GA_EVIDENCE_DIR,
+    [switch] $RequireGaEvidence,
+    [int] $GaEvidenceMaxAgeDays = 14,
+    [switch] $RequireExternalEgressEvidence,
+    [string] $ExternalEgressEvidencePath = $env:LEGENT_EXTERNAL_EGRESS_EVIDENCE_PATH
 )
 
 $ErrorActionPreference = "Stop"
+
+function Test-EnvFlag {
+    param([string] $Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return $false
+    }
+
+    $normalized = $Value.Trim().ToLowerInvariant()
+    return @("1", "true", "yes", "y", "on", "required") -contains $normalized
+}
 
 function Invoke-GateStep($Name, [scriptblock] $Command) {
     $started = Get-Date
@@ -44,6 +63,11 @@ function Invoke-NativeCommand {
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $frontendRoot = Join-Path $repoRoot "frontend"
 $mavenWrapper = Join-Path $repoRoot "mvnw.cmd"
+$gaEvidenceRequired = $RequireGaEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_GA_EVIDENCE)
+
+if ($gaEvidenceRequired -and [string]::IsNullOrWhiteSpace($EvidenceDir)) {
+    throw "EvidenceDir is required when GA evidence validation is required"
+}
 
 if (-not $SkipEnvValidation) {
     Invoke-GateStep "Environment preflight" {
@@ -56,6 +80,13 @@ if (-not $SkipRouteValidation) {
     Invoke-GateStep "Gateway route contract" {
         $scriptPath = Join-Path $repoRoot "scripts\ops\validate-route-map.ps1"
         & $scriptPath
+    }
+}
+
+if ($gaEvidenceRequired -or -not [string]::IsNullOrWhiteSpace($EvidenceDir)) {
+    Invoke-GateStep "GA evidence pack validation" {
+        $scriptPath = Join-Path $repoRoot "scripts\ops\validate-ga-evidence.ps1"
+        & $scriptPath -EvidenceDir $EvidenceDir -MaxAgeDays $GaEvidenceMaxAgeDays
     }
 }
 
@@ -161,7 +192,28 @@ if (-not $SkipKustomize) {
 
     Invoke-GateStep "Production overlay drift checks" {
         $scriptPath = Join-Path $repoRoot "scripts\ops\validate-production-overlay.ps1"
-        & $scriptPath
+        $arguments = @{}
+        if ($RequireImageDigests -or (Test-EnvFlag $env:LEGENT_REQUIRE_IMAGE_DIGESTS)) {
+            $arguments["RequireImageDigests"] = $true
+        }
+        if ($RequireImageEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_IMAGE_EVIDENCE)) {
+            $arguments["RequireImageEvidence"] = $true
+        }
+        if (-not [string]::IsNullOrWhiteSpace($ImageEvidenceManifest)) {
+            $arguments["ImageEvidenceManifest"] = $ImageEvidenceManifest
+        }
+        & $scriptPath @arguments
+    }
+}
+
+if ($RequireExternalEgressEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_EXTERNAL_EGRESS_EVIDENCE)) {
+    Invoke-GateStep "Production external egress evidence" {
+        $scriptPath = Join-Path $repoRoot "scripts\ops\validate-production-egress-evidence.ps1"
+        $arguments = @{}
+        if (-not [string]::IsNullOrWhiteSpace($ExternalEgressEvidencePath)) {
+            $arguments["SpecPath"] = $ExternalEgressEvidencePath
+        }
+        & $scriptPath @arguments
     }
 }
 

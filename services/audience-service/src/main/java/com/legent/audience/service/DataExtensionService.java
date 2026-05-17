@@ -41,6 +41,7 @@ public class DataExtensionService {
 
     private static final TypeReference<List<DataExtensionDto.RelationshipDefinition>> RELATIONSHIP_LIST_TYPE = new TypeReference<>() {};
     private static final int MAX_PREVIEW_LIMIT = 500;
+    private static final int MAX_PREVIEW_SCAN_ROWS = 5_000;
 
     private final DataExtensionRepository deRepository;
     private final DataExtensionFieldRepository fieldRepository;
@@ -180,16 +181,45 @@ public class DataExtensionService {
         Map<String, DataExtensionField> fieldMap = fieldMap(fields);
         DataExtensionDto.QueryPreviewRequest safeRequest = request == null ? new DataExtensionDto.QueryPreviewRequest() : request;
         List<String> warnings = new ArrayList<>();
-        int limit = Math.min(safeRequest.getLimit() == null ? 100 : safeRequest.getLimit(), MAX_PREVIEW_LIMIT);
+        int requestedLimit = safeRequest.getLimit() == null ? 100 : safeRequest.getLimit();
+        int limit = Math.max(1, Math.min(requestedLimit, MAX_PREVIEW_LIMIT));
 
-        List<DataExtensionRecord> records = recordRepository
-                .findByTenantIdAndWorkspaceIdAndDataExtensionId(tenantId, workspaceId, deId, PageRequest.of(0, limit))
-                .getContent();
+        List<Map<String, Object>> matchedRows = new ArrayList<>();
+        int pageIndex = 0;
+        int scannedRows = 0;
+        boolean requiresFullPreviewWindow = safeRequest.getSortField() != null && !safeRequest.getSortField().isBlank();
+        while (scannedRows < MAX_PREVIEW_SCAN_ROWS) {
+            Page<DataExtensionRecord> page = recordRepository
+                    .findByTenantIdAndWorkspaceIdAndDataExtensionId(
+                            tenantId,
+                            workspaceId,
+                            deId,
+                            PageRequest.of(pageIndex, MAX_PREVIEW_LIMIT));
+            if (page.isEmpty()) {
+                break;
+            }
+            for (DataExtensionRecord record : page.getContent()) {
+                scannedRows++;
+                Map<String, Object> data = record.getRecordData();
+                if (matchesFilters(data, safeRequest.getFilters(), fieldMap)) {
+                    matchedRows.add(projectFields(data, safeRequest.getFields(), fieldMap));
+                }
+                if (!requiresFullPreviewWindow && matchedRows.size() >= limit) {
+                    break;
+                }
+                if (scannedRows >= MAX_PREVIEW_SCAN_ROWS) {
+                    break;
+                }
+            }
+            if ((!requiresFullPreviewWindow && matchedRows.size() >= limit)
+                    || !page.hasNext()
+                    || page.getContent().isEmpty()) {
+                break;
+            }
+            pageIndex++;
+        }
 
-        List<Map<String, Object>> rows = records.stream()
-                .map(DataExtensionRecord::getRecordData)
-                .filter(data -> matchesFilters(data, safeRequest.getFilters(), fieldMap))
-                .map(data -> projectFields(data, safeRequest.getFields(), fieldMap))
+        List<Map<String, Object>> rows = matchedRows.stream()
                 .sorted(sortComparator(safeRequest.getSortField(), safeRequest.getSortDirection()))
                 .limit(limit)
                 .toList();
@@ -198,11 +228,14 @@ public class DataExtensionService {
         if (total > limit) {
             warnings.add("Preview is capped at " + limit + " rows; use exports for full result sets.");
         }
+        if (scannedRows < total && scannedRows >= MAX_PREVIEW_SCAN_ROWS) {
+            warnings.add("Preview scanned the first " + MAX_PREVIEW_SCAN_ROWS + " rows; use query activities or exports for full result sets.");
+        }
 
         return DataExtensionDto.QueryPreviewResponse.builder()
                 .rows(rows)
                 .returnedRows(rows.size())
-                .scannedRows(total)
+                .scannedRows(scannedRows)
                 .warnings(warnings)
                 .build();
     }

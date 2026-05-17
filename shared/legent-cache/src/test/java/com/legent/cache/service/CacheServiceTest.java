@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,6 +40,28 @@ class CacheServiceTest {
         cacheService.set("k1", "v1", Duration.ofMinutes(5));
 
         verify(valueOperations).set("k1", "v1", Duration.ofMinutes(5));
+    }
+
+    @Test
+    void setIfAbsentWithTtl_whenKeyIsMissing_returnsTrue() {
+        Duration ttl = Duration.ofMinutes(5);
+        when(valueOperations.setIfAbsent("lock-1", "1", ttl)).thenReturn(true);
+
+        boolean acquired = cacheService.setIfAbsent("lock-1", "1", ttl);
+
+        assertTrue(acquired);
+        verify(valueOperations).setIfAbsent("lock-1", "1", ttl);
+    }
+
+    @Test
+    void setIfAbsentWithTtl_whenKeyExists_returnsFalse() {
+        Duration ttl = Duration.ofMinutes(5);
+        when(valueOperations.setIfAbsent("lock-1", "1", ttl)).thenReturn(false);
+
+        boolean acquired = cacheService.setIfAbsent("lock-1", "1", ttl);
+
+        assertFalse(acquired);
+        verify(valueOperations).setIfAbsent("lock-1", "1", ttl);
     }
 
     @Test

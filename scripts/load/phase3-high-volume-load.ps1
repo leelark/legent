@@ -15,7 +15,9 @@ param(
     [double]$MaxErrorRatePercent = 0.5,
     [switch]$RequireLive,
     [switch]$FailOnErrors,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [string]$LiveEvidencePath,
+    [string]$EvidenceOutputPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -153,6 +155,350 @@ function Test-PlaceholderLoadId {
         return $true
     }
     return $normalized -match "^(placeholder|change[-_ ]?me|todo|sample|example|fake|dummy|null|none)$"
+}
+
+function Test-EvidencePlaceholderValue {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $true
+    }
+    $text = ([string]$Value).Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        return $true
+    }
+    $normalized = $text.ToLowerInvariant()
+    if ($normalized -match "^(placeholder|change[-_ ]?me|todo|sample|example|fake|dummy|null|none|n/?a|synthetic|local|localhost|dev)$") {
+        return $true
+    }
+    if ($normalized -match "(localhost|127\.0\.0\.1|0\.0\.0\.0|example\.com|\.local\b)") {
+        return $true
+    }
+    return $false
+}
+
+function Get-EvidenceValue {
+    param(
+        [object]$Evidence,
+        [string]$Path
+    )
+
+    $current = $Evidence
+    foreach ($segment in ($Path -split "\.")) {
+        if ($null -eq $current) {
+            return $null
+        }
+        $property = $current.PSObject.Properties[$segment]
+        if ($null -eq $property) {
+            return $null
+        }
+        $current = $property.Value
+    }
+    return $current
+}
+
+function Convert-EvidenceNumber {
+    param([object]$Value)
+
+    if ($null -eq $Value) {
+        return $null
+    }
+    try {
+        $number = [double]$Value
+        if ([double]::IsNaN($number) -or [double]::IsInfinity($number)) {
+            return $null
+        }
+        return $number
+    } catch {
+        return $null
+    }
+}
+
+function Find-EvidenceSecretFields {
+    param(
+        [object]$Value,
+        [string]$Path = "$"
+    )
+
+    $findings = @()
+    if ($null -eq $Value) {
+        return $findings
+    }
+
+    if ($Value -is [string]) {
+        if ($Value -match "(?i)(bearer\s+[a-z0-9._~+/=-]{12,}|authorization\s*:|password\s*=|token\s*=|api[-_]?key\s*=|-----BEGIN [A-Z ]*PRIVATE KEY|AKIA[0-9A-Z]{16}|x-amz-security-token)") {
+            $findings += "$Path contains secret-like text."
+        }
+        return $findings
+    }
+
+    if ($Value -is [System.ValueType]) {
+        return $findings
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        $index = 0
+        foreach ($item in $Value) {
+            $findings += Find-EvidenceSecretFields -Value $item -Path "$Path[$index]"
+            $index++
+        }
+        return $findings
+    }
+
+    foreach ($property in $Value.PSObject.Properties) {
+        $propertyPath = "$Path.$($property.Name)"
+        if ($property.Name -match "(?i)(password|passwd|secret|token|authorization|cookie|private[-_]?key|api[-_]?key|client[-_]?secret|credential|access[-_]?key)") {
+            $findings += "$propertyPath has a secret-like field name."
+        }
+        $findings += Find-EvidenceSecretFields -Value $property.Value -Path $propertyPath
+    }
+    return $findings
+}
+
+function Resolve-EvidencePath {
+    param(
+        [string]$Path,
+        [string]$RepoRoot
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return $null
+    }
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    }
+    return [System.IO.Path]::GetFullPath((Join-Path $RepoRoot $Path))
+}
+
+function Test-LiveEvidenceFile {
+    param(
+        [string]$Path,
+        [string]$RepoRoot,
+        [bool]$Required
+    )
+
+    $errors = @()
+    $warnings = @()
+    $resolvedPath = Resolve-EvidencePath -Path $Path -RepoRoot $RepoRoot
+
+    if ([string]::IsNullOrWhiteSpace($resolvedPath)) {
+        if ($Required) {
+            $errors += "-RequireLive requires -LiveEvidencePath with target evidence for ClickHouse TTL/partitioning, Postgres purge, remote render latency, Kafka handoff pressure, and delivery provider capacity."
+        }
+        return [pscustomobject]@{
+            required = $Required
+            provided = $false
+            sourcePath = $null
+            gate = if ($errors.Count -eq 0) { "NOT_RUN" } else { "FAIL" }
+            errors = $errors
+            warnings = $warnings
+            evidence = $null
+        }
+    }
+
+    if (-not (Test-Path $resolvedPath)) {
+        $errors += "Live evidence file does not exist: $resolvedPath"
+        return [pscustomobject]@{
+            required = $Required
+            provided = $true
+            sourcePath = $resolvedPath
+            gate = "FAIL"
+            errors = $errors
+            warnings = $warnings
+            evidence = $null
+        }
+    }
+
+    try {
+        $evidence = Get-Content -Raw -Path $resolvedPath | ConvertFrom-Json
+    } catch {
+        $errors += "Live evidence file is not valid JSON: $($_.Exception.Message)"
+        return [pscustomobject]@{
+            required = $Required
+            provided = $true
+            sourcePath = $resolvedPath
+            gate = "FAIL"
+            errors = $errors
+            warnings = $warnings
+            evidence = $null
+        }
+    }
+
+    $secretFindings = @(Find-EvidenceSecretFields -Value $evidence)
+    if ($secretFindings.Count -gt 0) {
+        $errors += "Live evidence JSON must not contain secrets or secret-like fields: $($secretFindings -join '; ')"
+    }
+
+    $textRequirements = @(
+        @{ path = "environment"; description = "target environment name" },
+        @{ path = "observedAt"; description = "target observation timestamp" },
+        @{ path = "clickHouse.rawEventsTable"; description = "ClickHouse raw event table" },
+        @{ path = "clickHouse.partitionKey"; description = "ClickHouse raw event partition key" },
+        @{ path = "clickHouse.ttlExpression"; description = "ClickHouse raw event TTL expression" },
+        @{ path = "clickHouse.proofRef"; description = "ClickHouse target proof reference" },
+        @{ path = "postgres.retentionFunction"; description = "Postgres retention function" },
+        @{ path = "postgres.purgeProofRef"; description = "Postgres purge target proof reference" },
+        @{ path = "remoteRender.proofRef"; description = "remote render latency target proof reference" },
+        @{ path = "kafkaHandoff.topic"; description = "Kafka handoff topic" },
+        @{ path = "kafkaHandoff.consumerGroup"; description = "Kafka handoff consumer group" },
+        @{ path = "kafkaHandoff.proofRef"; description = "Kafka handoff pressure target proof reference" },
+        @{ path = "deliveryProviderCapacity.profileName"; description = "delivery provider capacity profile" },
+        @{ path = "deliveryProviderCapacity.throttleState"; description = "delivery provider throttle state" },
+        @{ path = "deliveryProviderCapacity.proofRef"; description = "delivery provider capacity target proof reference" }
+    )
+    foreach ($requirement in $textRequirements) {
+        $value = Get-EvidenceValue -Evidence $evidence -Path $requirement.path
+        if (Test-EvidencePlaceholderValue -Value $value) {
+            $errors += "-LiveEvidencePath must include $($requirement.path) ($($requirement.description)) with a non-placeholder target value."
+        }
+    }
+
+    $numberRequirements = @(
+        @{ path = "clickHouse.ttlDays"; min = 1; description = "ClickHouse raw event TTL days" },
+        @{ path = "clickHouse.partitionCount"; min = 1; description = "ClickHouse observed partition count" },
+        @{ path = "postgres.retentionDays"; min = 1; description = "Postgres raw event retention days" },
+        @{ path = "postgres.lastPurgeRows"; min = 0; description = "last Postgres purge row count" },
+        @{ path = "postgres.lastPurgeDurationMs"; min = 0; description = "last Postgres purge duration" },
+        @{ path = "remoteRender.sampleCount"; min = 1; description = "remote render latency sample count" },
+        @{ path = "remoteRender.p95Ms"; min = 0; description = "remote render p95 latency" },
+        @{ path = "remoteRender.maxP95Ms"; min = 1; description = "remote render p95 gate" },
+        @{ path = "kafkaHandoff.maxConsumerLag"; min = 0; description = "Kafka max consumer lag" },
+        @{ path = "kafkaHandoff.maxAllowedConsumerLag"; min = 0; description = "Kafka max allowed consumer lag" },
+        @{ path = "kafkaHandoff.p95PublishLatencyMs"; min = 0; description = "Kafka p95 publish latency" },
+        @{ path = "kafkaHandoff.maxPublishLatencyMs"; min = 1; description = "Kafka publish latency gate" },
+        @{ path = "deliveryProviderCapacity.warmedDomains"; min = 1; description = "warmed provider domains" },
+        @{ path = "deliveryProviderCapacity.approvedPerMinute"; min = 1; description = "approved provider capacity per minute" },
+        @{ path = "deliveryProviderCapacity.plannedPeakPerMinute"; min = 1; description = "planned peak send rate per minute" }
+    )
+    foreach ($requirement in $numberRequirements) {
+        $number = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path $requirement.path)
+        if ($null -eq $number) {
+            $errors += "-LiveEvidencePath must include numeric $($requirement.path) ($($requirement.description))."
+        } elseif ($number -lt [double]$requirement.min) {
+            $errors += "-LiveEvidencePath $($requirement.path) must be at least $($requirement.min); got $number."
+        }
+    }
+
+    $observedAt = [string](Get-EvidenceValue -Evidence $evidence -Path "observedAt")
+    if (-not [string]::IsNullOrWhiteSpace($observedAt)) {
+        try {
+            [datetimeoffset]::Parse($observedAt) | Out-Null
+        } catch {
+            $errors += "-LiveEvidencePath observedAt must be an ISO-8601-compatible timestamp."
+        }
+    }
+
+    $partitionKey = [string](Get-EvidenceValue -Evidence $evidence -Path "clickHouse.partitionKey")
+    if (-not [string]::IsNullOrWhiteSpace($partitionKey) -and ($partitionKey -notmatch "toYYYYMM" -or $partitionKey -notmatch "timestamp")) {
+        $errors += "-LiveEvidencePath clickHouse.partitionKey must prove partitioning by event timestamp month, for example toYYYYMM(timestamp)."
+    }
+    $ttlExpression = [string](Get-EvidenceValue -Evidence $evidence -Path "clickHouse.ttlExpression")
+    if (-not [string]::IsNullOrWhiteSpace($ttlExpression) -and ($ttlExpression -notmatch "timestamp" -or $ttlExpression -notmatch "(?i)delete")) {
+        $errors += "-LiveEvidencePath clickHouse.ttlExpression must prove timestamp-based DELETE TTL."
+    }
+    $retentionFunction = [string](Get-EvidenceValue -Evidence $evidence -Path "postgres.retentionFunction")
+    if (-not [string]::IsNullOrWhiteSpace($retentionFunction) -and $retentionFunction -ne "purge_expired_raw_events") {
+        $errors += "-LiveEvidencePath postgres.retentionFunction must be purge_expired_raw_events."
+    }
+
+    $remoteP95 = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "remoteRender.p95Ms")
+    $remoteMax = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "remoteRender.maxP95Ms")
+    if ($null -ne $remoteP95 -and $null -ne $remoteMax -and $remoteP95 -gt $remoteMax) {
+        $errors += "Remote render p95 latency gate failed: $remoteP95 ms exceeds $remoteMax ms."
+    }
+
+    $consumerLag = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.maxConsumerLag")
+    $maxConsumerLag = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.maxAllowedConsumerLag")
+    if ($null -ne $consumerLag -and $null -ne $maxConsumerLag -and $consumerLag -gt $maxConsumerLag) {
+        $errors += "Kafka handoff pressure gate failed: consumer lag $consumerLag exceeds allowed $maxConsumerLag."
+    }
+    $publishP95 = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.p95PublishLatencyMs")
+    $publishMax = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.maxPublishLatencyMs")
+    if ($null -ne $publishP95 -and $null -ne $publishMax -and $publishP95 -gt $publishMax) {
+        $errors += "Kafka handoff publish latency gate failed: $publishP95 ms exceeds $publishMax ms."
+    }
+
+    $approvedCapacity = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.approvedPerMinute")
+    $plannedCapacity = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.plannedPeakPerMinute")
+    if ($null -ne $approvedCapacity -and $null -ne $plannedCapacity -and $approvedCapacity -lt $plannedCapacity) {
+        $errors += "Delivery provider capacity gate failed: approved $approvedCapacity/min is below planned peak $plannedCapacity/min."
+    }
+    $throttleState = [string](Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.throttleState")
+    if (-not [string]::IsNullOrWhiteSpace($throttleState)) {
+        $normalizedThrottleState = $throttleState.Trim().ToUpperInvariant()
+        if (@("BLOCKED", "UNKNOWN", "UNAVAILABLE", "FAILED") -contains $normalizedThrottleState) {
+            $errors += "Delivery provider capacity gate failed: throttleState is $normalizedThrottleState."
+        } elseif (@("THROTTLED", "CAUTIOUS") -contains $normalizedThrottleState) {
+            $warnings += "Delivery provider capacity is $normalizedThrottleState; keep planned launch rate at or below the approved capacity profile."
+        }
+    }
+
+    $structuredEvidence = [ordered]@{
+        sourcePath = $resolvedPath
+        environment = [string](Get-EvidenceValue -Evidence $evidence -Path "environment")
+        observedAt = [string](Get-EvidenceValue -Evidence $evidence -Path "observedAt")
+        clickHouse = [ordered]@{
+            rawEventsTable = [string](Get-EvidenceValue -Evidence $evidence -Path "clickHouse.rawEventsTable")
+            partitionKey = [string](Get-EvidenceValue -Evidence $evidence -Path "clickHouse.partitionKey")
+            ttlExpression = [string](Get-EvidenceValue -Evidence $evidence -Path "clickHouse.ttlExpression")
+            ttlDays = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "clickHouse.ttlDays")
+            partitionCount = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "clickHouse.partitionCount")
+            proofRef = [string](Get-EvidenceValue -Evidence $evidence -Path "clickHouse.proofRef")
+        }
+        postgres = [ordered]@{
+            retentionFunction = [string](Get-EvidenceValue -Evidence $evidence -Path "postgres.retentionFunction")
+            retentionDays = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "postgres.retentionDays")
+            lastPurgeRows = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "postgres.lastPurgeRows")
+            lastPurgeDurationMs = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "postgres.lastPurgeDurationMs")
+            purgeProofRef = [string](Get-EvidenceValue -Evidence $evidence -Path "postgres.purgeProofRef")
+        }
+        remoteRender = [ordered]@{
+            sampleCount = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "remoteRender.sampleCount")
+            p95Ms = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "remoteRender.p95Ms")
+            maxP95Ms = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "remoteRender.maxP95Ms")
+            proofRef = [string](Get-EvidenceValue -Evidence $evidence -Path "remoteRender.proofRef")
+        }
+        kafkaHandoff = [ordered]@{
+            topic = [string](Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.topic")
+            consumerGroup = [string](Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.consumerGroup")
+            maxConsumerLag = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.maxConsumerLag")
+            maxAllowedConsumerLag = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.maxAllowedConsumerLag")
+            p95PublishLatencyMs = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.p95PublishLatencyMs")
+            maxPublishLatencyMs = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.maxPublishLatencyMs")
+            proofRef = [string](Get-EvidenceValue -Evidence $evidence -Path "kafkaHandoff.proofRef")
+        }
+        deliveryProviderCapacity = [ordered]@{
+            profileName = [string](Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.profileName")
+            warmedDomains = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.warmedDomains")
+            approvedPerMinute = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.approvedPerMinute")
+            plannedPeakPerMinute = Convert-EvidenceNumber -Value (Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.plannedPeakPerMinute")
+            throttleState = [string](Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.throttleState")
+            proofRef = [string](Get-EvidenceValue -Evidence $evidence -Path "deliveryProviderCapacity.proofRef")
+        }
+    }
+
+    return [pscustomobject]@{
+        required = $Required
+        provided = $true
+        sourcePath = $resolvedPath
+        gate = if ($errors.Count -eq 0) { "PASS" } else { "FAIL" }
+        errors = $errors
+        warnings = $warnings
+        evidence = $structuredEvidence
+    }
+}
+
+function Write-EvidenceJson {
+    param(
+        [string]$Path,
+        [string]$Json
+    )
+
+    $directory = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($directory) -and -not (Test-Path $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+    [System.IO.File]::WriteAllText($Path, $Json, [System.Text.Encoding]::UTF8)
 }
 
 function Get-CampaignIdForIndex {
@@ -348,6 +694,11 @@ if (-not $canRunParallel -and $Concurrency -gt 1) {
 
 $campaignIdsForRequests = @(Split-LoadIds -Value $CampaignId)
 $escapedDataExtensionId = [uri]::EscapeDataString($DataExtensionId)
+$repoRoot = Get-RepoRoot
+$liveEvidenceValidation = Test-LiveEvidenceFile `
+    -Path $LiveEvidencePath `
+    -RepoRoot $repoRoot `
+    -Required ([bool]$RequireLive)
 
 if ($RequireLive) {
     $liveInputErrors = @(Test-LiveScenarioInputs `
@@ -359,6 +710,9 @@ if ($RequireLive) {
     if ($liveInputErrors.Count -gt 0) {
         throw "Live load input validation failed: $($liveInputErrors -join '; ')"
     }
+}
+if (($RequireLive -or -not [string]::IsNullOrWhiteSpace($LiveEvidencePath)) -and $liveEvidenceValidation.errors.Count -gt 0) {
+    throw "Live evidence validation failed: $($liveEvidenceValidation.errors -join '; ')"
 }
 
 $scenarios = @(
@@ -463,7 +817,10 @@ $results = foreach ($scenario in $scenarios) {
 }
 
 $failedScenarios = @($results | Where-Object { $_.errorRatePercent -gt $MaxErrorRatePercent })
+$resolvedEvidenceOutputPath = Resolve-EvidencePath -Path $EvidenceOutputPath -RepoRoot $contractValidation.repoRoot
+$evidenceOutputRequested = -not [string]::IsNullOrWhiteSpace($resolvedEvidenceOutputPath)
 $summary = [pscustomobject]@{
+    schemaVersion = "phase3-high-volume-load/v2"
     baseUrl = $BaseUrl
     tenantId = $TenantId
     workspaceId = $WorkspaceId
@@ -484,13 +841,31 @@ $summary = [pscustomobject]@{
         oneTriggerPerSeededAudience = $true
         note = "Each campaign-send request triggers one pre-seeded campaign audience. Repeated live sends against one campaign are rejected with -RequireLive."
     }
+    liveEvidence = @{
+        required = $liveEvidenceValidation.required
+        provided = $liveEvidenceValidation.provided
+        sourcePath = $liveEvidenceValidation.sourcePath
+        gate = $liveEvidenceValidation.gate
+        warnings = $liveEvidenceValidation.warnings
+        errors = $liveEvidenceValidation.errors
+        proof = $liveEvidenceValidation.evidence
+    }
+    evidenceOutput = @{
+        jsonPath = $resolvedEvidenceOutputPath
+        written = $evidenceOutputRequested
+        secretPolicy = "Authorization headers, tokens, cookies, private keys, credentials, and secret-like evidence fields are not emitted; -LiveEvidencePath is rejected if they are detected."
+    }
     startedAt = $started.ToUniversalTime().ToString("o")
     completedAt = (Get-Date).ToUniversalTime().ToString("o")
     scenarios = $results
     gate = if ($failedScenarios.Count -eq 0) { "PASS" } else { "FAIL" }
 }
 
-$summary | ConvertTo-Json -Depth 8
+$summaryJson = $summary | ConvertTo-Json -Depth 12
+if ($evidenceOutputRequested) {
+    Write-EvidenceJson -Path $resolvedEvidenceOutputPath -Json $summaryJson
+}
+$summaryJson
 
 if (($RequireLive -or $FailOnErrors) -and $failedScenarios.Count -gt 0) {
     throw "Load gate failed: $($failedScenarios.scenario -join ', ') exceeded $MaxErrorRatePercent% error rate."

@@ -28,13 +28,13 @@ public class DeliveryReadinessClient {
 
     private final WebClient webClient;
     private final String baseUrl;
-    private final String serviceBearerToken;
+    private final ServiceAuthTokenProvider serviceAuthTokenProvider;
 
     public DeliveryReadinessClient(
             @Value("${legent.delivery-service.url:}") String baseUrl,
-            @Value("${legent.service-auth.bearer-token:}") String serviceBearerToken) {
+            ServiceAuthTokenProvider serviceAuthTokenProvider) {
         this.baseUrl = trimToNull(baseUrl);
-        this.serviceBearerToken = trimToNull(serviceBearerToken);
+        this.serviceAuthTokenProvider = serviceAuthTokenProvider;
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(READ_TIMEOUT)
                 .compress(true);
@@ -49,7 +49,6 @@ public class DeliveryReadinessClient {
 
     public WarmupStatus warmupStatus(String tenantId, String workspaceId) {
         requireWebClient("delivery-service URL is not configured");
-        requireBearerToken();
         try {
             Map<String, Object> response = webClient.get()
                     .uri("/api/v1/delivery/warmup/status")
@@ -89,7 +88,6 @@ public class DeliveryReadinessClient {
                                                              String senderDomain,
                                                              Integer riskScore) {
         requireWebClient("delivery-service URL is not configured");
-        requireBearerToken();
         try {
             Map<String, Object> response = webClient.post()
                     .uri("/api/v1/delivery/provider-capacity/evaluate")
@@ -133,18 +131,12 @@ public class DeliveryReadinessClient {
         if (requestId != null && !requestId.isBlank()) {
             headers.set(AppConstants.HEADER_REQUEST_ID, requestId);
         }
-        headers.setBearerAuth(serviceBearerToken);
+        headers.setBearerAuth(serviceAuthTokenProvider.tokenFor(tenantId, workspaceId));
     }
 
     private void requireWebClient(String message) {
         if (webClient == null || baseUrl == null) {
             throw new ReadinessDependencyException(message);
-        }
-    }
-
-    private void requireBearerToken() {
-        if (serviceBearerToken == null) {
-            throw new ReadinessDependencyException("service bearer token is not configured for delivery readiness checks");
         }
     }
 

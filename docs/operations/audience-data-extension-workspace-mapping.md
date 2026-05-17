@@ -61,7 +61,58 @@ WHERE w.id IS NULL
 
 This query must return zero rows before V17 is allowed to run. If the foundation schema uses different status or deletion columns in the target environment, use the equivalent active-workspace predicate from the deployed foundation schema and attach that query to the change record.
 
-4. Create and populate the mapping table before Flyway reaches V17:
+4. Validate the reviewed mapping export offline before creating the database table.
+
+The reviewed export must be a CSV or JSON file with one row per legacy data extension. The validator reads only the provided export file and explicit command parameters; it does not read `.env`, connect to a database, or load secret-bearing runtime configuration.
+
+Required columns or JSON properties:
+
+- `tenant_id`
+- `data_extension_id`
+- `target_workspace_id`
+- `reviewed_by`, unless supplied with `-ReviewedBy`
+- `reviewed_at`, unless supplied with `-ReviewedAt`
+
+Optional column or JSON property:
+
+- `review_ticket`, or supply one value for every row with `-ReviewTicket`
+
+Accepted JSON shapes are either an array of mapping objects or an object with a `mappings` or `rows` array.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-audience-data-extension-workspace-mapping.ps1 `
+    -InputPath .\staging\audience-data-extension-workspace-mapping.csv
+```
+
+To generate the SQL file that creates and populates `public.audience_data_extension_workspace_mapping_review`, provide reviewed metadata in the export or with explicit parameters:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-audience-data-extension-workspace-mapping.ps1 `
+    -InputPath .\staging\audience-data-extension-workspace-mapping.csv `
+    -ReviewedBy operator@example.com `
+    -ReviewedAt 2026-05-16T00:00:00Z `
+    -ReviewTicket CHANGE-1234 `
+    -SqlOutputPath .\staging\audience-data-extension-workspace-mapping-review.sql
+```
+
+The validator fails closed for:
+
+- malformed CSV or JSON;
+- empty exports;
+- missing `tenant_id`, `data_extension_id`, `target_workspace_id`, `reviewed_by`, or `reviewed_at`;
+- duplicate `data_extension_id` values, even across tenants;
+- `target_workspace_id` values with leading or trailing whitespace;
+- placeholder `target_workspace_id` values such as `workspace-default`, `workspace-id`, `target-workspace-id`, `replace_with_workspace_id`, `todo`, `tbd`, `n/a`, `null`, or the all-zero UUID.
+
+The validator does not prove that `target_workspace_id` exists in foundation or is active for the same tenant. The foundation workspace verification in step 3 is still required before using generated SQL.
+
+Run the repeatable parser and fail-closed checks when the validator changes:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\test-audience-data-extension-workspace-mapping.ps1
+```
+
+5. Create and populate the mapping table before Flyway reaches V17:
 
 ```sql
 CREATE TABLE IF NOT EXISTS public.audience_data_extension_workspace_mapping_review (
@@ -90,7 +141,7 @@ VALUES
     ('tenant-id', 'data-extension-id', 'workspace-id', 'operator@example.com', NOW(), 'CHANGE-1234');
 ```
 
-5. Check mapping row uniqueness before release:
+6. Check mapping row uniqueness before release:
 
 ```sql
 SELECT tenant_id, data_extension_id, COUNT(*)
@@ -101,7 +152,7 @@ HAVING COUNT(*) > 1;
 
 This query must return zero rows.
 
-6. Check completeness and target workspace hygiene before release:
+7. Check completeness and target workspace hygiene before release:
 
 ```sql
 SELECT de.tenant_id, de.id, de.name
@@ -122,7 +173,7 @@ WHERE de.workspace_id = 'workspace-default'
 
 This query must return zero rows.
 
-7. Check duplicate active names after reviewed remapping:
+8. Check duplicate active names after reviewed remapping:
 
 ```sql
 SELECT mapped.tenant_id, mapped.target_workspace_id, mapped.normalized_name, COUNT(*)
@@ -146,7 +197,7 @@ HAVING COUNT(*) > 1;
 
 This query must return zero rows. Resolve duplicates before release by correcting the mapping or renaming/deleting duplicate active data extensions through an approved change.
 
-8. Pre-V16 duplicate-name risk check:
+9. Pre-V16 duplicate-name risk check:
 
 ```sql
 SELECT tenant_id, lower(name) AS normalized_name, COUNT(*)

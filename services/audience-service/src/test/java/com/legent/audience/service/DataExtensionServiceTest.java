@@ -22,6 +22,7 @@ import org.springframework.data.domain.PageRequest;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -136,6 +137,39 @@ class DataExtensionServiceTest {
 
         assertThat(response.getReturnedRows()).isEqualTo(1);
         assertThat(response.getRows()).containsExactly(Map.of("email", "a@example.com"));
+    }
+
+    @Test
+    void queryPreviewScansPastFirstPageForFilteredMatches() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1")).thenReturn(Optional.of(dataExtension()));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+        List<DataExtensionRecord> skippedRows = IntStream.range(0, 500)
+                .mapToObj(index -> record(Map.of(
+                        "subscriberKey", "skip-" + index,
+                        "email", "b" + index + "@example.com",
+                        "score", 1L)))
+                .toList();
+        DataExtensionRecord matching = record(Map.of("subscriberKey", "abc", "email", "a@example.com", "score", 12L));
+        when(recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId("tenant-1", "workspace-1", "de-1", PageRequest.of(0, 500)))
+                .thenReturn(new PageImpl<>(skippedRows, PageRequest.of(0, 500), 501));
+        when(recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId("tenant-1", "workspace-1", "de-1", PageRequest.of(1, 500)))
+                .thenReturn(new PageImpl<>(List.of(matching), PageRequest.of(1, 500), 501));
+        when(recordRepository.countByTenantWorkspaceAndDataExtension("tenant-1", "workspace-1", "de-1")).thenReturn(501L);
+
+        DataExtensionDto.QueryPreviewResponse response = service.previewQuery("de-1",
+                DataExtensionDto.QueryPreviewRequest.builder()
+                        .fields(List.of("email"))
+                        .filters(List.of(DataExtensionDto.QueryFilter.builder()
+                                .fieldName("score")
+                                .operator("GT")
+                                .value(10)
+                                .build()))
+                        .limit(1)
+                        .build());
+
+        assertThat(response.getReturnedRows()).isEqualTo(1);
+        assertThat(response.getRows()).containsExactly(Map.of("email", "a@example.com"));
+        assertThat(response.getScannedRows()).isEqualTo(501);
     }
 
     private DataExtension dataExtension() {

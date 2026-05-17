@@ -1,6 +1,42 @@
 # Active Work Items
 
-Last updated: 2026-05-16.
+Last updated: 2026-05-17.
+
+SalesforceAuditImplementation-20260517:
+assigned_task: implement locally actionable source blockers from Salesforce comparison audit and memory files using subagents
+task_type: SECURITY/RELIABILITY/PERFORMANCE/DATA/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: shared common/security/cache helpers; campaign service-auth/readiness/content-reference paths; content rendered snapshots/domain/repository/service/controller/security/migration/config; delivery content retry recovery/cache bounds; deliverability auth-check RBAC; automation workflow locks; audience data-extension preview; `.codex` report and memory
+branch_or_worktree: main
+dependencies: `.codex/reports/salesforce-comparison-full-audit-2026-05-17.yaml`, `.codex/memory/unresolved-risks.md`, `.codex/memory/security-findings.md`, `.codex/memory/technical-debt.md`, `.codex/memory/root-cause-history.md`, subagent findings from Ampere/Anscombe/Fermat/Archimedes
+blockers: external production egress evidence, image digest/signature/SBOM/provenance, live load/ClickHouse proof, restore/security/monitoring proof, Audience V17 operator-reviewed mapping metadata, and full release gate evidence remain unresolved
+next_actions: no commit or push performed; run full reactor/frontend/release validation plus target evidence collection before GA
+
+ReleaseBlockerEvidenceGates-20260516:
+assigned_task: implement fail-closed validation and evidence intake for current release blockers without inventing external production facts
+task_type: RELEASE/SECURITY/PERFORMANCE/DATA/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: production egress evidence validator/template/docs; audience V17 reviewed-mapping validator/tests/docs; GA evidence manifest validator; live load evidence intake; image digest/evidence strict validation; release-gate hooks; CI supply-chain manifest artifact; final audit report and memory
+branch_or_worktree: main
+dependencies: user blocker list, `.codex` operating rules, production overlay validator, release gate, load harness, audience V17 migration docs
+blockers: real production egress CIDRs/ports or approved CNI FQDN-policy evidence, reviewed audience mapping metadata, target GA evidence pack, live scale proof, and registry digest/signature/provenance evidence remain external
+next_actions: no commit or push performed; attach real evidence and rerun release gate with strict flags before GA
+
+FinalAuditImplementation-20260516:
+assigned_task: analyze requested `.codex/reports`, re-run final source audit, implement remaining locally actionable fixes, consolidate stale reports into final audit output
+task_type: SECURITY/RELIABILITY/PERFORMANCE/RELEASE/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: delivery provider RBAC; deliverability domain RBAC; platform search RBAC/frontend context preflight; campaign batch atomic claim and retry requeue fail-closed; tracking raw-event retention scheduler and legacy writer removal; `.codex` final audit report and memory
+branch_or_worktree: main
+dependencies: requested audit reports, `.codex/bootstrap.md`, unresolved/blocked memory, RBAC/campaign/tracking/platform workers
+blockers: exact production external egress data, audience V17 operator mapping metadata, live target smoke/load/restore/security/monitoring/TLS/observability/supply-chain evidence, live ClickHouse/campaign high-volume proof
+next_actions: no commit or push performed; run full release gate and target-environment evidence collection before GA
 
 UnresolvedRiskSweep-20260516:
 assigned_task: fix all locally actionable items from `.codex/memory/unresolved-risks.md` using max parallel subagents while preserving prior dirty hardening wave

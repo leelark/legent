@@ -1,6 +1,8 @@
 package com.legent.campaign.client;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.common.event.EmailContentReference;
+import com.legent.common.security.InternalApiTokenValidator;
 import com.legent.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +16,6 @@ import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -90,6 +91,170 @@ public class ContentServiceClient {
 
     public record RenderedContent(String subject, String htmlBody, String textBody) {}
 
+    public EmailContentReference createRenderedContentReference(RenderedContentSnapshotRequest request,
+                                                                boolean inlineFallbackIncluded) {
+        if (request == null) {
+            throw new ContentServiceException("Rendered content snapshot request is required");
+        }
+        String scopedTenantId = requireText("tenantId", request.tenantId());
+        String scopedWorkspaceId = requireWorkspaceId(request.workspaceId());
+        try {
+            Map<String, Object> payload = new java.util.LinkedHashMap<>();
+            payload.put("tenantId", scopedTenantId);
+            payload.put("workspaceId", scopedWorkspaceId);
+            payload.put("campaignId", requireText("campaignId", request.campaignId()));
+            payload.put("jobId", requireText("jobId", request.jobId()));
+            payload.put("batchId", requireText("batchId", request.batchId()));
+            payload.put("messageId", requireText("messageId", request.messageId()));
+            payload.put("contentId", requireText("contentId", request.contentId()));
+            payload.put("subject", requireText("subject", request.subject()));
+            payload.put("htmlBody", requireText("htmlBody", request.htmlBody()));
+            payload.put("textBody", request.textBody() == null ? "" : request.textBody());
+            payload.put("inlineFallbackIncluded", inlineFallbackIncluded);
+            Map<String, Object> response = webClient.post()
+                    .uri("/api/v1/content/rendered-content/internal")
+                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, true))
+                    .bodyValue(payload)
+                    .retrieve()
+                    .bodyToMono(MAP_TYPE)
+                    .timeout(READ_TIMEOUT)
+                    .retryWhen(Retry.backoff(2, Duration.ofMillis(100))
+                            .doAfterRetry(sig -> log.warn("Retrying rendered content snapshot create for {}/{}",
+                                    scopedTenantId, request.messageId())))
+                    .block();
+            Map<String, Object> data = responseData(response, "rendered content snapshot");
+            return toEmailContentReference(data);
+        } catch (Exception e) {
+            log.error("Failed to create rendered content snapshot for tenant {} message {}",
+                    scopedTenantId,
+                    request.messageId(),
+                    e);
+            throw new ContentServiceException("Failed to create rendered content snapshot for message " + request.messageId(), e);
+        }
+    }
+
+    public StoredRenderedContent readRenderedContentReference(String tenantId,
+                                                             String workspaceId,
+                                                             String referenceId) {
+        String scopedTenantId = requireText("tenantId", tenantId);
+        String scopedWorkspaceId = requireWorkspaceId(workspaceId);
+        String scopedReferenceId = requireText("referenceId", referenceId);
+        try {
+            Map<String, Object> response = webClient.get()
+                    .uri("/api/v1/content/rendered-content/{referenceId}/internal", scopedReferenceId)
+                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, true))
+                    .retrieve()
+                    .bodyToMono(MAP_TYPE)
+                    .timeout(READ_TIMEOUT)
+                    .block();
+            Map<String, Object> data = responseData(response, "rendered content snapshot");
+            return new StoredRenderedContent(
+                    stringValue(data.get("subject")),
+                    stringValue(data.get("htmlBody")),
+                    stringValue(data.get("textBody")),
+                    dataToStringMap(data));
+        } catch (Exception e) {
+            throw new ContentServiceException("Failed to read rendered content snapshot " + scopedReferenceId, e);
+        }
+    }
+
+    private Map<String, Object> responseData(Map<String, Object> response, String label) {
+        if (response == null || !response.containsKey("data") || !(response.get("data") instanceof Map<?, ?> raw)) {
+            throw new ContentServiceException("Invalid response from content-service for " + label);
+        }
+        Map<String, Object> data = new java.util.LinkedHashMap<>();
+        raw.forEach((key, value) -> data.put(String.valueOf(key), value));
+        return data;
+    }
+
+    private EmailContentReference toEmailContentReference(Map<String, Object> data) {
+        EmailContentReference reference = new EmailContentReference();
+        reference.setReferenceId(stringValue(data.get("referenceId")));
+        reference.setStorageBackend(stringValue(data.get("storageBackend")));
+        reference.setTenantId(stringValue(data.get("tenantId")));
+        reference.setWorkspaceId(stringValue(data.get("workspaceId")));
+        reference.setCampaignId(stringValue(data.get("campaignId")));
+        reference.setJobId(stringValue(data.get("jobId")));
+        reference.setBatchId(stringValue(data.get("batchId")));
+        reference.setMessageId(stringValue(data.get("messageId")));
+        reference.setContentId(stringValue(data.get("contentId")));
+        reference.setSubjectSha256(stringValue(data.get("subjectSha256")));
+        reference.setHtmlSha256(stringValue(data.get("htmlSha256")));
+        reference.setTextSha256(stringValue(data.get("textSha256")));
+        reference.setSubjectBytes(intValue(data.get("subjectBytes")));
+        reference.setHtmlBytes(intValue(data.get("htmlBytes")));
+        reference.setTextBytes(intValue(data.get("textBytes")));
+        reference.setCreatedAt(instantValue(data.get("createdAt")));
+        reference.setExpiresAt(instantValue(data.get("expiresAt")));
+        reference.setInlineFallbackIncluded(booleanValue(data.get("inlineFallbackIncluded")));
+        if (reference.getReferenceId() == null || reference.getStorageBackend() == null) {
+            throw new ContentServiceException("Content-service returned incomplete rendered content reference");
+        }
+        return reference;
+    }
+
+    private Map<String, String> dataToStringMap(Map<String, Object> data) {
+        Map<String, String> result = new java.util.LinkedHashMap<>();
+        data.forEach((key, value) -> {
+            if (value != null && !(value instanceof Map<?, ?>)) {
+                result.put(key, String.valueOf(value));
+            }
+        });
+        Object metadata = data.get("metadata");
+        if (metadata instanceof Map<?, ?> raw) {
+            raw.forEach((key, value) -> {
+                if (value != null) {
+                    result.put(String.valueOf(key), String.valueOf(value));
+                }
+            });
+        }
+        return result;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private Integer intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        return Integer.parseInt(value.toString());
+    }
+
+    private Boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return value == null ? null : Boolean.parseBoolean(value.toString());
+    }
+
+    private java.time.Instant instantValue(Object value) {
+        if (value instanceof java.time.Instant instant) {
+            return instant;
+        }
+        return value == null ? null : java.time.Instant.parse(value.toString());
+    }
+
+    public record RenderedContentSnapshotRequest(String tenantId,
+                                                 String workspaceId,
+                                                 String campaignId,
+                                                 String jobId,
+                                                 String batchId,
+                                                 String messageId,
+                                                 String contentId,
+                                                 String subject,
+                                                 String htmlBody,
+                                                 String textBody) {}
+
+    public record StoredRenderedContent(String subject,
+                                        String htmlBody,
+                                        String textBody,
+                                        Map<String, String> metadata) {}
+
     /**
      * Exception thrown when content-service operations fail.
      */
@@ -103,18 +268,7 @@ public class ContentServiceClient {
     }
 
     private void validateInternalApiToken(String token) {
-        if (token == null || token.isBlank() || isPlaceholderToken(token)) {
-            throw new IllegalStateException("legent.internal.api-token must be configured with a non-placeholder secret");
-        }
-    }
-
-    private boolean isPlaceholderToken(String token) {
-        String normalized = token.trim().toLowerCase(Locale.ROOT);
-        return normalized.contains("dev-token")
-                || normalized.contains("change_me")
-                || normalized.contains("changeme")
-                || normalized.contains("replace_in_production")
-                || normalized.equals("password");
+        InternalApiTokenValidator.requireConfigured("legent.internal.api-token", token);
     }
 
     private void scopedHeaders(HttpHeaders headers, String tenantId, String workspaceId, boolean internal) {

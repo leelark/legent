@@ -2,9 +2,11 @@ package com.legent.content.controller;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
+import com.legent.common.security.InternalApiTokenValidator;
 import com.legent.content.domain.TemplateVersion;
 import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.service.EmailRenderService;
+import com.legent.content.service.RenderedContentSnapshotService;
 import com.legent.content.service.TemplateVersionService;
 import com.legent.security.TenantContext;
 import jakarta.annotation.PostConstruct;
@@ -17,7 +19,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
-import java.util.Locale;
 
 /**
  * Content rendering and versioning controller.
@@ -31,15 +32,14 @@ public class ContentController {
 
     private final EmailRenderService renderService;
     private final TemplateVersionService versionService;
+    private final RenderedContentSnapshotService snapshotService;
 
     @Value("${legent.internal.api-token}")
     private String internalApiToken;
 
     @PostConstruct
     void validateInternalApiToken() {
-        if (internalApiToken == null || internalApiToken.isBlank() || isPlaceholderToken(internalApiToken)) {
-            throw new IllegalStateException("legent.internal.api-token must be configured with a non-placeholder secret");
-        }
+        InternalApiTokenValidator.requireConfigured("legent.internal.api-token", internalApiToken);
     }
 
     /**
@@ -64,6 +64,42 @@ public class ContentController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
         return renderTemplateForTenant(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), templateId, variables);
+    }
+
+    @PostMapping("/rendered-content/internal")
+    @PreAuthorize("permitAll()")
+    public ApiResponse<com.legent.common.event.EmailContentReference> createRenderedContentSnapshot(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestBody RenderedContentSnapshotCreateRequest request) {
+        requireInternalToken(token);
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        RenderedContentSnapshotService.SnapshotRequest snapshotRequest =
+                new RenderedContentSnapshotService.SnapshotRequest(
+                        request.tenantId(),
+                        request.workspaceId(),
+                        request.campaignId(),
+                        request.jobId(),
+                        request.batchId(),
+                        request.messageId(),
+                        request.contentId(),
+                        request.subject(),
+                        request.htmlBody(),
+                        request.textBody());
+        return ApiResponse.ok(snapshotService.create(tenantId, workspaceId, snapshotRequest,
+                Boolean.TRUE.equals(request.inlineFallbackIncluded())));
+    }
+
+    @GetMapping("/rendered-content/{referenceId}/internal")
+    @PreAuthorize("permitAll()")
+    public ApiResponse<RenderedContentSnapshotService.StoredRenderedContent> getRenderedContentSnapshot(
+            @PathVariable String referenceId,
+            @RequestHeader(name = "X-Internal-Token", required = false) String token) {
+        requireInternalToken(token);
+        return ApiResponse.ok(snapshotService.read(
+                TenantContext.requireTenantId(),
+                TenantContext.requireWorkspaceId(),
+                referenceId));
     }
 
     private ApiResponse<RenderedContent> renderTemplateForTenant(String tenantId, String workspaceId, String templateId, Map<String, Object> variables) {
@@ -93,13 +129,21 @@ public class ContentController {
 
     public record RenderedContent(String subject, String htmlBody, String textBody) {}
     public record TemplateVersionDto(String subject, String htmlContent, String textContent) {}
+    public record RenderedContentSnapshotCreateRequest(String tenantId,
+                                                       String workspaceId,
+                                                       String campaignId,
+                                                       String jobId,
+                                                       String batchId,
+                                                       String messageId,
+                                                       String contentId,
+                                                       String subject,
+                                                       String htmlBody,
+                                                       String textBody,
+                                                       Boolean inlineFallbackIncluded) {}
 
-    private boolean isPlaceholderToken(String token) {
-        String normalized = token.trim().toLowerCase(Locale.ROOT);
-        return normalized.contains("dev-token")
-                || normalized.contains("change_me")
-                || normalized.contains("changeme")
-                || normalized.contains("replace_in_production")
-                || normalized.equals("password");
+    private void requireInternalToken(String token) {
+        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+        }
     }
 }
