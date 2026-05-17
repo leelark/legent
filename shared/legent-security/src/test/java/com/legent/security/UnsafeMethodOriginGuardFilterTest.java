@@ -44,6 +44,23 @@ class UnsafeMethodOriginGuardFilterTest {
     }
 
     @Test
+    void unsafeCookieRequestFromLiteralWildcardAllowedOrigin_isRejectedWhenCredentialsAreEnabled() throws Exception {
+        SecurityProperties wildcardProperties = allowedOrigins("*");
+        UnsafeMethodOriginGuardFilter wildcardFilter = new UnsafeMethodOriginGuardFilter(Optional.of(wildcardProperties));
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/v1/campaigns");
+        request.addHeader("Origin", "https://evil.example");
+        request.setCookies(new Cookie("legent_token", "access-token"));
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+
+        wildcardFilter.doFilter(request, response, chain(chainCalled));
+
+        assertEquals(403, response.getStatus());
+        assertTrue(response.getContentAsString().contains("CSRF_ORIGIN_REJECTED"));
+        assertTrue(!chainCalled.get());
+    }
+
+    @Test
     void unsafeRequestFromDisallowedOrigin_isRejected() throws Exception {
         MockHttpServletRequest request = new MockHttpServletRequest("DELETE", "/api/v1/campaigns/1");
         request.addHeader("Origin", "https://evil.example");

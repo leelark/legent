@@ -21,6 +21,7 @@ import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,7 @@ public class DeliveryOrchestrationService {
     private static final Pattern CONTENT_REFERENCE_PATTERN = Pattern.compile("^[A-Za-z0-9:_-]{1,160}$");
     private static final String RENDERED_CONTENT_REFERENCE_PREFIX = "cr_";
     private static final String CONTENT_UNAVAILABLE_FAILURE_CLASS = "CONTENT_UNAVAILABLE";
+    private static final int SCHEDULED_RETRY_BATCH_SIZE = 500;
 
     private final ProviderSelectionStrategy providerStrategy;
     private final MessageLogRepository messageLogRepository;
@@ -577,7 +579,9 @@ public class DeliveryOrchestrationService {
 
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 60000)
     public void processScheduledRetries() {
-        java.util.List<MessageLog> retries = messageLogRepository.findEligibleForRetry(Instant.now());
+        java.util.List<MessageLog> retries = messageLogRepository.findEligibleForRetry(
+                Instant.now(),
+                PageRequest.of(0, SCHEDULED_RETRY_BATCH_SIZE));
         for (MessageLog logEntry : retries) {
             try {
                 if (normalize(logEntry.getEmail()) == null || normalize(logEntry.getMessageId()) == null) {

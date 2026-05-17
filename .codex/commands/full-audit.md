@@ -19,7 +19,23 @@ Validation when feasible:
 .\mvnw.cmd test
 cd frontend
 npm run lint
+npm run build:ci
 npm run test:e2e:smoke
+cd ..
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-env.ps1 -EnvFile .env.example -AllowPlaceholders
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1
+docker compose config --quiet
+kubectl kustomize infrastructure/kubernetes/overlays/production
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-production-overlay.ps1
+powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1
+```
+
+Strict evidence checks when production promotion is being evaluated:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireExternalEgressEvidence -ExternalEgressEvidencePath <reviewed-json>
+powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireGaEvidence -EvidenceDir <evidence-dir>
+powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireImageDigests -RequireImageEvidence -ImageEvidenceManifest <image-evidence-json>
 ```
 
 Update `.codex/memory/*-map.md`, `technical-debt.md`, `security-findings.md`, and `unresolved-risks.md`.

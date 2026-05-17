@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
@@ -15,7 +16,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -80,6 +82,34 @@ class InboxSafetyServiceTest {
 
         assertThat(result.decision()).isEqualTo(InboxSafetyService.SafetyDecision.BLOCK);
         assertThat(result.reasonCodes()).contains("RECIPIENT_SUPPRESSED");
+    }
+
+    @Test
+    void evaluate_blocksWhenSuppressionSqlFails() {
+        JdbcTemplate failingJdbcTemplate = mock(JdbcTemplate.class);
+        service = new InboxSafetyService(inboxSafetyEvaluationRepository, failingJdbcTemplate);
+        when(failingJdbcTemplate.queryForObject(contains("suppression_signals"), eq(Long.class), any(Object[].class)))
+                .thenThrow(new DataAccessResourceFailureException("database unavailable"));
+
+        InboxSafetyService.InboxSafetyResult result = service.evaluate(request("tenant-1", "workspace-a", "user@example.com"));
+
+        assertThat(result.decision()).isEqualTo(InboxSafetyService.SafetyDecision.BLOCK);
+        assertThat(result.reasonCodes()).contains("RECIPIENT_SUPPRESSED");
+    }
+
+    @Test
+    void evaluate_blocksWhenTrendSqlFails() {
+        JdbcTemplate failingJdbcTemplate = mock(JdbcTemplate.class);
+        service = new InboxSafetyService(inboxSafetyEvaluationRepository, failingJdbcTemplate);
+        when(failingJdbcTemplate.queryForObject(contains("suppression_signals"), eq(Long.class), any(Object[].class)))
+                .thenReturn(0L);
+        when(failingJdbcTemplate.queryForObject(contains("message_logs"), eq(Long.class), any(Object[].class)))
+                .thenThrow(new DataAccessResourceFailureException("database unavailable"));
+
+        InboxSafetyService.InboxSafetyResult result = service.evaluate(request("tenant-1", "workspace-a", "user@example.com"));
+
+        assertThat(result.decision()).isEqualTo(InboxSafetyService.SafetyDecision.BLOCK);
+        assertThat(result.reasonCodes()).contains("SAFETY_SIGNAL_UNAVAILABLE");
     }
 
     private DriverManagerDataSource dataSource() {

@@ -43,7 +43,7 @@ help:
 # ── Infrastructure ──
 infra:
 	docker compose up -d
-	@echo "✅ Infrastructure started. Kafka UI: http://localhost:8090"
+	@echo "✅ Infrastructure started. Kafka UI: http://localhost:8091"
 
 infra-down:
 	docker compose down

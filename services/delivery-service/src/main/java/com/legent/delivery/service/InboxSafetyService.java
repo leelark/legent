@@ -191,16 +191,24 @@ public class InboxSafetyService {
         List<String> fixes = new ArrayList<>();
         int score = 0;
         Instant since = Instant.now().minus(24, ChronoUnit.HOURS);
-        long failures = count("""
-                SELECT COUNT(*) FROM message_logs
-                WHERE tenant_id = ? AND workspace_id = ? AND created_at >= ?
-                  AND status IN ('FAILED','BOUNCED','COMPLAINED')
-                """, tenantId, workspaceId, since);
-        long sent = count("""
-                SELECT COUNT(*) FROM message_logs
-                WHERE tenant_id = ? AND workspace_id = ? AND created_at >= ?
-                  AND status IN ('SENT','FAILED','BOUNCED','COMPLAINED')
-                """, tenantId, workspaceId, since);
+        long failures;
+        long sent;
+        try {
+            failures = count("""
+                    SELECT COUNT(*) FROM message_logs
+                    WHERE tenant_id = ? AND workspace_id = ? AND created_at >= ?
+                      AND status IN ('FAILED','BOUNCED','COMPLAINED')
+                    """, tenantId, workspaceId, since);
+            sent = count("""
+                    SELECT COUNT(*) FROM message_logs
+                    WHERE tenant_id = ? AND workspace_id = ? AND created_at >= ?
+                      AND status IN ('SENT','FAILED','BOUNCED','COMPLAINED')
+                    """, tenantId, workspaceId, since);
+        } catch (Exception ignored) {
+            reasons.add("SAFETY_SIGNAL_UNAVAILABLE");
+            fixes.add("Restore inbox safety database access before delivery.");
+            return new TrendRisk(100, reasons, fixes);
+        }
         if (sent >= 25) {
             double failureRate = failures / (double) sent;
             if (failureRate >= 0.10) {
@@ -213,11 +221,18 @@ public class InboxSafetyService {
                 fixes.add("Throttle send rate until failure rate recovers.");
             }
         }
-        long complaints = count("""
-                SELECT COUNT(*) FROM message_logs
-                WHERE tenant_id = ? AND workspace_id = ? AND created_at >= ?
-                  AND failure_class = 'COMPLAINT'
-                """, tenantId, workspaceId, since);
+        long complaints;
+        try {
+            complaints = count("""
+                    SELECT COUNT(*) FROM message_logs
+                    WHERE tenant_id = ? AND workspace_id = ? AND created_at >= ?
+                      AND failure_class = 'COMPLAINT'
+                    """, tenantId, workspaceId, since);
+        } catch (Exception ignored) {
+            reasons.add("SAFETY_SIGNAL_UNAVAILABLE");
+            fixes.add("Restore inbox safety database access before delivery.");
+            return new TrendRisk(100, reasons, fixes);
+        }
         if (complaints > 0) {
             score += 40;
             reasons.add("COMPLAINT_SIGNAL");
@@ -230,12 +245,17 @@ public class InboxSafetyService {
         if (email == null) {
             return false;
         }
-        Long count = countObject("""
-                SELECT COUNT(*) FROM suppression_signals
-                WHERE tenant_id = ? AND workspace_id = ? AND lower(email) = lower(?)
-                  AND type IN ('HARD_BOUNCE', 'SOFT_BOUNCE', 'COMPLAINT')
-                  AND deleted_at IS NULL
-                """, tenantId, workspaceId, email);
+        Long count;
+        try {
+            count = countObject("""
+                    SELECT COUNT(*) FROM suppression_signals
+                    WHERE tenant_id = ? AND workspace_id = ? AND lower(email) = lower(?)
+                      AND type IN ('HARD_BOUNCE', 'SOFT_BOUNCE', 'COMPLAINT')
+                      AND deleted_at IS NULL
+                    """, tenantId, workspaceId, email);
+        } catch (Exception ignored) {
+            return true;
+        }
         return count != null && count > 0;
     }
 
@@ -245,11 +265,7 @@ public class InboxSafetyService {
     }
 
     private Long countObject(String sql, Object... args) {
-        try {
-            return jdbcTemplate.queryForObject(sql, Long.class, args);
-        } catch (Exception ignored) {
-            return 0L;
-        }
+        return jdbcTemplate.queryForObject(sql, Long.class, args);
     }
 
     private String normalize(String value) {

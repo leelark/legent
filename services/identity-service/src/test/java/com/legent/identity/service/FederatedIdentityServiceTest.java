@@ -97,9 +97,28 @@ class FederatedIdentityServiceTest {
     @Test
     void upsertProvider_rejectsExternalHttpEndpoints() {
         FederationDto.ProviderRequest request = oidcRequest();
-        request.setAuthorizationEndpoint("http://idp.example.com/oauth/authorize");
+        request.setAuthorizationEndpoint("http://93.184.216.34/oauth/authorize");
 
         assertThrows(IllegalArgumentException.class, () -> service.upsertProvider("tenant-1", request));
+    }
+
+    @Test
+    void upsertProvider_rejectsPrivateOidcEndpoints() {
+        FederationDto.ProviderRequest request = oidcRequest();
+        request.setTokenEndpoint("https://10.0.0.5/oauth/token");
+
+        assertThrows(IllegalArgumentException.class, () -> service.upsertProvider("tenant-1", request));
+    }
+
+    @Test
+    void upsertProvider_rejectsJwksOriginMismatch() {
+        FederationDto.ProviderRequest request = oidcRequest();
+        request.setJwksUrl("https://93.184.216.35/oauth/jwks");
+
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+                () -> service.upsertProvider("tenant-1", request));
+
+        assertTrue(error.getMessage().contains("issuer origin"));
     }
 
     @Test
@@ -208,11 +227,11 @@ class FederatedIdentityServiceTest {
         request.setProviderKey("okta");
         request.setDisplayName("Okta");
         request.setProtocol("OIDC");
-        request.setIssuer("https://idp.example.com");
+        request.setIssuer("https://93.184.216.34");
         request.setClientId("client-1");
-        request.setAuthorizationEndpoint("https://idp.example.com/oauth/authorize");
-        request.setTokenEndpoint("https://idp.example.com/oauth/token");
-        request.setJwksUrl("https://idp.example.com/oauth/jwks");
+        request.setAuthorizationEndpoint("https://93.184.216.34/oauth/authorize");
+        request.setTokenEndpoint("https://93.184.216.34/oauth/token");
+        request.setJwksUrl("https://93.184.216.34/oauth/jwks");
         request.setRedirectUri("https://legent.example.com/api/v1/sso/tenant-1/okta/oidc/callback");
         return request;
     }
@@ -222,7 +241,7 @@ class FederatedIdentityServiceTest {
         request.setProviderKey("azure");
         request.setDisplayName("Azure AD");
         request.setProtocol("SAML");
-        request.setSsoUrl("https://idp.example.com/saml/sso");
+        request.setSsoUrl("https://93.184.216.34/saml/sso");
         request.setRedirectUri("https://legent.example.com/api/v1/sso/tenant-1/azure/saml/acs");
         request.setSigningCertificate("-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----");
         request.setScimEnabled(true);

@@ -62,9 +62,41 @@ public class KafkaTopicConfig {
     }
 
     @Bean
+    public NewTopic emailSendRequestedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_EMAIL_SEND_REQUESTED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic sendRequestedTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_SEND_REQUESTED)
                 .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic audienceResolvedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_AUDIENCE_RESOLVED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic batchCreatedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_BATCH_CREATED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic sendProcessingTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_SEND_PROCESSING)
+                .partitions(6)
                 .replicas(1)
                 .build();
     }

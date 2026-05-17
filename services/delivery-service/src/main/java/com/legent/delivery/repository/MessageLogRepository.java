@@ -16,8 +16,8 @@ public interface MessageLogRepository extends JpaRepository<MessageLog, String> 
     Optional<MessageLog> findByTenantIdAndMessageId(String tenantId, String messageId);
     Optional<MessageLog> findByTenantIdAndWorkspaceIdAndMessageId(String tenantId, String workspaceId, String messageId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT m FROM MessageLog m WHERE m.status = 'PENDING' AND m.nextRetryAt <= :now")
-    java.util.List<MessageLog> findEligibleForRetry(@org.springframework.data.repository.query.Param("now") java.time.Instant now);
+    @org.springframework.data.jpa.repository.Query("SELECT m FROM MessageLog m WHERE m.status = 'PENDING' AND m.nextRetryAt <= :now ORDER BY m.nextRetryAt ASC, m.createdAt ASC")
+    java.util.List<MessageLog> findEligibleForRetry(@org.springframework.data.repository.query.Param("now") java.time.Instant now, Pageable pageable);
 
     java.util.List<MessageLog> findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(String tenantId, String workspaceId, Pageable pageable);
 

@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-17.
 
+CodexCodebaseMemorySweep-20260517:
+assigned_task: analyze `.codex` commands/memory/checkpoints/reports and current codebase, then implement locally actionable high-priority fixes with parallel agents
+task_type: SECURITY/PERFORMANCE/RELIABILITY/RELEASE/TESTING
+priority_score: 39
+risk_level: HIGH
+status: completed
+changed_files: identity federation OIDC fetch hardening; shared security CORS/unsafe-method guard; content internal token validation; docker-compose MinIO env requirements; env validator; Kafka topic config/tests; delivery retry/inbox safety tests; `.codex` command/report/bootstrap memory; Makefile Kafka UI port
+branch_or_worktree: main
+dependencies: `.codex/bootstrap.md`, `.codex/commands/*`, `.codex/memory/*`, `.codex/checkpoints/*`, `.codex/reports/*`, subagent findings from McClintock/James/Nietzsche/Kepler/Hubble/Halley/Ptolemy/Volta
+blockers: exact production egress/image/GA/live-load evidence remains external; tracked generated `id_log.txt` cleanup needs explicit approval; full frontend/full reactor/strict release gate not run in this sweep
+next_actions: obtain approval to remove/scrub tracked generated log artifact, collect target evidence, then run full release validation before GA
+
 SalesforceAuditImplementation-20260517:
 assigned_task: implement locally actionable source blockers from Salesforce comparison audit and memory files using subagents
 task_type: SECURITY/RELIABILITY/PERFORMANCE/DATA/TESTING

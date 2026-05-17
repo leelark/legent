@@ -67,7 +67,7 @@ public class UnsafeMethodOriginGuardFilter extends OncePerRequestFilter {
             return;
         }
 
-        if (isAllowedOrigin(securityProperties.get(), candidateOrigin)) {
+        if (isAllowedOrigin(securityProperties.get(), candidateOrigin, hasAuthCookie(request))) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -92,22 +92,23 @@ public class UnsafeMethodOriginGuardFilter extends OncePerRequestFilter {
                 || "OPTIONS".equalsIgnoreCase(method);
     }
 
-    private boolean isAllowedOrigin(SecurityProperties securityProperties, String origin) {
+    private boolean isAllowedOrigin(SecurityProperties securityProperties, String origin, boolean cookieAuthenticated) {
         List<String> allowedOrigins = securityProperties.getCors().getAllowedOrigins();
         if (allowedOrigins == null || allowedOrigins.isEmpty()) {
             return false;
         }
 
         String normalizedOrigin = origin.trim();
+        boolean credentialedCookieRequest = cookieAuthenticated && securityProperties.getCors().isAllowCredentials();
         return allowedOrigins.stream()
                 .filter(this::hasText)
                 .map(String::trim)
-                .anyMatch(allowed -> matchesOriginPattern(allowed, normalizedOrigin));
+                .anyMatch(allowed -> matchesOriginPattern(allowed, normalizedOrigin, credentialedCookieRequest));
     }
 
-    private boolean matchesOriginPattern(String allowed, String origin) {
+    private boolean matchesOriginPattern(String allowed, String origin, boolean credentialedCookieRequest) {
         if ("*".equals(allowed)) {
-            return true;
+            return !credentialedCookieRequest;
         }
         if (allowed.equalsIgnoreCase(origin)) {
             return true;

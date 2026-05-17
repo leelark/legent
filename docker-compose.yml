@@ -220,8 +220,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set}
     command: server /data --console-address ":9001"
     volumes:
       - legent_minio_data:/data
@@ -382,8 +382,8 @@ services:
       <<: [*spring-env, *db-env]
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_content
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set}
       MINIO_BUCKET: legent-assets
       LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:?LEGENT_INTERNAL_API_TOKEN must be set}
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration,filesystem:/app/db/migration
@@ -417,8 +417,8 @@ services:
       SPRING_FLYWAY_LOCATIONS: filesystem:/app/db/migration
       SPRING_FLYWAY_VALIDATE_ON_MIGRATE: "true"
       MINIO_ENDPOINT: http://minio:9000
-      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-minioadmin}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY must be set}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY must be set}
       MINIO_BUCKET: legent-imports
       LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:?LEGENT_INTERNAL_API_TOKEN must be set}
     depends_on:

@@ -22,6 +22,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -235,7 +236,7 @@ class DeliveryOrchestrationServiceTest {
                 "subject", "Cached subject",
                 "htmlBody", "<p>Cached body</p>"
         );
-        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(messageLogRepository.findEligibleForRetry(any(), any(Pageable.class))).thenReturn(List.of(retry));
         when(cacheService.get("email:content:cr_1234567890abcdef1234567890abcdef", String.class))
                 .thenReturn(Optional.of("{\"subject\":\"Cached subject\"}"));
         when(objectMapper.readValue(anyString(), any(com.fasterxml.jackson.core.type.TypeReference.class)))
@@ -244,6 +245,10 @@ class DeliveryOrchestrationServiceTest {
         orchestrationService.processScheduledRetries();
 
         ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(messageLogRepository).findEligibleForRetry(any(), pageableCaptor.capture());
+        assertEquals(0, pageableCaptor.getValue().getPageNumber());
+        assertEquals(500, pageableCaptor.getValue().getPageSize());
         verify(self).processSendRequest(payloadCaptor.capture(), eq("tenant-1"), eq("msg-1"));
         assertEquals("Cached subject", payloadCaptor.getValue().get("subject"));
         assertEquals("<p>Cached body</p>", payloadCaptor.getValue().get("htmlBody"));
@@ -257,7 +262,7 @@ class DeliveryOrchestrationServiceTest {
         DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
         ReflectionTestUtils.setField(orchestrationService, "self", self);
 
-        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(messageLogRepository.findEligibleForRetry(any(), any(Pageable.class))).thenReturn(List.of(retry));
         when(cacheService.get("email:content:cr_1234567890abcdef1234567890abcdef", String.class)).thenReturn(Optional.empty());
         when(contentServiceClient.fetchRenderedContent("tenant-1", "workspace-1", "cr_1234567890abcdef1234567890abcdef"))
                 .thenReturn(Map.of(
@@ -283,7 +288,7 @@ class DeliveryOrchestrationServiceTest {
         DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
         ReflectionTestUtils.setField(orchestrationService, "self", self);
 
-        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(messageLogRepository.findEligibleForRetry(any(), any(Pageable.class))).thenReturn(List.of(retry));
         when(cacheService.get("email:content:cr_missing", String.class)).thenReturn(Optional.empty());
         when(contentServiceClient.fetchRenderedContent("tenant-1", "workspace-1", "cr_missing")).thenReturn(Map.of());
 
@@ -313,7 +318,7 @@ class DeliveryOrchestrationServiceTest {
         DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
         ReflectionTestUtils.setField(orchestrationService, "self", self);
 
-        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(messageLogRepository.findEligibleForRetry(any(), any(Pageable.class))).thenReturn(List.of(retry));
         when(cacheService.get("email:content:ref:camp-1:msg-1", String.class)).thenReturn(Optional.empty());
         when(contentServiceClient.fetchRenderedContent("tenant-1", "workspace-1", "ref:camp-1:msg-1")).thenReturn(Map.of());
 
@@ -342,7 +347,7 @@ class DeliveryOrchestrationServiceTest {
         DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
         ReflectionTestUtils.setField(orchestrationService, "self", self);
 
-        when(messageLogRepository.findEligibleForRetry(any())).thenReturn(List.of(retry));
+        when(messageLogRepository.findEligibleForRetry(any(), any(Pageable.class))).thenReturn(List.of(retry));
         when(cacheService.get("email:content:ref:camp-1:msg-1", String.class)).thenReturn(Optional.empty());
         when(contentServiceClient.fetchRenderedContent("tenant-1", "workspace-1", "ref:camp-1:msg-1"))
                 .thenReturn(Map.of("subject", "Recovered subject"));

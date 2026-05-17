@@ -40,5 +40,9 @@ public class SecurityProperties {
         if (cors.getAllowedOrigins() == null || cors.getAllowedOrigins().isEmpty()) {
             throw new IllegalStateException("CORS allowed origins must be explicitly configured.");
         }
+        if (cors.isAllowCredentials() && cors.getAllowedOrigins().stream()
+                .anyMatch(origin -> origin != null && "*".equals(origin.trim()))) {
+            throw new IllegalStateException("CORS allowed origins cannot include literal '*' when credentials are enabled.");
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.legent.identity.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.common.security.OutboundUrlGuard;
 import com.legent.common.util.IdGenerator;
 import com.legent.identity.domain.Account;
 import com.legent.identity.domain.AccountMembership;
@@ -19,15 +20,18 @@ import com.legent.identity.repository.UserRepository;
 import com.legent.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 import org.w3c.dom.Document;
@@ -42,6 +46,9 @@ import javax.xml.crypto.dsig.dom.DOMValidateContext;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +56,7 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
@@ -71,6 +79,8 @@ public class FederatedIdentityService {
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final String DEFAULT_WORKSPACE_ID = "workspace-default";
+    private static final Duration OIDC_HTTP_TIMEOUT = Duration.ofSeconds(5);
+    private static final int MAX_OIDC_HTTP_RESPONSE_BYTES = 64 * 1024;
     private static final Set<String> PRIVILEGED_ROLE_KEYS = Set.of(
             "ADMIN",
             "PLATFORM_ADMIN",
@@ -88,7 +98,7 @@ public class FederatedIdentityService {
     private final JwtTokenProvider tokenProvider;
     private final ObjectMapper objectMapper;
 
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate = oidcRestTemplate();
 
     @Value("${legent.identity.federation.sp-entity-id:legent-email-studio}")
     private String serviceProviderEntityId;
@@ -415,6 +425,7 @@ public class FederatedIdentityService {
         if (code == null || code.isBlank()) {
             throw new IllegalArgumentException("OIDC code is required");
         }
+        URI tokenEndpoint = trustedOidcEndpoint(provider, "token_endpoint", "OIDC token endpoint");
         LinkedMultiValueMap<String, String> form = new LinkedMultiValueMap<>();
         form.add("grant_type", "authorization_code");
         form.add("code", code);
@@ -424,11 +435,7 @@ public class FederatedIdentityService {
         resolveClientSecret(provider).ifPresent(secret -> form.add("client_secret", secret));
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> response = restTemplate.postForObject(
-                String.valueOf(provider.get("token_endpoint")),
-                new HttpEntity<>(form, headers),
-                Map.class);
+        Map<String, Object> response = postOidcForm(tokenEndpoint, form, headers);
         if (response == null || response.get("id_token") == null) {
             throw new IllegalArgumentException("OIDC token endpoint did not return id_token");
         }
@@ -436,7 +443,11 @@ public class FederatedIdentityService {
     }
 
     private Jwt decodeAndValidateIdToken(Map<String, Object> provider, String idToken, String expectedNonce) {
-        Jwt jwt = NimbusJwtDecoder.withJwkSetUri(String.valueOf(provider.get("jwks_url"))).build().decode(idToken);
+        URI jwksUri = trustedOidcEndpoint(provider, "jwks_url", "OIDC JWKS URL");
+        Jwt jwt = NimbusJwtDecoder.withJwkSetUri(jwksUri.toString())
+                .restOperations(restTemplate)
+                .build()
+                .decode(idToken);
         if (provider.get("issuer") != null && !String.valueOf(provider.get("issuer")).equals(jwt.getIssuer() == null ? null : jwt.getIssuer().toString())) {
             throw new IllegalArgumentException("OIDC issuer mismatch");
         }
@@ -605,15 +616,16 @@ public class FederatedIdentityService {
             require(request.getTokenEndpoint(), "tokenEndpoint");
             require(request.getJwksUrl(), "jwksUrl");
             require(request.getRedirectUri(), "redirectUri");
-            requireTrustedHttpUrl(request.getAuthorizationEndpoint(), "authorizationEndpoint");
-            requireTrustedHttpUrl(request.getTokenEndpoint(), "tokenEndpoint");
-            requireTrustedHttpUrl(request.getJwksUrl(), "jwksUrl");
+            URI issuer = OutboundUrlGuard.requirePublicHttpsUri(request.getIssuer(), "issuer");
+            requireSameOrigin(issuer, OutboundUrlGuard.requirePublicHttpsUri(request.getAuthorizationEndpoint(), "authorizationEndpoint"), "authorizationEndpoint");
+            requireSameOrigin(issuer, OutboundUrlGuard.requirePublicHttpsUri(request.getTokenEndpoint(), "tokenEndpoint"), "tokenEndpoint");
+            requireSameOrigin(issuer, OutboundUrlGuard.requirePublicHttpsUri(request.getJwksUrl(), "jwksUrl"), "jwksUrl");
             requireTrustedHttpUrl(request.getRedirectUri(), "redirectUri");
         } else {
             require(request.getSsoUrl(), "ssoUrl");
             require(request.getRedirectUri(), "redirectUri");
             require(request.getSigningCertificate(), "signingCertificate");
-            requireTrustedHttpUrl(request.getSsoUrl(), "ssoUrl");
+            OutboundUrlGuard.requirePublicHttpsUri(request.getSsoUrl(), "ssoUrl");
             requireTrustedHttpUrl(request.getRedirectUri(), "redirectUri");
         }
     }
@@ -906,6 +918,96 @@ public class FederatedIdentityService {
                 && ("localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host) || "::1".equals(host));
     }
 
+    private URI trustedOidcEndpoint(Map<String, Object> provider, String field, String label) {
+        String value = asString(provider.get(field));
+        URI endpoint = OutboundUrlGuard.requirePublicHttpsUri(value, label);
+        String issuerValue = asString(provider.get("issuer"));
+        if (issuerValue != null && !issuerValue.isBlank()) {
+            requireSameOrigin(OutboundUrlGuard.requirePublicHttpsUri(issuerValue, "OIDC issuer"), endpoint, label);
+        }
+        return endpoint;
+    }
+
+    private void requireSameOrigin(URI expected, URI actual, String field) {
+        if (!sameOrigin(expected, actual)) {
+            throw new IllegalArgumentException(field + " must share the OIDC issuer origin");
+        }
+    }
+
+    private boolean sameOrigin(URI left, URI right) {
+        if (left == null || right == null || left.getHost() == null || right.getHost() == null) {
+            return false;
+        }
+        return Objects.equals(left.getScheme(), right.getScheme())
+                && left.getHost().equalsIgnoreCase(right.getHost())
+                && effectivePort(left) == effectivePort(right);
+    }
+
+    private int effectivePort(URI uri) {
+        if (uri.getPort() != -1) {
+            return uri.getPort();
+        }
+        return "https".equalsIgnoreCase(uri.getScheme()) ? 443 : 80;
+    }
+
+    private Map<String, Object> postOidcForm(
+            URI endpoint,
+            LinkedMultiValueMap<String, String> form,
+            HttpHeaders headers) {
+        byte[] requestBody = encodeForm(form);
+        byte[] responseBody = restTemplate.execute(endpoint, HttpMethod.POST, request -> {
+            request.getHeaders().putAll(headers);
+            request.getHeaders().setContentLength(requestBody.length);
+            StreamUtils.copy(requestBody, request.getBody());
+        }, response -> {
+            if (!response.getStatusCode().is2xxSuccessful()) {
+                throw new IllegalArgumentException("OIDC token endpoint returned " + response.getStatusCode().value());
+            }
+            return readBounded(response.getBody(), "OIDC token response");
+        });
+        if (responseBody == null || responseBody.length == 0) {
+            throw new IllegalArgumentException("OIDC token endpoint returned an empty response");
+        }
+        try {
+            return objectMapper.readValue(responseBody, MAP_TYPE);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("OIDC token endpoint returned invalid JSON", e);
+        }
+    }
+
+    private byte[] encodeForm(LinkedMultiValueMap<String, String> form) {
+        StringBuilder encoded = new StringBuilder();
+        form.forEach((key, values) -> {
+            List<String> safeValues = values == null || values.isEmpty() ? List.of("") : values;
+            for (String value : safeValues) {
+                if (!encoded.isEmpty()) {
+                    encoded.append('&');
+                }
+                encoded.append(urlEncode(key)).append('=').append(urlEncode(value == null ? "" : value));
+            }
+        });
+        return encoded.toString().getBytes(StandardCharsets.UTF_8);
+    }
+
+    private byte[] readBounded(InputStream input, String label) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream(Math.min(MAX_OIDC_HTTP_RESPONSE_BYTES, 8192));
+        byte[] buffer = new byte[8192];
+        int total = 0;
+        int read;
+        while ((read = input.read(buffer)) != -1) {
+            total += read;
+            if (total > MAX_OIDC_HTTP_RESPONSE_BYTES) {
+                throw new IllegalArgumentException(label + " exceeds " + MAX_OIDC_HTTP_RESPONSE_BYTES + " bytes");
+            }
+            output.write(buffer, 0, read);
+        }
+        return output.toByteArray();
+    }
+
+    private String urlEncode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+    }
+
     private String safeRedirectAfter(String redirectAfter) {
         String value = blankToNull(redirectAfter);
         if (value == null) {
@@ -945,6 +1047,93 @@ public class FederatedIdentityService {
                 .replace("<", "&lt;")
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;");
+    }
+
+    private static RestTemplate oidcRestTemplate() {
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout((int) OIDC_HTTP_TIMEOUT.toMillis());
+        requestFactory.setReadTimeout((int) OIDC_HTTP_TIMEOUT.toMillis());
+        RestTemplate template = new RestTemplate(requestFactory);
+        template.getInterceptors().add((request, body, execution) -> {
+            ClientHttpResponse response = execution.execute(request, body);
+            long contentLength = response.getHeaders().getContentLength();
+            if (contentLength > MAX_OIDC_HTTP_RESPONSE_BYTES) {
+                response.close();
+                throw new IOException("OIDC HTTP response exceeds " + MAX_OIDC_HTTP_RESPONSE_BYTES + " bytes");
+            }
+            return new SizeBoundedClientHttpResponse(response);
+        });
+        return template;
+    }
+
+    private static final class SizeBoundedClientHttpResponse implements ClientHttpResponse {
+        private final ClientHttpResponse delegate;
+
+        private SizeBoundedClientHttpResponse(ClientHttpResponse delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        @org.springframework.lang.NonNull
+        public org.springframework.http.HttpStatusCode getStatusCode() throws IOException {
+            return delegate.getStatusCode();
+        }
+
+        @Override
+        @org.springframework.lang.NonNull
+        public String getStatusText() throws IOException {
+            return delegate.getStatusText();
+        }
+
+        @Override
+        public void close() {
+            delegate.close();
+        }
+
+        @Override
+        @org.springframework.lang.NonNull
+        public InputStream getBody() throws IOException {
+            return new SizeBoundedInputStream(delegate.getBody());
+        }
+
+        @Override
+        @org.springframework.lang.NonNull
+        public HttpHeaders getHeaders() {
+            return delegate.getHeaders();
+        }
+    }
+
+    private static final class SizeBoundedInputStream extends FilterInputStream {
+        private int total;
+
+        private SizeBoundedInputStream(InputStream delegate) {
+            super(delegate);
+        }
+
+        @Override
+        public int read() throws IOException {
+            int value = super.read();
+            if (value != -1) {
+                increment(1);
+            }
+            return value;
+        }
+
+        @Override
+        public int read(@org.springframework.lang.NonNull byte[] bytes, int offset, int length) throws IOException {
+            int read = super.read(bytes, offset, length);
+            if (read > 0) {
+                increment(read);
+            }
+            return read;
+        }
+
+        private void increment(int read) throws IOException {
+            total += read;
+            if (total > MAX_OIDC_HTTP_RESPONSE_BYTES) {
+                throw new IOException("OIDC HTTP response exceeds " + MAX_OIDC_HTTP_RESPONSE_BYTES + " bytes");
+            }
+        }
     }
 
     public record FederatedLoginResult(

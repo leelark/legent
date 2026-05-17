@@ -8,7 +8,7 @@ Scope: consolidated final audit plus the current release-blocker implementation 
 
 All locally implementable blocker work is now encoded as fail-closed validation, preflight, or evidence intake. No production CIDRs, FQDN policy approval, registry digests, provenance, live smoke/load transcripts, restore proof, TLS ownership, or admission proof were invented from source. Those remain external release inputs.
 
-The repo now has a single current report in `.codex/reports`: this file. Older superseded audit/report files were removed after current facts were merged into durable memory and this report.
+At the time of the 2026-05-16 cleanup, this was the consolidated current final audit report after older superseded audit/report files were removed. Newer reports may now coexist in `.codex/reports` when they cover later audit scope or comparator analysis.
 
 ## Implemented Since Prior Audit
 

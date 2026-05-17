@@ -60,9 +60,7 @@ public class ContentController {
             @PathVariable String templateId,
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
             @RequestBody Map<String, Object> variables) {
-        if (token == null || !token.equals(internalApiToken)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
-        }
+        requireInternalToken(token);
         return renderTemplateForTenant(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), templateId, variables);
     }
 
