@@ -212,10 +212,39 @@ class WorkflowTriggerConsumerTest {
     }
 
     @Test
-    void consumeTriggerDropsMalformedPayloadBeforeClaiming() {
+    void consumeTriggerThrowsForMalformedPayloadBeforeClaiming() {
         EventEnvelope<Object> event = triggerEvent("{not-json");
 
-        consumer.consumeTrigger(event);
+        assertThatThrownBy(() -> consumer.consumeTrigger(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Malformed workflow.trigger event payload");
+
+        verifyNoInteractions(idempotencyService, workflowEngine);
+    }
+
+    @Test
+    void consumeTriggerThrowsForMissingWorkflowIdBeforeClaiming() {
+        EventEnvelope<Object> event = triggerEvent(Map.of(
+                "subscriberId", "subscriber-1",
+                "context", Map.of("source", "unit-test")));
+
+        assertThatThrownBy(() -> consumer.consumeTrigger(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workflowId");
+
+        verifyNoInteractions(idempotencyService, workflowEngine);
+    }
+
+    @Test
+    void consumeTriggerThrowsForMissingSubscriberIdBeforeClaiming() {
+        EventEnvelope<Object> event = triggerEvent(Map.of(
+                "workflowId", "workflow-1",
+                "version", 3,
+                "context", Map.of("source", "unit-test")));
+
+        assertThatThrownBy(() -> consumer.consumeTrigger(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("subscriberId");
 
         verifyNoInteractions(idempotencyService, workflowEngine);
     }

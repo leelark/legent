@@ -190,6 +190,23 @@ test.describe('api client context preflight', () => {
     await expectBlocked('/subscribers', 'MISSING_WORKSPACE');
   });
 
+  test('requires workspace for foundation workspace-protected roots', async () => {
+    installBrowserContext({ [TENANT_STORAGE_KEY]: 'tenant-1' });
+
+    for (const url of [
+      '/admin/branding',
+      '/admin/configs',
+      '/admin/operations',
+      '/admin/public-content',
+      '/admin/settings',
+      '/differentiation/recommendations',
+      '/global/operating-models',
+      '/performance-intelligence/summary',
+    ]) {
+      await expectBlocked(url, 'MISSING_WORKSPACE');
+    }
+  });
+
   test('clears stored auth and context on non-auth 401 before redirect', async () => {
     installBrowserContext({
       [USER_STORAGE_KEY]: 'user-1',

@@ -58,13 +58,14 @@ public class CampaignEventConsumer {
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_AUDIENCE_RESOLVED);
+            requirePayloadString(payload, "campaignId", AppConstants.TOPIC_AUDIENCE_RESOLVED, event);
+            String jobId = requirePayloadString(payload, "jobId", AppConstants.TOPIC_AUDIENCE_RESOLVED, event);
             String chunkIdentity = audienceChunkIdentity(event, payload);
             registration = registerEvent(event, AppConstants.TOPIC_AUDIENCE_RESOLVED, workspaceId, chunkIdentity, chunkIdentity);
             if (!registration.claimed()) {
                 return;
             }
             applyTenantContext(event, workspaceId);
-            String jobId = (String) payload.get("jobId");
             boolean isLastChunk = Boolean.parseBoolean(String.valueOf(payload.getOrDefault("isLastChunk", true)));
             
             // Re-serialize and deserialize to get typed list
@@ -96,18 +97,14 @@ public class CampaignEventConsumer {
         try {
             Map<String, Object> payload = payloadAsMap(event.getPayload());
             String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_SEND_PROCESSING);
+            String jobId = requirePayloadString(payload, "jobId", AppConstants.TOPIC_SEND_PROCESSING, event);
+            String batchId = requirePayloadString(payload, "batchId", AppConstants.TOPIC_SEND_PROCESSING, event);
             registration = registerEvent(event, AppConstants.TOPIC_SEND_PROCESSING, workspaceId);
             if (!registration.claimed()) {
                 return;
             }
             applyTenantContext(event, workspaceId);
-            String jobId = String.valueOf(payload.getOrDefault("jobId", ""));
-            String batchId = String.valueOf(payload.getOrDefault("batchId", ""));
-            if (!jobId.isBlank() && !batchId.isBlank()) {
-                executionService.executeBatch(event.getTenantId(), jobId, batchId, null);
-            } else {
-                log.warn("SEND_PROCESSING event {} missing jobId/batchId - ignored", event.getEventId());
-            }
+            executionService.executeBatch(event.getTenantId(), jobId, batchId, null);
             sideEffectsComplete = true;
             completeEvent(registration);
         } catch (Exception e) {
@@ -126,14 +123,14 @@ public class CampaignEventConsumer {
         try {
             Map<String, String> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
             String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_BATCH_CREATED);
+            String jobId = requirePayloadString(payload, "jobId", AppConstants.TOPIC_BATCH_CREATED, event);
+            String batchId = requirePayloadString(payload, "batchId", AppConstants.TOPIC_BATCH_CREATED, event);
             registration = registerEvent(event, AppConstants.TOPIC_BATCH_CREATED, workspaceId);
             if (!registration.claimed()) {
                 return;
             }
             applyTenantContext(event, workspaceId);
-            String jobId = payload.get("jobId");
-            String batchId = payload.get("batchId");
-            
+
             // To pass payload we fetch from DB inside the service
             // This is a common pattern to avoid Kafka message size limits
             executionService.executeBatch(event.getTenantId(), jobId, batchId, null); // passing null as it will fetch from db
@@ -155,11 +152,7 @@ public class CampaignEventConsumer {
         boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = payloadAsMap(event.getPayload());
-            String campaignId = stringValue(payload.get("campaignId"));
-            if (campaignId == null) {
-                log.warn("Ignoring send.requested without campaignId: {}", event.getEventId());
-                return;
-            }
+            String campaignId = requirePayloadString(payload, "campaignId", AppConstants.TOPIC_SEND_REQUESTED, event);
             String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_SEND_REQUESTED);
             registration = registerEvent(event, AppConstants.TOPIC_SEND_REQUESTED, workspaceId);
             if (!registration.claimed()) {
@@ -266,11 +259,8 @@ public class CampaignEventConsumer {
         boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
-            String workspaceId = resolveWorkspaceId(event, payload);
-            if (workspaceId == null) {
-                return;
-            }
             String topic = failed ? AppConstants.TOPIC_EMAIL_FAILED : AppConstants.TOPIC_EMAIL_SENT;
+            String workspaceId = requireWorkspaceId(event, payload, topic);
             registration = registerEvent(event, topic, workspaceId);
             if (!registration.claimed()) {
                 return;
@@ -498,6 +488,14 @@ public class CampaignEventConsumer {
             throw new IllegalArgumentException("workspaceId is required for " + topic + " event " + eventId(event));
         }
         return workspaceId;
+    }
+
+    private String requirePayloadString(Map<String, ?> payload, String fieldName, String topic, EventEnvelope<?> event) {
+        String value = payload == null ? null : stringValue(payload.get(fieldName));
+        if (value == null) {
+            throw new IllegalArgumentException(fieldName + " is required for " + topic + " event " + eventId(event));
+        }
+        return value;
     }
 
     private void applyTenantContext(EventEnvelope<?> event, String workspaceId) {

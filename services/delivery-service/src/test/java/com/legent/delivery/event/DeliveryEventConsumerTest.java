@@ -119,4 +119,39 @@ class DeliveryEventConsumerTest {
 
         verifyNoInteractions(idempotencyService, orchestrationService);
     }
+
+    @Test
+    void handleSendRequest_rejectsMissingEventTypeWithoutClaiming() {
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("evt-missing-type")
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-missing-type")
+                .payload(Map.of("workspaceId", "workspace-1", "email", "recipient@example.com"))
+                .build();
+
+        assertThatThrownBy(() -> consumer.handleSendRequest(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("eventType is required");
+
+        verifyNoInteractions(idempotencyService, orchestrationService);
+    }
+
+    @Test
+    void handleSendRequest_rejectsUnexpectedEventTypeWithoutClaiming() {
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("evt-wrong-type")
+                .eventType(AppConstants.TOPIC_EMAIL_SENT)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-wrong-type")
+                .payload(Map.of("workspaceId", "workspace-1", "email", "recipient@example.com"))
+                .build();
+
+        assertThatThrownBy(() -> consumer.handleSendRequest(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("must match topic");
+
+        verifyNoInteractions(idempotencyService, orchestrationService);
+    }
 }

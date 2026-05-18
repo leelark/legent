@@ -53,23 +53,12 @@ public class FeedbackLoopConsumer {
             Map<String, Object> payload = toPayloadMap(event.getPayload());
             workspaceId = resolveWorkspaceId(event, payload);
             eventType = resolveCanonicalEventType(event.getEventType(), receivedTopic);
-            if (payload == null || payload.isEmpty()) {
-                log.warn("Skipping feedback event {}: empty payload", event.getEventId());
-                return;
-            }
+            validateFeedbackPayload(event, payload, eventType);
             
-            String email = (String) payload.get("email");
-            String bounceType = (String) payload.get("bounceType");
-            if (bounceType == null) {
-                bounceType = (String) payload.get("type");
-            }
-            String domainId = (String) payload.get("domainId");
-            String senderDomain = (String) payload.get("senderDomain");
-
-            if (email == null || email.isBlank()) {
-                log.warn("Skipping feedback event {}: missing email", event.getEventId());
-                return;
-            }
+            String email = asString(payload.get("email"));
+            String bounceType = firstNonBlank(asString(payload.get("bounceType")), asString(payload.get("type")));
+            String domainId = asString(payload.get("domainId"));
+            String senderDomain = asString(payload.get("senderDomain"));
 
             if (!hasClaimKey(eventId, idempotencyKey)) {
                 throw new InvalidFeedbackEventException("Missing eventId or idempotencyKey for feedback event");
@@ -120,7 +109,9 @@ public class FeedbackLoopConsumer {
             idempotencyService.markProcessed(tenantId, workspaceId, eventType, eventId, idempotencyKey);
 
         } catch (JsonProcessingException e) {
-            log.warn("Dropping malformed feedback loop event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
+            log.warn("Rejecting malformed feedback loop event for retry/DLQ. eventId={}",
+                    event == null ? "unknown" : event.getEventId(), e);
+            throw new IllegalStateException("Invalid feedback loop event", e);
         } catch (InvalidFeedbackEventException e) {
             if (claimed) {
                 releaseClaim(tenantId, workspaceId, eventType, eventId, idempotencyKey, e);
@@ -167,6 +158,22 @@ public class FeedbackLoopConsumer {
                 .findByTenantIdAndWorkspaceIdAndDomainName(tenantId, workspaceId, senderDomain.trim().toLowerCase())
                 .map(com.legent.deliverability.domain.SenderDomain::getId)
                 .orElse(null);
+    }
+
+    private void validateFeedbackPayload(EventEnvelope<?> event, Map<String, Object> payload, String eventType) {
+        if (payload == null || payload.isEmpty()) {
+            throw new InvalidFeedbackEventException("Feedback payload is required for event " + event.getEventId());
+        }
+        if (asString(payload.get("email")) == null) {
+            throw new InvalidFeedbackEventException("email is required for feedback event " + event.getEventId());
+        }
+        if (AppConstants.TOPIC_EMAIL_BOUNCED.equals(eventType)
+                && firstNonBlank(asString(payload.get("bounceType")), asString(payload.get("type"))) == null) {
+            throw new InvalidFeedbackEventException("bounceType or type is required for bounced event " + event.getEventId());
+        }
+        if (firstNonBlank(asString(payload.get("domainId")), asString(payload.get("senderDomain"))) == null) {
+            throw new InvalidFeedbackEventException("domainId or senderDomain is required for feedback event " + event.getEventId());
+        }
     }
 
     private String requireTenantId(EventEnvelope<?> event) {
@@ -225,6 +232,18 @@ public class FeedbackLoopConsumer {
     private boolean hasClaimKey(String eventId, String idempotencyKey) {
         return eventId != null && !eventId.isBlank()
                 || idempotencyKey != null && !idempotencyKey.isBlank();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first != null ? first : second;
+    }
+
+    private String asString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private static class InvalidFeedbackEventException extends RuntimeException {

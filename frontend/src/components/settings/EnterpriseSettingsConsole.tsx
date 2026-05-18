@@ -83,14 +83,14 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
     setLoading(true);
     setPreferenceLoadState('loading');
     try {
-      const sources = [
-        ['Preferences', getUserPreferences()],
-        ['Provider health', listProviderHealth()],
-        ['Sender domains', listDomains()],
-      ] as const;
-      const [prefRes, providerRes, domainRes] = await Promise.allSettled(sources.map(([, request]) => request));
-      const issues = sources
-        .map(([label], index) => {
+      const sourceLabels = ['Preferences', 'Provider health', 'Sender domains'] as const;
+      const [prefRes, providerRes, domainRes] = await Promise.allSettled([
+        getUserPreferences(),
+        listProviderHealth(),
+        listDomains(),
+      ] as const);
+      const issues = sourceLabels
+        .map((label, index) => {
           const result = [prefRes, providerRes, domainRes][index];
           return result.status === 'rejected' ? label : null;
         })

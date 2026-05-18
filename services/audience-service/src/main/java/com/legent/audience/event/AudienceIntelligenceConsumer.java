@@ -19,15 +19,13 @@ public class AudienceIntelligenceConsumer {
     public void consumeTracking(EventEnvelope<String> envelope) {
         try {
             String workspaceId = resolveWorkspace(envelope);
-            if (workspaceId == null) {
-                return;
-            }
+            String idempotencyKey = resolveIdempotencyKey(envelope);
             intelligenceService.applyTrackingIngested(
                     envelope.getTenantId(),
                     workspaceId,
                     envelope.getEventType(),
                     envelope.getEventId(),
-                    envelope.getIdempotencyKey(),
+                    idempotencyKey,
                     envelope.getPayload());
         } catch (Exception e) {
             log.error("Failed to process audience tracking intelligence event", e);
@@ -43,15 +41,13 @@ public class AudienceIntelligenceConsumer {
     public void consumeAutomation(EventEnvelope<String> envelope) {
         try {
             String workspaceId = resolveWorkspace(envelope);
-            if (workspaceId == null) {
-                return;
-            }
+            String idempotencyKey = resolveIdempotencyKey(envelope);
             intelligenceService.applyAutomationEvent(
                     envelope.getTenantId(),
                     workspaceId,
                     envelope.getEventType(),
                     envelope.getEventId(),
-                    envelope.getIdempotencyKey(),
+                    idempotencyKey,
                     envelope.getPayload());
         } catch (Exception e) {
             log.error("Failed to process audience automation intelligence event", e);
@@ -60,11 +56,35 @@ public class AudienceIntelligenceConsumer {
     }
 
     private String resolveWorkspace(EventEnvelope<String> envelope) {
+        requireEnvelope(envelope);
         String workspaceId = envelope.getWorkspaceId();
         if (workspaceId == null || workspaceId.isBlank()) {
-            log.error("Dropping audience intelligence event without workspaceId. eventId={}", envelope.getEventId());
-            return null;
+            throw invalidEvent(envelope, "workspaceId");
         }
-        return workspaceId;
+        return workspaceId.trim();
+    }
+
+    private String resolveIdempotencyKey(EventEnvelope<String> envelope) {
+        String idempotencyKey = envelope.getIdempotencyKey();
+        if (idempotencyKey == null || idempotencyKey.isBlank()) {
+            throw invalidEvent(envelope, "idempotencyKey");
+        }
+        return idempotencyKey.trim();
+    }
+
+    private void requireEnvelope(EventEnvelope<String> envelope) {
+        if (envelope == null) {
+            throw new IllegalArgumentException("Audience intelligence event envelope is required");
+        }
+    }
+
+    private IllegalArgumentException invalidEvent(EventEnvelope<String> envelope, String fieldName) {
+        return new IllegalArgumentException(String.format(
+                "Audience intelligence event missing %s. eventId=%s, tenantId=%s, workspaceId=%s, eventType=%s",
+                fieldName,
+                envelope.getEventId(),
+                envelope.getTenantId(),
+                envelope.getWorkspaceId(),
+                envelope.getEventType()));
     }
 }

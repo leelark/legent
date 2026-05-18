@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-18.
 
+CodexPendingReview-20260518:
+assigned_task: inspect `.codex` bootstrap, commands, memory, checkpoints, reports, and current repository state; classify pending items and complete locally actionable work with parallel subagents
+task_type: RELEASE/SECURITY/PERFORMANCE/REFACTOR/TESTING
+priority_score: 33
+risk_level: HIGH
+status: completed
+changed_files: frontend API client/type cleanup and lint strictness; focused frontend context E2E; high-risk audience/automation/campaign/deliverability/delivery/platform Kafka consumer fail-closed validation and tests; route-map/Nginx tombstone validation; release evidence policy checks/docs; `.codex` memory/report updates
+branch_or_worktree: main
+dependencies: AGENTS.md, `.codex/bootstrap.md`, `.codex/commands/*`, `.codex/memory/*`, cavecrew delegation guide, parallel read-only subagents
+blockers: locally actionable work completed; external release evidence remains required and cannot be invented
+next_actions: collect real production egress policy application proof, GA evidence pack, registry digest/SBOM/signature/provenance, live scale/restore/security/monitoring transcripts, and Audience V17 reviewed mapping before promotion; no commit or push performed
+
 SalesforceAuditImplementation-20260518:
 assigned_task: implement locally actionable items from `.codex/reports/salesforce-comparison-full-audit-2026-05-18.yaml` with parallel subagents
 task_type: RELEASE/SECURITY/RELIABILITY/FRONTEND/BACKEND/TESTING

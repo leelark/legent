@@ -28,11 +28,12 @@ public class DeliveryEventConsumer {
     public void handleSendRequest(EventEnvelope<Map<String, Object>> event) {
         String tenantId = event != null ? event.getTenantId() : null;
         String workspaceId = null;
-        String eventType = event != null && event.getEventType() != null ? event.getEventType() : AppConstants.TOPIC_EMAIL_SEND_REQUESTED;
+        String eventType = null;
         String eventId = event != null ? event.getEventId() : null;
         String idempotencyKey = event != null ? event.getIdempotencyKey() : null;
         boolean claimed = false;
         try {
+            eventType = requireSendRequestedEventType(event);
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Map.of();
             workspaceId = resolveWorkspaceId(event, payload);
             Map<String, Object> scopedPayload = new HashMap<>(payload);
@@ -72,6 +73,21 @@ public class DeliveryEventConsumer {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private String requireSendRequestedEventType(EventEnvelope<?> event) {
+        if (event == null) {
+            throw new IllegalArgumentException("email send request event envelope is required");
+        }
+        String eventType = normalize(event.getEventType());
+        if (eventType == null) {
+            throw new IllegalArgumentException("eventType is required for " + AppConstants.TOPIC_EMAIL_SEND_REQUESTED);
+        }
+        if (!AppConstants.TOPIC_EMAIL_SEND_REQUESTED.equals(eventType)) {
+            throw new IllegalArgumentException("eventType [" + eventType + "] must match topic ["
+                    + AppConstants.TOPIC_EMAIL_SEND_REQUESTED + "]");
+        }
+        return eventType;
     }
 
     private void releaseClaim(String tenantId,

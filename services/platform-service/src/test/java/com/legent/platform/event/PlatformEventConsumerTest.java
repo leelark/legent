@@ -93,6 +93,20 @@ class PlatformEventConsumerTest {
     }
 
     @Test
+    void consumeWebhookTriggers_rejectsMissingEventToDispatchBeforeDispatch() {
+        PlatformEventConsumer consumer = new PlatformEventConsumer(
+                new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
+        EventEnvelope<String> event = platformEvent(
+                AppConstants.TOPIC_WEBHOOK_TRIGGERED,
+                "{\"eventToDispatch\":\" \",\"data\":{\"id\":\"m1\"}}");
+
+        assertThrows(IllegalStateException.class, () -> consumer.consumeWebhookTriggers(event));
+
+        verifyNoInteractions(webhookDispatcherService, notificationEngine, searchService);
+        assertNull(TenantContext.getTenantId());
+    }
+
+    @Test
     void consumeNotificationEvents_rejectsMissingTenantIdWithoutSideEffects() {
         PlatformEventConsumer consumer = new PlatformEventConsumer(
                 new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
@@ -120,6 +134,27 @@ class PlatformEventConsumerTest {
                 "{\"ownershipScope\":\"WORKSPACE\",\"userId\":\"user-1\",\"title\":\"Title\",\"message\":\"Message\",\"severity\":\"INFO\",\"linkUrl\":\"/app\"}");
 
         assertThrows(IllegalStateException.class, () -> consumer.consumeNotificationEvents(event));
+
+        verifyNoInteractions(webhookDispatcherService, notificationEngine, searchService);
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
+    }
+
+    @Test
+    void consumeNotificationEvents_rejectsMissingRequiredFieldsBeforePersistence() {
+        PlatformEventConsumer consumer = new PlatformEventConsumer(
+                new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
+        String[] payloads = {
+                "{\"title\":\"Title\",\"message\":\"Message\"}",
+                "{\"userId\":\"user-1\",\"message\":\"Message\"}",
+                "{\"userId\":\"user-1\",\"title\":\"Title\"}"
+        };
+
+        for (String payload : payloads) {
+            EventEnvelope<String> event = platformEvent(AppConstants.TOPIC_NOTIFICATION_CREATED, payload);
+
+            assertThrows(IllegalStateException.class, () -> consumer.consumeNotificationEvents(event));
+        }
 
         verifyNoInteractions(webhookDispatcherService, notificationEngine, searchService);
         assertNull(TenantContext.getTenantId());
@@ -164,6 +199,28 @@ class PlatformEventConsumerTest {
 
         assertThrows(IllegalStateException.class, () -> consumer.consumeSearchIndexUpdates(event));
         assertNull(TenantContext.getTenantId());
+    }
+
+    @Test
+    void consumeSearchIndexUpdates_rejectsMissingRequiredFieldsBeforeIndexing() {
+        PlatformEventConsumer consumer = new PlatformEventConsumer(
+                new ObjectMapper(), webhookDispatcherService, notificationEngine, searchService);
+        String[] payloads = {
+                "{\"entityId\":\"c1\",\"title\":\"Campaign\",\"searchableText\":\"copy\"}",
+                "{\"entityType\":\"CAMPAIGN\",\"title\":\"Campaign\",\"searchableText\":\"copy\"}",
+                "{\"entityType\":\"CAMPAIGN\",\"entityId\":\"c1\",\"searchableText\":\"copy\"}",
+                "{\"entityType\":\"CAMPAIGN\",\"entityId\":\"c1\",\"title\":\"Campaign\"}"
+        };
+
+        for (String payload : payloads) {
+            EventEnvelope<String> event = platformEvent(AppConstants.TOPIC_SEARCH_INDEX_UPDATED, payload);
+
+            assertThrows(IllegalStateException.class, () -> consumer.consumeSearchIndexUpdates(event));
+        }
+
+        verifyNoInteractions(webhookDispatcherService, notificationEngine, searchService);
+        assertNull(TenantContext.getTenantId());
+        assertNull(TenantContext.getWorkspaceId());
     }
 
     @Test

@@ -152,6 +152,7 @@ class CampaignEventConsumerTest {
     @Test
     void handleAudienceResolvedThrowsWhenWorkspaceMissingAndDoesNotProcessChunk() {
         Map<String, Object> payload = new HashMap<>();
+        payload.put("campaignId", "campaign-1");
         payload.put("jobId", "job-1");
         payload.put("isLastChunk", true);
         payload.put("subscribers", List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
@@ -168,6 +169,56 @@ class CampaignEventConsumerTest {
         assertEquals("Failed handling TOPIC_AUDIENCE_RESOLVED", thrown.getMessage());
         assertEquals(
                 "workspaceId is required for " + AppConstants.TOPIC_AUDIENCE_RESOLVED + " event audience-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
+    void handleAudienceResolvedThrowsWhenJobMissingAndDoesNotClaimProcessed() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workspaceId", "workspace-1");
+        payload.put("campaignId", "campaign-1");
+        payload.put("isLastChunk", true);
+        payload.put("subscribers", List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("audience-missing-job")
+                .eventType(AppConstants.TOPIC_AUDIENCE_RESOLVED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-audience-missing-job")
+                .payload(payload)
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAudienceResolved(event));
+
+        assertEquals("Failed handling TOPIC_AUDIENCE_RESOLVED", thrown.getMessage());
+        assertEquals(
+                "jobId is required for " + AppConstants.TOPIC_AUDIENCE_RESOLVED + " event audience-missing-job",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
+    void handleAudienceResolvedThrowsWhenCampaignMissingAndDoesNotClaimProcessed() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workspaceId", "workspace-1");
+        payload.put("jobId", "job-1");
+        payload.put("isLastChunk", true);
+        payload.put("subscribers", List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("audience-missing-campaign")
+                .eventType(AppConstants.TOPIC_AUDIENCE_RESOLVED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-audience-missing-campaign")
+                .payload(payload)
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAudienceResolved(event));
+
+        assertEquals("Failed handling TOPIC_AUDIENCE_RESOLVED", thrown.getMessage());
+        assertEquals(
+                "campaignId is required for " + AppConstants.TOPIC_AUDIENCE_RESOLVED + " event audience-missing-campaign",
                 thrown.getCause().getMessage());
         verifyNoConsumerSideEffects();
     }
@@ -252,6 +303,28 @@ class CampaignEventConsumerTest {
     }
 
     @Test
+    void handleSendProcessingThrowsWhenBatchMissingAndDoesNotClaimProcessed() {
+        EventEnvelope<String> event = EventEnvelope.<String>builder()
+                .eventId("processing-missing-batch")
+                .eventType(AppConstants.TOPIC_SEND_PROCESSING)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-processing-missing-batch")
+                .payload("""
+                        {"workspaceId":"workspace-1","jobId":"job-1"}
+                        """)
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleSendProcessing(event));
+
+        assertEquals("Failed handling TOPIC_SEND_PROCESSING", thrown.getMessage());
+        assertEquals(
+                "batchId is required for " + AppConstants.TOPIC_SEND_PROCESSING + " event processing-missing-batch",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
     void handleBatchCreatedAppliesEnvironmentContextBeforeExecution() {
         EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
                 .eventId("batch-event-1")
@@ -306,6 +379,28 @@ class CampaignEventConsumerTest {
         assertEquals("Failed handling TOPIC_BATCH_CREATED", thrown.getMessage());
         assertEquals(
                 "workspaceId is required for " + AppConstants.TOPIC_BATCH_CREATED + " event batch-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
+    void handleBatchCreatedThrowsWhenJobMissingAndDoesNotClaimProcessed() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("batch-missing-job")
+                .eventType(AppConstants.TOPIC_BATCH_CREATED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-batch-missing-job")
+                .payload(Map.of(
+                        "workspaceId", "workspace-1",
+                        "batchId", "batch-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleBatchCreated(event));
+
+        assertEquals("Failed handling TOPIC_BATCH_CREATED", thrown.getMessage());
+        assertEquals(
+                "jobId is required for " + AppConstants.TOPIC_BATCH_CREATED + " event batch-missing-job",
                 thrown.getCause().getMessage());
         verifyNoConsumerSideEffects();
     }
@@ -435,6 +530,51 @@ class CampaignEventConsumerTest {
         verifyNoConsumerSideEffects();
     }
 
+    @Test
+    void handleAutomationSendRequestThrowsWhenCampaignMissingAndDoesNotClaimProcessed() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("workflow-send-missing-campaign")
+                .eventType(AppConstants.TOPIC_SEND_REQUESTED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-workflow-send-missing-campaign")
+                .payload(Map.of(
+                        "workspaceId", "workspace-1",
+                        "triggerSource", "WORKFLOW",
+                        "instanceId", "instance-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAutomationSendRequest(event));
+
+        assertEquals("Failed handling TOPIC_SEND_REQUESTED", thrown.getMessage());
+        assertEquals(
+                "campaignId is required for " + AppConstants.TOPIC_SEND_REQUESTED + " event workflow-send-missing-campaign",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
+    void handleEmailFailedThrowsWhenWorkspaceMissingAndDoesNotClaimProcessed() {
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("feedback-missing-workspace")
+                .eventType(AppConstants.TOPIC_EMAIL_FAILED)
+                .tenantId("tenant-1")
+                .idempotencyKey("idem-feedback-missing-workspace")
+                .payload(Map.of(
+                        "campaignId", "campaign-1",
+                        "jobId", "job-1",
+                        "batchId", "batch-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleEmailFailed(event));
+
+        assertEquals("Failed reconciling delivery feedback", thrown.getMessage());
+        assertEquals(
+                "workspaceId is required for " + AppConstants.TOPIC_EMAIL_FAILED + " event feedback-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
     private EventEnvelope<Map<String, Object>> audienceResolvedEvent() {
         return audienceResolvedEvent("event-1", null);
     }
@@ -446,6 +586,7 @@ class CampaignEventConsumerTest {
     private EventEnvelope<Map<String, Object>> audienceResolvedEvent(String eventId, String chunkId, String envelopeWorkspaceId) {
         Map<String, Object> payload = new HashMap<>();
         payload.put("workspaceId", "workspace-1");
+        payload.put("campaignId", "campaign-1");
         payload.put("jobId", "job-1");
         payload.put("isLastChunk", true);
         payload.put("subscribers", List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));

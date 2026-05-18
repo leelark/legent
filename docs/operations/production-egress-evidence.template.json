@@ -8,6 +8,12 @@
     "changeTicket": "<ticket-or-review-url>",
     "summary": "<short-review-summary>"
   },
+  "policyEvidence": {
+    "renderedArtifacts": [
+      "<path-or-immutable-uri-to-rendered-network-policy-artifact>"
+    ],
+    "appliedEvidence": "<path-or-immutable-uri-to-kubectl-apply-or-admission-transcript>"
+  },
   "fqdnPolicy": {
     "approved": false,
     "cni": "<cni-name-or-none>",

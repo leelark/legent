@@ -33,21 +33,17 @@ public class DeliveryEventConsumer {
     }, groupId = "audience-delivery-group")
     public void handleDeliveryEvent(EventEnvelope<Map<String, Object>> envelope) {
         try {
-            String tenantId = envelope.getTenantId();
-            String workspaceId = envelope.getWorkspaceId();
-            if (workspaceId == null || workspaceId.isBlank()) {
-                log.error("Dropping delivery event without workspaceId. eventId={}", envelope.getEventId());
-                return;
-            }
-            String eventType = envelope.getEventType();
+            requireEnvelope(envelope);
+            String tenantId = requireNonBlank(envelope.getTenantId(), "tenantId", envelope);
+            String workspaceId = requireNonBlank(envelope.getWorkspaceId(), "workspaceId", envelope);
+            String eventType = requireNonBlank(envelope.getEventType(), "eventType", envelope);
+            String idempotencyKey = requireNonBlank(envelope.getIdempotencyKey(), "idempotencyKey", envelope);
             Map<String, Object> payload = envelope.getPayload();
-            String email = payload != null && payload.get("email") != null ? String.valueOf(payload.get("email")).toLowerCase().trim() : null;
+            String email = resolveEmail(payload, envelope);
 
             log.info("Processing delivery event: type={}, email={}, tenantId={}, workspaceId={}", eventType, email, tenantId, workspaceId);
 
-            if (email == null) return;
-
-            if (!idempotencyService.registerIfNew(tenantId, workspaceId, eventType, envelope.getEventId(), envelope.getIdempotencyKey())) {
+            if (!idempotencyService.registerIfNew(tenantId, workspaceId, eventType, envelope.getEventId(), idempotencyKey)) {
                 return;
             }
 
@@ -68,6 +64,38 @@ public class DeliveryEventConsumer {
             log.error("Failed to process delivery event: {}", envelope != null ? envelope.getEventId() : "unknown", e);
             throw new IllegalStateException("Failed to process delivery event", e);
         }
+    }
+
+    private void requireEnvelope(EventEnvelope<Map<String, Object>> envelope) {
+        if (envelope == null) {
+            throw new IllegalArgumentException("Delivery event envelope is required");
+        }
+    }
+
+    private String requireNonBlank(String value, String fieldName, EventEnvelope<Map<String, Object>> envelope) {
+        if (value == null || value.isBlank()) {
+            throw invalidEvent(envelope, fieldName);
+        }
+        return value.trim();
+    }
+
+    private String resolveEmail(Map<String, Object> payload, EventEnvelope<Map<String, Object>> envelope) {
+        Object rawEmail = payload == null ? null : payload.get("email");
+        String email = rawEmail == null ? null : String.valueOf(rawEmail).toLowerCase().trim();
+        if (email == null || email.isBlank()) {
+            throw invalidEvent(envelope, "email");
+        }
+        return email;
+    }
+
+    private IllegalArgumentException invalidEvent(EventEnvelope<Map<String, Object>> envelope, String fieldName) {
+        return new IllegalArgumentException(String.format(
+                "Delivery event missing %s. eventId=%s, tenantId=%s, workspaceId=%s, eventType=%s",
+                fieldName,
+                envelope.getEventId(),
+                envelope.getTenantId(),
+                envelope.getWorkspaceId(),
+                envelope.getEventType()));
     }
 
     private void handleBounce(String tenantId, String workspaceId, String email, String reason) {

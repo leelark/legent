@@ -46,10 +46,6 @@ type NormalizedApiError = {
   details?: unknown;
 };
 
-// Existing API wrappers have many call sites that intentionally omit a response generic.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LegacyApiData = any;
-
 function readString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim() ? value : undefined;
 }
@@ -201,17 +197,9 @@ function isWorkspaceOptionalEndpoint(url: string | undefined): boolean {
   return [
     '/api/v1/users/preferences',
     '/api/v1/admin/bootstrap',
-    '/api/v1/admin/branding',
-    '/api/v1/admin/configs',
     '/api/v1/admin/contact-requests',
-    '/api/v1/admin/operations',
-    '/api/v1/admin/public-content',
-    '/api/v1/admin/settings',
     '/api/v1/core',
-    '/api/v1/differentiation',
     '/api/v1/federation',
-    '/api/v1/global',
-    '/api/v1/performance-intelligence',
     '/api/v1/platform/notifications',
     '/api/v1/platform/webhooks',
   ].some((route) => matchesPath(path, route));
@@ -372,32 +360,32 @@ apiClient.interceptors.response.use(
 export default apiClient;
 
 // -- Convenience helpers --
-export async function get<T = LegacyApiData>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.get<unknown>(url, config);
   return unwrapApiData<T>(response.data);
 }
 
-export async function getPublic<T = LegacyApiData>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function getPublic<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const response = await publicApiClient.get<unknown>(resolveApiUrl(url), config);
   return unwrapApiData<T>(response.data);
 }
 
-export async function postPublic<T = LegacyApiData>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+export async function postPublic<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   const response = await publicApiClient.post<unknown>(resolveApiUrl(url), data, config);
   return unwrapApiData<T>(response.data);
 }
 
-export async function post<T = LegacyApiData>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+export async function post<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.post<unknown>(url, data, config);
   return unwrapApiData<T>(response.data);
 }
 
-export async function put<T = LegacyApiData>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+export async function put<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.put<unknown>(url, data, config);
   return unwrapApiData<T>(response.data);
 }
 
-export async function del<T = LegacyApiData>(url: string, config?: AxiosRequestConfig): Promise<T> {
+export async function del<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const response = await apiClient.delete<unknown>(url, config);
   return unwrapApiData<T>(response.data);
 }

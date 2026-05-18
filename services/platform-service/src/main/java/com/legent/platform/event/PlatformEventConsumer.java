@@ -33,7 +33,7 @@ public class PlatformEventConsumer {
             Map<String, Object> payload = readPayload(event, AppConstants.TOPIC_WEBHOOK_TRIGGERED);
             EventContext context = setEventContext(event, payload, AppConstants.TOPIC_WEBHOOK_TRIGGERED);
             
-            String eventTypeToDispatch = (String) payload.get("eventToDispatch");
+            String eventTypeToDispatch = requirePayloadString(payload, "eventToDispatch", AppConstants.TOPIC_WEBHOOK_TRIGGERED);
             Object data = payload.get("data");
 
             webhookDispatcherService.dispatch(context.tenantId(), eventTypeToDispatch, data);
@@ -52,11 +52,11 @@ public class PlatformEventConsumer {
             Map<String, Object> payload = readPayload(event, AppConstants.TOPIC_NOTIFICATION_CREATED);
             EventContext context = setEventContext(event, payload, AppConstants.TOPIC_NOTIFICATION_CREATED);
             
-            String userId = (String) payload.get("userId");
-            String title = (String) payload.get("title");
-            String message = (String) payload.get("message");
-            String severity = (String) payload.get("severity");
-            String linkUrl = (String) payload.get("linkUrl");
+            String userId = requirePayloadString(payload, "userId", AppConstants.TOPIC_NOTIFICATION_CREATED);
+            String title = requirePayloadString(payload, "title", AppConstants.TOPIC_NOTIFICATION_CREATED);
+            String message = requirePayloadString(payload, "message", AppConstants.TOPIC_NOTIFICATION_CREATED);
+            String severity = findStringValue(payload, "severity");
+            String linkUrl = findStringValue(payload, "linkUrl");
 
             notificationEngine.createNotification(context.tenantId(), userId, title, message, severity, linkUrl);
 
@@ -75,11 +75,11 @@ public class PlatformEventConsumer {
             Map<String, Object> payload = readPayload(event, AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
             EventContext context = setEventContext(event, payload, AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
             
-            String entityType = (String) payload.get("entityType");
-            String entityId = (String) payload.get("entityId");
-            String title = (String) payload.get("title");
-            String searchableText = (String) payload.get("searchableText");
-            Map<String, Object> metadata = (Map<String, Object>) payload.get("metadata");
+            String entityType = requirePayloadString(payload, "entityType", AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
+            String entityId = requirePayloadString(payload, "entityId", AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
+            String title = requirePayloadString(payload, "title", AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
+            String searchableText = requirePayloadString(payload, "searchableText", AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
+            Map<String, Object> metadata = metadataMap(payload.get("metadata"), AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
 
             searchService.indexDocument(context.tenantId(), entityType, entityId, title, searchableText, metadata);
 
@@ -171,8 +171,31 @@ public class PlatformEventConsumer {
         return null;
     }
 
+    private String requirePayloadString(Map<String, Object> payload, String key, String expectedEventType) {
+        String value = findStringValue(payload, key);
+        if (value == null) {
+            throw new IllegalArgumentException(key + " is required for " + expectedEventType);
+        }
+        return value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> metadataMap(Object metadata, String expectedEventType) {
+        if (metadata == null) {
+            return null;
+        }
+        if (metadata instanceof Map<?, ?>) {
+            return (Map<String, Object>) metadata;
+        }
+        throw new IllegalArgumentException("metadata must be a JSON object for " + expectedEventType);
+    }
+
     private String stringValue(Object value) {
-        return value == null ? null : String.valueOf(value);
+        if (value == null) {
+            return null;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private String normalize(String value) {

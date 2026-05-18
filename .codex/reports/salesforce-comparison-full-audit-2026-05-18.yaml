@@ -4,6 +4,7 @@ metadata:
   timezone: "Asia/Calcutta"
   repository_root: "C:/Users/leelark.saxena/Desktop/Legent - v1.0.2"
   artifact_path: ".codex/reports/salesforce-comparison-full-audit-2026-05-18.yaml"
+  updated_after_local_follow_up_on: "2026-05-18"
   product: "Legent v1.0.2"
   comparator: "Salesforce Marketing Cloud Engagement, Marketing Cloud Next, Data 360, Marketing Intelligence"
   score_scale:
@@ -130,8 +131,8 @@ validation_evidence:
         services/platform-service: 57
     frontend_lint:
       command: "npm run lint"
-      status: "passed_with_warnings"
-      result: "0 errors, 263 @typescript-eslint/no-explicit-any warnings"
+      status: "passed"
+      result: "0 errors, 0 warnings after post-audit cleanup; @typescript-eslint/no-explicit-any now fails as an error."
     frontend_build:
       command: "npm run build:ci"
       status: "passed"
@@ -164,9 +165,8 @@ validation_evidence:
       warning: "Production legent images are version-tagged but not digest-pinned."
     artifact_hygiene:
       command: "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
-      status: "failed"
-      failure: "Validator flags its own literal string 'Using generated security password' in scripts/ops/validate-repo-artifact-hygiene.ps1."
-      impact: "CI/security workflow can fail even when no generated Spring password output is tracked."
+      status: "passed"
+      result: "Self-match false positive was fixed after the initial audit and covered by a regression self-test."
   commands_not_run:
     gitleaks:
       status: "not_available_locally"
@@ -176,7 +176,7 @@ validation_evidence:
       reason: "trivy command not installed in local shell."
     strict_release_gate:
       status: "not_run"
-      reason: "Strict GA/image/egress/live-load evidence inputs are not present; artifact hygiene bug also needs fix before CI gate can be trusted."
+      reason: "Strict GA/image/egress/live-load evidence inputs are not present; local infra-slice release gate passed after the audit with backend/frontend/compose/kustomize skips."
     live_high_volume_load:
       status: "not_run"
       reason: "No target-like production environment, ClickHouse proof, provider capacity evidence, or live campaign load evidence supplied."
@@ -196,31 +196,32 @@ executive_summary:
   live_decision:
     public_ga: "NO_GO"
     limited_private_beta: "GO_WITH_CONSTRAINTS"
-    limited_live_low_volume: "NO_GO until artifact hygiene bug, external egress evidence, image provenance, GA evidence, and target smoke/load proof are attached."
+    limited_live_low_volume: "NO_GO until external egress evidence, image provenance, GA evidence, and target smoke/load proof are attached."
   strongest_areas:
     - "Ten service backend shape is real: identity, foundation, audience, content, campaign, delivery, tracking, automation, deliverability, platform."
     - "Tenant/workspace context hardening is strong in shared filters and many repository/service queries."
     - "High-volume send path has audience keyset paging, bounded chunks, row-backed send batch recipients, Kafka contract validation, payload caps, durable rendered-content references, and rate/warmup reservations."
     - "Deliverability has DNS ownership challenge, SPF/DKIM/DMARC checks, suppression health, readiness gating, reputation signals, and warmup constraints."
     - "Tracking has signed open/click, Redis and DB dedupe, durable outbox, retention guardrails, ClickHouse schema contract tests, and analytics dashboards."
-    - "Local validation is strong: full Maven tests, frontend lint/build/smoke/sanitizer, route/env/Compose/production overlay all pass except artifact hygiene false positive."
+    - "Local validation is strong: Maven/frontend/route/env/Compose/production overlay/artifact hygiene gates pass locally; target external evidence is still absent."
   weakest_areas:
     - "No Salesforce-class Data Cloud/CDP, two-way conversations, SMS/WhatsApp/push/ad audiences, or cross-channel customer graph."
     - "Journey Builder and Automation Studio parity is partial; SQL query/file-transfer/script/verifier activity engine is not Salesforce-grade."
     - "AI features are mostly heuristic or static assistance, not trained/validated optimization with causal lift and guardrails."
-    - "Frontend has broad route coverage but 263 explicit-any warnings and several 800-1300 LOC route/console files."
+    - "Frontend has broad route coverage and explicit-any lint is now fail-closed, but several 800-1300 LOC route/console files remain."
     - "Production evidence is incomplete: egress, image digest/SBOM/signature/provenance, live load, restore, security, TLS, admission, alerting."
 
 critical_findings:
   - id: "CRIT-2026-05-18-001"
-    title: "Repository artifact hygiene validator self-matches and fails"
+    title: "Repository artifact hygiene validator self-match was resolved after audit"
     severity: "P1 release-tooling"
+    status: "resolved_after_audit"
     source:
       - "scripts/ops/validate-repo-artifact-hygiene.ps1"
       - ".github/workflows/ci-security.yml"
-    evidence: "Local run failed because git grep found the literal detection string inside the validator script itself."
-    impact: "Security CI can fail falsely; release confidence reduced until validator excludes itself or uses a safer fixture/pattern strategy."
-    required_fix: "Exclude validator source path from its own grep, add a self-test fixture, rerun artifact hygiene and CI security workflow."
+    evidence: "Initial local run failed because git grep found the literal detection string inside the validator script itself; post-audit source fix and self-test now pass."
+    impact: "Resolved locally; keep the hygiene self-test in CI to prevent regression."
+    required_fix: "Completed after audit. Remaining security-scan evidence is the external gitleaks/Trivy CI transcript, not this validator."
   - id: "CRIT-2026-05-18-002"
     title: "Public GA remains blocked by missing external production evidence"
     severity: "P1 release"
@@ -250,9 +251,9 @@ module_scores:
       production_readiness_percent: 65
       test_evidence_percent: 72
       maintainability_percent: 54
-    evidence: ["Next build passed", "smoke E2E passed", "sanitize E2E passed", "lint has 263 no-explicit-any warnings"]
+    evidence: ["Next build passed", "smoke E2E passed", "sanitize E2E passed", "lint passed with zero warnings after post-audit cleanup"]
     gaps_to_salesforce: ["builder UX depth", "advanced journey canvas", "typed domain API models", "real-time analytics workbench", "cross-channel authoring"]
-    priority_next: ["Eliminate explicit any domain by domain", "split largest route/console files", "add browser visual coverage for template builder and journey builder"]
+    priority_next: ["Split largest route/console files", "add browser visual coverage for template builder and journey builder", "keep new API wrappers domain-typed"]
   services/foundation-service:
     inventory: { files: 138, loc: 16996, java_files: 116, migrations: 15, tests: 59, endpoints_detected: 193 }
     scores:
@@ -318,7 +319,7 @@ module_scores:
       performance_percent: 72
     strengths: ["SMTP/API adapters", "provider selection", "inbox safety", "warmup", "DB reservation leases", "retry", "message logs", "tracking URL signing"]
     gaps_to_salesforce: ["ISP feedback depth", "provider SLA telemetry", "global MTA capacity", "bounce taxonomy depth", "live provider evidence"]
-    priority_next: ["fail closed before placeholder defaults", "provider capacity drills", "per-ISP dashboards", "retry storm simulations"]
+    priority_next: ["provider capacity drills", "per-ISP dashboards", "retry storm simulations", "keep content-missing paths fail-closed"]
   services/tracking-service:
     inventory: { files: 63, loc: 4812, java_files: 49, migrations: 10, tests: 35, endpoints_detected: 23 }
     scores:
@@ -383,8 +384,8 @@ module_scores:
       release_evidence_percent: 45
       security_percent: 68
     strengths: ["Compose stack", "Kubernetes base/production/global overlays", "route validation", "GA/image/egress/load evidence validators", "observability manifests"]
-    gaps_to_salesforce: ["live evidence", "multi-region DR proof", "supply-chain provenance", "strict egress policy applied to real target", "artifact hygiene bug"]
-    priority_next: ["fix artifact hygiene validator", "attach target evidence", "run strict release gate", "automate restore/security/load transcripts"]
+    gaps_to_salesforce: ["live evidence", "multi-region DR proof", "supply-chain provenance", "strict egress policy applied to real target"]
+    priority_next: ["attach target evidence", "run strict release gate", "automate restore/security/load transcripts", "keep artifact hygiene self-test in CI"]
   sdk:
     inventory: { files: 3, loc: 160 }
     scores:
@@ -498,35 +499,35 @@ bugs_and_priority_items:
   - id: "BUG-2026-05-18-ARTIFACT-HYGIENE-SELF-MATCH"
     priority: "P1"
     module: "scripts/ops"
-    status: "open"
+    status: "resolved_after_audit"
     source: "scripts/ops/validate-repo-artifact-hygiene.ps1"
-    bug: "Validator searches all tracked files for a literal phrase that exists in the validator source itself."
-    impact: "False CI/security failure."
-    fix: "Exclude validator script path or scan only generated/log artifacts; add regression self-test."
+    bug: "Validator searched all tracked files for a literal phrase that existed in the validator source itself."
+    impact: "False CI/security failure was removed locally."
+    fix: "Resolved by matching full generated Spring password output safely and adding a regression self-test."
   - id: "RISK-2026-05-18-DELIVERY-PLACEHOLDER-DEFAULT"
     priority: "P2"
     module: "services/delivery-service"
-    status: "open"
+    status: "resolved_after_audit"
     source: "DeliveryOrchestrationService.java"
-    issue: "If a send payload lacks HTML after reference resolution, service still creates placeholder HTML and default subject before inbox safety blocks placeholder content."
-    impact: "Safety currently blocks placeholder body, but fail-closed behavior should happen before synthetic content exists in hot delivery path."
-    fix: "Reject missing subject/htmlBody/contentReference explicitly and test no placeholder path can reach provider adapter."
+    issue: "Initial audit found missing HTML/reference resolution could create placeholder body/subject before inbox safety stopped dispatch."
+    impact: "Resolved locally so missing first-attempt content fails before provider dispatch."
+    fix: "Delivery fail-closed content validation and regression tests were added after audit."
   - id: "RISK-2026-05-18-AUDIENCE-MISSING-WORKSPACE-DROP"
     priority: "P2"
     module: "services/audience-service"
-    status: "open"
+    status: "resolved_after_audit"
     source: "AudienceResolutionConsumer.java"
-    issue: "Missing workspaceId event logs and returns instead of surfacing to DLQ."
-    impact: "Bad events can disappear without retry/DLQ observability."
-    fix: "Throw a non-retryable or DLQ-routed exception with event metadata; add consumer contract test."
+    issue: "Initial audit found missing workspaceId events could log and return instead of surfacing to retry/DLQ."
+    impact: "Resolved locally for the audited missing-scope path; broader inbound schema/version strategy remains debt."
+    fix: "Consumer validation now throws on missing required scope before side effects and is covered by tests."
   - id: "DEBT-2026-05-18-FRONTEND-ANY"
     priority: "P2"
     module: "frontend"
-    status: "open"
+    status: "resolved_after_audit"
     source: "npm run lint"
-    issue: "263 no-explicit-any warnings across API wrappers and workspace surfaces."
-    impact: "Runtime shape bugs can escape TypeScript, especially API response drift."
-    fix: "Type API clients and DTOs by domain; make lint warnings fail after baseline reduced."
+    issue: "Initial audit found 263 no-explicit-any warnings across API wrappers and workspace surfaces."
+    impact: "Resolved locally for current `frontend/src`; new explicit-any usage now fails lint."
+    fix: "Typed API clients/DTOs by domain, used `unknown` for dynamic backend maps, and made no-explicit-any an ESLint error."
   - id: "DEBT-2026-05-18-LARGE-FILES"
     priority: "P2"
     module: "frontend/backend"
@@ -546,7 +547,7 @@ bugs_and_priority_items:
 
 what_to_do_to_reach_salesforce_level:
   minimum_salesforce_replacement_scope:
-    - "Close release blockers: artifact hygiene, target egress, image provenance, GA evidence, live load, restore/security/monitoring."
+    - "Close release blockers: target egress, image provenance, GA evidence, live load, restore/security/monitoring."
     - "Finish Contact Builder parity: relationship model, cardinality, data retention UI, safe query activity, attribute library, data views."
     - "Upgrade Automation Studio: SQL query, import/data copy, file transfer/safehouse equivalent, extract, filter, script sandbox, verification activity."
     - "Upgrade Journey Builder: rich node catalog, decision/wait/goal/exit/re-entry, versioned activation, event/API entry sources, custom activity SDK, journey analytics."
@@ -573,7 +574,7 @@ phase_plan:
   - phase: "0 - Stop-ship blocker closure"
     duration: "1-2 weeks"
     goals:
-      - "Fix artifact hygiene validator self-match and add self-test."
+      - "Keep artifact hygiene validator and self-test passing in CI."
       - "Collect reviewed production egress evidence or approved CNI FQDN policy."
       - "Pin production images by digest and attach SBOM/signature/provenance evidence."
       - "Produce GA evidence manifest with smoke/load/restore/security/TLS/admission/alerting."
@@ -588,8 +589,8 @@ phase_plan:
       - "Run target synthetic smoke and low-volume pilot."
       - "Run high-volume dry and live load in target-like environment with ClickHouse/provider/content evidence."
       - "Close Audience V17 operator mapping."
-      - "Add delivery fail-closed tests for missing content."
-      - "Add inbound event contract tests for all consumers."
+      - "Keep delivery missing-content paths fail-closed in release regression."
+      - "Broaden inbound event schema/version contract strategy for all consumers."
     exit_criteria:
       - "Low-volume controlled production ready for warmed domains only."
       - "No broad egress, no unpinned images, no missing workspace events silently dropped."
@@ -652,15 +653,12 @@ current_product_readiness_to_make_live:
 
 remaining_work_register:
   p1:
-    - "Fix artifact hygiene false positive."
     - "Attach production egress evidence and render/apply target policy."
     - "Attach registry image digest/SBOM/signature/provenance evidence."
     - "Attach GA evidence manifest and live load/restore/security/monitoring transcripts."
     - "Complete Audience V17 reviewed production mapping."
   p2:
-    - "Delivery fail-closed content validation before placeholder defaults."
-    - "Inbound Kafka consumer contract tests."
-    - "Frontend explicit-any reduction."
+    - "Broader inbound Kafka schema/version strategy."
     - "Large hot-file decomposition."
     - "Live ClickHouse and provider capacity benchmark."
   p3:
@@ -670,4 +668,4 @@ remaining_work_register:
 
 overall_conclusion:
   one_line: "Legent is past prototype and has serious enterprise architecture, but it is evidence-blocked and feature-depth-blocked from Salesforce-level public GA."
-  recommended_next_action: "Fix the artifact hygiene validator, then run strict evidence-backed release gate with real target artifacts before any live customer send."
+  recommended_next_action: "Run strict evidence-backed release gate with real target egress, image, GA, live-load, restore, security, and monitoring artifacts before any live customer send."

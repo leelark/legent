@@ -60,10 +60,234 @@ function Invoke-NativeCommand {
     }
 }
 
+function Get-JsonProperty {
+    param(
+        [object] $Object,
+        [string] $Name
+    )
+
+    if ($null -eq $Object) {
+        return $null
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $null
+    }
+
+    return $property.Value
+}
+
+function Get-FirstJsonProperty {
+    param(
+        [object] $Object,
+        [string[]] $Names
+    )
+
+    foreach ($name in $Names) {
+        $value = Get-JsonProperty $Object $name
+        if ($null -ne $value) {
+            return $value
+        }
+    }
+
+    return $null
+}
+
+function Test-ExternalEgressPlaceholder {
+    param([object] $Value)
+
+    if ($null -eq $Value) {
+        return $true
+    }
+
+    $text = "$Value".Trim()
+    if ($text.Length -eq 0) {
+        return $true
+    }
+
+    return (
+        $text -match "[<>]" -or
+        $text -match "\.\.\." -or
+        $text -match "(?i)^(todo|tbd|n/a|na|none|null|unknown|changeme|change_me|replace_me|placeholder|sample|example|dummy)$" -or
+        $text -match "(?i)\b(todo|tbd|fixme|changeme|change_me|replace_me|placeholder)\b" -or
+        $text -match "(?i)example\.(com|net|org)\b"
+    )
+}
+
+function Test-SecretLikePath {
+    param([string] $Path)
+
+    $normalized = $Path -replace "/", "\"
+    $leaf = ([System.IO.Path]::GetFileName($normalized)).ToLowerInvariant()
+    $segments = @($normalized -split "\\+" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+
+    if ($leaf -match "^\.env($|\.)" -or $leaf -match "^env\.[^.]+$" -or $leaf -match "\.env($|\.)") {
+        return $true
+    }
+
+    if ($leaf -match "^(secrets?|credentials?)(\.[^.]+)?$") {
+        return $true
+    }
+
+    if ($leaf -match "\.(pem|key|p12|pfx|jks|keystore)$") {
+        return $true
+    }
+
+    if ($leaf -match "^(id_rsa|id_dsa|id_ecdsa|id_ed25519|kubeconfig)(\..*)?$") {
+        return $true
+    }
+
+    foreach ($segment in $segments) {
+        if ($segment.ToLowerInvariant() -in @(".env", ".ssh", "secrets", "credentials")) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Test-UriReference {
+    param([string] $Reference)
+
+    return $Reference -match "^[a-z][a-z0-9+.-]*://"
+}
+
+function Resolve-ExternalEgressArtifactReference {
+    param(
+        [string] $Reference,
+        [string] $SpecDirectory
+    )
+
+    if ([System.IO.Path]::IsPathRooted($Reference)) {
+        return [System.IO.Path]::GetFullPath($Reference)
+    }
+
+    $repoCandidate = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $Reference))
+    if (Test-Path -LiteralPath $repoCandidate -PathType Leaf) {
+        return $repoCandidate
+    }
+
+    return [System.IO.Path]::GetFullPath((Join-Path $SpecDirectory $Reference))
+}
+
+function Add-EvidenceReferenceValue {
+    param(
+        [object] $Value,
+        [System.Collections.Generic.List[string]] $References
+    )
+
+    if ($null -eq $Value) {
+        return
+    }
+
+    if ($Value -is [string]) {
+        if (-not [string]::IsNullOrWhiteSpace($Value)) {
+            $References.Add($Value.Trim())
+        }
+        return
+    }
+
+    if ($Value -is [System.Collections.IEnumerable]) {
+        foreach ($item in $Value) {
+            Add-EvidenceReferenceValue $item $References
+        }
+        return
+    }
+
+    foreach ($name in @("path", "file", "files", "uri", "url", "artifact", "artifacts", "evidenceFile", "evidenceFiles", "transcript", "transcripts")) {
+        $nestedValue = Get-JsonProperty $Value $name
+        if ($null -ne $nestedValue) {
+            Add-EvidenceReferenceValue $nestedValue $References
+        }
+    }
+}
+
+function Get-EvidenceReferences {
+    param([object] $Value)
+
+    $references = [System.Collections.Generic.List[string]]::new()
+    Add-EvidenceReferenceValue $Value $references
+    return @($references | Select-Object -Unique)
+}
+
+function Assert-ExternalEgressReference {
+    param(
+        [string] $Path,
+        [string] $Reference,
+        [string] $SpecDirectory
+    )
+
+    if (Test-ExternalEgressPlaceholder $Reference) {
+        throw "$Path must reference a real rendered/applied evidence artifact, not a placeholder"
+    }
+
+    if (Test-SecretLikePath $Reference) {
+        throw "$Path references a secret/env-like path: $Reference"
+    }
+
+    if (Test-UriReference $Reference) {
+        return
+    }
+
+    $fullPath = Resolve-ExternalEgressArtifactReference $Reference $SpecDirectory
+    if (Test-SecretLikePath $fullPath) {
+        throw "$Path resolves to a secret/env-like path: $fullPath"
+    }
+
+    if (-not (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+        throw "$Path references a missing local evidence artifact: $Reference"
+    }
+
+    $fileText = Get-Content -LiteralPath $fullPath -Raw -Encoding UTF8
+    if ($fileText -match "(?i)\b(TBD|TODO|FIXME|CHANGEME|CHANGE_ME|REPLACE_ME|placeholder)\b|<[^>\r\n]*(todo|tbd|placeholder|path|artifact|ticket)[^>\r\n]*>") {
+        throw "$Path evidence artifact contains placeholder text: $Reference"
+    }
+}
+
+function Assert-ExternalEgressEvidenceField {
+    param(
+        [string] $Path,
+        [object] $Value,
+        [string] $SpecDirectory
+    )
+
+    $references = @(Get-EvidenceReferences $Value)
+    if ($references.Count -eq 0) {
+        throw "$Path must reference at least one local evidence artifact or immutable artifact URI"
+    }
+
+    for ($referenceIndex = 0; $referenceIndex -lt $references.Count; $referenceIndex++) {
+        Assert-ExternalEgressReference "$Path[$referenceIndex]" $references[$referenceIndex] $SpecDirectory
+    }
+}
+
+function Assert-ExternalEgressPolicyEvidence {
+    param([string] $SpecPath)
+
+    $resolvedSpecPath = if ([System.IO.Path]::IsPathRooted($SpecPath)) {
+        [System.IO.Path]::GetFullPath($SpecPath)
+    } else {
+        [System.IO.Path]::GetFullPath((Join-Path $repoRoot $SpecPath))
+    }
+
+    $specDirectory = Split-Path -Parent $resolvedSpecPath
+    $spec = Get-Content -LiteralPath $resolvedSpecPath -Raw | ConvertFrom-Json
+    $policyEvidence = Get-JsonProperty $spec "policyEvidence"
+    if ($null -eq $policyEvidence) {
+        throw "policyEvidence is required when external egress evidence is supplied to release-gate.ps1"
+    }
+
+    Assert-ExternalEgressEvidenceField "policyEvidence.renderedArtifacts" (Get-FirstJsonProperty $policyEvidence @("renderedArtifacts", "renderedArtifact", "renderedPolicies", "renderedPolicy")) $specDirectory
+    Assert-ExternalEgressEvidenceField "policyEvidence.appliedEvidence" (Get-FirstJsonProperty $policyEvidence @("appliedEvidence", "applyEvidence", "applicationEvidence", "admissionEvidence", "applyTranscript")) $specDirectory
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $frontendRoot = Join-Path $repoRoot "frontend"
 $mavenWrapper = Join-Path $repoRoot "mvnw.cmd"
 $gaEvidenceRequired = $RequireGaEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_GA_EVIDENCE)
+$externalEgressEvidenceRequired = $RequireExternalEgressEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_EXTERNAL_EGRESS_EVIDENCE)
+$externalEgressEvidenceProvided = -not [string]::IsNullOrWhiteSpace($ExternalEgressEvidencePath)
 
 if ($gaEvidenceRequired -and [string]::IsNullOrWhiteSpace($EvidenceDir)) {
     throw "EvidenceDir is required when GA evidence validation is required"
@@ -211,14 +435,13 @@ if (-not $SkipKustomize) {
     }
 }
 
-if ($RequireExternalEgressEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_EXTERNAL_EGRESS_EVIDENCE)) {
+if ($externalEgressEvidenceRequired -or $externalEgressEvidenceProvided) {
     Invoke-GateStep "Production external egress evidence" {
         $scriptPath = Join-Path $repoRoot "scripts\ops\validate-production-egress-evidence.ps1"
-        $arguments = @{}
-        if (-not [string]::IsNullOrWhiteSpace($ExternalEgressEvidencePath)) {
-            $arguments["SpecPath"] = $ExternalEgressEvidencePath
-        }
+        $egressSpecPath = if (-not [string]::IsNullOrWhiteSpace($ExternalEgressEvidencePath)) { $ExternalEgressEvidencePath } else { "docs\operations\production-egress-evidence.json" }
+        $arguments = @{ SpecPath = $egressSpecPath }
         & $scriptPath @arguments
+        Assert-ExternalEgressPolicyEvidence $egressSpecPath
     }
 }
 

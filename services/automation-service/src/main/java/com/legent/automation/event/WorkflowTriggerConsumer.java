@@ -67,12 +67,10 @@ public class WorkflowTriggerConsumer {
                     : Map.of();
 
             if (workflowId == null || workflowId.isBlank()) {
-                log.error("Dropping workflow.trigger without workflowId. eventId={}", eventId);
-                return;
+                throw new IllegalArgumentException("workflowId is required for workflow.trigger event");
             }
             if (subscriberId == null || subscriberId.isBlank()) {
-                log.error("Dropping workflow.trigger without subscriberId. eventId={}", eventId);
-                return;
+                throw new IllegalArgumentException("subscriberId is required for workflow.trigger event");
             }
             if (!idempotencyService.claimIfNew(
                     tenantId,
@@ -113,7 +111,9 @@ public class WorkflowTriggerConsumer {
                     idempotencyKey
             );
         } catch (JsonProcessingException e) {
-            log.warn("Dropping malformed workflow.trigger event. eventId={}", eventId == null ? "unknown" : eventId, e);
+            log.warn("Rejecting malformed workflow.trigger event for retry/DLQ. eventId={}",
+                    eventId == null ? "unknown" : eventId, e);
+            throw new IllegalArgumentException("Malformed workflow.trigger event payload", e);
         } catch (Exception e) {
             if (claimed) {
                 releaseClaim(tenantId, workspaceId, AppConstants.TOPIC_WORKFLOW_TRIGGER, eventId, idempotencyKey, e);

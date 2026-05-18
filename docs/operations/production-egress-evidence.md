@@ -12,6 +12,8 @@ Validate a completed spec directly:
 .\scripts\ops\validate-production-egress-evidence.ps1 -SpecPath docs\operations\production-egress-evidence.json
 ```
 
+Direct validation checks the reviewed dependency spec. For target promotion, `release-gate.ps1` adds strict checks that require `policyEvidence.renderedArtifacts` and `policyEvidence.appliedEvidence` to reference real local artifacts or immutable artifact URIs.
+
 Render reviewed policy artifacts from a completed spec:
 
 ```powershell
@@ -40,6 +42,7 @@ Local default release-gate runs do not require this evidence, so the repo-local 
 
 - `schemaVersion` must be `legent.production-egress.v1`.
 - The top-level `review.owner`, `review.reviewDate`, and `review.changeTicket` fields are required.
+- Strict promotion validation requires `policyEvidence.renderedArtifacts` and `policyEvidence.appliedEvidence`. Local paths must exist and must not point to secret/env-like files; immutable artifact URIs are accepted without repository-side fetching.
 - Each dependency needs `name`, `scope`, `owner`, `reviewDate`, `purpose`, `evidence`, `destinations`, and `ports`.
 - `scope` must be `external` or `internal`. Private and reserved CIDRs are rejected for `external` dependencies; use `internal` only for reviewed private endpoints.
 - CIDR destinations must be exact reviewed IPv4 CIDRs. `0.0.0.0/0`, placeholders, documentation ranges, RFC1918 private ranges, loopback, link-local, multicast, and other reserved ranges are rejected for external dependencies.

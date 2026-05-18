@@ -90,6 +90,31 @@ function Find-NginxRouteForPrefix([string] $Prefix) {
     return $null
 }
 
+function Assert-NginxOnlyTombstone {
+    param(
+        [string] $Prefix,
+        [int] $Status
+    )
+
+    $normalizedPrefix = Normalize-RoutePath $Prefix
+    $routeMapMatches = @($routeMap.routes | Where-Object { (Normalize-RoutePath $_.prefix) -eq $normalizedPrefix })
+    if ($routeMapMatches.Count -gt 0) {
+        throw "Nginx-only tombstone drift: $normalizedPrefix must not be present in route-map.json because it is intentionally local Nginx-only"
+    }
+
+    $prefixPattern = [regex]::Escape($normalizedPrefix)
+    $statusPattern = [regex]::Escape("$Status")
+    $nginxTombstonePattern = "location\s+(?:\^~|=)\s+$prefixPattern\s*\{(?s:.*?)return\s+$statusPattern\s*;"
+    if ($nginx -notmatch $nginxTombstonePattern) {
+        throw "Nginx-only tombstone drift: $normalizedPrefix must return $Status in $NginxConfigPath"
+    }
+
+    $nginxProxyRoute = Find-NginxRouteForPrefix $normalizedPrefix
+    if ($null -ne $nginxProxyRoute) {
+        throw "Nginx-only tombstone drift: $normalizedPrefix must not proxy via Nginx, found $($nginxProxyRoute.Upstream) via $($nginxProxyRoute.Prefix)"
+    }
+}
+
 function Test-IngressPathMatch([string] $PathPattern, [string] $Prefix) {
     try {
         return $Prefix -match "^$PathPattern"
@@ -101,13 +126,20 @@ function Test-IngressPathMatch([string] $PathPattern, [string] $Prefix) {
 
 function Read-IngressRoutes {
     $routes = @()
+    $currentHost = $null
     for ($i = 0; $i -lt $ingressLines.Count; $i++) {
+        if ($ingressLines[$i] -match "^\s*-\s+host:\s+(\S+)\s*$") {
+            $currentHost = $Matches[1].Trim()
+            continue
+        }
+
         if ($ingressLines[$i] -match "^\s*-\s+path:\s+(.+?)\s*$") {
             $pathPattern = $Matches[1].Trim()
             $blockEnd = [Math]::Min($i + 24, $ingressLines.Count - 1)
             for ($j = $i; $j -le $blockEnd; $j++) {
                 if ($ingressLines[$j] -match "^\s*name:\s+(\S+)\s*$") {
                     $routes += [pscustomobject]@{
+                        Host    = $currentHost
                         Path    = $pathPattern
                         Service = $Matches[1].Trim()
                         Order   = $routes.Count
@@ -128,14 +160,22 @@ $ingressRoutes = Read-IngressRoutes
 # ingress-nginx renders regex paths in descending path length before original order.
 $renderedIngressRoutes = @($ingressRoutes | Sort-Object -Property @{ Expression = { $_.Path.Length }; Descending = $true }, @{ Expression = { $_.Order } })
 
-function Find-RenderedIngressRoute([string] $Prefix) {
+function Find-RenderedIngressRoute([string] $Prefix, [string] $IngressHost = "api.legent.com") {
     foreach ($route in $renderedIngressRoutes) {
+        if (-not [string]::IsNullOrWhiteSpace($IngressHost) -and $route.Host -ne $IngressHost) {
+            continue
+        }
+
         if (Test-IngressPathMatch $route.Path $Prefix) {
             return $route
         }
     }
     return $null
 }
+
+$nginxOnlyTombstones = @(
+    @{ Prefix = "/api/v1/track"; Status = 410 }
+)
 
 foreach ($route in $routeMap.routes) {
     Assert-NginxRoute $route
@@ -144,6 +184,14 @@ foreach ($route in $routeMap.routes) {
     if ($service -ne $route.service) {
         $path = if ($null -eq $ingressRoute) { "<none>" } else { "$($ingressRoute.Path) on line $($ingressRoute.Line)" }
         throw "Ingress route mismatch after rendered precedence: $($route.prefix) should route to $($route.service), found $service via $path"
+    }
+}
+
+foreach ($tombstone in $nginxOnlyTombstones) {
+    Assert-NginxOnlyTombstone $tombstone.Prefix $tombstone.Status
+    $ingressRoute = Find-RenderedIngressRoute $tombstone.Prefix
+    if ($null -ne $ingressRoute) {
+        throw "Nginx-only tombstone drift: $($tombstone.Prefix) must not be routed by Kubernetes ingress, found $($ingressRoute.Service) via $($ingressRoute.Path) on line $($ingressRoute.Line)"
     }
 }
 
@@ -295,4 +343,4 @@ foreach ($file in $controllerFiles) {
     }
 }
 
-Write-Host "Gateway route map validation passed for $($routeMap.routes.Count) routes, rendered ingress precedence, literal controller @RequestMapping roots, and broad controller method prefixes"
+Write-Host "Gateway route map validation passed for $($routeMap.routes.Count) routes, $($nginxOnlyTombstones.Count) Nginx-only tombstone(s), rendered ingress precedence, literal controller @RequestMapping roots, and broad controller method prefixes"

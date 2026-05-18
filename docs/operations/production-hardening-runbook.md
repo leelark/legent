@@ -37,6 +37,7 @@ Strict external egress evidence validation is available for target promotion:
 ```
 
 Use `docs/operations/production-egress-evidence.template.json` and `docs/operations/production-egress-evidence.md` for the reviewed spec. Local release-gate runs do not require this evidence unless the flag or `LEGENT_REQUIRE_EXTERNAL_EGRESS_EVIDENCE=true` is set.
+When external egress evidence is supplied to `release-gate.ps1`, the gate validates the reviewed dependency spec and requires `policyEvidence.renderedArtifacts` plus `policyEvidence.appliedEvidence` references. Do not fill those fields with guessed artifacts; use target-environment render/apply evidence.
 
 ## Actuator And Internal Endpoints
 

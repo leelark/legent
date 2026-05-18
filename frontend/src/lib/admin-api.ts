@@ -154,8 +154,7 @@ export const getSettingImpact = async (params: {
 export const getSettingHistory = async (key?: string) =>
   get<Array<Record<string, unknown>>>('/admin/settings/history', { params: key ? { key } : undefined });
 
-export const getBootstrapStatus = async () =>
-  get<{
+export type BootstrapStatus = {
     tenantId: string;
     workspaceId?: string;
     environmentId?: string;
@@ -165,10 +164,13 @@ export const getBootstrapStatus = async () =>
     lastAttemptAt?: string;
     completedAt?: string;
     modules?: Record<string, unknown>;
-  }>('/admin/bootstrap/status');
+};
+
+export const getBootstrapStatus = async () =>
+  get<BootstrapStatus>('/admin/bootstrap/status');
 
 export const repairBootstrap = async (force = true) =>
-  post('/admin/bootstrap/repair', { force });
+  post<BootstrapStatus>('/admin/bootstrap/repair', { force });
 
 type PlatformWebhookPayload = {
   id?: string;

@@ -23,6 +23,10 @@ public class AudienceEventIdempotencyService {
                                  String eventType,
                                  String eventId,
                                  String idempotencyKey) {
+        String normalizedTenantId = requireNonBlank(tenantId, "tenantId");
+        String normalizedWorkspaceId = requireNonBlank(workspaceId, "workspaceId");
+        String normalizedEventType = requireNonBlank(eventType, "eventType");
+        String normalizedIdempotencyKey = requireNonBlank(idempotencyKey, "idempotencyKey");
         String sql = """
                 INSERT INTO audience_event_idempotency
                 (id, tenant_id, workspace_id, event_type, event_id, idempotency_key, processed_at, created_at, updated_at, version)
@@ -32,24 +36,31 @@ public class AudienceEventIdempotencyService {
         int rows = jdbcTemplate.update(
                 sql,
                 IdGenerator.newId(),
-                tenantId,
-                workspaceId,
-                eventType,
+                normalizedTenantId,
+                normalizedWorkspaceId,
+                normalizedEventType,
                 normalize(eventId),
-                normalize(idempotencyKey)
+                normalizedIdempotencyKey
         );
         if (rows == 0) {
             log.debug("Skipping duplicate audience event tenant={}, workspace={}, type={}, eventId={}, idemKey={}",
-                    tenantId, workspaceId, eventType, eventId, idempotencyKey);
+                    normalizedTenantId, normalizedWorkspaceId, normalizedEventType, eventId, normalizedIdempotencyKey);
             return false;
         }
         return true;
+    }
+
+    private String requireNonBlank(String value, String fieldName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException("Audience event idempotency missing " + fieldName);
+        }
+        return value.trim();
     }
 
     private String normalize(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
-        return value;
+        return value.trim();
     }
 }

@@ -41,7 +41,12 @@ exit 1
 "@
 
     $cmdPath = Join-Path $Directory "kubectl.cmd"
-    Write-TextFile -Path $cmdPath -Content "@echo off`r`npwsh -NoProfile -ExecutionPolicy Bypass -File ""%~dp0kubectl.ps1"" %*`r`n"
+    Write-TextFile -Path $cmdPath -Content @"
+@echo off
+set "POWERSHELL_EXE=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+if not exist "%POWERSHELL_EXE%" set "POWERSHELL_EXE=powershell.exe"
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0kubectl.ps1" %*
+"@
 
     $shPath = Join-Path $Directory "kubectl"
     Write-TextFile -Path $shPath -Content "#!/usr/bin/env sh`npwsh -NoProfile -ExecutionPolicy Bypass -File ""`$(dirname ""`$0"")/kubectl.ps1"" ""`$@""`n"
@@ -81,6 +86,7 @@ try {
 
     $overlayValidator = Join-Path $RepoRoot "scripts\ops\validate-production-overlay.ps1"
     $egressValidator = Join-Path $RepoRoot "scripts\ops\validate-production-egress-evidence.ps1"
+    $releaseGate = Join-Path $RepoRoot "scripts\ops\release-gate.ps1"
     $gaValidator = Join-Path $RepoRoot "scripts\ops\validate-ga-evidence.ps1"
     $loadHarness = Join-Path $RepoRoot "scripts\load\phase3-high-volume-load.ps1"
 
@@ -148,6 +154,34 @@ spec:
     Invoke-ExpectFailure "external egress evidence rejects placeholders/template values" {
         & $egressValidator -SpecPath $egressSpec
     } "placeholder|required|future|approved"
+
+    $today = (Get-Date).ToString("yyyy-MM-dd")
+    $egressSpecWithoutPolicyEvidence = Join-Path $tempRoot "production-egress-without-policy-evidence.json"
+    Write-TextFile -Path $egressSpecWithoutPolicyEvidence -Content @"
+{
+  "schemaVersion": "legent.production-egress.v1",
+  "review": {
+    "owner": "platform-security",
+    "reviewDate": "$today",
+    "changeTicket": "SEC-12345"
+  },
+  "dependencies": [
+    {
+      "name": "provider-api",
+      "owner": "platform",
+      "reviewDate": "$today",
+      "purpose": "Outbound provider API calls",
+      "evidence": "SEC-12345 reviewed provider contract",
+      "scope": "external",
+      "ports": [{ "protocol": "TCP", "port": 443 }],
+      "destinations": [{ "type": "cidr", "value": "8.8.8.8/32" }]
+    }
+  ]
+}
+"@
+    Invoke-ExpectFailure "strict external egress evidence requires rendered/applied policy artifacts" {
+        & $releaseGate -SkipBackend -SkipFrontend -SkipEnvValidation -SkipRouteValidation -SkipComposeSmoke -SkipKustomize -ExternalEgressEvidencePath $egressSpecWithoutPolicyEvidence
+    } "policyEvidence|renderedArtifacts|appliedEvidence"
 
     Invoke-ExpectFailure "live load RequireLive rejects missing token/input" {
         & $loadHarness -RequireLive -Imports 0 -Segments 0 -Sends 0 -TrackingEvents 0 -Reports 0 -Token "" -DataProfileName "synthetic"
