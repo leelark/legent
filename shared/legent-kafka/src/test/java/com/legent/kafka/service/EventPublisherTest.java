@@ -10,6 +10,7 @@ import org.springframework.kafka.support.SendResult;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
@@ -35,9 +36,12 @@ class EventPublisherTest {
                 AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
                 Map.of(
                         "tenantId", "tenant-1",
+                        "workspaceId", "workspace-1",
                         "jobId", "job-1",
                         "batchId", "batch-1",
-                        "messageId", "message-1"
+                        "messageId", "message-1",
+                        "email", "user@example.com",
+                        "htmlBody", "<p>Hello</p>"
                 )
         );
 
@@ -91,6 +95,22 @@ class EventPublisherTest {
     }
 
     @Test
+    void publish_rejectsMalformedManagedContractBeforeKafkaSend() {
+        EventPublisher publisher = new EventPublisher(kafkaTemplate);
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                Map.of(
+                        "workspaceId", "workspace-1",
+                        "htmlBody", "<p>Hello</p>"
+                )
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> publisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+        verifyNoInteractions(kafkaTemplate);
+    }
+
+    @Test
     void publish_lowVolumeTopicFallsBackToTenantId() {
         stubSend();
         EventPublisher publisher = new EventPublisher(kafkaTemplate);
@@ -108,7 +128,13 @@ class EventPublisherTest {
         return EventEnvelope.<Map<String, Object>>builder()
                 .eventId("event-1")
                 .eventType(topic)
+                .timestamp(Instant.parse("2026-05-18T00:00:00Z"))
                 .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .source("test")
+                .schemaVersion(1)
+                .correlationId("corr-1")
+                .idempotencyKey("idem-1")
                 .payload(payload)
                 .build();
     }

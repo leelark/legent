@@ -5,9 +5,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.SendBatch;
+import com.legent.campaign.domain.SendBatchRecipient;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
+import com.legent.campaign.repository.SendBatchRecipientRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.event.EmailContentReference;
@@ -31,6 +33,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -57,6 +60,7 @@ import static org.mockito.Mockito.when;
 class SendExecutionServiceTest {
 
     @Mock private SendBatchRepository batchRepository;
+    @Mock private SendBatchRecipientRepository batchRecipientRepository;
     @Mock private CampaignRepository campaignRepository;
     @Mock private SendJobRepository sendJobRepository;
     @Mock private EventPublisher eventPublisher;
@@ -74,6 +78,7 @@ class SendExecutionServiceTest {
         TenantContext.clear();
         service = new SendExecutionService(
                 batchRepository,
+                batchRecipientRepository,
                 campaignRepository,
                 sendJobRepository,
                 eventPublisher,
@@ -89,6 +94,7 @@ class SendExecutionServiceTest {
         ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1024 * 1024);
         ReflectionTestUtils.setField(service, "contentReferenceEnabled", true);
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
+        ReflectionTestUtils.setField(service, "recipientPageSize", 1000);
     }
 
     @AfterEach
@@ -201,6 +207,45 @@ class SendExecutionServiceTest {
         List<Map<String, String>> retryPayload = objectMapper.readValue(
                 batch.getPayload(), new TypeReference<>() {});
         assertEquals(List.of(Map.of("email", "two@example.com", "subscriberId", "sub-2")), retryPayload);
+    }
+
+    @Test
+    void rowBackedPartialKeepsBatchPayloadMetadataAndMarksRetryRows() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload("{\"storage\":\"send_batch_recipients\",\"recipientCount\":2}");
+        Campaign campaign = campaign();
+        SendBatchRecipient first = recipientRow(1, "sub-1", "one@example.com");
+        SendBatchRecipient second = recipientRow(2, "sub-2", "two@example.com");
+        List<Map<String, String>> subscribers = List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
+                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+
+        stubBatchExecution(batch, campaign, subscribers);
+        when(batchRecipientRepository.countByTenantIdAndWorkspaceIdAndJobIdAndBatchIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "job-1", "batch-1")).thenReturn(2L);
+        when(batchRecipientRepository.findByTenantIdAndWorkspaceIdAndJobIdAndBatchIdAndStatusInAndDeletedAtIsNullOrderBySequenceNumberAsc(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), eq("batch-1"), any(), any(Pageable.class)))
+                .thenReturn(List.of(first, second));
+        when(batchRecipientRepository.countByTenantIdAndWorkspaceIdAndJobIdAndBatchIdAndStatusInAndDeletedAtIsNull(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), eq("batch-1"), any())).thenReturn(1L);
+        when(batchRecipientRepository.save(any(SendBatchRecipient.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null))
+                .thenReturn(CompletableFuture.failedFuture(new RuntimeException("kafka unavailable")));
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", null);
+
+        assertEquals(SendBatch.BatchStatus.PARTIAL, batch.getStatus());
+        assertEquals("{\"storage\":\"send_batch_recipients\"}", batch.getPayload());
+        assertEquals(SendBatchRecipient.RecipientStatus.HANDOFFED, first.getStatus());
+        assertEquals(1, first.getAttemptCount());
+        assertEquals(SendBatchRecipient.RecipientStatus.PENDING, second.getStatus());
+        assertEquals(1, second.getAttemptCount());
+        assertEquals("kafka unavailable", second.getLastError());
     }
 
     @Test
@@ -728,6 +773,22 @@ class SendExecutionServiceTest {
         batch.setFailureCount(0);
         batch.setRetryCount(0);
         return batch;
+    }
+
+    private SendBatchRecipient recipientRow(int sequence, String subscriberId, String email) throws Exception {
+        SendBatchRecipient row = new SendBatchRecipient();
+        row.setId("recipient-" + sequence);
+        row.setTenantId("tenant-1");
+        row.setWorkspaceId("workspace-1");
+        row.setJobId("job-1");
+        row.setBatchId("batch-1");
+        row.setSequenceNumber(sequence);
+        row.setSubscriberId(subscriberId);
+        row.setEmail(email);
+        row.setStatus(SendBatchRecipient.RecipientStatus.PENDING);
+        row.setAttemptCount(0);
+        row.setPayload(objectMapper.writeValueAsString(Map.of("email", email, "subscriberId", subscriberId)));
+        return row;
     }
 
     private Campaign campaign() {

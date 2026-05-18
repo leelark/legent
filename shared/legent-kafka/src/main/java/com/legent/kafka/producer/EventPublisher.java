@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.lang.NonNull;
@@ -25,8 +25,6 @@ import java.util.concurrent.CompletableFuture;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-
 public class EventPublisher {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -82,6 +80,17 @@ public class EventPublisher {
     );
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final EventContractValidator contractValidator;
+
+    public EventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
+        this(kafkaTemplate, new EventContractValidator());
+    }
+
+    @Autowired
+    public EventPublisher(KafkaTemplate<String, Object> kafkaTemplate, EventContractValidator contractValidator) {
+        this.kafkaTemplate = kafkaTemplate;
+        this.contractValidator = contractValidator;
+    }
 
     /**
      * Publishes an event envelope to the specified topic.
@@ -91,6 +100,7 @@ public class EventPublisher {
             @NonNull String topic,
             @NonNull EventEnvelope<T> envelope) {
 
+        contractValidator.validate(topic, envelope);
         String key = resolvePartitionKey(topic, envelope, null);
 
         log.info("Publishing event [{}] to topic [{}] with key [{}]",
@@ -119,6 +129,7 @@ public class EventPublisher {
             @NonNull String partitionKey,
             @NonNull EventEnvelope<T> envelope) {
 
+        contractValidator.validate(topic, envelope);
         String key = resolvePartitionKey(topic, envelope, partitionKey);
 
         log.info("Publishing event [{}] to topic [{}] with custom key [{}]",

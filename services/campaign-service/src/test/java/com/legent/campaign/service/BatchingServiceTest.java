@@ -1,6 +1,5 @@
 package com.legent.campaign.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -12,10 +11,12 @@ import org.mockito.ArgumentCaptor;
 import java.util.Map;
 
 import com.legent.campaign.domain.SendBatch;
+import com.legent.campaign.domain.SendBatchRecipient;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.event.CampaignEventPublisher;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
+import com.legent.campaign.repository.SendBatchRecipientRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import com.legent.common.constant.AppConstants;
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +39,7 @@ import static org.mockito.Mockito.*;
 class BatchingServiceTest {
 
     @Mock private SendBatchRepository batchRepository;
+    @Mock private SendBatchRecipientRepository batchRecipientRepository;
     @Mock private SendJobRepository jobRepository;
     @Mock private CampaignRepository campaignRepository;
     @Mock private CampaignEventPublisher eventPublisher;
@@ -180,6 +182,7 @@ class BatchingServiceTest {
         ObjectMapper mapper = new ObjectMapper();
         BatchingService service = new BatchingService(
                 batchRepository,
+                batchRecipientRepository,
                 jobRepository,
                 campaignRepository,
                 eventPublisher,
@@ -216,8 +219,25 @@ class BatchingServiceTest {
         assertThat(batches).extracting(SendBatch::getBatchSize)
                 .containsExactly(AppConstants.SEND_BATCH_SIZE, 1);
         assertThat(batches).allMatch(batch -> batch.getBatchSize() <= AppConstants.SEND_BATCH_SIZE);
-        assertThat(readPayload(mapper, batches.get(0).getPayload())).hasSize(AppConstants.SEND_BATCH_SIZE);
-        assertThat(readPayload(mapper, batches.get(1).getPayload())).hasSize(1);
+        assertThat(batches).allMatch(batch -> batch.getPayload().contains("send_batch_recipients"));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Iterable<SendBatchRecipient>> recipientCaptor = ArgumentCaptor.forClass(Iterable.class);
+        verify(batchRecipientRepository, times(2)).saveAll(recipientCaptor.capture());
+        List<List<SendBatchRecipient>> recipientBatches = recipientCaptor.getAllValues().stream()
+                .map(rows -> {
+                    List<SendBatchRecipient> materialized = new java.util.ArrayList<>();
+                    rows.forEach(materialized::add);
+                    return materialized;
+                })
+                .toList();
+        assertThat(recipientBatches.get(0)).hasSize(AppConstants.SEND_BATCH_SIZE);
+        assertThat(recipientBatches.get(1)).hasSize(1);
+        assertThat(recipientBatches.get(0)).extracting(SendBatchRecipient::getSequenceNumber)
+                .startsWith(1, 2, 3);
+        assertThat(recipientBatches.get(0)).allMatch(row -> "tenant-1".equals(row.getTenantId())
+                && "workspace-test".equals(row.getWorkspaceId())
+                && "job-1".equals(row.getJobId())
+                && row.getBatchId().startsWith("batch-"));
         assertThat(job.getTotalTarget()).isEqualTo(AppConstants.SEND_BATCH_SIZE + 1L);
         verify(eventPublisher, times(2)).publishBatchCreated(eq(tenantId), eq(jobId), anyString());
         verify(eventPublisher, never()).publishSendProcessing(anyString(), anyString(), anyString(), anyString());
@@ -245,11 +265,4 @@ class BatchingServiceTest {
                         false));
     }
 
-    private List<Map<String, String>> readPayload(ObjectMapper mapper, String payload) {
-        try {
-            return mapper.readValue(payload, new TypeReference<>() {});
-        } catch (Exception e) {
-            throw new AssertionError("Batch payload should be valid JSON", e);
-        }
-    }
 }

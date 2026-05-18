@@ -90,6 +90,14 @@ Live proof gates:
 
 Use `-EvidenceOutputPath` to write the sanitized combined JSON report. The report includes route validation, scenario results, campaign send evidence, the structured live proof fields, and the output path; it does not include the bearer token or request headers.
 
+For GA evidence, copy `docs/load-testing/live-load-evidence-transcript.template.json` into the release evidence directory, replace every placeholder with real target-environment values, and keep all referenced files in the same evidence directory unless they are external immutable artifact URIs. Validate the completed transcript before adding it to the GA manifest:
+
+```powershell
+.\scripts\ops\validate-evidence-transcript.ps1 -TranscriptPath .\docs\operations\evidence\<release>\live-load-evidence-transcript.json -Type live-load -MaxAgeDays 14
+```
+
+Then reference the completed transcript and the sanitized `-EvidenceOutputPath` JSON in `ga-evidence-manifest.json` under the `live-load` artifact. `scripts/ops/validate-ga-evidence.ps1` will still require a passing status, current date, local files inside the evidence directory, and the `RequireLive` command proof. Do not use dry-run, mock, synthetic, local, or placeholder output as live-load evidence.
+
 Use `-DryRun` in CI to validate scenario wiring without generating traffic:
 
 ```powershell
@@ -112,6 +120,7 @@ PowerShell 5.1 runs the harness sequentially. Use PowerShell 7 when parallel exe
 
 - Script JSON output.
 - Sanitized `-EvidenceOutputPath` JSON report.
+- Completed `live-load-evidence-transcript.json` that passes `scripts/ops/validate-evidence-transcript.ps1`.
 - `-LiveEvidencePath` JSON pack with target proof references, not secrets.
 - Gateway, service, Postgres, ClickHouse, Kafka, Redis, and Kubernetes metrics.
 - Saturation alerts for async queues and provider throttles.

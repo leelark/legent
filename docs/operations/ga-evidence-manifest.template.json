@@ -1,0 +1,174 @@
+﻿{
+    "schemaVersion":  "legent.ga-evidence.v1",
+    "releaseVersion":  "\u003crelease-version\u003e",
+    "environment":  "production",
+    "generatedAt":  "2026-05-17T18:42:31Z",
+    "notes":  "Template only. Replace placeholders with current target-environment evidence and keep secrets, tokens, credentials, private keys, and customer data out of files.",
+    "evidence":  {
+                     "synthetic-smoke":  {
+                                             "type":  "synthetic-smoke",
+                                             "status":  "pass",
+                                             "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                             "owner":  "\u003cevidence-owner\u003e",
+                                             "files":  [
+                                                           "synthetic-smoke-\u003cdate\u003e.txt"
+                                                       ],
+                                             "mustContain":  [
+                                                                 "synthetic smoke target base URL and pass result"
+                                                             ]
+                                         },
+                     "live-load":  {
+                                       "type":  "live-load",
+                                       "status":  "pass",
+                                       "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                       "owner":  "\u003cevidence-owner\u003e",
+                                       "files":  [
+                                                     "live-load-require-live-\u003cdate\u003e.json"
+                                                 ],
+                                       "mustContain":  [
+                                                           "RequireLive",
+                                                           "PASS"
+                                                       ]
+                                   },
+                     "restore-drill":  {
+                                           "type":  "restore-drill",
+                                           "status":  "pass",
+                                           "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                           "owner":  "\u003cevidence-owner\u003e",
+                                           "files":  [
+                                                         "restore-drill-\u003cdate\u003e.txt"
+                                                     ],
+                                           "mustContain":  [
+                                                               "restore",
+                                                               "post-restore smoke"
+                                                           ]
+                                       },
+                     "ci-gitleaks":  {
+                                         "type":  "ci-gitleaks",
+                                         "status":  "pass",
+                                         "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                         "owner":  "\u003cevidence-owner\u003e",
+                                         "files":  [
+                                                       "ci-gitleaks-\u003cdate\u003e.txt"
+                                                   ],
+                                         "mustContain":  [
+                                                             "gitleaks",
+                                                             "pass"
+                                                         ]
+                                     },
+                     "ci-trivy":  {
+                                      "type":  "ci-trivy",
+                                      "status":  "pass",
+                                      "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                      "owner":  "\u003cevidence-owner\u003e",
+                                      "files":  [
+                                                    "ci-trivy-\u003cdate\u003e.txt"
+                                                ],
+                                      "mustContain":  [
+                                                          "trivy",
+                                                          "pass"
+                                                      ]
+                                  },
+                     "ci-sbom":  {
+                                     "type":  "ci-sbom",
+                                     "status":  "pass",
+                                     "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                     "owner":  "\u003cevidence-owner\u003e",
+                                     "files":  [
+                                                   "filesystem-sbom-\u003cdate\u003e.txt"
+                                               ],
+                                     "mustContain":  [
+                                                         "sbom"
+                                                     ]
+                                 },
+                     "monitoring-alert-routing":  {
+                                                      "type":  "monitoring-alert-routing",
+                                                      "status":  "pass",
+                                                      "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                                      "owner":  "\u003cevidence-owner\u003e",
+                                                      "files":  [
+                                                                    "monitoring-alert-routing-\u003cdate\u003e.txt"
+                                                                ],
+                                                      "mustContain":  [
+                                                                          "platform-pager",
+                                                                          "platform-primary"
+                                                                      ]
+                                                  },
+                     "tls-cert-ownership":  {
+                                                "type":  "tls-cert-ownership",
+                                                "status":  "pass",
+                                                "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                                "owner":  "\u003cevidence-owner\u003e",
+                                                "files":  [
+                                                              "tls-cert-ownership-\u003cdate\u003e.txt"
+                                                          ],
+                                                "mustContain":  [
+                                                                    "legent-public-tls"
+                                                                ]
+                                            },
+                     "restricted-admission":  {
+                                                  "type":  "restricted-admission",
+                                                  "status":  "pass",
+                                                  "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                                  "owner":  "\u003cevidence-owner\u003e",
+                                                  "files":  [
+                                                                "restricted-admission-\u003cdate\u003e.txt"
+                                                            ],
+                                                  "mustContain":  [
+                                                                      "restricted"
+                                                                  ]
+                                              },
+                     "registry-digest":  {
+                                             "type":  "registry-digest",
+                                             "status":  "pass",
+                                             "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                             "owner":  "\u003cevidence-owner\u003e",
+                                             "files":  [
+                                                           "image-evidence-validation-\u003cdate\u003e.txt"
+                                                       ],
+                                             "mustContain":  [
+                                                                 "sha256:\u003c64-hex-image-digest\u003e",
+                                                                 "Image evidence manifest validation passed"
+                                                             ]
+                                         },
+                     "registry-sbom":  {
+                                           "type":  "registry-sbom",
+                                           "status":  "pass",
+                                           "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                           "owner":  "\u003cevidence-owner\u003e",
+                                           "files":  [
+                                                         "image-evidence-validation-\u003cdate\u003e.txt"
+                                                     ],
+                                           "mustContain":  [
+                                                               "SBOM",
+                                                               "sha256:\u003c64-hex-sbom-digest\u003e"
+                                                           ]
+                                       },
+                     "registry-signature":  {
+                                                "type":  "registry-signature",
+                                                "status":  "pass",
+                                                "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                                "owner":  "\u003cevidence-owner\u003e",
+                                                "files":  [
+                                                              "image-evidence-validation-\u003cdate\u003e.txt"
+                                                          ],
+                                                "mustContain":  [
+                                                                    "signature",
+                                                                    "verified"
+                                                                ]
+                                            },
+                     "registry-provenance":  {
+                                                 "type":  "registry-provenance",
+                                                 "status":  "pass",
+                                                 "date":  "\u003cyyyy-mm-ddThh:mm:ss+offset\u003e",
+                                                 "owner":  "\u003cevidence-owner\u003e",
+                                                 "files":  [
+                                                               "image-evidence-validation-\u003cdate\u003e.txt"
+                                                           ],
+                                                 "mustContain":  [
+                                                                     "provenance",
+                                                                     "attestation"
+                                                                 ]
+                                             }
+                 }
+}

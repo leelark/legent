@@ -1,9 +1,10 @@
 # Technical Debt
 
-Last updated: 2026-05-17.
+Last updated: 2026-05-18.
 
 Open:
 
+- 2026-05-17 five-loop sweep reduced docs/ops/frontend drift: runtime log artifacts are now rejected by a dedicated hygiene validator, fail-closed evidence validators have a temp-fixture self-test, CI runs both before scans, Next 16 legacy redirects live in `src/proxy.ts`, and README/AGENTS/architecture/report memory no longer claim resolved Kafka trust/DDL/audience risks are open. Remaining debt: full frontend `no-explicit-any` cleanup, inbound consumer payload contract tests, and external production evidence.
 - 2026-05-17 current `.codex` command/report drift around release-gate behavior, default/strict evidence validation, report coexistence, repo file count, and Kafka UI port was corrected in `.codex/bootstrap.md`, `.codex/commands/full-audit.md`, `.codex/commands/release-pass.md`, `.codex/reports/final-audit-2026-05-16.md`, and `Makefile`. Keep command docs tied to script readback after future release-gate changes.
 - 2026-05-17 Salesforce comparison audit produced and was updated after implementation in `.codex/reports/salesforce-comparison-full-audit-2026-05-17.yaml`. Current post-implementation scores: Salesforce parity 66%, functional readiness 73%, private beta readiness 78%, public multi-tenant GA readiness 48%, best-in-world readiness 39%. Report is valid YAML and is based on 1,317 parsed text files / 175,224 LOC plus targeted manual inspections and validation commands.
 - Delivery retry content recovery source debt is closed for the missing-route/cache-scope bug: campaign writes durable rendered snapshots through content-service, delivery fetches by tenant/workspace/reference with internal auth, and caches by scoped reference. Remaining debt: retention/load dashboards, operator purge controls, and live high-volume retry/replay proof.
@@ -21,7 +22,7 @@ Open:
 - Content/platform workspace-scope migrations intentionally leave legacy rows nullable; operators need reviewed backfill/mapping before those rows become visible in workspace-scoped authenticated APIs.
 - 2026-05-16 cleanup removed dependency-proven unreachable frontend tracking/content/admin/layout files, `useFeatureFlag`, old tracking frontend API/WebSocket wrappers, dead `TenantException`, and an unused delivery fallback method. Keep future deletion work dependency-driven rather than filename-driven.
 - Generated `target/classes/db/migration` directories exist locally; do not modify generated outputs.
-- Kafka consumer error handling debt was reduced on 2026-05-13 with shared retry/DLQ wiring and owned listener rethrow behavior. Remaining debt: weak `EventEnvelope<?>` / `EventEnvelope<Object>` payload contracts still need schema validation and service-level contract tests.
+- Kafka consumer error handling debt was reduced on 2026-05-13 with shared retry/DLQ wiring and owned listener rethrow behavior. Outbound contracts for six high-risk topics are validated before publish as of 2026-05-18. Remaining debt: inbound consumer payload contract tests and broader schema-version migration strategy.
 - Frontend workspace shell has high blast radius: session hydration, tenant bootstrap, preferences, redirect, shell chrome, and toasts are coupled in one layout.
 - Tenant/workspace metadata can drift because layout, header, auth views, context bootstrap, auth store, and tenant store all write context. Tokens are not stored in localStorage, but non-secret context still needs consistency tests.
 - Flyway version gaps exist in identity, tracking, and automation. Flyway allows gaps, but audit docs should note them to avoid future renumbering.

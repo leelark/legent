@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "legent.evidence-transcript.v1",
+  "evidenceType": "restore-drill",
+  "releaseVersion": "<release-version>",
+  "environment": "<target-environment>",
+  "owner": "<operator-or-team>",
+  "capturedAt": "<iso-8601-completed-at>",
+  "status": "pass",
+  "summary": "Restore drill completed for PostgreSQL, ClickHouse, and MinIO with sanitized transcripts, post-restore smoke, and owner sign-off.",
+  "sanitization": {
+    "reviewed": true,
+    "commandOutputsSanitized": true,
+    "containsSecrets": false,
+    "customerData": "redacted-or-aggregate-only",
+    "reviewer": "<security-or-release-reviewer>"
+  },
+  "commands": [
+    {
+      "id": "postgres-restore",
+      "command": ".\\scripts\\ops\\backup-restore.ps1 -Target postgres -Action restore -InputFile <postgres-backup-artifact>",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "clickhouse-drill-and-restore",
+      "command": ".\\scripts\\ops\\backup-restore.ps1 -Target clickhouse -Action drill -InputFile <clickhouse-backup-artifact>; .\\scripts\\ops\\backup-restore.ps1 -Target clickhouse -Action restore -InputFile <clickhouse-backup-artifact>",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "minio-restore",
+      "command": ".\\scripts\\ops\\backup-restore.ps1 -Target minio -Action restore -InputFile <minio-backup-artifact>",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "post-restore-smoke",
+      "command": ".\\scripts\\ops\\synthetic-smoke.ps1 -BaseUrl https://api.<target-domain>",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "validate-transcript",
+      "command": ".\\scripts\\ops\\validate-evidence-transcript.ps1 -TranscriptPath .\\restore-drill-evidence-transcript.json -Type restore-drill -MaxAgeDays 14",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "restore-command-transcript",
+      "description": "Sanitized restore transcript with commands, durations, backup artifact URIs, checksums, and exit statuses.",
+      "ref": "restore-command-transcript.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "post-restore-smoke",
+      "description": "Synthetic smoke transcript proving post-restore API health and tenant-scoped safety checks passed.",
+      "ref": "post-restore-smoke.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "restore-integrity-summary",
+      "description": "Sanitized row/object integrity summary with ClickHouse row counts, PostgreSQL Flyway version, MinIO object sample checks, RPO, and RTO.",
+      "ref": "restore-integrity-summary.json",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    }
+  ],
+  "gaEvidence": {
+    "artifactId": "restore-drill",
+    "manifestFile": "ga-evidence-manifest.json",
+    "manifestEntry": {
+      "status": "pass",
+      "date": "<iso-8601-completed-at>",
+      "files": [
+        "restore-drill-evidence-transcript.json",
+        "restore-command-transcript.txt",
+        "post-restore-smoke.txt",
+        "restore-integrity-summary.json"
+      ]
+    },
+    "requiredGaPattern": "restore"
+  }
+}

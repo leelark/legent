@@ -268,10 +268,10 @@ When directly relevant:
 
 ## Known Current Risks To Check Before Related Work
 
-- Audience resolution currently emits full resolved subscriber payloads.
-- Default event publishing keys many events by tenant ID.
-- Several service configs still contain `spring.json.trusted.packages: "*"`.
-- Service configs default `SPRING_JPA_HIBERNATE_DDL_AUTO` to `update` unless environment overrides.
+- Audience resolution now emits bounded chunks; keep upstream resolution, suppression checks, and campaign retries bounded.
+- High-volume Kafka topic keys are hardened away from tenant-only defaults; keep new high-volume topics shard-aware.
+- Kafka wildcard deserialization trust was resolved; do not reintroduce `spring.json.trusted.packages: "*"`.
+- Non-test JPA DDL defaults now validate; do not reintroduce `SPRING_JPA_HIBERNATE_DDL_AUTO=update`.
 - Some Kafka consumers log and return on failure, bypassing retry/DLQ.
 - Several backend services and frontend pages are very large and should be split when touched.
 - Some docs/scripts have drifted around local ports and validation flags. Verify commands against scripts before relying on docs.

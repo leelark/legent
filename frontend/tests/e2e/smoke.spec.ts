@@ -10,6 +10,12 @@ test('release smoke: health endpoint and public shell render', async ({ page, re
   await expect(page.getByRole('heading', { name: /Run lifecycle email/i })).toBeVisible();
 });
 
+test('legacy launch route redirects to app launch', async ({ request }) => {
+  const response = await request.get('/launch', { maxRedirects: 0 });
+  expect(response.status()).toBe(308);
+  expect(response.headers().location).toContain('/app/launch');
+});
+
 const workspaceRoutes = [
   { path: '/app/audience', heading: /Audience/i },
   { path: '/app/campaigns', heading: /Campaign Studio/i },

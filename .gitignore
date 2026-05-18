@@ -10,6 +10,7 @@ node_modules/
 .next/
 out/
 build/
+*.tsbuildinfo
 npm-debug.log*
 package-lock.json.bak
 frontend/test-results/
@@ -39,3 +40,6 @@ tmp_cookies.txt
 login.json
 .tmp_*
 *.cookies
+*.log
+*_log.txt
+logs/

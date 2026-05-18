@@ -98,14 +98,6 @@ export default function WorkspaceLayout({
           login(session.userId, sessionRoles);
           localStorage.setItem(USER_STORAGE_KEY, session.userId);
           localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(sessionRoles));
-          localStorage.setItem(TENANT_STORAGE_KEY, session.tenantId);
-          setCurrentTenant({
-            id: session.tenantId,
-            name: session.tenantId,
-            slug: session.tenantId,
-            status: 'ACTIVE',
-            plan: 'STARTER',
-          });
           try {
             const activeContext = await ensureActiveContext({
               preferredTenantId: session.tenantId,
@@ -113,6 +105,22 @@ export default function WorkspaceLayout({
               preferredEnvironmentId: session.environmentId ?? null,
             });
             contextResolved = Boolean(activeContext?.workspaceId);
+            if (activeContext) {
+              localStorage.setItem(TENANT_STORAGE_KEY, activeContext.tenantId);
+              localStorage.setItem(WORKSPACE_STORAGE_KEY, activeContext.workspaceId);
+              if (activeContext.environmentId) {
+                localStorage.setItem(ENVIRONMENT_STORAGE_KEY, activeContext.environmentId);
+              } else {
+                localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
+              }
+              setCurrentTenant({
+                id: activeContext.tenantId,
+                name: activeContext.tenantId,
+                slug: activeContext.tenantId,
+                status: 'ACTIVE',
+                plan: 'STARTER',
+              });
+            }
           } catch (contextError) {
             console.error('Context bootstrap failed:', contextError);
           }

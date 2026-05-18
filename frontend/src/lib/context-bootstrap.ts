@@ -49,16 +49,18 @@ export async function ensureActiveContext(
     return null;
   }
 
-  const preferredTenantId = normalize(options.preferredTenantId) ?? normalize(localStorage.getItem(TENANT_STORAGE_KEY));
+  const suppliedPreferredTenantId = normalize(options.preferredTenantId);
+  const suppliedPreferredWorkspaceId = normalize(options.preferredWorkspaceId);
+  const preferredTenantId = suppliedPreferredTenantId ?? normalize(localStorage.getItem(TENANT_STORAGE_KEY));
   const preferredWorkspaceId =
-    normalize(options.preferredWorkspaceId) ?? normalize(localStorage.getItem(WORKSPACE_STORAGE_KEY));
+    suppliedPreferredWorkspaceId ?? normalize(localStorage.getItem(WORKSPACE_STORAGE_KEY));
   const contexts = await get<AccountContext[]>('/auth/contexts');
   if (!Array.isArray(contexts) || contexts.length === 0) {
     return null;
   }
 
   const matched = contexts.find((ctx) => {
-    if (!preferredTenantId || ctx.tenantId !== preferredTenantId) {
+    if (preferredTenantId && ctx.tenantId !== preferredTenantId) {
       return false;
     }
     if (preferredWorkspaceId) {
@@ -66,6 +68,11 @@ export async function ensureActiveContext(
     }
     return true;
   });
+
+  if (!matched && (suppliedPreferredTenantId || suppliedPreferredWorkspaceId)) {
+    return null;
+  }
+
   const target = matched ?? contexts.find((ctx) => Boolean(ctx.default)) ?? contexts[0];
   if (!target?.tenantId || !normalize(target.workspaceId)) {
     return null;

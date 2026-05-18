@@ -68,7 +68,7 @@ $lines = @(
     ("Overlay: ``{0}``" -f $OverlayPath),
     "",
     "This checklist is generated from the rendered production overlay. It does not prove registry state by itself; attach registry-backed digest, signature, SBOM, and provenance evidence for each image before promotion.",
-    "Use ``-ManifestOutputPath`` to generate a JSON manifest template, then validate the filled manifest with ``validate-production-overlay.ps1 -RequireImageEvidence -ImageEvidenceManifest <path>``.",
+    "Use ``-ManifestOutputPath`` to generate a JSON manifest template, then validate the filled manifest with ``validate-image-evidence.ps1 -ManifestPath <path>`` and the release gate image evidence hook.",
     "",
     "| Image | Digest pinned | SBOM attached | Signature verified | Provenance verified |",
     "| --- | --- | --- | --- | --- |"
@@ -92,17 +92,20 @@ if (-not [string]::IsNullOrWhiteSpace($ManifestOutputPath)) {
             sbom = [ordered] @{
                 uri = ""
                 digest = ""
+                tool = ""
             }
             signature = [ordered] @{
                 verified = $false
                 transcript = ""
                 verifier = ""
+                subjectDigest = Get-ImageDigest $image
             }
             provenance = [ordered] @{
                 verified = $false
                 transcript = ""
                 builderId = ""
                 predicateType = ""
+                subjectDigest = Get-ImageDigest $image
             }
         }
     }
@@ -112,6 +115,7 @@ if (-not [string]::IsNullOrWhiteSpace($ManifestOutputPath)) {
         generatedAt = $generatedAt
         overlayPath = $OverlayPath
         notes = "Template only. Populate with registry-backed digests, SBOM references, signature verification, and provenance verification before strict promotion validation."
+        validationCommand = "powershell -ExecutionPolicy Bypass -File scripts/ops/validate-image-evidence.ps1 -ManifestPath <filled-manifest.json>"
         images = $manifestImages
     }
 

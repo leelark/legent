@@ -1,0 +1,131 @@
+{
+  "schemaVersion": "legent.evidence-transcript.v1",
+  "evidenceType": "security-scan",
+  "releaseVersion": "<release-version>",
+  "environment": "<ci-or-target-environment>",
+  "owner": "<security-or-release-owner>",
+  "capturedAt": "<iso-8601-completed-at>",
+  "status": "pass",
+  "summary": "Security scan transcript proves npm audit, gitleaks, Trivy, and SBOM generation passed with sanitized logs and artifact references.",
+  "sanitization": {
+    "reviewed": true,
+    "commandOutputsSanitized": true,
+    "containsSecrets": false,
+    "customerData": "none",
+    "reviewer": "<security-reviewer>"
+  },
+  "commands": [
+    {
+      "id": "npm-audit",
+      "command": "cd frontend; npm audit --omit=dev --audit-level=high",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "gitleaks",
+      "command": "gitleaks detect --source . --no-git --redact --exit-code 1",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "trivy",
+      "command": "trivy fs --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed .",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "sbom",
+      "command": "trivy fs --format cyclonedx --output legent-fs-sbom.cdx.json .",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "validate-transcript",
+      "command": ".\\scripts\\ops\\validate-evidence-transcript.ps1 -TranscriptPath .\\security-scan-transcript.json -Type security-scan -MaxAgeDays 14",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "npm-audit-transcript",
+      "description": "Sanitized npm audit transcript showing zero high-or-critical production dependency findings.",
+      "ref": "npm-audit-transcript.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "gitleaks-transcript",
+      "description": "Sanitized gitleaks transcript with redaction enabled and no leaked secrets.",
+      "ref": "gitleaks-transcript.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "trivy-transcript",
+      "description": "Sanitized Trivy transcript showing no HIGH or CRITICAL filesystem findings.",
+      "ref": "trivy-transcript.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "filesystem-sbom",
+      "description": "Software bill of materials artifact or CI artifact reference generated for the release candidate.",
+      "ref": "legent-fs-sbom.cdx.json",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    }
+  ],
+  "gaEvidence": {
+    "artifactIds": [
+      "ci-gitleaks",
+      "ci-trivy",
+      "ci-sbom"
+    ],
+    "manifestFile": "ga-evidence-manifest.json",
+    "manifestEntries": {
+      "ci-gitleaks": {
+        "status": "pass",
+        "date": "<iso-8601-completed-at>",
+        "files": [
+          "security-scan-transcript.json",
+          "gitleaks-transcript.txt"
+        ]
+      },
+      "ci-trivy": {
+        "status": "pass",
+        "date": "<iso-8601-completed-at>",
+        "files": [
+          "security-scan-transcript.json",
+          "trivy-transcript.txt"
+        ]
+      },
+      "ci-sbom": {
+        "status": "pass",
+        "date": "<iso-8601-completed-at>",
+        "files": [
+          "security-scan-transcript.json",
+          "legent-fs-sbom.cdx.json"
+        ]
+      }
+    }
+  }
+}

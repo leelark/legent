@@ -45,3 +45,11 @@ Run post-restore smoke:
 - ClickHouse row count before and after restore.
 - PostgreSQL schema migration version after restore.
 - Owner sign-off.
+
+Use `docs/operations/restore-drill-evidence-transcript.template.json` for the release evidence wrapper. The completed JSON must pass:
+
+```powershell
+.\scripts\ops\validate-evidence-transcript.ps1 -TranscriptPath .\docs\operations\evidence\<release>\restore-drill-evidence-transcript.json -Type restore-drill -MaxAgeDays 14
+```
+
+For GA evidence, reference the completed transcript and sanitized supporting files from `ga-evidence-manifest.json` as the `restore-drill` artifact. Keep backup archives outside the evidence directory; include only artifact URIs, checksums, aggregate row/object counts, RPO/RTO, command timestamps, and pass statuses.

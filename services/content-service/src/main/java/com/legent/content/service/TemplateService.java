@@ -343,13 +343,15 @@ public class TemplateService {
     }
 
     public void sendTestEmail(String tenantId, String templateId, String toEmail, String subjectOverride, Map<String, Object> variables) {
-        EmailTemplate template = getTemplate(tenantId, TenantContext.requireWorkspaceId(), templateId);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        EmailTemplate template = getTemplate(tenantId, workspaceId, templateId);
         RenderedParts rendered = renderTemplateParts(template, variables);
 
         Map<String, Object> payload = Map.of(
                 "email", toEmail,
                 "subscriberId", "template-test",
                 "campaignId", "template-preview",
+                "workspaceId", workspaceId,
                 "messageId", "tpl-test-" + templateId + "-" + Instant.now().toEpochMilli(),
                 "subject", subjectOverride != null && !subjectOverride.isBlank() ? subjectOverride : rendered.subject(),
                 "htmlBody", rendered.htmlContent()
@@ -361,6 +363,8 @@ public class TemplateService {
                 "content-service",
                 payload
         );
+        envelope.setWorkspaceId(workspaceId);
+        envelope.setOwnershipScope("WORKSPACE");
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
     }
 

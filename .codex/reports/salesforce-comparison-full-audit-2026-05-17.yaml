@@ -73,8 +73,9 @@ scan_scope:
   git_status_at_start:
     branch: "main...origin/main"
     dirty_worktree: true
-    note: "Many existing modified/deleted/untracked files were present before this audit. Audit preserved them."
+    note: "Audit-time snapshot before later cleanup. Current repo status must be checked with git status before work."
   automated_scan:
+    snapshot_note: "Audit-time counts from 2026-05-17 before later cleanup; current repo file count is tracked in .codex/bootstrap.md."
     total_files_seen: 1371
     analyzed_non_generated_files: 1365
     text_files_parsed: 1317
@@ -614,9 +615,9 @@ algorithm_scores:
     next: "Backtest against real provider outcomes and ISP domains."
   workflow_execution_engine:
     percent: 50
-    evidence: "Sequential node loop, delay resume, Redis lock, idempotency."
-    defect: "Lock is not atomic."
-    next: "Add atomic lock, durable timers, compensation, concurrent branch model."
+    evidence: "Sequential node loop, delay resume, Redis SET NX PX lock, idempotency."
+    defect: "Atomic lock defect resolved after audit snapshot; durable timers and concurrent branch model remain."
+    next: "Add durable timers, compensation, concurrent branch model, and live workflow load proof."
   tracking_dedup_outbox:
     percent: 72
     evidence: "Redis SET NX PX script, DB duplicate window, outbox enqueue."

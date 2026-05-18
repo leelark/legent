@@ -4,7 +4,7 @@
 #
 # Benefits:
 # - Prevents re-downloading images on every compose up
-# - Uses pull_policy: if_not_present for faster startups
+# - Uses pull_policy: if_not_present for faster infrastructure startups
 # - Configures restart policies for development
 # - Adds volume optimizations
 
@@ -56,11 +56,6 @@ services:
 
   # Gateway - don't re-download
   gateway:
-    pull_policy: if_not_present
-
-  # Frontend - reuse cached image/container on normal compose up.
-  # Run `docker compose up -d --build frontend` when frontend source changes.
-  frontend:
     pull_policy: if_not_present
 
 volumes:

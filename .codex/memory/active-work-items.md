@@ -1,6 +1,30 @@
 # Active Work Items
 
-Last updated: 2026-05-17.
+Last updated: 2026-05-18.
+
+ReleaseBlockerSourceClosure-20260518:
+assigned_task: close locally actionable production egress, GA evidence, live transcript, image supply-chain, Kafka event contract, and campaign batch JSON blockers with parallel workers
+task_type: RELEASE/SECURITY/PERFORMANCE/RELIABILITY/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: ops evidence validators/templates/docs, release-gate hooks, shared Kafka event contract validator/tests, campaign send-batch recipient rows/migration/tests, email-send publisher workspace metadata, `.codex` memory
+branch_or_worktree: main
+dependencies: user blocker list, AGENTS.md, `.codex/memory/*`, worker agents Zeno/Mendel/Popper/Bacon
+blockers: real production egress CIDRs/FQDN policy data, live target GA evidence pack, live load/restore/security/monitoring transcripts, target cluster egress/admission evidence, and registry digest/SBOM/signature/provenance evidence remain external and cannot be invented
+next_actions: no commit or push performed; attach real target evidence and run release gate with strict GA, image, and egress flags before promotion
+
+CavemanFiveLoopSweep-20260517:
+assigned_task: read `.codex` commands/memory/checkpoints/reports, use parallel subagents, and close locally actionable issues over five loops
+task_type: SECURITY/RELEASE/FRONTEND/DOCS/TESTING
+priority_score: 35
+risk_level: HIGH
+status: completed
+changed_files: runtime log deletions, `.gitignore`, frontend Next proxy/context/table/smoke, CI ops validators, Compose override, scripts README, root docs, `.codex` commands/memory/report
+branch_or_worktree: main
+dependencies: `.codex/bootstrap.md`, `.codex/memory/*`, `.codex/commands/*`, `.codex/reports/*`, parallel security/performance/frontend/backend/infra/docs subagent findings
+blockers: exact production egress evidence, GA evidence pack, live high-volume load, restore/security/monitoring transcripts, registry image digest/SBOM/signature/provenance evidence, event envelope contract validation, campaign active/retry batch JSON redesign
+next_actions: no commit or push performed; run target CI/gitleaks/Trivy, strict release gate with evidence, and live load when real environment evidence is available
 
 CodexCodebaseMemorySweep-20260517:
 assigned_task: analyze `.codex` commands/memory/checkpoints/reports and current codebase, then implement locally actionable high-priority fixes with parallel agents
@@ -11,8 +35,8 @@ status: completed
 changed_files: identity federation OIDC fetch hardening; shared security CORS/unsafe-method guard; content internal token validation; docker-compose MinIO env requirements; env validator; Kafka topic config/tests; delivery retry/inbox safety tests; `.codex` command/report/bootstrap memory; Makefile Kafka UI port
 branch_or_worktree: main
 dependencies: `.codex/bootstrap.md`, `.codex/commands/*`, `.codex/memory/*`, `.codex/checkpoints/*`, `.codex/reports/*`, subagent findings from McClintock/James/Nietzsche/Kepler/Hubble/Halley/Ptolemy/Volta
-blockers: exact production egress/image/GA/live-load evidence remains external; tracked generated `id_log.txt` cleanup needs explicit approval; full frontend/full reactor/strict release gate not run in this sweep
-next_actions: obtain approval to remove/scrub tracked generated log artifact, collect target evidence, then run full release validation before GA
+blockers: exact production egress/image/GA/live-load evidence remains external; full frontend/full reactor/strict release gate not run in this sweep; tracked generated log cleanup was resolved later on 2026-05-17
+next_actions: collect target evidence, then run full release validation before GA
 
 SalesforceAuditImplementation-20260517:
 assigned_task: implement locally actionable source blockers from Salesforce comparison audit and memory files using subagents
@@ -83,7 +107,7 @@ status: completed
 changed_files: production Kubernetes egress overlay and validator; campaign readiness clients/gate/tests; delivery reservation lease domain/repository/migration/tests; content/platform workspace-scope migrations/repositories/services/controllers/tests; webhook connector-time DNS defense; campaign/delivery content-reference externalization; docs and `.codex` memory
 branch_or_worktree: main
 dependencies: `.codex/bootstrap.md`, `.codex/memory/unresolved-risks.md`, production Kustomize overlay, campaign/delivery/content/platform/shared-common services, release gate
-blockers: exact production external egress CIDRs/FQDN policy data, live target synthetic smoke/load/restore/security/monitoring evidence, shared workspace membership authorization contract, audience production mapping metadata, stale platform webhook retry lease recovery
+blockers: exact production external egress CIDRs/FQDN policy data, live target synthetic smoke/load/restore/security/monitoring evidence, shared workspace membership authorization contract, audience production mapping metadata; stale platform webhook retry lease recovery was resolved later on 2026-05-16
 next_actions: no commit or push performed; run live release gate with target `-RunSyntheticSmoke`, high-volume live load, restore drill, gitleaks/Trivy CI, and monitoring handoff before GA
 
 CodexPendingSweep-20260516:

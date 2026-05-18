@@ -1,0 +1,79 @@
+{
+  "schemaVersion": "legent.evidence-transcript.v1",
+  "evidenceType": "live-load",
+  "releaseVersion": "<release-version>",
+  "environment": "<target-environment>",
+  "owner": "<operator-or-team>",
+  "capturedAt": "<iso-8601-completed-at>",
+  "status": "pass",
+  "summary": "Live high-volume load completed with -RequireLive, sanitized outputs, no raw tokens, no customer payloads, and no failed gates.",
+  "sanitization": {
+    "reviewed": true,
+    "commandOutputsSanitized": true,
+    "containsSecrets": false,
+    "customerData": "redacted-or-aggregate-only",
+    "reviewer": "<security-or-release-reviewer>"
+  },
+  "commands": [
+    {
+      "id": "phase3-high-volume-load",
+      "command": ".\\scripts\\load\\phase3-high-volume-load.ps1 -BaseUrl https://gateway.<target-domain>/api/v1 -TenantId <tenant-id> -WorkspaceId <workspace-id> -Token $env:LEGENT_LOAD_TOKEN -DataProfileName <production-like-dataset> -DataExtensionId <data-extension-id> -CampaignId <campaign-id> -LiveEvidencePath .\\live-load-target-proof.json -EvidenceOutputPath .\\live-load-require-live-output.json -Imports 0 -Sends 1 -RequireLive -FailOnErrors",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "validate-transcript",
+      "command": ".\\scripts\\ops\\validate-evidence-transcript.ps1 -TranscriptPath .\\live-load-evidence-transcript.json -Type live-load -MaxAgeDays 14",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "live-load-require-live-output",
+      "description": "Sanitized JSON output from phase3-high-volume-load.ps1 showing requireLive=true, gate PASS, scenario counts, p95 latency, error rates, and EvidenceOutputPath.",
+      "ref": "live-load-require-live-output.json",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "live-load-target-proof",
+      "description": "Sanitized target proof pack for ClickHouse TTL and partitions, Postgres purge, remote render latency, Kafka handoff pressure, and delivery provider capacity.",
+      "ref": "live-load-target-proof.json",
+      "capturedAt": "<iso-8601-observed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "load-metrics-snapshot",
+      "description": "Sanitized dashboard export or metrics snapshot for gateway, services, Postgres, ClickHouse, Kafka, Redis, Kubernetes saturation, and provider throttles.",
+      "ref": "load-metrics-snapshot.json",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    }
+  ],
+  "gaEvidence": {
+    "artifactId": "live-load",
+    "manifestFile": "ga-evidence-manifest.json",
+    "manifestEntry": {
+      "status": "pass",
+      "date": "<iso-8601-completed-at>",
+      "files": [
+        "live-load-evidence-transcript.json",
+        "live-load-require-live-output.json",
+        "live-load-target-proof.json",
+        "load-metrics-snapshot.json"
+      ]
+    },
+    "requiredGaPattern": "RequireLive"
+  }
+}

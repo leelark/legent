@@ -88,8 +88,8 @@ Backend technical debt:
 
 - Several service classes exceed 500 to 900 lines and combine orchestration, persistence, validation, and integration behavior.
 - Many Kafka consumers catch broad exceptions, log, and return. That hides failures from retry/DLQ infrastructure.
-- Several service configs set Kafka trusted packages to `*`.
-- Service configs default JPA `ddl-auto` to `update` unless overridden.
+- Kafka wildcard deserialization trust has been removed; remaining debt is weak envelope/payload contract validation.
+- Non-test service configs default JPA `ddl-auto` to `validate`; keep that fail-closed default.
 
 ## API Architecture
 
@@ -143,7 +143,7 @@ Database risks:
 - Per-message delivery writes are heavy at million-send scale.
 - Rate-control rows can become hot under high volume to one domain/provider.
 - Segment recomputation can load large member sets and replace memberships in bulk.
-- `ddl-auto=update` defaults are unsafe outside tightly controlled local/dev flows.
+- Reintroducing `ddl-auto=update` defaults would be unsafe; current non-test defaults must stay `validate`.
 
 ## Queue And Event Flow
 
@@ -173,8 +173,8 @@ Campaign send flow today:
 
 Queue risks:
 
-- Audience resolution currently publishes all recipients in one event. This will not scale to 1,000,000 recipients.
-- Default `EventPublisher.publish(topic, envelope)` keys by tenant ID, which can hot-partition high-volume tenants.
+- Audience resolution publishes bounded chunks, but campaign batch JSON remains active/retry payload pressure.
+- High-volume `EventPublisher` paths avoid tenant-only keys, but new topics must keep shard-aware routing.
 - Some consumers suppress exceptions instead of letting Kafka retry/DLQ.
 - Consumer concurrency values are fixed in config and not tied to partition count, lag, HPA, or provider capacity.
 
@@ -197,8 +197,8 @@ Security components:
 
 Security risks:
 
-- Kafka trusted packages are too wide in service configs.
-- CSRF posture depends on SameSite cookies plus origin/referer checks; requests without Origin/Referer can pass for non-browser compatibility.
+- Kafka trusted packages are narrow now; consumer contract validation remains weak for raw `EventEnvelope<?>` payloads.
+- CSRF posture depends on SameSite cookies plus origin/referer checks; unsafe cookie-auth requests without Origin/Referer now fail closed.
 - CSP permits unsafe inline behavior.
 - JWT secret length is logged at startup, which is minor metadata exposure.
 - Public routes must be audited whenever adding `permitAll`.
@@ -207,8 +207,8 @@ Security risks:
 
 Highest-priority bottlenecks for 10 lakh sends in 10 hours:
 
-- Audience resolution event carries full recipient set instead of streaming chunks.
-- Kafka partition key defaults to tenant ID.
+- Campaign send batches still store active/retry recipient payload JSON instead of durable recipient-page checkpoints.
+- New high-volume Kafka topics must not fall back to tenant-only partition keys.
 - Send execution does synchronous per-recipient rendering and per-recipient Kafka publishing.
 - Delivery hot path performs multiple database writes/checks per message.
 - Rate/warmup state can create hot rows.
@@ -247,7 +247,7 @@ Highest-priority bottlenecks for 10 lakh sends in 10 hours:
 
 ### Security
 
-- Narrow Kafka trusted packages.
+- Keep Kafka trusted packages narrow and add schema/payload contract validation.
 - Make CSRF expectations explicit and tested.
 - Tighten CSP by removing unsafe inline dependencies.
 - Remove JWT secret metadata logging.

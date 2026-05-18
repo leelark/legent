@@ -53,8 +53,11 @@ scripts/
 ### Load Validation
 
 ```powershell
-# Live high-volume validation requires a real token and approved dataset
-.\scripts\load\phase3-high-volume-load.ps1 -BaseUrl https://gateway.example.com/api/v1 -TenantId tenant-enterprise-load -WorkspaceId workspace-enterprise-load -Token $env:LEGENT_LOAD_TOKEN -DataProfileName enterprise-2026q2-volume -RequireLive -FailOnErrors
+# Dry-run contract validation does not prove production capacity
+.\scripts\load\phase3-high-volume-load.ps1 -DryRun -Imports 10 -Segments 0 -Sends 0 -TrackingEvents 0 -Reports 0
+
+# Live high-volume validation requires a real token, approved dataset, and target evidence JSON
+.\scripts\load\phase3-high-volume-load.ps1 -BaseUrl https://gateway.example.com/api/v1 -TenantId tenant-enterprise-load -WorkspaceId workspace-enterprise-load -Token $env:LEGENT_LOAD_TOKEN -DataProfileName enterprise-2026q2-volume -LiveEvidencePath .\evidence\live-load-target.json -RequireLive -FailOnErrors
 ```
 
 ### Infrastructure
@@ -127,6 +130,8 @@ Use for Docker-specific build scenarios.
 | `validate-env.ps1` | Required environment and placeholder checks |
 | `validate-route-map.ps1` | Gateway route-map, Nginx, ingress, and controller-root drift checks |
 | `validate-production-overlay.ps1` | Production Kustomize render drift and fail-closed checks |
+| `validate-repo-artifact-hygiene.ps1` | Rejects tracked runtime logs and generated Spring security password output |
+| `test-release-evidence-validators.ps1` | No-dependency fail-closed self-test for release evidence validators |
 | `validate-compose-health.ps1` | Local Compose health validation |
 | `release-gate.ps1` | End-to-end release-readiness gate |
 

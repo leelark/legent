@@ -5,6 +5,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.domain.Campaign;
+import com.legent.campaign.domain.SendBatchRecipient;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.event.EmailContentReference;
 import java.time.Duration;
@@ -22,6 +23,7 @@ import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
+import com.legent.campaign.repository.SendBatchRecipientRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
@@ -29,6 +31,7 @@ import com.legent.kafka.producer.EventPublisher;
 import com.legent.kafka.model.EventEnvelope;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
@@ -44,10 +47,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class SendExecutionService {
 
     private static final String EMPTY_BATCH_PAYLOAD = "[]";
+    private static final String ROW_BACKED_BATCH_PAYLOAD = "{\"storage\":\"send_batch_recipients\"}";
     private static final String CONTENT_PAYLOAD_TOO_LARGE = "CONTENT_PAYLOAD_TOO_LARGE";
     private static final String CONTENT_REFERENCE_UNAVAILABLE = "CONTENT_REFERENCE_UNAVAILABLE";
 
     private final SendBatchRepository batchRepository;
+    private final SendBatchRecipientRepository batchRecipientRepository;
     private final CampaignRepository campaignRepository;
     private final SendJobRepository sendJobRepository;
     private final EventPublisher eventPublisher;
@@ -75,6 +80,9 @@ public class SendExecutionService {
 
     @Value("${legent.campaign.send.include-inline-rendered-content:true}")
     private boolean includeInlineRenderedContent;
+
+    @Value("${legent.campaign.send.recipient-page-size:1000}")
+    private int recipientPageSize;
 
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
@@ -106,15 +114,9 @@ public class SendExecutionService {
             }
             batch.setStatus(SendBatch.BatchStatus.PROCESSING);
             
-            if (payloadJson == null || payloadJson.isEmpty()) {
-                payloadJson = batch.getPayload();
-            }
-
-            List<Map<String, String>> subscribers = objectMapper.readValue(payloadJson, new TypeReference<>() {});
-            subscribers = subscribers.stream()
-                    .filter(sub -> sub != null && sub.get("email") != null && !sub.get("email").isBlank())
-                    .toList();
-            if (subscribers.isEmpty()) {
+            RecipientPage recipientPage = loadRecipientPage(tenantId, workspaceId, jobId, batchId, payloadJson, batch);
+            List<RecipientWorkItem> recipients = recipientPage.recipients();
+            if (recipients.isEmpty()) {
                 batch.setStatus(SendBatch.BatchStatus.COMPLETED);
                 batch.setPayload(EMPTY_BATCH_PAYLOAD);
                 batchRepository.save(batch);
@@ -133,9 +135,10 @@ public class SendExecutionService {
             }
             
             CampaignSendSafetyService.SendPlan sendPlan = sendSafetyService.buildPlan(campaign);
-            List<CampaignSendSafetyService.PreparedRecipient> preparedRecipients = new java.util.ArrayList<>();
+            List<PreparedWorkItem> preparedRecipients = new java.util.ArrayList<>();
             int skippedRecipients = 0;
-            for (Map<String, String> sub : subscribers) {
+            for (RecipientWorkItem recipient : recipients) {
+                Map<String, String> sub = recipient.subscriber();
                 String subscriberIdentity = sub.get("subscriberId") != null ? sub.get("subscriberId") : sub.get("email");
                 String messageId = batch.getJobId() + ":" + batchId + ":" + subscriberIdentity + ":r" + (batch.getRetryCount() == null ? 0 : batch.getRetryCount());
                 CampaignSendSafetyService.PreparedRecipient prepared = sendSafetyService.prepareRecipient(
@@ -145,9 +148,10 @@ public class SendExecutionService {
                         sub,
                         messageId);
                 if (prepared.send()) {
-                    preparedRecipients.add(prepared);
+                    preparedRecipients.add(new PreparedWorkItem(recipient.row(), prepared));
                 } else {
                     skippedRecipients++;
+                    markRecipientOutcome(recipient.row(), SendBatchRecipient.RecipientStatus.SUPPRESSED, "Recipient skipped by campaign send safety checks", false);
                 }
             }
 
@@ -161,7 +165,8 @@ public class SendExecutionService {
             Map<RenderCacheKey, ContentServiceClient.RenderedContent> renderCache = newRenderCache();
             
             for (int i = 0; i < acquiredPermits; i++) {
-                CampaignSendSafetyService.PreparedRecipient prepared = preparedRecipients.get(i);
+                PreparedWorkItem preparedWork = preparedRecipients.get(i);
+                CampaignSendSafetyService.PreparedRecipient prepared = preparedWork.prepared();
                 Map<String, String> sub = prepared.subscriber();
                 
                 // Publish individual email send requests into Delivery Kafka Topic
@@ -256,6 +261,7 @@ public class SendExecutionService {
                                 : "Rendered content reference creation failed while content references are enabled";
                         log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason, e);
                         recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_UNAVAILABLE, reason);
+                        markRecipientOutcome(preparedWork.row(), SendBatchRecipient.RecipientStatus.FAILED, CONTENT_REFERENCE_UNAVAILABLE, true);
                         publishFailures++;
                         contentReferenceFailures++;
                         continue;
@@ -278,6 +284,7 @@ public class SendExecutionService {
                                 + " and content reference creation failed";
                         log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason, e);
                         recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_UNAVAILABLE, reason);
+                        markRecipientOutcome(preparedWork.row(), SendBatchRecipient.RecipientStatus.FAILED, CONTENT_REFERENCE_UNAVAILABLE, true);
                         publishFailures++;
                         contentReferenceFailures++;
                         continue;
@@ -295,6 +302,7 @@ public class SendExecutionService {
                             prepared.messageId(),
                             true,
                             "CONTENT_PAYLOAD_TOO_LARGE: " + reason);
+                    markRecipientOutcome(preparedWork.row(), SendBatchRecipient.RecipientStatus.FAILED, CONTENT_PAYLOAD_TOO_LARGE, true);
                     publishFailures++;
                     oversizedPayloads++;
                     continue;
@@ -306,6 +314,7 @@ public class SendExecutionService {
                 );
                 try {
                     publishAndAwait(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
+                    markRecipientOutcome(preparedWork.row(), SendBatchRecipient.RecipientStatus.HANDOFFED, null, true);
                 } catch (Exception e) {
                     log.error("Failed to publish send request", e);
                     sendSafetyService.recordDeliveryFeedback(
@@ -314,6 +323,7 @@ public class SendExecutionService {
                             prepared.messageId(),
                             true,
                             e.getMessage());
+                    markRecipientOutcome(preparedWork.row(), SendBatchRecipient.RecipientStatus.PENDING, e.getMessage(), true);
                     publishFailures++;
                     retrySubscribers.add(sub);
                 }
@@ -358,15 +368,26 @@ public class SendExecutionService {
                 batch.setStatus(SendBatch.BatchStatus.PARTIAL); // Requires retry later
                 
                 // Active DLQ / DL-Routing
-                List<Map<String, String>> remaining = new java.util.ArrayList<>(retrySubscribers);
-                remaining.addAll(preparedRecipients.subList(acquiredPermits, preparedRecipients.size())
-                        .stream()
-                        .map(CampaignSendSafetyService.PreparedRecipient::subscriber)
-                        .toList());
+                int unprocessedCount;
+                if (recipientPage.rowBacked()) {
+                    preparedRecipients.subList(acquiredPermits, preparedRecipients.size())
+                            .forEach(prepared -> markRecipientOutcome(
+                                    prepared.row(),
+                                    SendBatchRecipient.RecipientStatus.PENDING,
+                                    "RATE_LIMIT_EXCEEDED",
+                                    false));
+                    unprocessedCount = safeCountRetryableRecipients(batch);
+                    batch.setPayload(ROW_BACKED_BATCH_PAYLOAD);
+                } else {
+                    List<Map<String, String>> remaining = new java.util.ArrayList<>(retrySubscribers);
+                    remaining.addAll(preparedRecipients.subList(acquiredPermits, preparedRecipients.size())
+                            .stream()
+                            .map(prepared -> prepared.prepared().subscriber())
+                            .toList());
+                    unprocessedCount = remaining.size();
+                    batch.setPayload(objectMapper.writeValueAsString(remaining));
+                }
                 try {
-                    String remainingPayload = objectMapper.writeValueAsString(remaining);
-                    batch.setPayload(remainingPayload);
-                    
                     // Route to DLQ or retry topic
                     EventEnvelope<Map<String, Object>> dlqEvent = EventEnvelope.wrap(
                             AppConstants.TOPIC_SEND_FAILED, tenantId, "campaign-service",
@@ -376,7 +397,7 @@ public class SendExecutionService {
                                 "campaignId", batch.getCampaignId(),
                                 "workspaceId", batch.getWorkspaceId(),
                                 "reason", "RATE_LIMIT_EXCEEDED",
-                                "unprocessedCount", remaining.size()
+                                "unprocessedCount", unprocessedCount
                             )
                     );
                     publishAndAwait(AppConstants.TOPIC_SEND_FAILED, dlqEvent);
@@ -398,7 +419,12 @@ public class SendExecutionService {
                 }
             }
             if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) {
-                batch.setPayload(EMPTY_BATCH_PAYLOAD);
+                if (recipientPage.rowBacked() && hasRetryableRecipients(batch)) {
+                    batch.setStatus(SendBatch.BatchStatus.PARTIAL);
+                    batch.setPayload(ROW_BACKED_BATCH_PAYLOAD);
+                } else {
+                    batch.setPayload(EMPTY_BATCH_PAYLOAD);
+                }
             }
             batchRepository.save(batch);
             reconcileJobIfFinished(batch);
@@ -420,6 +446,117 @@ public class SendExecutionService {
             }
             throw new IllegalStateException("Failed to publish event to " + topic, cause);
         }
+    }
+
+    private RecipientPage loadRecipientPage(String tenantId,
+                                            String workspaceId,
+                                            String jobId,
+                                            String batchId,
+                                            String payloadJson,
+                                            SendBatch batch) {
+        long rowCount = batchRecipientRepository.countByTenantIdAndWorkspaceIdAndJobIdAndBatchIdAndDeletedAtIsNull(
+                tenantId,
+                workspaceId,
+                jobId,
+                batchId);
+        if (rowCount > 0) {
+            List<SendBatchRecipient> rows = batchRecipientRepository
+                    .findByTenantIdAndWorkspaceIdAndJobIdAndBatchIdAndStatusInAndDeletedAtIsNullOrderBySequenceNumberAsc(
+                            tenantId,
+                            workspaceId,
+                            jobId,
+                            batchId,
+                            List.of(SendBatchRecipient.RecipientStatus.PENDING),
+                            PageRequest.of(0, Math.max(1, recipientPageSize)));
+            return new RecipientPage(true, rows.stream()
+                    .map(row -> new RecipientWorkItem(row, subscriberFromRecipientRow(row)))
+                    .filter(item -> item.subscriber().get("email") != null && !item.subscriber().get("email").isBlank())
+                    .toList());
+        }
+
+        String sourcePayload = payloadJson;
+        if (sourcePayload == null || sourcePayload.isBlank()) {
+            sourcePayload = batch.getPayload();
+        }
+        List<Map<String, String>> subscribers = subscribersFromLegacyPayload(sourcePayload);
+        return new RecipientPage(false, subscribers.stream()
+                .filter(sub -> sub != null && sub.get("email") != null && !sub.get("email").isBlank())
+                .map(sub -> new RecipientWorkItem(null, sub))
+                .toList());
+    }
+
+    private Map<String, String> subscriberFromRecipientRow(SendBatchRecipient row) {
+        Map<String, String> subscriber;
+        try {
+            subscriber = row.getPayload() == null || row.getPayload().isBlank()
+                    ? new java.util.HashMap<>()
+                    : objectMapper.readValue(row.getPayload(), new TypeReference<>() {});
+        } catch (Exception e) {
+            throw new ValidationException("payload", "Unable to read send batch recipient row payload");
+        }
+        if (row.getEmail() != null && !row.getEmail().isBlank()) {
+            subscriber.put("email", row.getEmail());
+        }
+        if (row.getSubscriberId() != null && !row.getSubscriberId().isBlank()) {
+            subscriber.put("subscriberId", row.getSubscriberId());
+        }
+        return subscriber;
+    }
+
+    private List<Map<String, String>> subscribersFromLegacyPayload(String payloadJson) {
+        if (payloadJson == null || payloadJson.isBlank()) {
+            return List.of();
+        }
+        try {
+            Object payload = objectMapper.readValue(payloadJson, new TypeReference<>() {});
+            if (payload instanceof List<?> list) {
+                return objectMapper.convertValue(list, new TypeReference<>() {});
+            }
+            if (payload instanceof Map<?, ?> map
+                    && "send_batch_recipients".equals(String.valueOf(map.get("storage")))) {
+                return List.of();
+            }
+            throw new ValidationException("payload", "Send batch payload must be a recipient array");
+        } catch (ValidationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ValidationException("payload", "Unable to read send batch recipient payload");
+        }
+    }
+
+    private void markRecipientOutcome(SendBatchRecipient row,
+                                      SendBatchRecipient.RecipientStatus status,
+                                      String error,
+                                      boolean countedAttempt) {
+        if (row == null) {
+            return;
+        }
+        row.setStatus(status);
+        if (countedAttempt) {
+            row.setAttemptCount((row.getAttemptCount() == null ? 0 : row.getAttemptCount()) + 1);
+        }
+        row.setLastError(error);
+        if (status == SendBatchRecipient.RecipientStatus.HANDOFFED
+                || status == SendBatchRecipient.RecipientStatus.SUPPRESSED
+                || status == SendBatchRecipient.RecipientStatus.FAILED) {
+            row.setProcessedAt(Instant.now());
+        }
+        batchRecipientRepository.save(row);
+    }
+
+    private boolean hasRetryableRecipients(SendBatch batch) {
+        return safeCountRetryableRecipients(batch) > 0;
+    }
+
+    private int safeCountRetryableRecipients(SendBatch batch) {
+        long retryable = batchRecipientRepository
+                .countByTenantIdAndWorkspaceIdAndJobIdAndBatchIdAndStatusInAndDeletedAtIsNull(
+                        batch.getTenantId(),
+                        batch.getWorkspaceId(),
+                        batch.getJobId(),
+                        batch.getId(),
+                        List.of(SendBatchRecipient.RecipientStatus.PENDING));
+        return retryable > Integer.MAX_VALUE ? Integer.MAX_VALUE : (int) retryable;
     }
 
     private Map<RenderCacheKey, ContentServiceClient.RenderedContent> newRenderCache() {
@@ -530,6 +667,15 @@ public class SendExecutionService {
             String normalized = value.trim();
             return normalized.isEmpty() ? null : normalized;
         }
+    }
+
+    private record RecipientWorkItem(SendBatchRecipient row, Map<String, String> subscriber) {
+    }
+
+    private record PreparedWorkItem(SendBatchRecipient row, CampaignSendSafetyService.PreparedRecipient prepared) {
+    }
+
+    private record RecipientPage(boolean rowBacked, List<RecipientWorkItem> recipients) {
     }
 
     private void failBatch(String tenantId, SendBatch batch, String reason, String message) {

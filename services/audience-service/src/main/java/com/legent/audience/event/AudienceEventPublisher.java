@@ -5,9 +5,12 @@ import java.util.Map;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+
+import java.util.LinkedHashMap;
 
 /**
  * Event publisher for audience-related events.
@@ -70,17 +73,21 @@ public class AudienceEventPublisher {
      * The delivery-service consumes this event to send the confirmation email.
      */
     public void publishDoubleOptInRequested(String tenantId, String subscriberId, String email, String rawToken) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("eventType", "DOUBLE_OPT_IN_REQUESTED");
+        payload.put("subscriberId", subscriberId);
+        payload.put("email", email);
+        payload.put("token", rawToken);
+        payload.put("templateId", "double-opt-in-confirmation");
+        String workspaceId = TenantContext.getWorkspaceId();
+        if (workspaceId != null && !workspaceId.isBlank()) {
+            payload.put("workspaceId", workspaceId);
+        }
         EventEnvelope<Map<String, Object>> envelope = EventEnvelope.wrap(
                 AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
                 tenantId,
                 "audience-service",
-                Map.of(
-                        "eventType", "DOUBLE_OPT_IN_REQUESTED",
-                        "subscriberId", subscriberId,
-                        "email", email,
-                        "token", rawToken,
-                        "templateId", "double-opt-in-confirmation"
-                )
+                payload
         );
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
         log.debug("Published double opt-in requested event for subscriber {}", subscriberId);

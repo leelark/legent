@@ -12,6 +12,14 @@ Validate a completed spec directly:
 .\scripts\ops\validate-production-egress-evidence.ps1 -SpecPath docs\operations\production-egress-evidence.json
 ```
 
+Render reviewed policy artifacts from a completed spec:
+
+```powershell
+.\scripts\ops\write-production-egress-policy.ps1 -SpecPath docs\operations\production-egress-evidence.json -OutputDirectory docs\operations\production-egress-rendered
+```
+
+The renderer consumes only reviewed evidence. It writes a Kubernetes `NetworkPolicy` for CIDR destinations and, when `fqdnPolicy.cni` is `cilium`, a concrete `CiliumNetworkPolicy` for exact FQDN destinations. For other approved CNIs it writes an explicit FQDN review JSON so the network owner can materialize the equivalent provider-specific policy outside the repository. Use `-RequireConcreteFqdnPolicy` to fail when FQDN evidence exists but the source-side renderer cannot produce a concrete CNI policy.
+
 Require it through the release gate only for target promotion:
 
 ```powershell
@@ -38,5 +46,6 @@ Local default release-gate runs do not require this evidence, so the repo-local 
 - FQDN destinations must be exact hostnames without schemes, paths, ports, or wildcards.
 - Any FQDN destination requires `fqdnPolicy.approved: true` plus a non-placeholder CNI name, policy reference, and note proving the target CNI enforces FQDN egress policy safely.
 - Ports must be explicit objects with Kubernetes protocol names: `TCP`, `UDP`, or `SCTP`.
+- Generated policy artifacts are evidence-derived review outputs, not proof that the target cluster has applied them. Promotion still needs the rendered artifact, apply/admission transcript, and CNI enforcement proof from the target environment.
 
 The template intentionally contains placeholders and must fail validation until replaced with real reviewed evidence.

@@ -134,18 +134,18 @@ The strategic ambition includes very high throughput, but the business must trea
 - Guaranteed inbox placement is impossible and must not be represented as a product promise.
 - Sending 1,000,000 emails in 10 hours requires approximately 27.8 sends/second sustained, plus headroom for retries, provider throttling, and tracking events.
 - Sending that volume from a new domain or new address conflicts with current warmup rules and with real-world inbox provider reputation systems.
-- The current audience resolution flow publishes all resolved recipients in one event, which is not viable for million-recipient sends.
-- The current default Kafka partition key is tenant ID, which can hot-spot a high-volume tenant.
+- Audience resolution now publishes bounded recipient chunks, but million-recipient sends still need batch/retry payload paging and live proof.
+- High-volume Kafka topic keys avoid tenant-only defaults; keep new high-volume events shard-aware.
 - Current local Compose resources and fixed consumer concurrency are not sized for enterprise send volume.
 - Frontend workspace UX exists, but several large components and marketing-heavy styling will slow enterprise workflow iteration.
 
 ## Major Pain Points Found
 
-- One-shot audience resolution event is the largest scaling blocker.
+- Campaign batch JSON and retry payload retention are now the largest source-backed send-scale blocker; audience resolution emits bounded chunks.
 - Delivery hot path performs multiple per-message writes and synchronous checks that need batching/sharding for million-send workloads.
 - Kafka listener exception handling often logs and suppresses failures, limiting retry/DLQ behavior.
-- `spring.json.trusted.packages: "*"` appears in multiple service configs.
-- `spring.jpa.hibernate.ddl-auto` defaults to `update` in service config files unless overridden.
+- Kafka wildcard trust was removed; keep listener payload contracts narrow and schema-validated.
+- Non-test `spring.jpa.hibernate.ddl-auto` defaults now validate; keep production schema changes Flyway-only.
 - Manual route definitions exist in both `route-map.json` and Nginx config.
 - Frontend has large route/component files over 700 to 1200 lines.
 - Backend has large service classes such as global enterprise, core platform, federated identity, campaign launch, and delivery orchestration services.

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "legent.evidence-transcript.v1",
+  "evidenceType": "monitoring-handoff",
+  "releaseVersion": "<release-version>",
+  "environment": "<target-environment>",
+  "owner": "<platform-operations-owner>",
+  "capturedAt": "<iso-8601-completed-at>",
+  "status": "pass",
+  "summary": "Monitoring handoff proved observability manifests render, alert rules load, warning alerts route to platform-primary, and critical alerts route to platform-pager.",
+  "sanitization": {
+    "reviewed": true,
+    "commandOutputsSanitized": true,
+    "containsSecrets": false,
+    "customerData": "none",
+    "reviewer": "<operations-or-security-reviewer>"
+  },
+  "commands": [
+    {
+      "id": "observability-render",
+      "command": "kubectl kustomize infrastructure/kubernetes/observability",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "alertmanager-routing",
+      "command": "alertmanager route test for platform-primary warning receiver and platform-pager critical receiver",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    },
+    {
+      "id": "validate-transcript",
+      "command": ".\\scripts\\ops\\validate-evidence-transcript.ps1 -TranscriptPath .\\monitoring-handoff-evidence.json -Type monitoring-handoff -MaxAgeDays 14",
+      "startedAt": "<iso-8601-started-at>",
+      "completedAt": "<iso-8601-completed-at>",
+      "exitCode": 0,
+      "status": "pass"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "observability-render-transcript",
+      "description": "Sanitized kubectl kustomize render transcript for observability manifests.",
+      "ref": "observability-render-transcript.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "prometheus-rule-load",
+      "description": "Sanitized Prometheus or managed metrics platform rule load proof for service 5xx, p95 latency, Kafka lag, executor saturation, pod restarts, and OTLP collector availability.",
+      "ref": "prometheus-rule-load.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "alertmanager-route-test",
+      "description": "Sanitized Alertmanager route test proving warning alerts reach platform-primary and critical alerts reach platform-pager.",
+      "ref": "alertmanager-route-test.txt",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    },
+    {
+      "id": "monitoring-dashboard-export",
+      "description": "Sanitized release-window dashboard export or screenshot reference covering service health, queue lag, executor saturation, and alert firing state.",
+      "ref": "monitoring-dashboard-export.json",
+      "capturedAt": "<iso-8601-completed-at>",
+      "status": "pass",
+      "sanitized": true,
+      "containsSecrets": false
+    }
+  ],
+  "gaEvidence": {
+    "artifactId": "monitoring-alert-routing",
+    "manifestFile": "ga-evidence-manifest.json",
+    "manifestEntry": {
+      "status": "pass",
+      "date": "<iso-8601-completed-at>",
+      "files": [
+        "monitoring-handoff-evidence.json",
+        "observability-render-transcript.txt",
+        "prometheus-rule-load.txt",
+        "alertmanager-route-test.txt",
+        "monitoring-dashboard-export.json"
+      ]
+    },
+    "requiredGaPatterns": [
+      "platform-pager",
+      "platform-primary"
+    ]
+  }
+}

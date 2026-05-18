@@ -9,10 +9,12 @@ import java.util.ArrayList;
 
 import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.Campaign;
+import com.legent.campaign.domain.SendBatchRecipient;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.event.CampaignEventPublisher;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
+import com.legent.campaign.repository.SendBatchRecipientRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ import java.util.stream.Collectors;
 public class BatchingService {
 
     private final SendBatchRepository batchRepository;
+    private final SendBatchRecipientRepository batchRecipientRepository;
     private final SendJobRepository jobRepository;
     private final CampaignRepository campaignRepository;
     private final CampaignEventPublisher eventPublisher;
@@ -76,9 +79,12 @@ public class BatchingService {
                     batch.setDomain(domain);
                     batch.setBatchSize(batchData.size());
                     batch.setStatus(SendBatch.BatchStatus.PENDING);
-                    batch.setPayload(objectMapper.writeValueAsString(batchData));
+                    batch.setPayload(objectMapper.writeValueAsString(Map.of(
+                            "storage", "send_batch_recipients",
+                            "recipientCount", batchData.size())));
                     
                     batch = batchRepository.save(batch);
+                    batchRecipientRepository.saveAll(toRecipientRows(tenantId, job, batch, batchData));
                     createdBatchIds.add(batch.getId());
                     
                     // Increment total target
@@ -133,6 +139,35 @@ public class BatchingService {
     private String extractDomain(String email) {
         if (email == null || !email.contains("@")) return "unknown";
         return email.substring(email.lastIndexOf("@") + 1).toLowerCase();
+    }
+
+    private List<SendBatchRecipient> toRecipientRows(String tenantId,
+                                                     SendJob job,
+                                                     SendBatch batch,
+                                                     List<Map<String, String>> subscribers) {
+        List<SendBatchRecipient> rows = new ArrayList<>(subscribers.size());
+        for (int i = 0; i < subscribers.size(); i++) {
+            Map<String, String> subscriber = subscribers.get(i);
+            SendBatchRecipient row = new SendBatchRecipient();
+            row.setTenantId(tenantId);
+            row.setWorkspaceId(job.getWorkspaceId());
+            row.setJobId(job.getId());
+            row.setBatchId(batch.getId());
+            row.setSequenceNumber(i + 1);
+            row.setSubscriberId(subscriber.get("subscriberId"));
+            row.setEmail(subscriber.get("email"));
+            row.setPayload(writeRecipientPayload(subscriber));
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private String writeRecipientPayload(Map<String, String> subscriber) {
+        try {
+            return objectMapper.writeValueAsString(subscriber == null ? Map.of() : subscriber);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Unable to serialize send batch recipient payload", e);
+        }
     }
 
     private void publishBatchEventsAfterCommit(String tenantId, String jobId, List<String> batchIds) {

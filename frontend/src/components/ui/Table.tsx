@@ -4,14 +4,14 @@ import { clsx } from 'clsx';
 import { Spinner } from './LoadingOverlay';
 import { EmptyState } from './EmptyState';
 
-interface Column<T> {
+interface Column<T extends object> {
   key: string;
   header: string;
   width?: string;
   render?: (row: T) => React.ReactNode;
 }
 
-interface TableProps<T> {
+interface TableProps<T extends object> {
   columns?: Column<T>[];
   data?: T[];
   loading?: boolean;
@@ -23,7 +23,12 @@ interface TableProps<T> {
   onSelectionChange?: (keys: string[]) => void;
 }
 
-export function Table<T>({
+const readObjectValue = <T extends object>(row: T, key: string): unknown => {
+  const record = row as Record<string, unknown>;
+  return record[key];
+};
+
+export function Table<T extends object>({
   columns,
   data,
   loading = false,
@@ -62,7 +67,7 @@ export function Table<T>({
     if (rowKey) {
       return rowKey(row);
     }
-    const fallback = (row as any)?.id;
+    const fallback = readObjectValue(row, 'id');
     return typeof fallback === 'string' ? fallback : String(fallback ?? '');
   };
 
@@ -102,7 +107,7 @@ export function Table<T>({
                 />
               </th>
             )}
-            {columns?.map((col: any) => (
+            {columns?.map((col) => (
               <th
                 key={col.key}
                 className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-content-secondary"
@@ -114,7 +119,7 @@ export function Table<T>({
           </tr>
         </thead>
         <tbody className="divide-y divide-border-default">
-          {data?.map((row: any) => (
+          {data?.map((row) => (
             (() => {
               const currentRowKey = resolveRowKey(row);
               return (
@@ -137,14 +142,14 @@ export function Table<T>({
                       />
                     </td>
                   )}
-                  {columns?.map((col: any) => (
+                  {columns?.map((col) => (
                     <td
                       key={col.key}
                       className="px-4 py-3 text-content-primary align-middle"
                     >
                       {col.render
                         ? col.render(row)
-                        : String((row as any)[col.key] ?? '')}
+                        : String(readObjectValue(row, col.key) ?? '')}
                     </td>
                   ))}
                 </tr>

@@ -53,3 +53,11 @@ Restore:
 ```
 
 Run a restore drill at least once per release. Record backup checksum, restore duration, and application smoke result.
+
+For release or GA evidence, copy `docs/operations/restore-drill-evidence-transcript.template.json` into the release evidence directory, replace placeholders with real target-environment values, and attach only sanitized transcripts or aggregate integrity summaries. Validate the completed transcript before adding it to the GA evidence manifest:
+
+```powershell
+.\scripts\ops\validate-evidence-transcript.ps1 -TranscriptPath .\docs\operations\evidence\<release>\restore-drill-evidence-transcript.json -Type restore-drill -MaxAgeDays 14
+```
+
+The GA manifest should reference the completed transcript, sanitized restore command transcript, post-restore smoke transcript, and restore integrity summary under the `restore-drill` artifact. Do not store raw dumps, raw customer rows, credentials, kubeconfigs, or backup payloads in the repository.

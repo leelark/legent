@@ -4,6 +4,7 @@ const LEGACY_PREFIXES = [
   '/email',
   '/audience',
   '/campaigns',
+  '/launch',
   '/automation',
   '/automations',
   '/tracking',
@@ -13,7 +14,7 @@ const LEGACY_PREFIXES = [
   '/settings',
 ];
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   if (pathname.startsWith('/app') || pathname.startsWith('/api') || pathname.startsWith('/_next')) {
     return NextResponse.next();
@@ -33,4 +34,3 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: ['/((?!.*\\..*).*)'],
 };
-

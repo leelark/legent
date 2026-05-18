@@ -203,6 +203,11 @@ if (-not $SkipKustomize) {
             $arguments["ImageEvidenceManifest"] = $ImageEvidenceManifest
         }
         & $scriptPath @arguments
+
+        if ($RequireImageEvidence -or (Test-EnvFlag $env:LEGENT_REQUIRE_IMAGE_EVIDENCE) -or -not [string]::IsNullOrWhiteSpace($ImageEvidenceManifest)) {
+            $imageEvidenceScriptPath = Join-Path $repoRoot "scripts\ops\validate-image-evidence.ps1"
+            & $imageEvidenceScriptPath -ManifestPath $ImageEvidenceManifest
+        }
     }
 }
 

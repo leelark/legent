@@ -468,6 +468,7 @@ $requiredArtifacts = @(
     @{ Id = "tls-cert-ownership"; DisplayName = "TLS/cert ownership"; Aliases = @("tls-cert-ownership", "tls ownership", "cert ownership", "certificate ownership", "legent-public-tls"); RequiredPatterns = @("legent-public-tls") },
     @{ Id = "restricted-admission"; DisplayName = "Restricted admission"; Aliases = @("restricted-admission", "pod security admission", "restricted pod security", "restricted admission"); RequiredPatterns = @("(?i)\brestricted\b") },
     @{ Id = "registry-digest"; DisplayName = "Registry digest"; Aliases = @("registry-digest", "image digest", "digest evidence"); RequiredPatterns = @("sha256:[a-f0-9]{64}") },
+    @{ Id = "registry-sbom"; DisplayName = "Registry image SBOM"; Aliases = @("registry-sbom", "image sbom", "registry image sbom", "software bill of materials"); RequiredPatterns = @("(?i)\b(sbom|software bill of materials)\b", "sha256:[a-f0-9]{64}") },
     @{ Id = "registry-signature"; DisplayName = "Registry signature"; Aliases = @("registry-signature", "image signature", "cosign", "signature evidence"); RequiredPatterns = @("(?i)\b(signature|cosign)\b") },
     @{ Id = "registry-provenance"; DisplayName = "Registry provenance"; Aliases = @("registry-provenance", "image provenance", "attestation", "slsa", "provenance evidence"); RequiredPatterns = @("(?i)\b(provenance|attestation|slsa)\b") }
 )

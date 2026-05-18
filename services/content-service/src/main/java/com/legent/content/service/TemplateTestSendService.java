@@ -61,6 +61,7 @@ public class TemplateTestSendService {
                 "email", request.getEmail(),
                 "subscriberId", "template-test",
                 "campaignId", "template-preview",
+                "workspaceId", workspaceId,
                 "messageId", messageId,
                 "subject", record.getSubject(),
                 "htmlBody", rendered.getHtmlContent(),
@@ -72,6 +73,8 @@ public class TemplateTestSendService {
                 "content-service",
                 payload
         );
+        envelope.setWorkspaceId(workspaceId);
+        envelope.setOwnershipScope("WORKSPACE");
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
 
         record.setStatus("QUEUED");

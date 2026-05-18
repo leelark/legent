@@ -99,7 +99,7 @@ Main local URLs:
 - Frontend: `http://localhost:3000`
 - Gateway: `http://localhost:8080`
 - MailHog: `http://localhost:8025`
-- Kafka UI: `http://localhost:8095`
+- Kafka UI: `http://localhost:8091`
 - MinIO console: `http://localhost:9001`
 - OpenSearch: `http://localhost:9200`
 - ClickHouse HTTP: `http://localhost:8123`
@@ -228,8 +228,8 @@ Before deployment:
 
 The current million-send bottleneck is not frontend rendering. It is the backend event and delivery pipeline:
 
-- Audience resolution currently emits a full resolved recipient payload.
-- Kafka default partition key can hot-spot by tenant.
+- Audience resolution emits bounded chunks, but campaign active/retry batches still retain recipient payload JSON.
+- High-volume Kafka topic keys avoid tenant-only defaults; new topics still need shard-aware keys.
 - Send execution renders and publishes per recipient.
 - Delivery performs multiple per-message checks/writes.
 - New sender warmup intentionally blocks unsafe high volume.

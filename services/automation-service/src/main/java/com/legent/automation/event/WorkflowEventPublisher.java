@@ -26,6 +26,13 @@ public class WorkflowEventPublisher {
             EventEnvelope<String> envelope = EventEnvelope.wrap(
                     topic, tenantId, SOURCE, objectMapper.writeValueAsString(payload)
             );
+            Object workspaceId = payload == null ? null : payload.get("workspaceId");
+            if ((envelope.getWorkspaceId() == null || envelope.getWorkspaceId().isBlank())
+                    && workspaceId != null
+                    && !String.valueOf(workspaceId).isBlank()) {
+                envelope.setWorkspaceId(String.valueOf(workspaceId).trim());
+                envelope.setOwnershipScope("WORKSPACE");
+            }
             eventPublisher.publish(topic, jobId, envelope).join();
         } catch (CompletionException e) {
             throw publishFailure(topic, e);
