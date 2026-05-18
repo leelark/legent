@@ -5,19 +5,27 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageChrome";
-import { SegmentRuleBuilder } from "@/components/audience/SegmentRuleBuilder";
+import { SegmentRuleBuilder, type SegmentRules } from "@/components/audience/SegmentRuleBuilder";
 import { post } from "@/lib/api-client";
+
+type SegmentForm = {
+  name: string;
+  description: string;
+  rules: SegmentRules;
+};
+
+const emptyRules = (): SegmentRules => ({
+  operator: "AND",
+  conditions: [],
+  groups: []
+});
 
 export default function NewSegmentPage() {
   const router = useRouter();
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<SegmentForm>({
     name: "",
     description: "",
-    rules: {
-      operator: "AND",
-      conditions: [],
-      groups: []
-    } as any,
+    rules: emptyRules(),
   });
   const [saving, setSaving] = useState(false);
 

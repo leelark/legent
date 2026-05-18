@@ -44,37 +44,17 @@ public class TrackingEventConsumer {
         log.info("Received batch of {} tracking events", events.size());
         List<ClaimedTrackingEvent> claimedEvents = new ArrayList<>();
 
-        for (EventEnvelope<String> event : events) {
-            try {
-                if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
-                    log.warn("Skipping tracking event with missing payload");
-                    continue;
-                }
+        try {
+            for (EventEnvelope<String> event : events) {
+                TrackingEnvelopeContract contract = requireEnvelopeContract(event);
+                TrackingDto.RawEventPayload payload = parsePayload(event, contract.eventId());
+                requireScopeMatch("tenantId", contract.tenantId(), payload.getTenantId(), contract.eventId());
+                requireScopeMatch("workspaceId", contract.workspaceId(), payload.getWorkspaceId(), contract.eventId());
 
-                TrackingDto.RawEventPayload payload = objectMapper.readValue(
-                        event.getPayload(),
-                        new TypeReference<TrackingDto.RawEventPayload>() {}
-                );
-                String tenantId = normalizeRequiredScope(event.getTenantId());
-                String workspaceId = normalizeRequiredScope(event.getWorkspaceId());
-                if (tenantId == null || workspaceId == null) {
-                    log.error("Skipping tracking event with missing workspaceId. eventId={}, tenantId={}",
-                            event.getEventId(), event.getTenantId());
-                    continue;
-                }
-                if (scopeMismatch("tenantId", tenantId, payload.getTenantId(), event.getEventId())
-                        || scopeMismatch("workspaceId", workspaceId, payload.getWorkspaceId(), event.getEventId())) {
-                    continue;
-                }
-
-                String eventType = normalizeEventType(payload.getEventType());
-                if (eventType == null) {
-                    log.warn("Skipping tracking event with missing tenantId or eventType");
-                    continue;
-                }
+                String eventType = requireEventType(payload.getEventType(), contract.eventId());
                 payload.setEventType(eventType);
-                payload.setTenantId(tenantId);
-                payload.setWorkspaceId(workspaceId);
+                payload.setTenantId(contract.tenantId());
+                payload.setWorkspaceId(contract.workspaceId());
                 if (payload.getOwnershipScope() == null || payload.getOwnershipScope().isBlank()) {
                     payload.setOwnershipScope("WORKSPACE");
                 }
@@ -83,26 +63,24 @@ public class TrackingEventConsumer {
                     payload.setIdempotencyKey(idempotencyKey);
                 }
                 if (payload.getId() == null || payload.getId().isBlank()) {
-                    payload.setId(event.getEventId());
+                    payload.setId(contract.eventId());
                 }
-                String eventId = firstNonBlank(event.getEventId(), payload.getId(), idempotencyKey);
+                String eventId = firstNonBlank(contract.eventId(), payload.getId(), idempotencyKey);
 
                 if (!idempotencyService.claimIfNew(
-                        tenantId,
-                        workspaceId,
+                        contract.tenantId(),
+                        contract.workspaceId(),
                         eventType,
                         eventId,
                         idempotencyKey)) {
                     continue;
                 }
-                claimedEvents.add(new ClaimedTrackingEvent(payload, tenantId, workspaceId, eventType, eventId, idempotencyKey));
-
-            } catch (JsonProcessingException e) {
-                log.warn("Dropping malformed tracking event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
-            } catch (Exception e) {
-                log.error("Failed to process tracking event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
-                throw new IllegalStateException("Failed to process tracking event", e);
+                claimedEvents.add(new ClaimedTrackingEvent(payload, contract.tenantId(), contract.workspaceId(), eventType, eventId, idempotencyKey));
             }
+        } catch (Exception e) {
+            releaseClaims(claimedEvents, e);
+            log.error("Failed to process tracking event batch", e);
+            throw new IllegalStateException("Failed to process tracking event", e);
         }
 
         if (!claimedEvents.isEmpty()) {
@@ -128,6 +106,37 @@ public class TrackingEventConsumer {
         }
     }
 
+    private TrackingEnvelopeContract requireEnvelopeContract(EventEnvelope<String> event) {
+        if (event == null) {
+            throw new IllegalArgumentException("Tracking event envelope is required");
+        }
+        String eventId = requireNonBlank(event.getEventId(), "eventId", "unknown");
+        String envelopeEventType = requireNonBlank(event.getEventType(), "eventType", eventId);
+        if (!AppConstants.TOPIC_TRACKING_INGESTED.equals(envelopeEventType)) {
+            throw new IllegalArgumentException("tracking event envelope eventType must be "
+                    + AppConstants.TOPIC_TRACKING_INGESTED + " for eventId=" + eventId);
+        }
+        String tenantId = requireNonBlank(event.getTenantId(), "tenantId", eventId);
+        String workspaceId = requireNonBlank(event.getWorkspaceId(), "workspaceId", eventId);
+        requireNonBlank(event.getPayload(), "payload", eventId);
+        return new TrackingEnvelopeContract(eventId, tenantId, workspaceId);
+    }
+
+    private TrackingDto.RawEventPayload parsePayload(EventEnvelope<String> event, String eventId) {
+        try {
+            TrackingDto.RawEventPayload payload = objectMapper.readValue(
+                    event.getPayload(),
+                    new TypeReference<TrackingDto.RawEventPayload>() {}
+            );
+            if (payload == null) {
+                throw new IllegalArgumentException("tracking payload is required for eventId=" + eventId);
+            }
+            return payload;
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("tracking payload must be valid JSON for eventId=" + eventId, e);
+        }
+    }
+
     private void releaseClaims(List<ClaimedTrackingEvent> claimedEvents, Exception processingFailure) {
         for (ClaimedTrackingEvent claimed : claimedEvents) {
             try {
@@ -144,31 +153,29 @@ public class TrackingEventConsumer {
         }
     }
 
-    private String normalizeEventType(String eventType) {
+    private String requireEventType(String eventType, String eventId) {
         if (eventType == null || eventType.isBlank()) {
-            return null;
+            throw new IllegalArgumentException("tracking payload eventType is required for eventId=" + eventId);
         }
         return eventType.trim().toUpperCase(Locale.ROOT);
     }
 
-    private String normalizeRequiredScope(String value) {
+    private String requireNonBlank(String value, String field, String eventId) {
         if (value == null || value.isBlank()) {
-            return null;
+            throw new IllegalArgumentException("tracking event " + field + " is required for eventId=" + eventId);
         }
         return value.trim();
     }
 
-    private boolean scopeMismatch(String field, String envelopeValue, String payloadValue, String eventId) {
+    private void requireScopeMatch(String field, String envelopeValue, String payloadValue, String eventId) {
         if (payloadValue == null || payloadValue.isBlank()) {
-            return false;
+            return;
         }
         String normalizedPayloadValue = payloadValue.trim();
         if (Objects.equals(envelopeValue, normalizedPayloadValue)) {
-            return false;
+            return;
         }
-        log.error("Skipping tracking event with {} mismatch. eventId={}, envelope={}, payload={}",
-                field, eventId, envelopeValue, normalizedPayloadValue);
-        return true;
+        throw new IllegalArgumentException("tracking event " + field + " mismatch for eventId=" + eventId);
     }
 
     private String firstNonBlank(String... values) {
@@ -215,5 +222,11 @@ public class TrackingEventConsumer {
             String eventType,
             String eventId,
             String idempotencyKey) {
+    }
+
+    private record TrackingEnvelopeContract(
+            String eventId,
+            String tenantId,
+            String workspaceId) {
     }
 }

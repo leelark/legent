@@ -46,12 +46,12 @@ public class AudienceResolutionConsumer {
     public void handleResolutionRequest(EventEnvelope<Map<String, Object>> event) {
         String tenantId = event.getTenantId();
         String workspaceId = event.getWorkspaceId();
-        if (workspaceId == null || workspaceId.isBlank()) {
-            log.error("Dropping audience resolution request without workspaceId. eventId={}", event.getEventId());
-            return;
-        }
         String campaignId = (String) event.getPayload().get("campaignId");
         String jobId = (String) event.getPayload().get("jobId");
+        if (workspaceId == null || workspaceId.isBlank()) {
+            TenantContext.clear();
+            throw missingWorkspaceException(event, tenantId, campaignId, jobId);
+        }
 
         log.info("Received audience resolution request for job {}", jobId);
         
@@ -303,6 +303,22 @@ public class AudienceResolutionConsumer {
 
     private String partitionKey(String tenantId, String jobId) {
         return jobId == null || jobId.isBlank() ? tenantId : jobId;
+    }
+
+    private IllegalArgumentException missingWorkspaceException(
+            EventEnvelope<Map<String, Object>> event,
+            String tenantId,
+            String campaignId,
+            String jobId) {
+        String message = String.format(
+                "Audience resolution request missing workspaceId. eventId=%s, tenantId=%s, eventType=%s, campaignId=%s, jobId=%s",
+                event.getEventId(),
+                tenantId,
+                event.getEventType(),
+                campaignId,
+                jobId);
+        log.error(message);
+        return new IllegalArgumentException(message);
     }
 
     private record PublishingResult(int resolvedCount, int filteredCount) {

@@ -32,7 +32,7 @@ import {
 } from '@/lib/campaign-studio-api';
 import { listTemplates } from '@/lib/template-studio-api';
 import { getQueueStats, getWarmupStatus } from '@/lib/delivery-api';
-import { listProviderHealth, listProviders } from '@/lib/providers-api';
+import { listProviderHealth, listProviders, type Provider } from '@/lib/providers-api';
 import { listDomains } from '@/lib/deliverability-api';
 
 type SystemSnapshot = {
@@ -64,11 +64,38 @@ const stepTone: Record<string, string> = {
   FAILED: 'border-danger/20 bg-danger/10 text-danger',
 };
 
-function asArray<T = any>(value: any): T[] {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.content)) return value.content;
-  if (Array.isArray(value?.data)) return value.data;
+type ProviderHealth = {
+  healthStatus?: string;
+};
+
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asArray<T = unknown>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (!isRecord(value)) return [];
+  if (Array.isArray(value.content)) return value.content as T[];
+  if (Array.isArray(value.data)) return value.data as T[];
   return [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!isRecord(error)) {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
 }
 
 function scoreTone(score: number) {
@@ -121,8 +148,8 @@ export default function LaunchCommandCenterPage() {
       setCampaigns(nextCampaigns);
       setSelectedCampaignId((current) => current || nextCampaigns[0]?.id || '');
 
-      const providers = providerResult.status === 'fulfilled' ? asArray<any>(providerResult.value) : [];
-      const providerHealth = healthResult.status === 'fulfilled' ? asArray<any>(healthResult.value) : [];
+      const providers = providerResult.status === 'fulfilled' ? asArray<Provider>(providerResult.value) : [];
+      const providerHealth = healthResult.status === 'fulfilled' ? asArray<ProviderHealth>(healthResult.value) : [];
       const queue = queueResult.status === 'fulfilled' ? queueResult.value : null;
       const warmup = warmupResult.status === 'fulfilled' ? warmupResult.value : null;
 
@@ -131,16 +158,16 @@ export default function LaunchCommandCenterPage() {
         providerCount: providers.length,
         healthyProviders: providerHealth.filter((provider) => String(provider.healthStatus || '').toUpperCase() === 'HEALTHY').length,
         domainCount: domainResult.status === 'fulfilled' ? asArray(domainResult.value).length : 0,
-        queuePending: Number((queue as any)?.pending ?? 0),
-        warmupReadiness: Number((warmup as any)?.readiness ?? 0),
+        queuePending: Number(queue?.pending ?? 0),
+        warmupReadiness: Number(warmup?.readiness ?? 0),
         degradedReads: [templateResult, providerResult, healthResult, queueResult, warmupResult, domainResult]
           .filter((result) => result.status === 'rejected').length,
       });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Launch workspace failed',
-        message: error?.normalized?.message || 'Unable to load launch command data.',
+        message: getErrorMessage(error, 'Unable to load launch command data.'),
       });
     } finally {
       setLoading(false);
@@ -179,11 +206,11 @@ export default function LaunchCommandCenterPage() {
       if (action !== 'PREVIEW') {
         void loadWorkspace();
       }
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Launch action failed',
-        message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to complete launch action.',
+        message: getErrorMessage(error, 'Unable to complete launch action.'),
       });
     } finally {
       setActionLoading(null);

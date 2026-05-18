@@ -161,6 +161,48 @@ class FeedbackLoopConsumerTest {
     }
 
     @Test
+    void consumeDeliveryFailedEvents_MissingWorkspace_RethrowsForRetryWithoutSideEffects() {
+        String jsonPayload = "{\"email\":\"bad@example.com\", \"bounceType\":\"HARD\", \"domainId\":\"d1\"}";
+        EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId(null);
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                () -> consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED));
+
+        assertEquals("Invalid feedback loop event", thrown.getMessage());
+        verifyNoInteractions(idempotencyService, suppressionRepository, senderDomainRepository, reputationEngine);
+    }
+
+    @Test
+    void consumeDeliveryFailedEvents_MissingTenant_RethrowsForRetryWithoutSideEffects() {
+        String jsonPayload = "{\"email\":\"bad@example.com\", \"bounceType\":\"HARD\", \"domainId\":\"d1\"}";
+        EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setTenantId(null);
+        envelope.setWorkspaceId("w1");
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                () -> consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED));
+
+        assertEquals("Invalid feedback loop event", thrown.getMessage());
+        verifyNoInteractions(idempotencyService, suppressionRepository, senderDomainRepository, reputationEngine);
+    }
+
+    @Test
+    void consumeDeliveryFailedEvents_MissingEventIdentity_RethrowsForRetryWithoutSideEffects() {
+        String jsonPayload = "{\"email\":\"bad@example.com\", \"bounceType\":\"HARD\", \"domainId\":\"d1\"}";
+        EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", jsonPayload);
+        envelope.setWorkspaceId("w1");
+        envelope.setEventId(" ");
+        envelope.setIdempotencyKey(null);
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class,
+                () -> consumer.consumeDeliveryFailedEvents(envelope, AppConstants.TOPIC_EMAIL_BOUNCED));
+
+        assertEquals("Invalid feedback loop event", thrown.getMessage());
+        verifyNoInteractions(idempotencyService, suppressionRepository, senderDomainRepository, reputationEngine);
+    }
+
+    @Test
     void consumeDeliveryFailedEvents_MalformedPayload_DropsWithoutClaim() {
         EventEnvelope<String> envelope = EventEnvelope.wrap(AppConstants.TOPIC_EMAIL_BOUNCED, "t1", "test", "{not-json");
         envelope.setWorkspaceId("w1");

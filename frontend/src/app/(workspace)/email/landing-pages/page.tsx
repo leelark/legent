@@ -29,6 +29,44 @@ const defaultLandingHtml = `<section style="max-width:720px;margin:0 auto;paddin
 const slugify = (value: string) =>
   value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 100);
 
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+  if (!isRecord(value)) {
+    return [];
+  }
+  if (Array.isArray(value.content)) {
+    return value.content as T[];
+  }
+  if (Array.isArray(value.data)) {
+    return value.data as T[];
+  }
+  return [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!isRecord(error)) {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
 export default function LandingPageStudio() {
   const { addToast } = useToast();
   const [pages, setPages] = useState<LandingPage[]>([]);
@@ -45,7 +83,7 @@ export default function LandingPageStudio() {
     setLoading(true);
     try {
       const response = await listLandingPages(0, 100);
-      const items: LandingPage[] = Array.isArray(response) ? response : (response?.content ?? response?.data ?? []);
+      const items = asArray<LandingPage>(response);
       setPages(items);
       if (!selected && items[0]) {
         setSelected(items[0]);
@@ -53,11 +91,11 @@ export default function LandingPageStudio() {
         setSlug(items[0].slug);
         setHtmlContent(items[0].htmlContent || defaultLandingHtml);
       }
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Failed to load landing pages',
-        message: error?.response?.data?.error?.message || 'Unable to load landing pages.',
+        message: getErrorMessage(error, 'Unable to load landing pages.'),
       });
     } finally {
       setLoading(false);
@@ -102,11 +140,11 @@ export default function LandingPageStudio() {
       setHtmlContent(finalPage.htmlContent || htmlContent);
       await loadPages();
       addToast({ type: 'success', title: publish ? 'Landing page published' : 'Landing page saved', message: finalPage.name });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: publish ? 'Publish failed' : 'Save failed',
-        message: error?.response?.data?.error?.message || 'Landing page operation failed.',
+        message: getErrorMessage(error, 'Landing page operation failed.'),
       });
     } finally {
       setBusy(false);
@@ -119,11 +157,11 @@ export default function LandingPageStudio() {
       await archiveLandingPage(page.id);
       await loadPages();
       addToast({ type: 'success', title: 'Landing page archived', message: page.name });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Archive failed',
-        message: error?.response?.data?.error?.message || 'Unable to archive landing page.',
+        message: getErrorMessage(error, 'Unable to archive landing page.'),
       });
     } finally {
       setBusy(false);

@@ -37,6 +37,24 @@ const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' |
   ARCHIVED: 'default',
 };
 
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!error || typeof error !== 'object') {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
 export default function CampaignsPage() {
   const { addToast } = useToast();
   const [search, setSearch] = useState('');
@@ -48,15 +66,13 @@ export default function CampaignsPage() {
     setLoading(true);
     try {
       const response = await listCampaigns({ page: 0, size: 100, search: search.trim() || undefined });
-      const items = Array.isArray((response as any)?.content)
-        ? ((response as any).content as Campaign[])
-        : [];
+      const items = Array.isArray(response.content) ? response.content : [];
       setCampaigns(items);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Failed to load campaigns',
-        message: error?.response?.data?.error?.message || 'Unable to fetch campaign list.',
+        message: getErrorMessage(error, 'Unable to fetch campaign list.'),
       });
     } finally {
       setLoading(false);

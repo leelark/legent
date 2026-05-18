@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/PageChrome';
 import { Plus, PencilSimple, Trash } from '@phosphor-icons/react';
 import { useRouter } from 'next/navigation';
 import { get, del } from '@/lib/api-client';
+import { pageItems, type PagedResponse, type Segment } from '../types';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   ACTIVE: 'success',
@@ -20,15 +21,15 @@ const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' |
 };
 
 export default function SegmentsPage() {
-  const [segments, setSegments] = useState<any[]>([]);
+  const [segments, setSegments] = useState<Segment[]>([]);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const fetchSegments = async () => {
     setLoading(true);
     try {
-      const res = await get<any>('/segments?page=0&size=50');
-      setSegments(res.content || res || []);
+      const res = await get<PagedResponse<Segment> | Segment[]>('/segments?page=0&size=50');
+      setSegments(pageItems(res));
     } catch {
       setSegments([]);
     }
@@ -52,12 +53,12 @@ export default function SegmentsPage() {
 
   const columns = [
     { key: 'name', header: 'Name' },
-    { key: 'status', header: 'Status', render: (row: any) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge> },
+    { key: 'status', header: 'Status', render: (row: Segment) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge> },
     { key: 'memberCount', header: 'Members' },
-    { key: 'createdAt', header: 'Created', render: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '\u2014' },
+    { key: 'createdAt', header: 'Created', render: (row: Segment) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '\u2014' },
     {
       key: 'actions', header: '',
-      render: (row: any) => (
+      render: (row: Segment) => (
         <div className="flex justify-end gap-2">
           <button onClick={() => router.push(`/app/audience/segments/${row.id}`)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
           <button onClick={() => handleDelete(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
@@ -87,7 +88,7 @@ export default function SegmentsPage() {
           <Table
             columns={columns}
             data={segments}
-            rowKey={(row: any) => row.id}
+            rowKey={(row: Segment) => row.id}
             emptyMessage="No segments found"
             loading={loading}
           />

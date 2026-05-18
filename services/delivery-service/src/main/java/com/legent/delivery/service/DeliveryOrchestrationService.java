@@ -96,7 +96,7 @@ public class DeliveryOrchestrationService {
         String fromEmail = normalize(payload.get("fromEmail"));
         String fromName = normalize(payload.get("fromName"));
         String replyToEmail = normalize(payload.get("replyToEmail"));
-        String contentReference = normalizeContentReference(payload.get("contentReference"));
+        String contentReference = normalize(payload.get("contentReference"));
         // messageId could be passed or generated.
         // For idempotency we prefer payload messageId, then eventId, and finally generate a UUID.
         String messageId = normalize(payload.get("messageId"));
@@ -106,30 +106,6 @@ public class DeliveryOrchestrationService {
         if (messageId == null) {
             messageId = UUID.randomUUID().toString();
         }
-        if (htmlBody == null && contentReference != null) {
-            Map<String, String> referencedContent = fetchContentForRetry(
-                    normalizedTenantId,
-                    workspaceId,
-                    campaignId,
-                    messageId,
-                    contentReference);
-            if (!referencedContent.isEmpty()) {
-                if (subject == null) {
-                    subject = normalize(referencedContent.get("subject"));
-                }
-                htmlBody = normalize(referencedContent.get("htmlBody"));
-            }
-            if (htmlBody == null) {
-                throw new IllegalStateException("Rendered content reference is unavailable for delivery: " + contentReference);
-            }
-        }
-        if (htmlBody == null) {
-            htmlBody = "<html><body>Email content</body></html>";
-        }
-        if (subject == null) {
-            subject = "Legent Campaign";
-        }
-
         String previousTenant = TenantContext.getTenantId();
         String previousWorkspace = TenantContext.getWorkspaceId();
         String previousRequest = TenantContext.getRequestId();
@@ -170,7 +146,7 @@ public class DeliveryOrchestrationService {
             newLog.setReplyToEmail(replyToEmail);
             // Fix 31: Don't store full HTML body in message_logs - only store references
             // Content is fetched from content-service at retry time if needed
-            newLog.setContentReference(contentReference != null ? contentReference : generateContentReference(campaignId, messageId));
+            newLog.setContentReference(contentReference);
             newLog.setAttemptCount(0);
             try {
                 logEntry = messageLogRepository.saveAndFlush(newLog);
@@ -242,6 +218,9 @@ public class DeliveryOrchestrationService {
         if ((logEntry.getContentReference() == null || logEntry.getContentReference().isBlank()) && contentReference != null) {
             logEntry.setContentReference(contentReference);
         }
+        if (contentReference == null) {
+            contentReference = normalize(logEntry.getContentReference());
+        }
         // Note: For retries, content is re-fetched from the original event or content-service
         // This prevents 20-100GB/day storage growth from storing full HTML bodies
 
@@ -250,6 +229,31 @@ public class DeliveryOrchestrationService {
         boolean providerDispatchAccepted = false;
 
         try {
+            ResolvedDeliveryContent deliveryContent = resolveDeliveryContent(
+                    normalizedTenantId,
+                    workspaceId,
+                    campaignId,
+                    messageId,
+                    subject,
+                    htmlBody,
+                    contentReference);
+            if (!deliveryContent.isAvailable()) {
+                failSendForMissingContent(
+                        logEntry,
+                        normalizedTenantId,
+                        workspaceId,
+                        messageId,
+                        campaignId,
+                        jobId,
+                        batchId,
+                        subscriberId,
+                        deliveryContent.failureReason());
+                return;
+            }
+            subject = deliveryContent.subject();
+            htmlBody = deliveryContent.htmlBody();
+            contentReference = deliveryContent.contentReference();
+
             String recipientDomain = extractDomain(email);
             String senderDomain = extractDomain(fromEmail);
             if (recipientDomain == null) {
@@ -430,6 +434,72 @@ public class DeliveryOrchestrationService {
             
             eventPublisher.publishRetryScheduled(tenantId, workspaceId, messageId, attempts, nextRetry.toString(), safetyMetadata(logEntry));
         }
+    }
+
+    private ResolvedDeliveryContent resolveDeliveryContent(String tenantId,
+                                                           String workspaceId,
+                                                           String campaignId,
+                                                           String messageId,
+                                                           String subject,
+                                                           String htmlBody,
+                                                           String contentReference) {
+        String normalizedReference;
+        try {
+            normalizedReference = normalizeContentReference(contentReference);
+        } catch (IllegalArgumentException e) {
+            return ResolvedDeliveryContent.missing(e.getMessage());
+        }
+        if (normalizedReference == null) {
+            return ResolvedDeliveryContent.missing("Delivery contentReference is required");
+        }
+
+        String resolvedSubject = normalize(subject);
+        String resolvedHtmlBody = normalize(htmlBody);
+        if (resolvedSubject == null || resolvedHtmlBody == null) {
+            Map<String, String> referencedContent = fetchContentForRetry(
+                    tenantId,
+                    workspaceId,
+                    campaignId,
+                    messageId,
+                    normalizedReference);
+            if (!referencedContent.isEmpty()) {
+                if (resolvedSubject == null) {
+                    resolvedSubject = normalize(referencedContent.get("subject"));
+                }
+                if (resolvedHtmlBody == null) {
+                    resolvedHtmlBody = normalize(referencedContent.get("htmlBody"));
+                }
+            }
+        }
+
+        if (resolvedSubject == null || resolvedHtmlBody == null) {
+            return ResolvedDeliveryContent.missing(
+                    "Delivery content is missing required subject/htmlBody for contentReference " + normalizedReference);
+        }
+        return ResolvedDeliveryContent.available(resolvedSubject, resolvedHtmlBody, normalizedReference);
+    }
+
+    private void failSendForMissingContent(MessageLog logEntry,
+                                           String tenantId,
+                                           String workspaceId,
+                                           String messageId,
+                                           String campaignId,
+                                           String jobId,
+                                           String batchId,
+                                           String subscriberId,
+                                           String reason) {
+        String failureReason = markContentUnavailable(logEntry, reason);
+        log.warn("Failing delivery for message {}: {}", messageId, failureReason);
+        eventPublisher.publishEmailFailed(
+                tenantId,
+                workspaceId,
+                messageId,
+                campaignId,
+                jobId,
+                batchId,
+                subscriberId,
+                failureReason,
+                safetyMetadata(logEntry));
     }
 
     private void applySafetyResult(MessageLog logEntry,
@@ -647,15 +717,8 @@ public class DeliveryOrchestrationService {
     }
 
     private void failRetryForMissingContent(MessageLog logEntry, String reason) {
-        String failureReason = normalize(reason);
-        if (failureReason == null) {
-            failureReason = "Retry content is unavailable";
-        }
+        String failureReason = markContentUnavailable(logEntry, reason);
         log.warn("Failing retry for message {}: {}", logEntry.getMessageId(), failureReason);
-        logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
-        logEntry.setFailureClass(CONTENT_UNAVAILABLE_FAILURE_CLASS);
-        logEntry.setProviderResponse(failureReason);
-        logEntry.setNextRetryAt(null);
         messageLogRepository.save(logEntry);
         eventPublisher.publishEmailFailed(
                 logEntry.getTenantId(),
@@ -667,6 +730,18 @@ public class DeliveryOrchestrationService {
                 logEntry.getSubscriberId(),
                 failureReason,
                 safetyMetadata(logEntry));
+    }
+
+    private String markContentUnavailable(MessageLog logEntry, String reason) {
+        String failureReason = normalize(reason);
+        if (failureReason == null) {
+            failureReason = "Delivery content is unavailable";
+        }
+        logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
+        logEntry.setFailureClass(CONTENT_UNAVAILABLE_FAILURE_CLASS);
+        logEntry.setProviderResponse(failureReason);
+        logEntry.setNextRetryAt(null);
+        return failureReason;
     }
 
     private String extractDomain(String email) {
@@ -715,18 +790,6 @@ public class DeliveryOrchestrationService {
         if (requestId != null && !requestId.isBlank()) {
             TenantContext.setRequestId(requestId);
         }
-    }
-
-    /**
-     * Generates a content reference key for retrieving email content at retry time.
-     * Fix 31: Instead of storing full HTML (20-100KB per email), we store a reference
-     * and fetch content from the original event or content-service when needed.
-     */
-    private String generateContentReference(String campaignId, String messageId) {
-        // Format: campaignId:messageId - used to look up original content
-        return String.format("ref:%s:%s",
-                campaignId != null ? campaignId : "none",
-                messageId);
     }
 
     /**
@@ -799,6 +862,23 @@ public class DeliveryOrchestrationService {
         String normalizedExpected = normalize(expected);
         if (actual != null && normalizedExpected != null && !actual.equals(normalizedExpected)) {
             throw new IllegalStateException("Rendered content reference " + contentReference + " does not match " + field);
+        }
+    }
+
+    private record ResolvedDeliveryContent(String subject,
+                                           String htmlBody,
+                                           String contentReference,
+                                           String failureReason) {
+        private static ResolvedDeliveryContent available(String subject, String htmlBody, String contentReference) {
+            return new ResolvedDeliveryContent(subject, htmlBody, contentReference, null);
+        }
+
+        private static ResolvedDeliveryContent missing(String failureReason) {
+            return new ResolvedDeliveryContent(null, null, null, failureReason);
+        }
+
+        private boolean isAvailable() {
+            return failureReason == null;
         }
     }
 

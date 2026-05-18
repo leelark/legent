@@ -1,4 +1,4 @@
-import { del, get, post, put } from './api-client';
+import { get } from './api-client';
 
 export type Provider = {
   id: string;
@@ -35,18 +35,6 @@ export type ProviderCreateRequest = {
 
 export const listProviders = async (includeInactive = true) =>
   get<Provider[]>(`/providers?includeInactive=${includeInactive ? 'true' : 'false'}`);
-
-export const createProvider = async (payload: ProviderCreateRequest) =>
-  post<Provider>('/providers', payload);
-
-export const updateProvider = async (id: string, payload: ProviderCreateRequest) =>
-  put<Provider>(`/providers/${id}`, payload);
-
-export const deleteProvider = async (id: string) =>
-  del<void>(`/providers/${id}`);
-
-export const testProvider = async (id: string) =>
-  post<Provider>(`/providers/${id}/test`);
 
 export const listProviderHealth = async () =>
   get<Array<{

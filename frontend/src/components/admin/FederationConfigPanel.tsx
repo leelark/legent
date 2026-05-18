@@ -112,8 +112,8 @@ export function FederationConfigPanel() {
       if (providerRows?.[0]?.id) {
         setSelectedProviderId((current) => current || providerRows[0].id);
       }
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Federation load failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Federation load failed', message: readErrorMessage(error) });
     } finally {
       setLoading(false);
     }
@@ -158,8 +158,8 @@ export function FederationConfigPanel() {
     let payload: FederationProviderPayload;
     try {
       payload = toPayload(draft);
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Provider config invalid', message: error.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Provider config invalid', message: readErrorMessage(error) });
       return;
     }
     setSaving(true);
@@ -169,8 +169,8 @@ export function FederationConfigPanel() {
       setSelectedProviderId(readString(saved, 'id'));
       addToast({ type: 'success', title: 'Federation provider saved', message: payload.providerKey });
       await load();
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'Provider save failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Provider save failed', message: readErrorMessage(error) });
     } finally {
       setSaving(false);
     }
@@ -192,8 +192,8 @@ export function FederationConfigPanel() {
       setNewToken(token.token || null);
       await load();
       addToast({ type: 'success', title: 'SCIM token created', message: 'Token is visible once in this panel.' });
-    } catch (error: any) {
-      addToast({ type: 'error', title: 'SCIM token failed', message: error?.normalized?.message || error?.message });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'SCIM token failed', message: readErrorMessage(error) });
     } finally {
       setCreatingToken(false);
     }
@@ -476,9 +476,32 @@ function toPayload(draft: ProviderDraft): FederationProviderPayload {
   };
 }
 
-function readString(row: Record<string, any>, ...keys: string[]) {
+function isDataRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function readField(row: unknown, key: string) {
+  return isDataRecord(row) ? row[key] : undefined;
+}
+
+function readErrorMessage(error: unknown) {
+  const normalized = readField(error, 'normalized');
+  const normalizedMessage = readField(normalized, 'message');
+  if (typeof normalizedMessage === 'string' && normalizedMessage.trim()) {
+    return normalizedMessage;
+  }
+
+  const message = readField(error, 'message');
+  if (typeof message === 'string' && message.trim()) {
+    return message;
+  }
+
+  return undefined;
+}
+
+function readString(row: unknown, ...keys: string[]) {
   for (const key of keys) {
-    const value = row?.[key];
+    const value = readField(row, key);
     if (value !== undefined && value !== null) {
       return String(value);
     }
@@ -486,9 +509,9 @@ function readString(row: Record<string, any>, ...keys: string[]) {
   return '';
 }
 
-function readBoolean(row: Record<string, any>, fallback: boolean, ...keys: string[]) {
+function readBoolean(row: unknown, fallback: boolean, ...keys: string[]) {
   for (const key of keys) {
-    const value = row?.[key];
+    const value = readField(row, key);
     if (typeof value === 'boolean') {
       return value;
     }
@@ -499,9 +522,9 @@ function readBoolean(row: Record<string, any>, fallback: boolean, ...keys: strin
   return fallback;
 }
 
-function readList(row: Record<string, any>, ...keys: string[]) {
+function readList(row: unknown, ...keys: string[]) {
   for (const key of keys) {
-    const value = row?.[key];
+    const value = readField(row, key);
     if (Array.isArray(value)) {
       return value.map(String).filter(Boolean);
     }

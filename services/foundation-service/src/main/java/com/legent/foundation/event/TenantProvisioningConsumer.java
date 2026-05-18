@@ -27,16 +27,11 @@ public class TenantProvisioningConsumer {
     @KafkaListener(topics = AppConstants.TOPIC_IDENTITY_USER_SIGNUP, groupId = AppConstants.GROUP_FOUNDATION_PROVISIONING)
     public void handleUserSignedUp(EventEnvelope<?> envelope) {
         try {
-            if (envelope == null) {
-                log.warn("Invalid signup envelope received: null envelope");
-                return;
-            }
-
+            validateSignupEnvelope(envelope);
             UserSignedUpEvent event = objectMapper.convertValue(envelope.getPayload(), UserSignedUpEvent.class);
             String tenantId = envelope.getTenantId();
-            if (event == null || tenantId == null || tenantId.isBlank()) {
-                log.warn("Invalid signup envelope received: eventId={}", envelope != null ? envelope.getEventId() : "unknown");
-                return;
+            if (event == null) {
+                throw invalidEnvelope("payload must deserialize to UserSignedUpEvent", envelope);
             }
 
             log.info("Provisioning tenant for signup: tenantId={}, company={}", tenantId, event.getCompanyName());
@@ -70,6 +65,44 @@ public class TenantProvisioningConsumer {
             }
             throw new IllegalStateException("Failed to process tenant provisioning", e);
         }
+    }
+
+    private void validateSignupEnvelope(EventEnvelope<?> envelope) {
+        validateRequiredEnvelopeIdentity(envelope, AppConstants.TOPIC_IDENTITY_USER_SIGNUP);
+        if (envelope.getPayload() == null) {
+            throw invalidEnvelope("payload is required", envelope);
+        }
+    }
+
+    private void validateRequiredEnvelopeIdentity(EventEnvelope<?> envelope, String expectedEventType) {
+        if (envelope == null) {
+            throw invalidEnvelope("envelope is required", null);
+        }
+        if (isBlank(envelope.getTenantId())) {
+            throw invalidEnvelope("tenantId is required", envelope);
+        }
+        if (isBlank(envelope.getEventId())) {
+            throw invalidEnvelope("eventId is required", envelope);
+        }
+        if (isBlank(envelope.getEventType())) {
+            throw invalidEnvelope("eventType is required", envelope);
+        }
+        if (!expectedEventType.equals(envelope.getEventType())) {
+            throw invalidEnvelope("eventType must be " + expectedEventType, envelope);
+        }
+    }
+
+    private IllegalArgumentException invalidEnvelope(String reason, EventEnvelope<?> envelope) {
+        return new IllegalArgumentException("Invalid signup envelope: " + reason
+                + " (eventId=" + eventId(envelope) + ")");
+    }
+
+    private String eventId(EventEnvelope<?> envelope) {
+        return envelope == null || isBlank(envelope.getEventId()) ? "unknown" : envelope.getEventId();
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String resolveUniqueSlug(UserSignedUpEvent event, String tenantId) {

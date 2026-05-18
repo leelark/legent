@@ -5,7 +5,12 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Clock, Download, Edit, GitBranch, GripVertical, Plus, Send, Upload } from 'lucide-react';
 import { NodeEditorModal } from './NodeEditorModal';
-import { getLatestWorkflowDefinition, saveWorkflowDefinition } from '@/lib/automation-api';
+import {
+  getLatestWorkflowDefinition,
+  saveWorkflowDefinition,
+  type WorkflowDefinitionVersion,
+  type WorkflowGraphDefinition,
+} from '@/lib/automation-api';
 
 export interface JourneyNode {
   id: string;
@@ -51,6 +56,35 @@ interface JourneyBuilderProps {
   onNodesChange: (nodes: JourneyNode[]) => void;
   workflowId?: string;
 }
+
+const JOURNEY_NODE_TYPES: readonly JourneyNode['type'][] = [
+  'ENTRY_TRIGGER',
+  'SEND_EMAIL',
+  'DELAY',
+  'CONDITION',
+  'BRANCH',
+  'SPLIT',
+  'JOIN',
+  'WEBHOOK',
+  'UPDATE_FIELD',
+  'ADD_TAG',
+  'REMOVE_TAG',
+  'SUPPRESS_CONTACT',
+  'WAIT_UNTIL',
+  'PAUSE',
+  'EXIT_GOAL',
+  'REENTRY_GATE',
+  'EVENT_LISTENER',
+  'END',
+];
+
+const JOURNEY_NODE_TYPE_SET = new Set<string>(JOURNEY_NODE_TYPES);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const isJourneyNodeType = (value: unknown): value is JourneyNode['type'] =>
+  typeof value === 'string' && JOURNEY_NODE_TYPE_SET.has(value);
 
 function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -232,31 +266,23 @@ function toGraph(nodes: JourneyNode[]): WorkflowGraph {
   };
 }
 
-function fromGraph(graph: any): JourneyNode[] {
-  if (!graph || !graph.nodes || typeof graph.nodes !== 'object') {
+function fromGraph(graph: WorkflowGraphDefinition): JourneyNode[] {
+  if (!isRecord(graph.nodes)) {
     return [];
   }
-  const nodesMap = graph.nodes as Record<string, any>;
-  const list: JourneyNode[] = Object.values(nodesMap).map((node: any) => ({
-    id: node.id,
-    type: node.type,
-    label: node.label ?? defaultLabel(node.type),
-    config: node.configuration ?? {},
-    next: node.nextNodeId,
-    branches: (node.branches ?? []).map((branch: any) => ({
-      condition: branch.condition ?? '',
-      target: branch.targetNodeId,
-    })),
-  }));
+  const list: JourneyNode[] = Object.values(graph.nodes).flatMap((node) => {
+    const parsed = toJourneyNode(node);
+    return parsed ? [parsed] : [];
+  });
 
-  const initialId = graph.initialNodeId;
+  const initialId = typeof graph.initialNodeId === 'string' ? graph.initialNodeId : undefined;
   if (!initialId) {
     return list;
   }
 
   const ordered: JourneyNode[] = [];
   const visited = new Set<string>();
-  let current = initialId;
+  let current: string | undefined = initialId;
   while (current && !visited.has(current)) {
     const node = list.find((item) => item.id === current);
     if (!node) {
@@ -272,6 +298,42 @@ function fromGraph(graph: any): JourneyNode[] {
     }
   }
   return ordered;
+}
+
+function toJourneyNode(node: unknown): JourneyNode | null {
+  if (!isRecord(node)) {
+    return null;
+  }
+
+  const { id, type, label, configuration, nextNodeId, branches } = node;
+  if (typeof id !== 'string' || !isJourneyNodeType(type)) {
+    return null;
+  }
+
+  return {
+    id,
+    type,
+    label: typeof label === 'string' && label.length > 0 ? label : defaultLabel(type),
+    config: isRecord(configuration) ? configuration : {},
+    next: typeof nextNodeId === 'string' ? nextNodeId : undefined,
+    branches: parseBranches(branches),
+  };
+}
+
+function parseBranches(branches: unknown): JourneyNode['branches'] {
+  if (!Array.isArray(branches)) {
+    return [];
+  }
+
+  return branches.flatMap((branch) => {
+    if (!isRecord(branch)) {
+      return [];
+    }
+    return [{
+      condition: typeof branch.condition === 'string' ? branch.condition : '',
+      target: typeof branch.targetNodeId === 'string' ? branch.targetNodeId : '',
+    }];
+  });
 }
 
 function defaultLabel(type: JourneyNode['type']) {
@@ -300,10 +362,18 @@ function defaultLabel(type: JourneyNode['type']) {
 
 export default JourneyBuilder;
 
-function toDefinition(latestVersion: any) {
+function toDefinition(latestVersion: WorkflowDefinitionVersion | null | undefined) {
   const rawDefinition = latestVersion?.definition ?? latestVersion?.graph ?? latestVersion;
   if (!rawDefinition) {
     return null;
   }
-  return typeof rawDefinition === 'string' ? JSON.parse(rawDefinition) : rawDefinition;
+  if (typeof rawDefinition === 'string') {
+    const parsed: unknown = JSON.parse(rawDefinition);
+    return isWorkflowGraphDefinition(parsed) ? parsed : null;
+  }
+  return isWorkflowGraphDefinition(rawDefinition) ? rawDefinition : null;
+}
+
+function isWorkflowGraphDefinition(value: unknown): value is WorkflowGraphDefinition {
+  return isRecord(value) && (value.nodes === undefined || isRecord(value.nodes));
 }

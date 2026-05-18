@@ -198,6 +198,20 @@ class WorkflowTriggerConsumerTest {
     }
 
     @Test
+    void consumeTriggerThrowsForMissingWorkspaceBeforeWorkflowSideEffects() {
+        EventEnvelope<Object> event = triggerEvent();
+        event.setWorkspaceId(null);
+
+        assertThatThrownBy(() -> consumer.consumeTrigger(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId");
+
+        verifyNoInteractions(idempotencyService, workflowEngine);
+        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getWorkspaceId()).isNull();
+    }
+
+    @Test
     void consumeTriggerDropsMalformedPayloadBeforeClaiming() {
         EventEnvelope<Object> event = triggerEvent("{not-json");
 

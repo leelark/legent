@@ -15,6 +15,32 @@ function isValidWebhookUrl(value: string) {
   }
 }
 
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+}
+
+function getErrorPathMessage(error: unknown, path: string[]) {
+  let current: unknown = error;
+  for (const key of path) {
+    const record = asErrorRecord(current);
+    if (!record) {
+      return null;
+    }
+    current = record[key];
+  }
+  return typeof current === 'string' && current ? current : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string, paths: string[][] = [['normalized', 'message']]) {
+  for (const path of paths) {
+    const message = getErrorPathMessage(error, path);
+    if (message) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export const WebhookPanel: React.FC = () => {
   const [webhooks, setWebhooks] = useState<WebhookIntegration[]>([]);
   const [wh, setWh] = useState<WebhookIntegration>({ name: '', url: '', eventType: '', isActive: true });
@@ -30,8 +56,8 @@ export const WebhookPanel: React.FC = () => {
     setError(null);
     try {
       setWebhooks(await getWebhooks());
-    } catch (err: any) {
-      setError(err?.normalized?.message || 'Failed to load webhooks.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load webhooks.'));
     } finally {
       setLoading(false);
     }
@@ -58,8 +84,8 @@ export const WebhookPanel: React.FC = () => {
       setWh({ name: '', url: '', eventType: '', isActive: true });
       await load();
       addToast({ type: 'success', title: 'Webhook saved', message: 'Integration endpoint is ready to receive subscribed events.' });
-    } catch (err: any) {
-      const message = err?.normalized?.message || err?.message || 'Failed to save webhook.';
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Failed to save webhook.', [['normalized', 'message'], ['message']]);
       setError(message);
       addToast({ type: 'error', title: 'Webhook save failed', message });
     } finally {

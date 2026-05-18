@@ -43,6 +43,32 @@ const DEFAULT_DRAFT: DraftSetting = {
   scope: 'WORKSPACE',
 };
 
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+}
+
+function getErrorPathMessage(error: unknown, path: string[]) {
+  let current: unknown = error;
+  for (const key of path) {
+    const record = asErrorRecord(current);
+    if (!record) {
+      return null;
+    }
+    current = record[key];
+  }
+  return typeof current === 'string' && current ? current : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string, paths: string[][] = [['normalized', 'message']]) {
+  for (const path of paths) {
+    const message = getErrorPathMessage(error, path);
+    if (message) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export const AdminConfigPanel: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState('SYSTEM');
   const [configs, setConfigs] = useState<AdminConfig[]>([]);
@@ -70,8 +96,11 @@ export const AdminConfigPanel: React.FC = () => {
         module: selectedMeta.module,
       });
       setConfigs(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err?.normalized?.message || err?.response?.data?.error?.message || 'Failed to load settings');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load settings', [
+        ['normalized', 'message'],
+        ['response', 'data', 'error', 'message'],
+      ]));
       setConfigs([]);
     } finally {
       setLoading(false);
@@ -100,8 +129,8 @@ export const AdminConfigPanel: React.FC = () => {
         ...(impact.impactedModules || []).map((module) => `Impacts: ${module}`),
         ...(impact.notices || []),
       ]);
-    } catch (err: any) {
-      setValidationErrors([err?.normalized?.message || 'Validation request failed']);
+    } catch (err: unknown) {
+      setValidationErrors([getErrorMessage(err, 'Validation request failed')]);
     }
   };
 
@@ -126,8 +155,8 @@ export const AdminConfigPanel: React.FC = () => {
       setValidationErrors([]);
       await load();
       addToast({ type: 'success', title: 'Runtime setting applied', message: `${draft.key} was validated and saved.` });
-    } catch (err: any) {
-      setError(err?.normalized?.message || 'Failed to apply setting');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to apply setting'));
     } finally {
       setSaving(false);
     }
@@ -141,8 +170,8 @@ export const AdminConfigPanel: React.FC = () => {
       await resetAdminSetting({ key, scope });
       await load();
       addToast({ type: 'success', title: 'Setting reset', message: `${key} was reset to the runtime default.` });
-    } catch (err: any) {
-      setError(err?.normalized?.message || 'Failed to reset setting');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to reset setting'));
     }
   };
 
@@ -150,8 +179,8 @@ export const AdminConfigPanel: React.FC = () => {
     try {
       const rows = await getSettingHistory(historyKey.trim() || undefined);
       setHistory(Array.isArray(rows) ? rows : []);
-    } catch (err: any) {
-      setError(err?.normalized?.message || 'Failed to load setting history');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load setting history'));
       setHistory([]);
     }
   };

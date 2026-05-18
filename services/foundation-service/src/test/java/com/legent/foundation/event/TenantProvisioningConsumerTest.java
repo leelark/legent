@@ -71,6 +71,42 @@ class TenantProvisioningConsumerTest {
         verifyNoInteractions(tenantBootstrapService);
     }
 
+    @Test
+    void missingTenantIdThrowsBeforeProvisioningSideEffects() {
+        EventEnvelope<UserSignedUpEvent> envelope = signupEnvelope();
+        envelope.setTenantId(" ");
+
+        assertThatThrownBy(() -> consumer.handleUserSignedUp(envelope))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("tenantId is required");
+
+        verifyNoInteractions(tenantRepository, tenantBootstrapService);
+    }
+
+    @Test
+    void missingEventIdThrowsBeforeProvisioningSideEffects() {
+        EventEnvelope<UserSignedUpEvent> envelope = signupEnvelope();
+        envelope.setEventId(null);
+
+        assertThatThrownBy(() -> consumer.handleUserSignedUp(envelope))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("eventId is required");
+
+        verifyNoInteractions(tenantRepository, tenantBootstrapService);
+    }
+
+    @Test
+    void missingPayloadThrowsBeforeProvisioningSideEffects() {
+        EventEnvelope<UserSignedUpEvent> envelope = signupEnvelope();
+        envelope.setPayload(null);
+
+        assertThatThrownBy(() -> consumer.handleUserSignedUp(envelope))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("payload is required");
+
+        verifyNoInteractions(tenantRepository, tenantBootstrapService);
+    }
+
     private EventEnvelope<UserSignedUpEvent> signupEnvelope() {
         return EventEnvelope.<UserSignedUpEvent>builder()
                 .eventId("event-1")

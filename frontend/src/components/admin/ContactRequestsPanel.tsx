@@ -18,6 +18,32 @@ function formatDate(value?: string | null) {
   return value ? new Date(value).toLocaleString() : '-';
 }
 
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+}
+
+function getErrorPathMessage(error: unknown, path: string[]) {
+  let current: unknown = error;
+  for (const key of path) {
+    const record = asErrorRecord(current);
+    if (!record) {
+      return null;
+    }
+    current = record[key];
+  }
+  return typeof current === 'string' && current ? current : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string, paths: string[][] = [['normalized', 'message'], ['message']]) {
+  for (const path of paths) {
+    const message = getErrorPathMessage(error, path);
+    if (message) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export function ContactRequestsPanel() {
   const [status, setStatus] = useState<ContactRequestStatus | 'ALL'>('ALL');
   const [rows, setRows] = useState<AdminContactRequest[]>([]);
@@ -34,8 +60,8 @@ export function ContactRequestsPanel() {
       const result = await listContactRequests({ status, page: 0, size: 30 });
       setRows(result.items);
       setTotal(result.totalElements);
-    } catch (err: any) {
-      const message = err?.normalized?.message || err?.message || 'Failed to load contact requests.';
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Failed to load contact requests.');
       setError(message);
       setRows([]);
     } finally {
@@ -69,8 +95,8 @@ export function ContactRequestsPanel() {
         title: 'Contact request updated',
         message: `${row.company} moved to ${nextStatus.replace(/_/g, ' ').toLowerCase()}.`,
       });
-    } catch (err: any) {
-      const message = err?.normalized?.message || err?.message || 'Failed to update contact request.';
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Failed to update contact request.');
       setError(message);
       addToast({ type: 'error', title: 'Status update failed', message });
     } finally {

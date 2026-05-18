@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentType } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -12,9 +12,16 @@ import {
   Upload, Plus
 } from '@phosphor-icons/react/dist/ssr';
 import { get } from '@/lib/api-client';
+import type { CountResponse, ImportJob, PagedResponse, Segment, Subscriber } from './types';
+
+type StatIcon = ComponentType<{
+  size?: number;
+  weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone';
+  className?: string;
+}>;
 
 function StatCard({ label, value, icon: Icon, href, color }: {
-  label: string; value: string | number; icon: any; href: string; color: string;
+  label: string; value: string | number; icon: StatIcon; href: string; color: string;
 }) {
   return (
     <Link href={href}>
@@ -41,21 +48,21 @@ export default function AudienceDashboard() {
     segments: 0
   });
   const [loading, setLoading] = useState(true);
-  const [recentSubscribers, setRecentSubscribers] = useState<any[]>([]);
-  const [recentImports, setRecentImports] = useState<any[]>([]);
-  const [activeSegments, setActiveSegments] = useState<any[]>([]);
+  const [recentSubscribers, setRecentSubscribers] = useState<Subscriber[]>([]);
+  const [recentImports, setRecentImports] = useState<ImportJob[]>([]);
+  const [activeSegments, setActiveSegments] = useState<Segment[]>([]);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const [subRes, listRes, deRes, segRes, recentRes, importRes, activeSegmentRes] = await Promise.all([
-          get<any>('/subscribers/count'),
-          get<any>('/lists?size=1'),
-          get<any>('/data-extensions?size=1'),
-          get<any>('/segments?size=1'),
-          get<any>('/subscribers?size=5&sortDir=desc'),
-          get<any>('/imports?page=0&size=5'),
-          get<any>('/segments?page=0&size=5')
+          get<CountResponse>('/subscribers/count'),
+          get<PagedResponse<unknown>>('/lists?size=1'),
+          get<PagedResponse<unknown>>('/data-extensions?size=1'),
+          get<PagedResponse<unknown>>('/segments?size=1'),
+          get<PagedResponse<Subscriber>>('/subscribers?size=5&sortDir=desc'),
+          get<PagedResponse<ImportJob>>('/imports?page=0&size=5'),
+          get<PagedResponse<Segment>>('/segments?page=0&size=5')
         ]);
 
         setStats({

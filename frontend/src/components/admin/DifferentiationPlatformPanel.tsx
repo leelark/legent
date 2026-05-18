@@ -4,14 +4,21 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { BrainCircuit, Code2, GitBranch, RadioTower, RefreshCcw, ShieldCheck, Sparkles, Target } from 'lucide-react';
 import { AdminMetricCard, AdminPanel, AdminSkeletonRows, StatusPill } from '@/components/admin/AdminChrome';
 import { Button } from '@/components/ui/Button';
-import { differentiationApi } from '@/lib/differentiation-api';
+import {
+  differentiationApi,
+  type CopilotRecommendationRecord,
+  type DecisionPolicyRecord,
+  type DeveloperPackageRecord,
+  type OmnichannelFlowRecord,
+  type SloPolicyRecord,
+} from '@/lib/differentiation-api';
 
 type Summary = {
-  copilot: any[];
-  decisionPolicies: any[];
-  omniFlows: any[];
-  developerPackages: any[];
-  sloPolicies: any[];
+  copilot: CopilotRecommendationRecord[];
+  decisionPolicies: DecisionPolicyRecord[];
+  omniFlows: OmnichannelFlowRecord[];
+  developerPackages: DeveloperPackageRecord[];
+  sloPolicies: SloPolicyRecord[];
 };
 
 const emptySummary: Summary = {

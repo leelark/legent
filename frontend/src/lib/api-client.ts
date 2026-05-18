@@ -370,7 +370,6 @@ apiClient.interceptors.response.use(
 );
 
 export default apiClient;
-export const getApiError = parseApiError;
 
 // -- Convenience helpers --
 export async function get<T = LegacyApiData>(url: string, config?: AxiosRequestConfig): Promise<T> {

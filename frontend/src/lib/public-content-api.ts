@@ -15,18 +15,6 @@ export type PublicContentRecord = {
   updatedAt?: string | null;
 };
 
-export const getPublicPageContent = async (pageKey: string) =>
-  get<PublicContentRecord>(`/public/content/${encodeURIComponent(pageKey)}`);
-
-export const getPublicPricingContent = async () =>
-  get<PublicContentRecord>('/public/pricing');
-
-export const listPublicBlogPosts = async () =>
-  get<PublicContentRecord[]>('/public/blog');
-
-export const getPublicBlogPost = async (slug: string) =>
-  get<PublicContentRecord>(`/public/blog/${encodeURIComponent(slug)}`);
-
 export const listAdminPublicContent = async () =>
   get<PublicContentRecord[]>('/admin/public-content');
 
@@ -55,4 +43,3 @@ export const updateAdminPublicContent = async (
 
 export const publishAdminPublicContent = async (id: string, value = true) =>
   post<PublicContentRecord>(`/admin/public-content/${id}/publish?value=${value}`);
-

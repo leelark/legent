@@ -62,7 +62,35 @@ class TrackingEventConsumerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void handleIngestedEvents_MissingWorkspace_SkipsEvent() throws Exception {
+    void handleIngestedEvents_DuplicateClaim_ReturnsWithoutSideEffects() throws Exception {
+        EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setTenantId("tenant-1");
+        envelope.setWorkspaceId("workspace-1");
+        envelope.setEventType("tracking.ingested");
+        envelope.setEventId("evt-duplicate");
+        envelope.setIdempotencyKey("idem-duplicate");
+        envelope.setPayload("{\"tenantId\":\"tenant-1\",\"workspaceId\":\"workspace-1\",\"eventType\":\"OPEN\"}");
+
+        TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .eventType("OPEN")
+                .timestamp(java.time.Instant.now())
+                .build();
+
+        when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(payload);
+        when(idempotencyService.claimIfNew("tenant-1", "workspace-1", "OPEN", "evt-duplicate", "idem-duplicate"))
+                .thenReturn(false);
+
+        consumer.handleIngestedEvents(List.of(envelope));
+
+        verifyNoInteractions(aggregationService, clickHouseWriter);
+        verify(idempotencyService, never()).markProcessed(anyString(), anyString(), anyString(), anyString(), anyString());
+        verify(idempotencyService, never()).releaseClaim(anyString(), anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void handleIngestedEvents_MissingWorkspace_ThrowsWithoutSideEffects() {
         EventEnvelope<String> envelope = new EventEnvelope<>();
         envelope.setTenantId("tenant-1");
         envelope.setEventType("tracking.ingested");
@@ -70,23 +98,61 @@ class TrackingEventConsumerTest {
         envelope.setIdempotencyKey("idem-1");
         envelope.setPayload("{\"tenantId\":\"tenant-1\",\"eventType\":\"OPEN\"}");
 
-        TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
-                .tenantId("tenant-1")
-                .eventType("OPEN")
-                .timestamp(java.time.Instant.now())
-                .build();
+        assertThrows(IllegalStateException.class, () -> consumer.handleIngestedEvents(List.of(envelope)));
 
-        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
-                .thenReturn(payload);
+        verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
+    }
 
-        consumer.handleIngestedEvents(List.of(envelope));
+    @Test
+    void handleIngestedEvents_MissingTenant_ThrowsWithoutSideEffects() {
+        EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setWorkspaceId("workspace-1");
+        envelope.setEventType("tracking.ingested");
+        envelope.setEventId("evt-1");
+        envelope.setIdempotencyKey("idem-1");
+        envelope.setPayload("{\"workspaceId\":\"workspace-1\",\"eventType\":\"OPEN\"}");
+
+        assertThrows(IllegalStateException.class, () -> consumer.handleIngestedEvents(List.of(envelope)));
+
+        verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
+    }
+
+    @Test
+    void handleIngestedEvents_MissingEventId_ThrowsWithoutSideEffects() {
+        EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setTenantId("tenant-1");
+        envelope.setWorkspaceId("workspace-1");
+        envelope.setEventType("tracking.ingested");
+        envelope.setIdempotencyKey("idem-1");
+        envelope.setPayload("{\"tenantId\":\"tenant-1\",\"workspaceId\":\"workspace-1\",\"eventType\":\"OPEN\"}");
+
+        assertThrows(IllegalStateException.class, () -> consumer.handleIngestedEvents(List.of(envelope)));
 
         verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void handleIngestedEvents_TenantMismatch_SkipsEvent() throws Exception {
+    void handleIngestedEvents_MalformedPayload_ThrowsWithoutSideEffects() throws Exception {
+        EventEnvelope<String> envelope = new EventEnvelope<>();
+        envelope.setTenantId("tenant-1");
+        envelope.setWorkspaceId("workspace-1");
+        envelope.setEventType("tracking.ingested");
+        envelope.setEventId("evt-malformed");
+        envelope.setIdempotencyKey("idem-malformed");
+        envelope.setPayload("{not-json");
+
+        when(objectMapper.readValue(anyString(), any(TypeReference.class)))
+                .thenThrow(new com.fasterxml.jackson.core.JsonProcessingException("bad payload") {});
+
+        assertThrows(IllegalStateException.class, () -> consumer.handleIngestedEvents(List.of(envelope)));
+
+        verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void handleIngestedEvents_TenantMismatch_ThrowsWithoutSideEffects() throws Exception {
         EventEnvelope<String> envelope = new EventEnvelope<>();
         envelope.setTenantId("tenant-envelope");
         envelope.setWorkspaceId("workspace-1");
@@ -104,14 +170,14 @@ class TrackingEventConsumerTest {
 
         when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(payload);
 
-        consumer.handleIngestedEvents(List.of(envelope));
+        assertThrows(IllegalStateException.class, () -> consumer.handleIngestedEvents(List.of(envelope)));
 
         verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void handleIngestedEvents_WorkspaceMismatch_SkipsEvent() throws Exception {
+    void handleIngestedEvents_WorkspaceMismatch_ThrowsWithoutSideEffects() throws Exception {
         EventEnvelope<String> envelope = new EventEnvelope<>();
         envelope.setTenantId("tenant-1");
         envelope.setWorkspaceId("workspace-envelope");
@@ -129,7 +195,7 @@ class TrackingEventConsumerTest {
 
         when(objectMapper.readValue(anyString(), any(TypeReference.class))).thenReturn(payload);
 
-        consumer.handleIngestedEvents(List.of(envelope));
+        assertThrows(IllegalStateException.class, () -> consumer.handleIngestedEvents(List.of(envelope)));
 
         verifyNoInteractions(idempotencyService, aggregationService, clickHouseWriter);
     }

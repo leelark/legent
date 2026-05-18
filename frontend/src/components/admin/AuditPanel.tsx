@@ -20,6 +20,32 @@ function formatDate(value: string) {
   return value && value !== '-' ? new Date(value).toLocaleString() : '-';
 }
 
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+}
+
+function getErrorPathMessage(error: unknown, path: string[]) {
+  let current: unknown = error;
+  for (const key of path) {
+    const record = asErrorRecord(current);
+    if (!record) {
+      return null;
+    }
+    current = record[key];
+  }
+  return typeof current === 'string' && current ? current : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string, paths: string[][]) {
+  for (const path of paths) {
+    const message = getErrorPathMessage(error, path);
+    if (message) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export function AuditPanel() {
   const [rows, setRows] = useState<Array<Record<string, unknown>>>([]);
   const [action, setAction] = useState('');
@@ -37,8 +63,11 @@ export function AuditPanel() {
         limit: 50,
       });
       setRows(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setError(err?.normalized?.message || err?.message || 'Failed to load audit events.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load audit events.', [
+        ['normalized', 'message'],
+        ['message'],
+      ]));
       setRows([]);
     } finally {
       setLoading(false);

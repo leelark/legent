@@ -37,8 +37,7 @@ public class WorkflowTriggerConsumer {
         boolean claimed = false;
         try {
             if (event == null) {
-                log.warn("Dropping null workflow.trigger event");
-                return;
+                throw new IllegalArgumentException("workflow.trigger event envelope is required");
             }
             tenantId = event.getTenantId();
             workspaceId = event.getWorkspaceId();
@@ -46,21 +45,16 @@ public class WorkflowTriggerConsumer {
             idempotencyKey = event.getIdempotencyKey();
 
             if (!AppConstants.TOPIC_WORKFLOW_TRIGGER.equals(event.getEventType())) {
-                log.warn("Ignoring non-canonical automation trigger eventType: {}", event.getEventType());
-                return;
+                throw new IllegalArgumentException("eventType must match workflow.trigger");
             }
             if (tenantId == null || tenantId.isBlank()) {
-                log.error("Dropping workflow.trigger event without tenantId. eventId={}", eventId);
-                return;
+                throw new IllegalArgumentException("tenantId is required for workflow.trigger event");
             }
             if (workspaceId == null || workspaceId.isBlank()) {
-                log.error("Dropping workflow.trigger event without workspaceId. eventId={}", eventId);
-                return;
+                throw new IllegalArgumentException("workspaceId is required for workflow.trigger event");
             }
             if (isBlank(eventId) && isBlank(idempotencyKey)) {
-                log.error("Dropping workflow.trigger event without eventId or idempotencyKey. tenant={}, workspace={}",
-                        tenantId, workspaceId);
-                return;
+                throw new IllegalArgumentException("eventId or idempotencyKey is required for workflow.trigger event");
             }
 
             Map<String, Object> payload = toPayloadMap(event.getPayload());

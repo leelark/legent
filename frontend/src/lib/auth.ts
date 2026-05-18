@@ -24,40 +24,6 @@ export function getStoredTenantId(): string | null {
   return tenantId && tenantId.trim() ? tenantId.trim() : null;
 }
 
-export interface JwtClaims {
-  sub?: string;
-  tenantId?: string;
-  roles?: string[];
-}
-
-/**
- * Parses JWT claims from a token string.
- * Note: In production, the token is in an HTTP-only cookie and not accessible to JavaScript.
- * This function is kept for development/debugging purposes only.
- */
-export function parseJwtClaims(token: string): JwtClaims | null {
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) {
-      return null;
-    }
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(normalized.length + ((4 - (normalized.length % 4)) % 4), '=');
-    const json = decodeURIComponent(
-      atob(padded)
-        .split('')
-        .map((char) => {
-          const code = char.charCodeAt(0).toString(16).padStart(2, '0');
-          return `%${code}`;
-        })
-        .join('')
-    );
-    return JSON.parse(json) as JwtClaims;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * AUDIT-020: Centralized auth state management.
  * Clears all stored authentication data from localStorage.

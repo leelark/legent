@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { get } from '@/lib/api-client';
+import type { ImportJob } from '../../types';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   COMPLETED: 'success',
@@ -23,7 +24,7 @@ const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' |
 export default function ImportDetailsPage() {
   const params = useParams();
   const id = params?.id as string;
-  const [job, setJob] = useState<any>(null);
+  const [job, setJob] = useState<ImportJob | null>(null);
   const [loading, setLoading] = useState(false);
 
   const isRunning = useMemo(() => job?.status === 'PENDING' || job?.status === 'PROCESSING', [job?.status]);
@@ -32,7 +33,7 @@ export default function ImportDetailsPage() {
     if (!id) return;
     setLoading(true);
     try {
-      const data = await get<any>(`/imports/${id}`);
+      const data = await get<ImportJob>(`/imports/${id}`);
       setJob(data);
     } catch {
       setJob(null);

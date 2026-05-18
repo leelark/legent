@@ -36,6 +36,32 @@ const blankForm: FormState = {
 const inputClass = 'rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20';
 const textAreaClass = 'min-h-40 rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-xs font-mono text-content-primary placeholder-content-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20';
 
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+}
+
+function getErrorPathMessage(error: unknown, path: string[]) {
+  let current: unknown = error;
+  for (const key of path) {
+    const record = asErrorRecord(current);
+    if (!record) {
+      return null;
+    }
+    current = record[key];
+  }
+  return typeof current === 'string' && current ? current : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string, paths: string[][]) {
+  for (const path of paths) {
+    const message = getErrorPathMessage(error, path);
+    if (message) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export function PublicContentPanel() {
   const [items, setItems] = useState<PublicContentRecord[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,8 +76,8 @@ export function PublicContentPanel() {
     try {
       const next = await listAdminPublicContent();
       setItems(next || []);
-    } catch (err: any) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Failed to load public content.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load public content.', [['response', 'data', 'error', 'message'], ['message']]));
     } finally {
       setLoading(false);
     }
@@ -89,8 +115,8 @@ export function PublicContentPanel() {
       setForm(blankForm);
       await refresh();
       addToast({ type: 'success', title: form.id ? 'Content updated' : 'Content created', message: `${body.pageKey} is saved as ${body.status}.` });
-    } catch (err: any) {
-      setError(err?.message || 'Invalid JSON payload.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Invalid JSON payload.', [['message']]));
     } finally {
       setSaving(false);
     }

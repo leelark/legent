@@ -36,6 +36,78 @@ export interface WorkflowSchedule {
   updatedAt?: string;
 }
 
+export interface WorkflowConditionEdge {
+  condition?: string;
+  targetNodeId?: string;
+}
+
+export interface WorkflowGraphNode {
+  id?: string;
+  type?: string;
+  configuration?: Record<string, unknown>;
+  nextNodeId?: string;
+  branches?: WorkflowConditionEdge[];
+}
+
+export interface WorkflowGraphDefinition {
+  graphVersion?: number;
+  initialNodeId?: string;
+  nodes?: Record<string, WorkflowGraphNode>;
+  edges?: Record<string, unknown>[];
+  entryPolicy?: Record<string, unknown>;
+  reentryPolicy?: Record<string, unknown>;
+}
+
+export interface WorkflowDefinitionVersion {
+  workflowId: string;
+  version: number;
+  tenantId?: string;
+  workspaceId?: string;
+  graphVersion?: number;
+  published?: boolean;
+  definition?: string | WorkflowGraphDefinition | null;
+  graph?: WorkflowGraphDefinition | null;
+  createdAt?: string;
+}
+
+export interface WorkflowRun {
+  id: string;
+  tenantId?: string;
+  workspaceId?: string;
+  teamId?: string;
+  ownershipScope?: string;
+  environmentId?: string;
+  requestId?: string;
+  correlationId?: string;
+  workflowId: string;
+  version?: number;
+  subscriberId?: string;
+  status?: string;
+  currentNodeId?: string;
+  context?: string | Record<string, unknown> | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WorkflowRunStep {
+  id: string;
+  tenantId?: string;
+  workspaceId?: string;
+  instanceId?: string;
+  nodeId?: string;
+  status?: string;
+  eventType?: string;
+  correlationId?: string;
+  details?: string | Record<string, unknown> | null;
+  errorMessage?: string;
+  executedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  createdBy?: string;
+  deletedAt?: string;
+  version?: number;
+}
+
 export type AutomationActivityType = 'SQL_QUERY' | 'FILE_DROP' | 'IMPORT' | 'EXTRACT' | 'SCRIPT' | 'WEBHOOK';
 export type AutomationActivityStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 
@@ -95,9 +167,9 @@ export const archiveWorkflow = async (id: string) => post<Workflow>(`/workflows/
 export const rollbackWorkflow = async (id: string, version: number) => post<Workflow>(`/workflows/${id}/rollback`, { version });
 export const cloneWorkflow = async (id: string) => post<Workflow>(`/workflows/${id}/clone`, {});
 
-export const listWorkflowVersions = async (id: string) => get<any[]>(`/workflows/${id}/versions`);
-export const getWorkflowVersion = async (id: string, version: number) => get<any>(`/workflows/${id}/versions/${version}`);
-export const getLatestWorkflowDefinition = async (id: string) => get<any>(`/workflow-definitions/${id}/latest`);
+export const listWorkflowVersions = async (id: string) => get<WorkflowDefinitionVersion[]>(`/workflows/${id}/versions`);
+export const getWorkflowVersion = async (id: string, version: number) => get<WorkflowDefinitionVersion>(`/workflows/${id}/versions/${version}`);
+export const getLatestWorkflowDefinition = async (id: string) => get<WorkflowDefinitionVersion>(`/workflow-definitions/${id}/latest`);
 export const compareWorkflowVersions = async (id: string, leftVersion: number, rightVersion: number) =>
   post<Record<string, unknown>>(`/workflows/${id}/compare`, { leftVersion, rightVersion });
 
@@ -108,9 +180,9 @@ export const simulateWorkflow = async (id: string, payload: Record<string, unkno
 export const dryRunWorkflow = async (id: string, payload: Record<string, unknown>) =>
   post<Record<string, unknown>>(`/workflows/${id}/dry-run`, payload);
 
-export const listWorkflowRuns = async (id: string) => get<any[]>(`/workflows/${id}/runs`);
-export const getWorkflowRun = async (runId: string) => get<any>(`/workflows/runs/${runId}`);
-export const getWorkflowRunSteps = async (runId: string) => get<any[]>(`/workflows/runs/${runId}/steps`);
+export const listWorkflowRuns = async (id: string) => get<WorkflowRun[]>(`/workflows/${id}/runs`);
+export const getWorkflowRun = async (runId: string) => get<WorkflowRun>(`/workflows/runs/${runId}`);
+export const getWorkflowRunSteps = async (runId: string) => get<WorkflowRunStep[]>(`/workflows/runs/${runId}/steps`);
 export const getWorkflowRunTrace = async (runId: string) => get<Record<string, unknown>>(`/workflows/runs/${runId}/trace`);
 
 export const listWorkflowSchedules = async (id: string) => get<WorkflowSchedule[]>(`/workflows/${id}/schedules`);

@@ -17,7 +17,12 @@ export type AdminConfig = {
   environmentId?: string;
 };
 
-function normalizeConfig(config: any): AdminConfig {
+type AdminConfigResponse = AdminConfig & {
+  type?: string;
+  scopeType?: string;
+};
+
+function normalizeConfig(config: AdminConfigResponse): AdminConfig {
   return {
     ...config,
     configType: config?.configType || config?.type || 'STRING',
@@ -98,13 +103,11 @@ type PagedResult<T> = {
   totalPages?: number;
 };
 
-export const getAdminConfigs = async () => (await get<any[]>('/admin/configs')).map(normalizeConfig);
-export const saveAdminConfig = async (config: AdminConfig) => normalizeConfig(await post<any>('/admin/configs', config));
 export const getBranding = async () => get<Branding>('/admin/branding');
 export const saveBranding = async (branding: Branding) => post<Branding>('/admin/branding', branding);
 
 export const getAdminSettings = async (params?: { module?: string; category?: string; scope?: string }) =>
-  (await get<any[]>('/admin/settings', { params })).map(normalizeConfig);
+  (await get<AdminConfigResponse[]>('/admin/settings', { params })).map(normalizeConfig);
 
 export const validateAdminSetting = async (payload: {
   key: string;
@@ -131,14 +134,14 @@ export const applyAdminSetting = async (payload: {
   validationSchema?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   description?: string;
-}) => normalizeConfig(await post<any>('/admin/settings/apply', payload));
+}) => normalizeConfig(await post<AdminConfigResponse>('/admin/settings/apply', payload));
 
 export const resetAdminSetting = async (payload: {
   key: string;
   scope?: string;
   workspaceId?: string;
   environmentId?: string;
-}) => normalizeConfig(await post<any>('/admin/settings/reset', payload));
+}) => normalizeConfig(await post<AdminConfigResponse>('/admin/settings/reset', payload));
 
 export const getSettingImpact = async (params: {
   key: string;
@@ -150,9 +153,6 @@ export const getSettingImpact = async (params: {
 
 export const getSettingHistory = async (key?: string) =>
   get<Array<Record<string, unknown>>>('/admin/settings/history', { params: key ? { key } : undefined });
-
-export const rollbackSetting = async (key: string, version: number) =>
-  normalizeConfig(await post<any>(`/admin/settings/rollback?key=${encodeURIComponent(key)}&version=${version}`));
 
 export const getBootstrapStatus = async () =>
   get<{

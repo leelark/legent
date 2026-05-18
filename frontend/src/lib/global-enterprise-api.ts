@@ -1,6 +1,12 @@
 import { get, post } from '@/lib/api-client';
 
-export type GlobalRecord = Record<string, any>;
+export type GlobalRecord = Record<string, unknown> & {
+  enforcement_mode?: string;
+  enforcementMode?: string;
+  id?: string;
+  status?: string;
+  verdict?: string;
+};
 
 type ListOptions = {
   workspaceId?: string;

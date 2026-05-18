@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/PageChrome';
 import { useApi } from '@/hooks/useApi';
 import { post, put, del } from '@/lib/api-client';
 import { Plus, Trash, PencilSimple } from '@phosphor-icons/react';
+import type { AudienceList, PagedResponse } from '../types';
 
 const statusBadgeMap: Record<string, 'success' | 'default'> = {
   ACTIVE: 'success',
@@ -26,8 +27,8 @@ export default function ListsPage() {
     listType: 'PUBLICATION',
   });
   const [error, setError] = useState<string | null>(null);
-  const { data, loading, refetch } = useApi<any>('/lists?page=0&size=100');
-  const rows = data?.content ?? [];
+  const { data, loading, refetch } = useApi<PagedResponse<AudienceList>>('/lists?page=0&size=100');
+  const rows = data?.content ?? data?.data ?? [];
 
   const openCreate = () => {
     setEditingId(null);
@@ -36,7 +37,7 @@ export default function ListsPage() {
     setIsModalOpen(true);
   };
 
-  const openEdit = (row: any) => {
+  const openEdit = (row: AudienceList) => {
     setEditingId(row.id);
     setForm({ name: row.name || '', description: row.description || '', listType: row.listType || 'PUBLICATION' });
     setError(null);
@@ -78,12 +79,12 @@ export default function ListsPage() {
     {
       key: 'status',
       header: 'Status',
-      render: (row: any) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge>,
+      render: (row: AudienceList) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge>,
     },
     {
       key: 'actions',
       header: '',
-      render: (row: any) => (
+      render: (row: AudienceList) => (
         <div className="flex justify-end gap-2">
           <button onClick={() => openEdit(row)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
           <button onClick={() => remove(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
@@ -106,7 +107,7 @@ export default function ListsPage() {
         <Table
           columns={columns}
           data={rows}
-          rowKey={(row: any) => row.id}
+          rowKey={(row: AudienceList) => row.id}
           emptyMessage="No lists yet"
           loading={loading}
         />

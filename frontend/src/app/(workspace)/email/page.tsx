@@ -21,6 +21,66 @@ interface EmailItem {
   createdAt?: string;
 }
 
+type PagedApiResponse<T> = {
+  content?: T[];
+  data?: T[];
+  totalElements?: number;
+};
+
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+  if (!isRecord(value)) {
+    return [];
+  }
+  if (Array.isArray(value.content)) {
+    return value.content as T[];
+  }
+  if (Array.isArray(value.data)) {
+    return value.data as T[];
+  }
+  return [];
+}
+
+function getTotalCount(value: unknown) {
+  if (!isRecord(value)) {
+    return 0;
+  }
+  if (typeof value.totalElements === 'number') {
+    return value.totalElements;
+  }
+  if (Array.isArray(value.content)) {
+    return value.content.length;
+  }
+  if (Array.isArray(value.data)) {
+    return value.data.length;
+  }
+  return 0;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!isRecord(error)) {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
 export default function EmailPage() {
   const [emails, setEmails] = useState<EmailItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,18 +98,17 @@ export default function EmailPage() {
     setError(null);
     try {
       const [emailRes, templateRes] = await Promise.allSettled([
-        get<any>('/emails/recent'),
-        get<any>('/templates?page=0&size=1'),
+        get<EmailItem[] | PagedApiResponse<EmailItem>>('/emails/recent'),
+        get<PagedApiResponse<unknown>>('/templates?page=0&size=1'),
       ]);
       const res = emailRes.status === 'fulfilled' ? emailRes.value : [];
-      const data = Array.isArray(res) ? res : (res?.data || []);
+      const data = asArray<EmailItem>(res);
       setEmails(data);
       if (templateRes.status === 'fulfilled') {
-        const templates = templateRes.value as any;
-        setTemplateCount(templates?.totalElements ?? templates?.content?.length ?? 0);
+        setTemplateCount(getTotalCount(templateRes.value));
       }
-    } catch (e: any) {
-      const message = e?.response?.data?.error?.message || 'Failed to load emails';
+    } catch (e) {
+      const message = getErrorMessage(e, 'Failed to load emails');
       setError(message);
       addToast({
         type: 'error',
@@ -92,8 +151,8 @@ export default function EmailPage() {
         message: `"${newName.trim()}" has been created successfully`,
         duration: 3000
       });
-    } catch (e: any) {
-      const message = e?.response?.data?.error?.message || 'Failed to create email';
+    } catch (e) {
+      const message = getErrorMessage(e, 'Failed to create email');
       setError(message);
       addToast({
         type: 'error',

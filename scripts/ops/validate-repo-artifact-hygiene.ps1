@@ -49,11 +49,12 @@ try {
         }
     }
 
-    $searchOutput = @(git grep -n -I -F "Using generated security password" -- 2>$null)
+    $generatedPasswordPattern = ("Using generated security " + "password:" + "[[:space:]]*[^[:space:]]+")
+    $searchOutput = @(git grep -n -I -E $generatedPasswordPattern -- 2>$null)
     $grepExit = $LASTEXITCODE
     if ($grepExit -eq 0) {
         foreach ($line in $searchOutput) {
-            $path = ($line -split ":", 2)[0]
+            $path = ($line -split ":", 3)[0]
             if (-not [string]::IsNullOrWhiteSpace($path)) {
                 $findings.Add("Tracked generated Spring security password output: $path")
             }

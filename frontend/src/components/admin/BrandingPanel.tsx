@@ -12,6 +12,32 @@ function isValidHex(value?: string) {
   return !value || HEX_COLOR.test(value.trim());
 }
 
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+}
+
+function getErrorPathMessage(error: unknown, path: string[]) {
+  let current: unknown = error;
+  for (const key of path) {
+    const record = asErrorRecord(current);
+    if (!record) {
+      return null;
+    }
+    current = record[key];
+  }
+  return typeof current === 'string' && current ? current : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string, paths: string[][] = [['normalized', 'message']]) {
+  for (const path of paths) {
+    const message = getErrorPathMessage(error, path);
+    if (message) {
+      return message;
+    }
+  }
+  return fallback;
+}
+
 export const BrandingPanel: React.FC = () => {
   const [branding, setBranding] = useState<Branding>({});
   const [edit, setEdit] = useState(false);
@@ -29,8 +55,8 @@ export const BrandingPanel: React.FC = () => {
     setError(null);
     try {
       setBranding(await getBranding());
-    } catch (err: any) {
-      setError(err?.normalized?.message || 'Failed to load branding.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load branding.'));
     } finally {
       setLoading(false);
     }
@@ -56,8 +82,11 @@ export const BrandingPanel: React.FC = () => {
       setBranding(saved);
       setEdit(false);
       addToast({ type: 'success', title: 'Branding saved', message: 'Admin branding is ready for runtime consumers.' });
-    } catch (err: any) {
-      const message = err?.normalized?.message || err?.message || 'Failed to save branding.';
+    } catch (err: unknown) {
+      const message = getErrorMessage(err, 'Failed to save branding.', [
+        ['normalized', 'message'],
+        ['message'],
+      ]);
       setError(message);
       addToast({ type: 'error', title: 'Branding save failed', message });
     } finally {

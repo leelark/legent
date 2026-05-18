@@ -10,6 +10,25 @@ import { PlayCircle, Workflow } from 'lucide-react';
 import { pauseWorkflow, publishWorkflow, resumeWorkflow, triggerWorkflow } from '@/lib/automation-api';
 import { useToast } from '@/components/ui/Toast';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const readStringPath = (value: unknown, path: string[]) => {
+  let current: unknown = value;
+  for (const key of path) {
+    if (!isRecord(current)) {
+      return undefined;
+    }
+    current = current[key];
+  }
+  return typeof current === 'string' && current.length > 0 ? current : undefined;
+};
+
+const getAutomationErrorMessage = (error: unknown, fallback: string) =>
+  readStringPath(error, ['normalized', 'message']) ??
+  readStringPath(error, ['response', 'data', 'error', 'message']) ??
+  fallback;
+
 export default function AutomationBuilder() {
     const searchParams = useSearchParams();
     const workflowId = searchParams.get('id');
@@ -37,8 +56,8 @@ export default function AutomationBuilder() {
       try {
         await publishWorkflow(workflowId);
         addToast({ type: 'success', title: 'Workflow published', message: 'Workflow is now active.' });
-      } catch (error: any) {
-        addToast({ type: 'error', title: 'Publish failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to publish workflow.' });
+      } catch (error: unknown) {
+        addToast({ type: 'error', title: 'Publish failed', message: getAutomationErrorMessage(error, 'Unable to publish workflow.') });
       } finally {
         setActivating(false);
       }
@@ -49,8 +68,8 @@ export default function AutomationBuilder() {
       try {
         await pauseWorkflow(workflowId);
         addToast({ type: 'success', title: 'Workflow paused', message: 'Execution paused.' });
-      } catch (error: any) {
-        addToast({ type: 'error', title: 'Pause failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to pause workflow.' });
+      } catch (error: unknown) {
+        addToast({ type: 'error', title: 'Pause failed', message: getAutomationErrorMessage(error, 'Unable to pause workflow.') });
       } finally {
         setPausing(false);
       }
@@ -61,8 +80,8 @@ export default function AutomationBuilder() {
       try {
         await resumeWorkflow(workflowId);
         addToast({ type: 'success', title: 'Workflow resumed', message: 'Execution resumed.' });
-      } catch (error: any) {
-        addToast({ type: 'error', title: 'Resume failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to resume workflow.' });
+      } catch (error: unknown) {
+        addToast({ type: 'error', title: 'Resume failed', message: getAutomationErrorMessage(error, 'Unable to resume workflow.') });
       } finally {
         setResuming(false);
       }
@@ -77,8 +96,8 @@ export default function AutomationBuilder() {
           idempotencyKey: `manual-${workflowId}-${Date.now()}`,
         });
         addToast({ type: 'success', title: 'Workflow triggered', message: 'Manual run started.' });
-      } catch (error: any) {
-        addToast({ type: 'error', title: 'Trigger failed', message: error?.normalized?.message || error?.response?.data?.error?.message || 'Unable to trigger workflow.' });
+      } catch (error: unknown) {
+        addToast({ type: 'error', title: 'Trigger failed', message: getAutomationErrorMessage(error, 'Unable to trigger workflow.') });
       } finally {
         setTriggering(false);
       }

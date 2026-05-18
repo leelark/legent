@@ -39,6 +39,17 @@ interface DomainStatus {
   dmarcVerified: boolean;
 }
 
+type DomainListResponse = DomainStatus[] | {
+  content?: DomainStatus[];
+  data?: DomainStatus[];
+};
+
+type NormalizedApiErrorLike = {
+  normalized?: {
+    message?: unknown;
+  };
+};
+
 export default function DeliverabilityPage() {
   const [domains, setDomains] = useState<DomainStatus[]>([]);
   const [stats, setStats] = useState<DeliveryQueueStats | null>(null);
@@ -58,7 +69,7 @@ export default function DeliverabilityPage() {
     setError(null);
     try {
       const [domainRes, queueRes, messageRes, diagnosticsRes, warmupRes, capacityRes, failoverRes, deadLetterRes] = await Promise.all([
-        get<any>('/deliverability/domains'),
+        get<DomainListResponse>('/deliverability/domains'),
         getQueueStats(),
         listMessages(20),
         getFailureDiagnostics(),
@@ -76,9 +87,9 @@ export default function DeliverabilityPage() {
       setCapacity(capacityRes || []);
       setFailoverTests(failoverRes || []);
       setDeadLetters(deadLetterRes?.items || []);
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error('Failed to load delivery studio data', e);
-      setError(e?.normalized?.message || 'Failed to load delivery studio data');
+      setError(readNormalizedErrorMessage(e) || 'Failed to load delivery studio data');
     } finally {
       setLoading(false);
     }
@@ -464,4 +475,15 @@ function StatusDot({ ok }: { ok: boolean }) {
       <div className={`h-2.5 w-2.5 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}`} />
     </div>
   );
+}
+
+function readNormalizedErrorMessage(error: unknown): string | null {
+  if (!error || typeof error !== 'object') {
+    return null;
+  }
+
+  const normalized = (error as NormalizedApiErrorLike).normalized;
+  return typeof normalized?.message === 'string' && normalized.message.trim()
+    ? normalized.message
+    : null;
 }

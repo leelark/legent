@@ -12,6 +12,7 @@ import { useApi } from '@/hooks/useApi';
 import { useDebounce } from '@/hooks/useDebounce';
 import { post, put, del } from '@/lib/api-client';
 import { MagnifyingGlass, Plus, Trash, PencilSimple } from '@phosphor-icons/react';
+import type { PagedResponse, Subscriber } from '../types';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'default'> = {
   ACTIVE: 'success',
@@ -44,10 +45,10 @@ export default function SubscribersPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const { data, loading, refetch } = useApi<any>(
+  const { data, loading, refetch } = useApi<PagedResponse<Subscriber>>(
     `/subscribers?page=${page}&size=20${debouncedSearch ? `&search=${debouncedSearch}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`
   );
-  const rows = data?.content ?? [];
+  const rows = data?.content ?? data?.data ?? [];
   const totalElements = data?.totalElements ?? 0;
   const isFirstPage = data?.first ?? true;
   const isLastPage = data?.last ?? true;
@@ -55,7 +56,7 @@ export default function SubscribersPage() {
   const columns = [
     {
       key: 'email', header: 'Email',
-      render: (row: any) => (
+      render: (row: Subscriber) => (
         <div>
           <p className="font-medium text-content-primary">{row.email}</p>
           <p className="text-xs text-content-muted">{row.subscriberKey}</p>
@@ -64,23 +65,23 @@ export default function SubscribersPage() {
     },
     {
       key: 'name', header: 'Name',
-      render: (row: any) => `${row.firstName || ''} ${row.lastName || ''}`.trim() || '-',
+      render: (row: Subscriber) => `${row.firstName || ''} ${row.lastName || ''}`.trim() || '-',
     },
     {
       key: 'status', header: 'Status',
-      render: (row: any) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge>,
+      render: (row: Subscriber) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge>,
     },
     {
       key: 'source', header: 'Source',
-      render: (row: any) => row.source || '-',
+      render: (row: Subscriber) => row.source || '-',
     },
     {
       key: 'createdAt', header: 'Created',
-      render: (row: any) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '-',
+      render: (row: Subscriber) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '-',
     },
     {
       key: 'actions', header: '',
-      render: (row: any) => (
+      render: (row: Subscriber) => (
         <div className="flex justify-end gap-2">
           <button onClick={() => openEdit(row)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
           <button onClick={() => handleDelete(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
@@ -131,11 +132,11 @@ export default function SubscribersPage() {
     }
   };
 
-  const openEdit = (row: any) => {
+  const openEdit = (row: Subscriber) => {
     setEditingId(row.id);
     setFormData({
       email: row.email,
-      subscriberKey: row.subscriberKey,
+      subscriberKey: row.subscriberKey || '',
       firstName: row.firstName || '',
       lastName: row.lastName || '',
       phone: row.phone || ''
@@ -202,7 +203,7 @@ export default function SubscribersPage() {
         <Table
           columns={columns}
           data={rows}
-          rowKey={(row: any) => row.id}
+          rowKey={(row: Subscriber) => row.id}
           emptyMessage="No subscribers found"
           loading={loading}
           selectable

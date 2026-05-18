@@ -14,6 +14,30 @@ interface UseApiReturn<T> {
   refetch: () => Promise<void>;
 }
 
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function readPath(value: unknown, path: string[]): unknown {
+  return path.reduce<unknown>((current, key) => readRecord(current)?.[key], value);
+}
+
+function readApiErrorMessage(error: unknown): string {
+  return (
+    readString(readPath(error, ['normalized', 'message'])) ||
+    readString(readPath(error, ['response', 'data', 'error', 'message'])) ||
+    (error instanceof Error ? readString(error.message) : null) ||
+    readString(readRecord(error)?.message) ||
+    'An error occurred'
+  );
+}
+
 /**
  * Generic data fetching hook with loading/error states.
  */
@@ -29,13 +53,8 @@ export function useApi<T>(url: string, options: UseApiOptions = {}): UseApiRetur
     try {
       const result = await get<T>(url);
       setData(result);
-    } catch (err: any) {
-      const message =
-        err?.normalized?.message ||
-        err?.response?.data?.error?.message ||
-        err?.message ||
-        'An error occurred';
-      setError(message);
+    } catch (err: unknown) {
+      setError(readApiErrorMessage(err));
     } finally {
       setLoading(false);
     }

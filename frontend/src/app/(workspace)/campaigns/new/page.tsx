@@ -13,6 +13,7 @@ import { useToast } from '@/components/ui/Toast';
 import { ArrowRight, ArrowLeft, CheckCircle, CircleNotch, PaperPlaneTilt } from '@phosphor-icons/react';
 import { get } from '@/lib/api-client';
 import {
+  type Campaign,
   createCampaignExperiment,
   createCampaign,
   createRequestKey,
@@ -36,6 +37,64 @@ type TemplateItem = {
   name: string;
   subject?: string;
 };
+
+type PagedApiResponse<T> = {
+  content?: T[];
+  data?: T[];
+};
+
+type TemplateApiItem = {
+  id: string;
+  name?: string;
+  subject?: string;
+};
+
+type AudienceApiItem = {
+  id: string;
+  name?: string;
+};
+
+type CloneCampaign = Campaign & {
+  contentId?: string;
+};
+
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+  if (!isRecord(value)) {
+    return [];
+  }
+  if (Array.isArray(value.content)) {
+    return value.content as T[];
+  }
+  if (Array.isArray(value.data)) {
+    return value.data as T[];
+  }
+  return [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!isRecord(error)) {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
 
 export default function CampaignWizardPage() {
   const router = useRouter();
@@ -93,24 +152,24 @@ export default function CampaignWizardPage() {
       setBootLoading(true);
       try {
         const [templateRes, listsRes, segmentsRes] = await Promise.all([
-          get<any>('/templates?page=0&size=100'),
-          get<any>('/lists?page=0&size=100'),
-          get<any>('/segments?page=0&size=100'),
+          get<PagedApiResponse<TemplateApiItem> | TemplateApiItem[]>('/templates?page=0&size=100'),
+          get<PagedApiResponse<AudienceApiItem> | AudienceApiItem[]>('/lists?page=0&size=100'),
+          get<PagedApiResponse<AudienceApiItem> | AudienceApiItem[]>('/segments?page=0&size=100'),
         ]);
 
-        const templateItems = (templateRes?.content ?? templateRes?.data ?? templateRes ?? []).map((item: any) => ({
+        const templateItems = asArray<TemplateApiItem>(templateRes).map((item) => ({
           id: item.id,
-          name: item.name,
+          name: item.name ?? '',
           subject: item.subject,
         }));
         setTemplates(templateItems);
 
-        const listItems = (listsRes?.content ?? listsRes?.data ?? listsRes ?? []).map((item: any) => ({
+        const listItems = asArray<AudienceApiItem>(listsRes).map((item) => ({
           id: item.id,
           name: item.name || item.id,
           type: 'LIST' as const,
         }));
-        const segmentItems = (segmentsRes?.content ?? segmentsRes?.data ?? segmentsRes ?? []).map((item: any) => ({
+        const segmentItems = asArray<AudienceApiItem>(segmentsRes).map((item) => ({
           id: item.id,
           name: item.name || item.id,
           type: 'SEGMENT' as const,
@@ -127,7 +186,7 @@ export default function CampaignWizardPage() {
             senderName: campaign.senderName || '',
             senderEmail: campaign.senderEmail || '',
             replyToEmail: campaign.replyToEmail || '',
-            templateId: campaign.templateId || (campaign as any).contentId || '',
+            templateId: campaign.templateId || (campaign as CloneCampaign).contentId || '',
             providerId: campaign.providerId || '',
             sendingDomain: campaign.sendingDomain || '',
             timezone: campaign.timezone || current.timezone,
@@ -142,11 +201,11 @@ export default function CampaignWizardPage() {
             })),
           }));
         }
-      } catch (error: any) {
+      } catch (error) {
         addToast({
           type: 'error',
           title: 'Failed to initialize wizard',
-          message: error?.response?.data?.error?.message || 'Unable to load templates and audiences.',
+          message: getErrorMessage(error, 'Unable to load templates and audiences.'),
         });
       } finally {
         setBootLoading(false);
@@ -179,7 +238,7 @@ export default function CampaignWizardPage() {
   const handleCreate = async (mode: 'DRAFT' | 'SEND' | 'APPROVAL') => {
     setLoading(true);
     try {
-      const created = await createCampaign({
+      const payload: Partial<Campaign> = {
         name: form.name,
         subject: form.subject,
         preheader: form.preheader,
@@ -195,7 +254,8 @@ export default function CampaignWizardPage() {
         complianceEnabled: form.complianceEnabled,
         templateId: form.templateId || undefined,
         audiences: form.audiences,
-      } as any);
+      };
+      const created = await createCampaign(payload);
 
       await Promise.all([
         updateCampaignBudget(created.id, {
@@ -270,11 +330,11 @@ export default function CampaignWizardPage() {
         addToast({ type: 'success', title: 'Draft saved', message: `${created.name} saved as draft.` });
       }
       router.push('/app/campaigns');
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Campaign action failed',
-        message: error?.response?.data?.error?.message || 'Unable to complete campaign action.',
+        message: getErrorMessage(error, 'Unable to complete campaign action.'),
       });
     } finally {
       setLoading(false);

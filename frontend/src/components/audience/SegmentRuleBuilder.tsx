@@ -19,6 +19,20 @@ interface RuleGroup {
   conditions: Condition[];
 }
 
+type SegmentRuleValue = string | number | boolean | null;
+
+export interface SegmentRuleCondition {
+  field?: string;
+  op?: string;
+  value?: SegmentRuleValue;
+}
+
+export interface SegmentRules {
+  operator?: string;
+  conditions?: SegmentRuleCondition[];
+  groups?: SegmentRules[];
+}
+
 const FIELDS = [
   { value: 'email', label: 'Email' },
   { value: 'first_name', label: 'First Name' },
@@ -54,16 +68,16 @@ function newGroup(): RuleGroup {
 }
 
 interface Props {
-  initialRules?: any;
-  onChange?: (rules: any) => void;
+  initialRules?: SegmentRules | null;
+  onChange?: (rules: SegmentRules) => void;
 }
 
-function toBuilderGroups(rules: any): RuleGroup[] {
+function toBuilderGroups(rules: SegmentRules | null | undefined): RuleGroup[] {
   if (!rules || typeof rules !== 'object') {
     return [newGroup()];
   }
 
-  const mappedGroups = Array.isArray(rules.groups)
+  const mappedGroups: SegmentRules[] = Array.isArray(rules.groups)
     ? rules.groups
     : Array.isArray(rules.conditions)
       ? [{ operator: rules.operator || 'AND', conditions: rules.conditions }]
@@ -71,11 +85,11 @@ function toBuilderGroups(rules: any): RuleGroup[] {
 
   if (mappedGroups.length === 0) return [newGroup()];
 
-  return mappedGroups.map((group: any) => ({
+  return mappedGroups.map((group) => ({
     id: newId(),
     operator: group?.operator === 'OR' ? 'OR' : 'AND',
     conditions: Array.isArray(group?.conditions) && group.conditions.length > 0
-      ? group.conditions.map((condition: any) => ({
+      ? group.conditions.map((condition) => ({
           id: newId(),
           field: condition?.field || 'email',
           op: condition?.op || 'EQUALS',
@@ -85,7 +99,7 @@ function toBuilderGroups(rules: any): RuleGroup[] {
   }));
 }
 
-function toApiRules(groups: RuleGroup[]) {
+function toApiRules(groups: RuleGroup[]): SegmentRules {
   return {
     operator: 'AND',
     conditions: [],
@@ -126,7 +140,7 @@ export function SegmentRuleBuilder({ initialRules, onChange }: Props) {
     ));
   };
 
-  const updateCondition = (groupId: string, condId: string, field: string, value: any) => {
+  const updateCondition = (groupId: string, condId: string, field: keyof Condition, value: string) => {
     updateGroups(groups.map(g =>
       g.id === groupId
         ? { ...g, conditions: g.conditions.map(c => c.id === condId ? { ...c, [field]: value } : c) }

@@ -3,11 +3,18 @@ import React, { useEffect, useState } from 'react';
 import { getReputation } from '@/lib/deliverability-api';
 import { Card } from '@/components/ui/Card';
 
+interface ReputationScore {
+  score: number;
+  lastUpdated: string;
+}
+
 export const ReputationDashboard: React.FC<{ domain: string }> = ({ domain }) => {
-  const [score, setScore] = useState<any | null>(null);
+  const [score, setScore] = useState<ReputationScore | null>(null);
   useEffect(() => {
     setScore(null);
-    getReputation(domain).then(setScore).catch(() => setScore(null));
+    getReputation(domain)
+      .then((response) => setScore(response as ReputationScore))
+      .catch(() => setScore(null));
   }, [domain]);
 
   if (!score) return null;

@@ -203,8 +203,24 @@ export type VersionCompareResponse = {
   rightTextLength?: number;
 };
 
+export type PagedTemplateStudioResponse<T> = {
+  content?: T[];
+  data?: T[];
+  page?: number;
+  size?: number;
+  totalElements?: number;
+  totalPages?: number;
+  number?: number;
+  numberOfElements?: number;
+  first?: boolean;
+  last?: boolean;
+  empty?: boolean;
+  sort?: unknown;
+  pageable?: unknown;
+};
+
 export const listTemplates = async (page = 0, size = 20) =>
-  get<any>(`/templates?page=${page}&size=${size}`);
+  get<PagedTemplateStudioResponse<Template>>(`/templates?page=${page}&size=${size}`);
 
 export const searchTemplates = async (query: string) =>
   get<Template[]>(`/templates/search?q=${encodeURIComponent(query)}`);
@@ -350,7 +366,7 @@ export const listAssets = async (params?: { page?: number; size?: number; q?: st
   qp.set('size', String(params?.size ?? 30));
   if (params?.q) qp.set('q', params.q);
   if (params?.contentType) qp.set('contentType', params.contentType);
-  return get<any>(`/assets?${qp.toString()}`);
+  return get<PagedTemplateStudioResponse<Asset>>(`/assets?${qp.toString()}`);
 };
 
 export const uploadAsset = async (file: File) => {
@@ -372,7 +388,7 @@ export const uploadAssetsBulk = async (files: File[]) => {
 };
 
 export const listContentSnippets = async (page = 0, size = 50) =>
-  get<any>(`/content/snippets?page=${page}&size=${size}`);
+  get<PagedTemplateStudioResponse<ContentSnippet>>(`/content/snippets?page=${page}&size=${size}`);
 
 export const createContentSnippet = async (payload: {
   snippetKey: string;
@@ -389,7 +405,7 @@ export const updateContentSnippet = async (id: string, payload: Partial<ContentS
 export const deleteContentSnippet = async (id: string) => del<void>(`/content/snippets/${id}`);
 
 export const listPersonalizationTokens = async (page = 0, size = 100) =>
-  get<any>(`/personalization-tokens?page=${page}&size=${size}`);
+  get<PagedTemplateStudioResponse<PersonalizationToken>>(`/personalization-tokens?page=${page}&size=${size}`);
 
 export const createPersonalizationToken = async (payload: {
   tokenKey: string;
@@ -432,7 +448,7 @@ export const deleteDynamicContentRule = async (templateId: string, id: string) =
   del<void>(`/templates/${templateId}/dynamic-content/${id}`);
 
 export const listBrandKits = async (page = 0, size = 50) =>
-  get<any>(`/brand-kits?page=${page}&size=${size}`);
+  get<PagedTemplateStudioResponse<BrandKit>>(`/brand-kits?page=${page}&size=${size}`);
 
 export const createBrandKit = async (payload: {
   name: string;
@@ -453,7 +469,7 @@ export const updateBrandKit = async (id: string, payload: Partial<BrandKit>) =>
 export const deleteBrandKit = async (id: string) => del<void>(`/brand-kits/${id}`);
 
 export const listLandingPages = async (page = 0, size = 50) =>
-  get<any>(`/landing-pages?page=${page}&size=${size}`);
+  get<PagedTemplateStudioResponse<LandingPage>>(`/landing-pages?page=${page}&size=${size}`);
 
 export const createLandingPage = async (payload: {
   name: string;

@@ -47,9 +47,9 @@ public class FeedbackLoopConsumer {
         boolean claimed = false;
         try {
             if (event == null) {
-                log.warn("Dropping feedback loop event: null envelope");
-                return;
+                throw new InvalidFeedbackEventException("Missing feedback event envelope");
             }
+            tenantId = requireTenantId(event);
             Map<String, Object> payload = toPayloadMap(event.getPayload());
             workspaceId = resolveWorkspaceId(event, payload);
             eventType = resolveCanonicalEventType(event.getEventType(), receivedTopic);
@@ -72,8 +72,7 @@ public class FeedbackLoopConsumer {
             }
 
             if (!hasClaimKey(eventId, idempotencyKey)) {
-                log.warn("Dropping feedback event {}: missing idempotency key", event.getEventId());
-                return;
+                throw new InvalidFeedbackEventException("Missing eventId or idempotencyKey for feedback event");
             }
 
             claimed = idempotencyService.claimIfNew(
@@ -123,8 +122,12 @@ public class FeedbackLoopConsumer {
         } catch (JsonProcessingException e) {
             log.warn("Dropping malformed feedback loop event. eventId={}", event == null ? "unknown" : event.getEventId(), e);
         } catch (InvalidFeedbackEventException e) {
-            log.warn("Dropping invalid feedback loop event. eventId={}, reason={}",
+            if (claimed) {
+                releaseClaim(tenantId, workspaceId, eventType, eventId, idempotencyKey, e);
+            }
+            log.warn("Rejecting invalid feedback loop event for retry/DLQ. eventId={}, reason={}",
                     event == null ? "unknown" : event.getEventId(), e.getMessage());
+            throw new IllegalStateException("Invalid feedback loop event", e);
         } catch (Exception e) {
             if (claimed) {
                 releaseClaim(tenantId, workspaceId, eventType, eventId, idempotencyKey, e);
@@ -164,6 +167,13 @@ public class FeedbackLoopConsumer {
                 .findByTenantIdAndWorkspaceIdAndDomainName(tenantId, workspaceId, senderDomain.trim().toLowerCase())
                 .map(com.legent.deliverability.domain.SenderDomain::getId)
                 .orElse(null);
+    }
+
+    private String requireTenantId(EventEnvelope<?> event) {
+        if (event.getTenantId() != null && !event.getTenantId().isBlank()) {
+            return event.getTenantId();
+        }
+        throw new InvalidFeedbackEventException("Missing tenantId for feedback event " + event.getEventId());
     }
 
     private void releaseClaim(String tenantId,

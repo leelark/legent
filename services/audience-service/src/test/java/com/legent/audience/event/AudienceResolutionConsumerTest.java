@@ -17,6 +17,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,7 +39,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class AudienceResolutionConsumerTest {
 
     private static final String TENANT_ID = "tenant-1";
@@ -123,6 +125,39 @@ class AudienceResolutionConsumerTest {
                 .containsEntry("totalResolvedSubscribers", totalSubscribers)
                 .containsEntry("isLastChunk", true);
         assertThat(subscriberPayload(secondPayload)).hasSize(1);
+    }
+
+    @Test
+    void missingWorkspaceThrowsAndLogsResolutionMetadata(CapturedOutput output) {
+        TenantContext.setTenantId("stale-tenant");
+        TenantContext.setWorkspaceId("stale-workspace");
+        EventEnvelope<Map<String, Object>> event = requestEventWithoutWorkspace(
+                "event-missing-workspace",
+                "idem-missing-workspace");
+
+        assertThatThrownBy(() -> consumer.handleResolutionRequest(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("missing workspaceId")
+                .hasMessageContaining("eventId=event-missing-workspace")
+                .hasMessageContaining("tenantId=" + TENANT_ID)
+                .hasMessageContaining("eventType=" + AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED)
+                .hasMessageContaining("campaignId=" + CAMPAIGN_ID)
+                .hasMessageContaining("jobId=" + JOB_ID);
+
+        assertThat(output.getAll())
+                .contains("Audience resolution request missing workspaceId")
+                .contains("eventId=event-missing-workspace")
+                .contains("tenantId=" + TENANT_ID)
+                .contains("eventType=" + AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED)
+                .contains("campaignId=" + CAMPAIGN_ID)
+                .contains("jobId=" + JOB_ID);
+        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getWorkspaceId()).isNull();
+        verify(idempotencyService, never()).registerIfNew(any(), any(), any(), any(), any());
+        verify(audienceCandidateRepository, never()).findNextCandidates(any(), any(), any(), any(), any());
+        verify(deliverabilityClient, never()).checkSuppressedEmails(any(), any(), anyList());
+        verify(sendEligibilityService, never()).isSendEligible(any());
+        verify(eventPublisher, never()).publish(any(), any(), any());
     }
 
     @Test
@@ -416,6 +451,19 @@ class AudienceResolutionConsumerTest {
                         "campaignId", CAMPAIGN_ID,
                         "jobId", JOB_ID,
                         "audiences", audiences
+                ))
+                .build();
+    }
+
+    private EventEnvelope<Map<String, Object>> requestEventWithoutWorkspace(String eventId, String idempotencyKey) {
+        return EventEnvelope.<Map<String, Object>>builder()
+                .eventId(eventId)
+                .eventType(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED)
+                .tenantId(TENANT_ID)
+                .idempotencyKey(idempotencyKey)
+                .payload(Map.of(
+                        "campaignId", CAMPAIGN_ID,
+                        "jobId", JOB_ID
                 ))
                 .build();
     }

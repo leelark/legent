@@ -28,6 +28,25 @@ import {
 import { Plus } from '@phosphor-icons/react';
 import Link from 'next/link';
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const readStringPath = (value: unknown, path: string[]) => {
+  let current: unknown = value;
+  for (const key of path) {
+    if (!isRecord(current)) {
+      return undefined;
+    }
+    current = current[key];
+  }
+  return typeof current === 'string' && current.length > 0 ? current : undefined;
+};
+
+const getAutomationErrorMessage = (error: unknown, fallback: string) =>
+  readStringPath(error, ['normalized', 'message']) ??
+  readStringPath(error, ['response', 'data', 'error', 'message']) ??
+  fallback;
+
 export default function AutomationPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [activities, setActivities] = useState<AutomationActivity[]>([]);
@@ -56,8 +75,8 @@ export default function AutomationPage() {
       ]);
       setWorkflows(data);
       setActivities(activityData);
-    } catch (e: any) {
-      setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to load workflows');
+    } catch (e: unknown) {
+      setError(getAutomationErrorMessage(e, 'Failed to load workflows'));
     } finally {
       setLoading(false);
     }
@@ -80,8 +99,8 @@ export default function AutomationPage() {
       setNewDescription('');
       setShowCreate(false);
       loadWorkflows();
-    } catch (e: any) {
-      setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to create workflow');
+    } catch (e: unknown) {
+      setError(getAutomationErrorMessage(e, 'Failed to create workflow'));
     } finally {
       setCreating(false);
     }
@@ -118,8 +137,8 @@ export default function AutomationPage() {
       setActivityName('');
       setShowCreateActivity(false);
       await loadWorkflows();
-    } catch (e: any) {
-      setError(e?.normalized?.message || e?.response?.data?.error?.message || 'Failed to create activity');
+    } catch (e: unknown) {
+      setError(getAutomationErrorMessage(e, 'Failed to create activity'));
     } finally {
       setCreating(false);
     }
@@ -134,8 +153,8 @@ export default function AutomationPage() {
         await runAutomationActivity(activityId, { dryRun: true, triggerSource: 'MANUAL' });
       }
       await loadWorkflows();
-    } catch (e: any) {
-      setError(e?.normalized?.message || e?.response?.data?.error?.message || `Failed to ${mode} activity`);
+    } catch (e: unknown) {
+      setError(getAutomationErrorMessage(e, `Failed to ${mode} activity`));
     } finally {
       setActionBusy(null);
     }
@@ -151,8 +170,8 @@ export default function AutomationPage() {
       if (action === 'stop') await stopWorkflow(workflowId);
       if (action === 'clone') await cloneWorkflow(workflowId);
       await loadWorkflows();
-    } catch (e: any) {
-      setError(e?.normalized?.message || e?.response?.data?.error?.message || `Failed to ${action} workflow`);
+    } catch (e: unknown) {
+      setError(getAutomationErrorMessage(e, `Failed to ${action} workflow`));
     } finally {
       setActionBusy(null);
     }

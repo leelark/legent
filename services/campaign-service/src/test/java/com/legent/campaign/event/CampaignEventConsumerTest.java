@@ -37,6 +37,7 @@ import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -149,6 +150,29 @@ class CampaignEventConsumerTest {
     }
 
     @Test
+    void handleAudienceResolvedThrowsWhenWorkspaceMissingAndDoesNotProcessChunk() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("jobId", "job-1");
+        payload.put("isLastChunk", true);
+        payload.put("subscribers", List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("audience-missing-workspace")
+                .eventType(AppConstants.TOPIC_AUDIENCE_RESOLVED)
+                .tenantId("tenant-1")
+                .idempotencyKey("idem-audience-missing-workspace")
+                .payload(payload)
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAudienceResolved(event));
+
+        assertEquals("Failed handling TOPIC_AUDIENCE_RESOLVED", thrown.getMessage());
+        assertEquals(
+                "workspaceId is required for " + AppConstants.TOPIC_AUDIENCE_RESOLVED + " event audience-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
     void handleAudienceResolvedUsesChunkIdForIdempotencyAcrossNewEnvelopes() {
         EventEnvelope<Map<String, Object>> first = audienceResolvedEvent("event-1", "chunk-job-1-0");
         EventEnvelope<Map<String, Object>> duplicate = audienceResolvedEvent("event-2", "chunk-job-1-0");
@@ -207,6 +231,27 @@ class CampaignEventConsumerTest {
     }
 
     @Test
+    void handleSendProcessingThrowsWhenWorkspaceMissingAndDoesNotExecuteBatch() {
+        EventEnvelope<String> event = EventEnvelope.<String>builder()
+                .eventId("processing-missing-workspace")
+                .eventType(AppConstants.TOPIC_SEND_PROCESSING)
+                .tenantId("tenant-1")
+                .idempotencyKey("idem-processing-missing-workspace")
+                .payload("""
+                        {"jobId":"job-1","batchId":"batch-1"}
+                        """)
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleSendProcessing(event));
+
+        assertEquals("Failed handling TOPIC_SEND_PROCESSING", thrown.getMessage());
+        assertEquals(
+                "workspaceId is required for " + AppConstants.TOPIC_SEND_PROCESSING + " event processing-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
     void handleBatchCreatedAppliesEnvironmentContextBeforeExecution() {
         EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
                 .eventId("batch-event-1")
@@ -242,6 +287,27 @@ class CampaignEventConsumerTest {
                 AppConstants.TOPIC_BATCH_CREATED,
                 "batch-event-1",
                 "idem-batch-1");
+    }
+
+    @Test
+    void handleBatchCreatedThrowsWhenWorkspaceMissingAndDoesNotExecuteBatch() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("batch-missing-workspace")
+                .eventType(AppConstants.TOPIC_BATCH_CREATED)
+                .tenantId("tenant-1")
+                .idempotencyKey("idem-batch-missing-workspace")
+                .payload(Map.of(
+                        "jobId", "job-1",
+                        "batchId", "batch-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleBatchCreated(event));
+
+        assertEquals("Failed handling TOPIC_BATCH_CREATED", thrown.getMessage());
+        assertEquals(
+                "workspaceId is required for " + AppConstants.TOPIC_BATCH_CREATED + " event batch-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
     }
 
     @Test
@@ -347,6 +413,28 @@ class CampaignEventConsumerTest {
                 "idem-send-2");
     }
 
+    @Test
+    void handleAutomationSendRequestThrowsWhenWorkflowSendWorkspaceMissingAndDoesNotLaunch() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("workflow-send-missing-workspace")
+                .eventType(AppConstants.TOPIC_SEND_REQUESTED)
+                .tenantId("tenant-1")
+                .idempotencyKey("idem-workflow-send-missing-workspace")
+                .payload(Map.of(
+                        "campaignId", "campaign-1",
+                        "triggerSource", "WORKFLOW",
+                        "instanceId", "instance-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAutomationSendRequest(event));
+
+        assertEquals("Failed handling TOPIC_SEND_REQUESTED", thrown.getMessage());
+        assertEquals(
+                "workspaceId is required for " + AppConstants.TOPIC_SEND_REQUESTED + " event workflow-send-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
     private EventEnvelope<Map<String, Object>> audienceResolvedEvent() {
         return audienceResolvedEvent("event-1", null);
     }
@@ -373,5 +461,19 @@ class CampaignEventConsumerTest {
                 .idempotencyKey("idem-1")
                 .payload(payload)
                 .build();
+    }
+
+    private void verifyNoConsumerSideEffects() {
+        verifyNoInteractions(
+                batchingService,
+                executionService,
+                orchestrationService,
+                idempotencyService,
+                sendJobRepository,
+                sendBatchRepository,
+                campaignRepository,
+                stateMachine,
+                sendSafetyService,
+                metricsService);
     }
 }

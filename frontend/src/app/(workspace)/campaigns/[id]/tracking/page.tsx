@@ -55,6 +55,24 @@ const badgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'defa
   RETRYING: 'warning',
 };
 
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!error || typeof error !== 'object') {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
 export default function CampaignTrackingPage() {
   const params = useParams();
   const campaignId = params?.id as string;
@@ -105,11 +123,11 @@ export default function CampaignTrackingPage() {
       setPreflight(preflightData);
       setVariantMetrics(metricData);
       setDeadLetters(deadLetterData);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Tracking load failed',
-        message: error?.response?.data?.error?.message || 'Unable to load campaign tracking data.',
+        message: getErrorMessage(error, 'Unable to load campaign tracking data.'),
       });
     } finally {
       setLoading(false);
@@ -164,11 +182,11 @@ export default function CampaignTrackingPage() {
       await action();
       addToast({ type: 'success', title: 'Action applied', message: successMessage });
       await loadTracking();
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Action failed',
-        message: error?.response?.data?.error?.message || 'Unable to perform action.',
+        message: getErrorMessage(error, 'Unable to perform action.'),
       });
     } finally {
       setActionLoading(false);

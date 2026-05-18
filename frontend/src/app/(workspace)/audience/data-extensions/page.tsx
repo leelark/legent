@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/PageChrome';
 import { useApi } from '@/hooks/useApi';
 import { post, del } from '@/lib/api-client';
 import { Plus, Trash } from '@phosphor-icons/react';
+import type { DataExtension, PagedResponse } from '../types';
 
 type FieldDraft = {
   fieldName: string;
@@ -32,8 +33,8 @@ export default function DataExtensionsPage() {
     { fieldName: 'email', fieldType: 'EMAIL', required: true, primaryKey: false, maxLength: 320 },
   ]);
   const [error, setError] = useState<string | null>(null);
-  const { data, loading, refetch } = useApi<any>('/data-extensions?page=0&size=100');
-  const rows = data?.content ?? [];
+  const { data, loading, refetch } = useApi<PagedResponse<DataExtension>>('/data-extensions?page=0&size=100');
+  const rows = data?.content ?? data?.data ?? [];
 
   const create = async () => {
     try {
@@ -89,13 +90,13 @@ export default function DataExtensionsPage() {
     {
       key: 'sendable',
       header: 'Sendable',
-      render: (row: any) => <Badge variant={row.sendable ? 'success' : 'default'}>{row.sendable ? 'Yes' : 'No'}</Badge>,
+      render: (row: DataExtension) => <Badge variant={row.sendable ? 'success' : 'default'}>{row.sendable ? 'Yes' : 'No'}</Badge>,
     },
     { key: 'recordCount', header: 'Records' },
     {
       key: 'actions',
       header: '',
-      render: (row: any) => (
+      render: (row: DataExtension) => (
         <div className="flex justify-end">
           <button onClick={() => remove(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
         </div>
@@ -117,7 +118,7 @@ export default function DataExtensionsPage() {
         <Table
           columns={columns}
           data={rows}
-          rowKey={(row: any) => row.id}
+          rowKey={(row: DataExtension) => row.id}
           emptyMessage="No data extensions yet"
           loading={loading}
         />

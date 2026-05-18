@@ -6,21 +6,35 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageChrome";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { SegmentRuleBuilder } from "@/components/audience/SegmentRuleBuilder";
+import { SegmentRuleBuilder, type SegmentRules } from "@/components/audience/SegmentRuleBuilder";
 import { get, put } from "@/lib/api-client";
+
+type SegmentForm = {
+  name: string;
+  description: string;
+  rules: SegmentRules;
+};
+
+type SegmentResponse = {
+  name?: string;
+  description?: string;
+  rules?: SegmentRules | null;
+};
+
+const emptyRules = (): SegmentRules => ({
+  operator: "AND",
+  conditions: [],
+  groups: []
+});
 
 export default function EditSegmentPage() {
   const router = useRouter();
   const params = useParams();
   const segmentId = params?.id as string;
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<SegmentForm>({
     name: "",
     description: "",
-    rules: {
-      operator: "AND",
-      conditions: [],
-      groups: []
-    } as any,
+    rules: emptyRules(),
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,11 +43,11 @@ export default function EditSegmentPage() {
     const fetchSegment = async () => {
       setLoading(true);
       try {
-        const segment = await get<{ name?: string; description?: string; rules?: any }>(`/segments/${segmentId}`);
+        const segment = await get<SegmentResponse>(`/segments/${segmentId}`);
         setForm({
           name: segment?.name || "",
           description: segment?.description || "",
-          rules: segment?.rules || { operator: "AND", conditions: [], groups: [] },
+          rules: segment?.rules || emptyRules(),
         });
       } catch {
         alert("Failed to load segment");

@@ -2,6 +2,18 @@
 
 Last updated: 2026-05-18.
 
+SalesforceAuditImplementation-20260518:
+assigned_task: implement locally actionable items from `.codex/reports/salesforce-comparison-full-audit-2026-05-18.yaml` with parallel subagents
+task_type: RELEASE/SECURITY/RELIABILITY/FRONTEND/BACKEND/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: artifact hygiene validator/self-test, delivery content fail-closed path/tests, audience/automation/campaign/deliverability/delivery/foundation/platform/tracking consumer contract tests, frontend typed API/workspace/admin cleanup, tracking JDBC config/test, shared common dead utility deletion, `.codex` memory
+branch_or_worktree: main
+dependencies: AGENTS.md, `.codex/bootstrap.md`, `.codex/commands/start-org.md`, Salesforce comparison audit report, CTO/PM/read-only scouts, parallel worker agents, Docker Compose local stack, Maven reactor, frontend Playwright
+blockers: locally actionable implementation and local runtime validation complete; external production evidence remains by design
+next_actions: collect target production egress evidence, GA evidence pack, registry image digest/SBOM/signature/provenance proof, live load/restore/security/monitoring transcripts, and Audience V17 reviewed production mapping before any GA claim or release; no commit or push performed
+
 ReleaseBlockerSourceClosure-20260518:
 assigned_task: close locally actionable production egress, GA evidence, live transcript, image supply-chain, Kafka event contract, and campaign batch JSON blockers with parallel workers
 task_type: RELEASE/SECURITY/PERFORMANCE/RELIABILITY/TESTING

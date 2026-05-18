@@ -43,6 +43,44 @@ const PREBUILT_TEMPLATES: Array<{
 
 type FilterMode = 'all' | 'favorites' | 'recent';
 
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+  if (!isRecord(value)) {
+    return [];
+  }
+  if (Array.isArray(value.content)) {
+    return value.content as T[];
+  }
+  if (Array.isArray(value.data)) {
+    return value.data as T[];
+  }
+  return [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!isRecord(error)) {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
 export default function EmailTemplatesPage() {
   const { addToast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -63,13 +101,13 @@ export default function EmailTemplatesPage() {
     setLoading(true);
     try {
       const response = await listTemplates(0, 100);
-      const items: Template[] = Array.isArray(response) ? response : (response?.content ?? response?.data ?? []);
+      const items = asArray<Template>(response);
       setTemplates(items);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Failed to load templates',
-        message: error?.response?.data?.error?.message || 'Unable to load template library.',
+        message: getErrorMessage(error, 'Unable to load template library.'),
       });
     } finally {
       setLoading(false);
@@ -159,11 +197,11 @@ export default function EmailTemplatesPage() {
       setSubject('');
       setHtmlBody('');
       addToast({ type: 'success', title: 'Template created', message: `Created ${template.name}` });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Create failed',
-        message: error?.response?.data?.error?.message || 'Unable to create template.',
+        message: getErrorMessage(error, 'Unable to create template.'),
       });
     } finally {
       setCreating(false);
@@ -184,11 +222,11 @@ export default function EmailTemplatesPage() {
       });
       setTemplates((current) => [template, ...current]);
       addToast({ type: 'success', title: 'Prebuilt template added', message: `${preset.name} ready to edit.` });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Prebuilt import failed',
-        message: error?.response?.data?.error?.message || 'Unable to import prebuilt template.',
+        message: getErrorMessage(error, 'Unable to import prebuilt template.'),
       });
     }
   };
@@ -198,11 +236,11 @@ export default function EmailTemplatesPage() {
       const clone = await cloneTemplate(templateId);
       setTemplates((current) => [clone, ...current]);
       addToast({ type: 'success', title: 'Template duplicated', message: `${clone.name} created.` });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Duplicate failed',
-        message: error?.response?.data?.error?.message || 'Unable to duplicate template.',
+        message: getErrorMessage(error, 'Unable to duplicate template.'),
       });
     }
   };
@@ -212,11 +250,11 @@ export default function EmailTemplatesPage() {
       const updated = await archiveTemplate(templateId, 'Archived from template library');
       setTemplates((current) => current.map((item) => (item.id === templateId ? updated : item)));
       addToast({ type: 'success', title: 'Template archived', message: `${updated.name} moved to archive.` });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Archive failed',
-        message: error?.response?.data?.error?.message || 'Unable to archive template.',
+        message: getErrorMessage(error, 'Unable to archive template.'),
       });
     }
   };
@@ -226,11 +264,11 @@ export default function EmailTemplatesPage() {
       const updated = await restoreTemplate(templateId, 'Restored from template library');
       setTemplates((current) => current.map((item) => (item.id === templateId ? updated : item)));
       addToast({ type: 'success', title: 'Template restored', message: `${updated.name} restored.` });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Restore failed',
-        message: error?.response?.data?.error?.message || 'Unable to restore template.',
+        message: getErrorMessage(error, 'Unable to restore template.'),
       });
     }
   };
@@ -243,11 +281,11 @@ export default function EmailTemplatesPage() {
       await deleteTemplate(templateId);
       setTemplates((current) => current.filter((item) => item.id !== templateId));
       addToast({ type: 'success', title: 'Template deleted', message: 'Template removed.' });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Delete failed',
-        message: error?.response?.data?.error?.message || 'Unable to delete template.',
+        message: getErrorMessage(error, 'Unable to delete template.'),
       });
     }
   };

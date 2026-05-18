@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageChrome';
 import { Upload, ArrowRight, ArrowLeft, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { get, post } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
+import type { ImportJob } from '../../types';
 
 const STEPS = ['Upload', 'Map Fields', 'Validate', 'Import'];
 const TARGET_FIELDS = [
@@ -50,7 +51,7 @@ export default function ImportWizardPage() {
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [jobId, setJobId] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<any>(null);
+  const [jobStatus, setJobStatus] = useState<ImportJob | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +61,7 @@ export default function ImportWizardPage() {
     if (currentStep === 3 && jobId && (!jobStatus || (jobStatus.status !== 'COMPLETED' && jobStatus.status !== 'COMPLETED_WITH_ERRORS' && jobStatus.status !== 'FAILED'))) {
       interval = setInterval(async () => {
         try {
-          const res = await get<any>(`/imports/${jobId}`);
+          const res = await get<ImportJob>(`/imports/${jobId}`);
           setJobStatus(res);
         } catch {
           console.error('Failed to fetch job status');
@@ -122,7 +123,7 @@ export default function ImportWizardPage() {
         })
       ], { type: 'application/json' });
       formData.append('request', requestBlob);
-      const res = await post<any>('/imports', formData, {
+      const res = await post<ImportJob>('/imports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
       if (res?.id) {

@@ -17,6 +17,17 @@ type BootstrapStatus = {
   modules?: Record<string, unknown>;
 };
 
+function asErrorRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null ? value as Record<string, unknown> : null;
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  const record = asErrorRecord(error);
+  const normalized = asErrorRecord(record?.normalized);
+  const message = normalized?.message;
+  return typeof message === 'string' && message ? message : fallback;
+}
+
 export const BootstrapStatusPanel: React.FC = () => {
   const [status, setStatus] = useState<BootstrapStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -29,8 +40,8 @@ export const BootstrapStatusPanel: React.FC = () => {
     try {
       const data = await getBootstrapStatus();
       setStatus(data || null);
-    } catch (err: any) {
-      setError(err?.normalized?.message || 'Failed to load bootstrap status');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Failed to load bootstrap status'));
     } finally {
       setLoading(false);
     }
@@ -49,8 +60,8 @@ export const BootstrapStatusPanel: React.FC = () => {
     try {
       const data = await repairBootstrap(true);
       setStatus(data || null);
-    } catch (err: any) {
-      setError(err?.normalized?.message || 'Repair request failed');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, 'Repair request failed'));
     } finally {
       setRepairing(false);
     }

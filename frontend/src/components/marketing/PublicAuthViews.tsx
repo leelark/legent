@@ -22,7 +22,47 @@ import {
 type PublicTheme = 'dark' | 'light';
 type Step = 1 | 2 | 3;
 
+type AuthSessionResponse = {
+  status: string;
+  userId?: string;
+  tenantId?: string;
+  workspaceId?: string | null;
+  environmentId?: string | null;
+};
+
+type AuthAccessResponse = {
+  status: string;
+  userId: string;
+  tenantId: string;
+  roles?: string[];
+  workspaceId?: string | null;
+  environmentId?: string | null;
+};
+
 const PUBLIC_THEME_KEY = 'legent_public_theme';
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
+}
+
+function readPath(value: unknown, path: string[]): unknown {
+  return path.reduce<unknown>((current, key) => readRecord(current)?.[key], value);
+}
+
+function readAuthErrorMessage(error: unknown, fallback: string): string {
+  return (
+    readString(readPath(error, ['response', 'data', 'error', 'message'])) ??
+    (error instanceof Error ? readString(error.message) : null) ??
+    readString(readRecord(error)?.message) ??
+    fallback
+  );
+}
 
 export function LoginView() {
   const router = useRouter();
@@ -39,7 +79,7 @@ export function LoginView() {
     if (typeof window === 'undefined' || redirectingRef.current) return;
 
     if (isAuthenticated) {
-      get<{ status: string; userId?: string; tenantId?: string; workspaceId?: string | null; environmentId?: string | null }>('/auth/session')
+      get<AuthSessionResponse>('/auth/session')
         .then((session) => {
           if (session?.status === 'success' && session.userId) {
             ensureActiveContext({
@@ -75,12 +115,11 @@ export function LoginView() {
       const submittedEmail = String(formData.get('email') ?? email).trim();
       const submittedPassword = String(formData.get('password') ?? password);
 
-      const response = await post<{ status: string; userId: string; tenantId: string; roles: string[]; workspaceId?: string | null; environmentId?: string | null }>(
+      const data = await post<AuthAccessResponse>(
         '/auth/login',
         { email: submittedEmail, password: submittedPassword },
         submittedTenantId ? { headers: { 'X-Tenant-Id': submittedTenantId } } : undefined
       );
-      const data = (response as any).data || response;
       if (data?.status !== 'success') throw new Error('Login failed.');
 
       const userId = data.userId || 'anonymous';
@@ -102,9 +141,9 @@ export function LoginView() {
       redirectingRef.current = true;
       login(userId, roles);
       router.replace(ROUTES.EMAIL);
-    } catch (err: any) {
+    } catch (err: unknown) {
       redirectingRef.current = false;
-      setError(err?.response?.data?.error?.message || err?.message || 'Unable to login. Please check your credentials.');
+      setError(readAuthErrorMessage(err, 'Unable to login. Please check your credentials.'));
     } finally {
       setLoading(false);
     }
@@ -141,16 +180,15 @@ export function SignupView() {
     setError(null);
     setLoading(true);
     try {
-      const result = await post<{ status: string; userId: string; tenantId: string; roles: string[]; workspaceId?: string | null; environmentId?: string | null }>('/auth/signup', form);
-      const data = (result as any).data || result;
+      const data = await post<AuthAccessResponse>('/auth/signup', form);
       localStorage.setItem(USER_STORAGE_KEY, data.userId);
       localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(data.roles || []));
       login(data.userId, data.roles || []);
       setCurrentTenant({ id: data.tenantId, name: data.tenantId, slug: data.tenantId, status: 'ACTIVE', plan: 'STARTER' });
       await ensureActiveContext({ preferredTenantId: data.tenantId, preferredWorkspaceId: data.workspaceId ?? null, preferredEnvironmentId: data.environmentId ?? null });
       router.push('/onboarding');
-    } catch (err: any) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Unable to create account.');
+    } catch (err: unknown) {
+      setError(readAuthErrorMessage(err, 'Unable to create account.'));
     } finally {
       setLoading(false);
     }
@@ -189,8 +227,8 @@ export function ForgotPasswordView() {
     try {
       await authApi.forgotPassword(email.trim());
       setSent(true);
-    } catch (err: any) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Unable to submit request.');
+    } catch (err: unknown) {
+      setError(readAuthErrorMessage(err, 'Unable to submit request.'));
     } finally {
       setLoading(false);
     }
@@ -227,8 +265,8 @@ export function ResetPasswordView() {
     try {
       await authApi.resetPassword(token, password);
       setDone(true);
-    } catch (err: any) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Unable to reset password.');
+    } catch (err: unknown) {
+      setError(readAuthErrorMessage(err, 'Unable to reset password.'));
     } finally {
       setLoading(false);
     }
@@ -266,8 +304,8 @@ export function OnboardingView() {
     try {
       await authApi.startOnboarding({ workspaceId, stepKey: step === 1 ? 'workspace' : step === 2 ? 'sender' : 'provider', payload: { workspaceId, senderEmail, provider } });
       setStep((prev) => Math.min(prev + 1, 3) as Step);
-    } catch (err: any) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Unable to continue onboarding.');
+    } catch (err: unknown) {
+      setError(readAuthErrorMessage(err, 'Unable to continue onboarding.'));
     } finally {
       setLoading(false);
     }
@@ -279,8 +317,8 @@ export function OnboardingView() {
     try {
       await authApi.completeOnboarding({ workspaceId, payload: { workspaceId, senderEmail, provider } });
       router.push('/app/email');
-    } catch (err: any) {
-      setError(err?.response?.data?.error?.message || err?.message || 'Unable to complete onboarding.');
+    } catch (err: unknown) {
+      setError(readAuthErrorMessage(err, 'Unable to complete onboarding.'));
     } finally {
       setLoading(false);
     }

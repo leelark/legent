@@ -28,6 +28,7 @@ import {
   TestSendRecord,
   TemplateVersion,
   ValidationResponse,
+  type VersionCompareResponse,
   approveTemplateApproval,
   cancelTemplateApproval,
   compareTemplateVersions,
@@ -80,11 +81,49 @@ const defaultBlock = (html: string): ContentBlock => ({
   },
 });
 
-const parseMetadata = (metadata?: string | null): Record<string, any> => {
+type ApiErrorLike = {
+  normalized?: { message?: unknown };
+  response?: { data?: { error?: { message?: unknown } } };
+  message?: unknown;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function asArray<T>(value: unknown): T[] {
+  if (Array.isArray(value)) {
+    return value as T[];
+  }
+  if (!isRecord(value)) {
+    return [];
+  }
+  if (Array.isArray(value.content)) {
+    return value.content as T[];
+  }
+  if (Array.isArray(value.data)) {
+    return value.data as T[];
+  }
+  return [];
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (!isRecord(error)) {
+    return fallback;
+  }
+  const candidate = error as ApiErrorLike;
+  const message =
+    candidate.normalized?.message ??
+    candidate.response?.data?.error?.message ??
+    candidate.message;
+  return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
+const parseMetadata = (metadata?: string | null): Record<string, unknown> => {
   if (!metadata) return {};
   try {
     const parsed = JSON.parse(metadata);
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    return isRecord(parsed) ? parsed : {};
   } catch {
     return {};
   }
@@ -123,7 +162,7 @@ export default function TemplateStudioPage() {
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
   const [blocks, setBlocks] = useState<ContentBlock[]>([]);
-  const [metadata, setMetadata] = useState<Record<string, any>>({});
+  const [metadata, setMetadata] = useState<Record<string, unknown>>({});
 
   const [versions, setVersions] = useState<TemplateVersion[]>([]);
   const [approvals, setApprovals] = useState<TemplateApproval[]>([]);
@@ -144,7 +183,7 @@ export default function TemplateStudioPage() {
 
   const [compareLeft, setCompareLeft] = useState<number | null>(null);
   const [compareRight, setCompareRight] = useState<number | null>(null);
-  const [compareResult, setCompareResult] = useState<any>(null);
+  const [compareResult, setCompareResult] = useState<VersionCompareResponse | null>(null);
 
   const [testEmail, setTestEmail] = useState('');
   const [testMatrixEmails, setTestMatrixEmails] = useState('qa-desktop@example.com\nqa-mobile@example.com');
@@ -202,23 +241,23 @@ export default function TemplateStudioPage() {
       setBlocks(initialBlocks);
       setVersions(Array.isArray(versionsRes) ? versionsRes : []);
       setApprovals(Array.isArray(approvalsRes) ? approvalsRes : []);
-      const assetItems = Array.isArray(assetsRes) ? assetsRes : (assetsRes?.content ?? assetsRes?.data ?? []);
+      const assetItems = asArray<Asset>(assetsRes);
       setAssets(assetItems);
-      setSnippets(Array.isArray(snippetsRes) ? snippetsRes : (snippetsRes?.content ?? snippetsRes?.data ?? []));
-      setTokens(Array.isArray(tokensRes) ? tokensRes : (tokensRes?.content ?? tokensRes?.data ?? []));
+      setSnippets(asArray<ContentSnippet>(snippetsRes));
+      setTokens(asArray<PersonalizationToken>(tokensRes));
       setDynamicRules(Array.isArray(rulesRes) ? rulesRes : []);
-      setBrandKits(Array.isArray(brandKitsRes) ? brandKitsRes : (brandKitsRes?.content ?? brandKitsRes?.data ?? []));
+      setBrandKits(asArray<BrandKit>(brandKitsRes));
       setTestSendRecords(Array.isArray(testSendsRes) ? testSendsRes : []);
 
       if (versionsRes.length >= 2) {
         setCompareLeft(versionsRes[0].versionNumber);
         setCompareRight(versionsRes[1].versionNumber);
       }
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Failed to load template studio',
-        message: error?.response?.data?.error?.message || 'Unable to load template details.',
+        message: getErrorMessage(error, 'Unable to load template details.'),
       });
     } finally {
       setLoading(false);
@@ -294,11 +333,11 @@ export default function TemplateStudioPage() {
         publishedOnly: false,
       });
       setValidation(validationResult);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Preview failed',
-        message: error?.response?.data?.error?.message || 'Unable to generate preview.',
+        message: getErrorMessage(error, 'Unable to generate preview.'),
       });
     }
   };
@@ -308,11 +347,11 @@ export default function TemplateStudioPage() {
     try {
       const compare = await compareTemplateVersions(template.id, compareLeft, compareRight);
       setCompareResult(compare);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Compare failed',
-        message: error?.response?.data?.error?.message || 'Unable to compare versions.',
+        message: getErrorMessage(error, 'Unable to compare versions.'),
       });
     }
   };
@@ -441,11 +480,11 @@ export default function TemplateStudioPage() {
       anchor.download = `${template.name.replace(/\s+/g, '-').toLowerCase()}.html`;
       anchor.click();
       URL.revokeObjectURL(url);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Export failed',
-        message: error?.response?.data?.error?.message || 'Unable to export HTML.',
+        message: getErrorMessage(error, 'Unable to export HTML.'),
       });
     }
   };
@@ -453,13 +492,13 @@ export default function TemplateStudioPage() {
   const handleAssetSearch = async () => {
     try {
       const response = await listAssets({ page: 0, size: 40, q: assetQuery.trim() || undefined });
-      const assetItems = Array.isArray(response) ? response : (response?.content ?? response?.data ?? []);
+      const assetItems = asArray<Asset>(response);
       setAssets(assetItems);
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Asset search failed',
-        message: error?.response?.data?.error?.message || 'Unable to search assets.',
+        message: getErrorMessage(error, 'Unable to search assets.'),
       });
     }
   };
@@ -469,11 +508,11 @@ export default function TemplateStudioPage() {
       await uploadAsset(file);
       await handleAssetSearch();
       addToast({ type: 'success', title: 'Asset uploaded', message: `${file.name} uploaded.` });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Upload failed',
-        message: error?.response?.data?.error?.message || 'Unable to upload asset.',
+        message: getErrorMessage(error, 'Unable to upload asset.'),
       });
     }
   };
@@ -483,11 +522,11 @@ export default function TemplateStudioPage() {
       await uploadAssetsBulk(files);
       await handleAssetSearch();
       addToast({ type: 'success', title: 'Bulk upload complete', message: `${files.length} assets uploaded.` });
-    } catch (error: any) {
+    } catch (error) {
       addToast({
         type: 'error',
         title: 'Bulk upload failed',
-        message: error?.response?.data?.error?.message || 'Unable to upload assets.',
+        message: getErrorMessage(error, 'Unable to upload assets.'),
       });
     }
   };
@@ -502,7 +541,7 @@ export default function TemplateStudioPage() {
         isGlobal: true,
       });
       const response = await listContentSnippets(0, 50);
-      setSnippets(Array.isArray(response) ? response : (response?.content ?? response?.data ?? []));
+      setSnippets(asArray<ContentSnippet>(response));
       addToast({ type: 'success', title: 'Snippet saved', message: `{{snippet.${snippetKey.trim()}}} is available.` });
     });
   };
@@ -518,7 +557,7 @@ export default function TemplateStudioPage() {
         required: false,
       });
       const response = await listPersonalizationTokens(0, 100);
-      setTokens(Array.isArray(response) ? response : (response?.content ?? response?.data ?? []));
+      setTokens(asArray<PersonalizationToken>(response));
       addToast({ type: 'success', title: 'Token registered', message: `{{${tokenKey.trim()}}} can now render safely.` });
     });
   };

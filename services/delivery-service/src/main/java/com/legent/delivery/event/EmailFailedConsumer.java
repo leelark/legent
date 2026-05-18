@@ -29,6 +29,16 @@ public class EmailFailedConsumer {
         String idempotencyKey = envelope != null ? envelope.getIdempotencyKey() : null;
         boolean claimed = false;
         try {
+            if (envelope == null) {
+                throw new InvalidFailedEmailEventException("Missing failed-email event envelope");
+            }
+            tenantId = requireTenantId(envelope);
+            eventId = normalize(envelope.getEventId());
+            idempotencyKey = normalize(envelope.getIdempotencyKey());
+            requireEventType(envelope);
+            if (!hasClaimKey(eventId, idempotencyKey)) {
+                throw new InvalidFailedEmailEventException("Missing eventId or idempotencyKey for failed-email event");
+            }
             Map<String, Object> payload = envelope.getPayload() != null ? envelope.getPayload() : Map.of();
             workspaceId = resolveWorkspaceId(envelope, payload);
             claimed = idempotencyService.claimIfNew(
@@ -43,19 +53,26 @@ public class EmailFailedConsumer {
             log.warn("Received failed email event: {}", envelope.getEventId());
             if (envelope.getRetryCount() < 3) {
                 EventEnvelope<Map<String, Object>> retryEnvelope = envelope.forRetry();
-                eventPublisher.publish(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, envelope.getTenantId(), retryEnvelope).join();
+                eventPublisher.publish(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED, tenantId, retryEnvelope).join();
                 log.info("Scheduled retry for failed email event [{}] attempt {}", envelope.getEventId(), retryEnvelope.getRetryCount());
             } else {
-                eventPublisher.publish(AppConstants.TOPIC_EMAIL_FAILED_DLQ, envelope.getTenantId(), envelope).join();
+                eventPublisher.publish(AppConstants.TOPIC_EMAIL_FAILED_DLQ, tenantId, envelope).join();
                 log.warn("Max retry reached for email event [{}], moved to DLQ", envelope.getEventId());
             }
             idempotencyService.markProcessed(tenantId, workspaceId, AppConstants.TOPIC_EMAIL_FAILED, eventId, idempotencyKey);
+        } catch (InvalidFailedEmailEventException e) {
+            if (claimed) {
+                releaseClaim(tenantId, workspaceId, eventId, idempotencyKey, e);
+            }
+            log.warn("Rejecting invalid failed-email event for retry/DLQ. eventId={}, reason={}",
+                    eventId(envelope), e.getMessage());
+            throw new IllegalStateException("Invalid failed-email event", e);
         } catch (Exception e) {
             if (claimed) {
                 releaseClaim(tenantId, workspaceId, eventId, idempotencyKey, e);
             }
-            log.error("Error processing failed email event", e);
-            throw new RuntimeException(e);
+            log.error("Error processing failed email event {}", eventId(envelope), e);
+            throw new IllegalStateException("Failed to process failed email event " + eventId(envelope), e);
         }
     }
 
@@ -73,16 +90,59 @@ public class EmailFailedConsumer {
     }
 
     private String resolveWorkspaceId(EventEnvelope<Map<String, Object>> event, Map<String, Object> payload) {
-        if (event.getWorkspaceId() != null && !event.getWorkspaceId().isBlank()) {
-            return event.getWorkspaceId();
+        String envelopeWorkspaceId = normalize(event.getWorkspaceId());
+        if (envelopeWorkspaceId != null) {
+            return envelopeWorkspaceId;
         }
         Object fromPayload = payload.get("workspaceId");
-        if (fromPayload != null) {
-            String parsed = String.valueOf(fromPayload).trim();
-            if (!parsed.isEmpty()) {
-                return parsed;
-            }
+        String payloadWorkspaceId = normalize(fromPayload);
+        if (payloadWorkspaceId != null) {
+            return payloadWorkspaceId;
         }
-        throw new IllegalArgumentException("Missing workspaceId for failed event " + event.getEventId());
+        throw new InvalidFailedEmailEventException("Missing workspaceId for failed-email event " + event.getEventId());
+    }
+
+    private String requireTenantId(EventEnvelope<Map<String, Object>> event) {
+        String tenantId = normalize(event.getTenantId());
+        if (tenantId != null) {
+            return tenantId;
+        }
+        throw new InvalidFailedEmailEventException("Missing tenantId for failed-email event " + event.getEventId());
+    }
+
+    private void requireEventType(EventEnvelope<Map<String, Object>> event) {
+        String eventType = normalize(event.getEventType());
+        if (AppConstants.TOPIC_EMAIL_FAILED.equals(eventType)) {
+            return;
+        }
+        if (eventType == null) {
+            throw new InvalidFailedEmailEventException("Missing eventType for failed-email event " + event.getEventId());
+        }
+        throw new InvalidFailedEmailEventException("Unsupported failed-email event type: " + eventType);
+    }
+
+    private boolean hasClaimKey(String eventId, String idempotencyKey) {
+        return eventId != null || idempotencyKey != null;
+    }
+
+    private String normalize(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String parsed = String.valueOf(value).trim();
+        return parsed.isEmpty() ? null : parsed;
+    }
+
+    private String eventId(EventEnvelope<Map<String, Object>> event) {
+        if (event == null || event.getEventId() == null || event.getEventId().isBlank()) {
+            return "unknown";
+        }
+        return event.getEventId();
+    }
+
+    private static class InvalidFailedEmailEventException extends RuntimeException {
+        private InvalidFailedEmailEventException(String message) {
+            super(message);
+        }
     }
 }

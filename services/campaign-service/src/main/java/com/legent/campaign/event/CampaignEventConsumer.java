@@ -57,10 +57,7 @@ public class CampaignEventConsumer {
         boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
-            String workspaceId = resolveWorkspaceId(event, payload);
-            if (workspaceId == null) {
-                return;
-            }
+            String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_AUDIENCE_RESOLVED);
             String chunkIdentity = audienceChunkIdentity(event, payload);
             registration = registerEvent(event, AppConstants.TOPIC_AUDIENCE_RESOLVED, workspaceId, chunkIdentity, chunkIdentity);
             if (!registration.claimed()) {
@@ -98,10 +95,7 @@ public class CampaignEventConsumer {
         boolean sideEffectsComplete = false;
         try {
             Map<String, Object> payload = payloadAsMap(event.getPayload());
-            String workspaceId = resolveWorkspaceId(event, payload);
-            if (workspaceId == null) {
-                return;
-            }
+            String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_SEND_PROCESSING);
             registration = registerEvent(event, AppConstants.TOPIC_SEND_PROCESSING, workspaceId);
             if (!registration.claimed()) {
                 return;
@@ -131,10 +125,7 @@ public class CampaignEventConsumer {
         boolean sideEffectsComplete = false;
         try {
             Map<String, String> payload = event.getPayload() != null ? event.getPayload() : Collections.emptyMap();
-            String workspaceId = resolveWorkspaceId(event, payload);
-            if (workspaceId == null) {
-                return;
-            }
+            String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_BATCH_CREATED);
             registration = registerEvent(event, AppConstants.TOPIC_BATCH_CREATED, workspaceId);
             if (!registration.claimed()) {
                 return;
@@ -169,16 +160,7 @@ public class CampaignEventConsumer {
                 log.warn("Ignoring send.requested without campaignId: {}", event.getEventId());
                 return;
             }
-            String workspaceId = resolveWorkspaceId(event, payload);
-            if (event.getWorkspaceId() == null && stringValue(payload.get("workspaceId")) == null) {
-                workspaceId = campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(event.getTenantId(), campaignId)
-                        .map(Campaign::getWorkspaceId)
-                        .orElse(workspaceId);
-            }
-            if (workspaceId == null || workspaceId.isBlank()) {
-                log.error("Dropping send.requested event without workspaceId. eventId={}, campaignId={}", event.getEventId(), campaignId);
-                return;
-            }
+            String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_SEND_REQUESTED);
             registration = registerEvent(event, AppConstants.TOPIC_SEND_REQUESTED, workspaceId);
             if (!registration.claimed()) {
                 return;
@@ -508,6 +490,14 @@ public class CampaignEventConsumer {
         }
         log.error("Dropping campaign event without workspaceId. eventId={}, eventType={}", event.getEventId(), event.getEventType());
         return null;
+    }
+
+    private String requireWorkspaceId(EventEnvelope<?> event, Map<String, ?> payload, String topic) {
+        String workspaceId = resolveWorkspaceId(event, payload);
+        if (workspaceId == null || workspaceId.isBlank()) {
+            throw new IllegalArgumentException("workspaceId is required for " + topic + " event " + eventId(event));
+        }
+        return workspaceId;
     }
 
     private void applyTenantContext(EventEnvelope<?> event, String workspaceId) {

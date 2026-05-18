@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { PageHeader } from '@/components/ui/PageChrome';
 import { get } from '@/lib/api-client';
+import { pageItems, type ImportJob, type PagedResponse } from '../types';
 
 const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
   COMPLETED: 'success',
@@ -23,12 +24,12 @@ const columns = [
   {
     key: 'status',
     header: 'Status',
-    render: (row: any) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge>,
+    render: (row: ImportJob) => <Badge variant={statusBadgeMap[row.status] || 'default'}>{row.status}</Badge>,
   },
   {
     key: 'progress',
     header: 'Progress',
-    render: (row: any) => (
+    render: (row: ImportJob) => (
       <div className="flex items-center gap-2">
         <div className="h-1.5 w-24 overflow-hidden rounded-full bg-surface-secondary">
           <div
@@ -43,12 +44,12 @@ const columns = [
   {
     key: 'rows',
     header: 'Rows',
-    render: (row: any) => `${row.successRows || 0} / ${row.totalRows || 0}`,
+    render: (row: ImportJob) => `${row.successRows || 0} / ${row.totalRows || 0}`,
   },
   {
     key: 'actions',
     header: '',
-    render: (row: any) => (
+    render: (row: ImportJob) => (
       <Link href={`/app/audience/imports/${row.id}`} className="text-xs text-brand-600 hover:underline">
         Details
       </Link>
@@ -57,14 +58,14 @@ const columns = [
 ];
 
 export default function ImportsPage() {
-  const [imports, setImports] = useState<any[]>([]);
+  const [imports, setImports] = useState<ImportJob[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchImports = async () => {
     setLoading(true);
     try {
-      const response = await get<any>('/imports?page=0&size=50');
-      setImports(response.content || response || []);
+      const response = await get<PagedResponse<ImportJob> | ImportJob[]>('/imports?page=0&size=50');
+      setImports(pageItems(response));
     } catch {
       setImports([]);
     } finally {
@@ -89,7 +90,7 @@ export default function ImportsPage() {
         <Table
           columns={columns}
           data={imports}
-          rowKey={(row: any) => row.id}
+          rowKey={(row: ImportJob) => row.id}
           emptyMessage="No imports yet"
           loading={loading}
         />

@@ -3,10 +3,19 @@ import React, { useEffect, useState } from 'react';
 import { getDmarcReports } from '@/lib/dmarc-api';
 import { Card } from '@/components/ui/Card';
 
+interface DmarcReport {
+  id: number | string;
+  reportType: string;
+  receivedAt: string;
+  parsedSummary: unknown;
+}
+
 export const DmarcDashboard: React.FC<{ domain: string }> = ({ domain }) => {
-  const [reports, setReports] = useState<any[]>([]);
+  const [reports, setReports] = useState<DmarcReport[]>([]);
   useEffect(() => {
-    getDmarcReports(domain).then(setReports).catch(() => setReports([]));
+    getDmarcReports(domain)
+      .then((response) => setReports(response as DmarcReport[]))
+      .catch(() => setReports([]));
   }, [domain]);
 
   if (!reports.length) return null;

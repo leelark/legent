@@ -1,6 +1,9 @@
 import { get, post } from '@/lib/api-client';
 
-export type PerformanceRecord = Record<string, any>;
+export type PerformanceRecord = Record<string, unknown> & {
+  deltas?: Record<string, unknown> | string;
+  id?: string;
+};
 
 export type PerformanceSummary = {
   personalizationEvaluations: PerformanceRecord[];

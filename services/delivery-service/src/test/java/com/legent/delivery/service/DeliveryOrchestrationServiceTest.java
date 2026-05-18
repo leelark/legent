@@ -26,6 +26,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -67,6 +68,7 @@ class DeliveryOrchestrationServiceTest {
                 "subscriberId", "sub-1",
                 "campaignId", "camp-1",
                 "workspaceId", "workspace-1",
+                "contentReference", "cr_1234567890abcdef1234567890abcdef",
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
@@ -128,6 +130,84 @@ class DeliveryOrchestrationServiceTest {
         ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
         verify(messageLogRepository).saveAndFlush(logCaptor.capture());
         assertEquals("cr_1234567890abcdef1234567890abcdef", logCaptor.getValue().getContentReference());
+    }
+
+    @Test
+    void processSendRequest_MissingContentReferenceFailsTerminallyBeforeSafetyOrAdapter() {
+        Map<String, Object> payload = Map.of(
+                "email", "test@example.com",
+                "subscriberId", "sub-1",
+                "campaignId", "camp-1",
+                "workspaceId", "workspace-1",
+                "htmlContent", "Hello",
+                "subject", "Hi"
+        );
+
+        stubNewLogClaim("tenant-1", "workspace-1", "evt-123");
+
+        orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
+
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).save(logCaptor.capture());
+        assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
+        assertEquals("CONTENT_UNAVAILABLE", logCaptor.getValue().getFailureClass());
+        assertEquals("Delivery contentReference is required", logCaptor.getValue().getProviderResponse());
+        assertNull(logCaptor.getValue().getNextRetryAt());
+        verify(inboxSafetyService, never()).evaluate(any());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString());
+        verify(contentProcessingService, never()).processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean());
+        verify(eventPublisher).publishEmailFailed(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("evt-123"),
+                eq("camp-1"),
+                isNull(),
+                isNull(),
+                eq("sub-1"),
+                contains("contentReference"),
+                anyMap());
+        verify(eventPublisher, never()).publishRetryScheduled(anyString(), anyString(), anyString(), anyLong(), anyString(), anyMap());
+    }
+
+    @Test
+    void processSendRequest_UnresolvedReferenceFailsTerminallyBeforeSafetyOrAdapter() {
+        Map<String, Object> payload = Map.of(
+                "email", "test@example.com",
+                "subscriberId", "sub-1",
+                "campaignId", "camp-1",
+                "workspaceId", "workspace-1",
+                "messageId", "msg-1",
+                "contentReference", "cr_missing"
+        );
+
+        stubNewLogClaim("tenant-1", "workspace-1", "msg-1");
+        when(cacheService.get("email:content:cr_missing", String.class)).thenReturn(Optional.empty());
+        when(contentServiceClient.fetchRenderedContent("tenant-1", "workspace-1", "cr_missing")).thenReturn(Map.of());
+
+        orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
+
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).save(logCaptor.capture());
+        assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
+        assertEquals("CONTENT_UNAVAILABLE", logCaptor.getValue().getFailureClass());
+        assertEquals("Delivery content is missing required subject/htmlBody for contentReference cr_missing",
+                logCaptor.getValue().getProviderResponse());
+        assertNull(logCaptor.getValue().getNextRetryAt());
+        verify(contentServiceClient).fetchRenderedContent("tenant-1", "workspace-1", "cr_missing");
+        verify(inboxSafetyService, never()).evaluate(any());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString());
+        verify(contentProcessingService, never()).processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean());
+        verify(eventPublisher).publishEmailFailed(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("msg-1"),
+                eq("camp-1"),
+                isNull(),
+                isNull(),
+                eq("sub-1"),
+                contains("subject/htmlBody"),
+                anyMap());
+        verify(eventPublisher, never()).publishRetryScheduled(anyString(), anyString(), anyString(), anyLong(), anyString(), anyMap());
     }
 
     @Test
@@ -366,6 +446,7 @@ class DeliveryOrchestrationServiceTest {
         Map<String, Object> payload = Map.of(
                 "email", "bounce@example.com",
                 "workspaceId", "workspace-1",
+                "contentReference", "cr_1234567890abcdef1234567890abcdef",
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
@@ -403,6 +484,7 @@ class DeliveryOrchestrationServiceTest {
         Map<String, Object> payload = Map.of(
                 "email", "delay@example.com",
                 "workspaceId", "workspace-1",
+                "contentReference", "cr_1234567890abcdef1234567890abcdef",
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
@@ -438,7 +520,10 @@ class DeliveryOrchestrationServiceTest {
     void processSendRequest_InvalidEmail_DoesNotSelectProviderAndMarksFailed() {
         Map<String, Object> payload = Map.of(
                 "email", "invalid-email",
-                "workspaceId", "workspace-1"
+                "workspaceId", "workspace-1",
+                "contentReference", "cr_1234567890abcdef1234567890abcdef",
+                "htmlContent", "Hello",
+                "subject", "Hi"
         );
 
         when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId("tenant-1", "workspace-1", "evt-123")).thenReturn(Optional.empty());
@@ -487,5 +572,18 @@ class DeliveryOrchestrationServiceTest {
         log.setFromEmail("sender@example.com");
         log.setContentReference(contentReference);
         return log;
+    }
+
+    private void stubNewLogClaim(String tenantId, String workspaceId, String messageId) {
+        when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(tenantId, workspaceId, messageId))
+                .thenReturn(Optional.empty());
+        when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
+            MessageLog log = invocation.getArgument(0, MessageLog.class);
+            log.setId("log-1");
+            return log;
+        });
+        when(messageLogRepository.claimForProcessing(nullable(String.class),
+                eq(MessageLog.DeliveryStatus.PENDING.name()),
+                eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
     }
 }
