@@ -25,6 +25,7 @@ public class WorkspaceContextFilter extends OncePerRequestFilter {
     private static final Set<String> WORKSPACE_PROTECTED_PREFIXES = Set.of(
             "/api/v1/admin/configs",
             "/api/v1/admin/settings",
+            "/api/v1/admin/operations",
             "/api/v1/admin/public-content",
             "/api/v1/admin/branding",
             "/api/v1/performance-intelligence",

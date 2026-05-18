@@ -79,6 +79,9 @@ public class GlobalEnterpriseService {
         Map<String, Object> model = request.getOperatingModelId() == null || request.getOperatingModelId().isBlank()
                 ? latestOperatingModel(workspaceId).orElse(Collections.emptyMap())
                 : requireById("global_operating_models", request.getOperatingModelId());
+        if (model.get("id") == null) {
+            throw new IllegalArgumentException("Active operating model is required before creating a failover drill");
+        }
         int plannedRpo = request.getPlannedRpoMinutes() == null ? intValue(model.get("rpo_target_minutes"), 15) : request.getPlannedRpoMinutes();
         int plannedRto = request.getPlannedRtoMinutes() == null ? intValue(model.get("rto_target_minutes"), 60) : request.getPlannedRtoMinutes();
         int actualRpo = request.getActualRpoMinutes() == null ? 0 : request.getActualRpoMinutes();
@@ -463,7 +466,7 @@ public class GlobalEnterpriseService {
     @Transactional
     public Map<String, Object> upsertConnectorInstance(GlobalEnterpriseDto.ConnectorInstanceRequest request) {
         String workspaceId = workspace(request.getWorkspaceId());
-        Map<String, Object> template = findConnectorTemplate(request.getTemplateId(), request.getConnectorKey()).orElse(Collections.emptyMap());
+        Map<String, Object> template = requireConnectorTemplate(request.getTemplateId(), request.getConnectorKey());
         List<String> authModes = readStringList(template.get("auth_modes"));
         String authMode = normalize(request.getAuthMode());
         if (!authModes.isEmpty() && !authModes.contains(authMode)) {
@@ -785,6 +788,17 @@ public class GlobalEnterpriseService {
                     """, map("tenantId", tenant(), "connectorKey", connectorKey));
         }
         return rows.stream().findFirst();
+    }
+
+    private Map<String, Object> requireConnectorTemplate(String templateId, String connectorKey) {
+        Map<String, Object> template = findConnectorTemplate(templateId, connectorKey)
+                .orElseThrow(() -> new IllegalArgumentException("Connector template not found for connector key: " + connectorKey));
+        String requestedConnectorKey = blankToNull(connectorKey);
+        String templateConnectorKey = blankToNull(asString(template.get("connector_key")));
+        if (requestedConnectorKey == null || templateConnectorKey == null || !templateConnectorKey.equals(requestedConnectorKey)) {
+            throw new IllegalArgumentException("Connector template does not match connector key: " + connectorKey);
+        }
+        return template;
     }
 
     private java.util.Optional<Map<String, Object>> findOptimizationPolicy(String workspaceId, String policyKey) {

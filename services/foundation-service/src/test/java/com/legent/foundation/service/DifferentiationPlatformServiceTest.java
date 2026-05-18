@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -44,7 +44,7 @@ class DifferentiationPlatformServiceTest {
 
     @Test
     void createCopilotRecommendation_requiresHumanApprovalWhenPolicyRiskIsHigh() {
-        when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
 
         DifferentiationDto.CopilotRecommendationRequest request = new DifferentiationDto.CopilotRecommendationRequest();
         request.setArtifactType("campaign");
@@ -71,7 +71,7 @@ class DifferentiationPlatformServiceTest {
 
     @Test
     void evaluateDecisionPolicy_selectsBestEligibleVariantAndRecordsEvent() {
-        when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(Map.of(
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(Map.of(
                 "id", "policy-1",
                 "workspace_id", "workspace-1",
                 "policy_key", "next-best-offer",
@@ -82,7 +82,7 @@ class DifferentiationPlatformServiceTest {
                 ),
                 "guardrails", Map.of("blockedChannels", List.of("SMS"))
         )));
-        when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
 
         DifferentiationDto.DecisionEvaluateRequest request = new DifferentiationDto.DecisionEvaluateRequest();
         request.setPolicyKey("next-best-offer");
@@ -99,7 +99,7 @@ class DifferentiationPlatformServiceTest {
 
     @Test
     void evaluateSloPolicy_opensIncidentAndTriggersSelfHealingWhenBurnExceeded() {
-        when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(Map.of(
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(Map.of(
                 "id", "slo-1",
                 "workspace_id", "workspace-1",
                 "service_name", "delivery-service",
@@ -108,7 +108,7 @@ class DifferentiationPlatformServiceTest {
                 "self_healing_actions", List.of(Map.of("action", "scale_workers")),
                 "capacity_forecast", Map.of("unit", "workers")
         )));
-        when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
 
         DifferentiationDto.SloEvaluateRequest request = new DifferentiationDto.SloEvaluateRequest();
         request.setServiceName("delivery-service");

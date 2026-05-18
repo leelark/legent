@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -42,8 +43,8 @@ class ComplianceEvidenceServiceTest {
 
     @Test
     void recordAuditEvidence_appendsHashChainFields() {
-        when(repository.queryForList(any(String.class), any(Map.class))).thenReturn(List.of(Map.of("event_hash", "prev-hash")));
-        when(repository.insert(eq("immutable_audit_evidence"), any(Map.class), eq(List.of("payload"))))
+        when(repository.queryForList(any(String.class), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(Map.of("event_hash", "prev-hash")));
+        when(repository.insert(eq("immutable_audit_evidence"), ArgumentMatchers.<Map<String, Object>>any(), eq(List.of("payload"))))
                 .thenAnswer(invocation -> invocation.getArgument(1));
 
         ComplianceDto.AuditEvidenceRequest request = new ComplianceDto.AuditEvidenceRequest();

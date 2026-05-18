@@ -10,6 +10,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,7 +22,6 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -35,6 +36,9 @@ class CorePlatformServiceTest {
 
     @Mock
     private AdminOperationsService adminOperationsService;
+
+    @Captor
+    private ArgumentCaptor<Map<String, Object>> mapCaptor;
 
     private CorePlatformService service;
 
@@ -53,7 +57,7 @@ class CorePlatformServiceTest {
 
     @Test
     void listWorkspaces_filtersToCurrentWorkspaceForWorkspaceRole() {
-        when(repository.queryForList(anyString(), any(Map.class)))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
                 .thenReturn(List.of(Map.of("id", "workspace-1", "name", "Default")));
 
         List<Map<String, Object>> result = service.listWorkspaces(Set.of("WORKSPACE_OWNER"));
@@ -61,7 +65,7 @@ class CorePlatformServiceTest {
         assertThat(result).extracting(row -> row.get("id")).containsExactly("workspace-1");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> params = mapCaptor;
         verify(repository).queryForList(sql.capture(), params.capture());
         verify(repository, never()).listByTenant(eq("workspaces"), anyString(), anyString());
         assertThat(sql.getValue()).contains("FROM workspaces").contains("id = :workspaceId");
@@ -71,7 +75,7 @@ class CorePlatformServiceTest {
 
     @Test
     void listMemberships_filtersToCurrentWorkspaceForWorkspaceRole() {
-        when(repository.queryForList(anyString(), any(Map.class)))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
                 .thenReturn(List.of(Map.of("id", "membership-1", "workspace_id", "workspace-1")));
 
         List<Map<String, Object>> result = service.listMemberships(Set.of("WORKSPACE_OWNER"));
@@ -79,7 +83,7 @@ class CorePlatformServiceTest {
         assertThat(result).extracting(row -> row.get("id")).containsExactly("membership-1");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> params = mapCaptor;
         verify(repository).queryForList(sql.capture(), params.capture());
         verify(repository, never()).listByTenant(eq("membership_links"), anyString(), anyString());
         assertThat(sql.getValue()).contains("FROM membership_links").contains("workspace_id = :workspaceId");
@@ -89,7 +93,7 @@ class CorePlatformServiceTest {
 
     @Test
     void listTeams_filtersToCurrentWorkspaceForWorkspaceRole() {
-        when(repository.queryForList(anyString(), any(Map.class)))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
                 .thenReturn(List.of(Map.of("id", "team-1", "workspace_id", "workspace-1")));
 
         List<Map<String, Object>> result = service.listTeams(Set.of("WORKSPACE_OWNER"));
@@ -97,7 +101,7 @@ class CorePlatformServiceTest {
         assertThat(result).extracting(row -> row.get("id")).containsExactly("team-1");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> params = mapCaptor;
         verify(repository).queryForList(sql.capture(), params.capture());
         verify(repository, never()).listByTenant(eq("teams"), anyString(), anyString());
         assertThat(sql.getValue()).contains("FROM teams").contains("workspace_id = :workspaceId");
@@ -107,7 +111,7 @@ class CorePlatformServiceTest {
 
     @Test
     void listDepartments_filtersToCurrentWorkspaceForWorkspaceRole() {
-        when(repository.queryForList(anyString(), any(Map.class)))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
                 .thenReturn(List.of(Map.of("id", "department-1", "workspace_id", "workspace-1")));
 
         List<Map<String, Object>> result = service.listDepartments(Set.of("WORKSPACE_OWNER"));
@@ -115,7 +119,7 @@ class CorePlatformServiceTest {
         assertThat(result).extracting(row -> row.get("id")).containsExactly("department-1");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> params = mapCaptor;
         verify(repository).queryForList(sql.capture(), params.capture());
         verify(repository, never()).listByTenant(eq("departments"), anyString(), anyString());
         assertThat(sql.getValue()).contains("FROM departments").contains("workspace_id = :workspaceId");
@@ -125,7 +129,7 @@ class CorePlatformServiceTest {
 
     @Test
     void listAuditEvents_filtersToCurrentWorkspaceForWorkspaceRole() {
-        when(repository.queryForList(anyString(), any(Map.class)))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
                 .thenReturn(List.of(Map.of("id", "audit-1", "workspace_id", "workspace-1")));
 
         List<Map<String, Object>> result = service.listAuditEvents(null, null, 100, Set.of("WORKSPACE_OWNER"));
@@ -133,7 +137,7 @@ class CorePlatformServiceTest {
         assertThat(result).extracting(row -> row.get("id")).containsExactly("audit-1");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> params = mapCaptor;
         verify(repository).queryForList(sql.capture(), params.capture());
         assertThat(sql.getValue()).contains("FROM core_audit_events").contains("workspace_id = :workspaceId");
         assertThat(params.getValue()).containsEntry("tenantId", "tenant-1")
@@ -146,12 +150,12 @@ class CorePlatformServiceTest {
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("workspaceId does not match");
 
-        verify(repository, never()).queryForList(anyString(), any(Map.class));
+        verify(repository, never()).queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any());
     }
 
     @Test
     void listAuditEvents_allowsTenantAdminTenantWideRead() {
-        when(repository.queryForList(anyString(), any(Map.class)))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
                 .thenReturn(List.of(Map.of("id", "audit-tenant")));
         TenantContext.setWorkspaceId(null);
 
@@ -160,7 +164,7 @@ class CorePlatformServiceTest {
         assertThat(result).extracting(row -> row.get("id")).containsExactly("audit-tenant");
 
         ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<Map<String, Object>> params = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> params = mapCaptor;
         verify(repository).queryForList(sql.capture(), params.capture());
         assertThat(sql.getValue()).doesNotContain("workspace_id = :workspaceId");
         assertThat(params.getValue()).containsEntry("tenantId", "tenant-1")
@@ -175,7 +179,7 @@ class CorePlatformServiceTest {
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("Workspace context is required");
 
-        verify(repository, never()).queryForList(anyString(), any(Map.class));
+        verify(repository, never()).queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any());
         verify(repository, never()).listByTenant(anyString(), anyString(), anyString());
     }
 
@@ -188,21 +192,21 @@ class CorePlatformServiceTest {
                 .isInstanceOf(AccessDeniedException.class)
                 .hasMessageContaining("tenantId does not match");
 
-        verify(repository, never()).insert(anyString(), any(Map.class), any(List.class));
+        verify(repository, never()).insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), ArgumentMatchers.<List<String>>any());
     }
 
     @Test
     void createRoleDefinition_usesCurrentTenantWhenRequestTenantIsBlank() {
         CorePlatformDto.RoleDefinitionRequest request = roleDefinitionRequest();
         request.setTenantId(" ");
-        when(repository.insert(eq("role_definitions"), any(Map.class), eq(List.of("permissions", "metadata"))))
+        when(repository.insert(eq("role_definitions"), ArgumentMatchers.<Map<String, Object>>any(), eq(List.of("permissions", "metadata"))))
                 .thenReturn(Map.of("id", "role-1", "tenant_id", "tenant-1", "role_key", "workspace.viewer"));
 
         Map<String, Object> result = service.createRoleDefinition(request);
 
         assertThat(result).containsEntry("tenant_id", "tenant-1");
 
-        ArgumentCaptor<Map<String, Object>> values = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<Map<String, Object>> values = mapCaptor;
         verify(repository).insert(eq("role_definitions"), values.capture(), eq(List.of("permissions", "metadata")));
         assertThat(values.getValue()).containsEntry("tenant_id", "tenant-1");
     }

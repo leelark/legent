@@ -41,6 +41,13 @@ const cases = [
     authenticated: true,
   },
   {
+    name: 'delivery desktop',
+    path: '/app/deliverability',
+    viewport: { width: 1440, height: 900 },
+    heading: /Delivery Studio/i,
+    authenticated: true,
+  },
+  {
     name: 'admin desktop',
     path: '/app/admin',
     viewport: { width: 1440, height: 900 },
@@ -54,6 +61,29 @@ const cases = [
     heading: /Enterprise Settings/i,
     authenticated: true,
   },
+  {
+    name: 'settings desktop',
+    path: '/app/settings/platform',
+    viewport: { width: 1440, height: 900 },
+    heading: /Enterprise Settings/i,
+    authenticated: true,
+  },
+  {
+    name: 'settings deliverability desktop',
+    path: '/app/settings/deliverability',
+    viewport: { width: 1440, height: 900 },
+    heading: /Enterprise Settings/i,
+    landmark: /Deliverability Settings/i,
+    authenticated: true,
+  },
+  {
+    name: 'settings deliverability mobile',
+    path: '/app/settings/deliverability',
+    viewport: { width: 390, height: 844 },
+    heading: /Enterprise Settings/i,
+    landmark: /Deliverability Settings/i,
+    authenticated: true,
+  },
 ];
 
 for (const item of cases) {
@@ -63,7 +93,11 @@ for (const item of cases) {
     }
     await page.setViewportSize(item.viewport);
     await page.goto(item.path, { waitUntil: 'networkidle' });
+    await expect(page).toHaveURL(new RegExp(`${item.path}$`));
     await expect(page.getByRole('heading', { name: item.heading }).first()).toBeVisible();
+    if ('landmark' in item) {
+      await expect(page.getByRole('heading', { name: item.landmark }).first()).toBeVisible();
+    }
 
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(2);

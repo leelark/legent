@@ -1,8 +1,11 @@
 # Failed Fixes
 
-Last updated: 2026-05-16.
+Last updated: 2026-05-18.
 
 - No failed fix attempt recorded during orchestration bootstrap.
+- 2026-05-18: First content-service focused Maven run failed with missing shared classes because it used `.\mvnw.cmd -pl services/content-service test` without `-am`. Cause: dependent shared modules were not included in the reactor. Safer pattern: use `.\mvnw.cmd -pl services/content-service -am test` for service-local validation that needs shared source modules.
+- 2026-05-18: First content repository regression test failed to load with Flyway on H2 because the production PostgreSQL migration uses `TEXT[]`/`JSONB`. Cause: `@DataJpaTest` defaulted to running Flyway migrations against H2. Fixed by disabling Flyway and letting Hibernate create the minimal test schema for the repository slice.
+- 2026-05-18: First repository regression assertion failed because the test read entity IDs from the original transient objects after repository save. Cause: the save result was not captured. Fixed by storing the returned saved entities and using their IDs.
 - 2026-05-14: First pending-sweep frontend sanitizer rerun failed four landing-form assertions because DOMPurify removes forbidden `<button>` tags but preserves their text nodes. Cause: test expectation assumed content deletion instead of tag/control deletion. Fixed by asserting removal of form/control tags and target attributes, then rerunning `npm run test:e2e:sanitize` successfully.
 - 2026-05-13: During Compose health drift fix, two throwaway `docker compose config --quiet` checks with temporary `REDIS_PASSWORD` failed before Compose ran because wrapper quoting was wrong. Cause: shell-wrapper quoting, not Compose config. Avoid repeating by setting/removing `$env:REDIS_PASSWORD` within one PowerShell command and checking `$LASTEXITCODE`.
 - 2026-05-13: First Kafka retry/DLQ validation failed in `KafkaConsumerConfigTest.kafkaErrorHandler_usesRecoveringHandlerForDlqPublishing` with `NullPointerException` from `DefaultKafkaConsumerFactory` because the direct unit test called `kafkaListenerContainerFactory()` without setting `@Value` fields. Cause: test setup, not production config. Fixed by populating injected fields with `ReflectionTestUtils` before factory creation.

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
@@ -44,7 +44,7 @@ class ExtensionGovernancePerformanceServiceTest {
 
     @Test
     void validatePackage_failsUnsafeScriptsAndUnapprovedUnsafeScopes() {
-        when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(Map.of(
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(Map.of(
                 "id", "pkg-1",
                 "workspace_id", "workspace-1",
                 "approval_status", "PENDING",
@@ -53,7 +53,7 @@ class ExtensionGovernancePerformanceServiceTest {
                 "scripts", List.of(Map.of("name", "bad", "source", "const cp = require('child_process'); eval(input);")),
                 "test_requirements", List.of("unit")
         )));
-        when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
 
         Map<String, Object> result = service.validatePackage("pkg-1", new ExtensionValidationRequest());
 

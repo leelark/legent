@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { clsx } from 'clsx';
 import {
   Activity,
@@ -48,6 +48,8 @@ type SettingsMetadata = {
   integrations?: Record<string, unknown>;
 };
 
+type PreferenceLoadState = 'loading' | 'loaded' | 'failed';
+
 const sectionDefs: Array<{ id: SettingsSection; label: string; detail: string; icon: typeof UserRound }> = [
   { id: 'profile', label: 'Profile', detail: 'identity, locale, workspace defaults', icon: UserRound },
   { id: 'security', label: 'Security', detail: 'sessions, recovery, MFA readiness', icon: LockKeyhole },
@@ -66,8 +68,10 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
   const { setTheme, setUiMode, setDensity, theme, uiMode, density, sidebarCollapsed } = useUIStore();
   const [active, setActive] = useState<SettingsSection>(initialSection);
   const [preferences, setPreferences] = useState<UserPreferences | null>(null);
+  const [preferenceLoadState, setPreferenceLoadState] = useState<PreferenceLoadState>('loading');
   const [metadata, setMetadata] = useState<SettingsMetadata>({});
   const [saving, setSaving] = useState(false);
+  const busyRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [providers, setProviders] = useState<Array<Record<string, unknown>>>([]);
   const [domains, setDomains] = useState<Array<Record<string, unknown>>>([]);
@@ -77,6 +81,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
 
   const load = useCallback(async () => {
     setLoading(true);
+    setPreferenceLoadState('loading');
     try {
       const sources = [
         ['Preferences', getUserPreferences()],
@@ -94,6 +99,9 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
       if (prefRes.status === 'fulfilled') {
         setPreferences(prefRes.value);
         setMetadata((prefRes.value.metadata || {}) as SettingsMetadata);
+        setPreferenceLoadState('loaded');
+      } else {
+        setPreferenceLoadState('failed');
       }
       if (providerRes.status === 'fulfilled') {
         setProviders((providerRes.value || []) as Array<Record<string, unknown>>);
@@ -132,8 +140,35 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
     }));
   };
 
-  const save = async (patch: Partial<UserPreferences> = {}) => {
+  const beginBusy = () => {
+    if (busyRef.current) {
+      return false;
+    }
+    busyRef.current = true;
     setSaving(true);
+    return true;
+  };
+
+  const endBusy = () => {
+    busyRef.current = false;
+    setSaving(false);
+  };
+
+  const preferenceSaveDisabled = preferenceLoadState !== 'loaded';
+  const preferenceLoadFailed = preferenceLoadState === 'failed';
+
+  const save = async (patch: Partial<UserPreferences> = {}) => {
+    if (preferenceSaveDisabled) {
+      addToast({
+        type: 'warning',
+        title: 'Preferences unavailable',
+        message: 'Reload settings before saving preference changes.',
+      });
+      return;
+    }
+    if (!beginBusy()) {
+      return;
+    }
     try {
       const next = await updateUserPreferences({
         uiMode,
@@ -158,7 +193,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
     } catch (error: unknown) {
       addToast({ type: 'error', title: 'Settings save failed', message: getErrorMessage(error, 'Unable to save settings.') });
     } finally {
-      setSaving(false);
+      endBusy();
     }
   };
 
@@ -172,7 +207,9 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
       addToast({ type: 'error', title: 'Invalid domain', message: 'Use a domain such as sender.example.com.' });
       return;
     }
-    setSaving(true);
+    if (!beginBusy()) {
+      return;
+    }
     try {
       await addDomain(domainName);
       setNewDomain('');
@@ -182,7 +219,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
     } catch (error: unknown) {
       addToast({ type: 'error', title: 'Domain add failed', message: getErrorMessage(error, 'Unable to add sender domain.') });
     } finally {
-      setSaving(false);
+      endBusy();
     }
   };
 
@@ -191,7 +228,9 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
       addToast({ type: 'error', title: 'Domain verification unavailable', message: 'Domain record is missing an ID.' });
       return;
     }
-    setSaving(true);
+    if (!beginBusy()) {
+      return;
+    }
     try {
       await validateDomain(domainId);
       await load();
@@ -199,7 +238,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
     } catch (error: unknown) {
       addToast({ type: 'error', title: 'DNS verification failed', message: getErrorMessage(error, 'Unable to verify sender domain.') });
     } finally {
-      setSaving(false);
+      endBusy();
     }
   };
 
@@ -213,7 +252,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
   };
 
   const summary = useMemo(() => {
-    const verified = domains.filter((domain) => getDomainStatus(domain) === 'VERIFIED' || Boolean(readDomainValue(domain, ['isActive', 'is_active']))).length;
+    const verified = domains.filter((domain) => getDomainStatus(domain) === 'VERIFIED' || isDomainActive(domain)).length;
     const alerts = domains.filter((domain) => !(isDomainFlag(domain, 'spf') && isDomainFlag(domain, 'dkim') && isDomainFlag(domain, 'dmarc'))).length;
     return {
       score: domains.length ? Math.round((verified / domains.length) * 100) : 0,
@@ -230,7 +269,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
         description="Manage shell preferences, profile defaults, notifications, integrations, and deliverability controls."
         action={(
           <>
-            <Button onClick={() => save()} loading={saving} icon={<Save className="h-4 w-4" />}>
+            <Button onClick={() => save()} loading={saving} disabled={preferenceSaveDisabled} icon={<Save className="h-4 w-4" />}>
               Save settings
             </Button>
             <Button variant="secondary" onClick={load} icon={<RefreshCcw className="h-4 w-4" />}>
@@ -270,7 +309,10 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
       {loadIssues.length ? (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-          <span>Partial settings data loaded. Unavailable: {loadIssues.join(', ')}.</span>
+          <span>
+            Partial settings data loaded. Unavailable: {loadIssues.join(', ')}.
+            {preferenceLoadFailed ? ' Preference saves are disabled until preferences reload.' : ''}
+          </span>
         </div>
       ) : null}
 
@@ -308,11 +350,11 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
             </Panel>
           ) : (
             <>
-              {active === 'profile' && <ProfileSettings key="profile" preferences={preferences} metadata={metadata} updateMeta={updateMeta} save={save} />}
-              {active === 'security' && <SecuritySettings key="security" metadata={metadata} updateMeta={updateMeta} save={save} logoutAll={logoutAll} />}
-              {active === 'notifications' && <NotificationSettings key="notifications" metadata={metadata} updateMeta={updateMeta} save={save} />}
-              {active === 'modules' && <ModuleSettings key="modules" metadata={metadata} updateMeta={updateMeta} save={save} />}
-              {active === 'integrations' && <IntegrationSettings key="integrations" providers={providers} metadata={metadata} updateMeta={updateMeta} save={save} />}
+              {active === 'profile' && <ProfileSettings key="profile" preferences={preferences} metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
+              {active === 'security' && <SecuritySettings key="security" metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} logoutAll={logoutAll} />}
+              {active === 'notifications' && <NotificationSettings key="notifications" metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
+              {active === 'modules' && <ModuleSettings key="modules" metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
+              {active === 'integrations' && <IntegrationSettings key="integrations" providers={providers} metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
               {active === 'deliverability' && (
                 <DeliverabilitySettings
                   key="deliverability"
@@ -335,11 +377,11 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
   );
 }
 
-function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPaneProps & { preferences: UserPreferences | null }) {
+function ProfileSettings({ preferences, metadata, updateMeta, save, saving, saveDisabled }: SettingsPaneProps & { preferences: UserPreferences | null }) {
   const profile = metadata.profile || {};
   const { setTheme, setUiMode, setDensity, theme, uiMode, density } = useUIStore();
   return (
-    <Pane>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Panel>
           <PaneHeader icon={UserRound} title="Profile Settings" detail="Personal profile, localization, theme preference, and workspace display behavior." />
@@ -359,6 +401,7 @@ function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPa
               <button
                 key={item}
                 type="button"
+                aria-pressed={density === item}
                 onClick={() => setDensity(item)}
                 className={clsx('rounded-lg border px-3 py-2 text-sm font-semibold capitalize', density === item ? 'border-brand-300 bg-brand-500/10 text-brand-700 dark:border-brand-700 dark:text-brand-300' : 'border-border-default bg-surface-secondary text-content-secondary hover:text-content-primary')}
               >
@@ -366,7 +409,7 @@ function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPa
               </button>
             ))}
           </div>
-          <Button className="mt-5" onClick={() => save({ theme, uiMode, density })} icon={<Save className="h-4 w-4" />}>
+          <Button className="mt-5" onClick={() => save({ theme, uiMode, density })} loading={saving} disabled={saveDisabled} icon={<Save className="h-4 w-4" />}>
             Save profile
           </Button>
         </Panel>
@@ -380,14 +423,14 @@ function ProfileSettings({ preferences, metadata, updateMeta, save }: SettingsPa
           </div>
         </Panel>
       </div>
-    </Pane>
+    </>
   );
 }
 
-function SecuritySettings({ metadata, updateMeta, save, logoutAll }: SettingsPaneProps & { logoutAll: () => Promise<void> }) {
+function SecuritySettings({ metadata, updateMeta, save, saving, saveDisabled, logoutAll }: SettingsPaneProps & { logoutAll: () => Promise<void> }) {
   const security = metadata.security || {};
   return (
-    <Pane>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Panel>
           <PaneHeader icon={LockKeyhole} title="Security Settings" detail="Password, MFA readiness, session revocation, trusted devices, and recovery controls." />
@@ -398,7 +441,7 @@ function SecuritySettings({ metadata, updateMeta, save, logoutAll }: SettingsPan
             <Toggle label="Session expiry warnings" value={security.sessionWarnings !== false} onChange={(value) => updateMeta('security', 'sessionWarnings', value)} />
           </div>
           <div className="mt-5 flex flex-wrap gap-3">
-            <Button onClick={() => save()} icon={<Save className="h-4 w-4" />}>Save security</Button>
+            <Button onClick={() => save()} loading={saving} disabled={saveDisabled} icon={<Save className="h-4 w-4" />}>Save security</Button>
             <Button variant="danger" onClick={logoutAll} icon={<RotateCcw className="h-4 w-4" />}>Revoke sessions</Button>
           </div>
         </Panel>
@@ -412,14 +455,14 @@ function SecuritySettings({ metadata, updateMeta, save, logoutAll }: SettingsPan
           </div>
         </Panel>
       </div>
-    </Pane>
+    </>
   );
 }
 
-function NotificationSettings({ metadata, updateMeta, save }: SettingsPaneProps) {
+function NotificationSettings({ metadata, updateMeta, save, saving, saveDisabled }: SettingsPaneProps) {
   const notifications = metadata.notifications || {};
   return (
-    <Pane>
+    <>
       <Panel>
         <PaneHeader icon={Bell} title="Notification Settings" detail="Choose which workflow, delivery, and governance signals reach you." />
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -433,16 +476,16 @@ function NotificationSettings({ metadata, updateMeta, save }: SettingsPaneProps)
         <div className="mt-5 max-w-sm">
           <SelectField label="Digest schedule" value={asText(notifications.digest, 'daily')} options={digestOptions} onChange={(value) => updateMeta('notifications', 'digest', value)} />
         </div>
-        <Button className="mt-5" onClick={() => save()} icon={<Save className="h-4 w-4" />}>Save notifications</Button>
+        <Button className="mt-5" onClick={() => save()} loading={saving} disabled={saveDisabled} icon={<Save className="h-4 w-4" />}>Save notifications</Button>
       </Panel>
-    </Pane>
+    </>
   );
 }
 
-function ModuleSettings({ metadata, updateMeta, save }: SettingsPaneProps) {
+function ModuleSettings({ metadata, updateMeta, save, saving, saveDisabled }: SettingsPaneProps) {
   const modules = metadata.modules || {};
   return (
-    <Pane>
+    <>
       <Panel>
         <PaneHeader icon={Grid2X2} title="Module Preferences" detail="User-specific defaults for dashboards, filters, grids, saved views, and widgets." />
         <div className="mt-5 grid gap-4 lg:grid-cols-3">
@@ -470,16 +513,16 @@ function ModuleSettings({ metadata, updateMeta, save }: SettingsPaneProps) {
             );
           })}
         </div>
-        <Button className="mt-5" onClick={() => save()} icon={<Save className="h-4 w-4" />}>Save module preferences</Button>
+        <Button className="mt-5" onClick={() => save()} loading={saving} disabled={saveDisabled} icon={<Save className="h-4 w-4" />}>Save module preferences</Button>
       </Panel>
-    </Pane>
+    </>
   );
 }
 
-function IntegrationSettings({ providers, metadata, updateMeta, save }: SettingsPaneProps & { providers: Array<Record<string, unknown>> }) {
+function IntegrationSettings({ providers, metadata, updateMeta, save, saving, saveDisabled }: SettingsPaneProps & { providers: Array<Record<string, unknown>> }) {
   const integrations = metadata.integrations || {};
   return (
-    <Pane>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <Panel>
           <PaneHeader icon={PlugZap} title="Integration Settings" detail="API token posture, webhook delivery, provider health, and sync schedules." />
@@ -489,7 +532,7 @@ function IntegrationSettings({ providers, metadata, updateMeta, save }: Settings
             <Toggle label="Credential rotation reminders" value={integrations.rotationReminders !== false} onChange={(value) => updateMeta('integrations', 'rotationReminders', value)} />
             <Toggle label="Webhook failure alerts" value={integrations.webhookAlerts !== false} onChange={(value) => updateMeta('integrations', 'webhookAlerts', value)} />
           </div>
-          <Button className="mt-5" onClick={() => save()} icon={<Save className="h-4 w-4" />}>Save integration preferences</Button>
+          <Button className="mt-5" onClick={() => save()} loading={saving} disabled={saveDisabled} icon={<Save className="h-4 w-4" />}>Save integration preferences</Button>
           <div className="mt-5">
             <WebhookPanel />
           </div>
@@ -497,22 +540,25 @@ function IntegrationSettings({ providers, metadata, updateMeta, save }: Settings
         <Panel>
           <PaneHeader icon={Activity} title="Provider Health" detail="Delivery provider status from platform service." />
           <div className="mt-5 space-y-3">
-            {providers.map((provider, index) => (
-              <div key={`${asText(provider.id, 'provider')}-${index}`} className="rounded-lg border border-border-default bg-surface-secondary p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold">{asText(provider.name, 'Provider')}</p>
-                    <p className="text-xs text-content-secondary">{asText(provider.type, 'SMTP')} - priority {asText(provider.priority, 'n/a')}</p>
+            {providers.map((provider, index) => {
+              const providerId = asText(readRecordValue(provider, ['id']), `provider-${index}`);
+              return (
+                <div key={`${providerId}-${index}`} data-testid={`provider-health-${providerId}`} className="rounded-lg border border-border-default bg-surface-secondary p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">{asText(provider.name, 'Provider')}</p>
+                      <p className="text-xs text-content-secondary">{asText(provider.type, 'SMTP')} - priority {asText(provider.priority, 'n/a')}</p>
+                    </div>
+                    {isProviderOperational(provider) ? <Status label={getProviderHealthStatus(provider)} ok /> : <Status label="INACTIVE" />}
                   </div>
-                  {provider.isActive ? <Status label={asText(provider.healthStatus, 'ACTIVE')} ok /> : <Status label="INACTIVE" />}
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {!providers.length && <Empty text="No provider health records available." />}
           </div>
         </Panel>
       </div>
-    </Pane>
+    </>
   );
 }
 
@@ -538,12 +584,15 @@ function DeliverabilitySettings({
   saving: boolean;
 }) {
   return (
-    <Pane>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Panel>
           <PaneHeader icon={Globe2} title="Deliverability Settings" detail="Authenticated domains, DNS checks, reputation posture, and compliance visibility." />
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <input
+              id="sender-domain-input"
+              aria-label="Sender domain"
+              data-testid="sender-domain-input"
               value={newDomain}
               onChange={(event) => setNewDomain(event.target.value)}
               className="min-w-0 flex-1 rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm"
@@ -564,7 +613,7 @@ function DeliverabilitySettings({
                 <div className="divide-y divide-border-default">
                   {domains.map((domain, index) => {
                     const name = getDomainName(domain) || `domain-${index}`;
-                    const id = asText(readDomainValue(domain, ['id']));
+                    const id = asText(readRecordValue(domain, ['id']));
                     const selected = selectedDomain === name;
                     return (
                       <div key={`${id || name}-${index}`} className={clsx('grid grid-cols-[minmax(180px,1fr)_82px_82px_82px_190px] items-center gap-0 px-3 py-3 text-sm', selected ? 'bg-brand-500/10' : 'hover:bg-surface-secondary/70')}>
@@ -574,7 +623,7 @@ function DeliverabilitySettings({
                         <DnsIcon ok={isDomainFlag(domain, 'dmarc')} />
                         <div className="flex justify-end gap-2">
                           <Button variant="secondary" size="sm" onClick={() => setSelectedDomain(name)}>View</Button>
-                          <Button variant="outline" size="sm" onClick={() => verifyDomain(id)} disabled={!id || saving}>Verify</Button>
+                          <Button variant="outline" size="sm" onClick={() => verifyDomain(id)} loading={saving} disabled={!id}>Verify</Button>
                         </div>
                       </div>
                     );
@@ -586,9 +635,15 @@ function DeliverabilitySettings({
           </div>
         </Panel>
         <aside className="space-y-4">
-          <MetricBox label="Reputation" value={`${summary.score}/100`} icon={Activity} />
-          <MetricBox label="Compliance alerts" value={String(summary.alerts)} icon={ShieldAlert} />
-          <MetricBox label="Provider routes" value={String(summary.providers)} icon={Mail} />
+          <div data-testid="deliverability-metric-reputation">
+            <MetricCard label="Reputation" value={`${summary.score}/100`} icon={<Activity className="h-5 w-5" />} />
+          </div>
+          <div data-testid="deliverability-metric-alerts">
+            <MetricCard label="Compliance alerts" value={String(summary.alerts)} icon={<ShieldAlert className="h-5 w-5" />} />
+          </div>
+          <div data-testid="deliverability-metric-provider-routes">
+            <MetricCard label="Provider routes" value={String(summary.providers)} icon={<Mail className="h-5 w-5" />} />
+          </div>
         </aside>
       </div>
       {selectedDomain && (
@@ -597,7 +652,7 @@ function DeliverabilitySettings({
           <DmarcDashboard domain={selectedDomain} />
         </div>
       )}
-    </Pane>
+    </>
   );
 }
 
@@ -605,11 +660,9 @@ type SettingsPaneProps = {
   metadata: SettingsMetadata;
   updateMeta: (section: keyof SettingsMetadata, key: string, value: unknown) => void;
   save: (patch?: Partial<UserPreferences>) => Promise<void>;
+  saving: boolean;
+  saveDisabled: boolean;
 };
-
-function Pane({ children }: { children: ReactNode }) {
-  return <div>{children}</div>;
-}
 
 function PaneHeader({ icon: Icon, title, detail }: { icon: typeof UserRound; title: string; detail: string }) {
   return (
@@ -666,6 +719,7 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
   return (
     <button
       type="button"
+      aria-pressed={value}
       onClick={() => onChange(!value)}
       className="flex items-center justify-between gap-4 rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-left hover:border-brand-300"
     >
@@ -681,6 +735,7 @@ function Choice({ label, selected, onClick, icon: Icon }: { label: string; selec
   return (
     <button
       type="button"
+      aria-pressed={selected}
       onClick={onClick}
       className={clsx('rounded-lg border p-4 text-left', selected ? 'border-brand-300 bg-brand-500/10 text-brand-700 dark:border-brand-700 dark:text-brand-300' : 'border-border-default bg-surface-secondary text-content-secondary hover:text-content-primary')}
     >
@@ -720,12 +775,6 @@ function DnsIcon({ ok }: { ok: boolean }) {
   return ok ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <ShieldAlert className="h-4 w-4 text-amber-500" />;
 }
 
-function MetricBox({ label, value, icon: Icon }: { label: string; value: string; icon: typeof Activity }) {
-  return (
-    <MetricCard label={label} value={value} icon={<Icon className="h-5 w-5" />} />
-  );
-}
-
 function Empty({ text }: { text: string }) {
   return (
     <div className="p-5 text-center text-sm text-content-secondary">
@@ -742,9 +791,9 @@ function asText(value: unknown, fallback = '') {
   return String(value);
 }
 
-function readDomainValue(domain: Record<string, unknown>, keys: string[]) {
+function readRecordValue(record: Record<string, unknown>, keys: string[]) {
   for (const key of keys) {
-    const value = domain[key];
+    const value = record[key];
     if (value !== undefined && value !== null && value !== '') {
       return value;
     }
@@ -753,16 +802,59 @@ function readDomainValue(domain: Record<string, unknown>, keys: string[]) {
 }
 
 function getDomainName(domain: Record<string, unknown>) {
-  return asText(readDomainValue(domain, ['domainName', 'domain_name'])).trim();
+  return asText(readRecordValue(domain, ['domainName', 'domain_name'])).trim();
 }
 
 function getDomainStatus(domain: Record<string, unknown>) {
-  return asText(readDomainValue(domain, ['status'])).toUpperCase();
+  return asText(readRecordValue(domain, ['status'])).toUpperCase();
+}
+
+function readBooleanFlag(record: Record<string, unknown>, keys: string[]) {
+  return readOptionalBooleanFlag(record, keys) ?? false;
+}
+
+function readOptionalBooleanFlag(record: Record<string, unknown>, keys: string[]) {
+  return toOptionalBoolean(readRecordValue(record, keys));
+}
+
+function toOptionalBoolean(value: unknown): boolean | undefined {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', 'on', 'active', 'verified'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'n', 'off', 'inactive', 'unverified'].includes(normalized)) {
+      return false;
+    }
+  }
+  return undefined;
+}
+
+function getProviderHealthStatus(provider: Record<string, unknown>) {
+  return asText(readRecordValue(provider, ['healthStatus', 'health_status', 'status']), 'ACTIVE').toUpperCase();
+}
+
+function isProviderOperational(provider: Record<string, unknown>) {
+  const active = readOptionalBooleanFlag(provider, ['active', 'isActive', 'is_active']);
+  if (active === false) {
+    return false;
+  }
+  const status = getProviderHealthStatus(provider);
+  return ['ACTIVE', 'HEALTHY', 'OPERATIONAL', 'OK'].includes(status);
+}
+
+function isDomainActive(domain: Record<string, unknown>) {
+  return readBooleanFlag(domain, ['active', 'isActive', 'is_active']);
 }
 
 function isDomainFlag(domain: Record<string, unknown>, key: 'spf' | 'dkim' | 'dmarc') {
-  const value = readDomainValue(domain, [`${key}Verified`, `${key}_verified`]);
-  return value === true || String(value).toLowerCase() === 'true';
+  return readBooleanFlag(domain, [`${key}Verified`, `${key}_verified`, key]);
 }
 
 function normalizeDomainName(value: string) {

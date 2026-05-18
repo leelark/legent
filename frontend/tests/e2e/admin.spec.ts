@@ -79,7 +79,9 @@ async function fulfill(route: Route, data: unknown) {
 }
 
 type MockAdminApiOptions = {
+  domains?: unknown[];
   omitSessionRoles?: boolean;
+  providers?: unknown[];
   searchResults?: unknown[];
   seenPaths?: string[];
   sessionRoles?: string[];
@@ -175,13 +177,13 @@ async function mockAdminApis(page: Page, options: MockAdminApiOptions = {}) {
       return fulfill(route, ok([{ id: `${path.slice(6)}-1`, name: path.slice(6) }]));
     }
     if (path === '/providers/health') {
-      return fulfill(route, ok([{ id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY', priority: 1 }]));
+      return fulfill(route, ok(options.providers ?? [{ id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY', priority: 1 }]));
     }
     if (path === '/deliverability/domains' && method === 'POST') {
       return fulfill(route, ok({ id: 'domain-2', domainName: 'new.example.com', status: 'PENDING' }));
     }
     if (path === '/deliverability/domains') {
-      return fulfill(route, ok([{ id: 'domain-1', domainName: 'example.com', status: 'VERIFIED', isActive: true, spfVerified: true, dkimVerified: true, dmarcVerified: false }]));
+      return fulfill(route, ok(options.domains ?? [{ id: 'domain-1', domainName: 'example.com', status: 'VERIFIED', isActive: true, spfVerified: true, dkimVerified: true, dmarcVerified: false }]));
     }
     if (path.startsWith('/deliverability/domains/') && path.endsWith('/verify')) {
       return fulfill(route, ok({ status: 'VERIFIED' }));
@@ -331,6 +333,57 @@ test('settings console persists preferences and supports deliverability', async 
   await expect(page.getByText('DNS verification refreshed')).toBeVisible();
 });
 
+test('settings console covers sections and deliverability response aliases', async ({ page }) => {
+  await mockAdminApis(page, {
+    providers: [
+      { id: 'provider-alias', name: 'Alias SMTP', type: 'SMTP', active: true, healthStatus: 'HEALTHY', priority: 7 },
+      { id: 'provider-paused', name: 'Paused SMTP', type: 'SMTP', active: false, healthStatus: 'HEALTHY', priority: 9 },
+    ],
+    domains: [
+      {
+        id: 'domain-string-false',
+        domain_name: 'alias.example.com',
+        status: 'VERIFIED',
+        is_active: 'false',
+        spf_verified: 'true',
+        dkim_verified: 'false',
+        dmarc_verified: 'false',
+      },
+    ],
+  });
+  await page.goto('/app/settings/platform', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByRole('heading', { name: /Enterprise Settings/ })).toBeVisible({ timeout: 45000 });
+  const settingsSurface = page.locator('main.app-surface');
+
+  const sections = [
+    { button: /Security/, heading: 'Security Settings' },
+    { button: /Notifications/, heading: 'Notification Settings' },
+    { button: /Module Preferences/, heading: 'Module Preferences' },
+  ];
+
+  for (const section of sections) {
+    await settingsSurface.getByRole('button', { name: section.button }).click();
+    await expect(page.getByRole('heading', { name: section.heading })).toBeVisible();
+  }
+
+  await settingsSurface.getByRole('button', { name: /Integrations/ }).click();
+  await expect(page.getByRole('heading', { name: 'Integration Settings' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Provider Health' })).toBeVisible();
+  const providerRow = page.getByTestId('provider-health-provider-alias');
+  await expect(providerRow).toContainText('HEALTHY');
+  await expect(providerRow).not.toContainText('INACTIVE');
+  await expect(page.getByTestId('provider-health-provider-paused')).toContainText('INACTIVE');
+
+  await settingsSurface.getByRole('button', { name: /Deliverability/ }).click();
+  await expect(page.getByRole('heading', { name: 'Deliverability Settings' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'alias.example.com' })).toBeVisible();
+  const alertsMetric = page.getByTestId('deliverability-metric-alerts');
+  await expect(alertsMetric).toContainText('1');
+  const providerRoutesMetric = page.getByTestId('deliverability-metric-provider-routes');
+  await expect(providerRoutesMetric).toContainText('2');
+});
+
 test('admin console keeps mobile navigation usable', async ({ page }) => {
   await mockAdminApis(page);
   await page.setViewportSize({ width: 390, height: 760 });
@@ -383,6 +436,29 @@ test('tracking compatibility route redirects to analytics', async ({ page }) => 
   await page.goto('/app/tracking', { waitUntil: 'domcontentloaded' });
 
   await expect(page).toHaveURL(/\/app\/analytics$/, { timeout: 45000 });
+});
+
+test('admin console renders governance and operations tabs with mocks', async ({ page }) => {
+  await mockAdminApis(page);
+  await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
+
+  await expect(page.getByRole('heading', { name: /Admin Control Plane/ })).toBeVisible({ timeout: 45000 });
+
+  const tabs = [
+    { button: /Federation/, heading: 'Federation', evidence: 'Configured providers' },
+    { button: /Audit Center/, heading: 'Audit', evidence: 'Investigation Mode' },
+    { button: /Configuration/, heading: 'Runtime Config', evidence: 'Default Setup Status' },
+    { button: /Platform Ops/, heading: 'Branding', evidence: 'Webhook Integrations' },
+    { button: /Differentiation/, heading: 'Differentiation Platform', evidence: 'AI Copilot' },
+    { button: /Global Ops/, heading: 'Global Ops', evidence: 'Topology Control' },
+    { button: /Performance Intelligence/, heading: 'Performance Intelligence', evidence: 'Realtime Personalization' },
+  ];
+
+  for (const tab of tabs) {
+    await page.getByRole('button', { name: tab.button }).click();
+    await expect(page.getByRole('heading', { name: tab.heading }).first()).toBeVisible();
+    await expect(page.getByText(tab.evidence, { exact: true }).first()).toBeVisible();
+  }
 });
 
 test('admin console exposes performance intelligence evidence and demo flow', async ({ page }) => {

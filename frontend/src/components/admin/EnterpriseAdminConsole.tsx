@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
@@ -117,6 +117,11 @@ const defaultUserDraft: UserDraft = {
   password: '',
 };
 
+const ADMIN_POLL_INTERVAL_MS = 15000;
+const OPERATOR_ROLE_KEY = 'OPERATIONS_GOVERNOR';
+const OPERATOR_ROLE_DESCRIPTION = 'Manages delivery, config, audit investigation, and workflow recovery.';
+const OPERATOR_ROLE_PERMISSIONS = ['delivery:*', 'config:*', 'audit:*', 'workflow:*', 'tracking:read'];
+
 export function EnterpriseAdminConsole() {
   const router = useRouter();
   const { isAdmin, roles } = useAuth();
@@ -131,15 +136,31 @@ export function EnterpriseAdminConsole() {
   const [query, setQuery] = useState('');
   const [userDraft, setUserDraft] = useState<UserDraft>(defaultUserDraft);
   const [savingUser, setSavingUser] = useState(false);
+  const [seedingOperatorRole, setSeedingOperatorRole] = useState(false);
+  const [operatorRoleSeeded, setOperatorRoleSeeded] = useState(false);
   const [pendingUserIds, setPendingUserIds] = useState<Set<string>>(new Set());
   const [loadIssues, setLoadIssues] = useState<string[]>([]);
+  const loadInFlightRef = useRef(false);
+  const loadSequenceRef = useRef(0);
 
   const canAdmin = useMemo(
     () => isAdmin() || roles.some((role) => ['PLATFORM_ADMIN', 'ORG_ADMIN'].includes(role)),
     [isAdmin, roles]
   );
 
+  const operatorRoleExists = useMemo(
+    () => operatorRoleSeeded || hasRoleKey(access.roles || [], OPERATOR_ROLE_KEY),
+    [operatorRoleSeeded, access.roles]
+  );
+
   const load = useCallback(async (silent = false) => {
+    if (loadInFlightRef.current) {
+      return;
+    }
+    loadInFlightRef.current = true;
+    const sequence = loadSequenceRef.current + 1;
+    loadSequenceRef.current = sequence;
+
     if (!silent) {
       setLoading(true);
     } else {
@@ -160,12 +181,18 @@ export function EnterpriseAdminConsole() {
           return result.status === 'rejected' ? label : null;
         })
         .filter(Boolean) as string[];
+      if (sequence !== loadSequenceRef.current) {
+        return;
+      }
       setLoadIssues(issues);
       if (dashboardRes.status === 'fulfilled') {
         setDashboard(dashboardRes.value);
       }
       if (accessRes.status === 'fulfilled') {
         setAccess(accessRes.value);
+        if (hasRoleKey(accessRes.value.roles || [], OPERATOR_ROLE_KEY)) {
+          setOperatorRoleSeeded(true);
+        }
       }
       if (syncRes.status === 'fulfilled') {
         setSyncEvents(syncRes.value);
@@ -181,8 +208,11 @@ export function EnterpriseAdminConsole() {
         });
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      loadInFlightRef.current = false;
+      if (sequence === loadSequenceRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [addToast]);
 
@@ -203,9 +233,43 @@ export function EnterpriseAdminConsole() {
       router.replace('/app/email');
       return;
     }
-    load();
-    const timer = window.setInterval(() => load(true), 15000);
-    return () => window.clearInterval(timer);
+
+    let timer: number | undefined;
+    const stopPolling = () => {
+      if (timer !== undefined) {
+        window.clearInterval(timer);
+        timer = undefined;
+      }
+    };
+    const poll = () => {
+      if (document.visibilityState === 'visible') {
+        void load(true);
+      }
+    };
+    const startPolling = () => {
+      if (timer === undefined) {
+        timer = window.setInterval(poll, ADMIN_POLL_INTERVAL_MS);
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void load(true);
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    void load();
+    if (document.visibilityState === 'visible') {
+      startPolling();
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      stopPolling();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      loadSequenceRef.current += 1;
+    };
   }, [canAdmin, load, router]);
 
   const filteredUsers = useMemo(() => {
@@ -281,19 +345,36 @@ export function EnterpriseAdminConsole() {
   };
 
   const createOperatorRole = async () => {
+    if (operatorRoleExists) {
+      addToast({ type: 'info', title: 'Role already exists', message: `${OPERATOR_ROLE_KEY} is already available.` });
+      return;
+    }
+
+    setSeedingOperatorRole(true);
     try {
-      await coreApi.createRole({
-        roleKey: 'OPERATIONS_GOVERNOR',
+      const created = await coreApi.createRole({
+        roleKey: OPERATOR_ROLE_KEY,
         displayName: 'Operations Governor',
-        description: 'Manages delivery, config, audit investigation, and workflow recovery.',
+        description: OPERATOR_ROLE_DESCRIPTION,
         system: false,
-        permissions: ['delivery:*', 'config:*', 'audit:*', 'workflow:*', 'tracking:read'],
+        permissions: OPERATOR_ROLE_PERMISSIONS,
         metadata: { createdFrom: 'enterprise-admin-console' },
       });
+      setOperatorRoleSeeded(true);
+      setAccess((current) => withOperatorRole(current, created));
       addToast({ type: 'success', title: 'Role created', message: 'Propagation event recorded by the access engine.' });
-      load(true);
+      void load(true);
     } catch (error: unknown) {
+      if (isConflictError(error)) {
+        setOperatorRoleSeeded(true);
+        setAccess((current) => withOperatorRole(current));
+        addToast({ type: 'info', title: 'Role already exists', message: `${OPERATOR_ROLE_KEY} is already available.` });
+        void load(true);
+        return;
+      }
       addToast({ type: 'error', title: 'Role create failed', message: getErrorMessage(error, 'Unable to create role.') });
+    } finally {
+      setSeedingOperatorRole(false);
     }
   };
 
@@ -419,7 +500,15 @@ export function EnterpriseAdminConsole() {
                   sendReset={sendReset}
                 />
               )}
-              {active === 'roles' && <RoleEngine key="roles" access={access} createOperatorRole={createOperatorRole} />}
+              {active === 'roles' && (
+                <RoleEngine
+                  key="roles"
+                  access={access}
+                  createOperatorRole={createOperatorRole}
+                  operatorRoleExists={operatorRoleExists}
+                  seedingOperatorRole={seedingOperatorRole}
+                />
+              )}
               {active === 'federation' && <FederationConfigPanel key="federation" />}
               {active === 'audit' && <AuditCenter key="audit" syncEvents={syncEvents} />}
               {active === 'configuration' && <ConfigurationCenter key="configuration" />}
@@ -451,7 +540,7 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
   ];
 
   return (
-    <PanelContent>
+    <>
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => {
           const Icon = metric.icon;
@@ -555,7 +644,7 @@ function CommandDashboard({ dashboard, syncEvents }: { dashboard: AdminOperation
         <SectionHeader icon={Clock3} title="Recent Critical Actions" subtitle="Audit trail from core governance workflows." />
         <ActivityList items={dashboard?.activity || []} empty="No audit activity reported." />
       </section>
-    </PanelContent>
+    </>
   );
 }
 
@@ -583,7 +672,7 @@ function UserManagement({
   sendReset: (user: AdminUser) => Promise<void>;
 }) {
   return (
-    <PanelContent>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="rounded-lg border border-border-default bg-surface-elevated shadow-sm">
           <div className="border-b border-border-default p-5">
@@ -684,24 +773,41 @@ function UserManagement({
           </section>
         </aside>
       </div>
-    </PanelContent>
+    </>
   );
 }
 
-function RoleEngine({ access, createOperatorRole }: { access: Record<string, Array<Record<string, unknown>>>; createOperatorRole: () => Promise<void> }) {
+function RoleEngine({
+  access,
+  createOperatorRole,
+  operatorRoleExists,
+  seedingOperatorRole,
+}: {
+  access: Record<string, Array<Record<string, unknown>>>;
+  createOperatorRole: () => Promise<void>;
+  operatorRoleExists: boolean;
+  seedingOperatorRole: boolean;
+}) {
   const roles = access.roles || [];
   const groups = access.permissionGroups || [];
   const grants = access.delegatedAccess || [];
   const propagation = access.propagation || [];
 
   return (
-    <PanelContent>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <section className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <SectionHeader icon={Fingerprint} title="Permission Resolution Engine" subtitle="Role inheritance, feature controls, direct grants, and field/action permission groups." />
-            <Button variant="secondary" onClick={createOperatorRole} icon={<Plus className="h-4 w-4" />}>
-              Seed operator role
+            <Button
+              variant="secondary"
+              onClick={createOperatorRole}
+              loading={seedingOperatorRole}
+              disabled={operatorRoleExists}
+              title={operatorRoleExists ? 'Operations Governor role already exists' : undefined}
+              icon={operatorRoleExists ? <CheckCircle2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            >
+              {operatorRoleExists ? 'Operator role seeded' : 'Seed operator role'}
             </Button>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">
@@ -761,13 +867,13 @@ function RoleEngine({ access, createOperatorRole }: { access: Record<string, Arr
           </section>
         </aside>
       </div>
-    </PanelContent>
+    </>
   );
 }
 
 function AuditCenter({ syncEvents }: { syncEvents: Array<Record<string, unknown>> }) {
   return (
-    <PanelContent>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
         <AuditPanel />
         <aside className="space-y-4">
@@ -785,13 +891,13 @@ function AuditCenter({ syncEvents }: { syncEvents: Array<Record<string, unknown>
           </section>
         </aside>
       </div>
-    </PanelContent>
+    </>
   );
 }
 
 function ConfigurationCenter() {
   return (
-    <PanelContent>
+    <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
         <AdminConfigPanel />
         <aside className="space-y-4">
@@ -799,49 +905,45 @@ function ConfigurationCenter() {
           <PlatformCorePanel />
         </aside>
       </div>
-    </PanelContent>
+    </>
   );
 }
 
 function PlatformOperations() {
   return (
-    <PanelContent>
+    <>
       <div className="grid gap-4 xl:grid-cols-2">
         <BrandingPanel />
         <WebhookPanel />
         <PublicContentPanel />
         <ContactRequestsPanel />
       </div>
-    </PanelContent>
+    </>
   );
 }
 
 function DifferentiationPlatform() {
   return (
-    <PanelContent>
+    <>
       <DifferentiationPlatformPanel />
-    </PanelContent>
+    </>
   );
 }
 
 function GlobalEnterprise() {
   return (
-    <PanelContent>
+    <>
       <GlobalEnterprisePanel />
-    </PanelContent>
+    </>
   );
 }
 
 function PerformanceIntelligence() {
   return (
-    <PanelContent>
+    <>
       <PerformanceIntelligencePanel />
-    </PanelContent>
+    </>
   );
-}
-
-function PanelContent({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
 }
 
 function LoadingPanel() {
@@ -970,6 +1072,60 @@ function PolicyLine({ label, value }: { label: string; value: string }) {
       <span className="text-xs font-semibold uppercase tracking-[0.12em] text-content-muted">{label}</span>
       <span className="text-right text-xs font-medium text-content-primary">{value}</span>
     </div>
+  );
+}
+
+function withOperatorRole(
+  access: Record<string, Array<Record<string, unknown>>>,
+  role: Record<string, unknown> = operatorRoleRecord()
+) {
+  const roles = access.roles || [];
+  if (hasRoleKey(roles, OPERATOR_ROLE_KEY)) {
+    return access;
+  }
+  return { ...access, roles: [role, ...roles] };
+}
+
+function operatorRoleRecord(): Record<string, unknown> {
+  return {
+    role_key: OPERATOR_ROLE_KEY,
+    display_name: 'Operations Governor',
+    description: OPERATOR_ROLE_DESCRIPTION,
+    is_system: false,
+    permissions: [...OPERATOR_ROLE_PERMISSIONS],
+  };
+}
+
+function hasRoleKey(roles: Array<Record<string, unknown>>, roleKey: string) {
+  const normalizedRoleKey = roleKey.toUpperCase();
+  return roles.some((role) =>
+    [role.role_key, role.roleKey, role.key, role.name].some(
+      (candidate) => asText(candidate).toUpperCase() === normalizedRoleKey
+    )
+  );
+}
+
+function isConflictError(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
+    return false;
+  }
+  const candidate = error as {
+    normalized?: { status?: unknown; errorCode?: unknown; message?: unknown };
+    response?: { status?: unknown };
+    status?: unknown;
+    message?: unknown;
+  };
+  const status = asNumber(candidate.normalized?.status ?? candidate.response?.status ?? candidate.status);
+  if (status === 409) {
+    return true;
+  }
+  const errorCode = asText(candidate.normalized?.errorCode).toUpperCase();
+  const message = `${asText(candidate.normalized?.message)} ${asText(candidate.message)}`.toLowerCase();
+  return (
+    ['CONFLICT', 'DUPLICATE_KEY', 'DUPLICATE_ROLE'].includes(errorCode) ||
+    message.includes('already exists') ||
+    message.includes('duplicate') ||
+    message.includes('unique constraint')
   );
 }
 

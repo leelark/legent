@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -16,11 +17,13 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+@SuppressWarnings("unchecked")
 @ExtendWith(MockitoExtension.class)
 class GlobalEnterpriseServiceTest {
 
@@ -44,7 +47,7 @@ class GlobalEnterpriseServiceTest {
 
     @Test
     void evaluateFailover_blocksWhenResidencyPolicyMissing() {
-        when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(model()), List.of());
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(model()), List.<Map<String, Object>>of());
 
         GlobalEnterpriseDto.FailoverEvaluationRequest request = new GlobalEnterpriseDto.FailoverEvaluationRequest();
         request.setDataClass("CONTACT");
@@ -62,7 +65,7 @@ class GlobalEnterpriseServiceTest {
 
     @Test
     void evaluateFailover_allowsActiveActiveWhenTopologyAndResidencyPermitTarget() {
-        when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(model()), List.of(residencyPolicy()));
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(model()), List.of(residencyPolicy()));
 
         GlobalEnterpriseDto.FailoverEvaluationRequest request = new GlobalEnterpriseDto.FailoverEvaluationRequest();
         request.setDataClass("CONTACT");
@@ -80,9 +83,9 @@ class GlobalEnterpriseServiceTest {
 
     @Test
     void createFailoverDrill_failsWhenActualRtoBreachesTarget() {
-        when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(model()));
-        when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
-        when(repository.updateByIdAndWorkspace(anyString(), anyString(), anyString(), anyString(), any(Map.class), anyList()))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(model()));
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(repository.updateByIdAndWorkspace(anyString(), anyString(), anyString(), anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(4));
 
         GlobalEnterpriseDto.FailoverDrillRequest request = new GlobalEnterpriseDto.FailoverDrillRequest();
@@ -97,6 +100,22 @@ class GlobalEnterpriseServiceTest {
 
         assertThat(saved.get("verdict")).isEqualTo("FAIL");
         assertThat(saved.get("planned_rto_minutes")).isEqualTo(30);
+    }
+
+    @Test
+    void createFailoverDrill_failsClosedWhenNoActiveOperatingModelExists() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.<Map<String, Object>>of());
+
+        GlobalEnterpriseDto.FailoverDrillRequest request = new GlobalEnterpriseDto.FailoverDrillRequest();
+        request.setSourceRegion("us-east-1");
+        request.setTargetRegion("eu-west-1");
+        request.setActualRpoMinutes(4);
+        request.setActualRtoMinutes(20);
+
+        assertThatThrownBy(() -> service.createFailoverDrill(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Active operating model is required");
+        verify(repository, never()).insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList());
     }
 
     @Test
@@ -115,7 +134,7 @@ class GlobalEnterpriseServiceTest {
 
     @Test
     void runPolicySimulation_blocksLegalHoldAndResidencyViolations() {
-        when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
 
         GlobalEnterpriseDto.PolicySimulationRequest request = new GlobalEnterpriseDto.PolicySimulationRequest();
         request.setSimulationKey("sim-1");
@@ -131,8 +150,80 @@ class GlobalEnterpriseServiceTest {
     }
 
     @Test
+    void upsertConnectorTemplate_allowsMarketplaceTemplateTableAndConnectorKey() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.<Map<String, Object>>of());
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+
+        GlobalEnterpriseDto.ConnectorTemplateRequest request = new GlobalEnterpriseDto.ConnectorTemplateRequest();
+        request.setConnectorKey("salesforce-crm");
+        request.setCategory("CRM");
+        request.setDisplayName("Salesforce CRM");
+        request.setVendor("Salesforce");
+        request.setAuthModes(List.of("OAUTH2"));
+        request.setSupportedEvents(List.of("contact.updated"));
+        request.setCapabilities(Map.of("objects", List.of("Contact")));
+
+        Map<String, Object> saved = service.upsertConnectorTemplate(request);
+
+        assertThat(saved.get("connector_key")).isEqualTo("salesforce-crm");
+        assertThat(saved.get("auth_modes")).isEqualTo("[\"OAUTH2\"]");
+    }
+
+    @Test
+    void upsertConnectorInstance_blocksMissingTemplate() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.<Map<String, Object>>of());
+
+        GlobalEnterpriseDto.ConnectorInstanceRequest request = connectorInstanceRequest();
+
+        assertThatThrownBy(() -> service.upsertConnectorInstance(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Connector template not found");
+        verify(repository, never()).insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList());
+    }
+
+    @Test
+    void upsertConnectorInstance_blocksMismatchedTemplateConnectorKey() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(Map.of(
+                "id", "template-1",
+                "connector_key", "segment-cdp",
+                "auth_modes", List.of("OAUTH2")
+        )));
+
+        GlobalEnterpriseDto.ConnectorInstanceRequest request = connectorInstanceRequest();
+        request.setTemplateId("template-1");
+
+        assertThatThrownBy(() -> service.upsertConnectorInstance(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("does not match connector key");
+        verify(repository, never()).insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList());
+    }
+
+    @Test
+    void upsertConnectorInstance_savesMatchingTemplateAndWorkspaceScope() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
+                .thenReturn(List.of(Map.of(
+                        "id", "template-1",
+                        "connector_key", "salesforce-crm",
+                        "auth_modes", List.of("OAUTH2")
+                )))
+                .thenReturn(List.<Map<String, Object>>of());
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+
+        GlobalEnterpriseDto.ConnectorInstanceRequest request = connectorInstanceRequest();
+
+        Map<String, Object> saved = service.upsertConnectorInstance(request);
+
+        assertThat(saved)
+                .containsEntry("template_id", "template-1")
+                .containsEntry("connector_key", "salesforce-crm")
+                .containsEntry("workspace_id", "workspace-1")
+                .containsEntry("instance_key", "sf-prod");
+        verify(repository).insert("marketplace_connector_instances", saved, List.of("config", "validation_result"));
+    }
+
+    @Test
     void upsertConnectorInstance_blocksUnsupportedAuthMode() {
-        when(repository.queryForList(anyString(), any(Map.class))).thenReturn(List.of(Map.of(
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(Map.of(
                 "id", "template-1",
                 "connector_key", "salesforce-crm",
                 "auth_modes", List.of("OAUTH2")
@@ -153,7 +244,7 @@ class GlobalEnterpriseServiceTest {
 
     @Test
     void optimizationRecommendation_autoAppliesOnlyWhenGuardrailsPassThenRollbackUsesSnapshot() {
-        when(repository.queryForList(anyString(), any(Map.class)))
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
                 .thenReturn(List.of(Map.of(
                         "id", "policy-1",
                         "policy_key", "auto-subject",
@@ -165,8 +256,8 @@ class GlobalEnterpriseServiceTest {
                         "workspace_id", "workspace-1",
                         "rollback_snapshot", Map.of("subject", "Old subject")
                 )));
-        when(repository.insert(anyString(), any(Map.class), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
-        when(repository.updateByIdAndWorkspace(anyString(), anyString(), anyString(), anyString(), any(Map.class), anyList()))
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+        when(repository.updateByIdAndWorkspace(anyString(), anyString(), anyString(), anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList()))
                 .thenAnswer(invocation -> invocation.getArgument(4));
 
         GlobalEnterpriseDto.OptimizationRecommendationRequest request = new GlobalEnterpriseDto.OptimizationRecommendationRequest();
@@ -196,6 +287,17 @@ class GlobalEnterpriseServiceTest {
 
         assertThat(rollback.get("status")).isEqualTo("COMPLETED");
         assertThat((String) rollback.get("rollback_snapshot")).contains("Old subject");
+    }
+
+    private GlobalEnterpriseDto.ConnectorInstanceRequest connectorInstanceRequest() {
+        GlobalEnterpriseDto.ConnectorInstanceRequest request = new GlobalEnterpriseDto.ConnectorInstanceRequest();
+        request.setTemplateId("template-1");
+        request.setInstanceKey("sf-prod");
+        request.setConnectorKey("salesforce-crm");
+        request.setDisplayName("Salesforce prod");
+        request.setCategory("CRM");
+        request.setAuthMode("OAUTH2");
+        return request;
     }
 
     private Map<String, Object> model() {

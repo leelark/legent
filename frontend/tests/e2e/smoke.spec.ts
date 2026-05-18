@@ -19,8 +19,10 @@ test('legacy launch route redirects to app launch', async ({ request }) => {
 const workspaceRoutes = [
   { path: '/app/audience', heading: /Audience/i },
   { path: '/app/campaigns', heading: /Campaign Studio/i },
+  { path: '/app/deliverability', heading: /Delivery Studio/i },
   { path: '/app/admin', heading: /Admin Control Plane/i },
   { path: '/app/settings/platform', heading: /Enterprise Settings/i },
+  { path: '/app/settings/deliverability', heading: /Enterprise Settings/i, landmark: /Deliverability Settings/i },
 ];
 
 for (const route of workspaceRoutes) {
@@ -28,7 +30,11 @@ for (const route of workspaceRoutes) {
     await mockWorkspaceApis(page);
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(route.path, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(new RegExp(`${route.path}$`));
     await expect(page.getByRole('heading', { name: route.heading }).first()).toBeVisible({ timeout: 45_000 });
+    if ('landmark' in route) {
+      await expect(page.getByRole('heading', { name: route.landmark }).first()).toBeVisible();
+    }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(2);
   });
@@ -37,7 +43,11 @@ for (const route of workspaceRoutes) {
     await mockWorkspaceApis(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(route.path, { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(new RegExp(`${route.path}$`));
     await expect(page.getByRole('heading', { name: route.heading }).first()).toBeVisible({ timeout: 45_000 });
+    if ('landmark' in route) {
+      await expect(page.getByRole('heading', { name: route.landmark }).first()).toBeVisible();
+    }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     expect(overflow).toBeLessThanOrEqual(2);
   });

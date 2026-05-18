@@ -36,6 +36,20 @@ class WorkspaceContextFilterTest {
     }
 
     @Test
+    void adminOperationsPath_requiresWorkspaceHeader() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/admin/operations/dashboard");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AtomicBoolean chainCalled = new AtomicBoolean(false);
+        FilterChain chain = (req, res) -> chainCalled.set(true);
+
+        filter.doFilter(request, response, chain);
+
+        assertThat(response.getStatus()).isEqualTo(400);
+        assertThat(response.getContentAsString()).contains("MISSING_WORKSPACE");
+        assertThat(chainCalled.get()).isFalse();
+    }
+
+    @Test
     void workspaceQueryMismatch_returnsForbidden() throws Exception {
         TenantContext.setWorkspaceId("workspace-1");
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/compliance/audit-evidence");

@@ -602,6 +602,18 @@ dependencies: Loop 5 reviewers and disjoint audience/campaign execution workers
 blockers: production egress remains blocked pending exact provider/VPC CIDRs or approved CNI FQDN policy model
 next_actions: final full validation sweep completed; resolve production egress policy data, content/platform workspace-scope decisions, landing-page controlled submission policy, and high-volume load evidence before release
 
+AdminSettingsRefinement-20260518:
+assigned_task: refine Admin Control Plane and Enterprise Settings across frontend/backend/services/testing with parallel agents
+task_type: SECURITY/RELIABILITY/FRONTEND/TESTING
+priority_score: 41
+risk_level: HIGH
+status: completed
+changed_files: frontend admin/settings consoles and E2E tests; foundation admin/global service guards, workspace/nullable-scope reads, and tests; content rendered snapshot purge transaction fix/test; foundation Mockito warning cleanup; .codex memory
+branch_or_worktree: main
+dependencies: .codex/bootstrap.md, .codex/commands/start-org.md, Salesforce comparison report 2026-05-18, compose/runtime validators
+blockers: none for local source/runtime validation; external GA evidence blockers remain in blocked/unresolved memory
+next_actions: future work should split remaining large admin/settings files by panel/domain, then collect external production evidence before release
+
 FullAuditWave-20260516:
 assigned_task: full repository audit with parallel security/performance/frontend/infra/DB/code-quality agents and first local hardening wave
 task_type: SECURITY/PERFORMANCE/RELEASE/TESTING

@@ -21,12 +21,21 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminSettingsService {
+
+    private static final Set<String> SUPPORTED_VALUE_TYPES = Set.of("STRING", "INTEGER", "BOOLEAN", "JSON", "DECIMAL");
+    private static final Set<String> SUPPORTED_SCOPE_TYPES = Set.of(
+            ConfigService.SCOPE_GLOBAL,
+            ConfigService.SCOPE_TENANT,
+            ConfigService.SCOPE_WORKSPACE,
+            ConfigService.SCOPE_ENVIRONMENT
+    );
 
     private final ConfigService configService;
     private final ConfigRepository configRepository;
@@ -80,6 +89,11 @@ public class AdminSettingsService {
         }
         if (scope == null) {
             scope = inferScope(workspaceId, environmentId, tenantId);
+        } else if (!SUPPORTED_SCOPE_TYPES.contains(scope)) {
+            errors.add("Unsupported setting scope: " + scope);
+        }
+        if (type != null && !SUPPORTED_VALUE_TYPES.contains(type)) {
+            errors.add("Unsupported setting type: " + type);
         }
         if (ConfigService.SCOPE_WORKSPACE.equals(scope) && workspaceId == null) {
             errors.add("workspaceId required for WORKSPACE scope");
@@ -88,7 +102,7 @@ public class AdminSettingsService {
             errors.add("workspaceId and environmentId required for ENVIRONMENT scope");
         }
 
-        if (value != null && type != null) {
+        if (value != null && type != null && SUPPORTED_VALUE_TYPES.contains(type)) {
             validateType(type, value, errors);
         }
 
@@ -146,6 +160,10 @@ public class AdminSettingsService {
         String scope = normalizeUpper(request.getScope());
         String workspaceId = normalize(request.getWorkspaceId() != null ? request.getWorkspaceId() : TenantContext.getWorkspaceId());
         String environmentId = normalize(request.getEnvironmentId() != null ? request.getEnvironmentId() : TenantContext.getEnvironmentId());
+
+        if (scope != null && !SUPPORTED_SCOPE_TYPES.contains(scope)) {
+            throw new IllegalArgumentException("Unsupported setting scope: " + scope);
+        }
 
         String effectiveScope = scope == null ? inferScope(workspaceId, environmentId, tenantId) : scope;
         String scopedWorkspace = ConfigService.SCOPE_WORKSPACE.equals(effectiveScope) || ConfigService.SCOPE_ENVIRONMENT.equals(effectiveScope)

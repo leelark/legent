@@ -50,6 +50,7 @@ public class CorePlatformRepository {
             "governance_policy_simulation_runs",
             "immutable_audit_evidence",
             "marketplace_connector_instances",
+            "marketplace_connector_templates",
             "marketplace_sync_jobs",
             "membership_links",
             "omnichannel_orchestration_flows",
@@ -82,6 +83,7 @@ public class CorePlatformRepository {
 
     private static final Set<String> ALLOWED_DYNAMIC_KEY_COLUMNS = Set.of(
             "app_key",
+            "connector_key",
             "flow_key",
             "hold_key",
             "instance_key",

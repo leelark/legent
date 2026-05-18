@@ -29,25 +29,28 @@ public class AdminOperationsService {
     @Transactional(readOnly = true)
     public Map<String, Object> dashboard() {
         String tenantId = requireTenant();
+        String workspaceId = requireWorkspace();
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("generatedAt", Instant.now());
-        response.put("health", health(tenantId));
-        response.put("stats", stats(tenantId));
-        response.put("modules", modules(tenantId));
-        response.put("moduleStatuses", moduleStatuses(tenantId));
-        response.put("jobs", jobs(tenantId));
-        response.put("alerts", alerts(tenantId));
-        response.put("recommendedActions", recommendedActions(tenantId));
+        response.put("workspaceId", workspaceId);
+        response.put("health", health(tenantId, workspaceId));
+        response.put("stats", stats(tenantId, workspaceId));
+        response.put("modules", modules(tenantId, workspaceId));
+        response.put("moduleStatuses", moduleStatuses(tenantId, workspaceId));
+        response.put("jobs", jobs(tenantId, workspaceId));
+        response.put("alerts", alerts(tenantId, workspaceId));
+        response.put("recommendedActions", recommendedActions(tenantId, workspaceId));
         response.put("cacheState", cacheState());
-        response.put("staleConfig", staleConfig(tenantId));
-        response.put("activity", recentAudit(tenantId, 12));
-        response.put("syncEvents", recentSync(tenantId, 12));
+        response.put("staleConfig", staleConfig(tenantId, workspaceId));
+        response.put("activity", recentAudit(tenantId, workspaceId, 12));
+        response.put("syncEvents", recentSync(tenantId, workspaceId, 12));
         return response;
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> accessOverview() {
         String tenantId = requireTenant();
+        String workspaceId = requireWorkspace();
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("roles", safeQueryForList("""
                 SELECT role_key, display_name, description, is_system, permissions, updated_at
@@ -64,18 +67,20 @@ public class AdminOperationsService {
         response.put("memberships", safeQueryForList("""
                 SELECT id, user_id, workspace_id, team_id, department_id, status, principal_type, updated_at
                 FROM membership_links
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL
+                WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL
                 ORDER BY updated_at DESC
                 LIMIT 100
-                """, Map.of("tenantId", tenantId)));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId)));
         response.put("delegatedAccess", safeQueryForList("""
                 SELECT id, grantor_user_id, grantee_user_id, workspace_id, permissions, status, expires_at, updated_at
                 FROM delegated_access_grants
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL
+                WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                  AND deleted_at IS NULL
                 ORDER BY updated_at DESC
                 LIMIT 100
-                """, Map.of("tenantId", tenantId)));
-        response.put("propagation", recentSyncByTypes(tenantId, List.of(
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId)));
+        response.put("propagation", recentSyncByTypes(tenantId, workspaceId, List.of(
                 "ROLE_DEFINITION_CHANGED",
                 "PERMISSION_GROUP_CHANGED",
                 "ACCESS_GRANT_CHANGED",
@@ -89,12 +94,15 @@ public class AdminOperationsService {
     public List<Map<String, Object>> syncEvents(String status, int limit) {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("tenantId", requireTenant());
+        params.put("workspaceId", requireWorkspace());
         params.put("limit", Math.max(1, Math.min(limit, 250)));
 
         StringBuilder sql = new StringBuilder("""
                 SELECT *
                 FROM admin_sync_events
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL
+                WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                  AND deleted_at IS NULL
                 """);
 
         String normalizedStatus = blankToNull(status);
@@ -140,26 +148,29 @@ public class AdminOperationsService {
         return saved;
     }
 
-    private Map<String, Object> health(String tenantId) {
+    private Map<String, Object> health(String tenantId, String workspaceId) {
         long failures = count("""
                 SELECT COUNT(*) FROM core_audit_events
                 WHERE tenant_id = :tenantId
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                   AND status <> 'SUCCESS'
                   AND created_at > NOW() - INTERVAL '24 hours'
-                """, Map.of("tenantId", tenantId));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
         long pendingSync = count("""
                 SELECT COUNT(*) FROM admin_sync_events
                 WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                   AND deleted_at IS NULL
                   AND status IN ('PENDING', 'FAILED')
-                """, Map.of("tenantId", tenantId));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
         long lockedEnvironments = count("""
                 SELECT COUNT(*) FROM environment_locks
                 WHERE tenant_id = :tenantId
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                   AND is_active = TRUE
-                """, Map.of("tenantId", tenantId));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
 
         String status = failures > 0 || pendingSync > 0 ? "DEGRADED" : "OPERATIONAL";
         if (lockedEnvironments > 0 && "OPERATIONAL".equals(status)) {
@@ -174,64 +185,72 @@ public class AdminOperationsService {
         );
     }
 
-    private Map<String, Object> stats(String tenantId) {
+    private Map<String, Object> stats(String tenantId, String workspaceId) {
         Map<String, Object> stats = new LinkedHashMap<>();
-        stats.put("workspaces", countActive("workspaces", tenantId));
-        stats.put("memberships", countActive("membership_links", tenantId));
+        stats.put("workspaces", count("SELECT COUNT(*) FROM workspaces WHERE tenant_id = :tenantId AND id = :workspaceId AND deleted_at IS NULL",
+                Map.of("tenantId", tenantId, "workspaceId", workspaceId)));
+        stats.put("memberships", countActiveInWorkspace("membership_links", tenantId, workspaceId));
         stats.put("roles", countRoleDefinitions(tenantId));
-        stats.put("featureControls", countActive("feature_controls", tenantId));
+        stats.put("featureControls", countWorkspaceNullable("feature_controls", tenantId, workspaceId));
         stats.put("runtimeConfigs", count("""
                 SELECT COUNT(*) FROM system_configs
-                WHERE deleted_at IS NULL AND (tenant_id IS NULL OR tenant_id = :tenantId)
-                """, Map.of("tenantId", tenantId)));
+                WHERE deleted_at IS NULL
+                  AND (tenant_id IS NULL OR tenant_id = :tenantId)
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId)));
         stats.put("auditEvents24h", count("""
                 SELECT COUNT(*) FROM core_audit_events
                 WHERE tenant_id = :tenantId
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                   AND created_at > NOW() - INTERVAL '24 hours'
-                """, Map.of("tenantId", tenantId)));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId)));
         stats.put("pendingAccess", count("""
                 SELECT COUNT(*) FROM delegated_access_grants
                 WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                   AND deleted_at IS NULL
                   AND status = 'PENDING'
-                """, Map.of("tenantId", tenantId)));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId)));
         return stats;
     }
 
-    private List<Map<String, Object>> modules(String tenantId) {
+    private List<Map<String, Object>> modules(String tenantId, String workspaceId) {
         List<Map<String, Object>> modules = new ArrayList<>();
-        addModule(modules, tenantId, "audience", "Audience", "identity, consent, segment readiness");
-        addModule(modules, tenantId, "template", "Template", "content governance and rendering");
-        addModule(modules, tenantId, "campaign", "Campaign", "launch workflow and approvals");
-        addModule(modules, tenantId, "automation", "Automation", "journey orchestration");
-        addModule(modules, tenantId, "delivery", "Delivery", "providers, queues, retries");
-        addModule(modules, tenantId, "analytics", "Analytics", "feedback and visibility");
-        addModule(modules, tenantId, "security", "Security", "access policy and controls");
+        addModule(modules, tenantId, workspaceId, "audience", "Audience", "identity, consent, segment readiness");
+        addModule(modules, tenantId, workspaceId, "template", "Template", "content governance and rendering");
+        addModule(modules, tenantId, workspaceId, "campaign", "Campaign", "launch workflow and approvals");
+        addModule(modules, tenantId, workspaceId, "automation", "Automation", "journey orchestration");
+        addModule(modules, tenantId, workspaceId, "delivery", "Delivery", "providers, queues, retries");
+        addModule(modules, tenantId, workspaceId, "analytics", "Analytics", "feedback and visibility");
+        addModule(modules, tenantId, workspaceId, "security", "Security", "access policy and controls");
         return modules;
     }
 
-    private void addModule(List<Map<String, Object>> modules, String tenantId, String key, String label, String description) {
+    private void addModule(List<Map<String, Object>> modules, String tenantId, String workspaceId, String key, String label, String description) {
         long configs = count("""
                 SELECT COUNT(*) FROM system_configs
                 WHERE deleted_at IS NULL
                   AND (tenant_id IS NULL OR tenant_id = :tenantId)
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                   AND LOWER(module_key) = :moduleKey
-                """, Map.of("tenantId", tenantId, "moduleKey", key));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId, "moduleKey", key));
         long audit = count("""
                 SELECT COUNT(*) FROM core_audit_events
                 WHERE tenant_id = :tenantId
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                   AND LOWER(resource_type) LIKE CONCAT('%', :moduleKey, '%')
                   AND created_at > NOW() - INTERVAL '7 days'
-                """, Map.of("tenantId", tenantId, "moduleKey", key));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId, "moduleKey", key));
         long sync = count("""
                 SELECT COUNT(*) FROM admin_sync_events
                 WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                   AND deleted_at IS NULL
                   AND CAST(target_modules AS text) ILIKE CONCAT('%', :moduleKey, '%')
                   AND created_at > NOW() - INTERVAL '7 days'
-                """, Map.of("tenantId", tenantId, "moduleKey", key));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId, "moduleKey", key));
         modules.add(Map.of(
                 "key", key,
                 "label", label,
@@ -243,46 +262,52 @@ public class AdminOperationsService {
         ));
     }
 
-    private List<Map<String, Object>> jobs(String tenantId) {
+    private List<Map<String, Object>> jobs(String tenantId, String workspaceId) {
         List<Map<String, Object>> jobs = new ArrayList<>();
         jobs.add(Map.of(
                 "name", "Tenant bootstrap",
-                "status", latestValue("tenant_bootstrap_status", tenantId, "status", "PENDING"),
+                "status", latestWorkspaceNullableValue("tenant_bootstrap_status", tenantId, workspaceId, "status", "PENDING"),
                 "queued", count("""
                         SELECT COUNT(*) FROM tenant_bootstrap_status
-                        WHERE tenant_id = :tenantId AND status IN ('PENDING', 'REPAIRING')
-                        """, Map.of("tenantId", tenantId))
+                        WHERE tenant_id = :tenantId
+                          AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                          AND status IN ('PENDING', 'REPAIRING')
+                        """, Map.of("tenantId", tenantId, "workspaceId", workspaceId))
         ));
         jobs.add(Map.of(
                 "name", "Environment promotions",
                 "status", "TRACKED",
                 "queued", count("""
                         SELECT COUNT(*) FROM promotion_requests
-                        WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'PENDING'
-                        """, Map.of("tenantId", tenantId))
+                        WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL AND status = 'PENDING'
+                        """, Map.of("tenantId", tenantId, "workspaceId", workspaceId))
         ));
         jobs.add(Map.of(
                 "name", "Config propagation",
                 "status", "APPLIED",
                 "queued", count("""
                         SELECT COUNT(*) FROM admin_sync_events
-                        WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'PENDING'
-                        """, Map.of("tenantId", tenantId))
+                        WHERE tenant_id = :tenantId
+                          AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                          AND deleted_at IS NULL
+                          AND status = 'PENDING'
+                        """, Map.of("tenantId", tenantId, "workspaceId", workspaceId))
         ));
         return jobs;
     }
 
-    private Map<String, Object> moduleStatuses(String tenantId) {
+    private Map<String, Object> moduleStatuses(String tenantId, String workspaceId) {
         Map<String, Object> statuses = new LinkedHashMap<>();
-        for (Map<String, Object> module : modules(tenantId)) {
+        for (Map<String, Object> module : modules(tenantId, workspaceId)) {
             String key = String.valueOf(module.get("key"));
             long failedSync = count("""
                     SELECT COUNT(*) FROM admin_sync_events
                     WHERE tenant_id = :tenantId
+                      AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                       AND deleted_at IS NULL
                       AND status = 'FAILED'
                       AND CAST(target_modules AS text) ILIKE CONCAT('%', :moduleKey, '%')
-                    """, Map.of("tenantId", tenantId, "moduleKey", key));
+                    """, Map.of("tenantId", tenantId, "workspaceId", workspaceId, "moduleKey", key));
             long recentAudit = asLong(module.get("auditEvents"));
             statuses.put(key, Map.of(
                     "status", failedSync > 0 ? "DEGRADED" : "OPERATIONAL",
@@ -294,17 +319,20 @@ public class AdminOperationsService {
         return statuses;
     }
 
-    private List<Map<String, Object>> recommendedActions(String tenantId) {
+    private List<Map<String, Object>> recommendedActions(String tenantId, String workspaceId) {
         List<Map<String, Object>> actions = new ArrayList<>();
         long failedSync = count("""
                 SELECT COUNT(*) FROM admin_sync_events
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'FAILED'
-                """, Map.of("tenantId", tenantId));
+                WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                  AND deleted_at IS NULL
+                  AND status = 'FAILED'
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
         long pendingAccess = count("""
                 SELECT COUNT(*) FROM delegated_access_grants
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'PENDING'
-                """, Map.of("tenantId", tenantId));
-        long staleConfig = countStaleConfig(tenantId);
+                WHERE tenant_id = :tenantId AND (workspace_id IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL AND status = 'PENDING'
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
+        long staleConfig = countStaleConfig(tenantId, workspaceId);
         if (failedSync > 0) {
             actions.add(Map.of(
                     "key", "sync.replay",
@@ -353,8 +381,8 @@ public class AdminOperationsService {
         );
     }
 
-    private Map<String, Object> staleConfig(String tenantId) {
-        long count = countStaleConfig(tenantId);
+    private Map<String, Object> staleConfig(String tenantId, String workspaceId) {
+        long count = countStaleConfig(tenantId, workspaceId);
         return Map.of(
                 "count", count,
                 "status", count > 0 ? "REVIEW" : "CURRENT",
@@ -362,20 +390,23 @@ public class AdminOperationsService {
         );
     }
 
-    private List<Map<String, Object>> alerts(String tenantId) {
+    private List<Map<String, Object>> alerts(String tenantId, String workspaceId) {
         List<Map<String, Object>> alerts = new ArrayList<>();
         long failed = count("""
                 SELECT COUNT(*) FROM core_audit_events
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status <> 'SUCCESS'
-                """, Map.of("tenantId", tenantId));
+                WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL AND status <> 'SUCCESS'
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
         long pendingAccess = count("""
                 SELECT COUNT(*) FROM delegated_access_grants
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'PENDING'
-                """, Map.of("tenantId", tenantId));
+                WHERE tenant_id = :tenantId AND (workspace_id IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL AND status = 'PENDING'
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
         long failedSync = count("""
                 SELECT COUNT(*) FROM admin_sync_events
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL AND status = 'FAILED'
-                """, Map.of("tenantId", tenantId));
+                WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                  AND deleted_at IS NULL
+                  AND status = 'FAILED'
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
         if (failed > 0) {
             alerts.add(Map.of("tone", "danger", "title", "Failed governed actions", "detail", failed + " failed audit events need review"));
         }
@@ -391,40 +422,51 @@ public class AdminOperationsService {
         return alerts;
     }
 
-    private List<Map<String, Object>> recentAudit(String tenantId, int limit) {
+    private List<Map<String, Object>> recentAudit(String tenantId, String workspaceId, int limit) {
         return safeQueryForList("""
                 SELECT action, resource_type, resource_id, actor_id, status, created_at
                 FROM core_audit_events
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL
+                WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL
                 ORDER BY created_at DESC
                 LIMIT :limit
-                """, Map.of("tenantId", tenantId, "limit", limit));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId, "limit", limit));
     }
 
-    private List<Map<String, Object>> recentSync(String tenantId, int limit) {
-        return safeQueryForList("""
-                SELECT event_type, source_module, target_modules, status, applied_at, created_at
-                FROM admin_sync_events
-                WHERE tenant_id = :tenantId AND deleted_at IS NULL
-                ORDER BY created_at DESC
-                LIMIT :limit
-                """, Map.of("tenantId", tenantId, "limit", limit));
-    }
-
-    private List<Map<String, Object>> recentSyncByTypes(String tenantId, List<String> eventTypes) {
+    private List<Map<String, Object>> recentSync(String tenantId, String workspaceId, int limit) {
         return safeQueryForList("""
                 SELECT event_type, source_module, target_modules, status, applied_at, created_at
                 FROM admin_sync_events
                 WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
+                  AND deleted_at IS NULL
+                ORDER BY created_at DESC
+                LIMIT :limit
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId, "limit", limit));
+    }
+
+    private List<Map<String, Object>> recentSyncByTypes(String tenantId, String workspaceId, List<String> eventTypes) {
+        return safeQueryForList("""
+                SELECT event_type, source_module, target_modules, status, applied_at, created_at
+                FROM admin_sync_events
+                WHERE tenant_id = :tenantId
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                   AND deleted_at IS NULL
                   AND event_type IN (:eventTypes)
                 ORDER BY created_at DESC
                 LIMIT 50
-                """, Map.of("tenantId", tenantId, "eventTypes", eventTypes));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId, "eventTypes", eventTypes));
     }
 
-    private long countActive(String table, String tenantId) {
-        return count("SELECT COUNT(*) FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND deleted_at IS NULL", Map.of("tenantId", tenantId));
+    private long countActiveInWorkspace(String table, String tenantId, String workspaceId) {
+        return count("SELECT COUNT(*) FROM " + CorePlatformRepository.safeTable(table)
+                        + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL",
+                Map.of("tenantId", tenantId, "workspaceId", workspaceId));
+    }
+
+    private long countWorkspaceNullable(String table, String tenantId, String workspaceId) {
+        return count("SELECT COUNT(*) FROM " + CorePlatformRepository.safeTable(table)
+                        + " WHERE tenant_id = :tenantId AND (workspace_id IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL",
+                Map.of("tenantId", tenantId, "workspaceId", workspaceId));
     }
 
     private long countRoleDefinitions(String tenantId) {
@@ -434,13 +476,14 @@ public class AdminOperationsService {
                 """, Map.of("tenantId", tenantId));
     }
 
-    private long countStaleConfig(String tenantId) {
+    private long countStaleConfig(String tenantId, String workspaceId) {
         return count("""
                 SELECT COUNT(*) FROM system_configs
                 WHERE deleted_at IS NULL
                   AND (tenant_id IS NULL OR tenant_id = :tenantId)
+                  AND (workspace_id IS NULL OR workspace_id = :workspaceId)
                   AND updated_at < NOW() - INTERVAL '90 days'
-                """, Map.of("tenantId", tenantId));
+                """, Map.of("tenantId", tenantId, "workspaceId", workspaceId));
     }
 
     private long asLong(Object value) {
@@ -467,11 +510,12 @@ public class AdminOperationsService {
         }
     }
 
-    private String latestValue(String table, String tenantId, String column, String fallback) {
+    private String latestWorkspaceNullableValue(String table, String tenantId, String workspaceId, String column, String fallback) {
         String safeColumn = CorePlatformRepository.safeColumn(column);
         List<Map<String, Object>> rows = safeQueryForList(
-                "SELECT " + safeColumn + " FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId ORDER BY updated_at DESC LIMIT 1",
-                Map.of("tenantId", tenantId)
+                "SELECT " + safeColumn + " FROM " + CorePlatformRepository.safeTable(table)
+                        + " WHERE tenant_id = :tenantId AND (workspace_id IS NULL OR workspace_id = :workspaceId) ORDER BY updated_at DESC LIMIT 1",
+                Map.of("tenantId", tenantId, "workspaceId", workspaceId)
         );
         if (rows.isEmpty()) {
             return fallback;
@@ -514,6 +558,14 @@ public class AdminOperationsService {
 
     private String requireTenant() {
         return TenantContext.requireTenantId();
+    }
+
+    private String requireWorkspace() {
+        String workspaceId = TenantContext.getWorkspaceId();
+        if (workspaceId == null || workspaceId.isBlank()) {
+            throw new IllegalStateException("Workspace context is required for admin operations");
+        }
+        return workspaceId.trim();
     }
 
     private String currentActor() {
