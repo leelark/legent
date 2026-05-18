@@ -1,6 +1,9 @@
 # Bug History
 
-Last updated: 2026-05-13.
+Last updated: 2026-05-18.
 
+- Open: 2026-05-18 repository artifact hygiene validator self-matches and fails. Source: `scripts/ops/validate-repo-artifact-hygiene.ps1` line 52 and `.github/workflows/ci-security.yml` line 98; command `powershell -ExecutionPolicy Bypass -File scripts\ops\validate-repo-artifact-hygiene.ps1` fails because `git grep -F "Using generated security password"` finds the literal detection string inside the validator source itself. Impact: security CI/release hygiene can fail falsely before gitleaks/Trivy. Next action: exclude the validator source from its own scan or scan only generated/log artifact paths, add a regression self-test fixture, then rerun artifact hygiene and CI security gates.
+- Open risk: 2026-05-18 delivery send fallback still synthesizes placeholder subject/body after content-reference resolution misses before inbox safety rejects the placeholder. Source: `services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java` and Salesforce audit `.codex/reports/salesforce-comparison-full-audit-2026-05-18.yaml`. Impact: fail-closed behavior depends on a downstream inbox-safety rule instead of the content-resolution boundary. Next action: reject unresolved required content before constructing default content, with focused retry/first-attempt tests.
+- Open risk: 2026-05-18 audience resolution logs and returns when workspace context is missing. Source: `services/audience-service/src/main/java/com/legent/audience/consumer/AudienceResolutionConsumer.java` and Salesforce audit `.codex/reports/salesforce-comparison-full-audit-2026-05-18.yaml`. Impact: malformed events can be acknowledged without retry/DLQ visibility. Next action: route missing workspace context to explicit retry/DLQ or terminal dead-letter policy with tests.
 - No runtime bug fixed during orchestration bootstrap.
 - Open correctness risks are tracked in `unresolved-risks.md`, `security-findings.md`, and `performance-bottlenecks.md`.
