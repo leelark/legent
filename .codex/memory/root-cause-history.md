@@ -1,6 +1,8 @@
 # Root Cause History
 
-Last updated: 2026-05-18.
+Last updated: 2026-05-19.
+
+- 2026-05-19: Fixed root cause for Template Builder frontend usability drift: `TemplateBuilder` only supported button-based block creation, existing-block drag reorder, raw HTML editing, and style controls whose visibility/border/alignment settings were not fully represented in generated email HTML. Change adds library-to-canvas drag/drop, explicit drop zones, mobile/desktop preview behavior, inspector tabs, duplicate/delete/move, undo/redo, and save-path HTML generation that sanitizes block content while preserving responsive hide and conditional-rule metadata.
 
 - 2026-05-18: Fixed root cause for remaining high-risk inbound Kafka malformed-event acknowledgement paths: several consumers validated event/payload shape after idempotency claims or returned on missing required fields, letting bad events disappear without retry/DLQ visibility. Change validates required tenant/workspace/event type/idempotency key and payload-specific fields before side effects or processed claims in audience delivery/intelligence, automation workflow triggers, campaign events/feedback, deliverability feedback loops, delivery send requests, and platform webhook/notification/search events.
 - 2026-05-18: Fixed root cause for frontend context preflight drift and future explicit-any regression: the API client treated some backend workspace-required foundation/admin roots as workspace-optional, and lint only warned on explicit `any`. Change aligns the optional-route list with backend workspace filters, adds protected-root Playwright coverage, replaces remaining touched dynamic API wrapper `any` defaults with `unknown` and explicit DTOs, and makes `@typescript-eslint/no-explicit-any` an error.

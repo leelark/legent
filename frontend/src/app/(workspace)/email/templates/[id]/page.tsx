@@ -73,6 +73,9 @@ const defaultBlock = (html: string): ContentBlock => ({
     textColor: '#0f172a',
     padding: 16,
     borderRadius: 8,
+    borderColor: '#e2e8f0',
+    borderWidth: 0,
+    textAlign: 'left',
   },
   settings: {
     hideOnMobile: false,
@@ -129,22 +132,73 @@ const parseMetadata = (metadata?: string | null): Record<string, unknown> => {
   }
 };
 
+const escapeHtmlAttribute = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+const numericBlockStyle = (styles: Record<string, unknown>, key: string, fallback: number) => {
+  const value = Number(styles[key] ?? fallback);
+  return Number.isFinite(value) ? Math.max(0, value) : fallback;
+};
+
+const colorBlockStyle = (styles: Record<string, unknown>, key: string, fallback: string) => {
+  const value = styles[key];
+  if (typeof value !== 'string') return fallback;
+  return /^#[0-9A-Fa-f]{3,8}$/.test(value.trim()) ? value.trim() : fallback;
+};
+
+const alignBlockStyle = (styles: Record<string, unknown>) => {
+  const value = styles.textAlign;
+  return value === 'center' || value === 'right' ? value : 'left';
+};
+
 const blocksToHtml = (blocks: ContentBlock[]): string => {
-  const rows = blocks.map((block) => {
+  const rows = blocks.map((block, index) => {
     const styles = block.styles ?? {};
-    const padding = Number(styles.padding ?? 16);
-    const radius = Number(styles.borderRadius ?? 8);
-    const backgroundColor = String(styles.backgroundColor ?? '#ffffff');
-    const textColor = String(styles.textColor ?? '#0f172a');
+    const settings = block.settings ?? {};
+    const padding = numericBlockStyle(styles, 'padding', 16);
+    const radius = numericBlockStyle(styles, 'borderRadius', 8);
+    const borderWidth = numericBlockStyle(styles, 'borderWidth', 0);
+    const backgroundColor = colorBlockStyle(styles, 'backgroundColor', '#ffffff');
+    const textColor = colorBlockStyle(styles, 'textColor', '#0f172a');
+    const borderColor = colorBlockStyle(styles, 'borderColor', '#e2e8f0');
+    const textAlign = alignBlockStyle(styles);
+    const visibilityRule = typeof settings.visibilityRule === 'string' ? settings.visibilityRule.trim() : '';
+    const classNames = [
+      'legent-block',
+      `legent-block-${block.id.replace(/[^A-Za-z0-9_-]/g, '-') || index}`,
+      settings.hideOnMobile ? 'legent-hide-mobile' : '',
+      settings.hideOnDesktop ? 'legent-hide-desktop' : '',
+    ].filter(Boolean).join(' ');
+    const cellStyles = [
+      `padding:${padding}px`,
+      `background:${backgroundColor}`,
+      `color:${textColor}`,
+      `border-radius:${radius}px`,
+      `text-align:${textAlign}`,
+      borderWidth > 0 ? `border:${borderWidth}px solid ${borderColor}` : '',
+    ].filter(Boolean).join(';');
     return `
-      <tr>
-        <td style="padding:${padding}px;background:${backgroundColor};color:${textColor};border-radius:${radius}px;">
-          ${block.content}
+      <tr class="${classNames}"${visibilityRule ? ` data-legent-visibility-rule="${escapeHtmlAttribute(visibilityRule)}"` : ''}>
+        <td style="${cellStyles};">
+          ${sanitizeEmailHtml(block.content)}
         </td>
       </tr>
     `;
   });
   return `
+    <style>
+      @media screen and (max-width: 600px) {
+        .legent-hide-mobile { display:none !important; max-height:0 !important; overflow:hidden !important; mso-hide:all !important; }
+        .legent-hide-desktop { display:table-row !important; }
+      }
+      @media screen and (min-width: 601px) {
+        .legent-hide-desktop { display:none !important; max-height:0 !important; overflow:hidden !important; mso-hide:all !important; }
+      }
+    </style>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
       <tbody>
         ${rows.join('\n')}
