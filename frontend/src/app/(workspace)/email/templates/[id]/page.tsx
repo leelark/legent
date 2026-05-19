@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { Tabs } from '@/components/ui/Tabs';
 import { useToast } from '@/components/ui/Toast';
 import { TemplateBuilder, ContentBlock } from '@/components/content/TemplateBuilder';
+import { TemplateStudioCommandCenter } from '@/components/content/TemplateStudioCommandCenter';
 import { VersionHistory } from '@/components/content/VersionHistory';
 import { AssetUploader } from '@/components/content/AssetUploader';
 import { PersonalizationTester } from '@/components/content/PersonalizationTester';
@@ -270,8 +271,17 @@ export default function TemplateStudioPage() {
     if (!templateId) return;
     setLoading(true);
     try {
-      const [templateRes, versionsRes, approvalsRes, assetsRes, snippetsRes, tokensRes, rulesRes, brandKitsRes, testSendsRes] = await Promise.all([
-        getTemplate(templateId),
+      const templateRes = await getTemplate(templateId);
+      const [
+        versionsResult,
+        approvalsResult,
+        assetsResult,
+        snippetsResult,
+        tokensResult,
+        rulesResult,
+        brandKitsResult,
+        testSendsResult,
+      ] = await Promise.allSettled([
         listTemplateVersions(templateId),
         getTemplateApprovals(templateId),
         listAssets({ page: 0, size: 40 }),
@@ -281,6 +291,27 @@ export default function TemplateStudioPage() {
         listBrandKits(0, 50),
         listTemplateTestSends(templateId),
       ]);
+
+      const optional = <T,>(result: PromiseSettledResult<T>, fallback: T, label: string) => {
+        if (result.status === 'fulfilled') {
+          return result.value;
+        }
+        addToast({
+          type: 'warning',
+          title: `${label} unavailable`,
+          message: getErrorMessage(result.reason, `Could not load ${label.toLowerCase()}.`),
+        });
+        return fallback;
+      };
+
+      const versionsRes = optional<TemplateVersion[]>(versionsResult, [], 'Versions');
+      const approvalsRes = optional<TemplateApproval[]>(approvalsResult, [], 'Approvals');
+      const assetsRes = optional<unknown>(assetsResult, { content: [] }, 'Assets');
+      const snippetsRes = optional<unknown>(snippetsResult, { content: [] }, 'Snippets');
+      const tokensRes = optional<unknown>(tokensResult, { content: [] }, 'Tokens');
+      const rulesRes = optional<DynamicContentRule[]>(rulesResult, [], 'Dynamic rules');
+      const brandKitsRes = optional<unknown>(brandKitsResult, { content: [] }, 'Brand kits');
+      const testSendsRes = optional<TestSendRecord[]>(testSendsResult, [], 'Test sends');
 
       const parsedMetadata = parseMetadata(templateRes.metadata);
       const builderBlocks = Array.isArray(parsedMetadata.builderBlocks) ? parsedMetadata.builderBlocks as ContentBlock[] : [];
@@ -306,6 +337,9 @@ export default function TemplateStudioPage() {
       if (versionsRes.length >= 2) {
         setCompareLeft(versionsRes[0].versionNumber);
         setCompareRight(versionsRes[1].versionNumber);
+      } else {
+        setCompareLeft(null);
+        setCompareRight(null);
       }
     } catch (error) {
       addToast({
@@ -375,18 +409,22 @@ export default function TemplateStudioPage() {
   const handlePreview = async () => {
     if (!template) return;
     try {
-      const preview = await renderTemplateEnterprise(template.id, {
-        variables: personalizationVars,
-        publishedOnly: false,
+      await withBusy(async () => {
+        await persistTemplate();
+        const preview = await renderTemplateEnterprise(template.id, {
+          variables: personalizationVars,
+          publishedOnly: false,
+        });
+        setPreviewHtml(preview.htmlContent);
+        setPreviewSubject(preview.subject);
+        setPreviewWarnings([...(preview.warnings ?? []), ...(preview.compatibilityWarnings ?? [])]);
+        const validationResult = await validateTemplateEnterprise(template.id, {
+          variables: personalizationVars,
+          publishedOnly: false,
+        });
+        setValidation(validationResult);
+        addToast({ type: 'success', title: 'QA refreshed', message: 'Current draft was saved before render validation.' });
       });
-      setPreviewHtml(preview.htmlContent);
-      setPreviewSubject(preview.subject);
-      setPreviewWarnings([...(preview.warnings ?? []), ...(preview.compatibilityWarnings ?? [])]);
-      const validationResult = await validateTemplateEnterprise(template.id, {
-        variables: personalizationVars,
-        publishedOnly: false,
-      });
-      setValidation(validationResult);
     } catch (error) {
       addToast({
         type: 'error',
@@ -648,6 +686,12 @@ export default function TemplateStudioPage() {
     });
   };
 
+  const previewFrameWidth =
+    previewMode === 'mobile' ? '390px' : previewMode === 'tablet' ? '768px' : '100%';
+  const previewFrameClassName = darkModePreview
+    ? 'mx-auto min-h-[360px] rounded-lg border border-slate-700 bg-slate-950 p-4 text-slate-100 shadow-inner'
+    : 'mx-auto min-h-[360px] rounded-lg border border-border-default bg-white p-4 text-black shadow-inner';
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -709,6 +753,28 @@ export default function TemplateStudioPage() {
           )}
         </div>
       </Card>
+
+      <TemplateStudioCommandCenter
+        template={template}
+        name={name}
+        subject={subject}
+        blocks={blocks}
+        previewWarnings={previewWarnings}
+        validation={validation}
+        versions={versions}
+        approvals={approvals}
+        assets={assets}
+        snippets={snippets}
+        tokens={tokens}
+        dynamicRules={dynamicRules}
+        brandKits={brandKits}
+        testSendRecords={testSendRecords}
+        isBusy={isBusy}
+        onSaveDraft={handleSaveDraft}
+        onRunPreview={handlePreview}
+        onSubmitApproval={handleSubmitApproval}
+        onPublish={handlePublishLatest}
+      />
 
       <Card>
         <Tabs
@@ -865,15 +931,21 @@ export default function TemplateStudioPage() {
                         checked={darkModePreview}
                         onChange={(event) => setDarkModePreview(event.target.checked)}
                       />
-                      Dark mode preview hint
+                      Dark mode preview
                     </label>
-                    <Button className="mt-6" onClick={handlePreview}>Run Preview + Validation</Button>
+                    <Button className="mt-6" onClick={handlePreview} loading={isBusy}>Save + Run QA</Button>
                   </div>
 
                   <Card>
                     <CardHeader title={previewSubject || subject || 'Preview Subject'} />
-                    <div className="rounded-lg border border-border-default bg-white p-4 text-black">
-                      <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(previewHtml || htmlFromBlocks) }} />
+                    <div className="rounded-lg border border-border-default bg-surface-secondary p-4">
+                      <div
+                        className={previewFrameClassName}
+                        style={{ maxWidth: previewFrameWidth }}
+                        data-testid="template-preview-frame"
+                      >
+                        <div dangerouslySetInnerHTML={{ __html: sanitizeEmailHtml(previewHtml || htmlFromBlocks) }} />
+                      </div>
                     </div>
                   </Card>
 
@@ -886,8 +958,8 @@ export default function TemplateStudioPage() {
                         ))}
                         {validation && (
                           <>
-                            <p>Links: {validation.linkCount} - Broken: {validation.brokenLinkCount ?? 0}</p>
-                            <p>Images: {validation.imageCount} - Missing alt: {validation.imagesMissingAlt}</p>
+                            <p>Links: {validation.linkCount ?? 0} - Broken: {validation.brokenLinkCount ?? 0}</p>
+                            <p>Images: {validation.imageCount ?? 0} - Missing alt: {validation.imagesMissingAlt ?? 0}</p>
                             {(validation.brokenLinks ?? []).length > 0 && (
                               <p className="text-danger">Broken links: {(validation.brokenLinks ?? []).join(', ')}</p>
                             )}

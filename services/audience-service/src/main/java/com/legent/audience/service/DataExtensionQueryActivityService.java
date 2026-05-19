@@ -196,6 +196,7 @@ public class DataExtensionQueryActivityService {
         List<Map<String, Object>> matches = new ArrayList<>();
         long rowsRead = 0L;
         int pageIndex = 0;
+        boolean canStopAtLimit = query.orderBy() == null;
         while (rowsRead < MAX_SCAN_ROWS) {
             Page<DataExtensionRecord> page = recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId(
                     tenantId,
@@ -211,11 +212,11 @@ public class DataExtensionQueryActivityService {
                 if (matches(data, query.conditions())) {
                     matches.add(project(data, query.fields(), sourceFields));
                 }
-                if (matches.size() >= effectiveLimit || rowsRead >= MAX_SCAN_ROWS) {
+                if ((canStopAtLimit && matches.size() >= effectiveLimit) || rowsRead >= MAX_SCAN_ROWS) {
                     break;
                 }
             }
-            if (matches.size() >= effectiveLimit || !page.hasNext() || page.getContent().isEmpty()) {
+            if ((canStopAtLimit && matches.size() >= effectiveLimit) || !page.hasNext() || page.getContent().isEmpty()) {
                 break;
             }
             pageIndex++;

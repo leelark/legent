@@ -43,6 +43,7 @@ public class IdentityEventPublisher {
         payload.put("subscriberId", userId);
         payload.put("workspaceId", workspaceId);
         payload.put("messageId", "pwdreset-" + idempotencyKey);
+        payload.put("contentReference", systemContentReference("system:password-reset:", idempotencyKey));
         payload.put("htmlBody",
                 "<html><body style=\"font-family:Arial,sans-serif\">" +
                         "<h2>Reset your password</h2>" +
@@ -64,5 +65,13 @@ public class IdentityEventPublisher {
         envelope.setOwnershipScope("WORKSPACE");
         envelope.setIdempotencyKey(idempotencyKey);
         eventPublisher.publish(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope);
+    }
+
+    private String systemContentReference(String prefix, String value) {
+        String normalized = value == null ? "missing" : value.replaceAll("[^A-Za-z0-9:_-]", "_");
+        if (normalized.length() > 100) {
+            normalized = normalized.substring(0, 100);
+        }
+        return prefix + normalized;
     }
 }

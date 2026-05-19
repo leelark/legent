@@ -32,6 +32,13 @@ public class WorkflowGraphValidator {
             "EVENT_LISTENER",
             "END"
     );
+    private static final Set<String> RUNTIME_SUPPORTED_NODE_TYPES = Set.of(
+            "ENTRY_TRIGGER",
+            "SEND_EMAIL",
+            "DELAY",
+            "CONDITION",
+            "END"
+    );
 
     public WorkflowGraphDto validateAndNormalize(WorkflowGraphDto graph) {
         if (graph == null) {
@@ -127,5 +134,55 @@ public class WorkflowGraphValidator {
         }
 
         return graph;
+    }
+
+    public void validateRuntimeSupported(WorkflowGraphDto graph) {
+        List<String> errors = runtimeSupportErrors(graph);
+        if (!errors.isEmpty()) {
+            throw new IllegalArgumentException("Workflow graph uses unsupported runtime semantics: " + String.join("; ", errors));
+        }
+    }
+
+    public List<String> runtimeSupportErrors(WorkflowGraphDto graph) {
+        WorkflowGraphDto normalized = validateAndNormalize(graph);
+        List<String> errors = new ArrayList<>();
+        for (WorkflowGraphDto.WorkflowNode node : normalized.getNodes().values()) {
+            String type = node.getType();
+            if (!RUNTIME_SUPPORTED_NODE_TYPES.contains(type)) {
+                errors.add("node " + node.getId() + " type " + type + " is not supported by the live workflow runtime");
+                continue;
+            }
+            if ("SEND_EMAIL".equals(type) && isBlank(node.getConfiguration().get("campaignId"))) {
+                errors.add("node " + node.getId() + " type SEND_EMAIL requires configuration.campaignId");
+            }
+            if ("DELAY".equals(type) && !validDelayMinutes(node.getConfiguration().get("minutes"))) {
+                errors.add("node " + node.getId() + " type DELAY requires configuration.minutes between 1 and 10080");
+            }
+            if ("CONDITION".equals(type) && (node.getBranches() == null || node.getBranches().isEmpty())) {
+                errors.add("node " + node.getId() + " type CONDITION requires at least one branch");
+            }
+        }
+        return errors;
+    }
+
+    private boolean isBlank(Object value) {
+        return value == null || String.valueOf(value).trim().isEmpty();
+    }
+
+    private boolean validDelayMinutes(Object value) {
+        if (value == null) {
+            return true;
+        }
+        int minutes;
+        if (value instanceof Number number) {
+            minutes = number.intValue();
+        } else {
+            try {
+                minutes = Integer.parseInt(String.valueOf(value).trim());
+            } catch (NumberFormatException ex) {
+                return false;
+            }
+        }
+        return minutes >= 1 && minutes <= 10080;
     }
 }

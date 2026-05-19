@@ -2,13 +2,27 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Star, Copy, Sparkle, Plus, Trash, Archive, ArrowCounterClockwise } from '@phosphor-icons/react';
+import {
+  Archive,
+  Clock3,
+  Copy,
+  FileCheck2,
+  Grid2X2,
+  LayoutList,
+  Layers,
+  Plus,
+  RotateCcw,
+  Sparkles,
+  Star,
+  Trash2,
+  WandSparkles,
+} from 'lucide-react';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
-import { PageHeader } from '@/components/ui/PageChrome';
+import { ActionBar, MetricCard, PageHeader, Panel } from '@/components/ui/PageChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import {
@@ -42,6 +56,8 @@ const PREBUILT_TEMPLATES: Array<{
 ];
 
 type FilterMode = 'all' | 'favorites' | 'recent';
+type ViewMode = 'list' | 'grid';
+type SortMode = 'updated' | 'name' | 'status';
 
 type ApiErrorLike = {
   normalized?: { message?: unknown };
@@ -69,6 +85,34 @@ function asArray<T>(value: unknown): T[] {
   return [];
 }
 
+function readStoredIds(key: string) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) ?? '[]');
+    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function statusVariant(status?: string): 'default' | 'success' | 'warning' {
+  if (status === 'PUBLISHED') return 'success';
+  if (status === 'ARCHIVED') return 'warning';
+  return 'default';
+}
+
+function templateTimestamp(template: Template) {
+  const value = template.updatedAt || template.createdAt || '';
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function formatDate(value?: string) {
+  if (!value) return 'Not updated';
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) return 'Unknown';
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(timestamp));
+}
+
 function getErrorMessage(error: unknown, fallback: string) {
   if (!isRecord(error)) {
     return fallback;
@@ -88,6 +132,8 @@ export default function EmailTemplatesPage() {
   const [query, setQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [mode, setMode] = useState<FilterMode>('all');
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [sortMode, setSortMode] = useState<SortMode>('updated');
 
   const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
@@ -115,8 +161,8 @@ export default function EmailTemplatesPage() {
   }, [addToast]);
 
   useEffect(() => {
-    setFavoriteIds(JSON.parse(localStorage.getItem('template_favorites') ?? '[]'));
-    setRecentIds(JSON.parse(localStorage.getItem('template_recent') ?? '[]'));
+    setFavoriteIds(readStoredIds('template_favorites'));
+    setRecentIds(readStoredIds('template_recent'));
     void loadTemplates();
   }, [loadTemplates]);
 
@@ -152,10 +198,23 @@ export default function EmailTemplatesPage() {
       const ordering = new Map(recentIds.map((id, index) => [id, index]));
       results = results.filter((template) => recentIds.includes(template.id));
       results.sort((a, b) => (ordering.get(a.id) ?? 9999) - (ordering.get(b.id) ?? 9999));
+    } else if (sortMode === 'name') {
+      results.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortMode === 'status') {
+      results.sort((a, b) => a.status.localeCompare(b.status) || templateTimestamp(b) - templateTimestamp(a));
+    } else {
+      results.sort((a, b) => templateTimestamp(b) - templateTimestamp(a));
     }
 
     return results;
-  }, [templates, query, categoryFilter, mode, favoriteIds, recentIds]);
+  }, [templates, query, categoryFilter, mode, sortMode, favoriteIds, recentIds]);
+
+  const libraryStats = useMemo(() => {
+    const published = templates.filter((template) => template.status === 'PUBLISHED').length;
+    const archived = templates.filter((template) => template.status === 'ARCHIVED').length;
+    const draft = templates.filter((template) => template.status !== 'PUBLISHED' && template.status !== 'ARCHIVED').length;
+    return { published, archived, draft };
+  }, [templates]);
 
   const persistFavorites = (nextIds: string[]) => {
     setFavoriteIds(nextIds);
@@ -308,83 +367,164 @@ export default function EmailTemplatesPage() {
         )}
       />
 
-      <Card>
-        <CardHeader title="Quick Start Library" subtitle="Start from professionally designed templates." />
-        <div className="grid gap-3 p-6 sm:grid-cols-2 xl:grid-cols-5">
-          {PREBUILT_TEMPLATES.map((preset) => (
-            <div key={preset.key} className="rounded-xl border border-border-default bg-surface-secondary p-3">
-              <p className="font-medium text-content-primary">{preset.name}</p>
-              <p className="mt-1 text-xs text-content-secondary">{preset.category}</p>
-              <p className="mt-2 line-clamp-2 text-xs text-content-muted">{preset.subject}</p>
-              <Button size="sm" className="mt-3 w-full" onClick={() => handleUsePrebuilt(preset)}>
-                Use Template
-              </Button>
-            </div>
-          ))}
-        </div>
-      </Card>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard
+          label="Total Library"
+          value={templates.length}
+          helper={`${filteredTemplates.length} in current view`}
+          icon={<Layers size={18} />}
+          accent="brand"
+        />
+        <MetricCard
+          label="Published"
+          value={libraryStats.published}
+          helper={`${libraryStats.draft} drafts need work`}
+          icon={<FileCheck2 size={18} />}
+          accent="success"
+        />
+        <MetricCard
+          label="Favorites"
+          value={favoriteIds.length}
+          helper={`${recentIds.length} recently opened`}
+          icon={<Star size={18} />}
+          accent="warning"
+        />
+        <MetricCard
+          label="Archived"
+          value={libraryStats.archived}
+          helper="Restore when content becomes reusable"
+          icon={<Archive size={18} />}
+          accent={libraryStats.archived > 0 ? 'warning' : 'brand'}
+        />
+      </div>
 
-      <Card>
-        <CardHeader title="Create Blank Template" />
-        <div className="grid gap-4 p-6 md:grid-cols-3">
-          <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} placeholder="May Newsletter" />
-          <Input label="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Latest product updates" />
-          <Button icon={<Plus size={16} />} loading={creating} disabled={creating} onClick={handleCreateBlank}>
-            Create Blank
-          </Button>
-        </div>
-        <div className="p-6 pt-0">
-          <label className="mb-1 block text-sm font-medium text-content-primary">HTML Body</label>
-          <textarea
-            value={htmlBody}
-            onChange={(event) => setHtmlBody(event.target.value)}
-            rows={4}
-            className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
-            placeholder="<h1>Template content</h1>"
-          />
-        </div>
-      </Card>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <Panel className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-content-secondary">Starting points</p>
+              <h2 className="mt-1 text-lg font-semibold text-content-primary">Prebuilt campaign templates</h2>
+            </div>
+            <Badge variant="info">{PREBUILT_TEMPLATES.length} presets</Badge>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {PREBUILT_TEMPLATES.map((preset) => (
+              <div key={preset.key} className="rounded-lg border border-border-default bg-surface-primary/70 p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-content-primary">{preset.name}</p>
+                    <p className="mt-1 text-xs text-content-secondary">{preset.category}</p>
+                  </div>
+                  <WandSparkles size={16} className="mt-0.5 shrink-0 text-brand-500" aria-hidden="true" />
+                </div>
+                <p className="mt-2 line-clamp-2 text-xs text-content-muted">{preset.subject}</p>
+                <Button size="sm" className="mt-3 w-full" icon={<Plus size={14} />} onClick={() => handleUsePrebuilt(preset)}>
+                  Use Template
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Panel>
+
+        <Panel className="space-y-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-content-secondary">Create</p>
+            <h2 className="mt-1 text-lg font-semibold text-content-primary">Blank HTML template</h2>
+          </div>
+          <div className="space-y-3">
+            <Input label="Name" value={name} onChange={(event) => setName(event.target.value)} placeholder="May Newsletter" />
+            <Input label="Subject" value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Latest product updates" />
+            <div>
+              <label className="mb-1 block text-sm font-medium text-content-primary">HTML Body</label>
+              <textarea
+                value={htmlBody}
+                onChange={(event) => setHtmlBody(event.target.value)}
+                rows={7}
+                className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 font-mono text-xs text-content-primary"
+                placeholder="<h1>Template content</h1>"
+              />
+            </div>
+            <Button className="w-full" icon={<Plus size={16} />} loading={creating} disabled={creating} onClick={handleCreateBlank}>
+              Create Blank
+            </Button>
+          </div>
+        </Panel>
+      </div>
 
       <Card>
         <CardHeader
           title="Template Library"
           action={<Badge variant="info">{filteredTemplates.length} templates</Badge>}
         />
-        <div className="grid gap-3 border-t border-border-default p-4 md:grid-cols-4">
-          <div className="md:col-span-2">
-            <Input
-              label="Search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by name, subject, tags"
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-content-primary">Category</label>
-            <select
-              value={categoryFilter}
-              onChange={(event) => setCategoryFilter(event.target.value)}
-              className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
-            >
-              {categories.map((category) => (
-                <option key={category} value={category}>
-                  {category === 'all' ? 'All categories' : category}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-content-primary">Filter</label>
-            <select
-              value={mode}
-              onChange={(event) => setMode(event.target.value as FilterMode)}
-              className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
-            >
-              <option value="all">All</option>
-              <option value="favorites">Favorites</option>
-              <option value="recent">Recent</option>
-            </select>
-          </div>
+        <div className="border-t border-border-default p-4">
+          <ActionBar className="items-stretch sm:items-end">
+            <div className="grid flex-1 gap-3 md:grid-cols-[minmax(0,1.6fr)_180px_160px_160px]">
+              <Input
+                label="Search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search by name, subject, tags"
+              />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-content-primary">Category</label>
+                <select
+                  value={categoryFilter}
+                  onChange={(event) => setCategoryFilter(event.target.value)}
+                  className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                >
+                  {categories.map((category) => (
+                    <option key={category} value={category}>
+                      {category === 'all' ? 'All categories' : category}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-content-primary">Filter</label>
+                <select
+                  value={mode}
+                  onChange={(event) => setMode(event.target.value as FilterMode)}
+                  className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                >
+                  <option value="all">All</option>
+                  <option value="favorites">Favorites</option>
+                  <option value="recent">Recent</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-content-primary">Sort</label>
+                <select
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value as SortMode)}
+                  className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                >
+                  <option value="updated">Latest update</option>
+                  <option value="name">Name</option>
+                  <option value="status">Status</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex items-end gap-2">
+              <Button
+                size="icon"
+                variant={viewMode === 'list' ? 'primary' : 'secondary'}
+                aria-label="List view"
+                title="List view"
+                onClick={() => setViewMode('list')}
+              >
+                <LayoutList size={16} />
+              </Button>
+              <Button
+                size="icon"
+                variant={viewMode === 'grid' ? 'primary' : 'secondary'}
+                aria-label="Grid view"
+                title="Grid view"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid2X2 size={16} />
+              </Button>
+            </div>
+          </ActionBar>
         </div>
 
         {loading ? (
@@ -399,6 +539,67 @@ export default function EmailTemplatesPage() {
             title="No templates found"
             description="Adjust filters or create a new template to begin."
           />
+        ) : viewMode === 'grid' ? (
+          <div className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredTemplates.map((template) => (
+              <article
+                key={template.id}
+                className="flex min-h-[230px] flex-col justify-between rounded-lg border border-border-default bg-surface-secondary/70 p-4"
+                data-testid={`template-card-${template.id}`}
+              >
+                <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-content-primary">{template.name}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-content-secondary">{template.subject || 'No subject set'}</p>
+                    </div>
+                    <Badge variant={statusVariant(template.status)}>{template.status}</Badge>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {template.category && <Badge variant="info">{template.category}</Badge>}
+                    {template.lastPublishedVersion != null && <Badge>v{template.lastPublishedVersion}</Badge>}
+                    {favoriteIds.includes(template.id) && <Badge variant="warning">Favorite</Badge>}
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-xs text-content-secondary">
+                    <div>
+                      <p className="font-medium text-content-primary">Updated</p>
+                      <p>{formatDate(template.updatedAt || template.createdAt)}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-content-primary">Type</p>
+                      <p>{template.templateType || 'Email'}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Button
+                    size="icon"
+                    variant={favoriteIds.includes(template.id) ? 'primary' : 'secondary'}
+                    aria-label={favoriteIds.includes(template.id) ? 'Unfavorite template' : 'Favorite template'}
+                    title={favoriteIds.includes(template.id) ? 'Unfavorite template' : 'Favorite template'}
+                    onClick={() => toggleFavorite(template.id)}
+                  >
+                    <Star size={16} fill={favoriteIds.includes(template.id) ? 'currentColor' : 'none'} />
+                  </Button>
+                  <Button size="icon" variant="secondary" aria-label="Duplicate template" title="Duplicate template" onClick={() => handleDuplicate(template.id)}>
+                    <Copy size={16} />
+                  </Button>
+                  {template.status === 'ARCHIVED' ? (
+                    <Button size="icon" variant="secondary" aria-label="Restore template" title="Restore template" onClick={() => handleRestore(template.id)}>
+                      <RotateCcw size={16} />
+                    </Button>
+                  ) : (
+                    <Button size="icon" variant="secondary" aria-label="Archive template" title="Archive template" onClick={() => handleArchive(template.id)}>
+                      <Archive size={16} />
+                    </Button>
+                  )}
+                  <Link href={`/app/email/templates/${template.id}`} onClick={() => markRecent(template.id)} className="ml-auto">
+                    <Button size="sm" icon={<Sparkles size={14} />}>Open</Button>
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
         ) : (
           <div className="divide-y divide-border-default">
             {filteredTemplates.map((template) => (
@@ -406,41 +607,43 @@ export default function EmailTemplatesPage() {
                 <Link href={`/app/email/templates/${template.id}`} className="block flex-1" onClick={() => markRecent(template.id)}>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-semibold text-content-primary">{template.name}</p>
-                    <Badge variant={template.status === 'PUBLISHED' ? 'success' : 'default'}>{template.status}</Badge>
+                    <Badge variant={statusVariant(template.status)}>{template.status}</Badge>
                     {template.category && <Badge variant="info">{template.category}</Badge>}
+                    {template.lastPublishedVersion != null && <Badge>v{template.lastPublishedVersion}</Badge>}
                   </div>
                   <p className="mt-1 text-sm text-content-secondary">{template.subject || 'No subject set'}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-content-muted">
+                    <Clock3 size={12} aria-hidden="true" />
+                    Updated {formatDate(template.updatedAt || template.createdAt)}
+                  </p>
                 </Link>
                 <div className="flex items-center gap-2">
                   <Button
-                    size="sm"
+                    size="icon"
                     variant={favoriteIds.includes(template.id) ? 'primary' : 'secondary'}
+                    aria-label={favoriteIds.includes(template.id) ? 'Unfavorite template' : 'Favorite template'}
+                    title={favoriteIds.includes(template.id) ? 'Unfavorite template' : 'Favorite template'}
                     onClick={() => toggleFavorite(template.id)}
                   >
-                    <Star size={14} weight={favoriteIds.includes(template.id) ? 'fill' : 'regular'} />
-                    Favorite
+                    <Star size={16} fill={favoriteIds.includes(template.id) ? 'currentColor' : 'none'} />
                   </Button>
-                  <Button size="sm" variant="secondary" onClick={() => handleDuplicate(template.id)}>
-                    <Copy size={14} />
-                    Duplicate
+                  <Button size="icon" variant="secondary" aria-label="Duplicate template" title="Duplicate template" onClick={() => handleDuplicate(template.id)}>
+                    <Copy size={16} />
                   </Button>
                   {template.status === 'ARCHIVED' ? (
-                    <Button size="sm" variant="secondary" onClick={() => handleRestore(template.id)}>
-                      <ArrowCounterClockwise size={14} />
-                      Restore
+                    <Button size="icon" variant="secondary" aria-label="Restore template" title="Restore template" onClick={() => handleRestore(template.id)}>
+                      <RotateCcw size={16} />
                     </Button>
                   ) : (
-                    <Button size="sm" variant="secondary" onClick={() => handleArchive(template.id)}>
-                      <Archive size={14} />
-                      Archive
+                    <Button size="icon" variant="secondary" aria-label="Archive template" title="Archive template" onClick={() => handleArchive(template.id)}>
+                      <Archive size={16} />
                     </Button>
                   )}
-                  <Button size="sm" variant="danger" onClick={() => handleDelete(template.id)}>
-                    <Trash size={14} />
-                    Delete
+                  <Button size="icon" variant="danger" aria-label="Delete template" title="Delete template" onClick={() => handleDelete(template.id)}>
+                    <Trash2 size={16} />
                   </Button>
-                  <Link href={`/app/email/templates/${template.id}`}>
-                    <Button size="sm" icon={<Sparkle size={14} />}>Open Studio</Button>
+                  <Link href={`/app/email/templates/${template.id}`} onClick={() => markRecent(template.id)}>
+                    <Button size="sm" icon={<Sparkles size={14} />}>Open Studio</Button>
                   </Link>
                 </div>
               </div>

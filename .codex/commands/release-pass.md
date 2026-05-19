@@ -18,8 +18,10 @@ is attached:
 - `-RequireGaEvidence -EvidenceDir <dir>` requires a current GA evidence
   manifest and local artifacts.
 - `-RequireImageDigests` requires digest-pinned rendered `legent/*` images.
-- `-RequireImageEvidence -ImageEvidenceManifest <json>` requires digest,
-  SBOM, signature, and provenance evidence for rendered images.
+- `-RequireImageEvidence -ImageEvidenceManifest <json> -ImageEvidenceRoot <dir>` requires digest,
+  SBOM, signature, and provenance evidence for rendered images. If
+  `-ImageEvidenceRoot` is omitted, release gate uses `-EvidenceDir` and then the
+  manifest directory for local evidence file checks.
 
 Commands:
 
@@ -39,7 +41,7 @@ Optional strict evidence checks before promotion:
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireExternalEgressEvidence -ExternalEgressEvidencePath <reviewed-json>
 powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireGaEvidence -EvidenceDir <evidence-dir>
-powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireImageDigests -RequireImageEvidence -ImageEvidenceManifest <image-evidence-json>
+powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireImageDigests -RequireImageEvidence -ImageEvidenceManifest <image-evidence-json> -ImageEvidenceRoot <evidence-dir>
 ```
 
 Do not commit, push, or create release unless user explicitly asks and relevant gates pass.

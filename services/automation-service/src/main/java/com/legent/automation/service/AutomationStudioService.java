@@ -18,16 +18,21 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
 public class AutomationStudioService {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
+    private static final Set<AutomationStudioDto.ActivityType> LIVE_EXECUTION_SUPPORTED_TYPES = EnumSet.of(
+            AutomationStudioDto.ActivityType.SQL_QUERY,
+            AutomationStudioDto.ActivityType.IMPORT);
 
     private final AutomationActivityRepository activityRepository;
     private final AutomationActivityRunRepository runRepository;
@@ -60,6 +65,7 @@ public class AutomationStudioService {
         activity.setWorkspaceId(workspaceId);
         apply(activity, request);
         AutomationStudioDto.VerificationResponse verification = verifyConfig(activity.getActivityType(), readMap(activity.getInputConfig()), readMap(activity.getOutputConfig()));
+        requireVerifiedBeforeActive(activity, verification);
         activity.setVerificationJson(writeJson(verification));
         return toActivityResponse(activityRepository.save(activity));
     }
@@ -73,6 +79,7 @@ public class AutomationStudioService {
         }
         apply(activity, request);
         AutomationStudioDto.VerificationResponse verification = verifyConfig(activity.getActivityType(), readMap(activity.getInputConfig()), readMap(activity.getOutputConfig()));
+        requireVerifiedBeforeActive(activity, verification);
         activity.setVerificationJson(writeJson(verification));
         return toActivityResponse(activityRepository.save(activity));
     }
@@ -178,6 +185,11 @@ public class AutomationStudioService {
         if (type == null) {
             errors.add("activityType is required");
         } else {
+            boolean liveExecutionSupported = LIVE_EXECUTION_SUPPORTED_TYPES.contains(type);
+            normalized.put("liveExecutionSupported", liveExecutionSupported);
+            if (!liveExecutionSupported) {
+                errors.add(type.name() + " activity execution is not supported in Automation Studio. Supported live activity types: SQL_QUERY, IMPORT.");
+            }
             switch (type) {
                 case SQL_QUERY -> verifySql(input, output, errors, warnings);
                 case FILE_DROP -> require(input, "locationPattern", errors);
@@ -373,6 +385,13 @@ public class AutomationStudioService {
     private void require(Map<String, Object> map, String key, List<String> errors) {
         if (asString(map.get(key)) == null && !(map.get(key) instanceof Map<?, ?>)) {
             errors.add("Missing required config: " + key);
+        }
+    }
+
+    private void requireVerifiedBeforeActive(AutomationActivity activity, AutomationStudioDto.VerificationResponse verification) {
+        if (activity.getStatus() == AutomationStudioDto.ActivityStatus.ACTIVE && !verification.isValid()) {
+            throw new ValidationException("status", "ACTIVE automation activities require verification.valid=true and liveExecutionSupported=true: "
+                    + String.join("; ", verification.getErrors()));
         }
     }
 

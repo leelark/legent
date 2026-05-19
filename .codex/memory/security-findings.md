@@ -1,9 +1,10 @@
 # Security Findings
 
-Last updated: 2026-05-18.
+Last updated: 2026-05-19.
 
 Findings:
 
+- 2026-05-19, resolved with production configuration required: double opt-in no longer publishes a standalone raw token field or a template/eventType-only payload to `email.send.requested`. Shared Kafka now requires `email` plus `contentReference` for email-send requests, audience double opt-in requires explicit confirmation URL/from/subject/content-reference configuration, and `ConsentService` waits for Kafka handoff. Validation: shared Kafka and audience focused tests passed. Residual: configure and smoke-test the public confirmation URL flow before production enablement.
 - 2026-05-18, resolved: high-risk inbound Kafka consumers now fail closed on malformed or missing-scope events before idempotency claims or side effects. Audience delivery/intelligence events, automation workflow triggers, campaign lifecycle/feedback events, deliverability feedback loops, delivery send requests, and platform webhook/notification/search events validate required tenant/workspace/event identity and payload fields so Kafka retry/DLQ can engage. Validation: combined focused Maven consumer tests across affected services passed.
 - 2026-05-18, resolved: frontend protected API preflight no longer treats backend workspace-required foundation/admin routes as workspace-optional, and future explicit-any usage in `frontend/src` now fails lint instead of warning. Source: `frontend/src/lib/api-client.ts`, `frontend/eslint.config.mjs`, `frontend/tests/e2e/api-client-context.spec.ts`. Validation: frontend lint, build, API-context Playwright, and explicit-any source scan passed.
 - 2026-05-18, reduced: route and external egress release evidence gates now cover more production drift. CI runs the gateway route-map validator, the Nginx-only `/api/v1/track` tombstone is documented/validated instead of requiring a backend route-map entry, and strict external egress evidence must reference rendered and applied policy artifacts. Residual: real target policy data/application evidence remains external.

@@ -99,6 +99,9 @@ public class WorkflowStudioService {
     public WorkflowDefinition saveDefinition(String workflowId, Integer version, WorkflowGraphDto graph, boolean publishDefinition) {
         Workflow workflow = findWorkflow(workflowId);
         WorkflowGraphDto normalized = workflowGraphValidator.validateAndNormalize(graph);
+        if (publishDefinition) {
+            workflowGraphValidator.validateRuntimeSupported(normalized);
+        }
 
         Integer targetVersion = version;
         if (targetVersion == null || targetVersion < 1) {
@@ -161,6 +164,7 @@ public class WorkflowStudioService {
         } else {
             definition = getDefinitionVersion(workflowId, version);
         }
+        workflowGraphValidator.validateRuntimeSupported(parseDefinition(definition));
         definition.setPublished(true);
         workflowDefinitionRepository.save(definition);
         workflow.setActiveDefinitionVersion(definition.getVersion());
@@ -242,11 +246,14 @@ public class WorkflowStudioService {
 
     public Map<String, Object> validateGraph(WorkflowGraphDto graph) {
         WorkflowGraphDto normalized = workflowGraphValidator.validateAndNormalize(graph);
+        List<String> runtimeErrors = workflowGraphValidator.runtimeSupportErrors(normalized);
         Map<String, Object> response = new LinkedHashMap<>();
-        response.put("valid", true);
+        response.put("valid", runtimeErrors.isEmpty());
         response.put("graphVersion", normalized.getGraphVersion());
         response.put("nodeCount", normalized.getNodes().size());
         response.put("initialNodeId", normalized.getInitialNodeId());
+        response.put("runtimeSupported", runtimeErrors.isEmpty());
+        response.put("errors", runtimeErrors);
         response.put("capabilities", graphCapabilities(normalized));
         return response;
     }
@@ -326,6 +333,7 @@ public class WorkflowStudioService {
         response.put("visitedNodes", visited);
         response.put("steps", visited.size());
         response.put("truncated", guard >= 250);
+        response.put("runtimeSupported", workflowGraphValidator.runtimeSupportErrors(normalized).isEmpty());
         response.put("capabilities", graphCapabilities(normalized));
         response.put("entryAccepted", normalized.getEntryPolicy() == null || normalized.getEntryPolicy().isCheckSuppression());
         response.put("goalsReached", visited.stream()
@@ -501,6 +509,8 @@ public class WorkflowStudioService {
         capabilities.put("exits", nodeTypeCounts.getOrDefault("END", 0L));
         capabilities.put("reentryGates", nodeTypeCounts.getOrDefault("REENTRY_GATE", 0L));
         capabilities.put("nodeTypeCounts", nodeTypeCounts);
+        capabilities.put("runtimeSupportedNodeTypes", Set.of("ENTRY_TRIGGER", "SEND_EMAIL", "DELAY", "CONDITION", "END"));
+        capabilities.put("runtimeUnsupportedNodes", workflowGraphValidator.runtimeSupportErrors(graph));
         capabilities.put("reentryPolicy", graph.getReentryPolicy());
         capabilities.put("entryPolicy", graph.getEntryPolicy());
         return capabilities;

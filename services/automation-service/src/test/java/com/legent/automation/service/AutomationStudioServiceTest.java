@@ -19,8 +19,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -64,6 +66,75 @@ class AutomationStudioServiceTest {
 
         assertThat(response.getVerification()).containsKey("warnings");
         assertThat(response.getActivityType()).isEqualTo(AutomationStudioDto.ActivityType.SQL_QUERY);
+    }
+
+    @Test
+    void createUnsupportedActivityWithValidShapeIsNotVerifiedAsExecutable() {
+        when(activityRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull("tenant-1", "workspace-1", "Webhook"))
+                .thenReturn(false);
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> {
+            AutomationActivity activity = invocation.getArgument(0);
+            activity.setId("activity-1");
+            return activity;
+        });
+
+        AutomationStudioDto.ActivityResponse response = service.createActivity(AutomationStudioDto.ActivityRequest.builder()
+                .name("Webhook")
+                .activityType(AutomationStudioDto.ActivityType.WEBHOOK)
+                .inputConfig(Map.of("url", "https://example.com/hook", "method", "POST"))
+                .outputConfig(Map.of())
+                .build());
+
+        assertThat(response.getVerification()).containsEntry("valid", false);
+        assertThat(response.getVerification().get("errors").toString()).contains("WEBHOOK activity execution is not supported");
+        assertThat(response.getVerification().get("normalizedConfig").toString()).contains("liveExecutionSupported=false");
+    }
+
+    @Test
+    void createUnsupportedActiveActivityFailsBeforePersistence() {
+        when(activityRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull("tenant-1", "workspace-1", "Webhook"))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> service.createActivity(AutomationStudioDto.ActivityRequest.builder()
+                .name("Webhook")
+                .activityType(AutomationStudioDto.ActivityType.WEBHOOK)
+                .status(AutomationStudioDto.ActivityStatus.ACTIVE)
+                .inputConfig(Map.of("url", "https://example.com/hook", "method", "POST"))
+                .outputConfig(Map.of())
+                .build()))
+                .hasMessageContaining("ACTIVE automation activities require verification.valid=true and liveExecutionSupported=true")
+                .hasMessageContaining("WEBHOOK activity execution is not supported");
+
+        verify(activityRepository, never()).save(any(AutomationActivity.class));
+    }
+
+    @Test
+    void updateActiveActivityFailsWhenVerificationBecomesInvalid() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("Daily SQL");
+        activity.setActivityType(AutomationStudioDto.ActivityType.SQL_QUERY);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"sql\":\"SELECT email FROM customers\"}");
+        activity.setOutputConfig("{\"targetDataExtensionId\":\"de-target\"}");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(activityRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull("tenant-1", "workspace-1", "Webhook"))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> service.updateActivity("activity-1", AutomationStudioDto.ActivityRequest.builder()
+                .name("Webhook")
+                .activityType(AutomationStudioDto.ActivityType.WEBHOOK)
+                .status(AutomationStudioDto.ActivityStatus.ACTIVE)
+                .inputConfig(Map.of("url", "https://example.com/hook", "method", "POST"))
+                .outputConfig(Map.of())
+                .build()))
+                .hasMessageContaining("ACTIVE automation activities require verification.valid=true and liveExecutionSupported=true")
+                .hasMessageContaining("WEBHOOK activity execution is not supported");
+
+        verify(activityRepository, never()).save(any(AutomationActivity.class));
     }
 
     @Test
@@ -241,6 +312,6 @@ class AutomationStudioServiceTest {
                 AutomationStudioDto.RunRequest.builder().dryRun(false).triggerSource("TEST").build());
 
         assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.FAILED);
-        assertThat(response.getErrorMessage()).contains("EXTRACT activity execution is not implemented");
+        assertThat(response.getErrorMessage()).contains("EXTRACT activity execution is not supported");
     }
 }

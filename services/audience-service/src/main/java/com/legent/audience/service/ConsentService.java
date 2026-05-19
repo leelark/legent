@@ -193,7 +193,7 @@ public class ConsentService {
 
         // AUDIT-019: Publish event to trigger double opt-in email sending
         // The delivery-service will consume this event and send the confirmation email
-        eventPublisher.publishDoubleOptInRequested(tenantId, subscriberId, email, rawToken);
+        eventPublisher.publishDoubleOptInRequested(tenantId, subscriberId, email, rawToken).join();
         log.debug("Published DOUBLE_OPT_IN_REQUESTED event for subscriber {}", subscriberId);
 
         return saved;

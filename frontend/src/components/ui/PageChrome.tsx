@@ -1,7 +1,7 @@
 'use client';
 
 import { clsx } from 'clsx';
-import type { ReactNode } from 'react';
+import type { HTMLAttributes, ReactNode } from 'react';
 
 export function PageHeader({
   eyebrow,
@@ -62,9 +62,12 @@ export function MetricCard({
   );
 }
 
-export function Panel({ children, className }: { children: ReactNode; className?: string }) {
+export function Panel({ children, className, ...props }: { children: ReactNode; className?: string } & HTMLAttributes<HTMLElement>) {
   return (
-    <section className={clsx('rounded-xl border border-border-default bg-surface-elevated/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.82),rgba(255,255,255,0.58))] p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl dark:bg-[linear-gradient(145deg,rgba(26,15,44,0.96),rgba(18,9,31,0.78))] dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]', className)}>
+    <section
+      className={clsx('rounded-xl border border-border-default bg-surface-elevated/95 bg-[linear-gradient(145deg,rgba(255,255,255,0.82),rgba(255,255,255,0.58))] p-5 shadow-[0_18px_45px_rgba(76,29,149,0.08),inset_0_1px_0_rgba(255,255,255,0.78)] backdrop-blur-xl dark:bg-[linear-gradient(145deg,rgba(26,15,44,0.96),rgba(18,9,31,0.78))] dark:shadow-[0_18px_48px_rgba(0,0,0,0.28),inset_0_1px_0_rgba(255,255,255,0.05)]', className)}
+      {...props}
+    >
       {children}
     </section>
   );

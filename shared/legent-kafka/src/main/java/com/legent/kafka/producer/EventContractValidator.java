@@ -26,8 +26,10 @@ public class EventContractValidator {
             new EventContract(
                     SCHEMA_V1,
                     WorkspaceRequirement.ENVELOPE_OR_PAYLOAD,
-                    List.of(List.of("email")),
-                    List.of(List.of("htmlBody", "htmlContent", "contentReference", "templateId", "eventType"))),
+                    List.of(
+                            List.of("email"),
+                            List.of("contentReference")),
+                    List.of()),
             AppConstants.TOPIC_AUDIENCE_RESOLVED,
             new EventContract(
                     SCHEMA_V1,

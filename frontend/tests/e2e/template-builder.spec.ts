@@ -3,6 +3,8 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 type SeenRequests = {
   draftPayload?: Record<string, unknown>;
   updatePayload?: Record<string, unknown>;
+  renderPayload?: Record<string, unknown>;
+  validatePayload?: Record<string, unknown>;
 };
 
 function ok(data: unknown) {
@@ -55,10 +57,42 @@ async function mockTemplateStudioApis(page: Page, seen: SeenRequests) {
     subject: 'Launch day',
     status: 'DRAFT',
     category: 'Lifecycle',
+    approvalRequired: false,
+    templateType: 'MARKETING',
+    lastPublishedVersion: 1,
+    updatedAt: '2026-05-18T10:00:00Z',
+    createdAt: '2026-05-17T10:00:00Z',
     metadata: JSON.stringify({ builderBlocks: initialBlocks }),
     draftSubject: 'Launch day',
     draftHtmlContent: '<p>Launch copy</p>',
   };
+
+  const libraryTemplates = [
+    currentTemplate,
+    {
+      id: 'tpl-published',
+      name: 'Promo Published',
+      subject: 'Offer live',
+      status: 'PUBLISHED',
+      category: 'Promotion',
+      templateType: 'MARKETING',
+      lastPublishedVersion: 3,
+      updatedAt: '2026-05-16T10:00:00Z',
+      createdAt: '2026-05-15T10:00:00Z',
+      metadata: '{}',
+    },
+    {
+      id: 'tpl-archived',
+      name: 'Old Digest',
+      subject: 'Archived news',
+      status: 'ARCHIVED',
+      category: 'Newsletter',
+      templateType: 'MARKETING',
+      updatedAt: '2026-05-14T10:00:00Z',
+      createdAt: '2026-05-13T10:00:00Z',
+      metadata: '{}',
+    },
+  ];
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -90,6 +124,9 @@ async function mockTemplateStudioApis(page: Page, seen: SeenRequests) {
         metadata: {},
       }));
     }
+    if (path === '/templates' && method === 'GET') {
+      return fulfill(route, ok({ content: libraryTemplates }));
+    }
     if (path === '/templates/tpl-1' && method === 'GET') {
       return fulfill(route, ok(currentTemplate));
     }
@@ -109,21 +146,71 @@ async function mockTemplateStudioApis(page: Page, seen: SeenRequests) {
       seen.draftPayload = JSON.parse(request.postData() || '{}') as Record<string, unknown>;
       return fulfill(route, ok({ templateId: 'tpl-1', status: 'DRAFT' }));
     }
-    if (
-      path === '/templates/tpl-1/versions' ||
-      path === '/templates/tpl-1/approvals' ||
-      path === '/templates/tpl-1/dynamic-content' ||
-      path === '/templates/tpl-1/test-sends'
-    ) {
+    if (path === '/templates/tpl-1/render' && method === 'POST') {
+      seen.renderPayload = JSON.parse(request.postData() || '{}') as Record<string, unknown>;
+      return fulfill(route, ok({
+        subject: 'Rendered launch QA',
+        htmlContent: '<h1>Rendered launch QA</h1><p>Current draft QA</p>',
+        textContent: 'Rendered launch QA Current draft QA',
+        validationStatus: 'VALID',
+        warnings: ['Gmail clipping risk'],
+        compatibilityWarnings: [],
+        tokenKeys: ['firstName'],
+        dynamicSlots: [],
+      }));
+    }
+    if (path === '/templates/tpl-1/validate' && method === 'POST') {
+      seen.validatePayload = JSON.parse(request.postData() || '{}') as Record<string, unknown>;
+      return fulfill(route, ok({
+        status: 'VALID',
+        linkCount: 1,
+        brokenLinkCount: 0,
+        imageCount: 1,
+        imagesMissingAlt: 0,
+        warnings: [],
+        errors: [],
+        compatibilityWarnings: [],
+        tokenKeys: ['firstName'],
+        dynamicSlots: [],
+      }));
+    }
+    if (path === '/templates/tpl-1/versions') {
+      return fulfill(route, ok([
+        { id: 'version-1', versionNumber: 1, isPublished: true, createdAt: '2026-05-18T10:00:00Z' },
+      ]));
+    }
+    if (path === '/templates/tpl-1/approvals') {
       return fulfill(route, ok([]));
     }
-    if (
-      path.startsWith('/assets') ||
-      path.startsWith('/content/snippets') ||
-      path.startsWith('/personalization-tokens') ||
-      path.startsWith('/brand-kits')
-    ) {
-      return fulfill(route, ok({ content: [] }));
+    if (path === '/templates/tpl-1/dynamic-content') {
+      return fulfill(route, ok([
+        { id: 'rule-1', templateId: 'tpl-1', slotKey: 'main', name: 'VIP', priority: 1, operator: 'EQUALS', active: true },
+      ]));
+    }
+    if (path === '/templates/tpl-1/test-sends') {
+      return fulfill(route, ok([
+        { id: 'test-1', templateId: 'tpl-1', recipientEmail: 'qa@example.com', status: 'QUEUED', createdAt: '2026-05-18T11:00:00Z' },
+      ]));
+    }
+    if (path.startsWith('/assets')) {
+      return fulfill(route, ok({ content: [
+        { id: 'asset-1', name: 'Hero', fileName: 'hero.png', contentType: 'image/png', sizeBytes: 1200 },
+      ] }));
+    }
+    if (path.startsWith('/content/snippets')) {
+      return fulfill(route, ok({ content: [
+        { id: 'snippet-1', snippetKey: 'footer.disclaimer', name: 'Footer Disclaimer', snippetType: 'HTML', content: '<p>Footer</p>' },
+      ] }));
+    }
+    if (path.startsWith('/personalization-tokens')) {
+      return fulfill(route, ok({ content: [
+        { id: 'token-1', tokenKey: 'firstName', displayName: 'First name', dataPath: 'firstName', defaultValue: 'there' },
+      ] }));
+    }
+    if (path.startsWith('/brand-kits')) {
+      return fulfill(route, ok({ content: [
+        { id: 'brand-1', name: 'Primary Brand', primaryColor: '#2563eb', isDefault: true },
+      ] }));
     }
 
     return fulfill(route, ok([]));
@@ -192,4 +279,32 @@ test('template builder supports add, edit, drag reorder, responsive rules, and s
   expect(metadata.builderBlocks[0].name).toBe('Primary CTA');
   expect(metadata.builderBlocks[0].settings?.hideOnMobile).toBe(true);
   expect(metadata.builderBlocks[0].styles?.textAlign).toBe('center');
+});
+
+test('template module exposes library controls and command-center QA flow', async ({ page }) => {
+  const seen: SeenRequests = {};
+  await mockTemplateStudioApis(page, seen);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await page.goto('/app/email/templates', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Template Studio' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.getByText('Total Library')).toBeVisible();
+  await expect(page.getByText('Prebuilt campaign templates')).toBeVisible();
+
+  await page.getByRole('textbox', { name: 'Search' }).fill('launch');
+  await page.getByRole('button', { name: 'Grid view' }).click();
+  await expect(page.getByTestId('template-card-tpl-1')).toBeVisible();
+  await expect(page.getByText('Promo Published')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'List view' }).click();
+  await page.getByRole('link', { name: /Launch Template/ }).click();
+  await expect(page.getByTestId('template-command-center')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Operational readiness' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Run QA' }).click();
+  await expect.poll(() => Boolean(seen.renderPayload)).toBeTruthy();
+  await expect.poll(() => Boolean(seen.validatePayload)).toBeTruthy();
+
+  await page.getByRole('tab', { name: 'Preview & QA' }).click();
+  await expect(page.getByTestId('template-preview-frame')).toContainText('Rendered launch QA');
 });

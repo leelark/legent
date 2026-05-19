@@ -56,13 +56,16 @@ public class TemplateTestSendService {
             throw new ValidationException("template", "Test send blocked because render validation failed: " + saved.getErrorMessage());
         }
 
-        String messageId = "tpl-test-" + templateId + "-" + Instant.now().toEpochMilli();
+        long createdAtMillis = Instant.now().toEpochMilli();
+        String messageId = "tpl-test-" + templateId + "-" + createdAtMillis;
+        String contentReference = "inline:tpl-test:" + createdAtMillis;
         Map<String, Object> payload = Map.of(
                 "email", request.getEmail(),
                 "subscriberId", "template-test",
                 "campaignId", "template-preview",
                 "workspaceId", workspaceId,
                 "messageId", messageId,
+                "contentReference", contentReference,
                 "subject", record.getSubject(),
                 "htmlBody", rendered.getHtmlContent(),
                 "textBody", rendered.getTextContent()

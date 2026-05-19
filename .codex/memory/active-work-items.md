@@ -1,6 +1,18 @@
 # Active Work Items
 
-Last updated: 2026-05-18.
+Last updated: 2026-05-19.
+
+SalesforceWorldClassAuditRemediation-20260519:
+assigned_task: use `.codex` bootstrap/commands/memory and parallel agents to work pending items from `docs/audits/legent_salesforce_world_class_audit_2026-05-19.yaml`
+task_type: AUDIT/SECURITY/RELIABILITY/AUTOMATION/DATA/RELEASE/TESTING
+priority_score: 43
+risk_level: HIGH
+status: completed
+changed_files: audit YAML, `.codex` memory, shared Kafka email-send contract/tests, audience double opt-in and SQL query activity/tests, automation activity/runtime validation/tests, content JSONB repository test, identity/content direct send references, release image evidence root wiring/docs/tests
+branch_or_worktree: main
+dependencies: `.codex/bootstrap.md`, `.codex/commands/*`, `.codex/memory/*`, audit YAML, parallel worker/explorer agents
+blockers: remaining blockers are external production/GA/deliverability/image evidence, unimplemented Automation Studio adapters, Journey Builder depth/UX, double opt-in public confirmation smoke, and live load/restore/monitoring/security proof
+next_actions: collect real target evidence, implement remaining product parity modules, and run strict release gates before any GA/Salesforce-replacement claim; no commit or push performed
 
 SalesforceAuditAutomationImportActivity-20260518:
 assigned_task: continue pending Salesforce audit automation parity work by replacing synthetic non-SQL activity success with real subscriber/data-extension import start and fail-closed unsupported live activities

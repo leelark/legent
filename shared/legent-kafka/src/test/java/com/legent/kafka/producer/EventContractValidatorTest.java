@@ -39,9 +39,53 @@ class EventContractValidatorTest {
     void validate_rejectsTopicEventTypeMismatchForManagedTopic() {
         EventEnvelope<Map<String, Object>> envelope = envelope(
                 AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
-                Map.of("email", "user@example.com", "htmlBody", "<p>Hello</p>")
+                Map.of(
+                        "email", "user@example.com",
+                        "contentReference", "cr_123")
         );
         envelope.setEventType(AppConstants.TOPIC_EMAIL_BOUNCED);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_allowsEmailSendRequestedWithContentReference() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                Map.of(
+                        "email", "user@example.com",
+                        "contentReference", "cr_123",
+                        "subject", "Hello",
+                        "htmlBody", "<p>Hello</p>")
+        );
+
+        assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsEmailSendRequestedWithTemplateOnlyPayload() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                Map.of(
+                        "email", "user@example.com",
+                        "templateId", "double-opt-in-confirmation",
+                        "eventType", "DOUBLE_OPT_IN_REQUESTED")
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsEmailSendRequestedWithoutContentReference() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                Map.of(
+                        "email", "user@example.com",
+                        "subject", "Hello",
+                        "htmlBody", "<p>Hello</p>")
+        );
 
         assertThrows(IllegalArgumentException.class,
                 () -> validator.validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));

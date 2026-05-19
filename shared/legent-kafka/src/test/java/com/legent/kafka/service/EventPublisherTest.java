@@ -41,6 +41,7 @@ class EventPublisherTest {
                         "batchId", "batch-1",
                         "messageId", "message-1",
                         "email", "user@example.com",
+                        "contentReference", "cr_123",
                         "htmlBody", "<p>Hello</p>"
                 )
         );

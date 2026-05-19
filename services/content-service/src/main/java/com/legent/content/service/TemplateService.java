@@ -346,13 +346,17 @@ public class TemplateService {
         String workspaceId = TenantContext.requireWorkspaceId();
         EmailTemplate template = getTemplate(tenantId, workspaceId, templateId);
         RenderedParts rendered = renderTemplateParts(template, variables);
+        long createdAtMillis = Instant.now().toEpochMilli();
+        String messageId = "tpl-test-" + templateId + "-" + createdAtMillis;
+        String contentReference = "inline:tpl-test:" + createdAtMillis;
 
         Map<String, Object> payload = Map.of(
                 "email", toEmail,
                 "subscriberId", "template-test",
                 "campaignId", "template-preview",
                 "workspaceId", workspaceId,
-                "messageId", "tpl-test-" + templateId + "-" + Instant.now().toEpochMilli(),
+                "messageId", messageId,
+                "contentReference", contentReference,
                 "subject", subjectOverride != null && !subjectOverride.isBlank() ? subjectOverride : rendered.subject(),
                 "htmlBody", rendered.htmlContent()
         );

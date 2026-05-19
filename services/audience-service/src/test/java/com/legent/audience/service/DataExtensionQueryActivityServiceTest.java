@@ -78,6 +78,33 @@ class DataExtensionQueryActivityServiceTest {
     }
 
     @Test
+    void dryRunOrderByScansPastLimitBeforeSorting() {
+        DataExtension source = dataExtension("de-source", "Customers", "subscriberKey");
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "Customers"))
+                .thenReturn(Optional.empty());
+        when(deRepository.findByTenantIdAndWorkspaceIdAndNameIgnoreCaseAndDeletedAtIsNull("tenant-1", "workspace-1", "Customers"))
+                .thenReturn(Optional.of(source));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-source")).thenReturn(fields("de-source"));
+        when(recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId("tenant-1", "workspace-1", "de-source", PageRequest.of(0, 500)))
+                .thenReturn(new PageImpl<>(List.of(
+                        record("de-source", Map.of("subscriberKey", "a", "email", "a@example.com", "score", 30L)),
+                        record("de-source", Map.of("subscriberKey", "b", "email", "b@example.com", "score", 20L)),
+                        record("de-source", Map.of("subscriberKey", "c", "email", "c@example.com", "score", 10L))
+                ), PageRequest.of(0, 500), 3));
+
+        DataExtensionDto.SqlQueryActivityResponse response = service.execute(DataExtensionDto.SqlQueryActivityRequest.builder()
+                .sql("SELECT email, score FROM Customers WHERE score >= 10 ORDER BY score ASC LIMIT 2")
+                .dryRun(true)
+                .build());
+
+        assertThat(response.isValid()).isTrue();
+        assertThat(response.getRowsRead()).isEqualTo(3);
+        assertThat(response.getPreviewRows()).containsExactly(
+                Map.of("email", "c@example.com", "score", 10L),
+                Map.of("email", "b@example.com", "score", 20L));
+    }
+
+    @Test
     void overwriteWritesNormalizedRowsToTarget() {
         DataExtension source = dataExtension("de-source", "Customers", "subscriberKey");
         DataExtension target = dataExtension("de-target", "HighValue", "subscriberKey");
