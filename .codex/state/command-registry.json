@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "commands": [
+    { "id": "continuous-cycle", "path": ".codex/commands/continuous-cycle.md", "utility": ".codex/utilities/select-next-work.ps1" },
+    { "id": "full-audit", "path": ".codex/commands/full-audit.md", "utility": null },
+    { "id": "pending-scan", "path": ".codex/commands/pending-scan.md", "utility": null },
+    { "id": "refine-backlog", "path": ".codex/commands/refine-backlog.md", "utility": null },
+    { "id": "research-pass", "path": ".codex/commands/research-pass.md", "utility": null },
+    { "id": "release-pass", "path": ".codex/commands/release-pass.md", "utility": "scripts/ops/release-gate.ps1" }
+  ]
+}

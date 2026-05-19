@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "utilities": [
+    {
+      "name": "validate-codex-system.ps1",
+      "purpose": "Validate autonomous organization structure, JSON state, memory freshness, backlog, worktree registry, and leases.",
+      "reads": [".codex/state/team-state.json", ".codex/backlog/queue.json", ".codex/memory", ".codex/worktrees"],
+      "writes": [],
+      "ownerLane": "PROGRAM_MANAGER_AGENT"
+    },
+    {
+      "name": "select-next-work.ps1",
+      "purpose": "Select the highest-score READY work item.",
+      "reads": [".codex/backlog/queue.json"],
+      "writes": [],
+      "ownerLane": "PROJECT_MANAGER_AGENT"
+    },
+    {
+      "name": "new-checkpoint.ps1",
+      "purpose": "Create a real JSON checkpoint.",
+      "reads": [".codex/schemas/checkpoint.schema.json"],
+      "writes": [".codex/checkpoints/*.json"],
+      "ownerLane": "PROGRAM_MANAGER_AGENT"
+    },
+    {
+      "name": "validate-worktree-leases.ps1",
+      "purpose": "Detect overlapping active write leases.",
+      "reads": [".codex/worktrees/leases/active-leases.json"],
+      "writes": [],
+      "ownerLane": "PROGRAM_MANAGER_AGENT"
+    }
+  ]
+}

@@ -1,11 +1,14 @@
 # Dependency Map
 
-Last updated: 2026-05-13.
+Fresh baseline date: 2026-05-20.
 
-Source: `Select-String -Path services\*\pom.xml,shared\*\pom.xml -Pattern '<artifactId>legent-'`.
+Primary dependency surfaces:
+- Frontend dependencies are managed under `frontend/package.json` and `frontend/package-lock.json`.
+- Backend dependencies are managed by root and module Maven `pom.xml` files.
+- Runtime dependencies are declared through Compose, Nginx config, Kubernetes manifests, and ops scripts.
+- Shared Java modules are internal dependencies for service modules and must remain stable.
 
-- Most services depend on `legent-common`, `legent-security`, `legent-kafka`, `legent-cache`, and test-scope `legent-test-support`.
-- `platform-service` depends on `legent-common`, `legent-security`, `legent-kafka`, and test support; no `legent-cache` dependency found in scan.
-- Shared module chain: `legent-security` -> `legent-common`; `legent-kafka` -> `legent-common` + `legent-security`; `legent-cache` -> `legent-common` + `legent-security`; `legent-test-support` -> `legent-common` + `legent-kafka` + `legent-security`.
-- Event backbone: all event services use `shared/legent-kafka` `EventEnvelope` and `EventPublisher`.
-- Frontend API dependencies are split by domain under `frontend/src/lib/*-api.ts`.
+Dependency change rules:
+- Change lockfiles only when dependency changes require it.
+- Add dependencies only when they reduce real complexity or match established project direction.
+- Run focused build/tests and security checks when dependency surfaces change.

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Codex Checkpoint",
+  "type": "object",
+  "required": ["id", "createdAt", "objective", "status", "owner", "filesInScope", "validationPlan", "nextAction"],
+  "properties": {
+    "id": { "type": "string" },
+    "createdAt": { "type": "string" },
+    "objective": { "type": "string" },
+    "status": { "type": "string" },
+    "owner": { "type": "string" },
+    "filesInScope": { "type": "array", "items": { "type": "string" } },
+    "agents": { "type": "array", "items": { "type": "string" } },
+    "validationPlan": { "type": "array", "items": { "type": "string" } },
+    "rollbackNotes": { "type": "string" },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "nextAction": { "type": "string" }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "id": "work-item-id",
+  "branch": "codex/work-item-id",
+  "path": ".codex/worktrees/work-item-id",
+  "owner": "OWNER_AGENT",
+  "status": "PLANNED",
+  "scope": "Brief scope",
+  "checkpointId": "checkpoint-id",
+  "filesInScope": [],
+  "createdAt": "YYYY-MM-DDTHH:mm:ssZ",
+  "lastSeenAt": "YYYY-MM-DDTHH:mm:ssZ",
+  "notes": "No secrets. Preserve unrelated user changes."
+}

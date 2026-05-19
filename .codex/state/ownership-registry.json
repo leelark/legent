@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "ownership": [
+    { "path": "frontend/**", "owner": "FRONTEND_OWNER", "partners": ["UX_STRATEGIST", "QA_ENGINEER"] },
+    { "path": "services/identity-service/**", "owner": "BACKEND_SERVICE_OWNER", "partners": ["SECURITY_ENGINEER", "TEST_ARCHITECT"] },
+    { "path": "services/audience-service/**", "owner": "BACKEND_SERVICE_OWNER", "partners": ["PERFORMANCE_ENGINEER", "DATA_ARCHITECT"] },
+    { "path": "services/campaign-service/**", "owner": "BACKEND_SERVICE_OWNER", "partners": ["PERFORMANCE_ENGINEER", "SYSTEM_DESIGNER"] },
+    { "path": "services/delivery-service/**", "owner": "BACKEND_SERVICE_OWNER", "partners": ["DELIVERABILITY_ENGINEER", "PERFORMANCE_ENGINEER"] },
+    { "path": "services/tracking-service/**", "owner": "BACKEND_SERVICE_OWNER", "partners": ["PERFORMANCE_ENGINEER", "SRE_MONITORING_ENGINEER"] },
+    { "path": "shared/**", "owner": "SHARED_PLATFORM_OWNER", "partners": ["TEST_ARCHITECT", "SECURITY_ENGINEER"] },
+    { "path": "config/**", "owner": "API_ARCHITECT", "partners": ["DEVOPS_ENGINEER"] },
+    { "path": "infrastructure/**", "owner": "DEVOPS_ENGINEER", "partners": ["RELEASE_MANAGER", "SRE_MONITORING_ENGINEER"] },
+    { "path": "scripts/**", "owner": "DEVOPS_ENGINEER", "partners": ["RELEASE_MANAGER"] },
+    { "path": ".codex/**", "owner": "PROGRAM_MANAGER_AGENT", "partners": ["DOCUMENTATION_ENGINEER"] },
+    { "path": "docs/**", "owner": "DOCUMENTATION_ENGINEER", "partners": ["TECHNICAL_DEBT_STEWARD"] }
+  ]
+}

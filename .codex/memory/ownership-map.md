@@ -1,14 +1,18 @@
 # Ownership Map
 
-Last updated: 2026-05-16.
+Fresh baseline date: 2026-05-20.
 
-- Identity/auth/session: `services/identity-service`, shared auth in `shared/legent-security`, frontend clients in `frontend/src/lib/auth*.ts`.
-- Tenant/workspace/environment/admin config: `services/foundation-service`, route prefixes `/api/v1/configs`, `/feature-flags`, `/tenants`, `/core`, `/admin`, `/public`, `/health`, `/audit-logs`, `/compliance`.
-- Audience and suppression records: `services/audience-service`, route prefixes `/api/v1/subscribers`, `/segments`, `/imports`, `/lists`, `/data-extensions`, `/suppressions`.
-- Content/rendering/assets: `services/content-service`, route prefixes `/api/v1/templates`, `/content`, `/assets`, `/emails`, `/personalization-tokens`, `/brand-kits`, `/landing-pages`, `/public/landing-pages`.
-- Campaign/send orchestration: `services/campaign-service`, route prefixes `/api/v1/campaigns`, `/send-jobs`.
-- Delivery/provider handoff: `services/delivery-service`, route prefixes `/api/v1/providers`, `/delivery`.
-- Tracking/analytics: `services/tracking-service`, route prefixes `/api/v1/tracking`, `/analytics`, plus authenticated `/ws/analytics`; the old `/api/v1/events` route is not owned in the current route map.
-- Automation workflows: `services/automation-service`, route prefixes `/api/v1/workflows`, `/workflow-definitions`, `/automation-studio`.
-- Deliverability reputation/DMARC/domains: `services/deliverability-service`, route prefixes `/api/v1/deliverability`, `/reputation`, `/dmarc`.
-- Platform webhooks/search/notifications: `services/platform-service`, route prefixes `/api/v1/platform`, `/api/v1/admin/webhooks`, `/api/v1/admin/search`.
+Ownership source: `.codex/agents/agent-catalog.md` and `.codex/agents/routing-matrix.md`.
+
+Default ownership:
+- CTO_AGENT: architecture, release posture, safety tradeoffs.
+- PROGRAM_MANAGER_AGENT: decomposition, dependencies, agent utilization, checkpoints.
+- PRODUCT_MANAGER_AGENT: parity, modes, user value, roadmap.
+- SERVICE OWNERS: backend behavior inside service boundaries.
+- FRONTEND_OWNER: workspace and public UI behavior.
+- SECURITY_ENGINEER: auth, tenant isolation, secrets, public endpoints, signed flows.
+- PERFORMANCE_ENGINEER: high-volume send, tracking, imports, Kafka, ClickHouse.
+- DEVOPS_ENGINEER and RELEASE_MANAGER: runtime, CI, Kubernetes, release gates.
+- DOCUMENTATION_ENGINEER and TECHNICAL_DEBT_STEWARD: memory, docs, drift, debt.
+
+Assign extra partners when work crosses service, security, performance, database, route, or release boundaries.

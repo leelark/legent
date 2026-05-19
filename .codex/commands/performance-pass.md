@@ -1,19 +1,29 @@
 # performance-pass
 
-Purpose: remove scalability blockers on high-volume send, tracking, import, and webhooks.
+Purpose: remove scalability blockers on high-volume send, tracking, imports, and webhooks.
 
-Priority checks:
+Discovery:
 
 ```powershell
-rg -n "TOPIC_AUDIENCE_RESOLVED|subscribers|SEND_BATCH_SIZE|KafkaTemplate|publish\(" services shared -g "*.java"
+rg -n "TOPIC_AUDIENCE_RESOLVED|SEND_BATCH_SIZE|KafkaTemplate|publish\(" services shared -g "*.java"
 rg -n "findAll|findBy.*In|stream\(\)|readValue\(payloadJson|renderTemplate|@Scheduled" services shared -g "*.java"
-rg -n "limit_req_zone|partitions|KAFKA_MESSAGE_MAX_BYTES" docker-compose.yml config/nginx/nginx.conf
+rg -n "limit_req_zone|partitions|KAFKA_MESSAGE_MAX_BYTES|CLICKHOUSE|REDIS" docker-compose.yml config infrastructure -g "*"
 ```
 
-Targets:
+Required checks:
 
-- Stream/chunk audience resolution with checkpointed chunk IDs.
-- Use job/batch/provider/domain/shard Kafka keys for high-volume topics.
-- Bound or cache content rendering in send loops.
-- Keep suppression, warmup, rate control, provider health, and idempotency intact.
-- Document any unvalidated load claim as risk.
+- Recipient resolution and send execution are chunked/snapshot-backed.
+- Kafka keys are job/batch/provider/domain/shard aware.
+- Send loops do not perform unbounded rendering, DB loading, or remote calls.
+- Rate/warmup/provider health reservations avoid hot single rows.
+- Tracking ingestion and ClickHouse writes are isolated from send execution pressure.
+- Suppression, unsubscribe, warmup, inbox safety, and idempotency remain fail-closed.
+- Live performance claims are backed by load evidence.
+
+Validation:
+
+```powershell
+.\mvnw.cmd -pl services/campaign-service,services/delivery-service,services/tracking-service,services/audience-service -am test
+```
+
+If live evidence is absent, record residual risk in `performance-bottlenecks.md` and keep release blocked.

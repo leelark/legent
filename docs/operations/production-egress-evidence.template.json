@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "reviewedBy": "example-release-reviewer",
+  "reviewedAt": "2026-05-20",
+  "egressRules": [
+    {
+      "name": "managed-postgres",
+      "purpose": "Production PostgreSQL database connectivity",
+      "provider": "example-managed-database-provider",
+      "cidrs": ["203.0.113.10/32"],
+      "fqdns": [],
+      "ports": [
+        { "protocol": "TCP", "port": 5432 }
+      ]
+    }
+  ]
+}

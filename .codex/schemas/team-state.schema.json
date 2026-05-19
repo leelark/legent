@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Codex Team State",
+  "type": "object",
+  "required": ["version", "lastRebuilt", "freshBaselineDate", "mode", "maxParallelAgents", "activeAgents", "activeWork", "readyWork", "backlogWork", "blockedWork", "standingRisks", "validationProfiles"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "lastRebuilt": { "type": "string" },
+    "freshBaselineDate": { "type": "string" },
+    "mode": { "type": "string" },
+    "maxParallelAgents": { "type": "integer", "minimum": 1, "maximum": 6 },
+    "activeAgents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/agentAssignment" }
+    },
+    "activeWork": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workItem" }
+    },
+    "readyWork": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workItem" }
+    },
+    "backlogWork": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workItem" }
+    },
+    "blockedWork": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/workItem" }
+    },
+    "standingRisks": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "validationProfiles": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "workItem": {
+      "type": "object",
+      "required": ["id", "title", "status", "priorityScore", "owner", "acceptanceCriteria", "validationProfile", "nextAction", "lastUpdated"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["BACKLOG", "READY", "IN_PROGRESS", "BLOCKED", "REVIEW", "VALIDATING", "DONE", "WONT_DO"]
+        },
+        "priorityScore": { "type": "integer", "minimum": 0 },
+        "owner": { "type": "string" },
+        "partnerAgents": { "type": "array", "items": { "type": "string" } },
+        "scope": { "type": "string" },
+        "reason": { "type": "string" },
+        "sourceFiles": { "type": "array", "items": { "type": "string" } },
+        "acceptanceCriteria": { "type": "array", "items": { "type": "string" } },
+        "validationProfile": { "type": "string" },
+        "validationCommands": { "type": "array", "items": { "type": "string" } },
+        "dependencies": { "type": "array", "items": { "type": "string" } },
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "memoryTargets": { "type": "array", "items": { "type": "string" } },
+        "nextAction": { "type": "string" },
+        "lastUpdated": { "type": "string" }
+      }
+    },
+    "agentAssignment": {
+      "type": "object",
+      "required": ["id", "role", "status", "scope"],
+      "properties": {
+        "id": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" },
+        "scope": { "type": "string" },
+        "filesInScope": { "type": "array", "items": { "type": "string" } },
+        "startedAt": { "type": "string" },
+        "lastUpdate": { "type": "string" }
+      }
+    }
+  }
+}

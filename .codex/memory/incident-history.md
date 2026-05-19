@@ -1,6 +1,15 @@
 # Incident History
 
-Last updated: 2026-05-13.
+Fresh baseline date: 2026-05-20.
 
-- No production incidents; repository is under development and not yet production live.
-- Runtime failures discovered during future local/CI validation must be recorded here with date, impacted service, command/log source, root cause, fix, and prevention.
+No incident entries exist in the fresh memory baseline.
+
+Record incidents with:
+- timeline,
+- detection source,
+- customer or tenant impact,
+- root cause,
+- containment,
+- permanent fix,
+- validation,
+- release or rollback notes.

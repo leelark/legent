@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "templates": [
+    { "id": "work-item", "path": ".codex/templates/work-item-template.md", "schema": ".codex/schemas/work-item.schema.json" },
+    { "id": "checkpoint", "path": ".codex/checkpoints/checkpoint-template.md", "schema": ".codex/schemas/checkpoint.schema.json" },
+    { "id": "agent-brief", "path": ".codex/templates/agent-brief-template.md", "schema": null },
+    { "id": "handoff", "path": ".codex/templates/handoff-template.md", "schema": null },
+    { "id": "validation-report", "path": ".codex/templates/validation-report-template.md", "schema": null }
+  ]
+}

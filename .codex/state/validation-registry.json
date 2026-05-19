@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "profiles": [
+    {
+      "id": "audit",
+      "commands": [
+        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+      ]
+    },
+    {
+      "id": "backend-focused",
+      "commands": [".\\mvnw.cmd -pl <module> -am test"]
+    },
+    {
+      "id": "frontend-focused",
+      "commands": ["cd frontend", "npm run lint", "npm run build:ci", "npm run test:e2e:smoke"]
+    },
+    {
+      "id": "release",
+      "commands": ["powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly"]
+    }
+  ]
+}

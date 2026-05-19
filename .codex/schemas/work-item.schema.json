@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Codex Work Item",
+  "type": "object",
+  "required": [
+    "id",
+    "title",
+    "status",
+    "priorityScore",
+    "scoring",
+    "owner",
+    "scope",
+    "sourceFiles",
+    "acceptanceCriteria",
+    "validationProfile",
+    "validationCommands",
+    "dependencies",
+    "blockers",
+    "memoryTargets",
+    "nextAction",
+    "lastUpdated"
+  ],
+  "properties": {
+    "id": { "type": "string", "minLength": 3 },
+    "title": { "type": "string", "minLength": 3 },
+    "status": {
+      "type": "string",
+      "enum": ["BACKLOG", "READY", "IN_PROGRESS", "BLOCKED", "REVIEW", "VALIDATING", "DONE", "WONT_DO"]
+    },
+    "priorityScore": { "type": "integer", "minimum": 0 },
+    "scoring": {
+      "type": "object",
+      "required": ["productionReadinessImpact", "securityRisk", "userImpact", "performanceImpact", "technicalDebtImpact"],
+      "properties": {
+        "productionReadinessImpact": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "securityRisk": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "userImpact": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "performanceImpact": { "type": "integer", "minimum": 0, "maximum": 5 },
+        "technicalDebtImpact": { "type": "integer", "minimum": 0, "maximum": 5 }
+      }
+    },
+    "owner": { "type": "string", "minLength": 2 },
+    "partnerAgents": { "type": "array", "items": { "type": "string" } },
+    "scope": { "type": "string", "minLength": 3 },
+    "nonGoals": { "type": "string" },
+    "sourceFiles": { "type": "array", "items": { "type": "string" } },
+    "acceptanceCriteria": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "validationProfile": { "type": "string", "minLength": 2 },
+    "validationCommands": { "type": "array", "items": { "type": "string" } },
+    "dependencies": { "type": "array", "items": { "type": "string" } },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "memoryTargets": { "type": "array", "items": { "type": "string" } },
+    "nextAction": { "type": "string", "minLength": 3 },
+    "lastUpdated": { "type": "string", "minLength": 8 }
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "lastUpdated": "2026-05-20",
+  "selectionPolicy": "Sort READY work by priorityScore descending, then no blockers, smallest safe scope, validation availability, and lease compatibility.",
+  "readyWork": [
+    {
+      "id": "fresh-repo-production-audit",
+      "title": "Run fresh repository production-readiness audit",
+      "status": "READY",
+      "priorityScore": 62,
+      "scoring": {
+        "productionReadinessImpact": 5,
+        "securityRisk": 4,
+        "userImpact": 3,
+        "performanceImpact": 4,
+        "technicalDebtImpact": 4
+      },
+      "owner": "PROGRAM_MANAGER_AGENT",
+      "partnerAgents": ["SECURITY_ENGINEER", "PERFORMANCE_ENGINEER", "RELEASE_MANAGER", "TEST_ARCHITECT"],
+      "scope": "Run a fresh audit from current repository sources and validators; produce current risks and first implementation slices.",
+      "nonGoals": "Do not claim production readiness or change product behavior during audit-only work.",
+      "sourceFiles": ["AGENTS.md", "ARCHITECTURE.md", "PROJECT_CONTEXT.md", ".codex/commands/full-audit.md"],
+      "acceptanceCriteria": [
+        "Current findings cite source files or commands.",
+        "Findings are converted into READY, BACKLOG, or BLOCKED queue items.",
+        "Memory receives only fresh verified facts."
+      ],
+      "validationProfile": "audit",
+      "validationCommands": [
+        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+      ],
+      "dependencies": [],
+      "blockers": [],
+      "memoryTargets": ["unresolved-risks.md", "technical-debt.md", "security-findings.md", "performance-bottlenecks.md"],
+      "nextAction": "Execute .codex/commands/full-audit.md and refine the backlog.",
+      "lastUpdated": "2026-05-20"
+    },
+    {
+      "id": "salesforce-parity-research-refresh",
+      "title": "Refresh Salesforce and competitor parity matrix",
+      "status": "READY",
+      "priorityScore": 49,
+      "scoring": {
+        "productionReadinessImpact": 3,
+        "securityRisk": 1,
+        "userImpact": 5,
+        "performanceImpact": 2,
+        "technicalDebtImpact": 4
+      },
+      "owner": "SALESFORCE_PARITY_RESEARCHER",
+      "partnerAgents": ["PRODUCT_MANAGER_AGENT", "UX_STRATEGIST", "PRINCIPAL_ARCHITECT"],
+      "scope": "Use current sources to update product parity and convert gaps into scored implementation slices.",
+      "nonGoals": "Do not make unsupported parity claims or copy long external content.",
+      "sourceFiles": ["PROJECT_CONTEXT.md", ".codex/workflows/salesforce-parity-roadmap.md", "docs/product/salesforce-parity-matrix.md"],
+      "acceptanceCriteria": [
+        "Matrix has dated sources and separates facts from inference.",
+        "Gaps are scored and routed to backlog items.",
+        "Beginner, advanced, and admin modes are considered."
+      ],
+      "validationProfile": "research",
+      "validationCommands": [
+        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+      ],
+      "dependencies": [],
+      "blockers": [],
+      "memoryTargets": ["enhancement-log.md", "design-decisions.md"],
+      "nextAction": "Run .codex/commands/research-pass.md for product parity.",
+      "lastUpdated": "2026-05-20"
+    },
+    {
+      "id": "high-volume-readiness-audit",
+      "title": "Audit 10 lakh send readiness and load evidence gaps",
+      "status": "READY",
+      "priorityScore": 58,
+      "scoring": {
+        "productionReadinessImpact": 5,
+        "securityRisk": 3,
+        "userImpact": 4,
+        "performanceImpact": 5,
+        "technicalDebtImpact": 3
+      },
+      "owner": "PERFORMANCE_ENGINEER",
+      "partnerAgents": ["DELIVERABILITY_ENGINEER", "SYSTEM_DESIGNER", "SRE_MONITORING_ENGINEER"],
+      "scope": "Audit campaign, audience, delivery, tracking, Kafka, provider rate, warmup, and observability paths for bounded high-volume operation.",
+      "nonGoals": "Do not bypass warmup, suppression, unsubscribe, rate control, provider health, or inbox safety.",
+      "sourceFiles": ["docs/load-testing/high-volume-readiness.md", ".codex/skills/legent-performance-scale/SKILL.md"],
+      "acceptanceCriteria": [
+        "Findings identify measured evidence gaps separately from code gaps.",
+        "Implementation candidates are chunked into safe slices.",
+        "Throughput claims remain blocked unless evidence exists."
+      ],
+      "validationProfile": "performance",
+      "validationCommands": [
+        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+      ],
+      "dependencies": [],
+      "blockers": [],
+      "memoryTargets": ["performance-bottlenecks.md", "blocked-items.md", "unresolved-risks.md"],
+      "nextAction": "Run a high-volume performance pass and refine executable findings.",
+      "lastUpdated": "2026-05-20"
+    }
+  ],
+  "backlogWork": [],
+  "blockedWork": [
+    {
+      "id": "production-evidence-pack",
+      "title": "Collect strict production release evidence",
+      "status": "BLOCKED",
+      "priorityScore": 65,
+      "scoring": {
+        "productionReadinessImpact": 5,
+        "securityRisk": 5,
+        "userImpact": 3,
+        "performanceImpact": 3,
+        "technicalDebtImpact": 4
+      },
+      "owner": "RELEASE_MANAGER",
+      "partnerAgents": ["DEVOPS_ENGINEER", "SECURITY_ENGINEER", "SRE_MONITORING_ENGINEER"],
+      "scope": "Collect real target evidence for release promotion.",
+      "nonGoals": "Do not replace production evidence with local-only checks.",
+      "sourceFiles": ["scripts/ops/release-gate.ps1", "docs/operations/ga-evidence-matrix.md"],
+      "acceptanceCriteria": [
+        "Image, GA, egress, restore, monitoring, TLS/admission, CI/security, and load evidence are present.",
+        "Strict release gate passes without -LocalOnly."
+      ],
+      "validationProfile": "release",
+      "validationCommands": [
+        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -RequireExternalEgressEvidence -RequireGaEvidence -RequireImageEvidence -RequireImageDigests"
+      ],
+      "dependencies": ["target environment access", "provider capacity evidence", "CI/security artifacts"],
+      "blockers": ["External evidence not present in repository"],
+      "memoryTargets": ["blocked-items.md", "release-history.md", "unresolved-risks.md"],
+      "nextAction": "Collect external evidence, then run strict release gate.",
+      "lastUpdated": "2026-05-20"
+    }
+  ],
+  "doneWork": []
+}

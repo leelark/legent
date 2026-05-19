@@ -1,14 +1,13 @@
 # Service Dependencies
 
-Last updated: 2026-05-13.
+Fresh baseline date: 2026-05-20.
 
-- Identity signup publishes tenant provisioning events consumed by foundation.
-- Identity password reset publishes `email.send.requested` for delivery/content email handoff.
-- Foundation consumes identity signup for tenant provisioning and publishes tenant bootstrap events.
-- Campaign publishes audience resolution requests to audience, receives resolved audience chunks, creates send batches, then publishes email send requests to delivery.
-- Audience resolves lists/segments/subscribers, calls deliverability suppression check, and publishes `send.audience.resolved`.
-- Delivery consumes `email.send.requested`, publishes sent/failed/bounced/retry events.
-- Tracking ingests signed open/click/conversion, writes PostgreSQL/ClickHouse, and publishes `tracking.ingested`.
-- Deliverability consumes bounce/complaint feedback and owns DNS/reputation/DMARC state.
-- Platform owns webhooks, notifications, OpenSearch indexing, and related admin routes.
-- Automation publishes workflow-triggered send actions into campaign/delivery topics.
+Current dependency model:
+- Frontend depends on gateway-exposed backend APIs and must preserve auth/session cookie behavior.
+- Identity service owns authentication, sessions, onboarding, SSO/federation, and SCIM entry points.
+- Foundation service owns tenant/workspace/environment/governance platform data.
+- Audience, content, campaign, delivery, tracking, automation, deliverability, and platform services coordinate through APIs, Kafka, and shared contracts.
+- Shared modules are cross-service dependencies and require broad impact review when changed.
+- Infrastructure dependencies include PostgreSQL, Redis, Kafka/Zookeeper, MinIO, OpenSearch, ClickHouse, MailHog, and Nginx.
+
+Do not bypass service boundaries or use another service database directly.

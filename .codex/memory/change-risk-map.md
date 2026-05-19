@@ -1,23 +1,17 @@
 # Change Risk Map
 
-Last updated: 2026-05-13.
+Fresh baseline date: 2026-05-20.
 
-High risk:
+High-risk change areas:
+- Auth, cookies, refresh sessions, SCIM, tenant/workspace context, and unsafe-method guards.
+- Campaign launch, audience resolution, suppression checks, delivery handoff, provider selection, warmup, and retries.
+- Kafka topics, keys, event envelopes, retry/DLQ behavior, and deserialization trust.
+- Tracking open/click/conversion signing, ingestion, outbox, and analytics aggregation.
+- Route ownership across gateway map, Nginx, Kubernetes ingress, and frontend API client usage.
+- Flyway migrations and production database behavior.
+- CI, release gates, image provenance, egress policy, and Kubernetes overlays.
 
-- Tenant/workspace context filters, JWT/session cookies, origin guard, SCIM token validation.
-- Kafka envelope, partition keys, listener error behavior, idempotency, DLQ/retry paths.
-- Audience resolution and campaign batching/send execution.
-- Delivery provider selection, warmup/rate limits, suppression, bounce/complaint handling.
-- Tracking signed URL verification, outbox, ClickHouse writes.
-- Route ownership across route-map, Nginx, and Kubernetes ingress.
-- Flyway migrations and production `ddl-auto` behavior.
-
-Medium risk:
-
-- Frontend workspace layout, auth store, tenant store, API client.
-- Admin/platform consoles with large component state.
-- Build scripts and cached Docker build flows.
-
-Low risk:
-
-- Documentation-only updates when they do not claim production capability beyond validated behavior.
+Default mitigation:
+- Assign security/performance/release partners through `.codex/agents/routing-matrix.md`.
+- Create a checkpoint before multi-file changes.
+- Run the narrowest meaningful gate plus any required cross-boundary validator.

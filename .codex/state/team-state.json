@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "lastRebuilt": "2026-05-20",
+  "freshBaselineDate": "2026-05-20",
+  "mode": "autonomous-organization",
+  "maxParallelAgents": 6,
+  "activeAgents": [],
+  "activeWork": [],
+  "readyWork": [
+    {
+      "id": "fresh-repo-production-audit",
+      "title": "Run fresh repository production-readiness audit",
+      "status": "READY",
+      "priorityScore": 62,
+      "owner": "PROGRAM_MANAGER_AGENT",
+      "partnerAgents": ["SECURITY_ENGINEER", "PERFORMANCE_ENGINEER", "RELEASE_MANAGER", "TEST_ARCHITECT"],
+      "scope": "Run a fresh audit from current repository sources and validators; produce current risks and first implementation slices.",
+      "sourceFiles": ["AGENTS.md", "ARCHITECTURE.md", "PROJECT_CONTEXT.md", ".codex/commands/full-audit.md"],
+      "acceptanceCriteria": ["Current findings cite source files or commands.", "Findings are converted into READY, BACKLOG, or BLOCKED queue items."],
+      "validationProfile": "audit",
+      "validationCommands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"],
+      "dependencies": [],
+      "blockers": [],
+      "memoryTargets": ["unresolved-risks.md", "technical-debt.md", "security-findings.md", "performance-bottlenecks.md"],
+      "nextAction": "Execute .codex/commands/full-audit.md and refine the backlog.",
+      "lastUpdated": "2026-05-20"
+    }
+  ],
+  "backlogWork": [],
+  "blockedWork": [
+    {
+      "id": "production-evidence-pack",
+      "title": "Collect strict production release evidence",
+      "status": "BLOCKED",
+      "priorityScore": 65,
+      "owner": "RELEASE_MANAGER",
+      "reason": "Target-environment egress, image provenance, live load, restore, monitoring, TLS/admission, and CI/security evidence are not available in this checkout.",
+      "acceptanceCriteria": ["Strict release evidence is present.", "Release gate passes without local-only mode."],
+      "validationProfile": "release",
+      "validationCommands": ["powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -RequireExternalEgressEvidence -RequireGaEvidence -RequireImageEvidence -RequireImageDigests"],
+      "dependencies": ["target environment access", "provider capacity evidence", "CI/security artifacts"],
+      "blockers": ["External evidence not present in repository"],
+      "memoryTargets": ["blocked-items.md", "release-history.md", "unresolved-risks.md"],
+      "lastUpdated": "2026-05-20",
+      "nextAction": "Collect real target evidence and run strict release gate flags."
+    }
+  ],
+  "standingRisks": [
+    "Do not claim guaranteed inbox placement.",
+    "Do not claim 10 lakh sends in 10 hours for new or unwarmed domains.",
+    "Keep tenant/workspace context fail-closed.",
+    "Keep high-volume Kafka keys shard-aware.",
+    "Keep production release blocked without external evidence."
+  ],
+  "validationProfiles": [
+    "backend-focused",
+    "frontend-focused",
+    "route-runtime",
+    "security",
+    "performance",
+    "release"
+  ]
+}

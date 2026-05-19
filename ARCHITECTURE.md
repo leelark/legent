@@ -1,56 +1,64 @@
 # ARCHITECTURE.md
 
-Repository analysis date: 2026-05-13.
+Repository architecture baseline rebuilt on 2026-05-20.
 
-## Current Architecture
+## System Overview
 
-Legent is a microservice application with a Next.js frontend, Nginx API gateway, Spring Boot services, Kafka eventing, per-service PostgreSQL databases, Redis caching, object/search/analytics stores, Docker Compose for local execution, and Kubernetes manifests for production-style deployment.
+Legent is a multi-tenant enterprise email marketing, lifecycle automation, deliverability, and analytics platform. It combines a Next.js workspace UI, Nginx API gateway, Spring Boot microservices, Kafka eventing, service-owned PostgreSQL databases, Redis caching, object/search/analytics stores, Docker Compose local runtime, and Kubernetes production-style manifests.
 
-High-level request path:
+Primary request path:
 
-1. Browser loads Next.js frontend.
-2. Frontend API client calls gateway under `/api/v1`.
-3. Nginx routes path prefixes to specific Spring services.
-4. Spring Security and tenant filters validate auth and tenant/workspace context.
-5. Services use their own PostgreSQL schemas/databases and publish Kafka events for cross-service workflows.
-6. Async consumers process campaign, audience, delivery, tracking, automation, and deliverability events.
-7. Analytics uses tracking service tables and ClickHouse rollups.
+1. Browser loads the Next.js frontend.
+2. Frontend API client calls the gateway under `/api/v1`.
+3. Nginx routes path prefixes to owning Spring services.
+4. Spring Security and tenant filters validate auth, tenant, workspace, and environment context.
+5. Services persist to their own PostgreSQL databases and publish Kafka events for cross-service workflows.
+6. Async consumers process audience, campaign, delivery, tracking, automation, deliverability, and platform events.
+7. Tracking persists raw events and writes analytics to ClickHouse and WebSocket surfaces.
 
-## Module Boundaries
+## Product Domains
 
-- Frontend owns user experience, route composition, workspace shell, public pages, and browser-side context selection. It must not contain backend business rules beyond client-side validation and display state.
-- Identity owns authentication, cookie sessions, refresh, user accounts, memberships, workspace context, invitations, federation, SSO, and SCIM token validation.
-- Foundation owns tenant provisioning, workspaces, enterprise settings, entitlements, governance, and admin platform data.
-- Audience owns subscribers, imports, preferences, segmentation, audience intelligence, and audience resolution.
-- Content owns reusable email assets, templates, snippets, brand kits, personalization rendering, HTML validation, landing pages, and test send payload creation.
-- Campaign owns marketing campaign lifecycle, approvals, preflight, send jobs, send batches, campaign-level send orchestration, and feedback reconciliation.
-- Delivery owns outbound email execution, provider decisions, message logs, inbox safety, warmup, rate limiting, provider health, retries, and delivery events.
-- Tracking owns open/click/conversion ingestion, signed URL verification, tracking event persistence, Kafka publication, ClickHouse writing, and analytics queries.
-- Automation owns workflows, triggers, schedules, node execution, and journey actions.
-- Deliverability owns suppressions, DNS/domain verification, reputation, feedback loops, and deliverability metrics.
-- Platform owns integrations, webhooks, retries, and platform import/event surfaces.
-- Shared modules own only cross-cutting contracts and infrastructure primitives.
+- Identity: account, session, cookie auth, refresh, invitations, SSO, federation, SCIM.
+- Foundation: tenant, workspace, environment, entitlements, governance, admin settings, public CMS.
+- Audience: subscribers, imports, preferences, suppressions, lists, segments, data extensions, audience resolution.
+- Content: templates, snippets, blocks, brand kits, personalization, dynamic content, landing pages, rendering, validation, test sends.
+- Campaign: campaign lifecycle, approvals, preflight, send jobs, batch orchestration, feedback reconciliation.
+- Delivery: provider selection, SMTP/API adapters, warmup, rate control, inbox safety, message logs, retry, feedback publication.
+- Tracking: signed open/click/conversion ingestion, event idempotency, outbox, Kafka publication, ClickHouse analytics.
+- Automation: workflow definitions, triggers, schedules, node runtime, journey execution.
+- Deliverability: sender domains, DNS/authentication, suppressions, feedback loops, reputation, DMARC.
+- Platform: integrations, webhooks, retries, notifications, search and import platform surfaces.
+- Frontend: public site, authenticated workspace shell, operational consoles, dashboards, admin/settings surfaces.
+
+## Service Boundary Rules
+
+Services own their persistence. Cross-service work moves through APIs, service-to-service internal calls, or Kafka events. Do not read another service database directly.
+
+Shared modules are allowed only for stable cross-cutting behavior:
+
+- `legent-common`: envelopes, DTOs, common exceptions, runtime guards, signing helpers.
+- `legent-security`: tenant context, JWT, auth filters, RBAC, unsafe-method origin guard.
+- `legent-kafka`: Kafka config, event envelopes, publishers, contract validation, DLQ helpers.
+- `legent-cache`: Redis cache helpers and tenant-scoped keys.
+- `legent-test-support`: test fixtures and integration support.
 
 ## Frontend Architecture
 
 The frontend is a Next.js App Router application in `frontend/src/app`.
 
-Actual structure:
-
 - Public routes include home, features, modules, pricing, about, blog, contact, login, signup, recovery, onboarding, and landing-page slugs.
 - Authenticated workspace routes live under `frontend/src/app/(workspace)`.
-- `frontend/src/app/app` mostly re-exports workspace routes as a compatibility layer.
-- Middleware redirects legacy route prefixes such as `/email`, `/audience`, `/campaigns`, `/automation`, `/tracking`, `/deliverability`, `/analytics`, `/admin`, and `/settings` into `/app/...`.
-- `frontend/src/lib/api-client.ts` centralizes Axios behavior, credentials, request ID, tenant/workspace/environment headers, response unwrapping, and 401 redirect.
-- `frontend/src/lib/auth.ts` stores non-secret session metadata locally and relies on HTTP-only cookies for tokens.
-- `frontend/src/stores/authStore.ts` and related stores hold user/session context.
-- `WorkspaceLayout` hydrates `/auth/session`, active context, preferences, shell/sidebar/header, and error boundary.
+- `frontend/src/app/app` exists as a compatibility layer and should stay thin.
+- `frontend/src/proxy.ts` owns legacy route redirects.
+- `frontend/src/lib/api-client.ts` centralizes Axios credentials, request ID, tenant/workspace/environment headers, response unwrapping, and 401 handling.
+- `frontend/src/lib/auth.ts` stores non-secret session metadata; tokens remain in HTTP-only cookies.
+- Workspace layout hydrates session and active context before rendering operational surfaces.
 
-Frontend technical debt:
+Frontend risks:
 
-- Several files are too large for maintainable product iteration, including `PublicPageView.tsx`, the template editor page, and enterprise admin/settings consoles.
-- Public and workspace visual systems lean heavily on gradients/glass and purple variants. Operational SaaS workflows need denser, quieter, more scannable layouts.
-- Compatibility routes duplicate route ownership and should be kept intentionally thin until removed.
+- Several route/component files remain large and slow to change safely.
+- Operational SaaS screens need dense, scannable workflows rather than marketing-heavy visuals.
+- Route compatibility layers can drift unless tests cover redirect and workspace behavior.
 
 ## Backend Architecture
 
@@ -74,195 +82,124 @@ Root modules:
 - `services/platform-service`
 - `services/tracking-service`
 
-Common backend patterns:
+Common patterns:
 
 - REST controllers expose `/api/v1/...`.
 - Spring Security protects service routes.
-- Tenant filters load and validate tenant/workspace/environment context.
-- JPA repositories and Flyway migrations manage local service persistence.
+- Tenant filters validate tenant/workspace/environment context.
+- JPA repositories and Flyway migrations manage local persistence.
 - Kafka publishers/consumers coordinate cross-service workflows.
 - Event envelopes carry tenant, workspace, actor, request, correlation, idempotency, event type, and payload metadata.
-- Testcontainers support exists for integration tests.
+- Testcontainers and focused service tests exist for high-risk paths.
 
-Backend technical debt:
+Backend risks:
 
-- Several service classes exceed 500 to 900 lines and combine orchestration, persistence, validation, and integration behavior.
-- Many Kafka consumers catch broad exceptions, log, and return. That hides failures from retry/DLQ infrastructure.
-- Kafka wildcard deserialization trust has been removed; remaining debt is weak envelope/payload contract validation.
-- Non-test service configs default JPA `ddl-auto` to `validate`; keep that fail-closed default.
+- Some service classes remain too large and mix orchestration, validation, persistence, and integration.
+- Broader inbound event schema/version strategy is still needed.
+- DB+Kafka atomicity is not universal; transactional outbox should be preferred for new critical paths.
 
-## API Architecture
+## API And Routing
 
-Gateway ownership is documented in `config/gateway/route-map.json` and implemented in `config/nginx/nginx.conf`.
+Gateway ownership is documented in `config/gateway/route-map.json` and implemented in `config/nginx/nginx.conf`. Kubernetes ingress must preserve the same routing intent.
 
-Examples:
+Route groups:
 
-- `/api/v1/auth`, `/api/v1/sso`, `/api/v1/scim`, `/api/v1/identity` route to identity service.
-- `/api/v1/audience`, `/api/v1/subscribers`, `/api/v1/segments`, `/api/v1/imports`, `/api/v1/data-extensions` route to audience service.
-- `/api/v1/campaigns`, `/api/v1/send-jobs`, `/api/v1/experiments` route to campaign service.
-- `/api/v1/content`, `/api/v1/templates`, `/api/v1/email-studio`, `/api/v1/landing-pages` route to content service.
-- `/api/v1/delivery`, `/api/v1/providers`, `/api/v1/message-logs`, `/api/v1/sending` route to delivery service.
-- `/api/v1/tracking`, `/api/v1/analytics`, `/ws` route to tracking service.
-- `/api/v1/automation`, `/api/v1/workflows`, `/api/v1/journeys` route to automation service.
-- `/api/v1/deliverability`, `/api/v1/domains`, `/api/v1/reputation`, `/api/v1/suppressions` route to deliverability service.
-- `/api/v1/integrations`, `/api/v1/webhooks`, `/api/v1/platform`, `/api/v1/import-platform` route to platform service.
+- Identity: `/api/v1/auth`, `/api/v1/users`, `/api/v1/sso`, `/api/v1/scim/v2`, `/api/v1/federation`.
+- Foundation: `/api/v1/configs`, `/api/v1/feature-flags`, `/api/v1/tenants`, `/api/v1/core`, `/api/v1/admin`, `/api/v1/public`, `/api/v1/health`, `/api/v1/audit-logs`, `/api/v1/compliance`, `/api/v1/performance-intelligence`, `/api/v1/global`, `/api/v1/differentiation`.
+- Audience: `/api/v1/audience`, `/api/v1/subscribers`, `/api/v1/segments`, `/api/v1/imports`, `/api/v1/lists`, `/api/v1/data-extensions`, `/api/v1/preferences`, `/api/v1/suppressions`.
+- Content: `/api/v1/templates`, `/api/v1/content`, `/api/v1/assets`, `/api/v1/emails`, `/api/v1/personalization-tokens`, `/api/v1/brand-kits`, `/api/v1/landing-pages`, `/api/v1/public/landing-pages`.
+- Campaign: `/api/v1/campaigns`, `/api/v1/send-jobs`.
+- Delivery: `/api/v1/providers`, `/api/v1/delivery`.
+- Automation: `/api/v1/workflows`, `/api/v1/workflow-definitions`, `/api/v1/automation-studio`.
+- Tracking: `/api/v1/tracking`, `/api/v1/analytics`, `/ws/analytics`.
+- Deliverability: `/api/v1/deliverability`, `/api/v1/reputation`, `/api/v1/dmarc`.
+- Platform: `/api/v1/platform`, `/api/v1/admin/webhooks`, `/api/v1/admin/search`.
 
-API risks:
+The singular `/api/v1/track` prefix is an Nginx-only tombstone returning 410 and must not be reintroduced into the route map or ingress.
 
-- Route ownership is duplicated between JSON route map and Nginx config, so drift is possible.
-- Nginx rate limits are static and local-gateway focused; high-volume production needs service-aware and route-aware limits.
-- CSP currently allows inline styles/scripts in places through gateway config. Tightening needs frontend compatibility work.
+## Data Architecture
 
-## Database Design
+Local Compose creates separate PostgreSQL databases for services. Production overlays remove local backing services and expect managed infrastructure plus External Secrets.
 
-Local Compose creates separate PostgreSQL databases for the main services:
+Database rules:
 
-- `identity_db`
-- `foundation_db`
-- `audience_db`
-- `campaign_db`
-- `delivery_db`
-- `tracking_db`
-- `automation_db`
-- `deliverability_db`
-- `platform_db`
-- `content_db`
+- Use Flyway migrations only for schema changes.
+- Never edit historical migrations that may already be applied.
+- Tenant/workspace columns are isolation-critical.
+- Large recipient sets must be cursor-paged or snapshot-backed.
+- Per-message data needs retention, partitioning, and aggregation strategy.
+- Hot rate-control state must avoid single-row contention at provider/domain scale.
 
-Each service owns its migrations in `src/main/resources/db/migration`.
+## Event Architecture
 
-Current database themes:
+Kafka is the asynchronous backbone. High-volume event keys must be shard-aware and avoid tenant-only partitioning.
 
-- Strong service ownership and Flyway usage.
-- Tenant/workspace columns are common and critical.
-- Delivery stores message logs, provider health, replay/retry queues, idempotency, safety evaluations, rate state, warmup state, and provider decision traces.
-- Tracking stores raw events and also writes to ClickHouse for analytics and rollups.
-- Audience stores subscribers, preferences, imports, segments, data extensions, and memberships.
+High-risk topics and flows:
 
-Database risks:
+- Audience resolution requests and resolved chunks.
+- Campaign send jobs, batches, retries, and feedback.
+- Email send requested/sent/failed/bounced/complaint events.
+- Tracking ingestion and analytics rollups.
+- Workflow triggers and automation actions.
+- Platform webhook retries and notification/search events.
 
-- Per-message delivery writes are heavy at million-send scale.
-- Rate-control rows can become hot under high volume to one domain/provider.
-- Segment recomputation can load large member sets and replace memberships in bulk.
-- Reintroducing `ddl-auto=update` defaults would be unsafe; current non-test defaults must stay `validate`.
+Event rules:
 
-## Queue And Event Flow
-
-Kafka is the main asynchronous backbone.
-
-Important topics include:
-
-- Identity and tenant bootstrap topics.
-- Audience topics such as resolution requested/resolved and import events.
-- Send topics such as audience resolution request, audience resolved, batch created, send processing, send requested.
-- Email topics such as send requested, sent, failed, bounced, retry, opened, clicked.
-- Tracking ingestion topics.
-- Workflow and automation topics.
-- Deliverability feedback topics.
-- Platform import/webhook topics.
-
-Campaign send flow today:
-
-1. Campaign launch publishes audience resolution requested.
-2. Audience service resolves recipients.
-3. Audience service publishes one resolved payload containing the filtered audience.
-4. Campaign service groups recipients by domain and creates batches.
-5. Campaign service renders content and publishes individual email send requests.
-6. Delivery service consumes send requests, evaluates safety/rate/warmup/provider, sends, and publishes feedback.
-7. Tracking service ingests user engagement and publishes tracking events.
-8. Campaign and audience services consume feedback/engagement for metrics and intelligence.
-
-Queue risks:
-
-- Audience resolution publishes bounded chunks, but campaign batch JSON remains active/retry payload pressure.
-- High-volume `EventPublisher` paths avoid tenant-only keys, but new topics must keep shard-aware routing.
-- Some consumers suppress exceptions instead of letting Kafka retry/DLQ.
-- Consumer concurrency values are fixed in config and not tied to partition count, lag, HPA, or provider capacity.
+- Validate envelope and payload before side effects or idempotency claims.
+- Preserve tenant/workspace/request/correlation/idempotency metadata.
+- Rethrow retryable consumer failures so retry/DLQ infrastructure can work.
+- Use transactional outbox patterns for critical publish-after-DB paths where practical.
 
 ## Security Architecture
 
 Security components:
 
 - JWT HMAC access tokens and refresh tokens.
-- HTTP-only cookies for browser auth.
-- Tenant cookie and context headers for multi-tenant routing.
-- `JwtAuthenticationFilter`, `TenantFilter`, and unsafe-method origin/referer guard in shared security.
-- CORS configured through environment.
-- Runtime configuration guard for production placeholder/mock-provider prevention.
-- Internal API token used for selected service-to-service endpoints.
-- Signed tracking URL verification for opens/clicks.
+- HTTP-only browser cookies.
+- Tenant cookie and context headers.
+- Shared JWT authentication filter, tenant filter, RBAC evaluator, and unsafe-method origin/referer guard.
+- Signed tracking URL verification.
 - Outbound URL guard.
-- Content sanitization for email and landing page HTML.
-- SCIM bearer token authentication and scope checks inside provisioning service.
-- External Secrets for production Kubernetes.
+- HTML sanitization for email and landing-page content.
+- SCIM bearer token validation inside provisioning service.
+- Production External Secrets and no local placeholder secrets in production.
 
-Security risks:
+Open security posture:
 
-- Kafka trusted packages are narrow now; consumer contract validation remains weak for raw `EventEnvelope<?>` payloads.
-- CSRF posture depends on SameSite cookies plus origin/referer checks; unsafe cookie-auth requests without Origin/Referer now fail closed.
-- CSP permits unsafe inline behavior.
-- JWT secret length is logged at startup, which is minor metadata exposure.
-- Public routes must be audited whenever adding `permitAll`.
+- CSP still permits inline script/style in gateway config and should be tightened only with frontend compatibility work.
+- Broader event schema/version enforcement remains a security and correctness need.
+- Public route changes need explicit threat model and tests.
 
-## Scaling Bottlenecks
+## High-Volume Send Target
 
-Highest-priority bottlenecks for 10 lakh sends in 10 hours:
+10 lakh emails in 10 hours is roughly 27.8 accepted send attempts per second before retries and tracking volume. This target is only realistic for warmed domains/providers with authenticated DNS, suppression discipline, provider capacity approval, queue sharding, backpressure, observability, and live evidence.
 
-- Campaign send batches still store active/retry recipient payload JSON instead of durable recipient-page checkpoints.
-- New high-volume Kafka topics must not fall back to tenant-only partition keys.
-- Send execution does synchronous per-recipient rendering and per-recipient Kafka publishing.
-- Delivery hot path performs multiple database writes/checks per message.
-- Rate/warmup state can create hot rows.
-- Provider selection and safety checks are per message rather than batched where safe.
-- Consumer concurrency is static and low for the stated throughput target.
-- Local Compose topic partitions and resource limits are development-sized.
-- Tracking, feedback, and analytics volume are not isolated from send execution pressure.
-- New domain/address warmup rules block high volume by design.
+Target architecture:
 
-## Recommended Architecture Improvements
+- Recipient snapshot table or object-backed chunks keyed by tenant, workspace, job, chunk, and version.
+- Metadata-only chunk-ready events.
+- Shard-aware Kafka keys by job, batch, provider, recipient domain, or computed shard.
+- Separate render, reservation, send, feedback, and tracking pipelines.
+- Provider/domain token reservations with Redis/sharded leases or batched DB reservations.
+- Isolated tracking ingestion and ClickHouse rollups.
+- KEDA/HPA from Kafka lag, provider capacity, error rate, and queue age.
+- Stuck-job detection and replay tooling.
 
-### High-Volume Send Redesign
+Do not bypass warmup or deliverability safety to satisfy throughput.
 
-- Replace one-shot audience resolved payload with cursor-based chunking.
-- Store send-job recipient snapshots in a durable table/object store keyed by tenant, workspace, job, chunk, and version.
-- Publish chunk-ready events with metadata only, not full million-recipient payloads.
-- Use shard-aware Kafka keys: job ID, chunk ID, provider, recipient domain, or calculated shard.
-- Separate render, batch, provider reservation, send, feedback, and tracking pipelines.
-- Add explicit backpressure between campaign and delivery based on provider capacity and warmup state.
+## Autonomous Development Architecture
 
-### Delivery Scaling
+The project-local AI organization lives under `.codex/`:
 
-- Move rate token reservation to Redis or a sharded/batched reservation service for hot paths.
-- Batch safe provider/rate checks where correctness allows.
-- Partition message logs and safety evaluations by tenant/date or message date.
-- Add retention and rollup strategy for per-message operational data.
-- Use provider-domain queues and KEDA-style scaling from Kafka lag.
-- Make fallback provider selection explicit and audited.
+- `.codex/bootstrap.md`: startup and recovery entry point.
+- `.codex/agents/`: role catalog, routing, coordination protocol.
+- `.codex/commands/`: repeatable command runbooks.
+- `.codex/workflows/`: SDLC workflows from intake through release.
+- `.codex/skills/`: project-local procedural skills.
+- `.codex/memory/`: durable current-state memory.
+- `.codex/state/`: machine-readable team state.
+- `.codex/checkpoints/`: resumable in-flight checkpoints.
+- `.codex/reports/`: generated audit and execution reports.
+- `.codex/schemas/`: schemas for state and checkpoints.
 
-### Reliability
-
-- Stop swallowing listener exceptions. Route retryable failures through Kafka retry/DLQ.
-- Add idempotency keys to every workflow boundary.
-- Add stuck-job detection for send jobs, batches, imports, automation instances, and webhook retries.
-- Add contract tests for event envelopes and topic payloads.
-
-### Security
-
-- Keep Kafka trusted packages narrow and add schema/payload contract validation.
-- Make CSRF expectations explicit and tested.
-- Tighten CSP by removing unsafe inline dependencies.
-- Remove JWT secret metadata logging.
-- Keep production secret and mock-provider guards in release gates.
-
-### Frontend
-
-- Split large pages/consoles into domain components and hooks.
-- Reduce public marketing styling inside workspace routes.
-- Improve dense operational views for campaign monitoring, send queue status, provider health, and deliverability incidents.
-- Keep `/app` compatibility route tree thin until fully migrated.
-
-### Operations
-
-- Add load-test gates around send pipeline and tracking ingestion.
-- Add capacity models for provider/domain warmup.
-- Add production runbooks for Kafka lag, provider failure, delivery incident, tracking lag, ClickHouse lag, and stuck sends.
-- Add Terraform/Helm or equivalent environment provisioning if infrastructure is meant to be repeatable beyond Kubernetes manifests.
+This organization coordinates human-like software company functions: product, architecture, implementation, QA, security, performance, operations, release, documentation, and continuous improvement.

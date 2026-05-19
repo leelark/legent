@@ -1,12 +1,13 @@
 # Refactor Log
 
-Last updated: 2026-05-16.
+Fresh baseline date: 2026-05-20.
 
-- 2026-05-16: Dependency-proven dead-code cleanup removed unreachable frontend tracking/content/admin/layout components, obsolete frontend tracking helpers, dead `TenantException`, and an unused delivery fallback method. Search/mobile shell behavior was kept through active components instead of retaining dead alternatives.
+No product refactor entries exist in the fresh memory baseline.
 
-Refactor candidates:
-
-- Split large workspace template editor and campaign creation route into domain components/hooks.
-- Split foundation platform/admin services by capability.
-- Extract delivery orchestration sub-services for provider choice, safety, rendering/handoff, feedback handling.
-- Replace full audience payload event with chunk manifest/checkpoint flow.
+Refactor entry requirements:
+- source files,
+- reason,
+- behavior-preserving evidence,
+- tests run,
+- risk reduced,
+- follow-up debt.

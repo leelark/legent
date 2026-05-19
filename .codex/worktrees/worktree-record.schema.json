@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Codex Worktree Record",
+  "type": "object",
+  "required": ["id", "branch", "path", "owner", "status", "scope", "filesInScope", "createdAt", "lastSeenAt"],
+  "properties": {
+    "id": { "type": "string" },
+    "branch": { "type": "string" },
+    "path": { "type": "string" },
+    "owner": { "type": "string" },
+    "status": { "type": "string", "enum": ["PLANNED", "ACTIVE", "REVIEW", "MERGED", "ARCHIVED", "ABANDONED"] },
+    "scope": { "type": "string" },
+    "checkpointId": { "type": "string" },
+    "filesInScope": { "type": "array", "items": { "type": "string" } },
+    "createdAt": { "type": "string" },
+    "lastSeenAt": { "type": "string" },
+    "notes": { "type": "string" }
+  }
+}

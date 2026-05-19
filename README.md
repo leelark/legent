@@ -31,11 +31,12 @@ Important: no email platform can guarantee that all mail from a new domain or ne
 
 ```text
 .
-+-- config/                    # Nginx, gateway route map, database init, local config
-+-- docs/                      # Audits, runbooks, contracts, production and load-test notes
++-- config/                    # Nginx and gateway route ownership
++-- .codex/                    # Autonomous AI organization, memory, commands, workflows, prompts
++-- docs/                      # Audits, operations, load testing, and security notes
 +-- frontend/                  # Next.js application and Playwright tests
 +-- infrastructure/            # Kubernetes manifests, overlays, observability, secrets templates
-+-- scripts/                   # Ops, release, validation, build, and load-test scripts
++-- scripts/                   # Ops and release validation utilities
 +-- sdk/                       # SDK/client code
 +-- services/                  # Spring Boot microservices
 |   +-- audience-service
@@ -167,7 +168,13 @@ Infrastructure validation:
 ```powershell
 docker compose config
 kubectl kustomize infrastructure/kubernetes/overlays/production
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-production-overlay.ps1
 ```
+
+## Autonomous AI Organization
+
+Project-local autonomous engineering assets live in `.codex/`. Start with `.codex/bootstrap.md`, `.codex/prompts/autonomous-24x7.md`, and `.codex/prompts/recovery.md`. The system defines agent roles, routing, workflows, memory, checkpoints, release evidence gates, and validation commands.
 
 ## Build Process
 
@@ -190,10 +197,9 @@ Docker images:
 docker compose build
 ```
 
-Cached/local helpers:
+Local helper:
 
 ```powershell
-make fast-build
 make docker-build
 ```
 
@@ -228,7 +234,7 @@ Before deployment:
 
 The current million-send bottleneck is not frontend rendering. It is the backend event and delivery pipeline:
 
-- Audience resolution emits bounded chunks, but campaign active/retry batches still retain recipient payload JSON.
+- Audience resolution emits bounded chunks, and current campaign batches can use row-backed recipient state; live target-scale proof is still required for retry, paging, and provider handoff pressure.
 - High-volume Kafka topic keys avoid tenant-only defaults; new topics still need shard-aware keys.
 - Send execution renders and publishes per recipient.
 - Delivery performs multiple per-message checks/writes.
