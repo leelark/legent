@@ -21,6 +21,10 @@ public interface DataExtensionRepository extends JpaRepository<DataExtension, St
 
     Optional<DataExtension> findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(String tenantId, String workspaceId, String id);
 
+    Optional<DataExtension> findByTenantIdAndWorkspaceIdAndNameIgnoreCaseAndDeletedAtIsNull(String tenantId,
+                                                                                           String workspaceId,
+                                                                                           String name);
+
     @Query("SELECT COUNT(d) > 0 FROM DataExtension d WHERE d.tenantId = :tid AND d.workspaceId = :wid AND lower(d.name) = lower(:name) AND d.deletedAt IS NULL")
     boolean existsByTenantWorkspaceAndName(@Param("tid") String tenantId,
                                            @Param("wid") String workspaceId,

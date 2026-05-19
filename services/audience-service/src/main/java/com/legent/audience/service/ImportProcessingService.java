@@ -14,6 +14,7 @@ import org.apache.commons.csv.CSVRecord;
 
 import com.legent.audience.domain.ImportJob;
 import com.legent.audience.domain.Subscriber;
+import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.event.ImportEventPublisher;
 import com.legent.audience.repository.ImportJobRepository;
 import com.legent.audience.repository.SubscriberRepository;
@@ -27,6 +28,7 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallbackWithoutResult;
 import org.springframework.transaction.support.TransactionTemplate;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 import java.util.regex.Pattern;
 import java.nio.charset.StandardCharsets;
@@ -45,6 +47,7 @@ public class ImportProcessingService {
 
     private final ImportJobRepository importJobRepository;
     private final SubscriberRepository subscriberRepository;
+    private final DataExtensionService dataExtensionService;
     private final ImportEventPublisher eventPublisher;
     private final PlatformTransactionManager transactionManager;
     private final io.minio.MinioClient minioClient;
@@ -101,7 +104,7 @@ public class ImportProcessingService {
                     currentChunk.add(record.toMap());
 
                     if (currentChunk.size() >= chunkSize) {
-                        ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job.getFieldMapping());
+                        ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job);
                         successCount += result.successCount;
                         errorCount += result.errorCount;
                         errors.addAll(result.errors);
@@ -117,7 +120,7 @@ public class ImportProcessingService {
                 }
 
                 if (!currentChunk.isEmpty()) {
-                    ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job.getFieldMapping());
+                    ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job);
                     successCount += result.successCount;
                     errorCount += result.errorCount;
                     errors.addAll(result.errors);
@@ -190,7 +193,15 @@ public class ImportProcessingService {
         List<Map<String, Object>> errors = new ArrayList<>();
     }
 
-    private ChunkResult processChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk, Map<String, String> mapping) {
+    private ChunkResult processChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk, ImportJob job) {
+        String targetType = job.getTargetType() == null ? "SUBSCRIBER" : job.getTargetType().trim().toUpperCase(Locale.ROOT);
+        if ("DATA_EXTENSION".equals(targetType)) {
+            return processDataExtensionChunk(chunk, job.getTargetId(), job.getFieldMapping());
+        }
+        return processSubscriberChunk(tenantId, workspaceId, chunk, job.getFieldMapping());
+    }
+
+    private ChunkResult processSubscriberChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk, Map<String, String> mapping) {
         ChunkResult result = new ChunkResult();
         List<Subscriber> toSave = new ArrayList<>();
 
@@ -237,6 +248,30 @@ public class ImportProcessingService {
                     subscriberRepository.saveAll(toSave);
                 }
             });
+        }
+        return result;
+    }
+
+    private ChunkResult processDataExtensionChunk(List<Map<String, String>> chunk, String targetId, Map<String, String> mapping) {
+        ChunkResult result = new ChunkResult();
+        for (Map<String, String> row : chunk) {
+            try {
+                Map<String, Object> mapped = new LinkedHashMap<>();
+                for (Map.Entry<String, String> entry : mapping.entrySet()) {
+                    String targetField = entry.getKey();
+                    String sourceHeader = entry.getValue();
+                    if (targetField != null && sourceHeader != null && row.containsKey(sourceHeader)) {
+                        mapped.put(targetField, row.get(sourceHeader));
+                    }
+                }
+                dataExtensionService.addRecord(targetId, DataExtensionDto.RecordRequest.builder()
+                        .data(mapped)
+                        .build());
+                result.successCount++;
+            } catch (Exception e) {
+                result.errorCount++;
+                result.errors.add(Map.of("message", e.getMessage()));
+            }
         }
         return result;
     }

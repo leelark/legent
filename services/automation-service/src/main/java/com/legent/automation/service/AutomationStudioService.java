@@ -2,6 +2,7 @@ package com.legent.automation.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.automation.client.AudienceDataExtensionClient;
 import com.legent.automation.domain.AutomationActivity;
 import com.legent.automation.domain.AutomationActivityRun;
 import com.legent.automation.dto.AutomationStudioDto;
@@ -31,6 +32,7 @@ public class AutomationStudioService {
     private final AutomationActivityRepository activityRepository;
     private final AutomationActivityRunRepository runRepository;
     private final ObjectMapper objectMapper;
+    private final AudienceDataExtensionClient audienceDataExtensionClient;
 
     @Transactional(readOnly = true)
     public List<AutomationStudioDto.ActivityResponse> listActivities() {
@@ -115,11 +117,23 @@ public class AutomationStudioService {
             run.setErrorMessage(String.join("; ", verification.getErrors()));
             run.setResultJson(writeJson(Map.of("verification", verification)));
         } else {
-            Map<String, Object> result = runResult(activity, safeRequest);
-            run.setRowsRead(asLong(result.get("rowsRead")));
-            run.setRowsWritten(asLong(result.get("rowsWritten")));
-            run.setStatus(dryRun ? AutomationStudioDto.RunStatus.VERIFIED : AutomationStudioDto.RunStatus.SUCCEEDED);
-            run.setResultJson(writeJson(result));
+            try {
+                Map<String, Object> result = runResult(activity, safeRequest);
+                run.setRowsRead(asLong(result.get("rowsRead")));
+                run.setRowsWritten(asLong(result.get("rowsWritten")));
+                run.setStatus(dryRun ? AutomationStudioDto.RunStatus.VERIFIED : AutomationStudioDto.RunStatus.SUCCEEDED);
+                run.setResultJson(writeJson(result));
+            } catch (RuntimeException ex) {
+                run.setStatus(AutomationStudioDto.RunStatus.FAILED);
+                String errorMessage = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
+                run.setErrorMessage(errorMessage);
+                run.setRowsRead(0L);
+                run.setRowsWritten(0L);
+                run.setResultJson(writeJson(Map.of(
+                        "activityType", activity.getActivityType().name(),
+                        "dryRun", dryRun,
+                        "error", errorMessage)));
+            }
         }
         run.setCompletedAt(Instant.now());
         AutomationActivityRun savedRun = runRepository.save(run);
@@ -167,12 +181,7 @@ public class AutomationStudioService {
             switch (type) {
                 case SQL_QUERY -> verifySql(input, output, errors, warnings);
                 case FILE_DROP -> require(input, "locationPattern", errors);
-                case IMPORT -> {
-                    require(input, "sourceLocation", errors);
-                    require(input, "targetType", errors);
-                    require(input, "targetId", errors);
-                    require(input, "fieldMapping", errors);
-                }
+                case IMPORT -> verifyImport(input, errors);
                 case EXTRACT -> {
                     require(input, "sourceType", errors);
                     require(output, "destination", errors);
@@ -196,8 +205,11 @@ public class AutomationStudioService {
             return;
         }
         String normalizedSql = sql.stripLeading().toUpperCase(Locale.ROOT);
-        if (!(normalizedSql.startsWith("SELECT ") || normalizedSql.startsWith("WITH "))) {
-            errors.add("SQL activity allows read-only SELECT/WITH statements only");
+        if (!normalizedSql.startsWith("SELECT ")) {
+            errors.add("SQL activity allows safe SELECT statements only");
+        }
+        if (sql.contains(";") || sql.contains("--") || sql.contains("/*") || sql.contains("*/")) {
+            errors.add("SQL activity accepts one comment-free statement");
         }
         List<String> forbidden = List.of("INSERT ", "UPDATE ", "DELETE ", "DROP ", "ALTER ", "TRUNCATE ", "CREATE ");
         for (String token : forbidden) {
@@ -205,8 +217,46 @@ public class AutomationStudioService {
                 errors.add("SQL activity contains forbidden token: " + token.trim());
             }
         }
+        String writeMode = asString(output.get("writeMode"));
+        if (writeMode != null && !List.of("APPEND", "OVERWRITE", "UPDATE", "UPSERT").contains(writeMode.toUpperCase(Locale.ROOT))) {
+            errors.add("SQL activity outputConfig.writeMode must be APPEND, OVERWRITE, UPDATE, or UPSERT");
+        }
+        Long maxRows = asLong(input.get("maxRows"));
+        if (maxRows != null && (maxRows < 1 || maxRows > 5000)) {
+            errors.add("SQL activity inputConfig.maxRows must be between 1 and 5000");
+        }
         if (asString(output.get("targetDataExtensionId")) == null) {
             warnings.add("SQL activity has no outputConfig.targetDataExtensionId; result will not populate a data extension.");
+        }
+    }
+
+    private void verifyImport(Map<String, Object> input, List<String> errors) {
+        String sourceLocation = asString(input.get("sourceLocation"));
+        if (sourceLocation == null) {
+            errors.add("Import activity requires inputConfig.sourceLocation");
+        } else {
+            String normalized = sourceLocation.toLowerCase(Locale.ROOT);
+            if (sourceLocation.length() > 255 || sourceLocation.contains("..") || sourceLocation.contains("\\")
+                    || sourceLocation.startsWith("/") || !normalized.endsWith(".csv")) {
+                errors.add("Import activity sourceLocation must be a safe CSV object key");
+            }
+        }
+
+        String targetType = asString(input.get("targetType"));
+        if (targetType == null) {
+            errors.add("Import activity requires inputConfig.targetType");
+        } else if (!List.of("SUBSCRIBER", "DATA_EXTENSION").contains(targetType.toUpperCase(Locale.ROOT))) {
+            errors.add("Import activity targetType must be SUBSCRIBER or DATA_EXTENSION");
+        }
+
+        Map<String, String> fieldMapping = asStringMap(input.get("fieldMapping"));
+        if (fieldMapping.isEmpty()) {
+            errors.add("Import activity requires inputConfig.fieldMapping");
+        } else if ("SUBSCRIBER".equalsIgnoreCase(targetType) && asString(fieldMapping.get("email")) == null) {
+            errors.add("Import activity requires fieldMapping.email for subscriber imports");
+        }
+        if ("DATA_EXTENSION".equalsIgnoreCase(targetType) && asString(input.get("targetId")) == null) {
+            errors.add("Import activity requires inputConfig.targetId for data extension imports");
         }
     }
 
@@ -233,7 +283,16 @@ public class AutomationStudioService {
     }
 
     private Map<String, Object> runResult(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
+        if (activity.getActivityType() == AutomationStudioDto.ActivityType.SQL_QUERY) {
+            return runSqlQueryActivity(activity, request);
+        }
+        if (activity.getActivityType() == AutomationStudioDto.ActivityType.IMPORT) {
+            return runImportActivity(activity, request);
+        }
         Map<String, Object> result = new LinkedHashMap<>();
+        if (!request.isDryRun()) {
+            throw new UnsupportedOperationException(activity.getActivityType().name() + " activity execution is not implemented");
+        }
         result.put("activityType", activity.getActivityType().name());
         result.put("dryRun", request.isDryRun());
         result.put("rowsRead", asLong(valueFromOverrides(request, "rowsRead")) == null ? 0L : asLong(valueFromOverrides(request, "rowsRead")));
@@ -243,8 +302,72 @@ public class AutomationStudioService {
         return result;
     }
 
+    private Map<String, Object> runImportActivity(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
+        Map<String, Object> input = readMap(activity.getInputConfig());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("fileName", input.get("sourceLocation"));
+        body.put("fileSize", input.get("fileSize"));
+        body.put("targetType", input.getOrDefault("targetType", "SUBSCRIBER"));
+        body.put("targetId", input.get("targetId"));
+        body.put("fieldMapping", asStringMap(input.get("fieldMapping")));
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("activityType", activity.getActivityType().name());
+        result.put("dryRun", request.isDryRun());
+        result.put("rowsRead", 0L);
+        result.put("rowsWritten", 0L);
+        result.put("checkedAt", Instant.now().toString());
+        if (request.isDryRun()) {
+            result.put("message", "Import activity verified; no import job started.");
+            result.put("targetType", body.get("targetType"));
+            result.put("fieldMappingSize", ((Map<?, ?>) body.get("fieldMapping")).size());
+            return result;
+        }
+
+        Map<String, Object> importResponse = new LinkedHashMap<>(audienceDataExtensionClient.startImportActivity(
+                activity.getTenantId(),
+                activity.getWorkspaceId(),
+                body));
+        result.put("message", "Audience import job started.");
+        result.put("importJob", importResponse);
+        result.put("importJobId", importResponse.get("id"));
+        result.put("importStatus", importResponse.get("status"));
+        return result;
+    }
+
+    private Map<String, Object> runSqlQueryActivity(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
+        Map<String, Object> input = readMap(activity.getInputConfig());
+        Map<String, Object> output = readMap(activity.getOutputConfig());
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("sql", input.get("sql"));
+        body.put("targetDataExtensionId", output.get("targetDataExtensionId"));
+        body.put("writeMode", output.getOrDefault("writeMode", "APPEND"));
+        body.put("maxRows", firstNonNull(
+                valueFromOverrides(request, "maxRows"),
+                input.get("maxRows"),
+                output.get("maxRows")));
+        body.put("dryRun", request.isDryRun());
+
+        Map<String, Object> result = new LinkedHashMap<>(audienceDataExtensionClient.runSqlQueryActivity(
+                activity.getTenantId(),
+                activity.getWorkspaceId(),
+                body));
+        result.put("activityType", activity.getActivityType().name());
+        result.put("checkedAt", Instant.now().toString());
+        return result;
+    }
+
     private Object valueFromOverrides(AutomationStudioDto.RunRequest request, String key) {
         return request.getOverrides() == null ? null : request.getOverrides().get(key);
+    }
+
+    private Object firstNonNull(Object... values) {
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private void require(Map<String, Object> map, String key, List<String> errors) {
@@ -331,6 +454,21 @@ public class AutomationStudioService {
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private Map<String, String> asStringMap(Object value) {
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, String> result = new LinkedHashMap<>();
+        raw.forEach((key, mapValue) -> {
+            String normalizedKey = asString(key);
+            String normalizedValue = asString(mapValue);
+            if (normalizedKey != null && normalizedValue != null) {
+                result.put(normalizedKey, normalizedValue);
+            }
+        });
+        return result;
     }
 
     private String normalizeBlank(String value) {

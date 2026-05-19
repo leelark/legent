@@ -20,4 +20,8 @@ public interface DataExtensionRecordRepository extends JpaRepository<DataExtensi
     long countByTenantWorkspaceAndDataExtension(@Param("tenantId") String tenantId,
                                                 @Param("workspaceId") String workspaceId,
                                                 @Param("deId") String dataExtensionId);
+
+    long deleteByTenantIdAndWorkspaceIdAndDataExtensionId(String tenantId,
+                                                          String workspaceId,
+                                                          String dataExtensionId);
 }

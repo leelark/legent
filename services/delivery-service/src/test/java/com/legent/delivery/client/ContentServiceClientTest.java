@@ -46,7 +46,7 @@ class ContentServiceClientTest {
                     """);
         });
 
-        ContentServiceClient client = new ContentServiceClient(baseUrl(), 5, 60, INTERNAL_TOKEN);
+        ContentServiceClient client = new ContentServiceClient(baseUrl(), 30, 60, INTERNAL_TOKEN);
 
         Map<String, String> first = client.fetchRenderedContent("tenant-1", "workspace-1", "cr_ref");
         Map<String, String> second = client.fetchRenderedContent("tenant-1", "workspace-1", "cr_ref");
@@ -73,7 +73,7 @@ class ContentServiceClientTest {
     void fetchCampaignContent_ReturnsEmptyMapOnHttpError() throws Exception {
         startServer(exchange -> writeJson(exchange, 404, "{\"error\":\"missing\"}"));
 
-        ContentServiceClient client = new ContentServiceClient(baseUrl(), 5, 60, INTERNAL_TOKEN);
+        ContentServiceClient client = new ContentServiceClient(baseUrl(), 30, 60, INTERNAL_TOKEN);
 
         assertTrue(client.fetchRenderedContent("tenant-1", "workspace-1", "missing-reference").isEmpty());
     }

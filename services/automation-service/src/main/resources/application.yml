@@ -89,6 +89,10 @@ management:
       show-details: always
 
 legent:
+  internal:
+    api-token: ${LEGENT_INTERNAL_API_TOKEN}
+  audience-service:
+    url: ${LEGENT_AUDIENCE_SERVICE_URL:${AUDIENCE_SERVICE_URL:http://audience-service:8082}}
   security:
     jwt:
       secret: ${LEGENT_SECURITY_JWT_SECRET}

@@ -1,16 +1,21 @@
 package com.legent.audience.controller;
 
 import com.legent.audience.dto.DataExtensionDto;
+import com.legent.audience.service.DataExtensionQueryActivityService;
 import com.legent.audience.service.DataExtensionService;
+import com.legent.common.security.InternalApiTokenValidator;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/data-extensions")
@@ -18,6 +23,15 @@ import org.springframework.web.bind.annotation.*;
 public class DataExtensionController {
 
     private final DataExtensionService deService;
+    private final DataExtensionQueryActivityService queryActivityService;
+
+    @Value("${legent.internal.api-token}")
+    private String internalApiToken;
+
+    @PostConstruct
+    void validateInternalApiToken() {
+        InternalApiTokenValidator.requireConfigured("legent.internal.api-token", internalApiToken);
+    }
 
     @GetMapping
     @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
@@ -107,5 +121,16 @@ public class DataExtensionController {
             @PathVariable String deId,
             @Valid @RequestBody DataExtensionDto.ImportMappingPreviewRequest request) {
         return ApiResponse.ok(deService.previewImportMapping(deId, request));
+    }
+
+    @PostMapping("/query-activities/internal")
+    @PreAuthorize("permitAll()")
+    public ApiResponse<DataExtensionDto.SqlQueryActivityResponse> runSqlQueryActivity(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @Valid @RequestBody DataExtensionDto.SqlQueryActivityRequest request) {
+        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+        }
+        return ApiResponse.ok(queryActivityService.execute(request));
     }
 }

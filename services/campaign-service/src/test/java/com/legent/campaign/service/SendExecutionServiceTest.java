@@ -22,6 +22,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.List;
 import java.util.Map;
@@ -389,18 +391,23 @@ class SendExecutionServiceTest {
         when(eventPublisher.publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any()))
                 .thenReturn(handoff);
 
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> execution = CompletableFuture.runAsync(
-                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()), executor);
 
-        verify(eventPublisher, timeout(1000)).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
-        assertFalse(execution.isDone());
-        assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
+        try {
+            verify(eventPublisher, timeout(1000)).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+            assertFalse(execution.isDone());
+            assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
 
-        handoff.complete(null);
+            handoff.complete(null);
 
-        assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
-        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
-        verify(batchRepository).save(batch);
+            assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
+            assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
+            verify(batchRepository).save(batch);
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -423,23 +430,28 @@ class SendExecutionServiceTest {
                     return new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello");
                 });
 
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> execution = CompletableFuture.runAsync(
-                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()));
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()), executor);
 
-        assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
-            if (!renderEntered.await(1, TimeUnit.SECONDS)) {
-                throw new AssertionError("render was not invoked");
-            }
-        });
-        assertFalse(execution.isDone());
-        assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
-        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        try {
+            assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
+                if (!renderEntered.await(1, TimeUnit.SECONDS)) {
+                    throw new AssertionError("render was not invoked");
+                }
+            });
+            assertFalse(execution.isDone());
+            assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
+            verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
 
-        releaseRender.countDown();
+            releaseRender.countDown();
 
-        assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
-        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
-        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+            assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
+            assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
+            verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test

@@ -2,6 +2,30 @@
 
 Last updated: 2026-05-18.
 
+SalesforceAuditAutomationImportActivity-20260518:
+assigned_task: continue pending Salesforce audit automation parity work by replacing synthetic non-SQL activity success with real subscriber/data-extension import start and fail-closed unsupported live activities
+task_type: ENHANCEMENT/SECURITY/RELIABILITY/TESTING
+priority_score: 36
+risk_level: HIGH
+status: completed
+changed_files: audience internal import endpoint/security/import validation/data-extension row processing/tests; automation audience client/import run wiring/validation/tests; campaign/delivery full-reactor test stability fixes; `.codex` memory
+branch_or_worktree: main
+dependencies: cavecrew read-only investigators, audit report, existing SQL Query Activity slice, audience import service, shared internal token validator
+blockers: file transfer, extract storage artifacts, journey goals/exits/re-entry, bulk import performance proof, and external production evidence remain pending
+next_actions: implement object-storage abstraction/export artifacts and bulk import performance validation before claiming full Automation Studio parity; no commit or push performed
+
+SalesforceAuditAutomationSqlActivity-20260518:
+assigned_task: implement locally actionable SQL Query Activity and data-extension write-mode slice from `docs/audits/legent_salesforce_full_code_audit_2026-05-18.yaml`
+task_type: ENHANCEMENT/SECURITY/DATA/TESTING
+priority_score: 36
+risk_level: HIGH
+status: completed
+changed_files: audience safe SQL query activity service/internal endpoint/DTOs/repositories/config/tests; automation audience client/SQL run wiring/config/tests; docker-compose automation env; `.codex` memory
+branch_or_worktree: main
+dependencies: AGENTS.md, `.codex/bootstrap.md`, `.codex/commands/start-org.md`, audit report, parallel read-only audit/frontend/backend/security/data/devops agents
+blockers: no local blocker for this slice; broader Salesforce parity still blocked by external production evidence and unimplemented large product areas
+next_actions: build marketer query UI/explain/governance, Automation Studio import/file-transfer/extract activities, journey goals/exits/re-entry analytics, and collect external GA/load/evidence before release; no commit or push performed
+
 CodexPendingReview-20260518:
 assigned_task: inspect `.codex` bootstrap, commands, memory, checkpoints, reports, and current repository state; classify pending items and complete locally actionable work with parallel subagents
 task_type: RELEASE/SECURITY/PERFORMANCE/REFACTOR/TESTING

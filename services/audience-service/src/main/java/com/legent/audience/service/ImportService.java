@@ -79,16 +79,14 @@ public class ImportService {
         String tenantId = AudienceScope.tenantId();
         String workspaceId = AudienceScope.workspaceId();
 
-        if (request.getFieldMapping() == null || request.getFieldMapping().get("email") == null || request.getFieldMapping().get("email").isBlank()) {
-            throw new IllegalArgumentException("Email mapping is required for subscriber imports");
-        }
+        validateStartRequest(request);
 
         ImportJob job = new ImportJob();
         job.setTenantId(tenantId);
         job.setWorkspaceId(workspaceId);
         job.setFileName(request.getFileName());
         job.setFileSize(request.getFileSize());
-        job.setTargetType(request.getTargetType() != null ? request.getTargetType() : "SUBSCRIBER");
+        job.setTargetType(normalizeTargetType(request.getTargetType()));
         job.setTargetId(request.getTargetId());
         job.setFieldMapping(request.getFieldMapping());
         job.setErrors(Collections.emptyList());
@@ -165,6 +163,31 @@ public class ImportService {
         if (fileName == null || !fileName.trim().toLowerCase(Locale.ROOT).endsWith(".csv")) {
             throw new IllegalArgumentException("Import file must be a CSV");
         }
+    }
+
+    private void validateStartRequest(ImportDto.StartRequest request) {
+        if (request.getFieldMapping() == null || request.getFieldMapping().isEmpty()) {
+            throw new IllegalArgumentException("Field mapping is required");
+        }
+        String targetType = normalizeTargetType(request.getTargetType());
+        if (!Set.of("SUBSCRIBER", "DATA_EXTENSION").contains(targetType)) {
+            throw new IllegalArgumentException("Unsupported import targetType: " + targetType);
+        }
+        if ("SUBSCRIBER".equals(targetType)
+                && (request.getFieldMapping().get("email") == null || request.getFieldMapping().get("email").isBlank())) {
+            throw new IllegalArgumentException("Email mapping is required for subscriber imports");
+        }
+        if ("DATA_EXTENSION".equals(targetType)
+                && (request.getTargetId() == null || request.getTargetId().isBlank())) {
+            throw new IllegalArgumentException("targetId is required for data extension imports");
+        }
+    }
+
+    private String normalizeTargetType(String targetType) {
+        if (targetType == null || targetType.isBlank()) {
+            return "SUBSCRIBER";
+        }
+        return targetType.trim().toUpperCase(Locale.ROOT);
     }
 
     private String normalizeContentType(String contentType) {

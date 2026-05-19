@@ -99,6 +99,29 @@ public class DataExtensionDto {
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class SqlQueryActivityRequest {
+        @NotBlank @Size(max = 4000) private String sql;
+        private String targetDataExtensionId;
+        @Pattern(regexp = "^(APPEND|OVERWRITE|UPDATE|UPSERT)$") private String writeMode;
+        @Min(1) @Max(5000) private Integer maxRows;
+        private Boolean dryRun;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class SqlQueryActivityResponse {
+        private boolean valid;
+        private String sourceDataExtensionId;
+        private String targetDataExtensionId;
+        private String writeMode;
+        private boolean dryRun;
+        private long rowsRead;
+        private long rowsWritten;
+        private List<Map<String, Object>> previewRows;
+        private List<String> warnings;
+        private List<String> errors;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class ImportMappingPreviewRequest {
         @NotNull private Map<String, String> fieldMapping;
         private List<String> sourceHeaders;

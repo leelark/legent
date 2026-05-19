@@ -15,6 +15,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.legent.security.ActuatorAccess;
 import com.legent.security.SecurityProperties;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import com.legent.security.JwtAuthenticationFilter;
@@ -40,6 +41,8 @@ public class SecurityConfig {
                 .requestMatchers(ActuatorAccess.PUBLIC_ENDPOINTS).permitAll()
                 .requestMatchers(ActuatorAccess.ADMIN_ENDPOINTS).hasRole(ActuatorAccess.ADMIN_ROLE)
                 .requestMatchers("/api/v1/health/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/data-extensions/query-activities/internal").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/imports/internal/start").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

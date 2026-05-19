@@ -4,13 +4,17 @@ import com.legent.audience.dto.ImportDto;
 import com.legent.audience.service.ImportService;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
+import com.legent.common.security.InternalApiTokenValidator;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/v1/imports")
@@ -19,6 +23,14 @@ public class ImportController {
 
     private final ImportService importService;
 
+    @Value("${legent.internal.api-token}")
+    private String internalApiToken;
+
+    @PostConstruct
+    void validateInternalApiToken() {
+        InternalApiTokenValidator.requireConfigured("legent.internal.api-token", internalApiToken);
+    }
+
     @PostMapping(consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.ACCEPTED)
     @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
@@ -26,6 +38,18 @@ public class ImportController {
             @RequestPart("file") org.springframework.web.multipart.MultipartFile file,
             @RequestPart("request") @Valid ImportDto.StartRequest request) {
         return ApiResponse.ok(importService.uploadAndStartImport(file, request));
+    }
+
+    @PostMapping("/internal/start")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @PreAuthorize("permitAll()")
+    public ApiResponse<ImportDto.StatusResponse> startInternalImport(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @Valid @RequestBody ImportDto.StartRequest request) {
+        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+        }
+        return ApiResponse.ok(importService.startImport(request));
     }
 
     @GetMapping("/{id}")

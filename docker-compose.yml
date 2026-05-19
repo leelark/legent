@@ -543,6 +543,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/legent_automation
       SPRING_FLYWAY_LOCATIONS: classpath:db/migration,filesystem:/app/db/migration
       SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT: "-1"
+      LEGENT_INTERNAL_API_TOKEN: ${LEGENT_INTERNAL_API_TOKEN:?LEGENT_INTERNAL_API_TOKEN must be set}
+      LEGENT_AUDIENCE_SERVICE_URL: http://audience-service:8082
     entrypoint:
       - sh
       - -c
