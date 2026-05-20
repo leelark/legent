@@ -2,25 +2,19 @@
   "schemaVersion": 1,
   "freshBaselineDate": "2026-05-20",
   "profiles": [
-    {
-      "id": "audit",
-      "commands": [
-        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
-        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
-      ]
-    },
-    {
-      "id": "backend-focused",
-      "commands": [".\\mvnw.cmd -pl <module> -am test"]
-    },
-    {
-      "id": "frontend-focused",
-      "commands": ["cd frontend", "npm run lint", "npm run build:ci", "npm run test:e2e:smoke"]
-    },
-    {
-      "id": "release",
-      "commands": ["powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly"]
-    }
+    { "id": "overall", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1", "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1"] },
+    { "id": "audit", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1", "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1", "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"] },
+    { "id": "backend-focused", "commands": [".\\mvnw.cmd -pl <module> -am test"] },
+    { "id": "frontend-focused", "commands": ["cd frontend", "npm run lint", "npm run build:ci", "npm run test:e2e:smoke"] },
+    { "id": "backend-frontend-focused", "commands": [".\\mvnw.cmd -pl <module> -am test", "cd frontend", "npm run lint", "npm run build:ci"] },
+    { "id": "research", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"] },
+    { "id": "research-security", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1", "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"] },
+    { "id": "research-backend", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"] },
+    { "id": "route-runtime", "commands": ["powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1", "docker compose --env-file .env.example config --quiet", "kubectl kustomize infrastructure\\kubernetes\\overlays\\production"] },
+    { "id": "security", "commands": ["powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1", ".\\mvnw.cmd -pl <module> -am test"] },
+    { "id": "performance", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"] },
+    { "id": "release", "commands": ["powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly"] },
+    { "id": "docs-memory", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1", "git diff --check"] },
+    { "id": "ops-validation", "commands": ["powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1", "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1"] }
   ]
 }

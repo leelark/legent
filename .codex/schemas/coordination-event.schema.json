@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Coordination Event",
+  "type": "object",
+  "required": ["timestamp", "eventType", "actor", "module", "summary"],
+  "properties": {
+    "timestamp": { "type": "string" },
+    "eventType": {
+      "type": "string",
+      "enum": ["ASSIGNED", "LEASE_ACQUIRED", "LEASE_RELEASED", "HEARTBEAT", "BLOCKED", "READY_FOR_REVIEW", "VALIDATION_STARTED", "VALIDATION_PASSED", "VALIDATION_FAILED", "DONE", "ABANDONED", "CLEANUP", "MONITOR"]
+    },
+    "actor": { "type": "string" },
+    "threadId": { "type": "string" },
+    "workItemId": { "type": "string" },
+    "module": { "type": "string" },
+    "files": { "type": "array", "items": { "type": "string" } },
+    "validation": { "type": "array", "items": { "type": "string" } },
+    "source": { "type": "string" },
+    "summary": { "type": "string" },
+    "nextAction": { "type": "string" }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Agent Handoff",
+  "type": "object",
+  "required": ["workItemId", "agentId", "scope", "filesInspected", "filesChanged", "validationRun", "validationNotRun", "risks", "memoryDeltas", "nextAction", "handoffStatus"],
+  "properties": {
+    "workItemId": { "type": "string" },
+    "agentId": { "type": "string" },
+    "threadId": { "type": "string" },
+    "scope": { "type": "string" },
+    "filesInspected": { "type": "array", "items": { "type": "string" } },
+    "filesChanged": { "type": "array", "items": { "type": "string" } },
+    "validationRun": { "type": "array", "items": { "type": "string" } },
+    "validationNotRun": { "type": "array", "items": { "type": "string" } },
+    "risks": { "type": "array", "items": { "type": "string" } },
+    "memoryDeltas": { "type": "array", "items": { "type": "string" } },
+    "nextAction": { "type": "string" },
+    "handoffStatus": { "type": "string", "enum": ["READY_FOR_REVIEW", "BLOCKED", "DONE", "ABANDONED"] }
+  }
+}

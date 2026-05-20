@@ -244,3 +244,11 @@ When directly relevant:
 - Some Kafka consumers and payload contracts still need broader schema/version strategy.
 - Large backend services and frontend route components should be split when touched.
 - Public docs/scripts drift has been reduced by this rebuild, but commands must be revalidated after each new utility or workflow change.
+
+## Multi-Thread Autonomous Operation
+
+- Use `.codex/prompts/overall-24x7.md` for one overall coordinating team.
+- Use `.codex/utilities/get-module-prompt.ps1 -Module <module>` for one module-level thread.
+- Multiple module threads may run in parallel only when registered in `.codex/threads/thread-registry.json` and protected by non-overlapping leases.
+- Every module thread must heartbeat, checkpoint before edits, validate its module profile, write compact audit events, and return a handoff.
+- Keep `.codex/memory` compact; detailed activity belongs in `.codex/audit/events/`, checkpoints, reports, and `.codex/backlog/queue.json`.

@@ -8,6 +8,8 @@ Current decisions:
 - `.codex/memory` is a fresh current-state baseline. Earlier memory entries were cleared at user request.
 - Continuous work follows audit, refine, pending scan, research, score, implement, validate, record, and repeat.
 - Parallel execution is capped at 6 active subagents when delegation is available and independent ownership exists.
+- Autonomous operation supports both one overall coordinator thread and multiple module-level threads coordinated by thread registry, module team registry, leases, checkpoints, heartbeats, and dashboards.
+- Memory files stay compact; detailed 24x7 activity is preserved in audit JSONL, checkpoints, reports, and backlog history.
 - Production and high-volume claims require evidence; local validators cannot substitute for target-environment proof.
 
 ## 2026-05-20 Parity Research Contract

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Codex Thread Record",
+  "type": "object",
+  "required": [
+    "threadId",
+    "threadRole",
+    "status",
+    "module",
+    "owner",
+    "allowedPaths",
+    "forbiddenPaths",
+    "maxParallelAgents",
+    "heartbeatAt",
+    "startedAt",
+    "lastUpdated",
+    "nextAction"
+  ],
+  "properties": {
+    "threadId": { "type": "string" },
+    "threadRole": { "type": "string", "enum": ["OVERALL", "MODULE"] },
+    "status": { "type": "string", "enum": ["PLANNED", "ACTIVE", "PAUSED", "BLOCKED", "REVIEW", "DONE", "ARCHIVED"] },
+    "module": { "type": "string" },
+    "owner": { "type": "string" },
+    "backlogItemId": { "type": "string" },
+    "checkpointId": { "type": "string" },
+    "worktreeId": { "type": "string" },
+    "branch": { "type": "string" },
+    "allowedPaths": { "type": "array", "items": { "type": "string" } },
+    "forbiddenPaths": { "type": "array", "items": { "type": "string" } },
+    "leaseIds": { "type": "array", "items": { "type": "string" } },
+    "maxParallelAgents": { "type": "integer", "minimum": 1, "maximum": 6 },
+    "activeAgents": { "type": "array", "items": { "type": "string" } },
+    "heartbeatAt": { "type": "string" },
+    "startedAt": { "type": "string" },
+    "lastUpdated": { "type": "string" },
+    "handoffPath": { "type": "string" },
+    "nextAction": { "type": "string" },
+    "notes": { "type": "string" }
+  }
+}

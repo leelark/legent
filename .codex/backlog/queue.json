@@ -217,7 +217,7 @@
                             "id":  "mode-aware-workflow-contract",
                             "title":  "Turn BASIC and ADVANCED UI mode into a workflow contract",
                             "status":  "BACKLOG",
-                            "priorityScore":  42,
+                            "priorityScore":  38,
                             "scoring":  {
                                             "productionReadinessImpact":  2,
                                             "securityRisk":  2,
@@ -360,6 +360,56 @@
                                               ],
                             "nextAction":  "Design platform event idempotency storage and tests.",
                             "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "external-provider-capacity",
+                            "title":  "Verify external email provider capacity and sender reputation",
+                            "status":  "BLOCKED",
+                            "priorityScore":  52,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  3,
+                                            "userImpact":  3,
+                                            "performanceImpact":  4,
+                                            "technicalDebtImpact":  3
+                                        },
+                            "owner":  "DELIVERABILITY_ENGINEER",
+                            "partnerAgents":  [
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "RELEASE_MANAGER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Verify provider API/SMTP limits, sender reputation, DNS authentication, warmup status, feedback-loop handling, and rate-control policy before production high-volume claims.",
+                            "nonGoals":  "Do not claim inbox placement, provider capacity, or 10 lakh send readiness from repository-only checks.",
+                            "sourceFiles":  [
+                                                ".codex/memory/blocked-items.md",
+                                                "docs/security/deliverability-and-safety.md",
+                                                "docs/load-testing/high-volume-readiness.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Provider capacity evidence is dated and reviewed.",
+                                                       "Sender/domain warmup and DNS authentication evidence is present.",
+                                                       "Feedback loop, bounce, complaint, suppression, and rate-control handling are verified."
+                                                   ],
+                            "validationProfile":  "performance",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                   ],
+                            "dependencies":  [
+                                                 "provider contract or quota evidence",
+                                                 "warmed sender-domain evidence",
+                                                 "DNS and feedback-loop verification"
+                                             ],
+                            "blockers":  [
+                                             "External provider and sender reputation evidence not present in repository"
+                                         ],
+                            "memoryTargets":  [
+                                                  "blocked-items.md",
+                                                  "performance-bottlenecks.md",
+                                                  "unresolved-risks.md"
+                                              ],
+                            "nextAction":  "Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims.",
+                            "lastUpdated":  "2026-05-20"
                         }
                     ],
     "blockedWork":  [
@@ -367,7 +417,7 @@
                             "id":  "production-evidence-pack",
                             "title":  "Collect strict production release evidence",
                             "status":  "BLOCKED",
-                            "priorityScore":  65,
+                            "priorityScore":  64,
                             "scoring":  {
                                             "productionReadinessImpact":  5,
                                             "securityRisk":  5,
@@ -415,7 +465,7 @@
                             "id":  "live-high-volume-proof",
                             "title":  "Collect target-like high-volume send proof",
                             "status":  "BLOCKED",
-                            "priorityScore":  58,
+                            "priorityScore":  62,
                             "scoring":  {
                                             "productionReadinessImpact":  5,
                                             "securityRisk":  3,
@@ -466,7 +516,7 @@
                          "id":  "salesforce-parity-research-refresh",
                          "title":  "Refresh Salesforce and competitor parity matrix",
                          "status":  "DONE",
-                         "priorityScore":  49,
+                         "priorityScore":  42,
                          "scoring":  {
                                          "productionReadinessImpact":  3,
                                          "securityRisk":  1,
@@ -763,7 +813,7 @@
                      {
                          "id":  "audience-bulk-suppression-check",
                          "title":  "Replace broad suppression fetch with bulk candidate check",
-                         "priorityScore":  58,
+                         "priorityScore":  62,
                          "owner":  "AUDIENCE_SERVICE_OWNER",
                          "status":  "DONE",
                          "sourceFiles":  [
@@ -1217,7 +1267,7 @@
                          "id":  "production-egress-policy-render-gate",
                          "title":  "Prove reviewed production egress policy is rendered and applied",
                          "status":  "DONE",
-                         "priorityScore":  47,
+                         "priorityScore":  46,
                          "scoring":  {
                                          "productionReadinessImpact":  4,
                                          "securityRisk":  4,

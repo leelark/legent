@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "modules": [
+    {
+      "moduleId": "frontend",
+      "ownerAgent": "FRONTEND_OWNER",
+      "writeGlobs": ["frontend/**"],
+      "sharedDependencies": ["config/gateway/route-map.json"],
+      "requiredPartners": ["UX_STRATEGIST", "QA_ENGINEER"],
+      "validationProfiles": ["frontend-focused"],
+      "exclusiveWith": []
+    },
+    {
+      "moduleId": "backend-services",
+      "ownerAgent": "BACKEND_SERVICE_OWNER",
+      "writeGlobs": ["services/**"],
+      "sharedDependencies": ["shared/**", "config/gateway/route-map.json"],
+      "requiredPartners": ["SECURITY_ENGINEER", "TEST_ARCHITECT"],
+      "validationProfiles": ["backend-focused"],
+      "exclusiveWith": []
+    },
+    {
+      "moduleId": "shared-platform",
+      "ownerAgent": "SHARED_PLATFORM_OWNER",
+      "writeGlobs": ["shared/**"],
+      "sharedDependencies": ["services/**"],
+      "requiredPartners": ["TEST_ARCHITECT", "SECURITY_ENGINEER"],
+      "validationProfiles": ["backend-focused"],
+      "exclusiveWith": ["backend-services"]
+    },
+    {
+      "moduleId": "infra-devops",
+      "ownerAgent": "DEVOPS_ENGINEER",
+      "writeGlobs": ["infrastructure/**", "config/**", "scripts/**", ".github/**", "docker-compose*.yml"],
+      "sharedDependencies": [],
+      "requiredPartners": ["RELEASE_MANAGER", "SRE_MONITORING_ENGINEER"],
+      "validationProfiles": ["release", "route-runtime"],
+      "exclusiveWith": []
+    },
+    {
+      "moduleId": "docs-codex",
+      "ownerAgent": "DOCUMENTATION_ENGINEER",
+      "writeGlobs": [".codex/**", "docs/**", "AGENTS.md", "ARCHITECTURE.md", "PROJECT_CONTEXT.md", "README.md"],
+      "sharedDependencies": [],
+      "requiredPartners": ["TECHNICAL_DEBT_STEWARD"],
+      "validationProfiles": ["docs-memory"],
+      "exclusiveWith": []
+    }
+  ]
+}

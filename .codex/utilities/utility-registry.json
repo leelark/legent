@@ -1,34 +1,31 @@
 {
   "schemaVersion": 1,
   "freshBaselineDate": "2026-05-20",
+  "memoryPolicy": "Keep .codex/memory compact. Store detailed activity in audit JSONL, checkpoints, reports, and generated dashboards.",
   "utilities": [
-    {
-      "name": "validate-codex-system.ps1",
-      "purpose": "Validate autonomous organization structure, JSON state, memory freshness, backlog, worktree registry, and leases.",
-      "reads": [".codex/state/team-state.json", ".codex/backlog/queue.json", ".codex/memory", ".codex/worktrees"],
-      "writes": [],
-      "ownerLane": "PROGRAM_MANAGER_AGENT"
-    },
-    {
-      "name": "select-next-work.ps1",
-      "purpose": "Select the highest-score READY work item.",
-      "reads": [".codex/backlog/queue.json"],
-      "writes": [],
-      "ownerLane": "PROJECT_MANAGER_AGENT"
-    },
-    {
-      "name": "new-checkpoint.ps1",
-      "purpose": "Create a real JSON checkpoint.",
-      "reads": [".codex/schemas/checkpoint.schema.json"],
-      "writes": [".codex/checkpoints/*.json"],
-      "ownerLane": "PROGRAM_MANAGER_AGENT"
-    },
-    {
-      "name": "validate-worktree-leases.ps1",
-      "purpose": "Detect overlapping active write leases.",
-      "reads": [".codex/worktrees/leases/active-leases.json"],
-      "writes": [],
-      "ownerLane": "PROGRAM_MANAGER_AGENT"
-    }
+    { "name": "validate-codex-system.ps1", "purpose": "Validate core .codex structure, queues, memory, thread coordination, leases, worktrees, and monitor health.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "validate-thread-coordination.ps1", "purpose": "Validate thread registry, module teams, heartbeat state, and module overlap.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "validate-worktree-leases.ps1", "purpose": "Detect exact and parent/child overlapping active write leases.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "reconcile-worktrees.ps1", "purpose": "Compare Git worktrees with .codex worktree registry and observed external worktrees.", "ownerLane": "DEVOPS_ENGINEER" },
+    { "name": "monitor-autonomous-org.ps1", "purpose": "Generate/check the team dashboard and idle-state monitor.", "ownerLane": "SRE_MONITORING_ENGINEER" },
+    { "name": "cleanup-autonomous-org.ps1", "purpose": "Pause stale threads, release stale leases, and write cleanup audit events.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "register-thread.ps1", "purpose": "Register an overall or module-level Codex thread.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "heartbeat-thread.ps1", "purpose": "Refresh a thread heartbeat and current next action.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "close-thread.ps1", "purpose": "Close, pause, block, or archive a registered thread.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "acquire-lease.ps1", "purpose": "Acquire a scoped write lease for a registered thread.", "ownerLane": "PROJECT_MANAGER_AGENT" },
+    { "name": "release-lease.ps1", "purpose": "Release, abandon, or expire a lease and append an audit event.", "ownerLane": "PROJECT_MANAGER_AGENT" },
+    { "name": "start-work-item.ps1", "purpose": "Move a work item into progress, acquire lease, create checkpoint, and write audit event.", "ownerLane": "PROJECT_MANAGER_AGENT" },
+    { "name": "complete-work-item.ps1", "purpose": "Move a work item to review/done/blocked and write validation/audit outcome.", "ownerLane": "PROJECT_MANAGER_AGENT" },
+    { "name": "select-next-work.ps1", "purpose": "Select the highest-score unblocked READY work item.", "ownerLane": "PROJECT_MANAGER_AGENT" },
+    { "name": "promote-backlog-item.ps1", "purpose": "Promote one scoped unblocked BACKLOG item to READY after refinement.", "ownerLane": "PROJECT_MANAGER_AGENT" },
+    { "name": "list-active-work.ps1", "purpose": "Print active agents, work, blockers, worktrees, leases, and next READY item.", "ownerLane": "PROJECT_MANAGER_AGENT" },
+    { "name": "list-module-teams.ps1", "purpose": "List supported overall and module-level teams.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "get-module-prompt.ps1", "purpose": "Render the start prompt for an overall or module-level thread.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "new-checkpoint.ps1", "purpose": "Create a real JSON checkpoint.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "update-checkpoint.ps1", "purpose": "Update checkpoint status, next action, or blockers.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "new-worktree.ps1", "purpose": "Register or create an isolated worktree.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "close-worktree.ps1", "purpose": "Archive a worktree record.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "select-validation-profile.ps1", "purpose": "Map changed paths to validation profiles.", "ownerLane": "TEST_ARCHITECT" },
+    { "name": "write-audit-event.ps1", "purpose": "Append compact JSONL coordination events without storing secrets.", "ownerLane": "DOCUMENTATION_ENGINEER" }
   ]
 }

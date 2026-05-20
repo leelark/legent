@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "freshBaselineDate": "2026-05-20",
+  "mode": "HYBRID_READY",
+  "coordinatorThreadId": null,
+  "heartbeatStaleMinutes": 60,
+  "threads": []
+}

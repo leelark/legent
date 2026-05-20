@@ -2,5 +2,16 @@
   "schemaVersion": 1,
   "freshBaselineDate": "2026-05-20",
   "activeWorktrees": [],
-  "archivedWorktrees": []
+  "archivedWorktrees": [],
+  "observedExternalWorktrees": [
+    {
+      "id": "external-detached-449e",
+      "path": "C:/Users/leelark.saxena/.codex/worktrees/449e/Legent - v1.0.2",
+      "branch": "detached",
+      "head": "83c0974c3ddf1c061234eafa3874c6ef92923842",
+      "status": "OBSERVED_UNMANAGED",
+      "lastSeenAt": "2026-05-20",
+      "notes": "Detected by git worktree list. Not managed by this repo-local .codex registry; monitor for drift and remove or register if it becomes active."
+    }
+  ]
 }

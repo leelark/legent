@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Module Scope",
+  "type": "object",
+  "required": ["moduleId", "ownerAgent", "writeGlobs", "requiredPartners", "validationProfiles"],
+  "properties": {
+    "moduleId": { "type": "string" },
+    "ownerAgent": { "type": "string" },
+    "writeGlobs": { "type": "array", "items": { "type": "string" } },
+    "sharedDependencies": { "type": "array", "items": { "type": "string" } },
+    "requiredPartners": { "type": "array", "items": { "type": "string" } },
+    "validationProfiles": { "type": "array", "items": { "type": "string" } },
+    "exclusiveWith": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -7,10 +7,11 @@ description: Maintain Legent documentation, AGENTS/architecture/context files, .
 
 1. Treat `.codex/memory` as fresh baseline from 2026-05-20.
 2. Record only verified current facts with source file or command.
-3. Keep active memory concise; move long audits to `.codex/reports/` or `docs/audits/`.
+3. Keep active memory concise; move long audits to `.codex/reports/`, `.codex/audit/events/`, checkpoints, or `docs/audits/`.
 4. Do not store secrets, `.env` values, raw logs with credentials, tokens, private keys, or customer data.
 5. Keep root docs, commands, workflows, skills, utilities, and validators aligned.
 6. Use `.codex/utilities/validate-codex-system.ps1` after changing `.codex`.
+7. Follow `.codex/workflows/token-efficient-memory.md` to avoid memory/log bloat.
 
 Required output:
 - docs/memory changed,

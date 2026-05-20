@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Worktree Registry",
+  "type": "object",
+  "required": ["schemaVersion", "freshBaselineDate", "activeWorktrees", "archivedWorktrees"],
+  "properties": {
+    "schemaVersion": { "type": "integer" },
+    "freshBaselineDate": { "type": "string" },
+    "activeWorktrees": { "type": "array" },
+    "archivedWorktrees": { "type": "array" },
+    "observedExternalWorktrees": { "type": "array" }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Active Lease",
+  "type": "object",
+  "required": ["leaseId", "threadId", "workItemId", "owner", "status", "filesInScope", "acquiredAt", "expiresAt", "heartbeatAt"],
+  "properties": {
+    "leaseId": { "type": "string" },
+    "threadId": { "type": "string" },
+    "workItemId": { "type": "string" },
+    "agentId": { "type": "string" },
+    "owner": { "type": "string" },
+    "worktreeId": { "type": "string" },
+    "branch": { "type": "string" },
+    "filesInScope": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "writeGlobs": { "type": "array", "items": { "type": "string" } },
+    "readOnly": { "type": "boolean" },
+    "status": { "type": "string", "enum": ["ACTIVE", "RELEASED", "ABANDONED", "EXPIRED"] },
+    "baseCommit": { "type": "string" },
+    "acquiredAt": { "type": "string" },
+    "expiresAt": { "type": "string" },
+    "heartbeatAt": { "type": "string" }
+  }
+}

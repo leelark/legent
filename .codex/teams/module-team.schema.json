@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Legent Module Team",
+  "type": "object",
+  "required": ["module", "displayName", "threadRole", "owner", "allowedPaths", "forbiddenPaths", "validationProfile", "memoryTargets", "promptPath"],
+  "properties": {
+    "module": { "type": "string" },
+    "displayName": { "type": "string" },
+    "threadRole": { "type": "string", "enum": ["OVERALL", "MODULE"] },
+    "owner": { "type": "string" },
+    "partners": { "type": "array", "items": { "type": "string" } },
+    "allowedPaths": { "type": "array", "items": { "type": "string" } },
+    "forbiddenPaths": { "type": "array", "items": { "type": "string" } },
+    "validationProfile": { "type": "string" },
+    "memoryTargets": { "type": "array", "items": { "type": "string" } },
+    "promptPath": { "type": "string" }
+  }
+}

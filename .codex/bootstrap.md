@@ -12,12 +12,16 @@ Use this file before every non-trivial Legent engineering session. This reposito
 4. Read `.codex/state/team-state.json`, `.codex/backlog/queue.json`, `.codex/memory/active-work-items.md`, `.codex/memory/blocked-items.md`, and `.codex/memory/unresolved-risks.md`.
 5. Check `.codex/checkpoints/` for unfinished real checkpoints (`*.json` preferred; Markdown only if it contains a valid JSON checkpoint block).
 6. Refresh facts for the touched area with `rg --files`, manifests, route map, CI, Compose, and implementation sources.
-7. If no valid active work exists, run `.codex/commands/continuous-cycle.md`: audit, pending scan, research, refine backlog, select highest-score ready item, implement, validate, record, repeat.
-8. Classify work as one or more of: `REQUIREMENTS`, `PRODUCT`, `ARCHITECTURE`, `SYSTEM_DESIGN`, `BACKEND`, `FRONTEND`, `DATABASE`, `API`, `INFRA`, `DEVOPS`, `SECURITY`, `PERFORMANCE`, `TESTING`, `QA`, `MONITORING`, `DOCUMENTATION`, `REFACTOR`, `BUGFIX`, `RELEASE`, `RESEARCH`.
-9. Score priority: `(ProductionReadinessImpact * 5) + (SecurityRisk * 4) + (UserImpact * 3) + (PerformanceImpact * 2) + TechnicalDebtImpact`.
-10. Assign owners through `.codex/agents/routing-matrix.md`.
-11. Create or update checkpoint state before file edits.
-12. Run impacted validation and update memory when work completes or fails.
+7. Choose operating mode:
+   - `OVERALL`: one coordinator thread from `.codex/prompts/overall-24x7.md`.
+   - `MODULE`: one module thread rendered by `.codex/utilities/get-module-prompt.ps1 -Module <module>`.
+   - `HYBRID`: one overall coordinator plus multiple registered module threads.
+8. If no valid active work exists, run `.codex/commands/continuous-cycle.md`: audit, pending scan, research, refine backlog, promote one actionable backlog item when needed, select highest-score ready item, implement, validate, record, repeat.
+9. Classify work as one or more of: `REQUIREMENTS`, `PRODUCT`, `ARCHITECTURE`, `SYSTEM_DESIGN`, `BACKEND`, `FRONTEND`, `DATABASE`, `API`, `INFRA`, `DEVOPS`, `SECURITY`, `PERFORMANCE`, `TESTING`, `QA`, `MONITORING`, `DOCUMENTATION`, `REFACTOR`, `BUGFIX`, `RELEASE`, `RESEARCH`.
+10. Score priority: `(ProductionReadinessImpact * 5) + (SecurityRisk * 4) + (UserImpact * 3) + (PerformanceImpact * 2) + TechnicalDebtImpact`.
+11. Assign owners through `.codex/agents/routing-matrix.md`.
+12. Register thread/lease and create or update checkpoint state before file edits.
+13. Run impacted validation and update compact memory, audit events, dashboard, and backlog when work completes or fails.
 
 ## Executive Chain
 
@@ -44,6 +48,15 @@ When parallel work is authorized and independent work exists, maintain up to 6 a
 
 Record live assignments in `.codex/state/team-state.json` under `activeAgents` and summarize them in `.codex/memory/active-work-items.md`.
 Use `.codex/worktrees/leases/active-leases.json` and `.codex/utilities/validate-worktree-leases.ps1` when parallel work may touch overlapping files or modules.
+
+For multiple Codex threads, register every thread in `.codex/threads/thread-registry.json`, use module teams from `.codex/teams/module-team-registry.json`, and validate with `.codex/utilities/validate-thread-coordination.ps1`.
+
+Heartbeat cadence:
+- active thread heartbeat: every 15-30 minutes,
+- stale warning: 60 minutes,
+- automatic pause cleanup: 120 minutes,
+- lease expiry default: 240 minutes,
+- dashboard refresh: every cycle and at least daily.
 
 ## Default Organization Lanes
 
@@ -97,6 +110,8 @@ Current-state memory should stay concise. Use reports for long audits and histor
 - `active-work-items.md`, `blocked-items.md`, and `unresolved-risks.md` for live state.
 
 Never store secrets, raw tokens, `.env` values, private keys, or customer data.
+
+For token efficiency, write detailed activity to `.codex/audit/events/YYYY-MM-DD.jsonl` and checkpoints. Keep memory files limited to durable facts, risks, decisions, fixes, and next actions.
 
 ## Gate Policy
 

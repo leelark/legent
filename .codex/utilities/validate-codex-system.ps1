@@ -31,10 +31,20 @@ $requiredFiles = @(
     ".codex/commands/research-pass.md",
     ".codex/state/team-state.json",
     ".codex/backlog/queue.json",
+    ".codex/threads/thread-registry.json",
+    ".codex/teams/module-team-registry.json",
     ".codex/worktrees/worktree-registry.json",
     ".codex/worktrees/leases/active-leases.json",
     ".codex/utilities/utility-registry.json",
-    ".codex/schemas/work-item.schema.json"
+    ".codex/schemas/work-item.schema.json",
+    ".codex/schemas/active-lease.schema.json",
+    ".codex/schemas/coordination-event.schema.json",
+    ".codex/schemas/agent-handoff.schema.json",
+    ".codex/prompts/overall-24x7.md",
+    ".codex/prompts/module-backend-service-24x7.md",
+    ".codex/prompts/module-frontend-24x7.md",
+    ".codex/prompts/module-infra-24x7.md",
+    ".codex/prompts/module-docs-codex-24x7.md"
 )
 
 foreach ($file in $requiredFiles) {
@@ -78,16 +88,35 @@ if ([int]$state.maxParallelAgents -gt 6) { Fail "maxParallelAgents must not exce
 if (@($state.activeAgents).Count -gt 6) { Fail "activeAgents exceeds 6." }
 
 $queue = Read-Json ".codex/backlog/queue.json"
+$validationRegistry = Read-Json ".codex/state/validation-registry.json"
+$knownProfiles = @($validationRegistry.profiles | ForEach-Object { $_.id })
 $allowedStatuses = @("BACKLOG", "READY", "IN_PROGRESS", "BLOCKED", "REVIEW", "VALIDATING", "DONE", "WONT_DO")
-$allItems = @($queue.readyWork) + @($queue.backlogWork) + @($queue.blockedWork) + @($queue.doneWork)
+function Get-QueueBucket($Queue, [string]$Name) {
+    if ($Queue.PSObject.Properties.Name -contains $Name) { return @($Queue.$Name) }
+    return @()
+}
+$allItems = @(Get-QueueBucket $queue "readyWork") + @(Get-QueueBucket $queue "backlogWork") + @(Get-QueueBucket $queue "inProgressWork") + @(Get-QueueBucket $queue "blockedWork") + @(Get-QueueBucket $queue "doneWork")
+$seenItemIds = @{}
 foreach ($item in $allItems) {
     if (-not $item.id) { Fail "Backlog item missing id." }
+    if ($seenItemIds.ContainsKey([string]$item.id)) { Fail "Duplicate work item id: $($item.id)" }
+    $seenItemIds[[string]$item.id] = $true
     if ($allowedStatuses -notcontains [string]$item.status) { Fail "Invalid status for backlog item $($item.id): $($item.status)" }
     foreach ($field in @("title", "owner", "scope", "nextAction", "validationProfile", "lastUpdated")) {
         if (-not [string]$item.$field) { Fail "Backlog item $($item.id) missing $field." }
     }
     if ($null -eq $item.priorityScore) { Fail "Backlog item $($item.id) missing priorityScore." }
+    if ($item.scoring) {
+        $expectedScore = ([int]$item.scoring.productionReadinessImpact * 5) + ([int]$item.scoring.securityRisk * 4) + ([int]$item.scoring.userImpact * 3) + ([int]$item.scoring.performanceImpact * 2) + [int]$item.scoring.technicalDebtImpact
+        if ([int]$item.priorityScore -ne $expectedScore) { Fail "Backlog item $($item.id) priorityScore $($item.priorityScore) does not match formula $expectedScore." }
+    }
+    if ($knownProfiles -notcontains [string]$item.validationProfile) { Fail "Backlog item $($item.id) uses unknown validationProfile: $($item.validationProfile)" }
     if (@($item.acceptanceCriteria).Count -eq 0) { Fail "Backlog item $($item.id) needs acceptanceCriteria." }
+    foreach ($memoryTarget in @($item.memoryTargets)) {
+        if ($memoryTarget -and -not (Test-Path (Join-Path ".codex/memory" $memoryTarget))) {
+            Fail "Backlog item $($item.id) references missing memory target: $memoryTarget"
+        }
+    }
 }
 
 $registry = Read-Json ".codex/worktrees/worktree-registry.json"
@@ -96,6 +125,18 @@ if ($null -eq $registry.activeWorktrees) { Fail "worktree registry missing activ
 if ($null -eq $leases.leases) { Fail "active leases missing leases array." }
 
 & .codex/utilities/validate-worktree-leases.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$global:LASTEXITCODE = 0
+
+& .codex/utilities/validate-thread-coordination.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$global:LASTEXITCODE = 0
+
+& .codex/utilities/reconcile-worktrees.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+$global:LASTEXITCODE = 0
+
+& .codex/utilities/monitor-autonomous-org.ps1 -CheckOnly
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 $global:LASTEXITCODE = 0
 
