@@ -9,5 +9,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface RoutingRuleRepository extends JpaRepository<RoutingRule, String> {
-    Optional<RoutingRule> findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue(String tenantId, String senderDomain);
+    Optional<RoutingRule> findByTenantIdAndWorkspaceIdAndSenderDomainIgnoreCaseAndIsActiveTrue(
+            String tenantId,
+            String workspaceId,
+            String senderDomain);
 }

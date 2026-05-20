@@ -129,7 +129,7 @@ public class SsoController {
                 .path(REFRESH_COOKIE_PATH)
                 .build();
         ResponseCookie tenantCookie = ResponseCookie.from(TENANT_COOKIE_NAME, result.tenantId())
-                .httpOnly(false)
+                .httpOnly(true)
                 .secure(cookieSecure)
                 .sameSite(cookieSameSite)
                 .maxAge(COOKIE_MAX_AGE)

@@ -143,6 +143,14 @@ public class WorkflowGraphValidator {
         }
     }
 
+    public Set<String> runtimeSupportedNodeTypes() {
+        return RUNTIME_SUPPORTED_NODE_TYPES;
+    }
+
+    public boolean isRuntimeSupportedNodeType(String nodeType) {
+        return RUNTIME_SUPPORTED_NODE_TYPES.contains(nodeType);
+    }
+
     public List<String> runtimeSupportErrors(WorkflowGraphDto graph) {
         WorkflowGraphDto normalized = validateAndNormalize(graph);
         List<String> errors = new ArrayList<>();

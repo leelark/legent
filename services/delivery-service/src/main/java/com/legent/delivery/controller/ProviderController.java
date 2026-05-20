@@ -30,10 +30,11 @@ public class ProviderController {
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<SmtpProviderDto.Response>> list(
             @RequestParam(name = "includeInactive", defaultValue = "false") boolean includeInactive) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         List<SmtpProvider> providers = includeInactive
-            ? repository.findByTenantIdOrderByPriorityAsc(tenantId)
-            : repository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc(tenantId);
+            ? repository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByPriorityAsc(tenantId, workspaceId)
+            : repository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(tenantId, workspaceId);
         List<SmtpProviderDto.Response> responses = providers.stream()
             .map(this::mapToResponse)
             .collect(Collectors.toList());
@@ -43,8 +44,9 @@ public class ProviderController {
     @GetMapping("/health")
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
     public ApiResponse<List<SmtpProviderDto.ProviderHealthResponse>> health() {
-        String tenantId = TenantContext.getTenantId();
-        List<SmtpProvider> providers = repository.findByTenantIdOrderByPriorityAsc(tenantId);
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        List<SmtpProvider> providers = repository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByPriorityAsc(tenantId, workspaceId);
         List<SmtpProviderDto.ProviderHealthResponse> responses = providers.stream()
                 .map(provider -> SmtpProviderDto.ProviderHealthResponse.builder()
                         .id(provider.getId())
@@ -62,11 +64,12 @@ public class ProviderController {
     @PostMapping("/{id}/test")
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<SmtpProviderDto.Response> testProvider(@PathVariable String id) {
-        SmtpProvider provider = repository.findById(id)
-                .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        SmtpProvider provider = repository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
                 .orElseThrow(() -> new RuntimeException("Provider not found"));
         healthMonitoringService.checkProviderHealth(provider);
-        SmtpProvider refreshed = repository.findById(id).orElse(provider);
+        SmtpProvider refreshed = repository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId).orElse(provider);
         return ApiResponse.ok(mapToResponse(refreshed));
     }
 
@@ -74,9 +77,11 @@ public class ProviderController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<SmtpProviderDto.Response> create(@RequestBody SmtpProviderDto.CreateRequest request) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         SmtpProvider provider = new SmtpProvider();
         provider.setTenantId(tenantId);
+        provider.setWorkspaceId(workspaceId);
         provider.setName(request.getName());
         provider.setType(request.getType());
         provider.setHost(request.getHost());
@@ -106,8 +111,9 @@ public class ProviderController {
     @PutMapping("/{id}")
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<SmtpProviderDto.Response> update(@PathVariable String id, @RequestBody SmtpProviderDto.CreateRequest request) {
-        SmtpProvider provider = repository.findById(id)
-            .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        SmtpProvider provider = repository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
             .orElseThrow(() -> new RuntimeException("Provider not found"));
 
         provider.setName(request.getName());
@@ -147,8 +153,9 @@ public class ProviderController {
     @DeleteMapping("/{id}")
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:write', principal.roles)")
     public ApiResponse<Void> delete(@PathVariable String id) {
-        SmtpProvider provider = repository.findById(id)
-            .filter(p -> p.getTenantId().equals(TenantContext.getTenantId()))
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        SmtpProvider provider = repository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
             .orElseThrow(() -> new RuntimeException("Provider not found"));
         String providerId = provider.getId();
         repository.delete(provider);
@@ -162,6 +169,7 @@ public class ProviderController {
     private SmtpProviderDto.Response mapToResponse(SmtpProvider p) {
         return SmtpProviderDto.Response.builder()
             .id(p.getId())
+            .workspaceId(p.getWorkspaceId())
             .name(p.getName())
             .type(p.getType())
             .host(p.getHost())

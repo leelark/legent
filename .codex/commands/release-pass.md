@@ -26,6 +26,8 @@ Strict promotion checks:
 powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -RequireExternalEgressEvidence -ExternalEgressEvidencePath <reviewed-json> -RequireGaEvidence -EvidenceDir <evidence-dir> -RequireImageDigests -RequireImageEvidence -ImageEvidenceManifest <manifest-json>
 ```
 
+Use target-environment reviewed egress evidence for `<reviewed-json>`, not `docs/operations/production-egress-evidence.template.json`. Strict egress mode validates the evidence, generates or checks the reviewed external egress NetworkPolicy, and proves it renders through the production Kustomize overlay.
+
 Release is blocked if any of these are absent:
 
 - Target external egress evidence.

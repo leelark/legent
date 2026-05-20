@@ -1,0 +1,73 @@
+{
+  "id": "delivery-feedback-outbox",
+  "createdAt": "2026-05-19T23:27:59.3280911Z",
+  "objective": "Make delivery feedback publication durable across Kafka publish failures",
+  "status": "DONE",
+  "owner": "DELIVERY_SERVICE_OWNER",
+  "filesInScope": [
+    "services/delivery-service/src/main/java/com/legent/delivery/DeliveryApplication.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/domain/DeliveryFeedbackOutboxEvent.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryFeedbackMessage.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventPublisher.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryFeedbackOutboxEventRepository.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java",
+    "services/delivery-service/src/main/resources/db/migration/**",
+    "services/delivery-service/src/test/**",
+    ".codex/backlog/queue.json",
+    ".codex/state/team-state.json",
+    ".codex/memory/**",
+    "services/delivery-service/src/main/resources/db/migration/V15__delivery_feedback_outbox_events.sql",
+    "services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventPublisherTest.java",
+    "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java",
+    "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryOrchestrationServiceTest.java"
+  ],
+  "agents": [
+    "019e4291-8fc9-7560-993c-d4f822b212e9 DELIVERY_SERVICE_OWNER read-only",
+    "019e4291-90c7-7880-9337-b62043432f9c KAFKA_CONTRACTS_OWNER read-only",
+    "019e4291-91d9-7322-aa5d-7d5fffec73af DATABASE_ENGINEER read-only",
+    "019e4291-935b-77e2-956b-a7d03f37b4ad TEST_ARCHITECT read-only",
+    "019e4291-951f-7033-aeea-d9adc0fc2f94 SRE_MONITORING_ENGINEER read-only",
+    "019e4291-97bf-7773-84ac-608f7924b440 PROGRAM_MANAGER_AGENT read-only"
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/delivery-service -am test",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+  ],
+  "rollbackNotes": "Forward-only migration V15 creates delivery_feedback_outbox_events; rollback requires pausing the outbox poller and explicitly deciding how to handle pending feedback rows.",
+  "blockers": [],
+  "nextAction": "Continue with next highest-priority READY item: campaign-send-content-reference-contract.",
+  "completedAt": "2026-05-20T05:23:01+05:30",
+  "implementationSummary": [
+    "Added delivery_feedback_outbox_events with leased PENDING/PUBLISHING/PUBLISHED/FAILED retry state.",
+    "Delivery orchestration now enqueues feedback in the delivery transaction instead of publishing inline.",
+    "DeliveryEventPublisher now builds stable feedback envelopes and exposes publishOrThrow for the outbox worker.",
+    "Delivery scheduling is enabled for retry/outbox/provider-health scheduled jobs."
+  ],
+  "validationResults": [
+    {
+      "command": ".\\mvnw.cmd -pl services/delivery-service -am '-Dtest=DeliveryEventPublisherTest,DeliveryFeedbackOutboxServiceTest,DeliveryOrchestrationServiceTest' '-Dsurefire.failIfNoSpecifiedTests=false' test",
+      "status": "PASS"
+    },
+    {
+      "command": ".\\mvnw.cmd -pl services/delivery-service -am test",
+      "status": "PASS"
+    },
+    {
+      "command": "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+      "status": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "status": "PASS"
+    },
+    {
+      "command": "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+      "status": "PASS"
+    }
+  ],
+  "residualRisks": [
+    "High-volume throughput still needs target-like load evidence and retention/cleanup policy for published outbox rows.",
+    "Kafka topic definitions/contracts for email.failed, email.retry.scheduled, and email.failed.dlq remain a separate backlog concern."
+  ]
+}

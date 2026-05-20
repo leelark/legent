@@ -15,17 +15,28 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface ProviderHealthStatusRepository extends JpaRepository<ProviderHealthStatus, String> {
 
-    Optional<ProviderHealthStatus> findByProviderId(String providerId);
+    Optional<ProviderHealthStatus> findByTenantIdAndWorkspaceIdAndProviderId(
+            String tenantId,
+            String workspaceId,
+            String providerId);
 
-    List<ProviderHealthStatus> findByTenantId(String tenantId);
+    List<ProviderHealthStatus> findByTenantIdAndWorkspaceId(String tenantId, String workspaceId);
 
-    @Query("SELECT h FROM ProviderHealthStatus h WHERE h.tenantId = :tid AND h.currentStatus != 'HEALTHY'")
-    List<ProviderHealthStatus> findUnhealthyProviders(@Param("tid") String tenantId);
+    @Query("SELECT h FROM ProviderHealthStatus h WHERE h.tenantId = :tenantId AND h.workspaceId = :workspaceId AND h.currentStatus != 'HEALTHY'")
+    List<ProviderHealthStatus> findUnhealthyProviders(
+            @Param("tenantId") String tenantId,
+            @Param("workspaceId") String workspaceId);
 
-    @Query("SELECT h FROM ProviderHealthStatus h WHERE h.tenantId = :tid AND h.circuitBreakerOpen = true")
-    List<ProviderHealthStatus> findProvidersWithOpenCircuit(@Param("tid") String tenantId);
+    @Query("SELECT h FROM ProviderHealthStatus h WHERE h.tenantId = :tenantId AND h.workspaceId = :workspaceId AND h.circuitBreakerOpen = true")
+    List<ProviderHealthStatus> findProvidersWithOpenCircuit(
+            @Param("tenantId") String tenantId,
+            @Param("workspaceId") String workspaceId);
 
     @Query("SELECT CASE WHEN COUNT(h) > 0 THEN true ELSE false END FROM ProviderHealthStatus h " +
-           "WHERE h.providerId = :providerId AND h.currentStatus = 'HEALTHY' AND h.circuitBreakerOpen = false")
-    boolean isProviderHealthy(@Param("providerId") String providerId);
+           "WHERE h.tenantId = :tenantId AND h.workspaceId = :workspaceId AND h.providerId = :providerId " +
+           "AND h.currentStatus = 'HEALTHY' AND h.circuitBreakerOpen = false")
+    boolean isProviderHealthy(
+            @Param("tenantId") String tenantId,
+            @Param("workspaceId") String workspaceId,
+            @Param("providerId") String providerId);
 }

@@ -1,0 +1,52 @@
+{
+  "id": "campaign-send-content-reference-contract",
+  "createdAt": "2026-05-19T23:55:00Z",
+  "objective": "Align campaign email.send.requested handoff with the shared Kafka send contract",
+  "status": "DONE",
+  "owner": "CAMPAIGN_SERVICE_OWNER",
+  "filesInScope": [
+    "services/campaign-service/src/main/resources/application.yml",
+    "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+    "services/campaign-service/src/test/**",
+    "shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventContractValidator.java",
+    "shared/legent-kafka/src/test/**",
+    ".codex/backlog/queue.json",
+    ".codex/state/team-state.json",
+    ".codex/memory/**"
+  ],
+  "agents": [
+    "019e42ac-3999-7322-9783-bebaa942d276 CAMPAIGN_SERVICE_OWNER read-only",
+    "019e42ac-3a38-70a3-ad99-2f410d87627f KAFKA_CONTRACTS_OWNER read-only",
+    "019e42ac-3b7d-7340-a82c-ace1002f87db CONTENT_SERVICE_OWNER read-only",
+    "019e42ac-3d46-7721-bef6-fd1d3f04aae4 TEST_ARCHITECT read-only",
+    "019e42ac-403b-7291-aa90-d7845c7176f3 PERFORMANCE_ENGINEER read-only",
+    "019e42ac-4445-7893-aec9-38d2a974a5a4 PROGRAM_MANAGER_AGENT read-only"
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/campaign-service,shared/legent-kafka -am test",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+  ],
+  "rollbackNotes": "Preserve unrelated dirty changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Continue with next highest-priority READY item: egress-evidence-validator-hardening.",
+  "completedAt": "2026-05-20T05:48:37+05:30",
+  "implementationSummary": [
+    "Campaign send handoff now creates rendered content references unconditionally before publishing email.send.requested events.",
+    "The legacy content-reference-enabled property now defaults true and is deprecated in code because the Kafka and delivery contracts require a reference.",
+    "Focused campaign tests cover configured-off, configured-on, reference-only, oversized payload, and reference creation failure behavior.",
+    "Shared Kafka contract tests now allow reference-only payloads and reject inline-only or blank-reference email.send.requested payloads."
+  ],
+  "validationResults": [
+    "PASS .\\mvnw.cmd -pl services/campaign-service -am '-Dtest=SendExecutionServiceTest' '-Dsurefire.failIfNoSpecifiedTests=false' test",
+    "PASS .\\mvnw.cmd -pl shared/legent-kafka -am '-Dtest=EventContractValidatorTest,EventPublisherTest' '-Dsurefire.failIfNoSpecifiedTests=false' test",
+    "PASS .\\mvnw.cmd -pl services/campaign-service,shared/legent-kafka -am test",
+    "PASS .codex\\utilities\\validate-codex-system.ps1",
+    "PASS git diff --check (line-ending warnings only)",
+    "PASS scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+  ],
+  "residualRisks": [
+    "High-volume readiness still needs target-like proof for per-recipient content snapshot writes, delivery reference fetches, queue lag, and content-service/database capacity.",
+    "Inline rendered content remains enabled by default as fallback data; production high-volume runs should review whether reference-only mode is required.",
+    "Content-service rendered snapshot endpoints trust internal callers, so any future non-render caller must preserve sanitization guarantees."
+  ]
+}

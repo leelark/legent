@@ -1,0 +1,33 @@
+﻿{
+    "id":  "production-egress-policy-render-gate",
+    "createdAt":  "2026-05-20T03:21:46.0361403Z",
+    "objective":  "Prove reviewed production egress policy generation is rendered into the production manifest and enforced by release validation without replacing external evidence requirements.",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         "scripts/ops/release-gate.ps1,scripts/ops/write-production-egress-policy.ps1,infrastructure/kubernetes/overlays/production/kustomization.yml,infrastructure/kubernetes/overlays/production/network-policy.yml,scripts/ops/test-release-evidence-validators.ps1"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER,RELEASE_MANAGER,SECURITY_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1,kubectl kustomize infrastructure\\kubernetes\\overlays\\production,powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1,git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Stop safely per user request after recording; do not start the next item until resumed.",
+    "startedAt":  "2026-05-20T08:51:45+05:30",
+    "completedAt":  "2026-05-20T09:18:41+05:30",
+    "outcome":  "Strict egress release validation now validates reviewed evidence, generates or checks a reviewed external egress NetworkPolicy, proves it renders through a temporary production Kustomize overlay, verifies evidence hash/CIDR/port/protocol inclusion, rejects stale or missing generated policies, rejects FQDN rules until a supported generator exists, and guards the app-label selector against uncovered Deployment pod templates. This does not replace target-environment egress evidence.",
+    "validationResults":  [
+                              "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                              "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                              "kubectl kustomize infrastructure\\kubernetes\\overlays\\production | Out-Null",
+                              "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose",
+                              ".\\.codex\\utilities\\validate-codex-system.ps1",
+                              "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                              "git diff --check"
+                          ]
+}

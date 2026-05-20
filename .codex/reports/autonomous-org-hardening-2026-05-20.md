@@ -32,6 +32,8 @@ Validation:
 - `scripts/ops/validate-production-egress-evidence.ps1 -EvidencePath docs/operations/production-egress-evidence.template.json`.
 - `scripts/ops/test-release-evidence-validators.ps1`.
 - `scripts/ops/release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize`.
+
+Erratum on 2026-05-20: production egress evidence validation was hardened after this report. `docs/operations/production-egress-evidence.template.json` is now expected to fail validation as a template/placeholder negative test.
 - `docker compose --env-file .env.example config --quiet`.
 - `kubectl kustomize infrastructure/kubernetes/overlays/production`.
 - `git diff --check` passed with line-ending warnings only.

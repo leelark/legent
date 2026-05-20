@@ -64,6 +64,18 @@ class EventContractValidatorTest {
     }
 
     @Test
+    void validate_allowsEmailSendRequestedWithReferenceOnlyPayload() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                Map.of(
+                        "email", "user@example.com",
+                        "contentReference", "cr_123")
+        );
+
+        assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+    }
+
+    @Test
     void validate_rejectsEmailSendRequestedWithTemplateOnlyPayload() {
         EventEnvelope<Map<String, Object>> envelope = envelope(
                 AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
@@ -84,6 +96,34 @@ class EventContractValidatorTest {
                 Map.of(
                         "email", "user@example.com",
                         "subject", "Hello",
+                        "htmlBody", "<p>Hello</p>")
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsEmailSendRequestedWithHtmlContentOnly() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                Map.of(
+                        "email", "user@example.com",
+                        "subject", "Hello",
+                        "htmlContent", "<p>Hello</p>")
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsEmailSendRequestedWithBlankContentReference() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                Map.of(
+                        "email", "user@example.com",
+                        "contentReference", "   ",
                         "htmlBody", "<p>Hello</p>")
         );
 

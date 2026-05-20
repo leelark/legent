@@ -15,6 +15,7 @@ import com.legent.common.constant.AppConstants;
 import com.legent.common.event.EmailContentReference;
 import com.legent.common.exception.ValidationException;
 import com.legent.kafka.model.EventEnvelope;
+import com.legent.kafka.producer.EventContractValidator;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.security.TenantContext;
 import java.math.BigDecimal;
@@ -40,6 +41,7 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -300,14 +302,73 @@ class SendExecutionServiceTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
         verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), captor.capture());
-        Map<String, Object> payload = captor.getValue().getPayload();
+        EventEnvelope<Map<String, Object>> envelope = captor.getValue();
+        Map<String, Object> payload = envelope.getPayload();
         assertEquals("content-ref-1", payload.get("contentReference"));
         assertFalse(payload.containsKey("htmlBody"));
         assertFalse(payload.containsKey("textBody"));
         EmailContentReference metadata = (EmailContentReference) payload.get("contentReferenceMetadata");
         assertNotNull(metadata);
         assertEquals(Boolean.FALSE, metadata.getInlineFallbackIncluded());
+        assertDoesNotThrow(() -> new EventContractValidator().validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
         verify(contentReferenceService).createReference(any(), eq(false));
+    }
+
+    @Test
+    void publishesContractCompliantPayloadWhenContentReferencesConfiguredOn() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        Campaign campaign = campaign();
+        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        ReflectionTestUtils.setField(service, "contentReferenceEnabled", true);
+        ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), captor.capture());
+        EventEnvelope<Map<String, Object>> envelope = captor.getValue();
+        Map<String, Object> payload = envelope.getPayload();
+        assertEquals("content-ref-1", payload.get("contentReference"));
+        assertEquals("<p>Hello</p>", payload.get("htmlBody"));
+        assertEquals("Hello", payload.get("textBody"));
+        EmailContentReference metadata = (EmailContentReference) payload.get("contentReferenceMetadata");
+        assertNotNull(metadata);
+        assertEquals(Boolean.TRUE, metadata.getInlineFallbackIncluded());
+        assertDoesNotThrow(() -> new EventContractValidator().validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+        verify(contentReferenceService).createReference(any(), eq(true));
+    }
+
+    @Test
+    void publishesContractCompliantPayloadWhenContentReferencesConfiguredOff() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        Campaign campaign = campaign();
+        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        ReflectionTestUtils.setField(service, "contentReferenceEnabled", false);
+        ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> captor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), captor.capture());
+        EventEnvelope<Map<String, Object>> envelope = captor.getValue();
+        Map<String, Object> payload = envelope.getPayload();
+        assertEquals("content-ref-1", payload.get("contentReference"));
+        assertEquals("<p>Hello</p>", payload.get("htmlBody"));
+        EmailContentReference metadata = (EmailContentReference) payload.get("contentReferenceMetadata");
+        assertNotNull(metadata);
+        assertEquals(Boolean.TRUE, metadata.getInlineFallbackIncluded());
+        assertDoesNotThrow(() -> new EventContractValidator().validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
+        verify(contentReferenceService).createReference(any(), eq(true));
     }
 
     @Test

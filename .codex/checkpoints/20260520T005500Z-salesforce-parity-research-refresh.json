@@ -1,0 +1,55 @@
+{
+  "id": "salesforce-parity-research-refresh",
+  "createdAt": "2026-05-20T06:25:00+05:30",
+  "objective": "Refresh Salesforce and competitor parity matrix with current sources and route actionable Legent gaps into backlog candidates.",
+  "status": "DONE",
+  "owner": "SALESFORCE_PARITY_RESEARCHER",
+  "filesInScope": [
+    "PROJECT_CONTEXT.md",
+    ".codex/workflows/salesforce-parity-roadmap.md",
+    "docs/product/salesforce-parity-matrix.md",
+    "docs/product/competitor-research/**",
+    ".codex/backlog/queue.json",
+    ".codex/memory/enhancement-log.md",
+    ".codex/memory/design-decisions.md"
+  ],
+  "agents": [
+    "019e42e2-d885-7c51-b39f-1be8885999a9 SALESFORCE_PARITY_RESEARCHER read-only",
+    "019e42e2-d910-7321-ba19-5fb5debd7dd8 PRODUCT_MANAGER_AGENT read-only",
+    "019e42e2-da5f-7612-8d54-85db9d8b3144 PRINCIPAL_ARCHITECT read-only",
+    "019e42e2-dd25-7703-99f0-9e44843a4899 UX_STRATEGIST read-only",
+    "019e42e2-de76-7043-91b7-f9279e8e0c85 PROGRAM_MANAGER_AGENT read-only",
+    "019e42e2-e07b-7db3-8ad0-ce3f108405ac DOCUMENTATION_ENGINEER read-only"
+  ],
+  "validationPlan": [
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated dirty changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Validate research closeout, then start highest-priority READY item journey-runtime-node-contract.",
+  "completedAt": "2026-05-20T06:42:14+05:30",
+  "result": {
+    "matrix": "docs/product/salesforce-parity-matrix.md",
+    "researchNotes": [
+      "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+      "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md"
+    ],
+    "readyCandidates": [
+      "journey-runtime-node-contract"
+    ],
+    "backlogCandidates": [
+      "ai-governance-optimization-foundation",
+      "email-governance-policy-objects",
+      "contact-data-designer-governance",
+      "automation-studio-activity-orchestration",
+      "mode-aware-workflow-contract",
+      "flow-analytics-experimentation"
+    ],
+    "blockedCandidates": [],
+    "validationRequired": [
+      "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+      "git diff --check"
+    ]
+  }
+}

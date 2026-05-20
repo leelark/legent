@@ -1,43 +1,27 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Clock, Download, Edit, GitBranch, GripVertical, Plus, Send, Upload } from 'lucide-react';
 import { NodeEditorModal } from './NodeEditorModal';
 import {
+  getWorkflowCapabilities,
   getLatestWorkflowDefinition,
   saveWorkflowDefinition,
+  validateWorkflow,
   type WorkflowDefinitionVersion,
   type WorkflowGraphDefinition,
 } from '@/lib/automation-api';
+import {
+  isJourneyNodeType,
+  journeyNodeLabel,
+  RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES,
+  type JourneyNode,
+  type JourneyNodeType,
+} from './journey-node-contract';
 
-export interface JourneyNode {
-  id: string;
-  type:
-    | 'ENTRY_TRIGGER'
-    | 'SEND_EMAIL'
-    | 'DELAY'
-    | 'CONDITION'
-    | 'BRANCH'
-    | 'SPLIT'
-    | 'JOIN'
-    | 'WEBHOOK'
-    | 'UPDATE_FIELD'
-    | 'ADD_TAG'
-    | 'REMOVE_TAG'
-    | 'SUPPRESS_CONTACT'
-    | 'WAIT_UNTIL'
-    | 'PAUSE'
-    | 'EXIT_GOAL'
-    | 'REENTRY_GATE'
-    | 'EVENT_LISTENER'
-    | 'END';
-  label: string;
-  config?: Record<string, unknown>;
-  next?: string;
-  branches?: { condition: string; target: string }[];
-}
+export type { JourneyNode } from './journey-node-contract';
 
 interface WorkflowGraph {
   graphVersion: 2;
@@ -57,41 +41,46 @@ interface JourneyBuilderProps {
   workflowId?: string;
 }
 
-const JOURNEY_NODE_TYPES: readonly JourneyNode['type'][] = [
-  'ENTRY_TRIGGER',
-  'SEND_EMAIL',
-  'DELAY',
-  'CONDITION',
-  'BRANCH',
-  'SPLIT',
-  'JOIN',
-  'WEBHOOK',
-  'UPDATE_FIELD',
-  'ADD_TAG',
-  'REMOVE_TAG',
-  'SUPPRESS_CONTACT',
-  'WAIT_UNTIL',
-  'PAUSE',
-  'EXIT_GOAL',
-  'REENTRY_GATE',
-  'EVENT_LISTENER',
-  'END',
-];
-
-const JOURNEY_NODE_TYPE_SET = new Set<string>(JOURNEY_NODE_TYPES);
-
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
-
-const isJourneyNodeType = (value: unknown): value is JourneyNode['type'] =>
-  typeof value === 'string' && JOURNEY_NODE_TYPE_SET.has(value);
 
 function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingNode, setEditingNode] = useState<JourneyNode | null>(null);
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [runtimeSupportedTypes, setRuntimeSupportedTypes] = useState<readonly JourneyNodeType[]>(
+    RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES
+  );
   const dragOverIdx = useRef<number | null>(null);
+  const runtimeSupportedTypeSet = useMemo(() => new Set(runtimeSupportedTypes), [runtimeSupportedTypes]);
+  const isNodeRuntimeSupported = (type: JourneyNodeType) => runtimeSupportedTypeSet.has(type);
+
+  useEffect(() => {
+    if (!workflowId) {
+      setRuntimeSupportedTypes(RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES);
+      return;
+    }
+
+    let cancelled = false;
+    getWorkflowCapabilities(workflowId)
+      .then((response) => {
+        const supportedTypes = response.capabilities?.runtimeSupportedNodeTypes?.filter(isJourneyNodeType);
+        if (!cancelled && supportedTypes && supportedTypes.length > 0) {
+          setRuntimeSupportedTypes(supportedTypes);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRuntimeSupportedTypes(RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workflowId]);
 
   const resolveWorkflowId = () => {
     if (!workflowId || workflowId.trim().length === 0) {
@@ -133,10 +122,13 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
   const handleSaveToBackend = async () => {
     setLoading(true);
     try {
-      const graph = toGraph(nodes);
+      const graph = buildWorkflowGraph(nodes);
+      const validation = await validateWorkflow(resolveWorkflowId(), graph);
+      setValidationErrors(validation.errors ?? []);
       await saveWorkflowDefinition(resolveWorkflowId(), graph);
-    } catch {
-      // Keep the builder responsive even if backend save fails.
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Workflow definition could not be saved.';
+      setValidationErrors([message]);
     } finally {
       setLoading(false);
     }
@@ -186,9 +178,14 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
                 {node.type === 'DELAY' && <Clock className="h-4 w-4 text-orange-500" />}
                 {(node.type === 'CONDITION' || node.type === 'BRANCH' || node.type === 'SPLIT') && <GitBranch className="h-4 w-4 text-purple-500" />}
                 <span className="font-semibold">{node.label}</span>
+                {!isNodeRuntimeSupported(node.type) && (
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-200">
+                    Draft only
+                  </span>
+                )}
               </span>
               <span className="flex gap-1">
-                <Button size="icon" variant="ghost" onClick={() => handleEdit(node)}>
+                <Button size="icon" variant="ghost" onClick={() => handleEdit(node)} aria-label={`Edit journey step ${node.label}`}>
                   <Edit className="h-4 w-4" />
                 </Button>
                 <Button
@@ -218,9 +215,21 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
         <Plus className="mr-2 h-4 w-4" /> Add Step
       </Button>
 
+      {validationErrors.length > 0 && (
+        <div className="mt-4 w-full max-w-xl rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800 dark:text-amber-100">
+          <p className="font-semibold">Cannot be published until live runtime support is added.</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5">
+            {validationErrors.map((error) => (
+              <li key={error}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <NodeEditorModal
         open={editorOpen}
         node={editingNode}
+        runtimeSupportedTypes={runtimeSupportedTypes}
         onClose={() => setEditorOpen(false)}
         onSave={handleSave}
       />
@@ -228,7 +237,7 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
   );
 }
 
-function toGraph(nodes: JourneyNode[]): WorkflowGraph {
+export function buildWorkflowGraph(nodes: JourneyNode[]): WorkflowGraph {
   if (nodes.length === 0) {
     return {
       graphVersion: 2,
@@ -313,7 +322,7 @@ function toJourneyNode(node: unknown): JourneyNode | null {
   return {
     id,
     type,
-    label: typeof label === 'string' && label.length > 0 ? label : defaultLabel(type),
+    label: typeof label === 'string' && label.length > 0 ? label : journeyNodeLabel(type),
     config: isRecord(configuration) ? configuration : {},
     next: typeof nextNodeId === 'string' ? nextNodeId : undefined,
     branches: parseBranches(branches),
@@ -334,30 +343,6 @@ function parseBranches(branches: unknown): JourneyNode['branches'] {
       target: typeof branch.targetNodeId === 'string' ? branch.targetNodeId : '',
     }];
   });
-}
-
-function defaultLabel(type: JourneyNode['type']) {
-  const labels: Record<JourneyNode['type'], string> = {
-    ENTRY_TRIGGER: 'Entry Trigger',
-    SEND_EMAIL: 'Send Email',
-    DELAY: 'Delay',
-    CONDITION: 'Condition',
-    BRANCH: 'Branch',
-    SPLIT: 'Split',
-    JOIN: 'Join',
-    WEBHOOK: 'Webhook',
-    UPDATE_FIELD: 'Update Field',
-    ADD_TAG: 'Add Tag',
-    REMOVE_TAG: 'Remove Tag',
-    SUPPRESS_CONTACT: 'Suppress Contact',
-    WAIT_UNTIL: 'Wait Until',
-    PAUSE: 'Pause',
-    EXIT_GOAL: 'Exit Goal',
-    REENTRY_GATE: 'Re-entry Gate',
-    EVENT_LISTENER: 'Event Listener',
-    END: 'End',
-  };
-  return labels[type] ?? type;
 }
 
 export default JourneyBuilder;

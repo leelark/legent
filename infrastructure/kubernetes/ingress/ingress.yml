@@ -7,8 +7,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "50m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
-    nginx.ingress.kubernetes.io/rate-limit: "100"
-    nginx.ingress.kubernetes.io/rate-limit-window: "1s"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/enable-cors: "true"
@@ -17,6 +16,27 @@ metadata:
     nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Tenant-Id, X-Workspace-Id, X-Environment-Id, X-Correlation-Id, X-Request-Id"
     nginx.ingress.kubernetes.io/server-snippet: |
       location ~* ^/actuator(/|$) {
+        return 404;
+      }
+      location = /api/v1/imports/internal/start {
+        return 404;
+      }
+      location = /api/v1/data-extensions/query-activities/internal {
+        return 404;
+      }
+      location = /api/v1/content/rendered-content/internal {
+        return 404;
+      }
+      location = /api/v1/deliverability/suppressions/internal {
+        return 404;
+      }
+      location ^~ /api/v1/deliverability/suppressions/internal/ {
+        return 404;
+      }
+      location ~ ^/api/v1/content/[^/]+/render/internal$ {
+        return 404;
+      }
+      location ~ ^/api/v1/content/rendered-content/[^/]+/internal$ {
         return 404;
       }
 spec:
@@ -153,6 +173,7 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-body-size: "10m"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
     nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    nginx.ingress.kubernetes.io/limit-rps: "200"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/use-regex: "true"
     nginx.ingress.kubernetes.io/enable-cors: "true"
@@ -169,16 +190,51 @@ spec:
     - host: api.legent.com
       http:
         paths:
-          # Tracking analytics websocket
-          - path: /ws/analytics(/.*)?
+          # Tracking pixel, click, and conversion ingestion.
+          # Reviewed high-throughput posture mirrors local Nginx tracking_limit: 200r/s.
+          - path: /api/v1/tracking(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:
                 name: tracking-service
                 port:
                   number: 8085
-          # Tracking pixel, click, conversion, analytics, and reports
-          - path: /api/v1/(tracking|analytics)(/.*)?
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: legent-tracking-analytics-ingress
+  namespace: legent
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "10"
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://app.legent.com, https://admin.legent.com"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, DELETE, PATCH, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, X-Tenant-Id, X-Workspace-Id, X-Environment-Id, X-Correlation-Id, X-Request-Id"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - api.legent.com
+      secretName: legent-public-tls
+  rules:
+    - host: api.legent.com
+      http:
+        paths:
+          # Analytics and websocket reads stay on the normal API rate posture.
+          - path: /api/v1/analytics(/.*)?
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: tracking-service
+                port:
+                  number: 8085
+          - path: /ws/analytics(/.*)?
             pathType: ImplementationSpecific
             backend:
               service:

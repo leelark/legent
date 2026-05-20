@@ -13,7 +13,6 @@ import com.legent.delivery.client.ContentServiceClient;
 import com.legent.delivery.domain.MessageLog;
 import com.legent.delivery.domain.SmtpProvider;
 import com.legent.delivery.domain.WarmupState;
-import com.legent.delivery.event.DeliveryEventPublisher;
 import com.legent.delivery.repository.MessageLogRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,7 @@ class DeliveryOrchestrationServiceTest {
 
     @Mock private ProviderSelectionStrategy providerStrategy;
     @Mock private MessageLogRepository messageLogRepository;
-    @Mock private DeliveryEventPublisher eventPublisher;
+    @Mock private DeliveryFeedbackOutboxService feedbackOutboxService;
     @Mock private ContentProcessingService contentProcessingService;
     @Mock private CacheService cacheService;
     @Mock private ContentServiceClient contentServiceClient;
@@ -86,7 +85,7 @@ class DeliveryOrchestrationServiceTest {
             return log;
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
-        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(providerStrategy.selectProvider("tenant-1", "workspace-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn("Processed HTML");
 
@@ -94,7 +93,7 @@ class DeliveryOrchestrationServiceTest {
 
         verify(mockAdapter).sendEmail(eq("test@example.com"), anyString(), anyString(), anyMap(), eq(mockProvider));
         verify(sendRateControlService).settle("tenant-1", "workspace-1", "evt-123");
-        verify(eventPublisher).publishEmailSent(eq("tenant-1"), anyString(), eq("evt-123"), eq("camp-1"), any(), any(), eq("sub-1"), anyMap());
+        verify(feedbackOutboxService).enqueueEmailSent(eq("tenant-1"), anyString(), eq("evt-123"), eq("camp-1"), any(), any(), eq("sub-1"), anyMap());
     }
 
     @Test
@@ -121,7 +120,7 @@ class DeliveryOrchestrationServiceTest {
             return log;
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
-        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(providerStrategy.selectProvider("tenant-1", "workspace-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn("Processed HTML");
 
@@ -154,9 +153,9 @@ class DeliveryOrchestrationServiceTest {
         assertEquals("Delivery contentReference is required", logCaptor.getValue().getProviderResponse());
         assertNull(logCaptor.getValue().getNextRetryAt());
         verify(inboxSafetyService, never()).evaluate(any());
-        verify(providerStrategy, never()).selectProvider(anyString(), anyString());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString(), anyString());
         verify(contentProcessingService, never()).processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean());
-        verify(eventPublisher).publishEmailFailed(
+        verify(feedbackOutboxService).enqueueEmailFailed(
                 eq("tenant-1"),
                 eq("workspace-1"),
                 eq("evt-123"),
@@ -166,7 +165,7 @@ class DeliveryOrchestrationServiceTest {
                 eq("sub-1"),
                 contains("contentReference"),
                 anyMap());
-        verify(eventPublisher, never()).publishRetryScheduled(anyString(), anyString(), anyString(), anyLong(), anyString(), anyMap());
+        verify(feedbackOutboxService, never()).enqueueRetryScheduled(anyString(), anyString(), anyString(), anyLong(), anyString(), anyMap());
     }
 
     @Test
@@ -195,9 +194,9 @@ class DeliveryOrchestrationServiceTest {
         assertNull(logCaptor.getValue().getNextRetryAt());
         verify(contentServiceClient).fetchRenderedContent("tenant-1", "workspace-1", "cr_missing");
         verify(inboxSafetyService, never()).evaluate(any());
-        verify(providerStrategy, never()).selectProvider(anyString(), anyString());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString(), anyString());
         verify(contentProcessingService, never()).processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean());
-        verify(eventPublisher).publishEmailFailed(
+        verify(feedbackOutboxService).enqueueEmailFailed(
                 eq("tenant-1"),
                 eq("workspace-1"),
                 eq("msg-1"),
@@ -207,7 +206,7 @@ class DeliveryOrchestrationServiceTest {
                 eq("sub-1"),
                 contains("subject/htmlBody"),
                 anyMap());
-        verify(eventPublisher, never()).publishRetryScheduled(anyString(), anyString(), anyString(), anyLong(), anyString(), anyMap());
+        verify(feedbackOutboxService, never()).enqueueRetryScheduled(anyString(), anyString(), anyString(), anyLong(), anyString(), anyMap());
     }
 
     @Test
@@ -246,7 +245,7 @@ class DeliveryOrchestrationServiceTest {
             return log;
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
-        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(providerStrategy.selectProvider("tenant-1", "workspace-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(eq("<p>Cached body</p>"), eq("tenant-1"), eq("camp-1"),
                 eq("sub-1"), eq("msg-1"), eq("workspace-1"), isNull(), isNull(), eq(false)))
                 .thenReturn("Processed HTML");
@@ -292,7 +291,7 @@ class DeliveryOrchestrationServiceTest {
             return log;
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
-        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(providerStrategy.selectProvider("tenant-1", "workspace-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(eq("<p>Service body</p>"), eq("tenant-1"), eq("camp-1"),
                 eq("sub-1"), eq("msg-1"), eq("workspace-1"), isNull(), isNull(), eq(false)))
                 .thenReturn("Processed HTML");
@@ -380,7 +379,7 @@ class DeliveryOrchestrationServiceTest {
         verify(messageLogRepository).save(logCaptor.capture());
         assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
         assertEquals("CONTENT_UNAVAILABLE", logCaptor.getValue().getFailureClass());
-        verify(eventPublisher).publishEmailFailed(
+        verify(feedbackOutboxService).enqueueEmailFailed(
                 eq("tenant-1"),
                 eq("workspace-1"),
                 eq("msg-1"),
@@ -409,7 +408,7 @@ class DeliveryOrchestrationServiceTest {
         verify(messageLogRepository).save(logCaptor.capture());
         assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
         assertEquals("CONTENT_UNAVAILABLE", logCaptor.getValue().getFailureClass());
-        verify(eventPublisher).publishEmailFailed(
+        verify(feedbackOutboxService).enqueueEmailFailed(
                 eq("tenant-1"),
                 eq("workspace-1"),
                 eq("msg-1"),
@@ -466,7 +465,7 @@ class DeliveryOrchestrationServiceTest {
             return log;
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
-        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(providerStrategy.selectProvider("tenant-1", "workspace-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn("Processed HTML");
         when(retryPolicyService.decide(any(), anyInt()))
@@ -474,8 +473,8 @@ class DeliveryOrchestrationServiceTest {
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
-        verify(eventPublisher).publishEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString(), anyMap());
-        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("workspace-1"), eq("bounce@example.com"), anyString(), eq("example.com"), anyMap());
+        verify(feedbackOutboxService).enqueueEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString(), anyMap());
+        verify(feedbackOutboxService).enqueueEmailBounced(eq("tenant-1"), eq("workspace-1"), eq("bounce@example.com"), anyString(), eq("example.com"), anyMap());
         verify(sendRateControlService).release(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), contains("PROVIDER_SEND_FAILED"));
     }
 
@@ -504,7 +503,7 @@ class DeliveryOrchestrationServiceTest {
             return log;
         });
         when(messageLogRepository.claimForProcessing(nullable(String.class), eq(MessageLog.DeliveryStatus.PENDING.name()), eq(MessageLog.DeliveryStatus.PROCESSING.name()))).thenReturn(1);
-        when(providerStrategy.selectProvider("tenant-1", "example.com")).thenReturn(result);
+        when(providerStrategy.selectProvider("tenant-1", "workspace-1", "example.com")).thenReturn(result);
         when(contentProcessingService.processContent(any(), any(), any(), any(), any(), any(), any(), any(), anyBoolean()))
                 .thenReturn("Processed HTML");
         when(retryPolicyService.decide(any(), anyInt()))
@@ -512,7 +511,7 @@ class DeliveryOrchestrationServiceTest {
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
-        verify(eventPublisher).publishRetryScheduled(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), eq(1L), anyString(), anyMap());
+        verify(feedbackOutboxService).enqueueRetryScheduled(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), eq(1L), anyString(), anyMap());
         verify(sendRateControlService).release(eq("tenant-1"), eq("workspace-1"), eq("evt-123"), contains("PROVIDER_SEND_FAILED"));
     }
 
@@ -539,9 +538,9 @@ class DeliveryOrchestrationServiceTest {
 
         orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
 
-        verify(providerStrategy, never()).selectProvider(anyString(), anyString());
-        verify(eventPublisher).publishEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString(), anyMap());
-        verify(eventPublisher).publishEmailBounced(eq("tenant-1"), eq("workspace-1"), eq("invalid-email"), anyString(), isNull(), anyMap());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString(), anyString());
+        verify(feedbackOutboxService).enqueueEmailFailed(eq("tenant-1"), anyString(), eq("evt-123"), any(), any(), any(), any(), anyString(), anyMap());
+        verify(feedbackOutboxService).enqueueEmailBounced(eq("tenant-1"), eq("workspace-1"), eq("invalid-email"), anyString(), isNull(), anyMap());
     }
 
     @Test
@@ -553,8 +552,8 @@ class DeliveryOrchestrationServiceTest {
 
         orchestrationService.processSendRequest(Map.of("email", "test@example.com", "workspaceId", "workspace-1"), "tenant-1", "evt-123");
 
-        verify(providerStrategy, never()).selectProvider(anyString(), anyString());
-        verify(eventPublisher, never()).publishEmailSent(anyString(), anyString(), anyString(), any(), any(), any(), any(), anyMap());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString(), anyString());
+        verify(feedbackOutboxService, never()).enqueueEmailSent(anyString(), anyString(), anyString(), any(), any(), any(), any(), anyMap());
         verify(messageLogRepository, never()).save(any(MessageLog.class));
     }
 

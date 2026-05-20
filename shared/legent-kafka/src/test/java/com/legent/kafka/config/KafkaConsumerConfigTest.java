@@ -1,6 +1,9 @@
 package com.legent.kafka.config;
 
+import com.legent.common.constant.AppConstants;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.Test;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -52,5 +55,25 @@ class KafkaConsumerConfigTest {
 
         assertNotNull(errorHandler);
         assertNotNull(config.kafkaListenerContainerFactory(errorHandler));
+    }
+
+    @Test
+    void dlqDestination_preservesSourcePartition() {
+        int[] sourcePartitions = {0, 1, KafkaConsumerConfig.DEFAULT_DLQ_PARTITIONS - 1};
+
+        for (int sourcePartition : sourcePartitions) {
+            ConsumerRecord<String, Object> failedRecord = new ConsumerRecord<>(
+                    AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
+                    sourcePartition,
+                    42L,
+                    "message-1",
+                    new Object()
+            );
+
+            TopicPartition destination = KafkaConsumerConfig.dlqDestination(failedRecord);
+
+            assertEquals(AppConstants.TOPIC_KAFKA_DLQ, destination.topic());
+            assertEquals(sourcePartition, destination.partition());
+        }
     }
 }

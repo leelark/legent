@@ -58,6 +58,30 @@ export interface WorkflowGraphDefinition {
   reentryPolicy?: Record<string, unknown>;
 }
 
+export interface WorkflowCapabilities {
+  entrySources?: number;
+  waits?: number;
+  decisions?: number;
+  goals?: number;
+  exits?: number;
+  reentryGates?: number;
+  nodeTypeCounts?: Record<string, number>;
+  runtimeSupportedNodeTypes?: string[];
+  runtimeUnsupportedNodes?: string[];
+  entryPolicy?: Record<string, unknown> | null;
+  reentryPolicy?: Record<string, unknown> | null;
+}
+
+export interface WorkflowValidationResponse {
+  valid?: boolean;
+  graphVersion?: number;
+  nodeCount?: number;
+  initialNodeId?: string;
+  runtimeSupported?: boolean;
+  errors?: string[];
+  capabilities?: WorkflowCapabilities;
+}
+
 export interface WorkflowDefinitionVersion {
   workflowId: string;
   version: number;
@@ -144,8 +168,8 @@ export const createWorkflow = async (payload: { name: string; description?: stri
 export const getWorkflow = async (id: string) => get<Workflow>(`/workflows/${id}`);
 export const updateWorkflow = async (id: string, payload: Record<string, unknown>) => put<Workflow>(`/workflows/${id}`, payload);
 
-export const validateWorkflow = async (id: string, graph: Record<string, unknown>) =>
-  post<Record<string, unknown>>(`/workflows/${id}/validate`, graph);
+export const validateWorkflow = async (id: string, graph: unknown) =>
+  post<WorkflowValidationResponse>(`/workflows/${id}/validate`, graph);
 export const saveWorkflowDefinition = async (
   id: string,
   graph: unknown,
@@ -208,5 +232,5 @@ export const runAutomationActivity = async (id: string, payload: { dryRun?: bool
   post<AutomationActivityRun>(`/automation-studio/activities/${id}/runs`, payload);
 export const listAutomationActivityRuns = async (id: string) =>
   get<AutomationActivityRun[]>(`/automation-studio/activities/${id}/runs`);
-export const getWorkflowCapabilities = async (id: string) => get<Record<string, unknown>>(`/workflows/${id}/capabilities`);
+export const getWorkflowCapabilities = async (id: string) => get<WorkflowValidationResponse>(`/workflows/${id}/capabilities`);
 export const getWorkflowAnalytics = async (id: string) => get<Record<string, unknown>>(`/workflows/${id}/analytics`);

@@ -1,6 +1,7 @@
 package com.legent.kafka.config;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import com.legent.common.constant.AppConstants;
@@ -29,6 +30,8 @@ import java.util.Map;
 @Configuration
 
 public class KafkaConsumerConfig {
+
+    static final int DEFAULT_DLQ_PARTITIONS = 6;
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
@@ -75,13 +78,17 @@ public class KafkaConsumerConfig {
     public DefaultErrorHandler kafkaErrorHandler(KafkaTemplate<String, Object> kafkaTemplate) {
         DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
                 kafkaTemplate,
-                (record, exception) -> new TopicPartition(AppConstants.TOPIC_KAFKA_DLQ, 0)
+                (record, exception) -> dlqDestination(record)
         );
 
         // Exponential backoff: 1s initial, 2x multiplier, 30s max elapsed.
         ExponentialBackOff backOff = new ExponentialBackOff(1000L, 2.0);
         backOff.setMaxElapsedTime(30000L);
         return new DefaultErrorHandler(recoverer, backOff);
+    }
+
+    static TopicPartition dlqDestination(ConsumerRecord<?, ?> record) {
+        return new TopicPartition(AppConstants.TOPIC_KAFKA_DLQ, record.partition());
     }
 
     @Bean

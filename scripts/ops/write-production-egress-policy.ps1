@@ -11,10 +11,16 @@ function Fail($Message) {
     exit 1
 }
 
+function Quote-YamlString([string]$Value) {
+    $escaped = ($Value -replace "\\", "\\") -replace '"', '\"'
+    return '"' + $escaped + '"'
+}
+
 & scripts/ops/validate-production-egress-evidence.ps1 -EvidencePath $EvidencePath
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+if (-not $?) { exit 1 }
 
 $evidence = Get-Content -Path $EvidencePath -Raw | ConvertFrom-Json
+$evidenceHash = (Get-FileHash -Path $EvidencePath -Algorithm SHA256).Hash.ToLowerInvariant()
 $dir = Split-Path -Parent $OutputPath
 if ($dir) { New-Item -ItemType Directory -Force -Path $dir | Out-Null }
 
@@ -24,6 +30,10 @@ $lines.Add("kind: NetworkPolicy")
 $lines.Add("metadata:")
 $lines.Add("  name: reviewed-external-egress")
 $lines.Add("  namespace: legent")
+$lines.Add("  annotations:")
+$lines.Add("    legent.com/egress-evidence-sha256: $(Quote-YamlString $evidenceHash)")
+$lines.Add("    legent.com/egress-evidence-reviewed-at: $(Quote-YamlString $evidence.reviewedAt)")
+$lines.Add("    legent.com/egress-evidence-reviewed-by: $(Quote-YamlString $evidence.reviewedBy)")
 $lines.Add("spec:")
 $lines.Add("  podSelector:")
 $lines.Add("    matchExpressions:")
@@ -37,8 +47,8 @@ foreach ($rule in @($evidence.egressRules)) {
     $fqdns = @()
     if ($rule.PSObject.Properties.Name -contains "cidrs") { $cidrs = @($rule.cidrs) }
     if ($rule.PSObject.Properties.Name -contains "fqdns") { $fqdns = @($rule.fqdns) }
-    if ($fqdns.Count -gt 0 -and $cidrs.Count -eq 0) {
-        Fail "Cannot render FQDN-only egress rule $($rule.name) as Kubernetes NetworkPolicy."
+    if ($fqdns.Count -gt 0) {
+        Fail "Cannot render FQDN egress rule $($rule.name) as Kubernetes NetworkPolicy."
     }
     foreach ($cidr in $cidrs) {
         $lines.Add("    - to:")

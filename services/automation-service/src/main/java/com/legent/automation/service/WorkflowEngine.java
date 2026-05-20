@@ -47,6 +47,7 @@ public class WorkflowEngine {
 
     private final WorkflowEventPublisher eventPublisher;
     private final AutomationEventIdempotencyService idempotencyService;
+    private final WorkflowGraphValidator workflowGraphValidator;
 
         public WorkflowEngine(WorkflowInstanceRepository instanceRepository,
                   WorkflowDefinitionRepository definitionRepository,
@@ -56,7 +57,8 @@ public class WorkflowEngine {
                   List<NodeHandler> handlerList,
                   CacheService cacheService,
                   WorkflowEventPublisher eventPublisher,
-                  AutomationEventIdempotencyService idempotencyService) {
+                  AutomationEventIdempotencyService idempotencyService,
+                  WorkflowGraphValidator workflowGraphValidator) {
         this.instanceRepository = instanceRepository;
         this.definitionRepository = definitionRepository;
         this.workflowRepository = workflowRepository;
@@ -65,6 +67,7 @@ public class WorkflowEngine {
         this.cacheService = cacheService;
         this.eventPublisher = eventPublisher;
         this.idempotencyService = idempotencyService;
+        this.workflowGraphValidator = workflowGraphValidator;
         // LEGENT-HIGH-008: Use merge function to provide clear error message on duplicate handlers
         this.nodeHandlers = handlerList.stream()
             .collect(Collectors.toMap(
@@ -130,6 +133,7 @@ public class WorkflowEngine {
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Invalid JSON graph definition", e);
         }
+        workflowGraphValidator.validateRuntimeSupported(graph);
 
         WorkflowInstance instance = new WorkflowInstance();
         instance.setId(UUID.randomUUID().toString());
@@ -219,6 +223,7 @@ public class WorkflowEngine {
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Parse error", e);
             }
+            workflowGraphValidator.validateRuntimeSupported(graph);
 
             instance.setCurrentNodeId(nextNodeId);
             instance.setStatus("RUNNING");

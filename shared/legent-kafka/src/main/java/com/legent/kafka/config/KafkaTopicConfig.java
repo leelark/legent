@@ -16,7 +16,7 @@ public class KafkaTopicConfig {
     @Bean
     public NewTopic kafkaDeadLetterTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_KAFKA_DLQ)
-                .partitions(1)
+                .partitions(KafkaConsumerConfig.DEFAULT_DLQ_PARTITIONS)
                 .replicas(1)
                 .build();
     }

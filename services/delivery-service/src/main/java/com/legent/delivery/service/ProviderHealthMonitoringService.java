@@ -83,14 +83,15 @@ public class ProviderHealthMonitoringService {
 
         // Calculate 24h metrics
         Instant since24h = Instant.now().minus(Duration.ofHours(24));
-        Long totalSent = healthCheckRepository.countTotalChecks(provider.getId(), since24h);
-        Long healthyChecks = healthCheckRepository.countHealthyChecks(provider.getId(), since24h);
+        String workspaceId = resolveWorkspaceId(provider);
+        Long totalSent = healthCheckRepository.countTotalChecks(provider.getTenantId(), workspaceId, provider.getId(), since24h);
+        Long healthyChecks = healthCheckRepository.countHealthyChecks(provider.getTenantId(), workspaceId, provider.getId(), since24h);
         BigDecimal successRate = totalSent > 0 ? BigDecimal.valueOf(healthyChecks * 100.0 / totalSent) : BigDecimal.valueOf(100.0);
 
         // Record health check
         ProviderHealthCheck check = new ProviderHealthCheck();
         check.setTenantId(provider.getTenantId());
-        check.setWorkspaceId(resolveWorkspaceId(provider));
+        check.setWorkspaceId(workspaceId);
         check.setProviderId(provider.getId());
         check.setStatus(status);
         check.setResponseTimeMs(responseTimeMs);
@@ -100,7 +101,11 @@ public class ProviderHealthMonitoringService {
         check.setTotalFailed24h(totalSent - healthyChecks);
 
         // Count consecutive failures
-        List<ProviderHealthCheck> recentChecks = healthCheckRepository.findByProviderIdOrderByCheckTimestampDesc(provider.getId());
+        List<ProviderHealthCheck> recentChecks = healthCheckRepository
+                .findByTenantIdAndWorkspaceIdAndProviderIdOrderByCheckTimestampDesc(
+                        provider.getTenantId(),
+                        workspaceId,
+                        provider.getId());
         int consecutiveFailures = 0;
         for (ProviderHealthCheck recentCheck : recentChecks) {
             if (recentCheck.getStatus() != ProviderHealthCheck.HealthStatus.HEALTHY) {
@@ -191,12 +196,16 @@ public class ProviderHealthMonitoringService {
      */
     @Transactional
     public void updateHealthStatus(SmtpProvider provider, ProviderHealthCheck.HealthStatus checkStatus, int consecutiveFailures) {
-        Optional<ProviderHealthStatus> existingStatus = healthStatusRepository.findByProviderId(provider.getId());
+        String workspaceId = resolveWorkspaceId(provider);
+        Optional<ProviderHealthStatus> existingStatus = healthStatusRepository.findByTenantIdAndWorkspaceIdAndProviderId(
+                provider.getTenantId(),
+                workspaceId,
+                provider.getId());
 
         ProviderHealthStatus status = existingStatus.orElseGet(() -> {
             ProviderHealthStatus newStatus = new ProviderHealthStatus();
             newStatus.setTenantId(provider.getTenantId());
-            newStatus.setWorkspaceId(resolveWorkspaceId(provider));
+            newStatus.setWorkspaceId(workspaceId);
             newStatus.setProviderId(provider.getId());
             return newStatus;
         });
@@ -236,42 +245,43 @@ public class ProviderHealthMonitoringService {
     }
 
     private String resolveWorkspaceId(SmtpProvider provider) {
-        String workspaceId = TenantContext.getWorkspaceId();
+        String workspaceId = provider.getWorkspaceId();
         if (workspaceId != null && !workspaceId.isBlank()) {
             return workspaceId;
         }
-        return healthStatusRepository.findByProviderId(provider.getId())
-                .map(ProviderHealthStatus::getWorkspaceId)
-                .filter(existing -> existing != null && !existing.isBlank())
-                .orElseThrow(() -> new IllegalStateException("Workspace context is required for provider health monitoring"));
+        throw new IllegalStateException("Workspace ownership is required for provider health monitoring");
     }
 
     /**
      * Get health status for all providers in a tenant.
      */
     public List<ProviderHealthStatus> getTenantProviderHealth(String tenantId) {
-        return healthStatusRepository.findByTenantId(tenantId);
+        return healthStatusRepository.findByTenantIdAndWorkspaceId(tenantId, TenantContext.requireWorkspaceId());
     }
 
     /**
      * Get unhealthy providers for a tenant.
      */
     public List<ProviderHealthStatus> getUnhealthyProviders(String tenantId) {
-        return healthStatusRepository.findUnhealthyProviders(tenantId);
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return healthStatusRepository.findUnhealthyProviders(tenantId, workspaceId);
     }
 
     /**
      * Check if a provider is healthy.
      */
-    public boolean isProviderHealthy(String providerId) {
-        return healthStatusRepository.isProviderHealthy(providerId);
+    public boolean isProviderHealthy(String tenantId, String workspaceId, String providerId) {
+        return healthStatusRepository.isProviderHealthy(tenantId, workspaceId, providerId);
     }
 
     /**
      * Get latest health check for a provider.
      */
-    public Optional<ProviderHealthCheck> getLatestHealthCheck(String providerId) {
-        return healthCheckRepository.findLatestCheck(providerId);
+    public Optional<ProviderHealthCheck> getLatestHealthCheck(String tenantId, String workspaceId, String providerId) {
+        return healthCheckRepository.findFirstByTenantIdAndWorkspaceIdAndProviderIdOrderByCheckTimestampDesc(
+                tenantId,
+                workspaceId,
+                providerId);
     }
 
     /**

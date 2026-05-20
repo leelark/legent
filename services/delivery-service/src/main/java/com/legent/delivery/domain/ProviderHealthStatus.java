@@ -28,7 +28,7 @@ public class ProviderHealthStatus extends TenantAwareEntity {
     @Column(name = "ownership_scope", nullable = false, length = 32)
     private String ownershipScope = "WORKSPACE";
 
-    @Column(name = "provider_id", nullable = false, length = 36, unique = true)
+    @Column(name = "provider_id", nullable = false, length = 36)
     private String providerId;
 
     @Column(name = "current_status", nullable = false, length = 20)

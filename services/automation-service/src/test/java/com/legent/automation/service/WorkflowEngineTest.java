@@ -25,6 +25,8 @@ import com.legent.automation.repository.WorkflowDefinitionRepository;
 import com.legent.automation.repository.WorkflowInstanceRepository;
 import com.legent.automation.repository.WorkflowRepository;
 import com.legent.automation.service.node.DelayNodeHandler;
+import com.legent.automation.service.node.EntryTriggerNodeHandler;
+import com.legent.automation.service.node.GenericNodeHandler;
 import com.legent.automation.event.WorkflowEventPublisher;
 import com.legent.automation.service.node.NodeHandler;
 import com.legent.automation.service.node.SendEmailNodeHandler;
@@ -39,6 +41,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -59,14 +62,16 @@ class WorkflowEngineTest {
 
     private WorkflowEngine workflowEngine;
     private ObjectMapper objectMapper = new ObjectMapper();
+    private final WorkflowGraphValidator workflowGraphValidator = new WorkflowGraphValidator();
 
     @BeforeEach
     void setUp() {
+        lockHeld.set(false);
         when(sendEmailHandler.getType()).thenReturn("SEND_EMAIL");
         when(delayHandler.getType()).thenReturn("DELAY");
         
-        List<NodeHandler> handlers = List.of(sendEmailHandler, delayHandler);
-        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, workflowRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher, idempotencyService);
+        List<NodeHandler> handlers = List.of(new EntryTriggerNodeHandler(), sendEmailHandler, delayHandler, new GenericNodeHandler());
+        workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, workflowRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher, idempotencyService, workflowGraphValidator);
     }
 
     @Test
@@ -79,6 +84,7 @@ class WorkflowEngineTest {
         WorkflowGraphDto.WorkflowNode node1 = new WorkflowGraphDto.WorkflowNode();
         node1.setId("node-1");
         node1.setType("SEND_EMAIL");
+        node1.setConfiguration(Map.of("campaignId", "campaign-1"));
         node1.setNextNodeId("node-2");
         
         WorkflowGraphDto.WorkflowNode node2 = new WorkflowGraphDto.WorkflowNode();
@@ -125,8 +131,12 @@ class WorkflowEngineTest {
         node1.setId("node-1");
         node1.setType("DELAY");
         node1.setNextNodeId("node-2");
+
+        WorkflowGraphDto.WorkflowNode node2 = new WorkflowGraphDto.WorkflowNode();
+        node2.setId("node-2");
+        node2.setType("END");
         
-        graph.setNodes(Map.of("node-1", node1));
+        graph.setNodes(Map.of("node-1", node1, "node-2", node2));
 
         WorkflowDefinition def = new WorkflowDefinition();
         def.setDefinition(objectMapper.writeValueAsString(graph));
@@ -159,6 +169,85 @@ class WorkflowEngineTest {
     }
 
     @Test
+    void startWorkflow_executesEntryTriggerBeforeNextRuntimeNode() throws Exception {
+        WorkflowGraphDto graph = new WorkflowGraphDto();
+        graph.setInitialNodeId("entry");
+
+        WorkflowGraphDto.WorkflowNode entry = new WorkflowGraphDto.WorkflowNode();
+        entry.setId("entry");
+        entry.setType("ENTRY_TRIGGER");
+        entry.setNextNodeId("send");
+
+        WorkflowGraphDto.WorkflowNode send = new WorkflowGraphDto.WorkflowNode();
+        send.setId("send");
+        send.setType("SEND_EMAIL");
+        send.setConfiguration(Map.of("campaignId", "campaign-1"));
+        send.setNextNodeId("end");
+
+        WorkflowGraphDto.WorkflowNode end = new WorkflowGraphDto.WorkflowNode();
+        end.setId("end");
+        end.setType("END");
+
+        graph.setNodes(Map.of("entry", entry, "send", send, "end", end));
+
+        WorkflowDefinition def = new WorkflowDefinition();
+        def.setDefinition(objectMapper.writeValueAsString(graph));
+
+        com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
+        workflow.setStatus("ACTIVE");
+        workflow.setWorkspaceId("workspace-1");
+        when(workflowRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("flow-1", "tenant-1", "workspace-1")).thenReturn(Optional.of(workflow));
+        when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(def));
+        when(instanceRepository.save(any(WorkflowInstance.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(sendEmailHandler.execute(any(), any())).thenReturn("end");
+
+        workflowEngine.startWorkflow("tenant-1", "workspace-1", "flow-1", 1, "sub-1", Map.of(), "prod", "user-1", "req-1", "corr-1");
+
+        verify(sendEmailHandler).execute(any(), argThat(node ->
+                "send".equals(node.getId()) && "SEND_EMAIL".equals(node.getType())));
+        ArgumentCaptor<WorkflowInstance> captor = ArgumentCaptor.forClass(WorkflowInstance.class);
+        verify(instanceRepository, atLeast(2)).save(captor.capture());
+        assertEquals("COMPLETED", captor.getValue().getStatus());
+    }
+
+    @Test
+    void startWorkflow_failsUnsupportedRuntimeNodeInsteadOfGenericAdvancing() throws Exception {
+        WorkflowGraphDto graph = new WorkflowGraphDto();
+        graph.setInitialNodeId("webhook");
+
+        WorkflowGraphDto.WorkflowNode webhook = new WorkflowGraphDto.WorkflowNode();
+        webhook.setId("webhook");
+        webhook.setType("WEBHOOK");
+        webhook.setNextNodeId("end");
+
+        WorkflowGraphDto.WorkflowNode end = new WorkflowGraphDto.WorkflowNode();
+        end.setId("end");
+        end.setType("END");
+
+        graph.setNodes(Map.of("webhook", webhook, "end", end));
+
+        WorkflowDefinition def = new WorkflowDefinition();
+        def.setDefinition(objectMapper.writeValueAsString(graph));
+
+        com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
+        workflow.setStatus("ACTIVE");
+        workflow.setWorkspaceId("workspace-1");
+        when(workflowRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("flow-1", "tenant-1", "workspace-1")).thenReturn(Optional.of(workflow));
+        when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(def));
+        org.assertj.core.api.Assertions.assertThatThrownBy(() ->
+                workflowEngine.startWorkflow("tenant-1", "workspace-1", "flow-1", 1, "sub-1", Map.of(), "prod", "user-1", "req-1", "corr-1"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("unsupported runtime semantics")
+                .hasMessageContaining("WEBHOOK");
+
+        verify(sendEmailHandler, never()).execute(any(), any());
+        verify(instanceRepository, never()).save(any());
+        verify(historyRepository, never()).save(any());
+    }
+
+    @Test
     void resumeInstance_whenConcurrentResumeAttemptsOccur_onlyOneAcquiresLockAndExecutes() throws Exception {
         WorkflowGraphDto graph = new WorkflowGraphDto();
         graph.setInitialNodeId("node-1");
@@ -166,6 +255,7 @@ class WorkflowEngineTest {
         WorkflowGraphDto.WorkflowNode node1 = new WorkflowGraphDto.WorkflowNode();
         node1.setId("node-1");
         node1.setType("SEND_EMAIL");
+        node1.setConfiguration(Map.of("campaignId", "campaign-1"));
         node1.setNextNodeId("end");
 
         WorkflowGraphDto.WorkflowNode end = new WorkflowGraphDto.WorkflowNode();

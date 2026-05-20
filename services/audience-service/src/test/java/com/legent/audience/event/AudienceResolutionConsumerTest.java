@@ -222,6 +222,7 @@ class AudienceResolutionConsumerTest {
     @Test
     void checksSuppressionsPerPageAndKeepsChunkTotalsAfterFiltering() {
         List<Subscriber> subscribers = List.of(subscriber(0), subscriber(1), subscriber(2));
+        subscribers.get(1).setEmail(" User1@Example.COM ");
 
         when(idempotencyService.registerIfNew(eq(TENANT_ID), eq(WORKSPACE_ID), eq(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED), eq("event-suppressed"), eq("idem-suppressed")))
                 .thenReturn(true);
@@ -249,6 +250,27 @@ class AudienceResolutionConsumerTest {
                 .containsEntry("isLastChunk", true);
         assertThat(subscriberPayload(payload))
                 .extracting("email")
+                .containsExactly("user0@example.com", "user2@example.com");
+    }
+
+    @Test
+    void deduplicatesSuppressionCandidatesByNormalizedEmail() {
+        List<Subscriber> subscribers = List.of(subscriber(0), subscriber(1), subscriber(2));
+        subscribers.get(1).setEmail(" USER0@Example.com ");
+
+        when(idempotencyService.registerIfNew(eq(TENANT_ID), eq(WORKSPACE_ID), eq(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED), eq("event-duplicate-email"), eq("idem-duplicate-email")))
+                .thenReturn(true);
+        when(audienceCandidateRepository.findNextCandidates(eq(TENANT_ID), eq(WORKSPACE_ID), any(AudienceCandidateCriteria.class), eq(null), eq(resolutionPage())))
+                .thenReturn(subscribers);
+        when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
+                .thenReturn(Set.of());
+        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
+
+        consumer.handleResolutionRequest(requestEvent("event-duplicate-email", "idem-duplicate-email"));
+
+        ArgumentCaptor<List<String>> emailsCaptor = ArgumentCaptor.forClass(List.class);
+        verify(deliverabilityClient).checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), emailsCaptor.capture());
+        assertThat(emailsCaptor.getValue())
                 .containsExactly("user0@example.com", "user2@example.com");
     }
 

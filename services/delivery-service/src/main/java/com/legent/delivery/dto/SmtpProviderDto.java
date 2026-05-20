@@ -16,6 +16,7 @@ public class SmtpProviderDto {
     @AllArgsConstructor
     public static class Response {
         private String id;
+        private String workspaceId;
         private String name;
         private String type;
         private String host;

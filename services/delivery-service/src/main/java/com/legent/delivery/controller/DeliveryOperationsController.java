@@ -151,10 +151,10 @@ public class DeliveryOperationsController {
     public ApiResponse<Map<String, Object>> warmupStatus() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        long activeProviders = smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc(tenantId).size();
-        List<ProviderHealthStatus> health = providerHealthStatusRepository.findByTenantId(tenantId).stream()
-                .filter(status -> workspaceId.equals(status.getWorkspaceId()))
-                .toList();
+        long activeProviders = smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(
+                tenantId,
+                workspaceId).size();
+        List<ProviderHealthStatus> health = providerHealthStatusRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId);
         long healthy = health.stream().filter(status -> status.getCurrentStatus() == ProviderHealthStatus.HealthStatus.HEALTHY).count();
         long degraded = health.stream().filter(status -> status.getCurrentStatus() == ProviderHealthStatus.HealthStatus.DEGRADED).count();
         long unhealthy = health.stream().filter(status -> status.getCurrentStatus() == ProviderHealthStatus.HealthStatus.UNHEALTHY).count();

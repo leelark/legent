@@ -35,7 +35,7 @@ class ProviderSelectionStrategyTest {
     void setUp() {
         when(smtpAdapter.getProviderType()).thenReturn("SMTP");
         lenient().when(circuitBreaker.isCircuitClosed("provider-1")).thenReturn(true);
-        when(providerHealthStatusRepository.findByTenantId("tenant-1")).thenReturn(List.of());
+        lenient().when(providerHealthStatusRepository.findByTenantIdAndWorkspaceId("tenant-1", "workspace-1")).thenReturn(List.of());
         strategy = new ProviderSelectionStrategy(
                 routingRuleRepository,
                 smtpProviderRepository,
@@ -53,14 +53,16 @@ class ProviderSelectionStrategyTest {
     void selectProvider_usesRoutingRuleProviderWithCaseInsensitiveType() {
         SmtpProvider provider = activeProvider("smtp");
         RoutingRule rule = new RoutingRule();
+        rule.setWorkspaceId("workspace-1");
         rule.setProvider(provider);
 
-        when(routingRuleRepository.findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue("tenant-1", "example.com"))
+        when(routingRuleRepository.findByTenantIdAndWorkspaceIdAndSenderDomainIgnoreCaseAndIsActiveTrue(
+                "tenant-1", "workspace-1", "example.com"))
                 .thenReturn(Optional.of(rule));
-        when(smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc("tenant-1"))
+        when(smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc("tenant-1", "workspace-1"))
                 .thenReturn(List.of(provider));
 
-        ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider(" tenant-1 ", "EXAMPLE.COM");
+        ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider(" tenant-1 ", " workspace-1 ", "EXAMPLE.COM");
 
         assertSame(smtpAdapter, result.adapter());
         assertSame(provider, result.dbRecord());
@@ -70,12 +72,13 @@ class ProviderSelectionStrategyTest {
     void selectProvider_whenNoRule_usesPriorityProvider() {
         SmtpProvider provider = activeProvider("SMTP");
 
-        when(routingRuleRepository.findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue("tenant-1", "example.com"))
+        when(routingRuleRepository.findByTenantIdAndWorkspaceIdAndSenderDomainIgnoreCaseAndIsActiveTrue(
+                "tenant-1", "workspace-1", "example.com"))
                 .thenReturn(Optional.empty());
-        when(smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc("tenant-1"))
+        when(smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc("tenant-1", "workspace-1"))
                 .thenReturn(List.of(provider));
 
-        ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider("tenant-1", "example.com");
+        ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider("tenant-1", "workspace-1", "example.com");
 
         assertSame(smtpAdapter, result.adapter());
         assertSame(provider, result.dbRecord());
@@ -85,14 +88,16 @@ class ProviderSelectionStrategyTest {
     void selectProvider_whenSmtpCompatibleType_usesSmtpAdapter() {
         SmtpProvider provider = activeProvider("AWS_SES");
         RoutingRule rule = new RoutingRule();
+        rule.setWorkspaceId("workspace-1");
         rule.setProvider(provider);
 
-        when(routingRuleRepository.findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue("tenant-1", "example.com"))
+        when(routingRuleRepository.findByTenantIdAndWorkspaceIdAndSenderDomainIgnoreCaseAndIsActiveTrue(
+                "tenant-1", "workspace-1", "example.com"))
                 .thenReturn(Optional.of(rule));
-        when(smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc("tenant-1"))
+        when(smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc("tenant-1", "workspace-1"))
                 .thenReturn(List.of(provider));
 
-        ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider("tenant-1", "example.com");
+        ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider("tenant-1", "workspace-1", "example.com");
 
         assertSame(smtpAdapter, result.adapter());
         assertSame(provider, result.dbRecord());
@@ -102,11 +107,13 @@ class ProviderSelectionStrategyTest {
     void selectProvider_whenNoMatchingAdapterAndNoFallback_throws() {
         SmtpProvider provider = activeProvider("UNKNOWN_VENDOR");
         RoutingRule rule = new RoutingRule();
+        rule.setWorkspaceId("workspace-1");
         rule.setProvider(provider);
 
-        when(routingRuleRepository.findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue("tenant-1", "example.com"))
+        when(routingRuleRepository.findByTenantIdAndWorkspaceIdAndSenderDomainIgnoreCaseAndIsActiveTrue(
+                "tenant-1", "workspace-1", "example.com"))
                 .thenReturn(Optional.of(rule));
-        when(smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc("tenant-1"))
+        when(smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc("tenant-1", "workspace-1"))
                 .thenReturn(List.of(provider));
 
         ProviderSelectionStrategy noFallbackStrategy = new ProviderSelectionStrategy(
@@ -121,13 +128,35 @@ class ProviderSelectionStrategyTest {
                 false
         );
 
-        assertThrows(IllegalStateException.class, () -> noFallbackStrategy.selectProvider("tenant-1", "example.com"));
+        assertThrows(IllegalStateException.class, () -> noFallbackStrategy.selectProvider("tenant-1", "workspace-1", "example.com"));
+    }
+
+    @Test
+    void selectProvider_whenWorkspaceMissing_throwsBeforeRepositoryLookup() {
+        assertThrows(IllegalArgumentException.class, () -> strategy.selectProvider("tenant-1", " ", "example.com"));
+    }
+
+    @Test
+    void selectProvider_usesOnlyProvidersFromRequestedWorkspace() {
+        SmtpProvider workspaceProvider = activeProvider("SMTP");
+
+        when(routingRuleRepository.findByTenantIdAndWorkspaceIdAndSenderDomainIgnoreCaseAndIsActiveTrue(
+                "tenant-1", "workspace-1", "example.com"))
+                .thenReturn(Optional.empty());
+        when(smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc("tenant-1", "workspace-1"))
+                .thenReturn(List.of(workspaceProvider));
+
+        ProviderSelectionStrategy.ProviderSelectionResult result = strategy.selectProvider("tenant-1", "workspace-1", "example.com");
+
+        assertSame(workspaceProvider, result.dbRecord());
     }
 
     private SmtpProvider activeProvider(String type) {
         SmtpProvider provider = new SmtpProvider();
         provider.setId("provider-1");
         provider.setType(type);
+        provider.setTenantId("tenant-1");
+        provider.setWorkspaceId("workspace-1");
         provider.setActive(true);
         return provider;
     }

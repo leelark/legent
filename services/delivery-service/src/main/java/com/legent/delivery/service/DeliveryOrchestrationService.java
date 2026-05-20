@@ -15,7 +15,6 @@ import java.time.Instant;
 
 import com.legent.delivery.adapter.ProviderAdapter;
 import com.legent.delivery.adapter.ProviderDispatchException;
-import com.legent.delivery.event.DeliveryEventPublisher;
 import com.legent.delivery.repository.MessageLogRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +38,7 @@ public class DeliveryOrchestrationService {
 
     private final ProviderSelectionStrategy providerStrategy;
     private final MessageLogRepository messageLogRepository;
-    private final DeliveryEventPublisher eventPublisher;
+    private final DeliveryFeedbackOutboxService feedbackOutboxService;
     private final ContentProcessingService contentProcessingService;
     private final CacheService cacheService;
     private final ContentServiceClient contentServiceClient;
@@ -292,7 +291,7 @@ public class DeliveryOrchestrationService {
             }
 
             // Select provider
-            var strategyResult = providerStrategy.selectProvider(normalizedTenantId, senderDomain);
+            var strategyResult = providerStrategy.selectProvider(normalizedTenantId, workspaceId, senderDomain);
             ProviderAdapter adapter = strategyResult.adapter();
             logEntry.setProviderId(strategyResult.dbRecord().getId());
 
@@ -353,7 +352,7 @@ public class DeliveryOrchestrationService {
             logEntry.setProviderResponse("250 OK");
             logEntry.setNextRetryAt(null);
 
-            eventPublisher.publishEmailSent(normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId,
+            feedbackOutboxService.enqueueEmailSent(normalizedTenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId,
                     safetyMetadata(logEntry));
 
         } catch (ProviderDispatchException e) {
@@ -418,13 +417,13 @@ public class DeliveryOrchestrationService {
         if (!retryDecision.shouldRetry()) {
             logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
             logEntry.setNextRetryAt(null);
-            eventPublisher.publishEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e.getMessage(),
+            feedbackOutboxService.enqueueEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, e.getMessage(),
                     safetyMetadata(logEntry));
             
             if (e.isPermanent()) {
                 // Synthesize a bounce event for audience/suppression
                 String senderDomain = extractDomain(logEntry.getEmail());
-                eventPublisher.publishEmailBounced(tenantId, workspaceId, logEntry.getEmail(), e.getMessage(), senderDomain,
+                feedbackOutboxService.enqueueEmailBounced(tenantId, workspaceId, logEntry.getEmail(), e.getMessage(), senderDomain,
                         safetyMetadata(logEntry));
             }
         } else {
@@ -432,7 +431,7 @@ public class DeliveryOrchestrationService {
             Instant nextRetry = retryDecision.nextRetryAt();
             logEntry.setNextRetryAt(nextRetry);
             
-            eventPublisher.publishRetryScheduled(tenantId, workspaceId, messageId, attempts, nextRetry.toString(), safetyMetadata(logEntry));
+            feedbackOutboxService.enqueueRetryScheduled(tenantId, workspaceId, messageId, attempts, nextRetry.toString(), safetyMetadata(logEntry));
         }
     }
 
@@ -490,7 +489,7 @@ public class DeliveryOrchestrationService {
                                            String reason) {
         String failureReason = markContentUnavailable(logEntry, reason);
         log.warn("Failing delivery for message {}: {}", messageId, failureReason);
-        eventPublisher.publishEmailFailed(
+        feedbackOutboxService.enqueueEmailFailed(
                 tenantId,
                 workspaceId,
                 messageId,
@@ -534,7 +533,7 @@ public class DeliveryOrchestrationService {
         logEntry.setFailureClass(resolveSafetyFailureClass(safety));
         logEntry.setProviderResponse(reason);
         logEntry.setNextRetryAt(null);
-        eventPublisher.publishEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, reason,
+        feedbackOutboxService.enqueueEmailFailed(tenantId, workspaceId, messageId, campaignId, jobId, batchId, subscriberId, reason,
                 safetyMetadata(logEntry));
     }
 
@@ -550,7 +549,7 @@ public class DeliveryOrchestrationService {
         logEntry.setFailureClass("REPUTATION_DEFERRED");
         logEntry.setProviderResponse(reason);
         logEntry.setNextRetryAt(retryAt);
-        eventPublisher.publishRetryScheduled(tenantId, workspaceId, messageId,
+        feedbackOutboxService.enqueueRetryScheduled(tenantId, workspaceId, messageId,
                 logEntry.getAttemptCount() != null ? logEntry.getAttemptCount() : 0,
                 retryAt.toString(), safetyMetadata(logEntry));
     }
@@ -570,6 +569,24 @@ public class DeliveryOrchestrationService {
 
     private Map<String, String> safetyMetadata(MessageLog logEntry) {
         Map<String, String> metadata = new java.util.HashMap<>();
+        if (logEntry.getMessageId() != null) {
+            metadata.put("messageId", logEntry.getMessageId());
+        }
+        if (logEntry.getCampaignId() != null) {
+            metadata.put("campaignId", logEntry.getCampaignId());
+        }
+        if (logEntry.getJobId() != null) {
+            metadata.put("jobId", logEntry.getJobId());
+        }
+        if (logEntry.getBatchId() != null) {
+            metadata.put("batchId", logEntry.getBatchId());
+        }
+        if (logEntry.getSubscriberId() != null) {
+            metadata.put("subscriberId", logEntry.getSubscriberId());
+        }
+        if (logEntry.getProviderId() != null) {
+            metadata.put("providerId", logEntry.getProviderId());
+        }
         if (logEntry.getSafetyDecision() != null) {
             metadata.put("safetyDecision", logEntry.getSafetyDecision());
         }
@@ -720,7 +737,7 @@ public class DeliveryOrchestrationService {
         String failureReason = markContentUnavailable(logEntry, reason);
         log.warn("Failing retry for message {}: {}", logEntry.getMessageId(), failureReason);
         messageLogRepository.save(logEntry);
-        eventPublisher.publishEmailFailed(
+        feedbackOutboxService.enqueueEmailFailed(
                 logEntry.getTenantId(),
                 logEntry.getWorkspaceId(),
                 logEntry.getMessageId(),

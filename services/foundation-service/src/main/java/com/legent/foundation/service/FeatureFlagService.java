@@ -125,8 +125,7 @@ public class FeatureFlagService {
 
     @Transactional(readOnly = true)
     public FeatureFlagDto.Response getFlag(String id) {
-        FeatureFlag flag = featureFlagRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("FeatureFlag", id));
+        FeatureFlag flag = findTenantScopedFlag(id);
         return featureFlagMapper.toResponse(flag);
     }
 
@@ -146,8 +145,7 @@ public class FeatureFlagService {
 
     @Transactional
     public FeatureFlagDto.Response updateFlag(String id, FeatureFlagDto.UpdateRequest request) {
-        FeatureFlag existing = featureFlagRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("FeatureFlag", id));
+        FeatureFlag existing = findTenantScopedFlag(id);
 
         if (request.getEnabled() != null) {
             existing.setEnabled(request.getEnabled());
@@ -180,8 +178,7 @@ public class FeatureFlagService {
 
     @Transactional
     public void deleteFlag(String id) {
-        FeatureFlag existing = featureFlagRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("FeatureFlag", id));
+        FeatureFlag existing = findTenantScopedFlag(id);
         existing.softDelete();
         featureFlagRepository.save(existing);
         log.info("Feature flag soft-deleted: key={}, id={}", existing.getFlagKey(), id);
@@ -195,6 +192,20 @@ public class FeatureFlagService {
             cacheService.delete(globalCacheKey);
         }
         log.info("Cache invalidated for feature flag {}", existing.getFlagKey());
+    }
+
+    private FeatureFlag findTenantScopedFlag(String id) {
+        String tenantId = requireTenantId();
+        return featureFlagRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("FeatureFlag", id));
+    }
+
+    private String requireTenantId() {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalArgumentException("tenantId is required for feature flag management");
+        }
+        return tenantId.trim();
     }
 
     private String generateTenantCacheKey(String tenantId, String flagKey) {

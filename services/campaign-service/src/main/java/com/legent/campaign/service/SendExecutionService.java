@@ -75,7 +75,8 @@ public class SendExecutionService {
     @Value("${legent.campaign.send.max-email-payload-bytes:1048576}")
     private int maxEmailPayloadBytes;
 
-    @Value("${legent.campaign.send.content-reference-enabled:false}")
+    @Deprecated(forRemoval = false)
+    @Value("${legent.campaign.send.content-reference-enabled:true}")
     private boolean contentReferenceEnabled;
 
     @Value("${legent.campaign.send.include-inline-rendered-content:true}")
@@ -249,23 +250,21 @@ public class SendExecutionService {
                     referenceModeRequired = true;
                 }
 
-                EmailContentReference contentReference = null;
-                if (contentReferenceEnabled || referenceModeRequired) {
-                    try {
-                        contentReference = contentReferenceService.createReference(
-                                contentReferenceRequest,
-                                !referenceModeRequired && includeInlineRenderedContent);
-                    } catch (RuntimeException e) {
-                        String reason = referenceModeRequired
-                                ? "Rendered content reference is required but could not be created"
-                                : "Rendered content reference creation failed while content references are enabled";
-                        log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason, e);
-                        recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_UNAVAILABLE, reason);
-                        markRecipientOutcome(preparedWork.row(), SendBatchRecipient.RecipientStatus.FAILED, CONTENT_REFERENCE_UNAVAILABLE, true);
-                        publishFailures++;
-                        contentReferenceFailures++;
-                        continue;
-                    }
+                EmailContentReference contentReference;
+                try {
+                    contentReference = contentReferenceService.createReference(
+                            contentReferenceRequest,
+                            !referenceModeRequired && includeInlineRenderedContent);
+                } catch (RuntimeException e) {
+                    String reason = referenceModeRequired
+                            ? "Rendered content reference is required but could not be created"
+                            : "Rendered content reference creation failed";
+                    log.error("Rejecting send request for message {}: {}", prepared.messageId(), reason, e);
+                    recordContentHandoffFailure(tenantId, batch, prepared, CONTENT_REFERENCE_UNAVAILABLE, reason);
+                    markRecipientOutcome(preparedWork.row(), SendBatchRecipient.RecipientStatus.FAILED, CONTENT_REFERENCE_UNAVAILABLE, true);
+                    publishFailures++;
+                    contentReferenceFailures++;
+                    continue;
                 }
 
                 if (referenceModeRequired) {

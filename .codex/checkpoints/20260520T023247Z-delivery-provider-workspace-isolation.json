@@ -1,0 +1,29 @@
+{
+  "id": "delivery-provider-workspace-isolation",
+  "createdAt": "2026-05-20T02:32:47.4420807Z",
+  "objective": "Scope delivery provider configuration, routing rules, and provider selection by tenant plus workspace with a forward migration and focused tests.",
+  "status": "DONE",
+  "owner": "DELIVERY_SERVICE_OWNER",
+  "filesInScope": [
+    "services/delivery-service/src/main/java/com/legent/delivery/domain/SmtpProvider.java,services/delivery-service/src/main/java/com/legent/delivery/domain/RoutingRule.java,services/delivery-service/src/main/java/com/legent/delivery/domain/IpPool.java,services/delivery-service/src/main/java/com/legent/delivery/repository/SmtpProviderRepository.java,services/delivery-service/src/main/java/com/legent/delivery/repository/RoutingRuleRepository.java,services/delivery-service/src/main/java/com/legent/delivery/controller/ProviderController.java,services/delivery-service/src/main/java/com/legent/delivery/service/ProviderSelectionStrategy.java,services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java,services/delivery-service/src/main/java/com/legent/delivery/service/ProviderHealthMonitoringService.java,services/delivery-service/src/main/resources/db/migration/V16__smtp_provider_workspace_scope.sql,services/delivery-service/src/test/**"
+  ],
+  "agents": [
+    "DELIVERY_SERVICE_OWNER,DATABASE_ENGINEER,SECURITY_ENGINEER,TEST_ARCHITECT"
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/delivery-service -am test,powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1,git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Move to production-egress-policy-render-gate under checkpoint .codex/checkpoints/20260520T032145Z-production-egress-policy-render-gate.json.",
+  "completedAt": "2026-05-20T08:51:00+05:30",
+  "outcome": "Delivery provider configuration is now tenant+workspace scoped across provider CRUD, routing rules, provider selection, orchestration handoff, provider health checks/status, capacity profiles, and failover drills. V16 adds workspace ownership/backfill plus composite provider ownership constraints for routing, pools, scores, health, capacity, and failover tables; focused tests cover cross-workspace denial and migration assertions.",
+  "validationEvidence": [
+    ".\\mvnw.cmd -pl services/delivery-service -am '-Dtest=SmtpProviderWorkspaceMigrationTest,ProviderHealthMonitoringServiceTest,ProviderCapacityServiceTest' '-Dsurefire.failIfNoSpecifiedTests=false' test",
+    ".\\mvnw.cmd -pl services/delivery-service -am '-Dtest=ProviderSelectionStrategyTest,ProviderControllerWorkspaceScopeTest,SmtpProviderRepositoryWorkspaceTest,SmtpProviderWorkspaceMigrationTest,DeliveryOrchestrationServiceTest,ProviderHealthMonitoringServiceTest,DeliveryOperationsServiceWorkspaceScopeTest,ProviderCapacityServiceTest' '-Dsurefire.failIfNoSpecifiedTests=false' test",
+    ".\\mvnw.cmd -pl services/delivery-service -am test",
+    ".\\.codex\\utilities\\validate-codex-system.ps1",
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+    "git diff --check"
+  ]
+}

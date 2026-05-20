@@ -1,0 +1,52 @@
+{
+  "id": "egress-evidence-validator-hardening",
+  "createdAt": "2026-05-20T05:51:39+05:30",
+  "objective": "Harden production egress evidence validation so placeholders, templates, and documentation/example CIDRs cannot satisfy release evidence gates.",
+  "status": "DONE",
+  "owner": "RELEASE_MANAGER",
+  "filesInScope": [
+    "scripts/ops/validate-production-egress-evidence.ps1",
+    "scripts/ops/test-release-evidence-validators.ps1",
+    "scripts/ops/release-gate.ps1",
+    "docs/operations/production-egress-evidence.template.json",
+    ".codex/backlog/queue.json",
+    ".codex/state/team-state.json",
+    ".codex/memory/**"
+  ],
+  "agents": [
+    "019e42c1-5df7-7161-8c67-43ac041a6638 RELEASE_MANAGER read-only",
+    "019e42c1-5e82-7cb2-a968-4f8636fd0695 DEVOPS_ENGINEER read-only",
+    "019e42c1-5ffb-72b1-b144-95bcaa6418e5 SECURITY_ENGINEER read-only",
+    "019e42c1-6141-7e42-99e2-9744e96059bd TEST_ARCHITECT read-only",
+    "019e42c1-6544-7ae0-ad88-2f70c37a72c0 DOCUMENTATION_ENGINEER read-only",
+    "019e42c1-6884-7951-ab37-0dddd8b8182b PROGRAM_MANAGER_AGENT read-only"
+  ],
+  "validationPlan": [
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-egress-evidence.ps1 -EvidencePath docs\\operations\\production-egress-evidence.template.json",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated dirty changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Continue with next highest-priority READY item: kafka-dlq-sharding.",
+  "completedAt": "2026-05-20T06:06:53+05:30",
+  "implementationSummary": [
+    "Production egress validator now rejects template/example filenames and placeholder text in reviewer/rule fields.",
+    "Validator requires schemaVersion 1, parseable non-future reviewedAt, canonical CIDR notation, and rejects broad, reserved, documentation, non-canonical, or unsupported FQDN evidence.",
+    "Regression self-test now covers valid public CIDR and reviewed private endpoint evidence plus template, broad, documentation, placeholder, future-date, non-canonical, and FQDN failure cases.",
+    "Release and validation docs now state that the checked-in template is a negative test, not strict promotion evidence."
+  ],
+  "validationResults": [
+    "PASS powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+    "PASS expected failure: scripts\\ops\\validate-production-egress-evidence.ps1 rejects docs\\operations\\production-egress-evidence.template.json",
+    "PASS powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+    "PASS .codex\\utilities\\validate-codex-system.ps1",
+    "PASS git diff --check (line-ending warnings only)"
+  ],
+  "residualRisks": [
+    "This validator rejects obvious fake evidence but does not create or verify real target-environment egress evidence.",
+    "Strict release validation still needs a follow-up to prove reviewed external egress policy generation/inclusion in the production render.",
+    "Production release remains blocked until all external evidence requirements are collected and strict release gates pass."
+  ]
+}

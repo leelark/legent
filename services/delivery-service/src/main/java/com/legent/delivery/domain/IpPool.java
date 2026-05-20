@@ -13,6 +13,9 @@ import lombok.Setter;
 @Setter
 public class IpPool extends TenantAwareEntity {
 
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId;
+
     @Column(nullable = false)
     private String name;
 

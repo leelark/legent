@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletionException;
@@ -279,14 +280,24 @@ public class AudienceResolutionConsumer {
     private List<Subscriber> filterEligibleSubscribers(String tenantId, String workspaceId, List<Subscriber> subscribers) {
         List<String> emailsToCheck = subscribers.stream()
                 .map(Subscriber::getEmail)
+                .map(AudienceResolutionConsumer::normalizeEmail)
+                .filter(email -> email != null)
                 .distinct()
                 .collect(Collectors.toList());
         Set<String> suppressedEmails = deliverabilityClient.checkSuppressedEmails(tenantId, workspaceId, emailsToCheck);
 
         return subscribers.stream()
-                .filter(sub -> !suppressedEmails.contains(sub.getEmail()))
+                .filter(sub -> !suppressedEmails.contains(normalizeEmail(sub.getEmail())))
                 .filter(sendEligibilityService::isSendEligible)
                 .toList();
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
     }
 
     private Map<String, String> toResolvedSubscriberPayload(Subscriber subscriber) {

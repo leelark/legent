@@ -14,6 +14,9 @@ public class RoutingRule extends BaseEntity {
     @Column(name = "tenant_id", nullable = false)
     private String tenantId;
 
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId;
+
     @Column(name = "sender_domain", nullable = false)
     private String senderDomain;
 

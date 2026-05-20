@@ -60,6 +60,7 @@ public class FeatureFlagController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('feature:read', principal.roles)")
     public ApiResponse<FeatureFlagDto.Response> getFlag(@PathVariable String id) {
         return ApiResponse.ok(featureFlagService.getFlag(id));
     }

@@ -1,5 +1,5 @@
 "use client";
-import JourneyBuilder, { JourneyNode } from '@/components/automation/JourneyBuilder';
+import JourneyBuilder, { buildWorkflowGraph, JourneyNode } from '@/components/automation/JourneyBuilder';
 import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { PageHeader } from '@/components/ui/PageChrome';
 import { PlayCircle, Workflow } from 'lucide-react';
-import { pauseWorkflow, publishWorkflow, resumeWorkflow, triggerWorkflow } from '@/lib/automation-api';
+import { pauseWorkflow, resumeWorkflow, saveWorkflowDefinition, triggerWorkflow, validateWorkflow } from '@/lib/automation-api';
 import { useToast } from '@/components/ui/Toast';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -27,6 +27,7 @@ const readStringPath = (value: unknown, path: string[]) => {
 const getAutomationErrorMessage = (error: unknown, fallback: string) =>
   readStringPath(error, ['normalized', 'message']) ??
   readStringPath(error, ['response', 'data', 'error', 'message']) ??
+  (error instanceof Error && error.message.length > 0 ? error.message : undefined) ??
   fallback;
 
 export default function AutomationBuilder() {
@@ -54,7 +55,12 @@ export default function AutomationBuilder() {
     const handleActivate = async () => {
       setActivating(true);
       try {
-        await publishWorkflow(workflowId);
+        const graph = buildWorkflowGraph(nodes);
+        const validation = await validateWorkflow(workflowId, graph);
+        if (validation.runtimeSupported !== true || validation.valid === false) {
+          throw new Error((validation.errors ?? ['Workflow validation did not confirm live runtime support.']).join(' '));
+        }
+        await saveWorkflowDefinition(workflowId, graph, { published: true });
         addToast({ type: 'success', title: 'Workflow published', message: 'Workflow is now active.' });
       } catch (error: unknown) {
         addToast({ type: 'error', title: 'Publish failed', message: getAutomationErrorMessage(error, 'Unable to publish workflow.') });

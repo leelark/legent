@@ -1,0 +1,52 @@
+{
+  "id": "kafka-dlq-sharding",
+  "createdAt": "2026-05-20T06:08:00+05:30",
+  "objective": "Shard Kafka DLQ routing instead of sending every failed listener record to partition 0.",
+  "status": "DONE",
+  "owner": "KAFKA_CONTRACTS_OWNER",
+  "filesInScope": [
+    "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaConsumerConfig.java",
+    "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+    "shared/legent-kafka/src/test/**",
+    ".codex/backlog/queue.json",
+    ".codex/state/team-state.json",
+    ".codex/memory/**"
+  ],
+  "agents": [
+    "019e42d2-00c7-7bc2-ae07-2a498446b986 KAFKA_CONTRACTS_OWNER read-only",
+    "019e42d2-018a-7181-93b5-77669fdcc668 SRE_MONITORING_ENGINEER read-only",
+    "019e42d2-0302-7741-b5e4-4a6180d0d56f TEST_ARCHITECT read-only",
+    "019e42d2-046c-7063-b359-96a53f6217bd PERFORMANCE_ENGINEER read-only",
+    "019e42d2-0ad3-71b2-8a6e-26827896ac88 BACKEND_SERVICE_OWNER read-only",
+    "019e42d2-0c62-77a1-9d56-3ea821af2f9b PROGRAM_MANAGER_AGENT read-only"
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl shared/legent-kafka -am test",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated dirty changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Continue with next highest-priority READY item: salesforce-parity-research-refresh.",
+  "completedAt": "2026-05-20T06:23:33+05:30",
+  "implementationSummary": [
+    "DeadLetterPublishingRecoverer now routes failed records to kafka.dead-letter using the source record partition instead of hardcoded partition 0.",
+    "Shared Kafka DLQ topic definition and local Docker Compose topic initialization now use six partitions.",
+    "Kafka tests cover source partition boundary preservation, DLQ multi-partition topic definition, and current source-topic partition compatibility."
+  ],
+  "validationResults": [
+    "PASS .\\mvnw.cmd -pl shared/legent-kafka -am '-Dtest=KafkaConsumerConfigTest,KafkaTopicConfigTest' '-Dsurefire.failIfNoSpecifiedTests=false' test",
+    "PASS .\\mvnw.cmd -pl shared/legent-kafka -am test",
+    "PASS docker compose config --quiet",
+    "PASS rg drift check found no fixed partition-0 DLQ routing or kafka.dead-letter:1 Compose definition",
+    "PASS .codex\\utilities\\validate-codex-system.ps1",
+    "PASS scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+    "PASS git diff --check (line-ending warnings only)"
+  ],
+  "residualRisks": [
+    "Existing local Kafka volumes may retain an older one-partition kafka.dead-letter topic until recreated or altered.",
+    "Production uses external Kafka, so release evidence must prove kafka.dead-letter has at least the maximum source topic partition count, retention, and replication policy.",
+    "DLQ-specific volume, age, publish-failure, and partition-skew alerting remains a separate observability gap.",
+    "Campaign retry scans and audience-resolved job-level keying still need separate scalability work before high-volume claims."
+  ]
+}

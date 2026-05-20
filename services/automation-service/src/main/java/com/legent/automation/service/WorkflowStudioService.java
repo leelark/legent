@@ -99,9 +99,6 @@ public class WorkflowStudioService {
     public WorkflowDefinition saveDefinition(String workflowId, Integer version, WorkflowGraphDto graph, boolean publishDefinition) {
         Workflow workflow = findWorkflow(workflowId);
         WorkflowGraphDto normalized = workflowGraphValidator.validateAndNormalize(graph);
-        if (publishDefinition) {
-            workflowGraphValidator.validateRuntimeSupported(normalized);
-        }
 
         Integer targetVersion = version;
         if (targetVersion == null || targetVersion < 1) {
@@ -111,9 +108,16 @@ public class WorkflowStudioService {
                     .orElse(1);
         }
 
-        WorkflowDefinition definition = workflowDefinitionRepository
-                .findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId(workflowId, targetVersion, requireTenant(), requireWorkspace())
-                .orElseGet(WorkflowDefinition::new);
+        Optional<WorkflowDefinition> existingDefinition = workflowDefinitionRepository
+                .findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId(workflowId, targetVersion, requireTenant(), requireWorkspace());
+        if (existingDefinition.map(WorkflowDefinition::isPublished).orElse(false)) {
+            throw new IllegalStateException("Published workflow definitions are immutable; create a new version for changes");
+        }
+        if (publishDefinition || isActiveRuntimeDefinition(workflow, targetVersion)) {
+            workflowGraphValidator.validateRuntimeSupported(normalized);
+        }
+
+        WorkflowDefinition definition = existingDefinition.orElseGet(WorkflowDefinition::new);
 
         definition.setWorkflowId(workflowId);
         definition.setVersion(targetVersion);
@@ -182,6 +186,7 @@ public class WorkflowStudioService {
     @Transactional
     public Workflow resume(String workflowId) {
         Workflow workflow = findWorkflow(workflowId);
+        validateActiveDefinitionRuntime(workflow);
         enforceTransition(workflow, "ACTIVE");
         return workflowRepository.save(workflow);
     }
@@ -208,6 +213,7 @@ public class WorkflowStudioService {
         }
         Workflow workflow = findWorkflow(workflowId);
         WorkflowDefinition definition = getDefinitionVersion(workflowId, version);
+        workflowGraphValidator.validateRuntimeSupported(parseDefinition(definition));
         workflow.setActiveDefinitionVersion(definition.getVersion());
         workflow.setStatus("ROLLED_BACK");
         return workflowRepository.save(workflow);
@@ -305,18 +311,25 @@ public class WorkflowStudioService {
         }
 
         WorkflowGraphDto normalized = workflowGraphValidator.validateAndNormalize(targetGraph);
+        List<String> runtimeErrors = workflowGraphValidator.runtimeSupportErrors(normalized);
         List<String> visited = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();
         String cursor = normalized.getInitialNodeId();
         int guard = 0;
+        String exitReason = "NORMAL";
         while (cursor != null && guard++ < 250) {
             if (!seen.add(cursor)) {
                 visited.add(cursor + " (cycle)");
+                exitReason = "CYCLE_DETECTED";
                 break;
             }
             visited.add(cursor);
             WorkflowGraphDto.WorkflowNode node = normalized.getNodes().get(cursor);
             if (node == null || "END".equals(node.getType())) {
+                break;
+            }
+            if (!workflowGraphValidator.isRuntimeSupportedNodeType(node.getType())) {
+                exitReason = "UNSUPPORTED_RUNTIME_NODE";
                 break;
             }
             String next = node.getNextNodeId();
@@ -326,6 +339,9 @@ public class WorkflowStudioService {
             }
             cursor = next;
         }
+        if (guard >= 250) {
+            exitReason = "TRUNCATED";
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("workflowId", workflowId);
@@ -333,7 +349,8 @@ public class WorkflowStudioService {
         response.put("visitedNodes", visited);
         response.put("steps", visited.size());
         response.put("truncated", guard >= 250);
-        response.put("runtimeSupported", workflowGraphValidator.runtimeSupportErrors(normalized).isEmpty());
+        response.put("runtimeSupported", runtimeErrors.isEmpty());
+        response.put("runtimeErrors", runtimeErrors);
         response.put("capabilities", graphCapabilities(normalized));
         response.put("entryAccepted", normalized.getEntryPolicy() == null || normalized.getEntryPolicy().isCheckSuppression());
         response.put("goalsReached", visited.stream()
@@ -343,7 +360,7 @@ public class WorkflowStudioService {
                     return node != null && "EXIT_GOAL".equals(node.getType());
                 })
                 .toList());
-        response.put("exitReason", visited.stream().anyMatch(id -> id.endsWith(" (cycle)")) ? "CYCLE_DETECTED" : "NORMAL");
+        response.put("exitReason", exitReason);
         return response;
     }
 
@@ -495,6 +512,25 @@ public class WorkflowStudioService {
         }
     }
 
+    private boolean isActiveRuntimeDefinition(Workflow workflow, Integer version) {
+        return version != null
+                && version.equals(workflow.getActiveDefinitionVersion())
+                && workflowHasRuntimeState(workflow);
+    }
+
+    private boolean workflowHasRuntimeState(Workflow workflow) {
+        String status = defaultString(workflow.getStatus(), "DRAFT");
+        return !"DRAFT".equals(status) && !"ARCHIVED".equals(status);
+    }
+
+    private void validateActiveDefinitionRuntime(Workflow workflow) {
+        Integer activeVersion = workflow.getActiveDefinitionVersion();
+        if (activeVersion == null) {
+            throw new IllegalStateException("Workflow has no active definition version");
+        }
+        workflowGraphValidator.validateRuntimeSupported(parseDefinition(getDefinitionVersion(workflow.getId(), activeVersion)));
+    }
+
     private Map<String, Object> graphCapabilities(WorkflowGraphDto graph) {
         Map<String, Long> nodeTypeCounts = new LinkedHashMap<>();
         for (WorkflowGraphDto.WorkflowNode node : graph.getNodes().values()) {
@@ -509,7 +545,7 @@ public class WorkflowStudioService {
         capabilities.put("exits", nodeTypeCounts.getOrDefault("END", 0L));
         capabilities.put("reentryGates", nodeTypeCounts.getOrDefault("REENTRY_GATE", 0L));
         capabilities.put("nodeTypeCounts", nodeTypeCounts);
-        capabilities.put("runtimeSupportedNodeTypes", Set.of("ENTRY_TRIGGER", "SEND_EMAIL", "DELAY", "CONDITION", "END"));
+        capabilities.put("runtimeSupportedNodeTypes", workflowGraphValidator.runtimeSupportedNodeTypes());
         capabilities.put("runtimeUnsupportedNodes", workflowGraphValidator.runtimeSupportErrors(graph));
         capabilities.put("reentryPolicy", graph.getReentryPolicy());
         capabilities.put("entryPolicy", graph.getEntryPolicy());

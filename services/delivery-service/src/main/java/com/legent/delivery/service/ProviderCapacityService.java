@@ -8,6 +8,7 @@ import com.legent.delivery.repository.MessageLogRepository;
 import com.legent.delivery.repository.ProviderCapacityProfileRepository;
 import com.legent.delivery.repository.ProviderFailoverTestRepository;
 import com.legent.delivery.repository.ProviderHealthStatusRepository;
+import com.legent.delivery.repository.SmtpProviderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -27,20 +28,23 @@ public class ProviderCapacityService {
     private final ProviderFailoverTestRepository failoverTestRepository;
     private final MessageLogRepository messageLogRepository;
     private final DeliveryOperationsService deliveryOperationsService;
+    private final SmtpProviderRepository smtpProviderRepository;
 
     @Transactional
     public ProviderCapacityProfile upsert(String tenantId, String workspaceId, ProviderCapacityRequest request) {
+        String providerId = requireWorkspaceProvider(tenantId, workspaceId, request.providerId(), "providerId");
+        String failoverProviderId = optionalWorkspaceProvider(tenantId, workspaceId, request.failoverProviderId(), "failoverProviderId");
         ProviderCapacityProfile profile = capacityProfileRepository
                 .findByTenantIdAndWorkspaceIdAndProviderIdAndSenderDomainAndIspDomain(
                         tenantId,
                         workspaceId,
-                        request.providerId(),
+                        providerId,
                         normalize(request.senderDomain()),
                         normalize(request.ispDomain()))
                 .orElseGet(ProviderCapacityProfile::new);
         profile.setTenantId(tenantId);
         profile.setWorkspaceId(workspaceId);
-        profile.setProviderId(request.providerId());
+        profile.setProviderId(providerId);
         profile.setSenderDomain(normalize(request.senderDomain()));
         profile.setIspDomain(normalize(request.ispDomain()));
         profile.setHourlyCap(defaultInt(request.hourlyCap(), profile.getHourlyCap()));
@@ -51,7 +55,7 @@ public class ProviderCapacityService {
         profile.setBounceRate(defaultDouble(request.bounceRate(), profile.getBounceRate()));
         profile.setComplaintRate(defaultDouble(request.complaintRate(), profile.getComplaintRate()));
         profile.setBackpressureScore(Math.max(0, Math.min(100, defaultInt(request.backpressureScore(), profile.getBackpressureScore()))));
-        profile.setFailoverProviderId(normalize(request.failoverProviderId()));
+        profile.setFailoverProviderId(failoverProviderId);
         profile.setStatus(defaultString(request.status(), profile.getStatus()).toUpperCase());
         profile.setLastEvaluatedAt(Instant.now());
         return capacityProfileRepository.save(profile);
@@ -64,22 +68,26 @@ public class ProviderCapacityService {
 
     @Transactional
     public ThrottleDecision evaluate(String tenantId, String workspaceId, ThrottleRequest request) {
+        String providerId = requireWorkspaceProvider(tenantId, workspaceId, request.providerId(), "providerId");
         ProviderCapacityProfile profile = capacityProfileRepository
                 .findByTenantIdAndWorkspaceIdAndProviderIdAndSenderDomainAndIspDomain(
                         tenantId,
                         workspaceId,
-                        request.providerId(),
+                        providerId,
                         normalize(request.senderDomain()),
                         normalize(request.ispDomain()))
-                .orElseGet(() -> defaultProfile(tenantId, workspaceId, request));
-        ProviderHealthStatus health = providerHealthStatusRepository.findByProviderId(request.providerId()).orElse(null);
+                .orElseGet(() -> defaultProfile(tenantId, workspaceId, providerId, request));
+        optionalWorkspaceProvider(tenantId, workspaceId, profile.getFailoverProviderId(), "failoverProviderId");
+        ProviderHealthStatus health = providerHealthStatusRepository
+                .findByTenantIdAndWorkspaceIdAndProviderId(tenantId, workspaceId, providerId)
+                .orElse(null);
         int recommended = recommendedPerMinute(profile, health, request.riskScore() == null ? 0 : request.riskScore());
         String state = stateFor(profile, health, recommended);
         profile.setCurrentMaxPerMinute(recommended);
         profile.setLastEvaluatedAt(Instant.now());
         capacityProfileRepository.save(profile);
         return new ThrottleDecision(
-                request.providerId(),
+                providerId,
                 state,
                 recommended,
                 Math.max(1, recommended / 60),
@@ -90,15 +98,21 @@ public class ProviderCapacityService {
 
     @Transactional
     public ProviderFailoverTest runFailoverTest(String tenantId, String workspaceId, FailoverTestRequest request) {
-        ProviderHealthStatus primary = providerHealthStatusRepository.findByProviderId(request.primaryProviderId()).orElse(null);
-        ProviderHealthStatus failover = request.failoverProviderId() == null || request.failoverProviderId().isBlank()
+        String primaryProviderId = requireWorkspaceProvider(tenantId, workspaceId, request.primaryProviderId(), "primaryProviderId");
+        String failoverProviderId = optionalWorkspaceProvider(tenantId, workspaceId, request.failoverProviderId(), "failoverProviderId");
+        ProviderHealthStatus primary = providerHealthStatusRepository
+                .findByTenantIdAndWorkspaceIdAndProviderId(tenantId, workspaceId, primaryProviderId)
+                .orElse(null);
+        ProviderHealthStatus failover = failoverProviderId == null
                 ? null
-                : providerHealthStatusRepository.findByProviderId(request.failoverProviderId()).orElse(null);
+                : providerHealthStatusRepository
+                        .findByTenantIdAndWorkspaceIdAndProviderId(tenantId, workspaceId, failoverProviderId)
+                        .orElse(null);
         ProviderFailoverTest drill = new ProviderFailoverTest();
         drill.setTenantId(tenantId);
         drill.setWorkspaceId(workspaceId);
-        drill.setPrimaryProviderId(request.primaryProviderId());
-        drill.setFailoverProviderId(request.failoverProviderId());
+        drill.setPrimaryProviderId(primaryProviderId);
+        drill.setFailoverProviderId(failoverProviderId);
         drill.setStartedAt(Instant.now());
         boolean primaryBlocked = primary == null || !primary.isHealthy();
         boolean failoverReady = failover == null || failover.isHealthy();
@@ -167,11 +181,11 @@ public class ProviderCapacityService {
         return Math.max(1, (int) Math.floor(base * successFactor * complaintPenalty * bouncePenalty * backpressurePenalty * riskPenalty * healthFactor));
     }
 
-    private ProviderCapacityProfile defaultProfile(String tenantId, String workspaceId, ThrottleRequest request) {
+    private ProviderCapacityProfile defaultProfile(String tenantId, String workspaceId, String providerId, ThrottleRequest request) {
         ProviderCapacityProfile profile = new ProviderCapacityProfile();
         profile.setTenantId(tenantId);
         profile.setWorkspaceId(workspaceId);
-        profile.setProviderId(request.providerId());
+        profile.setProviderId(providerId);
         profile.setSenderDomain(normalize(request.senderDomain()));
         profile.setIspDomain(normalize(request.ispDomain()));
         profile.setHourlyCap(1000);
@@ -230,6 +244,34 @@ public class ProviderCapacityService {
 
     private String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim().toLowerCase();
+    }
+
+    private String requireWorkspaceProvider(String tenantId, String workspaceId, String providerId, String field) {
+        String normalized = requireId(providerId, field);
+        if (smtpProviderRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(normalized, tenantId, workspaceId).isEmpty()) {
+            throw new IllegalArgumentException(field + " does not belong to workspace");
+        }
+        return normalized;
+    }
+
+    private String optionalWorkspaceProvider(String tenantId, String workspaceId, String providerId, String field) {
+        String normalized = normalizeId(providerId);
+        if (normalized == null) {
+            return null;
+        }
+        return requireWorkspaceProvider(tenantId, workspaceId, normalized, field);
+    }
+
+    private String requireId(String value, String field) {
+        String normalized = normalizeId(value);
+        if (normalized == null) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+        return normalized;
+    }
+
+    private String normalizeId(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private int defaultInt(Integer value, Integer fallback) {

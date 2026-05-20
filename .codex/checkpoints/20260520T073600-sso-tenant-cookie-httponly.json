@@ -1,0 +1,57 @@
+{
+  "id": "sso-tenant-cookie-httponly",
+  "createdAt": "2026-05-20T07:36:00+05:30",
+  "objective": "Set SSO tenant cookie `httpOnly` behavior consistently with normal auth tenant cookie posture.",
+  "status": "DONE",
+  "owner": "IDENTITY_SERVICE_OWNER",
+  "partnerAgents": [
+    "SECURITY_ENGINEER",
+    "TEST_ARCHITECT"
+  ],
+  "filesInScope": [
+    "services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java",
+    "services/identity-service/src/main/java/com/legent/identity/controller/SsoController.java",
+    "services/identity-service/src/test/**",
+    ".codex/memory/security-findings.md",
+    ".codex/memory/technical-debt.md"
+  ],
+  "acceptanceCriteria": [
+    "SSO tenant cookie uses the same HTTP-only posture as normal auth.",
+    "Focused identity tests cover the SSO callback cookie attributes."
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/identity-service -am test"
+  ],
+  "rollbackNotes": "Preserve unrelated dirty changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Continue continuous-cycle backlog refinement; highest-scored backlog candidate is delivery-provider-workspace-isolation, which needs a migration-safe schema plan before implementation.",
+  "completedAt": "2026-05-20T07:50:52+05:30",
+  "outcome": "SSO callback tenant cookies now match normal auth cookie posture: HttpOnly, Secure, SameSite, Max-Age, and path assertions are covered for OIDC and SAML ACS callbacks, and failed OIDC callbacks emit no cookies.",
+  "validationEvidence": [
+    {
+      "command": ".\\mvnw.cmd -pl services/identity-service -am '-Dtest=SsoControllerTest,AuthControllerTest' '-Dsurefire.failIfNoSpecifiedTests=false' test",
+      "status": "passed",
+      "summary": "AuthControllerTest and SsoControllerTest passed: 13 tests, 0 failures, 0 errors."
+    },
+    {
+      "command": ".\\mvnw.cmd -pl services/identity-service -am test",
+      "status": "passed",
+      "summary": "Identity-service reactor gate passed; identity-service reported 48 tests, 0 failures, 0 errors."
+    },
+    {
+      "command": "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+      "status": "passed",
+      "summary": "Codex autonomous system validation passed."
+    },
+    {
+      "command": "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+      "status": "passed",
+      "summary": "Repository artifact hygiene validation passed."
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed",
+      "summary": "Passed; only line-ending normalization warnings were emitted."
+    }
+  ]
+}

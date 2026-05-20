@@ -3,16 +3,29 @@ import React from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { JourneyNode } from './JourneyBuilder';
+import {
+  JOURNEY_NODE_TYPES,
+  RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES,
+  journeyNodeLabel,
+  type JourneyNode,
+  type JourneyNodeType,
+} from './journey-node-contract';
 
 interface NodeEditorModalProps {
   open: boolean;
   node: JourneyNode | null;
+  runtimeSupportedTypes?: readonly JourneyNodeType[];
   onClose: () => void;
   onSave: (node: JourneyNode) => void;
 }
 
-export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({ open, node, onClose, onSave }) => {
+export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
+  open,
+  node,
+  runtimeSupportedTypes = RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES,
+  onClose,
+  onSave,
+}) => {
   const [label, setLabel] = React.useState(node?.label || '');
   const [type, setType] = React.useState<JourneyNode['type']>(node?.type || 'SEND_EMAIL');
   const [campaignId, setCampaignId] = React.useState<string>((node?.config?.campaignId as string) || '');
@@ -28,6 +41,9 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({ open, node, on
   }, [node]);
 
   if (!node) return null;
+
+  const runtimeSupportedTypeSet = new Set(runtimeSupportedTypes);
+  const runtimeSupported = runtimeSupportedTypeSet.has(type);
 
   const handleSave = () => {
     const nextConfig: Record<string, unknown> = { ...(node.config || {}) };
@@ -55,38 +71,34 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({ open, node, on
       footer={
         <>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={handleSave} disabled={!runtimeSupported}>Save</Button>
         </>
       }
     >
       <div className="space-y-3">
         <Input value={label} onChange={e => setLabel(e.target.value)} label="Label" />
         <div>
-          <label className="mb-1 block text-sm font-medium text-content-primary">Node Type</label>
+          <label htmlFor="journey-node-type" className="mb-1 block text-sm font-medium text-content-primary">Node Type</label>
           <select
+            id="journey-node-type"
             value={type}
             onChange={(e) => setType(e.target.value as JourneyNode['type'])}
             className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30 transition-all"
           >
-            <option value="ENTRY_TRIGGER">Entry Trigger</option>
-            <option value="SEND_EMAIL">Send Email</option>
-            <option value="DELAY">Delay</option>
-            <option value="CONDITION">Condition</option>
-            <option value="BRANCH">Branch</option>
-            <option value="SPLIT">Split</option>
-            <option value="JOIN">Join</option>
-            <option value="WEBHOOK">Webhook</option>
-            <option value="UPDATE_FIELD">Update Field</option>
-            <option value="ADD_TAG">Add Tag</option>
-            <option value="REMOVE_TAG">Remove Tag</option>
-            <option value="SUPPRESS_CONTACT">Suppress Contact</option>
-            <option value="WAIT_UNTIL">Wait Until</option>
-            <option value="PAUSE">Pause</option>
-            <option value="EXIT_GOAL">Exit Goal</option>
-            <option value="REENTRY_GATE">Re-entry Gate</option>
-            <option value="EVENT_LISTENER">Event Listener</option>
-            <option value="END">End</option>
+            {JOURNEY_NODE_TYPES.map((option) => {
+              const optionRuntimeSupported = runtimeSupportedTypeSet.has(option);
+              return (
+                <option key={option} value={option} disabled={!optionRuntimeSupported && option !== type}>
+                  {journeyNodeLabel(option)}{optionRuntimeSupported ? '' : ' (draft only)'}
+                </option>
+              );
+            })}
           </select>
+          {!runtimeSupported && (
+            <p className="mt-2 text-xs text-amber-700 dark:text-amber-200">
+              This node is stored as a draft-only design element until live runtime support is added.
+            </p>
+          )}
         </div>
         {type === 'SEND_EMAIL' && (
           <Input

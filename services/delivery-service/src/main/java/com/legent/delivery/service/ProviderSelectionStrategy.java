@@ -89,10 +89,14 @@ public class ProviderSelectionStrategy {
     /**
      * Determines which Adapter and Provider DB Config to use for a given tenant and domain.
      */
-    public ProviderSelectionResult selectProvider(String tenantId, String senderDomain) {
+    public ProviderSelectionResult selectProvider(String tenantId, String workspaceId, String senderDomain) {
         String normalizedTenantId = normalizeIdentifier(tenantId);
         if (normalizedTenantId == null) {
             throw new IllegalArgumentException("Tenant id is required for provider selection");
+        }
+        String normalizedWorkspaceId = normalizeIdentifier(workspaceId);
+        if (normalizedWorkspaceId == null) {
+            throw new IllegalArgumentException("Workspace id is required for provider selection");
         }
 
         String normalizedDomain = normalizeDomain(senderDomain);
@@ -101,18 +105,25 @@ public class ProviderSelectionStrategy {
         }
 
         Optional<RoutingRule> ruleOpt = routingRuleRepository
-                .findByTenantIdAndSenderDomainIgnoreCaseAndIsActiveTrue(normalizedTenantId, normalizedDomain);
+                .findByTenantIdAndWorkspaceIdAndSenderDomainIgnoreCaseAndIsActiveTrue(
+                        normalizedTenantId,
+                        normalizedWorkspaceId,
+                        normalizedDomain);
 
-        List<SmtpProvider> providers = smtpProviderRepository.findByTenantIdAndIsActiveTrueOrderByPriorityAsc(normalizedTenantId);
+        List<SmtpProvider> providers = smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(
+                normalizedTenantId,
+                normalizedWorkspaceId);
         if (providers.isEmpty() && allowDefaultProvider) {
-            providers = List.of(createDefaultProvider(normalizedTenantId));
+            providers = List.of(createDefaultProvider(normalizedTenantId, normalizedWorkspaceId));
         }
 
         if (providers.isEmpty()) {
-            throw new IllegalStateException("No active SMTP provider configured for tenant " + normalizedTenantId);
+            throw new IllegalStateException("No active SMTP provider configured for tenant/workspace "
+                    + normalizedTenantId + "/" + normalizedWorkspaceId);
         }
 
-        Map<String, ProviderHealthStatus> healthStatusByProvider = providerHealthStatusRepository.findByTenantId(normalizedTenantId)
+        Map<String, ProviderHealthStatus> healthStatusByProvider = providerHealthStatusRepository
+                .findByTenantIdAndWorkspaceId(normalizedTenantId, normalizedWorkspaceId)
                 .stream()
                 .collect(Collectors.toMap(ProviderHealthStatus::getProviderId, Function.identity(), (left, right) -> left));
 
@@ -132,7 +143,7 @@ public class ProviderSelectionStrategy {
                 .max(Comparator.comparingInt(ScoredProvider::score))
                 .orElseThrow(() -> new IllegalStateException("No healthy provider adapter available for tenant " + normalizedTenantId));
         SmtpProvider selectedProvider = selected.provider();
-        persistDecisionTrace(normalizedTenantId, normalizedDomain, candidates, selectedProvider);
+        persistDecisionTrace(normalizedTenantId, normalizedWorkspaceId, normalizedDomain, candidates, selectedProvider);
 
         ProviderAdapter adapter = resolveAdapter(selectedProvider);
         if (adapter == null) {
@@ -228,12 +239,12 @@ public class ProviderSelectionStrategy {
         return new ScoredProvider(provider, score, factors.toString());
     }
 
-    private void persistDecisionTrace(String tenantId, String senderDomain, List<ScoredProvider> candidates, SmtpProvider selectedProvider) {
+    private void persistDecisionTrace(String tenantId,
+                                      String workspaceId,
+                                      String senderDomain,
+                                      List<ScoredProvider> candidates,
+                                      SmtpProvider selectedProvider) {
         if (providerDecisionTraceRepository == null) {
-            return;
-        }
-        String workspaceId = TenantContext.getWorkspaceId();
-        if (workspaceId == null || workspaceId.isBlank()) {
             return;
         }
         try {
@@ -283,9 +294,10 @@ public class ProviderSelectionStrategy {
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
     }
 
-    private SmtpProvider createDefaultProvider(String tenantId) {
+    private SmtpProvider createDefaultProvider(String tenantId, String workspaceId) {
         SmtpProvider provider = new SmtpProvider();
         provider.setTenantId(tenantId);
+        provider.setWorkspaceId(workspaceId);
         provider.setName("Default MailHog SMTP");
         provider.setType("SMTP");
         provider.setHost(defaultProviderHost);
@@ -295,7 +307,7 @@ public class ProviderSelectionStrategy {
         provider.setHealthCheckEnabled(false);
         provider.setHealthStatus("HEALTHY");
         SmtpProvider saved = smtpProviderRepository.save(provider);
-        log.info("Auto-created default provider {} for tenant {}", saved.getId(), tenantId);
+        log.info("Auto-created default provider {} for tenant/workspace {}/{}", saved.getId(), tenantId, workspaceId);
         return saved;
     }
 

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.legent.cache.service.CacheService;
+import com.legent.common.exception.NotFoundException;
 import com.legent.foundation.domain.FeatureFlag;
 import com.legent.foundation.dto.FeatureFlagDto;
 import com.legent.foundation.mapper.FeatureFlagMapper;
@@ -117,5 +118,97 @@ class FeatureFlagServiceTest {
 
                 assertThat(result.isEnabled()).isTrue();
                 verify(featureFlagRepository, never()).findByKeyWithFallback(any(), any());
+        }
+
+        @Test
+        @DisplayName("getFlag returns only tenant-scoped flags")
+        void getFlag_returnsTenantScopedFlag() {
+                FeatureFlag flag = tenantFlag("flag-1", TENANT_ID);
+                FeatureFlagDto.Response response = responseFor(flag);
+                when(featureFlagRepository.findByIdAndTenantIdAndDeletedAtIsNull("flag-1", TENANT_ID))
+                                .thenReturn(Optional.of(flag));
+                when(featureFlagMapper.toResponse(flag)).thenReturn(response);
+
+                FeatureFlagDto.Response result = featureFlagService.getFlag("flag-1");
+
+                assertThat(result).isSameAs(response);
+                verify(featureFlagRepository, never()).findById(anyString());
+        }
+
+        @Test
+        @DisplayName("getFlag hides flags from other tenants")
+        void getFlag_hidesCrossTenantFlag() {
+                when(featureFlagRepository.findByIdAndTenantIdAndDeletedAtIsNull("flag-1", TENANT_ID))
+                                .thenReturn(Optional.empty());
+
+                assertThatThrownBy(() -> featureFlagService.getFlag("flag-1"))
+                                .isInstanceOf(NotFoundException.class);
+
+                verify(featureFlagRepository, never()).findById(anyString());
+                verify(featureFlagMapper, never()).toResponse(any());
+        }
+
+        @Test
+        @DisplayName("getFlag fails closed when tenant context is missing")
+        void getFlag_missingTenantFailsBeforeRepositoryLookup() {
+                TenantContext.clear();
+
+                assertThatThrownBy(() -> featureFlagService.getFlag("flag-1"))
+                                .isInstanceOf(IllegalArgumentException.class)
+                                .hasMessageContaining("tenantId is required");
+
+                verifyNoInteractions(featureFlagRepository, featureFlagMapper);
+        }
+
+        @Test
+        @DisplayName("updateFlag hides flags from other tenants")
+        void updateFlag_hidesCrossTenantFlagWithoutSaving() {
+                when(featureFlagRepository.findByIdAndTenantIdAndDeletedAtIsNull("flag-1", TENANT_ID))
+                                .thenReturn(Optional.empty());
+
+                FeatureFlagDto.UpdateRequest request = FeatureFlagDto.UpdateRequest.builder()
+                                .enabled(true)
+                                .build();
+
+                assertThatThrownBy(() -> featureFlagService.updateFlag("flag-1", request))
+                                .isInstanceOf(NotFoundException.class);
+
+                verify(featureFlagRepository, never()).findById(anyString());
+                verify(featureFlagRepository, never()).save(any());
+                verifyNoInteractions(featureFlagMapper);
+        }
+
+        @Test
+        @DisplayName("deleteFlag hides flags from other tenants")
+        void deleteFlag_hidesCrossTenantFlagWithoutSaving() {
+                when(featureFlagRepository.findByIdAndTenantIdAndDeletedAtIsNull("flag-1", TENANT_ID))
+                                .thenReturn(Optional.empty());
+
+                assertThatThrownBy(() -> featureFlagService.deleteFlag("flag-1"))
+                                .isInstanceOf(NotFoundException.class);
+
+                verify(featureFlagRepository, never()).findById(anyString());
+                verify(featureFlagRepository, never()).save(any());
+                verifyNoInteractions(featureFlagMapper);
+        }
+
+        private FeatureFlag tenantFlag(String id, String tenantId) {
+                FeatureFlag flag = new FeatureFlag();
+                flag.setId(id);
+                flag.setTenantId(tenantId);
+                flag.setFlagKey("beta_feature");
+                flag.setEnabled(true);
+                flag.setScope(FeatureFlag.FlagScope.TENANT);
+                return flag;
+        }
+
+        private FeatureFlagDto.Response responseFor(FeatureFlag flag) {
+                return FeatureFlagDto.Response.builder()
+                                .id(flag.getId())
+                                .tenantId(flag.getTenantId())
+                                .flagKey(flag.getFlagKey())
+                                .enabled(flag.isEnabled())
+                                .scope(flag.getScope().name())
+                                .build();
         }
 }

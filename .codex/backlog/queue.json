@@ -1,141 +1,1282 @@
-{
-  "schemaVersion": 1,
-  "freshBaselineDate": "2026-05-20",
-  "lastUpdated": "2026-05-20",
-  "selectionPolicy": "Sort READY work by priorityScore descending, then no blockers, smallest safe scope, validation availability, and lease compatibility.",
-  "readyWork": [
-    {
-      "id": "fresh-repo-production-audit",
-      "title": "Run fresh repository production-readiness audit",
-      "status": "READY",
-      "priorityScore": 62,
-      "scoring": {
-        "productionReadinessImpact": 5,
-        "securityRisk": 4,
-        "userImpact": 3,
-        "performanceImpact": 4,
-        "technicalDebtImpact": 4
-      },
-      "owner": "PROGRAM_MANAGER_AGENT",
-      "partnerAgents": ["SECURITY_ENGINEER", "PERFORMANCE_ENGINEER", "RELEASE_MANAGER", "TEST_ARCHITECT"],
-      "scope": "Run a fresh audit from current repository sources and validators; produce current risks and first implementation slices.",
-      "nonGoals": "Do not claim production readiness or change product behavior during audit-only work.",
-      "sourceFiles": ["AGENTS.md", "ARCHITECTURE.md", "PROJECT_CONTEXT.md", ".codex/commands/full-audit.md"],
-      "acceptanceCriteria": [
-        "Current findings cite source files or commands.",
-        "Findings are converted into READY, BACKLOG, or BLOCKED queue items.",
-        "Memory receives only fresh verified facts."
-      ],
-      "validationProfile": "audit",
-      "validationCommands": [
-        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
-        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
-      ],
-      "dependencies": [],
-      "blockers": [],
-      "memoryTargets": ["unresolved-risks.md", "technical-debt.md", "security-findings.md", "performance-bottlenecks.md"],
-      "nextAction": "Execute .codex/commands/full-audit.md and refine the backlog.",
-      "lastUpdated": "2026-05-20"
-    },
-    {
-      "id": "salesforce-parity-research-refresh",
-      "title": "Refresh Salesforce and competitor parity matrix",
-      "status": "READY",
-      "priorityScore": 49,
-      "scoring": {
-        "productionReadinessImpact": 3,
-        "securityRisk": 1,
-        "userImpact": 5,
-        "performanceImpact": 2,
-        "technicalDebtImpact": 4
-      },
-      "owner": "SALESFORCE_PARITY_RESEARCHER",
-      "partnerAgents": ["PRODUCT_MANAGER_AGENT", "UX_STRATEGIST", "PRINCIPAL_ARCHITECT"],
-      "scope": "Use current sources to update product parity and convert gaps into scored implementation slices.",
-      "nonGoals": "Do not make unsupported parity claims or copy long external content.",
-      "sourceFiles": ["PROJECT_CONTEXT.md", ".codex/workflows/salesforce-parity-roadmap.md", "docs/product/salesforce-parity-matrix.md"],
-      "acceptanceCriteria": [
-        "Matrix has dated sources and separates facts from inference.",
-        "Gaps are scored and routed to backlog items.",
-        "Beginner, advanced, and admin modes are considered."
-      ],
-      "validationProfile": "research",
-      "validationCommands": [
-        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
-      ],
-      "dependencies": [],
-      "blockers": [],
-      "memoryTargets": ["enhancement-log.md", "design-decisions.md"],
-      "nextAction": "Run .codex/commands/research-pass.md for product parity.",
-      "lastUpdated": "2026-05-20"
-    },
-    {
-      "id": "high-volume-readiness-audit",
-      "title": "Audit 10 lakh send readiness and load evidence gaps",
-      "status": "READY",
-      "priorityScore": 58,
-      "scoring": {
-        "productionReadinessImpact": 5,
-        "securityRisk": 3,
-        "userImpact": 4,
-        "performanceImpact": 5,
-        "technicalDebtImpact": 3
-      },
-      "owner": "PERFORMANCE_ENGINEER",
-      "partnerAgents": ["DELIVERABILITY_ENGINEER", "SYSTEM_DESIGNER", "SRE_MONITORING_ENGINEER"],
-      "scope": "Audit campaign, audience, delivery, tracking, Kafka, provider rate, warmup, and observability paths for bounded high-volume operation.",
-      "nonGoals": "Do not bypass warmup, suppression, unsubscribe, rate control, provider health, or inbox safety.",
-      "sourceFiles": ["docs/load-testing/high-volume-readiness.md", ".codex/skills/legent-performance-scale/SKILL.md"],
-      "acceptanceCriteria": [
-        "Findings identify measured evidence gaps separately from code gaps.",
-        "Implementation candidates are chunked into safe slices.",
-        "Throughput claims remain blocked unless evidence exists."
-      ],
-      "validationProfile": "performance",
-      "validationCommands": [
-        "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
-      ],
-      "dependencies": [],
-      "blockers": [],
-      "memoryTargets": ["performance-bottlenecks.md", "blocked-items.md", "unresolved-risks.md"],
-      "nextAction": "Run a high-volume performance pass and refine executable findings.",
-      "lastUpdated": "2026-05-20"
-    }
-  ],
-  "backlogWork": [],
-  "blockedWork": [
-    {
-      "id": "production-evidence-pack",
-      "title": "Collect strict production release evidence",
-      "status": "BLOCKED",
-      "priorityScore": 65,
-      "scoring": {
-        "productionReadinessImpact": 5,
-        "securityRisk": 5,
-        "userImpact": 3,
-        "performanceImpact": 3,
-        "technicalDebtImpact": 4
-      },
-      "owner": "RELEASE_MANAGER",
-      "partnerAgents": ["DEVOPS_ENGINEER", "SECURITY_ENGINEER", "SRE_MONITORING_ENGINEER"],
-      "scope": "Collect real target evidence for release promotion.",
-      "nonGoals": "Do not replace production evidence with local-only checks.",
-      "sourceFiles": ["scripts/ops/release-gate.ps1", "docs/operations/ga-evidence-matrix.md"],
-      "acceptanceCriteria": [
-        "Image, GA, egress, restore, monitoring, TLS/admission, CI/security, and load evidence are present.",
-        "Strict release gate passes without -LocalOnly."
-      ],
-      "validationProfile": "release",
-      "validationCommands": [
-        "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -RequireExternalEgressEvidence -RequireGaEvidence -RequireImageEvidence -RequireImageDigests"
-      ],
-      "dependencies": ["target environment access", "provider capacity evidence", "CI/security artifacts"],
-      "blockers": ["External evidence not present in repository"],
-      "memoryTargets": ["blocked-items.md", "release-history.md", "unresolved-risks.md"],
-      "nextAction": "Collect external evidence, then run strict release gate.",
-      "lastUpdated": "2026-05-20"
-    }
-  ],
-  "doneWork": []
+﻿{
+    "schemaVersion":  1,
+    "freshBaselineDate":  "2026-05-20",
+    "lastUpdated":  "2026-05-20",
+    "selectionPolicy":  "Sort READY work by priorityScore descending, then no blockers, smallest safe scope, validation availability, and lease compatibility.",
+    "readyWork":  [
+
+                  ],
+    "backlogWork":  [
+                        {
+                            "id":  "ai-governance-optimization-foundation",
+                            "title":  "Design AI governance before model-backed optimization features",
+                            "status":  "BACKLOG",
+                            "priorityScore":  54,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  4,
+                                            "userImpact":  5,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "PRODUCT_MANAGER_AGENT",
+                            "partnerAgents":  [
+                                                  "SECURITY_ENGINEER",
+                                                  "DATA_ARCHITECT",
+                                                  "FRONTEND_OWNER"
+                                              ],
+                            "scope":  "Define and implement the governance foundation for AI assistance, send-time optimization, predictive segments, and frequency optimization before claiming true model-backed AI parity.",
+                            "nonGoals":  "Do not add provider credentials, call external model APIs, or claim Salesforce Einstein parity in this slice.",
+                            "sourceFiles":  [
+                                                "PROJECT_CONTEXT.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                                "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                                "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java",
+                                                "services/foundation-service/src/main/java/com/legent/foundation/service/performance/OperationsAssistanceService.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "AI capability claims distinguish deterministic heuristics from model-backed features.",
+                                                       "Data-use, provider disclosure, opt-in, human review, audit, metering, and minimum data-threshold requirements are documented.",
+                                                       "Backlog follow-ups are split into content assistance, send-time optimization, predictive segments, and frequency optimization."
+                                                   ],
+                            "validationProfile":  "research-security",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI architecture decision",
+                                                 "data-use policy"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "design-decisions.md",
+                                                  "security-findings.md"
+                                              ],
+                            "nextAction":  "Create the AI governance design before implementation slices are marked READY.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "email-governance-policy-objects",
+                            "title":  "Add first-class email send governance policy objects",
+                            "status":  "BACKLOG",
+                            "priorityScore":  50,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  3,
+                                            "userImpact":  4,
+                                            "performanceImpact":  1,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "CONTENT_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "DELIVERABILITY_ENGINEER",
+                                                  "CAMPAIGN_SERVICE_OWNER",
+                                                  "DATABASE_ENGINEER"
+                                              ],
+                            "scope":  "Model send classifications, sender profiles, delivery profiles, CAN-SPAM/commercial-vs-transactional type, suppression/publication policy, and send-log retention as explicit workflow controls.",
+                            "nonGoals":  "Do not bypass existing suppression, unsubscribe, warmup, inbox safety, or content sanitization controls.",
+                            "sourceFiles":  [
+                                                "services/content-service/src/main/java/com/legent/content/controller/TemplateController.java",
+                                                "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
+                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/InboxSafetyService.java",
+                                                "docs/product/salesforce-parity-matrix.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Send governance objects have tenant/workspace-scoped ownership and auditability.",
+                                                       "Campaign launch references explicit send policy choices before handoff.",
+                                                       "Deliverability and suppression controls remain fail-closed.",
+                                                       "Focused tests cover missing, invalid, and cross-tenant policy usage."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/content-service,services/campaign-service,services/delivery-service -am test"
+                                                   ],
+                            "dependencies":  [
+                                                 "schema design"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "technical-debt.md",
+                                                  "security-findings.md"
+                                              ],
+                            "nextAction":  "Design schema/API boundaries for send governance before implementation.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "contact-data-designer-governance",
+                            "title":  "Deepen Contact Builder style data-designer governance",
+                            "status":  "BACKLOG",
+                            "priorityScore":  49,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  3,
+                                            "userImpact":  4,
+                                            "performanceImpact":  3,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "AUDIENCE_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "DATABASE_ENGINEER",
+                                                  "SECURITY_ENGINEER",
+                                                  "FRONTEND_OWNER"
+                                              ],
+                            "scope":  "Add explicit data-source provenance, relationship cardinality controls, deletion audit, sendable-key governance, and safer relationship/query preview behavior for data extensions and contact records.",
+                            "nonGoals":  "Do not migrate historical Flyway files or weaken tenant/workspace scoping.",
+                            "sourceFiles":  [
+                                                "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/controller/SubscriberController.java",
+                                                "frontend/src/app/(workspace)/audience/data-extensions/page.tsx",
+                                                "frontend/src/components/audience/SegmentRuleBuilder.tsx"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Relationship/cardinality changes are validated and audited.",
+                                                       "Sendable-key and retention/deletion policy changes are tenant/workspace scoped.",
+                                                       "Query preview and segment behavior document performance constraints.",
+                                                       "Tests cover cross-workspace denial and invalid relationship changes."
+                                                   ],
+                            "validationProfile":  "backend-frontend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                       "cd frontend; npm run lint"
+                                                   ],
+                            "dependencies":  [
+                                                 "data-governance schema design"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "technical-debt.md",
+                                                  "security-findings.md"
+                                              ],
+                            "nextAction":  "Decompose data-designer governance into migration-safe service and UI slices.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "automation-studio-activity-orchestration",
+                            "title":  "Expand Automation Studio activity orchestration safely",
+                            "status":  "BACKLOG",
+                            "priorityScore":  48,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  2,
+                                            "userImpact":  4,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "AUTOMATION_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "PLATFORM_SERVICE_OWNER",
+                                                  "SRE_MONITORING_ENGINEER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Decompose support for file/trigger starts, extracts, script/webhook/send activities, dependency ordering, notifications, and richer run-history/error details.",
+                            "nonGoals":  "Do not add arbitrary script execution or external storage credentials without a separate security design.",
+                            "sourceFiles":  [
+                                                "services/automation-service/src/main/java/com/legent/automation/controller/AutomationStudioController.java",
+                                                "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                                "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
+                                                "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
+                                                "frontend/src/app/(workspace)/automation/page.tsx"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Unsupported activity types fail closed with clear validation.",
+                                                       "Dependency ordering and run-history design is documented before new activity execution is added.",
+                                                       "Security review exists for scripts, file transfer, webhooks, and external object storage.",
+                                                       "Follow-up READY slices are split by activity family."
+                                                   ],
+                            "validationProfile":  "research-backend",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                   ],
+                            "dependencies":  [
+                                                 "security design for executable/external activities"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "technical-debt.md",
+                                                  "security-findings.md"
+                                              ],
+                            "nextAction":  "Create implementation plan and split executable activity families before coding.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "mode-aware-workflow-contract",
+                            "title":  "Turn BASIC and ADVANCED UI mode into a workflow contract",
+                            "status":  "BACKLOG",
+                            "priorityScore":  42,
+                            "scoring":  {
+                                            "productionReadinessImpact":  2,
+                                            "securityRisk":  2,
+                                            "userImpact":  5,
+                                            "performanceImpact":  0,
+                                            "technicalDebtImpact":  5
+                                        },
+                            "owner":  "FRONTEND_OWNER",
+                            "partnerAgents":  [
+                                                  "UX_STRATEGIST",
+                                                  "SECURITY_ENGINEER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Promote the existing BASIC/ADVANCED toggle into a reusable workflow metadata and visibility contract, and design role-gated Admin surfaces without claiming current Admin mode parity.",
+                            "nonGoals":  "Do not hide security-sensitive controls only with CSS or store tokens in browser storage.",
+                            "sourceFiles":  [
+                                                "frontend/src/stores/uiStore.ts",
+                                                "frontend/src/components/shell/Header.tsx",
+                                                "frontend/src/styles/globals.css",
+                                                "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                                                "frontend/src/components/content/TemplateStudioCommandCenter.tsx",
+                                                "frontend/src/components/automation/JourneyBuilder.tsx"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Workflow surfaces define mode metadata instead of relying only on `data-advanced` CSS hiding.",
+                                                       "Hidden advanced controls are not keyboard-focusable in BASIC mode.",
+                                                       "Admin controls are role-gated and not treated as a third local toggle until implemented.",
+                                                       "Playwright or component tests cover mode visibility and direct route behavior."
+                                                   ],
+                            "validationProfile":  "frontend-focused",
+                            "validationCommands":  [
+                                                       "cd frontend; npm run lint",
+                                                       "cd frontend; npm run build:ci"
+                                                   ],
+                            "dependencies":  [
+                                                 "UX policy design"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "design-decisions.md",
+                                                  "technical-debt.md"
+                                              ],
+                            "nextAction":  "Design the mode metadata contract and identify first workflow surface to migrate.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "flow-analytics-experimentation",
+                            "title":  "Add journey step analytics and experimentation depth",
+                            "status":  "BACKLOG",
+                            "priorityScore":  39,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  1,
+                                            "userImpact":  4,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "TRACKING_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "AUTOMATION_SERVICE_OWNER",
+                                                  "FRONTEND_OWNER",
+                                                  "DATA_ARCHITECT"
+                                              ],
+                            "scope":  "Add journey step metrics, conversion goals, random cohort and A/B reporting, winning-path reporting, and anomaly surfacing around journey/campaign execution.",
+                            "nonGoals":  "Do not claim causal attribution or anomaly accuracy without measured evidence.",
+                            "sourceFiles":  [
+                                                "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/controller/BiAnalyticsController.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                                "services/automation-service/src/main/java/com/legent/automation/controller/WorkflowController.java",
+                                                "frontend/src/app/(workspace)/analytics/page.tsx"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Journey step metrics and conversion goals have explicit event contracts.",
+                                                       "Experiment reporting separates campaign experiments from journey path tests.",
+                                                       "Anomaly language is evidence-based and avoids unsupported AI claims.",
+                                                       "Validation plan covers tracking ingestion, rollups, and UI rendering."
+                                                   ],
+                            "validationProfile":  "backend-frontend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/tracking-service,services/automation-service -am test",
+                                                       "cd frontend; npm run lint"
+                                                   ],
+                            "dependencies":  [
+                                                 "event contract design"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "technical-debt.md",
+                                                  "performance-bottlenecks.md"
+                                              ],
+                            "nextAction":  "Design the event and rollup contract before implementation.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "platform-event-idempotency",
+                            "title":  "Add idempotency to platform event consumers",
+                            "status":  "BACKLOG",
+                            "priorityScore":  46,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  2,
+                                            "userImpact":  4,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  7
+                                        },
+                            "owner":  "PLATFORM_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "KAFKA_CONTRACTS_OWNER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Prevent duplicate webhook dispatches, notifications, and search updates on Kafka retries.",
+                            "nonGoals":  "Do not remove existing envelope validation.",
+                            "sourceFiles":  [
+                                                "services/platform-service/src/main/java/com/legent/platform/event/PlatformEventConsumer.java",
+                                                "services/platform-service/src/main/java/com/legent/platform/service/NotificationEngine.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Duplicate envelopes with the same event identity cause one side effect.",
+                                                       "Retryable failures still rethrow for retry/DLQ."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/platform-service -am test"
+                                                   ],
+                            "dependencies":  [
+
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "technical-debt.md"
+                                              ],
+                            "nextAction":  "Design platform event idempotency storage and tests.",
+                            "lastUpdated":  "2026-05-20"
+                        }
+                    ],
+    "blockedWork":  [
+                        {
+                            "id":  "production-evidence-pack",
+                            "title":  "Collect strict production release evidence",
+                            "status":  "BLOCKED",
+                            "priorityScore":  65,
+                            "scoring":  {
+                                            "productionReadinessImpact":  5,
+                                            "securityRisk":  5,
+                                            "userImpact":  3,
+                                            "performanceImpact":  3,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "RELEASE_MANAGER",
+                            "partnerAgents":  [
+                                                  "DEVOPS_ENGINEER",
+                                                  "SECURITY_ENGINEER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Collect real target evidence for release promotion.",
+                            "nonGoals":  "Do not replace production evidence with local-only checks.",
+                            "sourceFiles":  [
+                                                "scripts/ops/release-gate.ps1",
+                                                "docs/operations/ga-evidence-matrix.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Image, GA, egress, restore, monitoring, TLS/admission, CI/security, and load evidence are present.",
+                                                       "Strict release gate passes without -LocalOnly."
+                                                   ],
+                            "validationProfile":  "release",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -RequireExternalEgressEvidence -RequireGaEvidence -RequireImageEvidence -RequireImageDigests"
+                                                   ],
+                            "dependencies":  [
+                                                 "target environment access",
+                                                 "provider capacity evidence",
+                                                 "CI/security artifacts"
+                                             ],
+                            "blockers":  [
+                                             "External evidence not present in repository"
+                                         ],
+                            "memoryTargets":  [
+                                                  "blocked-items.md",
+                                                  "release-history.md",
+                                                  "unresolved-risks.md"
+                                              ],
+                            "nextAction":  "Collect external evidence, then run strict release gate.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "live-high-volume-proof",
+                            "title":  "Collect target-like high-volume send proof",
+                            "status":  "BLOCKED",
+                            "priorityScore":  58,
+                            "scoring":  {
+                                            "productionReadinessImpact":  5,
+                                            "securityRisk":  3,
+                                            "userImpact":  4,
+                                            "performanceImpact":  5,
+                                            "technicalDebtImpact":  3
+                                        },
+                            "owner":  "PERFORMANCE_ENGINEER",
+                            "partnerAgents":  [
+                                                  "DELIVERABILITY_ENGINEER",
+                                                  "RELEASE_MANAGER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Prove 10 lakh send readiness with warmed sender/provider capacity, load evidence, Kafka/DB/Redis/ClickHouse metrics, retry/DLQ, and observability.",
+                            "nonGoals":  "Do not claim throughput for new or unwarmed domains.",
+                            "sourceFiles":  [
+                                                "docs/load-testing/high-volume-readiness.md",
+                                                ".codex/memory/blocked-items.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Dated target-like load report exists.",
+                                                       "Provider/domain warmup and capacity evidence exists.",
+                                                       "Retry, DLQ, suppression, tracking, and monitoring evidence is included."
+                                                   ],
+                            "validationProfile":  "performance",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -RequireExternalEgressEvidence -RequireGaEvidence -RequireImageEvidence -RequireImageDigests"
+                                                   ],
+                            "dependencies":  [
+                                                 "warmed sender domains",
+                                                 "provider capacity evidence",
+                                                 "target-like infrastructure"
+                                             ],
+                            "blockers":  [
+                                             "External capacity and live load evidence not present in repository"
+                                         ],
+                            "memoryTargets":  [
+                                                  "blocked-items.md",
+                                                  "performance-bottlenecks.md",
+                                                  "unresolved-risks.md"
+                                              ],
+                            "nextAction":  "Run a target-like load harness with provider-approved capacity before making throughput claims.",
+                            "lastUpdated":  "2026-05-20"
+                        }
+                    ],
+    "doneWork":  [
+                     {
+                         "id":  "salesforce-parity-research-refresh",
+                         "title":  "Refresh Salesforce and competitor parity matrix",
+                         "status":  "DONE",
+                         "priorityScore":  49,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  1,
+                                         "userImpact":  5,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "SALESFORCE_PARITY_RESEARCHER",
+                         "partnerAgents":  [
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "UX_STRATEGIST",
+                                               "PRINCIPAL_ARCHITECT",
+                                               "PROGRAM_MANAGER_AGENT",
+                                               "DOCUMENTATION_ENGINEER"
+                                           ],
+                         "scope":  "Refreshed Salesforce Marketing Cloud and competitor parity sources, updated the dated matrix, and routed implementable gaps into scored backlog candidates.",
+                         "nonGoals":  "Do not make unsupported parity, model-backed AI, production-readiness, inbox-placement, or 10 lakh throughput claims.",
+                         "sourceFiles":  [
+                                             "PROJECT_CONTEXT.md",
+                                             ".codex/workflows/salesforce-parity-roadmap.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/README.md",
+                                             "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Matrix has dated sources and separates facts from inference.",
+                                                    "Gaps are scored and routed to backlog items.",
+                                                    "Beginner, advanced, and admin mode implications are recorded without claiming current Admin mode parity."
+                                                ],
+                         "validationProfile":  "research",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "design-decisions.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with the highest-priority READY item: journey-runtime-node-contract.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T06:42:14+05:30"
+                     },
+                     {
+                         "id":  "kafka-dlq-sharding",
+                         "title":  "Shard Kafka DLQ routing instead of fixed partition zero",
+                         "status":  "DONE",
+                         "priorityScore":  51,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "KAFKA_CONTRACTS_OWNER",
+                         "partnerAgents":  [
+                                               "SRE_MONITORING_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Shared Kafka listener DLQ routing now preserves failed record source partitions, and the shared/local DLQ topic topology supports six partitions instead of a single hot partition.",
+                         "nonGoals":  "Do not widen Kafka deserialization trusted packages.",
+                         "sourceFiles":  [
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaConsumerConfig.java",
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaConsumerConfigTest.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java",
+                                             "docker-compose.yml"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "DLQ recoverer no longer routes every failed record to partition 0.",
+                                                    "DLQ topic partitioning supports current high-volume source topic partition counts.",
+                                                    "Kafka config tests cover source-partition routing and topic partition compatibility.",
+                                                    "Local Compose topic initialization is aligned with the shared six-partition DLQ topic."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -am \u0027-Dtest=KafkaConsumerConfigTest,KafkaTopicConfigTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -am test",
+                                                    "docker compose config --quiet",
+                                                    "rg -n \"new TopicPartition\\(AppConstants\\.TOPIC_KAFKA_DLQ, 0\\)|kafka\\.dead-letter:1|kafka.dead-letter:1\" shared docker-compose.yml (expected no matches)",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: salesforce-parity-research-refresh.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T06:23:33+05:30"
+                     },
+                     {
+                         "id":  "egress-evidence-validator-hardening",
+                         "title":  "Harden production egress evidence validator",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "RELEASE_MANAGER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Production egress evidence validator now rejects template/example files, placeholder reviewer/rule values, documentation CIDRs, unsupported FQDN evidence, broad/non-canonical CIDRs, future dates, and unsupported schema versions while accepting reviewed public or private endpoint CIDR evidence.",
+                         "nonGoals":  "Do not replace real external egress review with local checks.",
+                         "sourceFiles":  [
+                                             "scripts/ops/validate-production-egress-evidence.ps1",
+                                             "scripts/ops/test-release-evidence-validators.ps1",
+                                             "docs/operations/ga-evidence-matrix.md",
+                                             ".codex/commands/release-pass.md",
+                                             ".codex/workflows/validation-gates.md",
+                                             ".codex/reports/autonomous-org-hardening-2026-05-20.md",
+                                             ".codex/reports/autonomous-org-build-2026-05-20.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Template evidence fails validation.",
+                                                    "Documentation/example CIDRs fail validation.",
+                                                    "Placeholder reviewer/provider/rule values and unsupported FQDN evidence fail validation.",
+                                                    "Release evidence validator self-test passes with valid public and reviewed private endpoint controls."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "EXPECTED-FAIL powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-egress-evidence.ps1 -EvidencePath docs\\operations\\production-egress-evidence.template.json",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: kafka-dlq-sharding.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T06:06:53+05:30"
+                     },
+                     {
+                         "id":  "campaign-send-content-reference-contract",
+                         "title":  "Align campaign send handoff with email-send contract",
+                         "status":  "DONE",
+                         "priorityScore":  56,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "CONTENT_SERVICE_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Campaign send now always creates and publishes a durable contentReference for email.send.requested while retaining optional inline rendered content only as configured fallback under the payload cap.",
+                         "nonGoals":  "Do not bypass content rendering, sanitization, or tracking URL safety.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                             "services/campaign-service/src/main/resources/application.yml",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/producer/EventContractValidatorTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Campaign send handoff always includes contentReference before publishing email.send.requested.",
+                                                    "Configured-off and configured-on content-reference tests both emit contract-compliant payloads.",
+                                                    "Reference-only payloads remain valid and inline-only or blank-reference shared Kafka payloads are rejected."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \u0027-Dtest=SendExecutionServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -am \u0027-Dtest=EventContractValidatorTest,EventPublisherTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service,shared/legent-kafka -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: egress-evidence-validator-hardening.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T05:48:37+05:30"
+                     },
+                     {
+                         "id":  "delivery-feedback-outbox",
+                         "title":  "Make delivery feedback publication durable",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  3,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Added a delivery-local outbox so email sent/failed/bounced/retry feedback is persisted with stable event IDs and retried after Kafka publish failures.",
+                         "nonGoals":  "Do not mark real provider successes failed solely because Kafka is unavailable.",
+                         "sourceFiles":  [
+                                             "services/delivery-service/src/main/java/com/legent/delivery/DeliveryApplication.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/domain/DeliveryFeedbackOutboxEvent.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryFeedbackMessage.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventPublisher.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryFeedbackOutboxEventRepository.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java",
+                                             "services/delivery-service/src/main/resources/db/migration/V15__delivery_feedback_outbox_events.sql",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventPublisherTest.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryOrchestrationServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Delivery feedback is durably retried via a leased outbox.",
+                                                    "Kafka publish failures do not convert accepted provider sends into delivery failures.",
+                                                    "Outbox retries reuse stable event IDs, idempotency keys, payloads, and partition keys.",
+                                                    "Delivery scheduling is enabled so feedback, retry, and provider health scheduled jobs can run."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am \u0027-Dtest=DeliveryEventPublisherTest,DeliveryFeedbackOutboxServiceTest,DeliveryOrchestrationServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: campaign-send-content-reference-contract.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T05:23:01+05:30"
+                     },
+                     {
+                         "id":  "audience-bulk-suppression-check",
+                         "title":  "Replace broad suppression fetch with bulk candidate check",
+                         "priorityScore":  58,
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "status":  "DONE",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/client/DeliverabilityServiceClient.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/event/AudienceResolutionConsumer.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/client/DeliverabilityServiceClientTest.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/event/AudienceResolutionConsumerTest.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/config/SecurityConfig.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/repository/SuppressionListRepository.java",
+                                             "services/deliverability-service/src/main/resources/db/migration/V10__suppression_bulk_lookup_index.sql",
+                                             "services/deliverability-service/src/test/java/com/legent/deliverability/controller/SuppressionControllerTest.java",
+                                             "services/deliverability-service/src/test/java/com/legent/deliverability/repository/SuppressionListRepositoryBulkLookupTest.java",
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "scripts/ops/validate-route-map.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Audience resolution checks only candidate emails.",
+                                                    "Lookup remains tenant/workspace scoped.",
+                                                    "Focused audience and deliverability tests cover bulk checks.",
+                                                    "Public edge denies child internal suppression routes."
+                                                ],
+                         "validationProfile":  "performance",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service,services/deliverability-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production | Out-Null",
+                                                    "docker compose config --quiet",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: delivery-feedback-outbox.",
+                         "lastUpdated":  "2026-05-20",
+                         "scope":  "Add tenant/workspace-scoped bulk suppression lookup for audience resolution candidate emails.",
+                         "nonGoals":  "Do not weaken suppression, unsubscribe, complaint, or tenant isolation behavior.",
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  3,
+                                         "userImpact":  4,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  3
+                                     }
+                     },
+                     {
+                         "id":  "internal-routes-edge-blocking",
+                         "title":  "Block service-internal endpoints at public edge",
+                         "status":  "DONE",
+                         "priorityScore":  61,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "API_ARCHITECT",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Prevent public Nginx/ingress exposure of service-to-service `/internal` routes while preserving internal service calls.",
+                         "nonGoals":  "Do not remove controller-level internal token validation or break service-to-service calls.",
+                         "sourceFiles":  [
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "scripts/ops/validate-route-map.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Public edge denies known `/internal` routes.",
+                                                    "Route map, Nginx, and ingress validators pass.",
+                                                    "Service-to-service token validation remains intact."
+                                                ],
+                         "validationProfile":  "route-runtime",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production",
+                                                    "docker compose config --quiet"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Monitor route drift through `scripts\\ops\\validate-route-map.ps1`.",
+                         "lastUpdated":  "2026-05-20"
+                     },
+                     {
+                         "id":  "fresh-repo-production-audit",
+                         "title":  "Run fresh repository production-readiness audit",
+                         "status":  "DONE",
+                         "priorityScore":  62,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "PROGRAM_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "RELEASE_MANAGER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Run a fresh audit from current repository sources and validators; produce current risks and first implementation slices.",
+                         "nonGoals":  "Do not claim production readiness.",
+                         "sourceFiles":  [
+                                             "AGENTS.md",
+                                             "ARCHITECTURE.md",
+                                             "PROJECT_CONTEXT.md",
+                                             ".codex/commands/full-audit.md",
+                                             ".codex/reports/production-readiness-audit-2026-05-20.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Current findings cite source files or commands.",
+                                                    "Findings are converted into READY, BACKLOG, or BLOCKED queue items.",
+                                                    "Memory receives only fresh verified facts."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "unresolved-risks.md",
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "performance-bottlenecks.md"
+                                           ],
+                         "nextAction":  "Continue with highest-priority READY implementation item.",
+                         "lastUpdated":  "2026-05-20"
+                     },
+                     {
+                         "id":  "feature-flag-tenant-scoped-id-operations",
+                         "title":  "Tenant-scope feature flag by-ID operations",
+                         "status":  "DONE",
+                         "priorityScore":  62,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  6
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add authorization and tenant-scoped repository lookup for feature flag get/update/delete by ID.",
+                         "nonGoals":  "Do not introduce global feature flag management behavior.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/controller/FeatureFlagController.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/FeatureFlagService.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/repository/FeatureFlagRepository.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/FeatureFlagServiceTest.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/controller/FeatureFlagControllerSecurityTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "GET by ID requires feature read permission.",
+                                                    "Get/update/delete by ID use tenant-scoped lookup.",
+                                                    "Cross-tenant and missing-tenant cases are tested."
+                                                ],
+                         "validationProfile":  "security",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Monitor for any required global feature flag admin workflow and design it explicitly if needed.",
+                         "lastUpdated":  "2026-05-20"
+                     },
+                     {
+                         "id":  "journey-runtime-node-contract",
+                         "title":  "Align Journey Builder node surface with runtime support",
+                         "status":  "DONE",
+                         "priorityScore":  48,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  1,
+                                         "userImpact":  5,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "FRONTEND_OWNER",
+                                               "TEST_ARCHITECT",
+                                               "PRODUCT_MANAGER_AGENT"
+                                           ],
+                         "scope":  "Make the frontend Journey Builder node library, backend workflow validation, simulation, and publish/runtime support agree so unsupported nodes cannot be silently published or executed generically.",
+                         "nonGoals":  "Do not build full Salesforce Journey Builder parity or add broad cross-channel runtime features in one slice.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/service/WorkflowStudioService.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/node/GenericNodeHandler.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/node/EntryTriggerNodeHandler.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/WorkflowEngineTest.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/WorkflowStudioServiceTest.java",
+                                             "frontend/src/app/(workspace)/automations/builder/page.tsx",
+                                             "frontend/src/components/automation/JourneyBuilder.tsx",
+                                             "frontend/src/components/automation/NodeEditorModal.tsx",
+                                             "frontend/src/components/automation/journey-node-contract.ts",
+                                             "frontend/src/lib/automation-api.ts",
+                                             "frontend/tests/e2e/automation-builder.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Every Journey Builder node type exposed in the frontend is either executed by the backend runtime or blocked before publish with a clear validation error.",
+                                                    "Backend capability/validation responses and frontend node availability stay synchronized.",
+                                                    "Simulation or dry-run output reflects runtime-supported transitions instead of silently treating unsupported nodes as generic next-step movement.",
+                                                    "Focused backend and frontend tests cover the node contract and at least one unsupported-node failure path."
+                                                ],
+                         "validationProfile":  "backend-frontend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am \u0027-Dtest=WorkflowGraphValidatorTest,WorkflowEngineTest,WorkflowStudioServiceTest,WorkflowTriggerConsumerTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/automation-service -am test",
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci",
+                                                    "cd frontend; npx playwright test tests/e2e/automation-builder.spec.ts --project=chromium",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md"
+                                           ],
+                         "nextAction":  "Continue with the next highest-priority READY item: tracking-ingress-rate-policy.",
+                         "lastUpdated":  "2026-05-20",
+                         "startedAt":  "2026-05-20T06:47:00+05:30",
+                         "completedAt":  "2026-05-20T07:23:00+05:30",
+                         "outcome":  "Journey Builder node creation, activation, backend publish/runtime validation, simulation, and focused tests now share the live runtime-supported node contract. Unsupported known nodes remain draft-only and fail closed before publish or runtime execution."
+                     },
+                     {
+                         "id":  "tracking-ingress-rate-policy",
+                         "title":  "Align tracking ingress rate policy with local Nginx",
+                         "status":  "DONE",
+                         "priorityScore":  43,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  1,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  2
+                                     },
+                         "owner":  "DEVOPS_ENGINEER",
+                         "partnerAgents":  [
+                                               "API_ARCHITECT",
+                                               "SRE_MONITORING_ENGINEER"
+                                           ],
+                         "scope":  "Bring Kubernetes tracking ingress rate-limit posture in line with the dedicated high-throughput local Nginx tracking policy.",
+                         "nonGoals":  "Do not claim target throughput without load evidence.",
+                         "sourceFiles":  [
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "scripts/ops/validate-route-map.ps1",
+                                             "docs/operations/ga-evidence-matrix.md",
+                                             ".codex/memory/performance-bottlenecks.md",
+                                             ".codex/memory/technical-debt.md",
+                                             ".codex/memory/unresolved-risks.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Tracking ingress has explicit reviewed rate-limit behavior.",
+                                                    "Kustomize render and route validation pass."
+                                                ],
+                         "validationProfile":  "route-runtime",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\global\\global-primary",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\global\\global-standby",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\global\\global-active-active",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Continue with the next highest-priority READY item: sso-tenant-cookie-httponly.",
+                         "lastUpdated":  "2026-05-20",
+                         "startedAt":  "2026-05-20T07:24:00+05:30",
+                         "completedAt":  "2026-05-20T07:35:00+05:30",
+                         "outcome":  "Kubernetes ingress now separates signed tracking ingestion from analytics/websocket routes, uses community ingress-nginx limit-rps annotations aligned with local Nginx tracking posture, and route validation enforces the split. This is protective configuration, not throughput evidence."
+                     },
+                     {
+                         "id":  "sso-tenant-cookie-httponly",
+                         "title":  "Align SSO tenant cookie with normal auth cookie policy",
+                         "status":  "DONE",
+                         "priorityScore":  42,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "IDENTITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Set SSO tenant cookie `httpOnly` behavior consistently with normal auth tenant cookie posture.",
+                         "nonGoals":  "Do not change access or refresh token cookie scope.",
+                         "sourceFiles":  [
+                                             "services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/controller/SsoController.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/controller/AuthControllerTest.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/controller/SsoControllerTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "SSO tenant cookie uses the same HTTP-only posture as normal auth.",
+                                                    "Focused identity tests cover the SSO callback cookie attributes."
+                                                ],
+                         "validationProfile":  "security",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/identity-service -am \u0027-Dtest=SsoControllerTest,AuthControllerTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/identity-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Continue continuous-cycle backlog refinement; highest-scored backlog candidate is delivery-provider-workspace-isolation, which needs a migration-safe schema plan before implementation.",
+                         "lastUpdated":  "2026-05-20",
+                         "startedAt":  "2026-05-20T07:36:00+05:30",
+                         "completedAt":  "2026-05-20T07:50:52+05:30",
+                         "outcome":  "SSO callback tenant cookies now match normal auth cookie posture: HttpOnly, Secure, SameSite, Max-Age, and path assertions are covered for OIDC and SAML ACS callbacks, and failed OIDC callbacks emit no cookies."
+                     },
+                     {
+                         "id":  "delivery-provider-workspace-isolation",
+                         "title":  "Scope delivery provider configuration by workspace",
+                         "status":  "DONE",
+                         "priorityScore":  65,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  2
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "SECURITY_ENGINEER",
+                                               "RELEASE_MANAGER"
+                                           ],
+                         "scope":  "Add workspace isolation to SMTP provider configuration and provider selection.",
+                         "nonGoals":  "Do not edit historical Flyway migrations; add forward migrations only.",
+                         "sourceFiles":  [
+                                             "services/delivery-service/src/main/java/com/legent/delivery/controller/ProviderController.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/repository/SmtpProviderRepository.java",
+                                             "services/delivery-service/src/main/resources/db/migration/V1__delivery_schema.sql",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/ProviderSelectionStrategy.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Provider CRUD and selection require tenant plus workspace scope.",
+                                                    "Forward migration backfills and constrains workspace ownership safely.",
+                                                    "Focused delivery tests cover cross-workspace denial."
+                                                ],
+                         "validationProfile":  "security",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am \u0027-Dtest=SmtpProviderWorkspaceMigrationTest,ProviderHealthMonitoringServiceTest,ProviderCapacityServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am \u0027-Dtest=ProviderSelectionStrategyTest,ProviderControllerWorkspaceScopeTest,SmtpProviderRepositoryWorkspaceTest,SmtpProviderWorkspaceMigrationTest,DeliveryOrchestrationServiceTest,ProviderHealthMonitoringServiceTest,DeliveryOperationsServiceWorkspaceScopeTest,ProviderCapacityServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am test",
+                                                    ".\\.codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Continue continuous-cycle with production-egress-policy-render-gate; production release remains blocked on external evidence.",
+                         "lastUpdated":  "2026-05-20",
+                         "startedAt":  "2026-05-20T08:02:47+05:30",
+                         "completedAt":  "2026-05-20T08:51:00+05:30",
+                         "outcome":  "Delivery provider configuration is now tenant+workspace scoped across provider CRUD, routing rules, provider selection, orchestration handoff, provider health checks/status, capacity profiles, and failover drills. V16 adds workspace ownership/backfill plus composite provider ownership constraints for routing, pools, scores, health, capacity, and failover tables; focused tests cover cross-workspace denial and migration assertions."
+                     },
+                     {
+                         "id":  "production-egress-policy-render-gate",
+                         "title":  "Prove reviewed production egress policy is rendered and applied",
+                         "status":  "DONE",
+                         "priorityScore":  47,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "DEVOPS_ENGINEER",
+                         "partnerAgents":  [
+                                               "RELEASE_MANAGER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Extend strict release validation so reviewed external egress evidence is not only validated but also rendered into the production network policy and included in the target production manifest.",
+                         "nonGoals":  "Do not substitute generated policy proof for real provider/CIDR review or target-environment evidence.",
+                         "sourceFiles":  [
+                                             "scripts/ops/release-gate.ps1",
+                                             "scripts/ops/write-production-egress-policy.ps1",
+                                             "scripts/ops/validate-production-egress-policy-render.ps1",
+                                             "scripts/ops/validate-production-egress-evidence.ps1",
+                                             "scripts/ops/test-release-evidence-validators.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Strict release mode proves reviewed external egress policy generation or manifest inclusion.",
+                                                    "Kustomize render includes the reviewed egress policy when strict egress evidence is supplied.",
+                                                    "Self-tests cover missing generated policy and stale generated policy failure modes."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production | Out-Null",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose",
+                                                    ".\\.codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "egress-evidence-validator-hardening"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Stop safely per user request after recording; do not start the next item until resumed.",
+                         "lastUpdated":  "2026-05-20",
+                         "startedAt":  "2026-05-20T08:51:45+05:30",
+                         "checkpoint":  ".codex/checkpoints/20260520T032145Z-production-egress-policy-render-gate.json",
+                         "completedAt":  "2026-05-20T09:18:41+05:30",
+                         "outcome":  "Strict egress release validation now validates reviewed evidence, generates or checks a reviewed external egress NetworkPolicy, proves it renders through a temporary production Kustomize overlay, verifies evidence hash/CIDR/port/protocol inclusion, rejects stale or missing generated policies, rejects FQDN rules until a supported generator exists, and guards the app-label selector against uncovered Deployment pod templates. This does not replace target-environment egress evidence."
+                     }
+                 ],
+    "activeWork":  [
+
+                   ],
+    "activeAgents":  [
+
+                     ]
 }

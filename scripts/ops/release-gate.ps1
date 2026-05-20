@@ -37,7 +37,7 @@ if (-not $LocalOnly -and -not ($RequireExternalEgressEvidence -and $RequireGaEvi
 
 if ($RequireExternalEgressEvidence) {
     if (-not $ExternalEgressEvidencePath) { Fail "External egress evidence path is required." }
-    Run-Step "external egress evidence" { & scripts/ops/validate-production-egress-evidence.ps1 -EvidencePath $ExternalEgressEvidencePath }
+    Run-Step "external egress evidence and render proof" { & scripts/ops/validate-production-egress-policy-render.ps1 -EvidencePath $ExternalEgressEvidencePath }
 }
 
 if ($RequireGaEvidence) {
@@ -84,4 +84,8 @@ if (-not $SkipFrontend) {
     }
 }
 
-Write-Host "Release gate completed. Strict release evidence may still be required by policy."
+if ($LocalOnly) {
+    Write-Host "Release gate completed in LOCAL-ONLY mode. This is not production promotion evidence."
+} else {
+    Write-Host "Release gate completed with strict evidence flags. Production promotion still depends on all required target evidence remaining current and reviewed."
+}

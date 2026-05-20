@@ -1,0 +1,36 @@
+{
+  "id": "audience-bulk-suppression-check",
+  "createdAt": "2026-05-19T22:58:38.0215600Z",
+  "objective": "Replace broad suppression fetch with tenant/workspace bulk candidate check",
+  "status": "DONE",
+  "owner": "AUDIENCE_SERVICE_OWNER",
+  "filesInScope": [
+    "services/audience-service/src/main/java/com/legent/audience/client/DeliverabilityServiceClient.java",
+    "services/audience-service/src/main/java/com/legent/audience/event/AudienceResolutionConsumer.java",
+    "services/audience-service/src/test/java/com/legent/audience/client/DeliverabilityServiceClientTest.java",
+    "services/audience-service/src/test/java/com/legent/audience/event/AudienceResolutionConsumerTest.java",
+    "services/deliverability-service/src/main/java/com/legent/deliverability/config/SecurityConfig.java",
+    "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+    "services/deliverability-service/src/main/java/com/legent/deliverability/repository/SuppressionListRepository.java",
+    "services/deliverability-service/src/main/resources/db/migration/V10__suppression_bulk_lookup_index.sql",
+    "services/deliverability-service/src/test/java/com/legent/deliverability/controller/SuppressionControllerTest.java",
+    "services/deliverability-service/src/test/java/com/legent/deliverability/repository/SuppressionListRepositoryBulkLookupTest.java",
+    "config/nginx/nginx.conf",
+    "infrastructure/kubernetes/ingress/ingress.yml",
+    "scripts/ops/validate-route-map.ps1"
+  ],
+  "agents": [],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/audience-service,services/deliverability-service -am test",
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production | Out-Null",
+    "docker compose config --quiet",
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Continue with next highest-priority READY item: delivery-feedback-outbox."
+}

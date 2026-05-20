@@ -1,0 +1,39 @@
+{
+  "id": "journey-runtime-node-contract",
+  "createdAt": "2026-05-20T06:47:00+05:30",
+  "objective": "Make the frontend Journey Builder node library, backend workflow validation, simulation, and publish/runtime support agree so unsupported nodes cannot be silently published or executed generically.",
+  "status": "DONE",
+  "completedAt": "2026-05-20T07:23:00+05:30",
+  "owner": "AUTOMATION_SERVICE_OWNER",
+  "filesInScope": [
+    "services/automation-service/src/main/java/com/legent/automation/controller/WorkflowController.java",
+    "services/automation-service/src/main/java/com/legent/automation/service/WorkflowStudioService.java",
+    "services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java",
+    "services/automation-service/src/main/java/com/legent/automation/engine/GenericNodeHandler.java",
+    "frontend/src/components/automation/JourneyBuilder.tsx",
+    "frontend/src/components/automation/NodeEditorModal.tsx",
+    "docs/product/salesforce-parity-matrix.md"
+  ],
+  "acceptanceCriteria": [
+    "Every Journey Builder node type exposed in the frontend is either executed by the backend runtime or blocked before publish with a clear validation error.",
+    "Backend capability/validation responses and frontend node availability stay synchronized.",
+    "Simulation or dry-run output reflects runtime-supported transitions instead of silently treating unsupported nodes as generic next-step movement.",
+    "Focused backend and frontend tests cover the node contract and at least one unsupported-node failure path."
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/automation-service -am test",
+    "cd frontend; npm run lint"
+  ],
+  "validationEvidence": [
+    ".\\mvnw.cmd -pl services/automation-service -am '-Dtest=WorkflowGraphValidatorTest,WorkflowEngineTest,WorkflowStudioServiceTest,WorkflowTriggerConsumerTest' '-Dsurefire.failIfNoSpecifiedTests=false' test passed",
+    ".\\mvnw.cmd -pl services/automation-service -am test passed",
+    "cd frontend; npm run lint passed",
+    "cd frontend; npm run build:ci passed",
+    "cd frontend; npx playwright test tests/e2e/automation-builder.spec.ts --project=chromium passed",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1 passed",
+    "git diff --check passed with CRLF warnings only"
+  ],
+  "rollbackNotes": "Preserve unrelated dirty changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Continue with the next highest-priority READY item: tracking-ingress-rate-policy."
+}

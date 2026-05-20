@@ -37,5 +37,7 @@ public interface FeatureFlagRepository extends JpaRepository<FeatureFlag, String
     @Query("SELECT f FROM FeatureFlag f WHERE f.tenantId IS NULL AND f.deletedAt IS NULL")
     Page<FeatureFlag> findGlobalFlags(Pageable pageable);
 
+    Optional<FeatureFlag> findByIdAndTenantIdAndDeletedAtIsNull(String id, String tenantId);
+
     Optional<FeatureFlag> findByTenantIdAndFlagKeyAndDeletedAtIsNull(String tenantId, String flagKey);
 }

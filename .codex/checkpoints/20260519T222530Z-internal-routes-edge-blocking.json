@@ -1,0 +1,34 @@
+﻿{
+    "id":  "internal-routes-edge-blocking",
+    "createdAt":  "2026-05-19T22:25:30.2777719Z",
+    "objective":  "Block service-internal endpoints at public edge",
+    "status":  "DONE",
+    "owner":  "API_ARCHITECT",
+    "filesInScope":  [
+                         "config/nginx/nginx.conf",
+                         "infrastructure/kubernetes/ingress/ingress.yml",
+                         "scripts/ops/validate-route-map.ps1",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/reports/production-readiness-audit-2026-05-20.md"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                           "kubectl kustomize infrastructure\\kubernetes\\overlays\\production",
+                           "docker compose config --quiet",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-priority READY item from .codex/backlog/queue.json."
+}

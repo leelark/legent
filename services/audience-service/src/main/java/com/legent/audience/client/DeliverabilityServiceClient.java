@@ -4,13 +4,17 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.legent.common.security.InternalApiTokenValidator;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -44,22 +48,24 @@ public class DeliverabilityServiceClient {
      * @return Set of suppressed email addresses
      */
     public Set<String> checkSuppressedEmails(String tenantId, String workspaceId, List<String> emails) {
-        if (emails == null || emails.isEmpty()) {
+        List<String> normalizedEmails = normalizeEmailCandidates(emails);
+        if (normalizedEmails.isEmpty()) {
             return Collections.emptySet();
         }
 
         try {
-            // Call deliverability-service to get suppression list
-            JsonNode response = webClient.get()
-                    .uri("/api/v1/deliverability/suppressions/internal")
+            JsonNode response = webClient.post()
+                    .uri("/api/v1/deliverability/suppressions/internal/check")
                     .header("X-Tenant-Id", tenantId)
                     .header("X-Workspace-Id", workspaceId)
                     .header("X-Request-Id", java.util.UUID.randomUUID().toString())
                     .header("X-Internal-Token", internalApiToken)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(Map.of("emails", normalizedEmails))
                     .retrieve()
                     .onStatus(
                             status -> status.isError(),
-                            clientResponse -> Mono.error(new RuntimeException("Failed to fetch suppressions: " + clientResponse.statusCode()))
+                            clientResponse -> Mono.error(new RuntimeException("Failed to check suppressions: " + clientResponse.statusCode()))
                     )
                     .bodyToMono(JsonNode.class)
                     .timeout(Duration.ofSeconds(5))
@@ -70,18 +76,19 @@ public class DeliverabilityServiceClient {
             }
 
             JsonNode data = response.get("data");
-            if (!data.isArray()) {
-                throw new SuppressionCheckException("Suppression response data is not an array");
+            JsonNode suppressedEmailData = data.get("suppressedEmails");
+            if (suppressedEmailData == null || !suppressedEmailData.isArray()) {
+                throw new SuppressionCheckException("Suppression response data did not include suppressedEmails");
             }
 
-            // Extract suppressed emails from the response
-            Set<String> suppressedEmails = StreamSupport.stream(data.spliterator(), false)
-                    .map(node -> node.has("email") ? node.get("email").asText() : null)
-                    .filter(email -> email != null && !email.isBlank())
-                    .filter(emails::contains) // Only include emails in our check list
-                    .collect(Collectors.toSet());
+            Set<String> requestedEmails = new LinkedHashSet<>(normalizedEmails);
+            Set<String> suppressedEmails = StreamSupport.stream(suppressedEmailData.spliterator(), false)
+                    .map(JsonNode::asText)
+                    .map(DeliverabilityServiceClient::normalizeEmail)
+                    .filter(email -> email != null && requestedEmails.contains(email))
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
 
-            log.debug("Found {} suppressed emails out of {} checked", suppressedEmails.size(), emails.size());
+            log.debug("Found {} suppressed emails out of {} checked", suppressedEmails.size(), normalizedEmails.size());
             return suppressedEmails;
 
         } catch (Exception e) {
@@ -104,5 +111,24 @@ public class DeliverabilityServiceClient {
 
     private void validateInternalApiToken(String token) {
         InternalApiTokenValidator.requireConfigured("legent.internal.api-token", token);
+    }
+
+    private static List<String> normalizeEmailCandidates(List<String> emails) {
+        if (emails == null || emails.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return emails.stream()
+                .map(DeliverabilityServiceClient::normalizeEmail)
+                .filter(email -> email != null)
+                .distinct()
+                .toList();
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null) {
+            return null;
+        }
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        return normalized.isEmpty() ? null : normalized;
     }
 }

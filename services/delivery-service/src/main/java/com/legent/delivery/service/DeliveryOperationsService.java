@@ -43,9 +43,8 @@ public class DeliveryOperationsService {
         long replayFailed = replayQueueRepository.countByTenantIdAndWorkspaceIdAndStatus(
                 tenantId, workspaceId, DeliveryReplayQueue.ReplayStatus.FAILED.name());
 
-        List<ProviderHealthStatus> providerHealth = providerHealthStatusRepository.findByTenantId(tenantId);
+        List<ProviderHealthStatus> providerHealth = providerHealthStatusRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId);
         long unhealthyProviders = providerHealth.stream()
-                .filter(status -> workspaceId.equals(status.getWorkspaceId()))
                 .filter(status -> status.getCurrentStatus() != ProviderHealthStatus.HealthStatus.HEALTHY || status.isCircuitBreakerOpen())
                 .count();
 
@@ -181,4 +180,3 @@ public class DeliveryOperationsService {
         return response;
     }
 }
-

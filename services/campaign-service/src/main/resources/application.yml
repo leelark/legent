@@ -89,7 +89,7 @@ legent:
     url: ${LEGENT_DELIVERY_SERVICE_URL:http://delivery-service:8084}
   campaign:
     send:
-      content-reference-enabled: ${LEGENT_CAMPAIGN_CONTENT_REFERENCE_ENABLED:false}
+      content-reference-enabled: ${LEGENT_CAMPAIGN_CONTENT_REFERENCE_ENABLED:true}
       content-reference-ttl: ${LEGENT_CAMPAIGN_CONTENT_REFERENCE_TTL:PT72H}
       include-inline-rendered-content: ${LEGENT_CAMPAIGN_INCLUDE_INLINE_RENDERED_CONTENT:true}
   security:

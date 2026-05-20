@@ -1,0 +1,41 @@
+{
+  "id": "tracking-ingress-rate-policy",
+  "createdAt": "2026-05-20T07:24:00+05:30",
+  "objective": "Bring Kubernetes tracking ingress rate-limit posture in line with the dedicated high-throughput local Nginx tracking policy.",
+  "status": "DONE",
+  "completedAt": "2026-05-20T07:35:00+05:30",
+  "owner": "DEVOPS_ENGINEER",
+  "partnerAgents": [
+    "API_ARCHITECT",
+    "SRE_MONITORING_ENGINEER"
+  ],
+  "filesInScope": [
+    "config/nginx/nginx.conf",
+    "infrastructure/kubernetes/ingress/ingress.yml",
+    "scripts/ops/validate-route-map.ps1",
+    "docs/operations/ga-evidence-matrix.md",
+    ".codex/memory/performance-bottlenecks.md",
+    ".codex/memory/technical-debt.md"
+  ],
+  "acceptanceCriteria": [
+    "Tracking ingress has explicit reviewed rate-limit behavior.",
+    "Kustomize render and route validation pass."
+  ],
+  "validationPlan": [
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production"
+  ],
+  "validationEvidence": [
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1 passed",
+    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production passed",
+    "kubectl kustomize infrastructure\\kubernetes\\overlays\\global\\global-primary passed",
+    "kubectl kustomize infrastructure\\kubernetes\\overlays\\global\\global-standby passed",
+    "kubectl kustomize infrastructure\\kubernetes\\overlays\\global\\global-active-active passed",
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1 passed with existing external-secret placeholder warning",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1 passed",
+    "git diff --check passed with CRLF warnings only"
+  ],
+  "rollbackNotes": "Preserve unrelated dirty changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Continue with the next highest-priority READY item: sso-tenant-cookie-httponly."
+}
