@@ -1,5 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
+type UiMode = 'BASIC' | 'ADVANCED';
+
 function ok(data: unknown) {
   return {
     success: true,
@@ -16,7 +18,9 @@ async function fulfill(route: Route, data: unknown) {
   });
 }
 
-async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}) {
+async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}, options: { uiMode?: UiMode } = {}) {
+  const uiMode = options.uiMode ?? 'ADVANCED';
+
   await page.addInitScript(() => {
     localStorage.setItem('legent_user_id', 'campaign-user');
     localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
@@ -37,7 +41,7 @@ async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}) 
       return fulfill(route, ok([{ tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: true }]));
     }
     if (path === '/users/preferences') {
-      return fulfill(route, ok({ tenantId: 'tenant-1', userId: 'campaign-user', theme: 'light', uiMode: 'ADVANCED', density: 'comfortable', metadata: {} }));
+      return fulfill(route, ok({ tenantId: 'tenant-1', userId: 'campaign-user', theme: 'light', uiMode, density: 'comfortable', metadata: {} }));
     }
     if (path.startsWith('/templates')) {
       return fulfill(route, ok({ content: [{ id: 'tpl-1', name: 'Launch Template', subject: 'Launch day' }] }));
@@ -272,6 +276,34 @@ test('campaign wizard saves experiment, budget, and frequency policy', async ({ 
   expect(seen.budget).toMatchObject({ enforced: true, budgetLimit: 100, costPerSend: 0.01 });
   expect(seen.frequency).toMatchObject({ enabled: true, maxSends: 3, windowHours: 48 });
   expect(seen.experiment).toMatchObject({ experimentType: 'AB', winnerMetric: 'CLICKS', holdoutPercentage: 5, status: 'ACTIVE' });
+});
+
+test('campaign wizard basic mode hides experiment engine and skips experiment payload', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockCampaignApis(page, seen, { uiMode: 'BASIC' });
+  await page.goto('/app/campaigns/new');
+
+  await expect(page.getByRole('heading', { name: 'Campaign Wizard' })).toBeVisible();
+  await page.getByLabel('Campaign Name *').fill('Basic Launch');
+  await page.getByLabel('Subject Line *').fill('Basic launch day');
+  await page.getByLabel('Template').selectOption('tpl-1');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+  await page.getByLabel('Audience').selectOption('list-1');
+  await page.getByRole('button', { name: 'Include' }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+  await expect(page.getByText('Experiment Engine')).toHaveCount(0);
+  await expect(page.getByLabel('Enable', { exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.getByText('Experiment')).toBeVisible();
+  await expect(page.getByText('Off').first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save Draft' }).click();
+  await expect(page.getByText('Draft saved')).toBeVisible();
+
+  expect(seen.campaign).toMatchObject({ name: 'Basic Launch', templateId: 'tpl-1' });
+  expect(seen.experiment).toBeUndefined();
 });
 
 test('campaign tracking exposes safety, DLQ, budget, and variant analytics tabs', async ({ page }) => {

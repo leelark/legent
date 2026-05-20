@@ -1,5 +1,13 @@
 import type { Page, Route } from '@playwright/test';
 
+type UiMode = 'BASIC' | 'ADVANCED';
+
+type WorkspaceMockOptions = {
+  roles?: string[];
+  uiMode?: UiMode;
+  userId?: string;
+};
+
 function ok(data: unknown) {
   return {
     success: true,
@@ -29,14 +37,18 @@ async function fulfill(route: Route, data: unknown) {
   });
 }
 
-export async function mockWorkspaceApis(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem('legent_user_id', 'smoke-user');
-    localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
+export async function mockWorkspaceApis(page: Page, options: WorkspaceMockOptions = {}) {
+  const roles = options.roles ?? ['ADMIN'];
+  const uiMode = options.uiMode ?? 'ADVANCED';
+  const userId = options.userId ?? 'smoke-user';
+
+  await page.addInitScript(({ roles, userId }) => {
+    localStorage.setItem('legent_user_id', userId);
+    localStorage.setItem('legent_roles', JSON.stringify(roles));
     localStorage.setItem('legent_tenant_id', 'tenant-1');
     localStorage.setItem('legent_workspace_id', 'workspace-1');
     localStorage.setItem('legent_environment_id', 'local');
-  });
+  }, { roles, userId });
 
   await page.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -46,11 +58,11 @@ export async function mockWorkspaceApis(page: Page) {
     if (path === '/auth/session') {
       return fulfill(route, ok({
         status: 'success',
-        userId: 'smoke-user',
+        userId,
         tenantId: 'tenant-1',
         workspaceId: 'workspace-1',
         environmentId: 'local',
-        roles: ['ADMIN'],
+        roles,
       }));
     }
     if (path === '/auth/contexts') {
@@ -62,9 +74,9 @@ export async function mockWorkspaceApis(page: Page) {
     if (path === '/users/preferences') {
       return fulfill(route, ok({
         tenantId: 'tenant-1',
-        userId: 'smoke-user',
+        userId,
         theme: 'light',
-        uiMode: 'ADVANCED',
+        uiMode,
         density: 'comfortable',
         sidebarCollapsed: false,
         metadata: {},

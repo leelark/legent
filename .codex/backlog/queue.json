@@ -162,59 +162,6 @@
                             "lastUpdated":  "2026-05-20"
                         },
                         {
-                            "id":  "mode-aware-workflow-contract",
-                            "title":  "Turn BASIC and ADVANCED UI mode into a workflow contract",
-                            "status":  "BACKLOG",
-                            "priorityScore":  38,
-                            "scoring":  {
-                                            "productionReadinessImpact":  2,
-                                            "securityRisk":  2,
-                                            "userImpact":  5,
-                                            "performanceImpact":  0,
-                                            "technicalDebtImpact":  5
-                                        },
-                            "owner":  "FRONTEND_OWNER",
-                            "partnerAgents":  [
-                                                  "UX_STRATEGIST",
-                                                  "SECURITY_ENGINEER",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Promote the existing BASIC/ADVANCED toggle into a reusable workflow metadata and visibility contract, and design role-gated Admin surfaces without claiming current Admin mode parity.",
-                            "nonGoals":  "Do not hide security-sensitive controls only with CSS or store tokens in browser storage.",
-                            "sourceFiles":  [
-                                                "frontend/src/stores/uiStore.ts",
-                                                "frontend/src/components/shell/Header.tsx",
-                                                "frontend/src/styles/globals.css",
-                                                "frontend/src/app/(workspace)/campaigns/new/page.tsx",
-                                                "frontend/src/components/content/TemplateStudioCommandCenter.tsx",
-                                                "frontend/src/components/automation/JourneyBuilder.tsx"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Workflow surfaces define mode metadata instead of relying only on `data-advanced` CSS hiding.",
-                                                       "Hidden advanced controls are not keyboard-focusable in BASIC mode.",
-                                                       "Admin controls are role-gated and not treated as a third local toggle until implemented.",
-                                                       "Playwright or component tests cover mode visibility and direct route behavior."
-                                                   ],
-                            "validationProfile":  "frontend-focused",
-                            "validationCommands":  [
-                                                       "cd frontend; npm run lint",
-                                                       "cd frontend; npm run build:ci"
-                                                   ],
-                            "dependencies":  [
-                                                 "UX policy design"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "design-decisions.md",
-                                                  "technical-debt.md"
-                                              ],
-                            "nextAction":  "Design the mode metadata contract and identify first workflow surface to migrate.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
                             "id":  "flow-analytics-experimentation",
                             "title":  "Add journey step analytics and experimentation depth",
                             "status":  "BACKLOG",
@@ -2323,6 +2270,74 @@
                          "residualRisks":  [
                                                "Deterministic governance only; no model-backed frequency optimization, live cadence control, or provider-capacity evidence.",
                                                "Production release and Salesforce/Einstein parity claims remain blocked by external target evidence and model/provider implementation."
+                                           ]
+                     },
+                     {
+                         "id":  "mode-aware-workflow-contract",
+                         "title":  "Turn BASIC and ADVANCED UI mode into a workflow contract",
+                         "status":  "DONE",
+                         "priorityScore":  38,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  2,
+                                         "userImpact":  5,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "UX_STRATEGIST",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Promote the existing BASIC/ADVANCED toggle into a reusable workflow metadata and visibility contract, and design role-gated Admin surfaces without claiming current Admin mode parity.",
+                         "nonGoals":  "Do not hide security-sensitive controls only with CSS or store tokens in browser storage.",
+                         "sourceFiles":  [
+                                             "frontend/src/stores/uiStore.ts",
+                                             "frontend/src/components/shell/Header.tsx",
+                                             "frontend/src/styles/globals.css",
+                                             "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                                             "frontend/src/components/content/TemplateStudioCommandCenter.tsx",
+                                             "frontend/src/components/automation/JourneyBuilder.tsx"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Workflow surfaces define mode metadata instead of relying only on `data-advanced` CSS hiding.",
+                                                    "Hidden advanced controls are not keyboard-focusable in BASIC mode.",
+                                                    "Admin controls are role-gated and not treated as a third local toggle until implemented.",
+                                                    "Playwright or component tests cover mode visibility and direct route behavior."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci"
+                                                ],
+                         "dependencies":  [
+                                              "UX policy design"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "design-decisions.md",
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Safe-stopped frontend module thread. On resume, render a fresh frontend module prompt, validate state, and choose the next frontend slice such as budget/frequency/template/automation mode metadata.",
+                         "lastUpdated":  "2026-05-20T10:32:26.5553886Z",
+                         "startedAt":  "2026-05-20T10:18:46.2739325Z",
+                         "completedAt":  "2026-05-20T10:32:26.5553886Z",
+                         "outcome":  "Added a typed BASIC/ADVANCED frontend mode contract, replaced Settings navigation CSS-only hiding with render-time mode filtering, kept Admin as session-role-gated navigation, and gated the campaign wizard Experiment Engine so BASIC mode neither renders controls nor submits experiment payloads.",
+                         "validationRun":  [
+                                               "cd frontend; npm run lint",
+                                               "cd frontend; npm run build:ci",
+                                               "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/ui-mode.spec.ts tests/e2e/campaign-engine.spec.ts --project=chromium --reporter=line",
+                                               "cd frontend; npm run test:e2e:smoke",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Budget, frequency, template command-center, and automation advanced controls still need separate mode-metadata slices with payload/default-policy decisions.",
+                                               "Mode visibility is UX affordance only; backend authorization and safety defaults remain authoritative."
                                            ]
                      }
                  ],

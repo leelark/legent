@@ -15,10 +15,11 @@ if (-not $team) {
     exit 1
 }
 if (-not $ThreadId) {
-    $ThreadId = if ($team.threadRole -eq "OVERALL") { "overall-" + (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ") } else { "$Module-" + (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ") }
+    $prefix = if ($team.threadRole -eq "OVERALL" -and $team.module -eq "overall") { "overall" } else { $Module }
+    $ThreadId = $prefix + "-" + (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
 }
 
-$promptPath = if ($Overall -or $team.threadRole -eq "OVERALL") { ".codex/prompts/overall-24x7.md" } else { [string]$team.promptPath }
+$promptPath = if ($Overall) { ".codex/prompts/overall-24x7.md" } else { [string]$team.promptPath }
 if (-not (Test-Path $promptPath)) {
     Write-Error "Prompt file missing: $promptPath"
     exit 1

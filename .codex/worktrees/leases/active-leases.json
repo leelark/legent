@@ -1,4 +1,4 @@
-﻿{
+{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
     "leases":  [
@@ -827,6 +827,97 @@
                        "acquiredAt":  "2026-05-20T09:57:39.7826502Z",
                        "expiresAt":  "2026-05-20T10:27:39.7826502Z",
                        "heartbeatAt":  "2026-05-20T09:58:40.9080979Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T100638Z-mode-aware-workflow-contract-20260520T101844Z",
+                       "threadId":  "frontend-20260520T100638Z",
+                       "workItemId":  "mode-aware-workflow-contract",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/stores/uiStore.ts",
+                                            "frontend/src/lib/user-preferences-api.ts",
+                                            "frontend/src/lib/ui-mode-contract.ts",
+                                            "frontend/src/components/shell/Sidebar.tsx",
+                                            "frontend/tests/e2e/support/workspace-mock.ts",
+                                            "frontend/tests/e2e/ui-mode.spec.ts",
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/design-decisions.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/enhancement-log.md",
+                                            ".codex/state/team-state.json",
+                                            ".codex/checkpoints"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/stores/uiStore.ts",
+                                          "frontend/src/lib/user-preferences-api.ts",
+                                          "frontend/src/lib/ui-mode-contract.ts",
+                                          "frontend/src/components/shell/Sidebar.tsx",
+                                          "frontend/tests/e2e/support/workspace-mock.ts",
+                                          "frontend/tests/e2e/ui-mode.spec.ts",
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/design-decisions.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/enhancement-log.md",
+                                          ".codex/state/team-state.json",
+                                          ".codex/checkpoints"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "64699f8dcf55961c0e596461dd5eb053798a52f0",
+                       "acquiredAt":  "2026-05-20T10:18:44.1162651Z",
+                       "expiresAt":  "2026-05-20T14:18:44.1162651Z",
+                       "heartbeatAt":  "2026-05-20T10:32:26.8213906Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T100638Z-mode-aware-workflow-contract-20260520T102016Z",
+                       "threadId":  "frontend-20260520T100638Z",
+                       "workItemId":  "mode-aware-workflow-contract",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                                            "frontend/tests/e2e/campaign-engine.spec.ts"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                                          "frontend/tests/e2e/campaign-engine.spec.ts"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "64699f8dcf55961c0e596461dd5eb053798a52f0",
+                       "acquiredAt":  "2026-05-20T10:20:16.9023814Z",
+                       "expiresAt":  "2026-05-20T14:20:16.9023814Z",
+                       "heartbeatAt":  "2026-05-20T10:32:26.8213906Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T100638Z-mode-aware-workflow-contract-20260520T102057Z",
+                       "threadId":  "frontend-20260520T100638Z",
+                       "workItemId":  "mode-aware-workflow-contract",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/components/shared/ThemeInitializer.tsx",
+                                            "frontend/src/components/shell/Header.tsx"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/components/shared/ThemeInitializer.tsx",
+                                          "frontend/src/components/shell/Header.tsx"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "64699f8dcf55961c0e596461dd5eb053798a52f0",
+                       "acquiredAt":  "2026-05-20T10:20:57.1541895Z",
+                       "expiresAt":  "2026-05-20T14:20:57.1541895Z",
+                       "heartbeatAt":  "2026-05-20T10:32:26.8213906Z"
                    }
                ]
 }

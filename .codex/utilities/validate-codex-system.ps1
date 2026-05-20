@@ -41,6 +41,7 @@ $requiredFiles = @(
     ".codex/schemas/coordination-event.schema.json",
     ".codex/schemas/agent-handoff.schema.json",
     ".codex/prompts/overall-24x7.md",
+    ".codex/prompts/multi-module-coordinator-24x7.md",
     ".codex/prompts/module-backend-service-24x7.md",
     ".codex/prompts/module-frontend-24x7.md",
     ".codex/prompts/module-infra-24x7.md",

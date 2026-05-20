@@ -11,6 +11,8 @@ Validation profile: {{VALIDATION_PROFILE}}
 
 Register this thread with .codex/utilities/register-thread.ps1. Acquire exact leases before edits. Create a checkpoint before edits. Work only inside allowed paths. Heartbeat after discovery, after edits, before validation, after validation, and before handoff.
 
+Late-join rule: this module thread may start after the coordinator. Do not treat earlier coordinator planning as a blocker. Only an active overlapping source-code lease, failed validation in this module scope, missing external evidence, credentials, production access, or explicit human decision can block implementation. If a shared .codex metadata lease is active, continue source work and defer only the metadata write/handoff until that exact lease clears.
+
 Use maximum safe parallelization with up to 6 active subagents by default whenever independent module work exists. Prefer near-full utilization and dynamically spawn or reassign subagents as work completes, while keeping responsibilities strictly disjoint with clear ownership and minimal overlap. Continuously rebalance tasks and reduce concurrency only when dependencies require serialization.
 
 Use the module's project-local skills and validation gates. Keep memory compact; write detailed work activity to audit events/checkpoints. Return a machine-readable handoff and release leases when done or blocked.

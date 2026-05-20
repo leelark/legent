@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { THEME_STORAGE_KEY } from '@/lib/auth';
+import { getNextUiMode, persistUiMode, type UiMode } from '@/lib/ui-mode-contract';
 
 type Theme = 'light' | 'dark';
-type UiMode = 'BASIC' | 'ADVANCED';
 
 interface UIState {
   theme: Theme;
@@ -14,7 +14,7 @@ interface UIState {
 
   toggleTheme: () => void;
   setTheme: (theme: Theme) => void;
-  toggleUiMode: () => void;
+  toggleUiMode: () => UiMode;
   setUiMode: (mode: UiMode) => void;
   setDensity: (density: string) => void;
   toggleSidebar: () => void;
@@ -49,20 +49,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   },
 
   toggleUiMode: () => {
-    const next = get().uiMode === 'BASIC' ? 'ADVANCED' : 'BASIC';
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('legent_ui_mode', next);
-      document.documentElement.classList.toggle('mode-basic', next === 'BASIC');
-      document.documentElement.classList.toggle('mode-advanced', next === 'ADVANCED');
-    }
+    const next = getNextUiMode(get().uiMode);
+    persistUiMode(next);
     set({ uiMode: next });
+    return next;
   },
   setUiMode: (mode) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('legent_ui_mode', mode);
-      document.documentElement.classList.toggle('mode-basic', mode === 'BASIC');
-      document.documentElement.classList.toggle('mode-advanced', mode === 'ADVANCED');
-    }
+    persistUiMode(mode);
     set({ uiMode: mode });
   },
   setDensity: (density) => set({ density }),

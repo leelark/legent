@@ -18,13 +18,23 @@ import {
   Rocket,
   Settings,
   ShieldCheck,
+  type LucideIcon,
   Users,
 } from 'lucide-react';
 import { useUIStore } from '@/stores/uiStore';
 import { useAuth } from '@/hooks/useAuth';
 import { updateUserPreferences } from '@/lib/user-preferences-api';
+import { isModeFeatureVisible, WORKSPACE_NAV_MODE_FEATURES, type ModeFeature, type RoleGate } from '@/lib/ui-mode-contract';
 
-const NAV_ITEMS = [
+type NavItem = {
+  label: string;
+  href: string;
+  icon: LucideIcon;
+  feature?: ModeFeature;
+  roleGate?: RoleGate;
+};
+
+const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', href: '/app/email', icon: Gauge },
   { label: 'Launch', href: '/app/launch', icon: Rocket },
   { label: 'Audience', href: '/app/audience', icon: Users },
@@ -33,14 +43,22 @@ const NAV_ITEMS = [
   { label: 'Automation', href: '/app/automation', icon: Bot },
   { label: 'Delivery', href: '/app/deliverability', icon: RadioTower },
   { label: 'Analytics', href: '/app/analytics', icon: BarChart3 },
-  { label: 'Admin', href: '/app/admin', icon: ShieldCheck, admin: true },
-  { label: 'Settings', href: '/app/settings/platform', icon: Settings, advanced: true },
+  { label: 'Admin', href: '/app/admin', icon: ShieldCheck, feature: WORKSPACE_NAV_MODE_FEATURES.admin, roleGate: 'ADMIN' },
+  { label: 'Settings', href: '/app/settings/platform', icon: Settings, feature: WORKSPACE_NAV_MODE_FEATURES.settings },
 ];
+
+function isNavItemVisible(item: NavItem, uiMode: 'BASIC' | 'ADVANCED', isAdmin: boolean) {
+  if (item.roleGate === 'ADMIN' && !isAdmin) {
+    return false;
+  }
+  return !item.feature || isModeFeatureVisible(item.feature, uiMode);
+}
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { sidebarCollapsed, setSidebarCollapsed } = useUIStore();
+  const { sidebarCollapsed, setSidebarCollapsed, uiMode } = useUIStore();
   const { isAdmin } = useAuth();
+  const admin = isAdmin();
 
   const toggleSidebar = async () => {
     const next = !sidebarCollapsed;
@@ -61,8 +79,7 @@ export function Sidebar() {
     >
       <Brand collapsed={sidebarCollapsed} />
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAV_ITEMS.map((item) => {
-          if (item.admin && !isAdmin()) return null;
+        {NAV_ITEMS.filter((item) => isNavItemVisible(item, uiMode, admin)).map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
@@ -71,7 +88,8 @@ export function Sidebar() {
               href={item.href}
               className={clsx('sidebar-item', active && 'active')}
               title={sidebarCollapsed ? item.label : undefined}
-              data-advanced={item.advanced ? 'true' : undefined}
+              data-mode-feature={item.feature?.id}
+              data-mode-visibility={item.feature?.visibility}
               aria-current={active ? 'page' : undefined}
             >
               <Icon size={18} className="shrink-0" />
@@ -94,9 +112,11 @@ export function Sidebar() {
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { uiMode } = useUIStore();
   const { isAdmin } = useAuth();
   const [overflowOpen, setOverflowOpen] = useState(false);
-  const items = NAV_ITEMS.filter((item) => !item.admin || isAdmin());
+  const admin = isAdmin();
+  const items = NAV_ITEMS.filter((item) => isNavItemVisible(item, uiMode, admin));
   const primaryItems = items.slice(0, 4);
   const overflowItems = items.slice(4);
   const overflowActive = overflowItems.some((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
@@ -117,7 +137,8 @@ export function MobileNav() {
                   'flex min-w-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold',
                   active ? 'bg-brand-50 text-accent dark:bg-brand-900/20 dark:text-brand-300' : 'text-content-secondary'
                 )}
-                data-advanced={item.advanced ? 'true' : undefined}
+                data-mode-feature={item.feature?.id}
+                data-mode-visibility={item.feature?.visibility}
                 aria-current={active ? 'page' : undefined}
               >
                 <Icon size={16} className="shrink-0" />

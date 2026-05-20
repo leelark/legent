@@ -221,8 +221,7 @@ export function Header() {
   };
 
   const handleToggleMode = async () => {
-    const next = uiMode === 'BASIC' ? 'ADVANCED' : 'BASIC';
-    toggleUiMode();
+    const next = toggleUiMode();
     try {
       await updateUserPreferences({ uiMode: next });
     } catch {

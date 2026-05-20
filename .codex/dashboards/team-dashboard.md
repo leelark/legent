@@ -1,16 +1,16 @@
 ﻿# Autonomous Team Dashboard
 
-Generated: 2026-05-20T09:58:54.7360224Z
+Generated: 2026-05-20T10:22:02.1027387Z
 
 ## Summary
 
 - Registered module teams: 14
-- Registered threads: 1
-- Active threads: 0
-- Active leases: 0
+- Registered threads: 9
+- Active threads: 3
+- Active leases: 3
 - Active worktrees: 0
 - Ready work: 0
-- Backlog work: 9
+- Backlog work: 8
 - Blocked work: 3
 - Done work: 27
 
@@ -18,7 +18,15 @@ Generated: 2026-05-20T09:58:54.7360224Z
 
 | Thread | Role | Module | Status | Heartbeat | Stale | Next Action |
 |---|---|---|---|---|---|---|
-| overall-24x7 | OVERALL | overall | PAUSED | 2026-05-20T09:58:33.4766950Z | False | Safe-stopped per user request after completing active work. On resume, validate state and choose the next safe child item from the handoff. |
+| overall-24x7 | OVERALL | overall | ACTIVE | 2026-05-20T10:21:45.8915984Z | False | Coordinate active frontend and foundation module threads; monitor leases/checkpoints/handoffs and avoid duplicate module work. |
+| deliverability-service-20260520T100626Z | MODULE | deliverability-service | ARCHIVED | 2026-05-20T10:21:30.3925579Z | False | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
+| content-service-20260520T100625Z | MODULE | content-service | ARCHIVED | 2026-05-20T10:21:30.6208978Z | False | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
+| audience-service-20260520T100624Z | MODULE | audience-service | ARCHIVED | 2026-05-20T10:21:30.6609071Z | False | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
+| automation-service-20260520T100624Z | MODULE | automation-service | ARCHIVED | 2026-05-20T10:21:30.6758853Z | False | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
+| tracking-service-20260520T100626Z | MODULE | tracking-service | ARCHIVED | 2026-05-20T10:21:30.7094825Z | False | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
+| frontend-20260520T100626Z | MODULE | frontend | ARCHIVED | 2026-05-20T10:21:30.7528164Z | False | Archived duplicate frontend registration; frontend-20260520T100638Z is active. |
+| frontend-20260520T100638Z | MODULE | frontend | ACTIVE | 2026-05-20T10:20:57.1541895Z | False | Read-only frontend mode audits running; prepare exact write lease for mode-aware workflow contract. |
+| foundation-service-20260520T100717Z | MODULE | foundation-service | ACTIVE | 2026-05-20T10:21:36.6071585Z | False | Foundation audit identified forward migration candidate; waiting for coordination checkpoint lease to clear before edits. |
 
 ## Next Work
 

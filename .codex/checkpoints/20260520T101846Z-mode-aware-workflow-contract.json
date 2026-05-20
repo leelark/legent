@@ -1,0 +1,57 @@
+{
+    "id":  "mode-aware-workflow-contract",
+    "createdAt":  "2026-05-20T10:18:46.0050115Z",
+    "objective":  "Turn BASIC and ADVANCED UI mode into a workflow contract",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/stores/uiStore.ts",
+                         "frontend/src/lib/user-preferences-api.ts",
+                         "frontend/src/lib/ui-mode-contract.ts",
+                         "frontend/src/components/shared/ThemeInitializer.tsx",
+                         "frontend/src/components/shell/Header.tsx",
+                         "frontend/src/components/shell/Sidebar.tsx",
+                         "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                         "frontend/tests/e2e/campaign-engine.spec.ts",
+                         "frontend/tests/e2e/support/workspace-mock.ts",
+                         "frontend/tests/e2e/ui-mode.spec.ts",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/state/team-state.json",
+                         ".codex/checkpoints"
+                     ],
+    "agents":  [
+                   "UX_STRATEGIST",
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/ui-mode.spec.ts tests/e2e/campaign-engine.spec.ts --project=chromium --reporter=line",
+                           "cd frontend; npm run test:e2e:smoke",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Safe-stopped. Resume by rendering frontend module prompt and selecting the next frontend mode metadata slice.",
+    "outcome":  "Added typed BASIC/ADVANCED frontend mode metadata, render-time Settings navigation filtering, Admin role-gate separation, and campaign Experiment Engine render/payload gating.",
+    "validationRun":  [
+                           "PASS: cd frontend; npm run lint",
+                           "PASS: cd frontend; npm run build:ci",
+                           "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/ui-mode.spec.ts tests/e2e/campaign-engine.spec.ts --project=chromium --reporter=line",
+                           "PASS: cd frontend; npm run test:e2e:smoke",
+                           "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "PASS: git diff --check"
+                       ],
+    "residualRisks":  [
+                          "Budget, frequency, template command-center, and automation advanced controls still need separate mode-metadata slices with payload/default-policy decisions.",
+                          "Mode visibility is UX affordance only; backend authorization and safety defaults remain authoritative."
+                      ]
+}

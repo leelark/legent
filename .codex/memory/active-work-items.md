@@ -4,20 +4,25 @@ Fresh baseline date: 2026-05-20.
 
 ## Live State
 
-Current overall implementation work:
+Current overall coordination work:
 
-No active implementation item is currently leased by the overall thread.
+Overall coordinator `overall-24x7` is ACTIVE in `MULTI_MODULE_COORDINATOR` mode. No implementation item is currently leased by this coordinator.
 
-Parallel read-only agents:
+Active module threads:
 
-| Work Item | Owner | Scope |
+| Thread | Owner | Scope |
 |---|---|---|
-| backend/campaign next item discovery | CAMPAIGN_SERVICE_OWNER | Completed read-only scout; campaign legacy eligibility marker remains blocked pending compatibility decision. |
-| frontend/product next item discovery | FRONTEND_OWNER | Completed read-only scout; selected Automation Studio run-history visibility. |
-| automation/journey next item discovery | AUTOMATION_SERVICE_OWNER | Completed read-only scout; selected Automation Studio run-history visibility as child slice. |
-| data/audience next item discovery | AUDIENCE_SERVICE_OWNER | Completed read-only scout; data-extension governance migration tests remain a safe future candidate. |
-| security/deliverability next item discovery | SECURITY_ENGINEER | Completed read-only scout; email governance policy objects remain a safe future candidate. |
-| devops/release next item discovery | DEVOPS_ENGINEER | Completed read-only scout; release-evidence validator negative fixtures remain a safe future candidate. |
+| `foundation-service-20260520T100717Z` | FOUNDATION_SERVICE_OWNER | Existing foundation module thread; read-only module audit in progress. |
+
+Safe-stopped module threads:
+
+| Thread | Owner | Last Work | Resume From |
+|---|---|---|---|
+| `frontend-20260520T100638Z` | FRONTEND_OWNER | Completed `mode-aware-workflow-contract`: typed BASIC/ADVANCED mode metadata, render-time Settings navigation filtering, Admin role-gate separation, and campaign Experiment Engine render/payload gating. | `.codex/checkpoints/20260520T101846Z-mode-aware-workflow-contract.json`; next safe frontend slice is budget/frequency/template/automation advanced mode metadata. |
+
+Coordinator cleanup:
+
+The duplicate module scouts started by `overall-24x7` for deliverability, content, audience, automation, tracking, and `frontend-20260520T100626Z` were closed or paused after detecting active frontend/foundation module threads. This prevents duplicate module work and shared path overlap.
 
 Source of truth:
 - Live thread/team state: `.codex/threads/thread-registry.json`

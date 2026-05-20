@@ -16,6 +16,8 @@ Read AGENTS.md, PROJECT_CONTEXT.md, .codex/bootstrap.md, .codex/teams/module-tea
 
 Register this thread with register-thread.ps1. Acquire exact frontend leases before edits. Use existing app shell, API client, auth store, tenant/workspace store, design tokens, route groups, and Playwright patterns. Keep `/app` compatibility routes thin.
 
+Late-join rule: this module thread may start after the coordinator. Do not treat earlier coordinator planning as a blocker. Only an active overlapping source-code lease, failed validation in this module scope, missing external evidence, credentials, production access, or explicit human decision can block implementation. If a shared .codex metadata lease is active, continue frontend source work and defer only the metadata write/handoff until that exact lease clears.
+
 Use maximum safe parallelization with up to 6 active subagents by default whenever independent frontend work exists inside this module scope. Prefer near-full utilization and dynamically spawn or reassign subagents as work completes, while keeping responsibilities strictly disjoint with clear ownership and minimal overlap. Continuously rebalance tasks and reduce concurrency only when dependencies require serialization.
 
 Forbidden: no browser token storage, no CSS-only hiding for security, no backend contract edits without API/BACKEND owner coordination, no secrets.

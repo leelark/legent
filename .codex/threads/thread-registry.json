@@ -1,4 +1,4 @@
-﻿{
+{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
     "mode":  "HYBRID_READY",
@@ -8,7 +8,7 @@
                     {
                         "threadId":  "overall-24x7",
                         "threadRole":  "OVERALL",
-                        "status":  "PAUSED",
+                        "status":  "ACTIVE",
                         "module":  "overall",
                         "owner":  "PROGRAM_MANAGER_AGENT",
                         "backlogItemId":  "",
@@ -45,11 +45,312 @@
                                              "019e4427-96f9-7803-bcdf-d90e239e4d07",
                                              "019e4427-9863-79a3-89d3-225cf9d40168"
                                          ],
-                        "heartbeatAt":  "2026-05-20T09:58:33.4766950Z",
+                        "heartbeatAt":  "2026-05-20T10:21:45.8915984Z",
                         "startedAt":  "2026-05-20T06:25:48.7560832Z",
-                        "lastUpdated":  "2026-05-20T09:58:40.9228597Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
                         "handoffPath":  ".codex/threads/overall-24x7-handoff.md",
-                        "nextAction":  "Safe-stopped per user request after completing active work. On resume, validate state and choose the next safe child item from the handoff.",
+                        "nextAction":  "Coordinate active frontend and foundation module threads; monitor leases/checkpoints/handoffs and avoid duplicate module work.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "deliverability-service-20260520T100626Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ARCHIVED",
+                        "module":  "deliverability-service",
+                        "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                        "backlogItemId":  "frequency-optimization-governance",
+                        "checkpointId":  "",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "services/deliverability-service/**",
+                                             "services/delivery-service/**",
+                                             "shared/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/target/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:21:30.3925579Z",
+                        "startedAt":  "2026-05-20T10:07:16.5823839Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
+                        "handoffPath":  ".codex/threads/deliverability-service-20260520T100626Z-handoff.md",
+                        "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "content-service-20260520T100625Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ARCHIVED",
+                        "module":  "content-service",
+                        "owner":  "CONTENT_SERVICE_OWNER",
+                        "backlogItemId":  "ai-content-assistance-governance",
+                        "checkpointId":  "",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "services/content-service/**",
+                                             "shared/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/target/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:21:30.6208978Z",
+                        "startedAt":  "2026-05-20T10:07:17.2291262Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
+                        "handoffPath":  ".codex/threads/content-service-20260520T100625Z-handoff.md",
+                        "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "audience-service-20260520T100624Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ARCHIVED",
+                        "module":  "audience-service",
+                        "owner":  "AUDIENCE_SERVICE_OWNER",
+                        "backlogItemId":  "predictive-segments-governance",
+                        "checkpointId":  "",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "services/audience-service/**",
+                                             "shared/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/target/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:21:30.6609071Z",
+                        "startedAt":  "2026-05-20T10:07:17.4047526Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
+                        "handoffPath":  ".codex/threads/audience-service-20260520T100624Z-handoff.md",
+                        "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "automation-service-20260520T100624Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ARCHIVED",
+                        "module":  "automation-service",
+                        "owner":  "AUTOMATION_SERVICE_OWNER",
+                        "backlogItemId":  "automation-studio-activity-orchestration",
+                        "checkpointId":  "",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "services/automation-service/**",
+                                             "shared/**",
+                                             "frontend/src/components/automation/**",
+                                             "frontend/src/app/(workspace)/automation/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/target/**",
+                                               "frontend/node_modules/**",
+                                               "frontend/.next/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:21:30.6758853Z",
+                        "startedAt":  "2026-05-20T10:07:17.7879469Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
+                        "handoffPath":  ".codex/threads/automation-service-20260520T100624Z-handoff.md",
+                        "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "tracking-service-20260520T100626Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ARCHIVED",
+                        "module":  "tracking-service",
+                        "owner":  "TRACKING_SERVICE_OWNER",
+                        "backlogItemId":  "flow-analytics-experimentation",
+                        "checkpointId":  "",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "services/tracking-service/**",
+                                             "shared/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/target/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:21:30.7094825Z",
+                        "startedAt":  "2026-05-20T10:07:18.3690780Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
+                        "handoffPath":  ".codex/threads/tracking-service-20260520T100626Z-handoff.md",
+                        "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "frontend-20260520T100626Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ARCHIVED",
+                        "module":  "frontend",
+                        "owner":  "FRONTEND_OWNER",
+                        "backlogItemId":  "mode-aware-workflow-contract",
+                        "checkpointId":  "",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "frontend/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "frontend/node_modules/**",
+                                               "frontend/.next/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:21:30.7528164Z",
+                        "startedAt":  "2026-05-20T10:07:18.8866897Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
+                        "handoffPath":  ".codex/threads/frontend-20260520T100626Z-handoff.md",
+                        "nextAction":  "Archived duplicate frontend registration; frontend-20260520T100638Z is active.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "frontend-20260520T100638Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ACTIVE",
+                        "module":  "frontend",
+                        "owner":  "FRONTEND_OWNER",
+                        "backlogItemId":  "",
+                        "checkpointId":  "20260520T101846Z-mode-aware-workflow-contract",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "frontend/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "frontend/node_modules/**",
+                                               "frontend/.next/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:34:37.3438136Z",
+                        "startedAt":  "2026-05-20T10:07:21.7965271Z",
+                        "lastUpdated":  "2026-05-20T10:34:37.3438136Z",
+                        "handoffPath":  ".codex/threads/frontend-20260520T100638Z-handoff.md",
+                        "nextAction":  "Mode-aware workflow contract completed and handed off; safe stop requested.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "foundation-service-20260520T100717Z",
+                        "threadRole":  "MODULE",
+                        "status":  "ACTIVE",
+                        "module":  "foundation-service",
+                        "owner":  "FOUNDATION_SERVICE_OWNER",
+                        "backlogItemId":  "",
+                        "checkpointId":  "",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "services/foundation-service/**",
+                                             "shared/**",
+                                             ".codex/memory/**",
+                                             ".codex/backlog/queue.json",
+                                             ".codex/checkpoints/**",
+                                             ".codex/threads/**",
+                                             ".codex/worktrees/**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/target/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T10:25:56.9005070Z",
+                        "startedAt":  "2026-05-20T10:08:33.0423029Z",
+                        "lastUpdated":  "2026-05-20T10:32:26.9382429Z",
+                        "handoffPath":  ".codex/threads/foundation-service-20260520T100717Z-handoff.md",
+                        "nextAction":  "Read-only audit complete; baseline foundation tests passed; implementation blocked until .codex/checkpoints lease clears.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
                     }
                 ]

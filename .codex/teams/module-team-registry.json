@@ -15,6 +15,18 @@
       "promptPath": ".codex/prompts/overall-24x7.md"
     },
     {
+      "module": "multi-module-coordinator",
+      "displayName": "Multi-Module Coordinator",
+      "threadRole": "OVERALL",
+      "owner": "PROGRAM_MANAGER_AGENT",
+      "partners": ["CTO_AGENT", "PROJECT_MANAGER_AGENT", "RELEASE_MANAGER", "DOCUMENTATION_ENGINEER"],
+      "allowedPaths": [".codex/backlog/queue.json", ".codex/threads/**", ".codex/checkpoints/**", ".codex/audit/**", ".codex/dashboards/**", ".codex/reports/**", ".codex/memory/**"],
+      "forbiddenPaths": [".env", "frontend/**", "services/**", "shared/**", "infrastructure/**", "config/**", "scripts/**", "**/*.key", "**/*.pem", "**/node_modules/**", "**/target/**", "**/.next/**"],
+      "validationProfile": "overall",
+      "memoryTargets": ["active-work-items.md", "blocked-items.md", "unresolved-risks.md", "development-log.md"],
+      "promptPath": ".codex/prompts/multi-module-coordinator-24x7.md"
+    },
+    {
       "module": "frontend",
       "displayName": "Frontend Workspace Team",
       "threadRole": "MODULE",

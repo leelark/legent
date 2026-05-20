@@ -38,13 +38,13 @@ Follow-up: implement governed slices for `ai-content-assistance-governance`, `se
 
 ## 2026-05-20 UI Mode Boundary
 
-Source: `frontend/src/stores/uiStore.ts`, `frontend/src/components/shell/Header.tsx`, `frontend/src/styles/globals.css`.
+Source: `frontend/src/lib/ui-mode-contract.ts`, `frontend/src/stores/uiStore.ts`, `frontend/src/components/shell/Header.tsx`, `frontend/src/components/shell/Sidebar.tsx`, `frontend/src/app/(workspace)/campaigns/new/page.tsx`, `frontend/tests/e2e/ui-mode.spec.ts`, `frontend/tests/e2e/campaign-engine.spec.ts`.
 
-Decision: current UI modes are `BASIC` and `ADVANCED`; role-gated Admin is a future workflow contract, not a current third local toggle.
+Decision: `BASIC` and `ADVANCED` are the only local UI modes. Mode visibility is now modeled through typed frontend metadata in `ui-mode-contract.ts`; Admin remains role-gated through session roles and is not a third mode.
 
-Rationale: the shell persists and toggles `BASIC`/`ADVANCED`, while current hiding is coarse and CSS-based. Admin behavior must be backed by authorization and route/control policy.
+Rationale: CSS-only `data-advanced` hiding was not a durable workflow contract and direct route access should not be confused with authorization. Render-time filtering keeps advanced shell controls out of the focus order, while workflow submit paths must also guard hidden advanced payloads.
 
-Impact: use `mode-aware-workflow-contract` before claiming beginner/advanced/admin parity.
+Impact: Settings navigation is filtered by mode metadata, Admin navigation remains role-gated, and the campaign wizard Experiment Engine renders/submits only in `ADVANCED` mode. Future workflow surfaces should use the same metadata helpers and keep backend authorization authoritative.
 
 ## 2026-05-20 Send-Time Optimization Boundary
 
@@ -57,5 +57,17 @@ Rationale: Salesforce-level STO implies trained prediction behavior and low-data
 Impact: launch-time changes require human approval, rollback evidence, and quiet-hours, approval, suppression, warmup, rate-limit, provider-capacity, and deliverability gates. Low-data inputs must report fallback and low confidence rather than personalized timing certainty.
 
 Follow-up: implement campaign/delivery scheduling integration, timezone proof, model/data provenance, and target data-quality evidence before any STO parity or production claim.
+
+## 2026-05-20 Multi-Module Coordinator Boundary
+
+Source: `.codex/prompts/multi-module-coordinator-24x7.md`, `.codex/workflows/multi-thread-autonomous-teams.md`, `.codex/teams/module-team-registry.json`, and `.codex/skills/legent-multi-thread-coordination/SKILL.md`.
+
+Decision: multi-module operation now uses a dedicated `multi-module-coordinator` overall thread that coordinates only. It may plan, assign, monitor, rebalance, validate, review handoffs, compact memory, and update coordination metadata, but it must not implement module source code or spawn implementation subagents for module ownership areas.
+
+Rationale: the previous hybrid coordinator could start module implementation before separate module threads joined, causing duplicate ownership and avoidable blocking. A coordination-only prompt lets the coordinator start first while later module threads join independently.
+
+Impact: missing module threads are treated as planned/ready assignments, not blockers. Module implementation is blocked only by active overlapping source-code leases, relevant failed validation, external evidence gaps, credentials, production access, or explicit human decision. Shared `.codex` metadata leases should be short and exact.
+
+Follow-up: use `.codex/utilities/get-module-prompt.ps1 -Module multi-module-coordinator` for the coordinator, then start module threads separately with their module prompts.
 
 Decision update rule: add only durable decisions with source, rationale, impact, and validation or follow-up.

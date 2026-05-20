@@ -2,7 +2,7 @@
 
 Use either mode:
 - Overall mode: one coordinator thread runs `.codex/prompts/overall-24x7.md`.
-- Module mode: one or more module threads run prompts rendered by `.codex/utilities/get-module-prompt.ps1 -Module <module>`.
+- Multi-module mode: one coordination-only thread runs `.codex/prompts/multi-module-coordinator-24x7.md`, then one or more module threads run prompts rendered by `.codex/utilities/get-module-prompt.ps1 -Module <module>`.
 
 Coordination:
 - Register every thread in `.codex/threads/thread-registry.json`.
@@ -21,8 +21,18 @@ Overall thread responsibilities:
 - own release posture,
 - merge handoffs into memory/reports.
 
+Multi-module coordinator restrictions:
+- The coordinator may start before module teams and must not mark missing module threads as blocked.
+- The coordinator owns planning, assignment, monitoring, stale-thread cleanup, research, validation planning, handoff review, compact memory, reports, dashboards, and backlog hygiene.
+- The coordinator must not edit module source code, acquire broad source leases, or spawn implementation subagents for frontend, services, shared, infra, config, or scripts.
+- Coordinator subagents may only perform coordination-support work. Implementation findings become module backlog items.
+- Use short exact metadata leases and release them quickly so late-starting module threads can register, checkpoint, and hand off without waiting on broad `.codex/**` locks.
+
 Module thread responsibilities:
 - stay inside allowed paths,
+- start safely even if the coordinator ran first,
+- treat coordinator planning as assignment, not as a blocker,
+- continue source work when only a shared `.codex` metadata write is temporarily leased,
 - create checkpoints,
 - run focused validation,
 - write handoff,

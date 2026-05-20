@@ -22,6 +22,8 @@ powershell -ExecutionPolicy Bypass -File .codex\utilities\acquire-lease.ps1 -Thr
 
 Create a checkpoint before edits. Work only inside allowed paths unless the overall coordinator explicitly updates the lease and scope. Preserve tenant/workspace isolation, service ownership, Flyway-forward migrations, Kafka contracts, API envelopes, retry/DLQ behavior, and safety controls.
 
+Late-join rule: this module thread may start after the coordinator. Do not treat earlier coordinator planning as a blocker. Only an active overlapping source-code lease, failed validation in this module scope, missing external evidence, credentials, production access, or explicit human decision can block implementation. If a shared .codex metadata lease is active, continue source work and defer only the metadata write/handoff until that exact lease clears.
+
 Use maximum safe parallelization with up to 6 active subagents by default whenever independent backend work exists inside this module scope. Prefer near-full utilization and dynamically spawn or reassign subagents as work completes, while keeping responsibilities strictly disjoint with clear ownership and minimal overlap. Continuously rebalance tasks and reduce concurrency only when dependencies require serialization.
 
 Heartbeat at meaningful milestones:

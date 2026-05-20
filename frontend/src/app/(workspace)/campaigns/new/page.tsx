@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { ArrowRight, ArrowLeft, CheckCircle, CircleNotch, PaperPlaneTilt } from '@phosphor-icons/react';
 import { get } from '@/lib/api-client';
+import { CAMPAIGN_WORKFLOW_MODE_FEATURES, isModeFeatureVisible } from '@/lib/ui-mode-contract';
 import {
   type Campaign,
   createCampaignExperiment,
@@ -23,6 +24,7 @@ import {
   updateCampaignBudget,
   updateFrequencyPolicy,
 } from '@/lib/campaign-studio-api';
+import { useUIStore } from '@/stores/uiStore';
 
 const STEPS = ['Basics', 'Targeting', 'Delivery', 'Review'];
 
@@ -101,6 +103,7 @@ export default function CampaignWizardPage() {
   const searchParams = useSearchParams();
   const cloneId = searchParams.get('clone');
   const { addToast } = useToast();
+  const uiMode = useUIStore((state) => state.uiMode);
 
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -146,6 +149,8 @@ export default function CampaignWizardPage() {
     variantBSubject: '',
     audiences: [] as { audienceType: 'LIST' | 'SEGMENT'; audienceId: string; action: 'INCLUDE' | 'EXCLUDE' }[],
   });
+  const showExperimentEngine = isModeFeatureVisible(CAMPAIGN_WORKFLOW_MODE_FEATURES.experimentEngine, uiMode);
+  const experimentEnabled = showExperimentEngine && form.experimentEnabled;
 
   useEffect(() => {
     const load = async () => {
@@ -272,7 +277,7 @@ export default function CampaignWizardPage() {
         }),
       ]);
 
-      if (form.experimentEnabled) {
+      if (experimentEnabled) {
         await createCampaignExperiment(created.id, {
           name: `${form.name} Experiment`,
           experimentType: form.experimentType,
@@ -652,119 +657,125 @@ export default function CampaignWizardPage() {
                   Include journey-triggered sends
                 </label>
               </div>
-              <div className="space-y-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-content-primary">Experiment Engine</p>
-                    <p className="text-xs text-content-secondary">Deterministic A/B or multivariate assignment with holdout and winner rules.</p>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm text-content-primary">
-                    <input
-                      type="checkbox"
-                      checked={form.experimentEnabled}
-                      onChange={(event) => setForm((current) => ({ ...current, experimentEnabled: event.target.checked }))}
-                    />
-                    Enable
-                  </label>
-                </div>
-                {form.experimentEnabled && (
-                  <div className="grid gap-4 md:grid-cols-4">
+              {showExperimentEngine && (
+                <div
+                  className="space-y-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2"
+                  data-mode-feature={CAMPAIGN_WORKFLOW_MODE_FEATURES.experimentEngine.id}
+                  data-mode-visibility={CAMPAIGN_WORKFLOW_MODE_FEATURES.experimentEngine.visibility}
+                >
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <label className="mb-1 block text-sm font-medium text-content-primary">Type</label>
-                      <select
-                        aria-label="Experiment Type"
-                        value={form.experimentType}
-                        onChange={(event) => setForm((current) => ({ ...current, experimentType: event.target.value as 'AB' | 'MULTIVARIATE' }))}
-                        className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
-                      >
-                        <option value="AB">A/B</option>
-                        <option value="MULTIVARIATE">Multivariate</option>
-                      </select>
+                      <p className="text-sm font-semibold text-content-primary">Experiment Engine</p>
+                      <p className="text-xs text-content-secondary">Deterministic A/B or multivariate assignment with holdout and winner rules.</p>
                     </div>
-                    <div>
-                      <label className="mb-1 block text-sm font-medium text-content-primary">Winner Metric</label>
-                      <select
-                        aria-label="Winner Metric"
-                        value={form.experimentMetric}
-                        onChange={(event) => setForm((current) => ({ ...current, experimentMetric: event.target.value as typeof form.experimentMetric }))}
-                        className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
-                      >
-                        <option value="OPENS">Opens</option>
-                        <option value="CLICKS">Clicks</option>
-                        <option value="CONVERSIONS">Conversions</option>
-                        <option value="REVENUE">Revenue</option>
-                        <option value="CUSTOM">Custom</option>
-                      </select>
-                    </div>
-                    <Input
-                      type="number"
-                      min="0"
-                      max="95"
-                      label="Holdout %"
-                      value={String(form.experimentHoldout)}
-                      onChange={(event) => setForm((current) => ({ ...current, experimentHoldout: Number(event.target.value || '0') }))}
-                    />
-                    <Input
-                      type="number"
-                      min="1"
-                      label="Min Recipients"
-                      value={String(form.experimentMinRecipients)}
-                      onChange={(event) => setForm((current) => ({ ...current, experimentMinRecipients: Number(event.target.value || '100') }))}
-                    />
-                    <Input
-                      type="number"
-                      min="1"
-                      label="Window Hours"
-                      value={String(form.experimentWindowHours)}
-                      onChange={(event) => setForm((current) => ({ ...current, experimentWindowHours: Number(event.target.value || '24') }))}
-                    />
-                    <Input
-                      label="Variant A"
-                      value={form.variantAName}
-                      onChange={(event) => setForm((current) => ({ ...current, variantAName: event.target.value }))}
-                    />
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      label="A Weight"
-                      value={String(form.variantAWeight)}
-                      onChange={(event) => setForm((current) => ({ ...current, variantAWeight: Number(event.target.value || '0') }))}
-                    />
-                    <Input
-                      label="A Subject Override"
-                      value={form.variantASubject}
-                      onChange={(event) => setForm((current) => ({ ...current, variantASubject: event.target.value }))}
-                    />
-                    <Input
-                      label="Variant B"
-                      value={form.variantBName}
-                      onChange={(event) => setForm((current) => ({ ...current, variantBName: event.target.value }))}
-                    />
-                    <Input
-                      type="number"
-                      min="0"
-                      max="100"
-                      label="B Weight"
-                      value={String(form.variantBWeight)}
-                      onChange={(event) => setForm((current) => ({ ...current, variantBWeight: Number(event.target.value || '0') }))}
-                    />
-                    <Input
-                      label="B Subject Override"
-                      value={form.variantBSubject}
-                      onChange={(event) => setForm((current) => ({ ...current, variantBSubject: event.target.value }))}
-                    />
-                    <label className="mt-7 flex items-center gap-2 text-sm text-content-primary">
+                    <label className="flex items-center gap-2 text-sm text-content-primary">
                       <input
                         type="checkbox"
-                        checked={form.experimentAutoPromote}
-                        onChange={(event) => setForm((current) => ({ ...current, experimentAutoPromote: event.target.checked }))}
+                        checked={form.experimentEnabled}
+                        onChange={(event) => setForm((current) => ({ ...current, experimentEnabled: event.target.checked }))}
                       />
-                      Auto-promote winner
+                      Enable
                     </label>
                   </div>
-                )}
-              </div>
+                  {form.experimentEnabled && (
+                    <div className="grid gap-4 md:grid-cols-4">
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-content-primary">Type</label>
+                        <select
+                          aria-label="Experiment Type"
+                          value={form.experimentType}
+                          onChange={(event) => setForm((current) => ({ ...current, experimentType: event.target.value as 'AB' | 'MULTIVARIATE' }))}
+                          className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                        >
+                          <option value="AB">A/B</option>
+                          <option value="MULTIVARIATE">Multivariate</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-sm font-medium text-content-primary">Winner Metric</label>
+                        <select
+                          aria-label="Winner Metric"
+                          value={form.experimentMetric}
+                          onChange={(event) => setForm((current) => ({ ...current, experimentMetric: event.target.value as typeof form.experimentMetric }))}
+                          className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                        >
+                          <option value="OPENS">Opens</option>
+                          <option value="CLICKS">Clicks</option>
+                          <option value="CONVERSIONS">Conversions</option>
+                          <option value="REVENUE">Revenue</option>
+                          <option value="CUSTOM">Custom</option>
+                        </select>
+                      </div>
+                      <Input
+                        type="number"
+                        min="0"
+                        max="95"
+                        label="Holdout %"
+                        value={String(form.experimentHoldout)}
+                        onChange={(event) => setForm((current) => ({ ...current, experimentHoldout: Number(event.target.value || '0') }))}
+                      />
+                      <Input
+                        type="number"
+                        min="1"
+                        label="Min Recipients"
+                        value={String(form.experimentMinRecipients)}
+                        onChange={(event) => setForm((current) => ({ ...current, experimentMinRecipients: Number(event.target.value || '100') }))}
+                      />
+                      <Input
+                        type="number"
+                        min="1"
+                        label="Window Hours"
+                        value={String(form.experimentWindowHours)}
+                        onChange={(event) => setForm((current) => ({ ...current, experimentWindowHours: Number(event.target.value || '24') }))}
+                      />
+                      <Input
+                        label="Variant A"
+                        value={form.variantAName}
+                        onChange={(event) => setForm((current) => ({ ...current, variantAName: event.target.value }))}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        label="A Weight"
+                        value={String(form.variantAWeight)}
+                        onChange={(event) => setForm((current) => ({ ...current, variantAWeight: Number(event.target.value || '0') }))}
+                      />
+                      <Input
+                        label="A Subject Override"
+                        value={form.variantASubject}
+                        onChange={(event) => setForm((current) => ({ ...current, variantASubject: event.target.value }))}
+                      />
+                      <Input
+                        label="Variant B"
+                        value={form.variantBName}
+                        onChange={(event) => setForm((current) => ({ ...current, variantBName: event.target.value }))}
+                      />
+                      <Input
+                        type="number"
+                        min="0"
+                        max="100"
+                        label="B Weight"
+                        value={String(form.variantBWeight)}
+                        onChange={(event) => setForm((current) => ({ ...current, variantBWeight: Number(event.target.value || '0') }))}
+                      />
+                      <Input
+                        label="B Subject Override"
+                        value={form.variantBSubject}
+                        onChange={(event) => setForm((current) => ({ ...current, variantBSubject: event.target.value }))}
+                      />
+                      <label className="mt-7 flex items-center gap-2 text-sm text-content-primary">
+                        <input
+                          type="checkbox"
+                          checked={form.experimentAutoPromote}
+                          onChange={(event) => setForm((current) => ({ ...current, experimentAutoPromote: event.target.checked }))}
+                        />
+                        Auto-promote winner
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -816,7 +827,7 @@ export default function CampaignWizardPage() {
               <div className="flex items-center justify-between">
                 <span className="text-content-secondary">Experiment</span>
                 <span className="font-medium text-content-primary">
-                  {form.experimentEnabled ? `${form.experimentType} by ${form.experimentMetric}` : 'Off'}
+                  {experimentEnabled ? `${form.experimentType} by ${form.experimentMetric}` : 'Off'}
                 </span>
               </div>
             </div>

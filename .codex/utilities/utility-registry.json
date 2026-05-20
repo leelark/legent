@@ -20,7 +20,7 @@
     { "name": "promote-backlog-item.ps1", "purpose": "Promote one scoped unblocked BACKLOG item to READY after refinement.", "ownerLane": "PROJECT_MANAGER_AGENT" },
     { "name": "list-active-work.ps1", "purpose": "Print active agents, work, blockers, worktrees, leases, and next READY item.", "ownerLane": "PROJECT_MANAGER_AGENT" },
     { "name": "list-module-teams.ps1", "purpose": "List supported overall and module-level teams.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
-    { "name": "get-module-prompt.ps1", "purpose": "Render the start prompt for an overall or module-level thread.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
+    { "name": "get-module-prompt.ps1", "purpose": "Render the start prompt for an overall, multi-module coordinator, or module-level thread.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
     { "name": "new-checkpoint.ps1", "purpose": "Create a real JSON checkpoint.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
     { "name": "update-checkpoint.ps1", "purpose": "Update checkpoint status, next action, or blockers.", "ownerLane": "PROGRAM_MANAGER_AGENT" },
     { "name": "new-worktree.ps1", "purpose": "Register or create an isolated worktree.", "ownerLane": "PROGRAM_MANAGER_AGENT" },

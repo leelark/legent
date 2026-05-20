@@ -105,6 +105,29 @@ Validation:
 Residual risk:
 - Backend run-history remains unpaged in this slice; richer run trace, dependency ordering, notifications, failure policy, and activity-family execution parity remain under the broader `automation-studio-activity-orchestration` backlog item.
 
+## 2026-05-20 Mode-aware workflow contract
+
+Source: `frontend/src/lib/ui-mode-contract.ts`, `frontend/src/stores/uiStore.ts`, `frontend/src/components/shell/Sidebar.tsx`, `frontend/src/app/(workspace)/campaigns/new/page.tsx`, `frontend/tests/e2e/ui-mode.spec.ts`, and `frontend/tests/e2e/campaign-engine.spec.ts`.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Added a typed UI-mode contract for mode storage, normalization, HTML class application, feature visibility, and role-gate metadata.
+- Replaced Settings navigation CSS-only hiding with render-time filtering for desktop and mobile navigation.
+- Preserved Admin as session-role-gated navigation rather than a third local UI mode.
+- Migrated the campaign wizard Experiment Engine to mode metadata and prevented experiment API payload submission in `BASIC` mode.
+
+Validation:
+- `cd frontend; npm run lint`
+- `cd frontend; npm run build:ci`
+- `cd frontend; .\node_modules\.bin\playwright.cmd test tests/e2e/ui-mode.spec.ts tests/e2e/campaign-engine.spec.ts --project=chromium --reporter=line`
+- `cd frontend; npm run test:e2e:smoke`
+- `.codex\utilities\validate-codex-system.ps1`
+- `git diff --check`
+
+Residual risk:
+- Budget, frequency, template command-center, and automation advanced controls still need separate mode-metadata slices with payload/default-policy decisions.
+
 ## 2026-05-20 ClickHouse experiment lineage and rollup idempotency
 
 Source: `services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseWriter.java`, `services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java`, `services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseWriterTest.java`, and `services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java`.
