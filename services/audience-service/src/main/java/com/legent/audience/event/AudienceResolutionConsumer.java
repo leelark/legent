@@ -286,10 +286,22 @@ public class AudienceResolutionConsumer {
                 .collect(Collectors.toList());
         Set<String> suppressedEmails = deliverabilityClient.checkSuppressedEmails(tenantId, workspaceId, emailsToCheck);
 
-        return subscribers.stream()
+        List<Subscriber> deliverabilityEligibleSubscribers = subscribers.stream()
                 .filter(sub -> !suppressedEmails.contains(normalizeEmail(sub.getEmail())))
-                .filter(sendEligibilityService::isSendEligible)
                 .toList();
+        List<SendEligibilityService.EligibilityResult> eligibilityResults = sendEligibilityService.evaluateAll(
+                tenantId, workspaceId, deliverabilityEligibleSubscribers);
+        if (eligibilityResults.size() != deliverabilityEligibleSubscribers.size()) {
+            throw new IllegalStateException("Audience eligibility result count mismatch");
+        }
+
+        List<Subscriber> eligibleSubscribers = new ArrayList<>();
+        for (int i = 0; i < deliverabilityEligibleSubscribers.size(); i++) {
+            if (eligibilityResults.get(i).eligible()) {
+                eligibleSubscribers.add(deliverabilityEligibleSubscribers.get(i));
+            }
+        }
+        return eligibleSubscribers;
     }
 
     private static String normalizeEmail(String email) {

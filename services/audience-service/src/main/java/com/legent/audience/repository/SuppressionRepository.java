@@ -27,11 +27,24 @@ public interface SuppressionRepository extends JpaRepository<Suppression, String
     """)
     List<Suppression> findActiveSuppression(@Param("tid") String tenantId, @Param("wid") String workspaceId, @Param("email") String email);
 
+    @Query("""
+        SELECT LOWER(s.email) FROM Suppression s
+        WHERE s.tenantId = :tid AND s.workspaceId = :wid AND LOWER(s.email) IN :emails AND s.deletedAt IS NULL
+          AND (s.expiresAt IS NULL OR s.expiresAt > CURRENT_TIMESTAMP)
+    """)
+    List<String> findActiveSuppressedEmails(
+            @Param("tid") String tenantId,
+            @Param("wid") String workspaceId,
+            @Param("emails") List<String> emails);
+
     boolean existsByTenantIdAndWorkspaceIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(
             String tenantId, String workspaceId, String email, Suppression.SuppressionType type);
 
     java.util.Optional<Suppression> findByTenantIdAndWorkspaceIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(
             String tenantId, String workspaceId, String email, Suppression.SuppressionType type);
+
+    java.util.Optional<Suppression> findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+            String tenantId, String workspaceId, String id);
 
     @Query("SELECT COUNT(s) FROM Suppression s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
     long countByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId);

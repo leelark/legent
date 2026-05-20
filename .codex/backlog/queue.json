@@ -1,4 +1,4 @@
-﻿{
+{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
     "lastUpdated":  "2026-05-20",
@@ -7,58 +7,6 @@
 
                   ],
     "backlogWork":  [
-                        {
-                            "id":  "ai-governance-optimization-foundation",
-                            "title":  "Design AI governance before model-backed optimization features",
-                            "status":  "BACKLOG",
-                            "priorityScore":  54,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  4,
-                                            "userImpact":  5,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "PRODUCT_MANAGER_AGENT",
-                            "partnerAgents":  [
-                                                  "SECURITY_ENGINEER",
-                                                  "DATA_ARCHITECT",
-                                                  "FRONTEND_OWNER"
-                                              ],
-                            "scope":  "Define and implement the governance foundation for AI assistance, send-time optimization, predictive segments, and frequency optimization before claiming true model-backed AI parity.",
-                            "nonGoals":  "Do not add provider credentials, call external model APIs, or claim Salesforce Einstein parity in this slice.",
-                            "sourceFiles":  [
-                                                "PROJECT_CONTEXT.md",
-                                                "docs/product/salesforce-parity-matrix.md",
-                                                "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
-                                                "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
-                                                "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java",
-                                                "services/foundation-service/src/main/java/com/legent/foundation/service/performance/OperationsAssistanceService.java"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "AI capability claims distinguish deterministic heuristics from model-backed features.",
-                                                       "Data-use, provider disclosure, opt-in, human review, audit, metering, and minimum data-threshold requirements are documented.",
-                                                       "Backlog follow-ups are split into content assistance, send-time optimization, predictive segments, and frequency optimization."
-                                                   ],
-                            "validationProfile":  "research-security",
-                            "validationCommands":  [
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
-                                                   ],
-                            "dependencies":  [
-                                                 "AI architecture decision",
-                                                 "data-use policy"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "design-decisions.md",
-                                                  "security-findings.md"
-                                              ],
-                            "nextAction":  "Create the AI governance design before implementation slices are marked READY.",
-                            "lastUpdated":  "2026-05-20"
-                        },
                         {
                             "id":  "email-governance-policy-objects",
                             "title":  "Add first-class email send governance policy objects",
@@ -319,49 +267,6 @@
                             "lastUpdated":  "2026-05-20"
                         },
                         {
-                            "id":  "platform-event-idempotency",
-                            "title":  "Add idempotency to platform event consumers",
-                            "status":  "BACKLOG",
-                            "priorityScore":  46,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  2,
-                                            "userImpact":  4,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  7
-                                        },
-                            "owner":  "PLATFORM_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "KAFKA_CONTRACTS_OWNER",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Prevent duplicate webhook dispatches, notifications, and search updates on Kafka retries.",
-                            "nonGoals":  "Do not remove existing envelope validation.",
-                            "sourceFiles":  [
-                                                "services/platform-service/src/main/java/com/legent/platform/event/PlatformEventConsumer.java",
-                                                "services/platform-service/src/main/java/com/legent/platform/service/NotificationEngine.java"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Duplicate envelopes with the same event identity cause one side effect.",
-                                                       "Retryable failures still rethrow for retry/DLQ."
-                                                   ],
-                            "validationProfile":  "backend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/platform-service -am test"
-                                                   ],
-                            "dependencies":  [
-
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "technical-debt.md"
-                                              ],
-                            "nextAction":  "Design platform event idempotency storage and tests.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
                             "id":  "external-provider-capacity",
                             "title":  "Verify external email provider capacity and sender reputation",
                             "status":  "BLOCKED",
@@ -409,6 +314,172 @@
                                                   "unresolved-risks.md"
                                               ],
                             "nextAction":  "Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "ai-content-assistance-governance",
+                            "title":  "Implement governed draft-only AI content assistance foundation",
+                            "status":  "BACKLOG",
+                            "priorityScore":  58,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  5,
+                                            "userImpact":  5,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "CONTENT_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "SECURITY_ENGINEER",
+                                                  "PRODUCT_MANAGER_AGENT",
+                                                  "FOUNDATION_SERVICE_OWNER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Add tenant/workspace-scoped AI policy and audit scaffolding for draft-only content assistance, including provider disclosure, prompt/data classification, output safety review, and human approval before send or publication.",
+                            "nonGoals":  "Do not call external model APIs, add provider credentials, autopublish generated content, or claim Salesforce Einstein parity in this slice.",
+                            "sourceFiles":  [
+                                                "docs/product/ai-governance-optimization-foundation.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                                "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                                "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
+                                                "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Tenant/workspace AI policy defines feature class, provider disclosure, allowed data classes, training stance, retention, opt-in/out, and kill switch.",
+                                                       "Content assistance remains draft-only and requires human review before send or publication.",
+                                                       "Audit records capture policy version, actor, data classes, prompt template version, output hash, and review decision without storing secrets.",
+                                                       "Tests cover policy denial, missing tenant/workspace context, and no-review/autopublish rejection."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI governance foundation",
+                                                 "model provider security decision"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "security-findings.md",
+                                                  "design-decisions.md"
+                                              ],
+                            "nextAction":  "Design the tenant/workspace AI policy and audit schema for draft-only content assistance before implementation.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "predictive-segments-governance",
+                            "title":  "Define governed predictive segment contract",
+                            "status":  "BACKLOG",
+                            "priorityScore":  53,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  4,
+                                            "userImpact":  4,
+                                            "performanceImpact":  3,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "AUDIENCE_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "DATA_ARCHITECT",
+                                                  "SECURITY_ENGINEER",
+                                                  "PRODUCT_MANAGER_AGENT",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Define predictive segment data provenance, threshold, preview, approval, tenant isolation, and rollback controls before model-backed audience creation.",
+                            "nonGoals":  "Do not infer or target protected/sensitive categories, weaken suppression/preference controls, or create sendable audiences without preview and approval.",
+                            "sourceFiles":  [
+                                                "docs/product/ai-governance-optimization-foundation.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                                                "frontend/src/components/audience/SegmentRuleBuilder.tsx"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Predictive segment contract declares allowed feature sources, data freshness, minimum counts, bias/drift checks, and protected-data exclusions.",
+                                                       "Predicted segments expose modeled-vs-rule-derived status, reasons, preview counts, suppression impact, and rollback snapshot.",
+                                                       "Audience-changing recommendations require human approval and tenant/workspace isolation tests.",
+                                                       "Follow-up implementation scope is split from Contact Builder data-designer governance when needed."
+                                                   ],
+                            "validationProfile":  "research-backend",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI governance foundation",
+                                                 "contact data-designer governance"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "security-findings.md",
+                                                  "design-decisions.md"
+                                              ],
+                            "nextAction":  "Design predictive segment governance around provenance, preview, approval, and rollback.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "frequency-optimization-governance",
+                            "title":  "Define governed engagement frequency optimization contract",
+                            "status":  "BACKLOG",
+                            "priorityScore":  60,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  4,
+                                            "userImpact":  4,
+                                            "performanceImpact":  4,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "CAMPAIGN_SERVICE_OWNER",
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "DATA_ARCHITECT",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Define frequency optimization lookback, variant, fatigue, confidence, and deliverability guardrail contract before recommendations can affect send cadence.",
+                            "nonGoals":  "Do not increase frequency for suppressed, unsubscribed, complaint-prone, warmup-blocked, over-cap, or provider-blocked recipients. Do not claim deliverability lift without evidence.",
+                            "sourceFiles":  [
+                                                "docs/product/ai-governance-optimization-foundation.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Frequency contract defines lookback window, required variants, low-data fallback, saturation categories, confidence bands, and recommended cap.",
+                                                       "Fatigue, unsubscribe, complaint, bounce, suppression, warmup, provider health, and rate controls are fail-closed safety inputs.",
+                                                       "Recommendations expose expected safety impact and require approval when cadence increases or risk is non-low.",
+                                                       "Focused implementation tests are identified for suppressions, caps, provider blocking, and tenant/workspace isolation."
+                                                   ],
+                            "validationProfile":  "research-backend",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI governance foundation",
+                                                 "deliverability evidence"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "performance-bottlenecks.md",
+                                                  "security-findings.md",
+                                                  "design-decisions.md"
+                                              ],
+                            "nextAction":  "Design the frequency optimization safety contract before implementation.",
                             "lastUpdated":  "2026-05-20"
                         }
                     ],
@@ -509,6 +580,73 @@
                                               ],
                             "nextAction":  "Run a target-like load harness with provider-approved capacity before making throughput claims.",
                             "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "campaign-audience-eligibility-final-gate",
+                            "title":  "Add final suppression and preference gate before campaign delivery handoff",
+                            "status":  "BLOCKED",
+                            "priorityScore":  71,
+                            "scoring":  {
+                                            "productionReadinessImpact":  5,
+                                            "securityRisk":  5,
+                                            "userImpact":  5,
+                                            "performanceImpact":  4,
+                                            "technicalDebtImpact":  3
+                                        },
+                            "owner":  "CAMPAIGN_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "AUDIENCE_SERVICE_OWNER",
+                                                  "DELIVERY_SERVICE_OWNER",
+                                                  "DELIVERABILITY_ENGINEER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Ensure direct and legacy campaign send paths cannot hand off recipients to delivery without authoritative preference and suppression checks, including local audience suppressions and nested email channel preferences.",
+                            "nonGoals":  "Do not bypass warmup, rate controls, unsubscribe policy, or provider inbox safety.",
+                            "sourceFiles":  [
+                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/service/SendEligibilityService.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/service/AudienceResolutionService.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Every campaign send handoff path has a documented final eligibility gate or routes through audience resolution.",
+                                                       "Local audience suppressions are included in final eligibility.",
+                                                       "Nested channels.email preferences and paused-until preferences are respected.",
+                                                       "Focused tests cover direct/legacy send denial for suppression and preference cases."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/campaign-service,services/audience-service,services/delivery-service -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "Cross-service contract design"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "security-findings.md",
+                                                  "bug-history.md",
+                                                  "root-cause-history.md",
+                                                  "technical-debt.md"
+                                              ],
+                            "nextAction":  "Make a compatibility decision for legacy campaign recipient payloads, then implement the eligibility marker contract if approved.",
+                            "lastUpdated":  "2026-05-20T07:53:21.2501415Z",
+                            "startedAt":  "2026-05-20T07:41:26.3257305Z",
+                            "completedAt":  "2026-05-20T07:53:21.2501415Z",
+                            "outcome":  "Audience-service final eligibility first slice is complete and validated, but the broader parent cannot be marked DONE until a compatibility decision is made for existing campaign legacy recipient JSON payloads. The proposed next slice is an eligibility marker/contract for BatchingService row payloads and SendExecutionService legacy fallback behavior.",
+                            "validationRun":  [
+                                                  ".\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=AudienceResolutionConsumerTest,SendEligibilityServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                  ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                  "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                  "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                  "git diff --check"
+                                              ],
+                            "residualRisks":  [
+                                                  "Campaign legacy recipient JSON payloads remain a possible bypass until product/operations decide whether old in-flight batches should fail closed, be grandfathered, or be migrated to an eligibility marker."
+                                              ]
                         }
                     ],
     "doneWork":  [
@@ -1321,6 +1459,871 @@
                          "checkpoint":  ".codex/checkpoints/20260520T032145Z-production-egress-policy-render-gate.json",
                          "completedAt":  "2026-05-20T09:18:41+05:30",
                          "outcome":  "Strict egress release validation now validates reviewed evidence, generates or checks a reviewed external egress NetworkPolicy, proves it renders through a temporary production Kustomize overlay, verifies evidence hash/CIDR/port/protocol inclusion, rejects stale or missing generated policies, rejects FQDN rules until a supported generator exists, and guards the app-label selector against uncovered Deployment pod templates. This does not replace target-environment egress evidence."
+                     },
+                     {
+                         "id":  "ai-governance-optimization-foundation",
+                         "title":  "Design AI governance before model-backed optimization features",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  5,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "PRODUCT_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "DATA_ARCHITECT",
+                                               "FRONTEND_OWNER"
+                                           ],
+                         "scope":  "Document and design the governance foundation for AI assistance, send-time optimization, predictive segments, and frequency optimization before claiming true model-backed AI parity.",
+                         "nonGoals":  "Do not add provider credentials, call external model APIs, or claim Salesforce Einstein parity in this slice.",
+                         "sourceFiles":  [
+                                             "PROJECT_CONTEXT.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/performance/OperationsAssistanceService.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "AI capability claims distinguish deterministic heuristics from model-backed features.",
+                                                    "Data-use, provider disclosure, opt-in, human review, audit, metering, and minimum data-threshold requirements are documented.",
+                                                    "Backlog follow-ups are split into content assistance, send-time optimization, predictive segments, and frequency optimization."
+                                                ],
+                         "validationProfile":  "research-security",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                ],
+                         "dependencies":  [
+                                              "AI architecture decision",
+                                              "data-use policy"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "design-decisions.md",
+                                               "security-findings.md"
+                                           ],
+                         "nextAction":  "Promote the highest-scored safe AI follow-up or another unblocked backlog item after integrating six parallel read-only audits.",
+                         "lastUpdated":  "2026-05-20T06:42:46.7998584Z",
+                         "startedAt":  "2026-05-20T06:27:29.1719923Z",
+                         "completedAt":  "2026-05-20T06:42:46.7998584Z",
+                         "outcome":  "AI governance foundation documented deterministic-vs-model-backed claim boundaries, tenant/workspace data-use policy requirements, provider disclosure, opt-in/out, audit, metering, human review, minimum data thresholds, fallback behavior, and four follow-up governed AI slices. Enforcement remains future implementation work.",
+                         "validationRun":  [
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Governance is documented but not enforced in code yet. Model-backed AI claims and provider integration remain blocked until follow-up slices add implementation and tests."
+                                           ]
+                     },
+                     {
+                         "id":  "suppression-delete-tenant-scope",
+                         "title":  "Scope audience suppression deletion by tenant and workspace",
+                         "status":  "DONE",
+                         "priorityScore":  65,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  4,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  6
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Fix suppression soft-delete to require tenant and workspace ownership instead of raw ID lookup, and add focused regression tests for cross-workspace/cross-tenant denial.",
+                         "nonGoals":  "Do not change suppression matching semantics, unsubscribe policy, campaign resolution, or deliverability suppression behavior beyond deletion ownership.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/SuppressionController.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/service/SuppressionService.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/repository/SuppressionRepository.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/service/SuppressionServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Suppression delete resolves the row by tenant, workspace, and ID before soft delete.",
+                                                    "Known IDs from another tenant or workspace are rejected and remain undeleted.",
+                                                    "Focused tests cover same-workspace delete and cross-workspace/cross-tenant denial.",
+                                                    "No existing suppression matching or campaign audience resolution behavior is weakened."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am -Dtest=SuppressionServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "bug-history.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-priority safe backlog item after integrating active read-only audits.",
+                         "lastUpdated":  "2026-05-20T06:57:49.0715066Z",
+                         "startedAt":  "2026-05-20T06:52:35.2326548Z",
+                         "completedAt":  "2026-05-20T06:57:49.0715066Z",
+                         "outcome":  "Audience suppression delete now requires current tenant and workspace ownership before soft delete; foreign suppression IDs return not found and are not saved.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=SuppressionServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Other audience governance findings remain open: list-membership segment rules can be skipped and predictive segment governance is not implemented."
+                                           ]
+                     },
+                     {
+                         "id":  "segment-rules-fail-closed",
+                         "title":  "Make audience segment rule evaluation fail closed",
+                         "status":  "DONE",
+                         "priorityScore":  68,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  5,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "FRONTEND_OWNER"
+                                           ],
+                         "scope":  "Fix segment evaluation and service validation so list-membership rules are honored and unsupported fields/operators fail closed instead of being skipped.",
+                         "nonGoals":  "Do not implement full predictive segment governance or frontend builder redesign in this slice; keep UI operator filtering as a follow-up unless backend tests require it.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                                             "frontend/src/components/audience/SegmentRuleBuilder.tsx"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "IN_LIST and NOT_IN_LIST for list_membership generate tenant/workspace-scoped EXISTS and NOT EXISTS clauses.",
+                                                    "Unsupported operators, unsupported fields, and list_membership with non-list operators fail closed with validation errors.",
+                                                    "Segment create/update validates rule trees before persistence.",
+                                                    "Focused tests cover valid list membership, invalid list membership/operator combinations, and unsupported operator rejection."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=SegmentEvaluationServiceTest,SegmentServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "bug-history.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "security-findings.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe item from parallel audits; likely platform event idempotency or automation live-run confirmation based on P1 blast radius.",
+                         "lastUpdated":  "2026-05-20T07:13:36.1031419Z",
+                         "startedAt":  "2026-05-20T07:00:23.1553489Z",
+                         "completedAt":  "2026-05-20T07:13:36.1031419Z",
+                         "outcome":  "Audience segment evaluation now honors tenant/workspace-scoped list membership rules and fails closed for unsupported operators, invalid fields, and invalid list/operator combinations before evaluation or persistence.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=SegmentEvaluationServiceTest,SegmentServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -am test",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Frontend SegmentRuleBuilder still exposes invalid list/operator combinations until a follow-up UX slice filters operators client-side; backend now rejects them fail-closed."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-studio-live-run-confirmation",
+                         "title":  "Require explicit confirmation for Automation Studio live runs",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "FRONTEND_OWNER"
+                                           ],
+                         "scope":  "Change Automation Studio run requests so empty JSON bodies default to dry-run and live runs require explicit confirmation plus existing ACTIVE/verified/type-supported checks.",
+                         "nonGoals":  "Do not add broad new activity families or arbitrary script execution in this slice.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/dto/AutomationStudioDto.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/AutomationStudioServiceTest.java",
+                                             "frontend/src/lib/automation-api.ts",
+                                             "frontend/src/app/(workspace)/automation/page.tsx"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "An empty JSON run request defaults to dry-run.",
+                                                    "Live execution requires explicit confirmation and existing verification/live-supported type gates.",
+                                                    "Legacy unsupported ACTIVE activity rows never invoke external clients and record failed runs.",
+                                                    "Focused tests cover default dry-run, live confirmation, unsupported live denial, and run listing limits if touched."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am \u0027-Dtest=AutomationStudioServiceTest,WorkflowGraphValidatorTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "bug-history.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe item from refined audits; platform event idempotency and campaign final eligibility gate remain P1 candidates.",
+                         "lastUpdated":  "2026-05-20T07:23:55.6726849Z",
+                         "startedAt":  "2026-05-20T07:16:37.1622498Z",
+                         "completedAt":  "2026-05-20T07:23:55.6726849Z",
+                         "outcome":  "Automation Studio run requests now default omitted dryRun to dry-run and require confirmLiveRun=true before any live side-effecting activity execution.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/automation-service -am \u0027-Dtest=AutomationStudioServiceTest,WorkflowGraphValidatorTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                               "PASS: .\\mvnw.cmd -pl services/automation-service -am test",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Automation Studio run history remains unbounded and the frontend does not yet render recent run failures; separate follow-up remains needed."
+                                           ]
+                     },
+                     {
+                         "id":  "platform-event-idempotency",
+                         "title":  "Add idempotency to platform event consumers",
+                         "status":  "DONE",
+                         "priorityScore":  46,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  7
+                                     },
+                         "owner":  "PLATFORM_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add platform event idempotency before webhook, notification, and search side effects so Kafka retries/replays do not duplicate outbound dispatches or notifications.",
+                         "nonGoals":  "Do not remove existing envelope validation.",
+                         "sourceFiles":  [
+                                             "services/platform-service/src/main/java/com/legent/platform/event/PlatformEventConsumer.java",
+                                             "services/platform-service/src/main/java/com/legent/platform/service/NotificationEngine.java",
+                                             "services/platform-service/src/main/java/com/legent/platform/service/WebhookDispatcherService.java",
+                                             "services/platform-service/src/main/java/com/legent/platform/service/GlobalSearchService.java",
+                                             "services/platform-service/src/test/java/com/legent/platform/event/PlatformEventConsumerTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "A platform event with an already processed eventId or idempotencyKey returns before webhook, notification, or search side effects.",
+                                                    "A failed side effect releases the in-progress claim so Kafka retry/DLQ behavior can reprocess.",
+                                                    "Tenant-global events with null workspace dedupe correctly.",
+                                                    "Focused tests cover duplicate notification, duplicate webhook, failure release, and idempotency service behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/platform-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe item from parallel audits; campaign audience eligibility and ClickHouse lineage remain candidates.",
+                         "lastUpdated":  "2026-05-20T07:38:42.0390959Z",
+                         "startedAt":  "2026-05-20T07:25:05.0519405Z",
+                         "completedAt":  "2026-05-20T07:38:42.0390959Z",
+                         "outcome":  "Platform event consumers now claim event/idempotency keys before webhook, notification, and search side effects; duplicates return before side effects, side-effect failures release pending claims for retry, and processed-marker failures do not release a completed side effect for duplicate replay.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/platform-service -am \u0027-Dtest=PlatformEventConsumerTest,PlatformEventIdempotencyServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                               ".\\mvnw.cmd -pl services/platform-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Target database migration application and Kafka replay behavior still require environment evidence before release claims."
+                                           ]
+                     },
+                     {
+                         "id":  "clickhouse-experiment-lineage-rollup-idempotency",
+                         "title":  "Preserve experiment lineage in ClickHouse analytics and make rollup refresh idempotent",
+                         "status":  "DONE",
+                         "priorityScore":  52,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "TRACKING_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "CAMPAIGN_SERVICE_OWNER",
+                                               "DATA_ARCHITECT",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Extend tracking ClickHouse raw event writer/schema for experiment_id, variant_id, holdout, and prevent repeated rollup refreshes from double-counting tenant/workspace/date windows.",
+                         "nonGoals":  "Do not claim AI optimization or winner automation from deterministic experiment analytics.",
+                         "sourceFiles":  [
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseWriter.java",
+                                             "services/tracking-service/src/main/resources/db/migration/V8__campaign_experiment_lineage.sql",
+                                             "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "ClickHouse raw_events schema and insert path include experiment_id, variant_id, and holdout.",
+                                                    "Repeated rollup refresh for the same tenant/workspace/date range cannot double count.",
+                                                    "Tests cover lineage insert SQL and idempotent/replace-scoped refresh SQL.",
+                                                    "Docs/memory avoid AI-driven optimization claims for this deterministic analytics path."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/tracking-service,services/campaign-service,services/automation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "ClickHouse local test strategy"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "technical-debt.md",
+                                               "enhancement-log.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe item from completed parallel audits; codex lifecycle atomicity, segment UI filtering, and automation run-history paging remain candidates.",
+                         "lastUpdated":  "2026-05-20T08:01:38.7042559Z",
+                         "startedAt":  "2026-05-20T07:54:25.1325921Z",
+                         "completedAt":  "2026-05-20T08:01:38.7042559Z",
+                         "outcome":  "ClickHouse raw event schema and writer now preserve experiment_id, variant_id, and holdout; campaign-day rollup refresh deletes the scoped tenant/workspace/date window before insert so repeated refreshes do not double-count.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/tracking-service -am \u0027-Dtest=ClickHouseWriterTest,ClickHouseRollupServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                               "PASS: .\\mvnw.cmd -pl services/tracking-service -am test",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Target ClickHouse DDL migration/application and high-volume refresh behavior still require environment evidence before release claims."
+                                           ]
+                     },
+                     {
+                         "id":  "codex-lifecycle-state-atomicity",
+                         "title":  "Harden Codex lifecycle state mutations for parallel agents",
+                         "status":  "DONE",
+                         "priorityScore":  40,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  6
+                                     },
+                         "owner":  "PROGRAM_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add shared locking/atomic JSON write and preflight ordering around start-work-item, acquire-lease, complete-work-item, and lease validation so parallel agents cannot corrupt state.",
+                         "nonGoals":  "Do not rewrite the autonomous organization model or alter product service code in this slice.",
+                         "sourceFiles":  [
+                                             ".codex/utilities/start-work-item.ps1",
+                                             ".codex/utilities/acquire-lease.ps1",
+                                             ".codex/utilities/complete-work-item.ps1",
+                                             ".codex/utilities/validate-worktree-leases.ps1",
+                                             ".codex/utilities/validate-codex-system.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Queue, lease, thread, checkpoint, and audit mutations are protected by a shared lock or equivalent single-writer guard.",
+                                                    "Lease overlap validation happens before invalid leases are persisted.",
+                                                    "Failure paths do not leave IN_PROGRESS items without lease/checkpoint evidence.",
+                                                    "Disposable temp-copy lifecycle smoke proves promote/start/update/complete/audit validation behavior."
+                                                ],
+                         "validationProfile":  "docs-memory",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Promote the next safe local item from completed sidecar audits; segment operator filtering and automation run-history paging are ready candidates.",
+                         "lastUpdated":  "2026-05-20T08:18:18.4369444Z",
+                         "startedAt":  "2026-05-20T08:06:02.3933450Z",
+                         "completedAt":  "2026-05-20T08:18:18.4369444Z",
+                         "outcome":  "Core Codex lifecycle state mutations now share a named lock and atomic JSON writes; acquire rejects overlapping leases before persistence, start creates lease/checkpoint evidence before queue transition, completion releases leases and thread lease IDs, and temp-copy smoke covers lifecycle behavior.",
+                         "validationRun":  [
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\test-codex-lifecycle-state.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                               "PASS: PowerShell parser check for .codex\\utilities\\*.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Less-used cleanup/worktree/module-lease utilities still use older direct write patterns and should be converted in a separate scoped slice if heavy parallel orchestration expands beyond the core lifecycle path."
+                                           ]
+                     },
+                     {
+                         "id":  "segment-rule-builder-operator-filtering",
+                         "title":  "Filter segment rule operators in the frontend builder",
+                         "status":  "DONE",
+                         "priorityScore":  33,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "AUDIENCE_SERVICE_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Update SegmentRuleBuilder so list operators are shown only for list_membership and list_membership only shows IN_LIST/NOT_IN_LIST, matching backend fail-closed validation.",
+                         "nonGoals":  "Do not redesign predictive segments or full segment UI.",
+                         "sourceFiles":  [
+                                             "frontend/src/components/audience/SegmentRuleBuilder.tsx",
+                                             "frontend/tests/e2e/audience-segments.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Non-list fields cannot select IN_LIST or NOT_IN_LIST in the builder.",
+                                                    "list_membership cannot select scalar operators.",
+                                                    "Existing saved invalid rules are normalized or surfaced without silent submit.",
+                                                    "Frontend lint and targeted UI test pass."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npx playwright test tests/e2e/audience-segments.spec.ts --project=chromium"
+                                                ],
+                         "dependencies":  [
+                                              "segment-rules-fail-closed"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Promote the next safe local item from completed sidecar audits; automation run-history paging and send-time optimization governance are ready candidates.",
+                         "lastUpdated":  "2026-05-20T08:48:55.3393029Z",
+                         "startedAt":  "2026-05-20T08:19:53.7156249Z",
+                         "completedAt":  "2026-05-20T08:48:55.3393029Z",
+                         "outcome":  "SegmentRuleBuilder now filters operators by field type, normalizes invalid field/operator combinations before submit, and focused Playwright coverage verifies list_membership options and posted payload.",
+                         "validationRun":  [
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: cd frontend; npm run build:ci",
+                                               "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-segments.spec.ts --project=chromium --reporter=line",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Backend segment validation remains the authoritative fail-closed boundary; the UI still accepts free-text list IDs until a future list picker validates actual list ownership."
+                                           ]
+                     },
+                     {
+                         "id":  "send-time-optimization-governance",
+                         "title":  "Define governed send-time optimization contract",
+                         "status":  "DONE",
+                         "priorityScore":  56,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  3,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DELIVERY_SERVICE_OWNER",
+                                               "DELIVERABILITY_ENGINEER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "DATA_ARCHITECT",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Define send-time optimization readiness thresholds, fallback behavior, confidence/data-quality surfaces, and send-path safety contracts before any model-backed scheduling changes.",
+                         "nonGoals":  "Do not bypass campaign approval, quiet hours, suppression, warmup, provider capacity, rate limits, or deliverability checks. Do not claim throughput or engagement lift without measured evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/InboxSafetyService.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "STO contract defines minimum data thresholds, lookback windows, low-data fallback, confidence bands, and data-quality reasons.",
+                                                    "Commercial and transactional send data are separated by policy.",
+                                                    "Scheduling recommendations cannot bypass quiet hours, approvals, suppression, warmup, rate limits, provider capacity, or deliverability gates.",
+                                                    "Follow-up implementation tests are identified for campaign and delivery service boundaries."
+                                                ],
+                         "validationProfile":  "research-backend",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "AI governance foundation",
+                                              "send governance policy objects"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "performance-bottlenecks.md",
+                                               "design-decisions.md"
+                                           ],
+                         "nextAction":  "Use six read-only discovery results to select the next highest-value safe item.",
+                         "lastUpdated":  "2026-05-20T09:01:33.3204328Z",
+                         "startedAt":  "2026-05-20T08:50:07.0618982Z",
+                         "completedAt":  "2026-05-20T09:01:33.3204328Z",
+                         "outcome":  "Implemented deterministic SEND_TIME policy/evaluation governance with data-readiness thresholds, low-data fallback, confidence/data-quality outputs, commercial/transactional data separation, approval/rollback requirements, and launch-timing safety gates; docs updated to avoid model-backed STO or live scheduling claims.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=OptimizationPerformanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Not model-backed STO; no live scheduling changes.",
+                                               "Campaign/delivery runtime scheduling, timezone behavior, model/data provenance, and target-environment evidence remain future work before STO parity or production claims."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-studio-run-history-page-visibility",
+                         "title":  "Expose Automation Studio recent run history in the workspace UI",
+                         "status":  "DONE",
+                         "priorityScore":  36,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  1,
+                                         "userImpact":  4,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "automation-studio-activity-orchestration",
+                         "scope":  "Render recent Automation Studio activity runs from the existing run-history API with compact loading, empty, error, status, dry/live, row-count, timestamp, and error-message states. Refresh visible history after dry-run completion.",
+                         "nonGoals":  "Do not add live-run execution controls, new activity types, arbitrary script execution, external storage credentials, or full orchestration parity.",
+                         "sourceFiles":  [
+                                             "frontend/src/app/(workspace)/automation/page.tsx",
+                                             "frontend/src/lib/automation-api.ts",
+                                             "frontend/tests/e2e/automation-studio.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Users can expand and collapse recent runs per automation activity.",
+                                                    "Run history shows status, dry/live mode, trigger source, rows read/written, started/completed timestamps, and failure message when present.",
+                                                    "Expanded history refreshes after a dry-run completes for that activity.",
+                                                    "Empty, loading, and error states are visible and scoped to the selected activity.",
+                                                    "No live-run button or broader orchestration behavior is added."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts --project=chromium --reporter=line",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "enhancement-log.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue with next safe candidate: release-evidence validator negative fixtures, data-extension governance migration tests, or email governance policy objects.",
+                         "lastUpdated":  "2026-05-20T09:20:08.9257507Z",
+                         "startedAt":  "2026-05-20T09:05:15.0235759Z",
+                         "completedAt":  "2026-05-20T09:18:30.4416610Z",
+                         "outcome":  "Implemented compact Automation Studio activity run-history visibility with expandable per-activity panels, run status/dry-live/trigger/row/timestamp/error details, scoped loading/empty/error states, and automatic refresh after dry-run completion.",
+                         "validationRun":  [
+                                               "cd frontend; npm run lint",
+                                               "cd frontend; npm run build:ci",
+                                               "cd frontend; .\\node_modules\\.bin\\playwright.cmd test automation-studio.spec.ts --project=chromium --reporter=line",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                                           ],
+                         "residualRisks":  [
+                                               "Backend run-history remains unpaged in this slice.",
+                                               "Richer run trace, dependency ordering, notifications, failure policy, and activity-family execution parity remain under automation-studio-activity-orchestration."
+                                           ]
+                     },
+                     {
+                         "id":  "release-evidence-validator-negative-fixtures",
+                         "title":  "Add release evidence validator negative fixtures",
+                         "status":  "DONE",
+                         "priorityScore":  41,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  3,
+                                         "userImpact":  1,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "RELEASE_MANAGER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Extend local release evidence validator self-tests with GA and image evidence negative fixtures for placeholder, missing artifact, path escape, absolute path, extra image, missing production image, and digest mismatch cases.",
+                         "nonGoals":  "Do not add real production evidence, read .env or secrets, deploy, push, or claim production readiness.",
+                         "sourceFiles":  [
+                                             "scripts/ops/test-release-evidence-validators.ps1",
+                                             "scripts/ops/validate-ga-evidence.ps1",
+                                             "scripts/ops/validate-image-evidence.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "GA evidence validator self-test includes a valid manifest pass plus placeholder, missing artifact, absolute path, path escape, and missing required field failures.",
+                                                    "Image evidence validator self-test includes valid manifest pass plus missing production image, extra image, digest mismatch, absolute evidence path, and path escape failures.",
+                                                    "Self-test uses only temporary local evidence artifacts and deletes them after execution.",
+                                                    "Release gate remains local-only and does not mark production evidence complete."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "release-history.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Continue with next safe candidate from discovery: data-extension governance migration tests or email governance policy objects.",
+                         "lastUpdated":  "2026-05-20T09:27:09.7674812Z",
+                         "startedAt":  "2026-05-20T09:22:00.0813082Z",
+                         "completedAt":  "2026-05-20T09:27:09.7674812Z",
+                         "outcome":  "Added temp-only GA and image evidence negative fixtures to the release evidence self-test, covering placeholder values, missing artifacts, absolute paths, path escapes, missing required fields, missing production images, extra images, and digest mismatches.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Local negative fixtures are not production evidence.",
+                                               "Strict production promotion remains blocked until real target egress, image, GA, load, restore, CI/security, TLS/admission, and monitoring evidence exists."
+                                           ]
+                     },
+                     {
+                         "id":  "data-extension-governance-migration-tests",
+                         "title":  "Add data extension governance migration and service contract tests",
+                         "status":  "DONE",
+                         "priorityScore":  38,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "contact-data-designer-governance",
+                         "scope":  "Add tests for data-extension workspace migration contracts and service-level governance around relationship scope, sendable field validation, retention clearing, and soft-delete persistence without changing schema or frontend behavior.",
+                         "nonGoals":  "Do not edit historical migrations, add Docker/Testcontainers, change frontend data-extension UI, or alter production schema in this slice.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/test/java/com/legent/audience/repository/DataExtensionWorkspaceMigrationTest.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java",
+                                             "services/audience-service/src/main/resources/db/migration/V14__data_extension_schema_builder_controls.sql",
+                                             "services/audience-service/src/main/resources/db/migration/V16__workspace_scope_data_extensions.sql",
+                                             "services/audience-service/src/main/resources/db/migration/V17__guard_data_extension_workspace_mapping.sql"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Static migration contract test verifies V16/V17 workspace-scope safeguards, reviewed mapping requirements, duplicate mapping rejection, workspace-default rejection, and record synchronization checks.",
+                                                    "Service tests cover same-workspace relationship target lookup, invalid source/target fields, invalid sendable field rejection, NONE retention clearing, and soft-delete save behavior.",
+                                                    "No historical migration is edited and no production schema behavior is changed.",
+                                                    "Focused audience tests and full audience-service test gate pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=DataExtensionServiceTest,DataExtensionWorkspaceMigrationTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                    "rg -n \"ddl-auto|SPRING_JPA_HIBERNATE_DDL_AUTO\" services shared config -g \"*.yml\" -g \"*.yaml\" -g \"*.properties\"",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe autonomous work item; target migration proof remains a future external-evidence gate.",
+                         "lastUpdated":  "2026-05-20T09:36:29.6127490Z",
+                         "startedAt":  "2026-05-20T09:28:59.4804614Z",
+                         "completedAt":  "2026-05-20T09:36:29.6127490Z",
+                         "outcome":  "Added local data-extension governance coverage for workspace-scope migration contracts and service validation rules without editing historical migrations.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=DataExtensionServiceTest,DataExtensionWorkspaceMigrationTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 14 tests",
+                                               ".\\mvnw.cmd -pl services/audience-service -am test passed with 104 reactor tests",
+                                               "rg ddl-auto scan found production service defaults at validate and create-drop only in test profiles",
+                                               ".codex\\utilities\\validate-codex-system.ps1 passed",
+                                               "scripts\\ops\\validate-repo-artifact-hygiene.ps1 passed",
+                                               "git diff --check passed with CRLF warnings only"
+                                           ],
+                         "residualRisks":  [
+                                               "Static migration contract tests do not replace PostgreSQL/Flyway application proof against representative target data.",
+                                               "Production release remains blocked by external target-environment evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "frequency-optimization-deterministic-policy-contract",
+                         "title":  "Add deterministic frequency optimization governance contract",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "CAMPAIGN_SERVICE_OWNER",
+                                               "TEST_ARCHITECT",
+                                               "PRODUCT_MANAGER_AGENT"
+                                           ],
+                         "parentId":  "frequency-optimization-governance",
+                         "scope":  "Implement deterministic frequency optimization governance evaluation and campaign frequency-cap regression coverage without model/provider integration or live cadence changes.",
+                         "nonGoals":  "Do not call external AI providers, change live send cadence, bypass suppression/unsubscribe/warmup/provider/rate controls, or claim deliverability lift or Salesforce Einstein parity.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/performance/ClosedLoopOptimizationService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/OptimizationPerformanceServiceTest.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignSendSafetyService.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/service/CampaignSendSafetyServiceTest.java",
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             "docs/product/salesforce-parity-matrix.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "FREQUENCY optimization evaluation is deterministic and exposes lookback, variant/sample readiness, saturation/risk category, recommended cap, confidence band, fallback mode, and safety-impact reasons.",
+                                                    "Evaluation fails closed or blocks cadence increases when suppression, unsubscribe, complaint, bounce, warmup, provider, rate-limit, or current frequency-cap signals are unsafe.",
+                                                    "Cadence-increase recommendations require human approval and rollback evidence; transactional/commercial and data-quality boundaries remain explicit.",
+                                                    "Campaign safety tests prove existing tenant/workspace-scoped frequency caps block sends before delivery handoff.",
+                                                    "Docs/product wording avoids model-backed AI, deliverability lift, or production readiness claims."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=OptimizationPerformanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignSendSafetyServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service,services/campaign-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Select next safe backlog item; AI content assistance and predictive segments remain governed follow-up slices.",
+                         "lastUpdated":  "2026-05-20T09:56:13.9465413Z",
+                         "startedAt":  "2026-05-20T09:46:13.3865260Z",
+                         "completedAt":  "2026-05-20T09:56:13.9465413Z",
+                         "outcome":  "Added deterministic FREQUENCY optimization policy evaluation and campaign frequency-cap regression coverage without external AI/provider calls or live cadence changes.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=OptimizationPerformanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 11 tests",
+                                               ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignSendSafetyServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 4 tests",
+                                               ".\\mvnw.cmd -pl services/foundation-service,services/campaign-service -am test passed with 95 foundation tests and 80 campaign tests",
+                                               ".codex\\utilities\\validate-codex-system.ps1 passed",
+                                               "scripts\\ops\\validate-repo-artifact-hygiene.ps1 passed",
+                                               "git diff --check passed with CRLF warnings only"
+                                           ],
+                         "residualRisks":  [
+                                               "Deterministic governance only; no model-backed frequency optimization, live cadence control, or provider-capacity evidence.",
+                                               "Production release and Salesforce/Einstein parity claims remain blocked by external target evidence and model/provider implementation."
+                                           ]
                      }
                  ],
     "activeWork":  [
@@ -1328,5 +2331,8 @@
                    ],
     "activeAgents":  [
 
-                     ]
+                     ],
+    "inProgressWork":  [
+
+                       ]
 }

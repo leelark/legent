@@ -85,9 +85,18 @@ public class AutomationStudioDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class RunRequest {
-        private boolean dryRun;
+        private Boolean dryRun;
+        private Boolean confirmLiveRun;
         private String triggerSource;
         private Map<String, Object> overrides;
+
+        public boolean isDryRun() {
+            return !Boolean.FALSE.equals(dryRun);
+        }
+
+        public boolean isLiveRunConfirmed() {
+            return Boolean.TRUE.equals(confirmLiveRun);
+        }
     }
 
     @Data

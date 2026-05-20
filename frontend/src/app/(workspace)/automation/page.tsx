@@ -10,12 +10,14 @@ import { PageHeader } from '@/components/ui/PageChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
   AutomationActivity,
+  AutomationActivityRun,
   AutomationActivityType,
   archiveWorkflow,
   cloneWorkflow,
   createAutomationActivity,
   createWorkflow,
   listAutomationActivities,
+  listAutomationActivityRuns,
   listWorkflows,
   pauseWorkflow,
   publishWorkflow,
@@ -47,6 +49,29 @@ const getAutomationErrorMessage = (error: unknown, fallback: string) =>
   readStringPath(error, ['response', 'data', 'error', 'message']) ??
   fallback;
 
+const formatRunTimestamp = (value?: string) => {
+  if (!value) {
+    return 'Not recorded';
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+  return parsed.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const runStatusVariant = (status?: AutomationActivityRun['status']): 'success' | 'danger' | 'info' | 'default' => {
+  if (status === 'SUCCEEDED') return 'success';
+  if (status === 'FAILED') return 'danger';
+  if (status === 'VERIFIED') return 'info';
+  return 'default';
+};
+
 export default function AutomationPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [activities, setActivities] = useState<AutomationActivity[]>([]);
@@ -61,6 +86,10 @@ export default function AutomationPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [expandedRunHistory, setExpandedRunHistory] = useState<string[]>([]);
+  const [activityRuns, setActivityRuns] = useState<Record<string, AutomationActivityRun[]>>({});
+  const [runHistoryLoading, setRunHistoryLoading] = useState<Record<string, boolean>>({});
+  const [runHistoryError, setRunHistoryError] = useState<Record<string, string | undefined>>({});
   const activeCount = workflows.filter((workflow) => workflow.status === 'ACTIVE').length;
   const draftCount = workflows.filter((workflow) => workflow.status === 'DRAFT').length;
   const pausedCount = workflows.filter((workflow) => workflow.status === 'PAUSED' || workflow.status === 'SCHEDULED').length;
@@ -85,6 +114,33 @@ export default function AutomationPage() {
   useEffect(() => {
     loadWorkflows();
   }, []);
+
+  const loadActivityRuns = async (activityId: string) => {
+    setRunHistoryLoading((current) => ({ ...current, [activityId]: true }));
+    setRunHistoryError((current) => ({ ...current, [activityId]: undefined }));
+    try {
+      const runs = await listAutomationActivityRuns(activityId);
+      setActivityRuns((current) => ({ ...current, [activityId]: runs.slice(0, 5) }));
+    } catch (e: unknown) {
+      setRunHistoryError((current) => ({
+        ...current,
+        [activityId]: getAutomationErrorMessage(e, 'Failed to load run history'),
+      }));
+    } finally {
+      setRunHistoryLoading((current) => ({ ...current, [activityId]: false }));
+    }
+  };
+
+  const toggleRunHistory = async (activityId: string) => {
+    if (expandedRunHistory.includes(activityId)) {
+      setExpandedRunHistory((current) => current.filter((id) => id !== activityId));
+      return;
+    }
+    setExpandedRunHistory((current) => [...current, activityId]);
+    if (!activityRuns[activityId]) {
+      await loadActivityRuns(activityId);
+    }
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) {
@@ -153,6 +209,9 @@ export default function AutomationPage() {
         await runAutomationActivity(activityId, { dryRun: true, triggerSource: 'MANUAL' });
       }
       await loadWorkflows();
+      if (mode === 'dryRun' && expandedRunHistory.includes(activityId)) {
+        await loadActivityRuns(activityId);
+      }
     } catch (e: unknown) {
       setError(getAutomationErrorMessage(e, `Failed to ${mode} activity`));
     } finally {
@@ -259,19 +318,87 @@ export default function AutomationPage() {
         <div className="divide-y divide-border-default">
           {activities.length === 0 ? (
             <div className="p-5 text-sm text-content-secondary">No automation activities configured.</div>
-          ) : activities.map((activity) => (
-            <div key={activity.id} className="flex flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
-              <div>
-                <p className="font-semibold text-content-primary">{activity.name}</p>
-                <p className="text-sm text-content-secondary">{activity.activityType}</p>
+          ) : activities.map((activity) => {
+            const isExpanded = expandedRunHistory.includes(activity.id);
+            const runs = activityRuns[activity.id] ?? [];
+            const historyError = runHistoryError[activity.id];
+            const historyLoading = runHistoryLoading[activity.id];
+
+            return (
+              <div key={activity.id} className="p-4">
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                  <div>
+                    <p className="font-semibold text-content-primary">{activity.name}</p>
+                    <p className="text-sm text-content-secondary">{activity.activityType}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={activity.status === 'ACTIVE' ? 'success' : 'default'}>{activity.status}</Badge>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      aria-expanded={isExpanded}
+                      aria-label={`${isExpanded ? 'Hide' : 'Show'} run history for ${activity.name}`}
+                      onClick={() => toggleRunHistory(activity.id)}
+                    >
+                      {isExpanded ? 'Hide history' : 'Run history'}
+                    </Button>
+                    <Button size="sm" variant="secondary" loading={actionBusy === `${activity.id}:verify`} onClick={() => runActivityAction(activity.id, 'verify')}>Verify</Button>
+                    <Button size="sm" loading={actionBusy === `${activity.id}:dryRun`} onClick={() => runActivityAction(activity.id, 'dryRun')}>Dry Run</Button>
+                  </div>
+                </div>
+                {isExpanded && (
+                  <div className="mt-4 rounded-lg border border-border-default bg-surface-secondary/60 p-3">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-content-primary">Recent runs</p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        loading={historyLoading}
+                        onClick={() => loadActivityRuns(activity.id)}
+                      >
+                        Refresh
+                      </Button>
+                    </div>
+                    {historyLoading ? (
+                      <p className="text-sm text-content-secondary">Loading recent runs...</p>
+                    ) : historyError ? (
+                      <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+                        {historyError}
+                      </div>
+                    ) : runs.length === 0 ? (
+                      <p className="text-sm text-content-secondary">No recent runs recorded.</p>
+                    ) : (
+                      <div className="grid gap-2" role="list" aria-label={`Recent runs for ${activity.name}`}>
+                        {runs.map((run) => (
+                          <div
+                            key={run.id}
+                            role="listitem"
+                            className="grid gap-3 rounded-lg border border-border-default bg-surface-primary p-3 text-sm md:grid-cols-[minmax(150px,0.9fr)_minmax(180px,1fr)_minmax(120px,0.8fr)] md:items-center"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant={runStatusVariant(run.status)}>{run.status}</Badge>
+                              <Badge variant={run.dryRun ? 'info' : 'warning'}>{run.dryRun ? 'Dry run' : 'Live'}</Badge>
+                            </div>
+                            <div className="grid gap-1 text-content-secondary sm:grid-cols-2">
+                              <span>Trigger: {run.triggerSource || 'Unknown'}</span>
+                              <span>Rows: {run.rowsRead ?? 0} read, {run.rowsWritten ?? 0} written</span>
+                              <span>Started: {formatRunTimestamp(run.startedAt)}</span>
+                              <span>Completed: {formatRunTimestamp(run.completedAt)}</span>
+                            </div>
+                            {run.errorMessage ? (
+                              <p className="rounded-md bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{run.errorMessage}</p>
+                            ) : (
+                              <p className="text-xs font-medium text-content-muted">No error reported</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={activity.status === 'ACTIVE' ? 'success' : 'default'}>{activity.status}</Badge>
-                <Button size="sm" variant="secondary" loading={actionBusy === `${activity.id}:verify`} onClick={() => runActivityAction(activity.id, 'verify')}>Verify</Button>
-                <Button size="sm" loading={actionBusy === `${activity.id}:dryRun`} onClick={() => runActivityAction(activity.id, 'dryRun')}>Dry Run</Button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </Card>
 

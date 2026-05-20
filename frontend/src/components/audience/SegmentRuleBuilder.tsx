@@ -44,7 +44,7 @@ const FIELDS = [
   { value: 'list_membership', label: 'List Membership' },
 ];
 
-const OPERATORS = [
+const SCALAR_OPERATORS = [
   { value: 'EQUALS', label: 'equals' },
   { value: 'NOT_EQUALS', label: 'not equals' },
   { value: 'CONTAINS', label: 'contains' },
@@ -52,6 +52,9 @@ const OPERATORS = [
   { value: 'ENDS_WITH', label: 'ends with' },
   { value: 'IS_NULL', label: 'is empty' },
   { value: 'IS_NOT_NULL', label: 'is not empty' },
+];
+
+const LIST_OPERATORS = [
   { value: 'IN_LIST', label: 'in list' },
   { value: 'NOT_IN_LIST', label: 'not in list' },
 ];
@@ -65,6 +68,26 @@ function newCondition(): Condition {
 
 function newGroup(): RuleGroup {
   return { id: newId(), operator: 'AND', conditions: [newCondition()] };
+}
+
+function operatorsForField(field: string) {
+  return field === 'list_membership' ? LIST_OPERATORS : SCALAR_OPERATORS;
+}
+
+function normalizeCondition(condition: Condition): Condition {
+  const normalizedField = FIELDS.some((field) => field.value === condition.field)
+    ? condition.field
+    : 'email';
+  const allowedOperators = operatorsForField(normalizedField);
+  const normalizedOperator = allowedOperators.some((operator) => operator.value === condition.op)
+    ? condition.op
+    : allowedOperators[0].value;
+
+  return {
+    ...condition,
+    field: normalizedField,
+    op: normalizedOperator,
+  };
 }
 
 interface Props {
@@ -89,7 +112,7 @@ function toBuilderGroups(rules: SegmentRules | null | undefined): RuleGroup[] {
     id: newId(),
     operator: group?.operator === 'OR' ? 'OR' : 'AND',
     conditions: Array.isArray(group?.conditions) && group.conditions.length > 0
-      ? group.conditions.map((condition) => ({
+      ? group.conditions.map((condition) => normalizeCondition({
           id: newId(),
           field: condition?.field || 'email',
           op: condition?.op || 'EQUALS',
@@ -143,7 +166,7 @@ export function SegmentRuleBuilder({ initialRules, onChange }: Props) {
   const updateCondition = (groupId: string, condId: string, field: keyof Condition, value: string) => {
     updateGroups(groups.map(g =>
       g.id === groupId
-        ? { ...g, conditions: g.conditions.map(c => c.id === condId ? { ...c, [field]: value } : c) }
+        ? { ...g, conditions: g.conditions.map(c => c.id === condId ? normalizeCondition({ ...c, [field]: value }) : c) }
         : g
     ));
   };
@@ -155,11 +178,12 @@ export function SegmentRuleBuilder({ initialRules, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="segment-rule-builder">
       {groups.map((group, gi) => (
         <div key={group.id} className="rounded-xl border border-border-default bg-surface-secondary/50 p-4 space-y-3">
           <div className="flex items-center justify-between">
             <button
+              type="button"
               onClick={() => toggleOperator(group.id)}
               className={clsx(
                 'rounded-lg px-3 py-1 text-xs font-bold uppercase tracking-wider transition-colors',
@@ -174,8 +198,9 @@ export function SegmentRuleBuilder({ initialRules, onChange }: Props) {
           </div>
 
           {group.conditions.map((cond) => (
-            <div key={cond.id} className="flex items-center gap-2 animate-fade-in">
+            <div key={cond.id} className="flex items-center gap-2 animate-fade-in" data-testid="segment-rule-condition">
               <select
+                aria-label="Rule field"
                 value={cond.field}
                 onChange={(e) => updateCondition(group.id, cond.id, 'field', e.target.value)}
                 className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
@@ -184,15 +209,17 @@ export function SegmentRuleBuilder({ initialRules, onChange }: Props) {
               </select>
 
               <select
+                aria-label="Rule operator"
                 value={cond.op}
                 onChange={(e) => updateCondition(group.id, cond.id, 'op', e.target.value)}
                 className="rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
               >
-                {OPERATORS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {operatorsForField(cond.field).map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
 
               {cond.op !== 'IS_NULL' && cond.op !== 'IS_NOT_NULL' && (
                 <input
+                  aria-label="Rule value"
                   type="text"
                   value={cond.value}
                   onChange={(e) => updateCondition(group.id, cond.id, 'value', e.target.value)}
@@ -202,6 +229,8 @@ export function SegmentRuleBuilder({ initialRules, onChange }: Props) {
               )}
 
               <button
+                type="button"
+                aria-label="Remove condition"
                 onClick={() => removeCondition(group.id, cond.id)}
                 className="rounded-lg p-2 text-content-muted hover:text-danger hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                 disabled={group.conditions.length === 1}

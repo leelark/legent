@@ -1,0 +1,47 @@
+{
+    "id":  "automation-studio-live-run-confirmation",
+    "createdAt":  "2026-05-20T07:16:37.7157709Z",
+    "objective":  "Require explicit confirmation for Automation Studio live runs",
+    "status":  "DONE",
+    "owner":  "AUTOMATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                         "services/automation-service/src/main/java/com/legent/automation/dto/AutomationStudioDto.java",
+                         "services/automation-service/src/test/java/com/legent/automation/service/AutomationStudioServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/bug-history.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "FRONTEND_OWNER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/automation-service -am \u0027-Dtest=AutomationStudioServiceTest",
+                           "WorkflowGraphValidatorTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote next highest-value safe P1 item from refined audits.",
+    "outcome":  "Automation Studio run requests now default omitted dryRun to dry-run and require confirmLiveRun=true before any live side-effecting activity execution.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/automation-service -am \u0027-Dtest=AutomationStudioServiceTest,WorkflowGraphValidatorTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                          "PASS: .\\mvnw.cmd -pl services/automation-service -am test",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "PASS: git diff --check"
+                      ],
+    "residualRisks":  [
+                          "Automation Studio run history remains unbounded and the frontend does not yet render recent run failures; separate follow-up remains needed."
+                      ]
+}

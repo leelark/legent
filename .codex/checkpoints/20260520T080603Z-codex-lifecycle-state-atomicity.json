@@ -1,0 +1,43 @@
+{
+    "id":  "codex-lifecycle-state-atomicity",
+    "createdAt":  "2026-05-20T08:06:03.2790339Z",
+    "objective":  "Harden Codex lifecycle state mutations for parallel agents",
+    "status":  "DONE",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         ".codex/utilities/codex-state.ps1",
+                         ".codex/utilities/acquire-lease.ps1",
+                         ".codex/utilities/start-work-item.ps1",
+                         ".codex/utilities/complete-work-item.ps1",
+                         ".codex/utilities/promote-backlog-item.ps1",
+                         ".codex/utilities/new-checkpoint.ps1",
+                         ".codex/utilities/update-checkpoint.ps1",
+                         ".codex/utilities/write-audit-event.ps1",
+                         ".codex/utilities/register-thread.ps1",
+                         ".codex/utilities/heartbeat-thread.ps1",
+                         ".codex/utilities/validate-worktree-leases.ps1",
+                         ".codex/utilities/test-codex-lifecycle-state.ps1",
+                         ".codex/backlog/queue.json",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote the next safe local item from completed sidecar audits."
+}

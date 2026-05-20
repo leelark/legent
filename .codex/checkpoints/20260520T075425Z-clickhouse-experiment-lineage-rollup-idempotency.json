@@ -1,0 +1,38 @@
+{
+    "id":  "clickhouse-experiment-lineage-rollup-idempotency",
+    "createdAt":  "2026-05-20T07:54:25.7053915Z",
+    "objective":  "Preserve experiment lineage in ClickHouse analytics and make rollup refresh idempotent",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseWriter.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseWriterTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "CAMPAIGN_SERVICE_OWNER",
+                   "DATA_ARCHITECT",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service",
+                           "services/campaign-service",
+                           "services/automation-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote the next highest-value safe item from completed parallel audits; no active ClickHouse implementation lease remains."
+}

@@ -1,0 +1,35 @@
+{
+    "id":  "release-evidence-validator-negative-fixtures",
+    "createdAt":  "2026-05-20T09:22:00.0012449Z",
+    "objective":  "Add release evidence validator negative fixtures",
+    "status":  "DONE",
+    "owner":  "RELEASE_MANAGER",
+    "filesInScope":  [
+                         "scripts/ops/test-release-evidence-validators.ps1",
+                         "scripts/ops/validate-ga-evidence.ps1",
+                         "scripts/ops/validate-image-evidence.ps1",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Release evidence negative fixtures complete; production evidence remains externally blocked."
+}

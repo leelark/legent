@@ -13,6 +13,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "codex-state.ps1")
 
 $forbidden = "password|secret|token|private key|BEGIN RSA|BEGIN OPENSSH|\.env"
 if ($Summary -match $forbidden -or $NextAction -match $forbidden) {
@@ -22,7 +23,6 @@ if ($Summary -match $forbidden -or $NextAction -match $forbidden) {
 
 $date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd")
 $dir = ".codex/audit/events"
-New-Item -ItemType Directory -Force -Path $dir | Out-Null
 $path = Join-Path $dir "$date.jsonl"
 $event = [ordered]@{
     timestamp = (Get-Date).ToUniversalTime().ToString("o")
@@ -37,5 +37,7 @@ $event = [ordered]@{
     summary = $Summary
     nextAction = $NextAction
 }
-($event | ConvertTo-Json -Compress -Depth 8) + "`n" | Add-Content -Path $path -Encoding UTF8
+Invoke-CodexStateMutation -Name "write-audit-event" -ScriptBlock {
+    Add-CodexJsonLine -Object $event -Path $path -Depth 8
+}
 Write-Host "Wrote audit event to $path"

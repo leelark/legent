@@ -22,8 +22,10 @@ powershell -ExecutionPolicy Bypass -File .codex\utilities\acquire-lease.ps1 -Thr
 
 Create a checkpoint before edits. Work only inside allowed paths unless the overall coordinator explicitly updates the lease and scope. Preserve tenant/workspace isolation, service ownership, Flyway-forward migrations, Kafka contracts, API envelopes, retry/DLQ behavior, and safety controls.
 
+Use maximum safe parallelization with up to 6 active subagents by default whenever independent backend work exists inside this module scope. Prefer near-full utilization and dynamically spawn or reassign subagents as work completes, while keeping responsibilities strictly disjoint with clear ownership and minimal overlap. Continuously rebalance tasks and reduce concurrency only when dependencies require serialization.
+
 Heartbeat at meaningful milestones:
 powershell -ExecutionPolicy Bypass -File .codex\utilities\heartbeat-thread.ps1 -ThreadId "{{THREAD_ID}}" -NextAction "<next action>"
 
-Keep memory compact. Write detailed activity to audit events and checkpoints. Return handoff using .codex/templates/handoff-template.md. Release leases and close the thread when done or blocked.
+Keep memory compact. Write detailed activity to audit events and checkpoints. Return handoff using .codex/templates/handoff-template.md. Release leases only when done or blocked. Keep working in a continuous loop and do not stop unless explicitly told to stop, or unless no safe local backend work remains and all remaining work is blocked by dependencies, external evidence, credentials, production access, or human decision.
 ```

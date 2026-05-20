@@ -13,25 +13,50 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "codex-state.ps1")
 
-$safeId = ($Id -replace "[^a-zA-Z0-9._-]", "-").Trim("-")
-if (-not $safeId) { Write-Error "Checkpoint id produced an empty safe filename."; exit 1 }
-$timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
-$path = Join-Path ".codex/checkpoints" "$timestamp-$safeId.json"
-
-$checkpoint = [ordered]@{
-    id = $safeId
-    createdAt = (Get-Date).ToUniversalTime().ToString("o")
-    objective = $Objective
-    status = $Status
-    owner = $Owner
-    filesInScope = @($FilesInScope)
-    agents = @($Agents)
-    validationPlan = @($ValidationPlan)
-    rollbackNotes = $RollbackNotes
-    blockers = @($Blockers)
-    nextAction = $NextAction
+function Normalize-StringArray([string[]]$Values) {
+    $normalized = @()
+    foreach ($value in @($Values)) {
+        if ($null -eq $value) { continue }
+        foreach ($part in ($value -split ",")) {
+            $trimmed = $part.Trim()
+            if ($trimmed) { $normalized += $trimmed }
+        }
+    }
+    return $normalized
 }
 
-$checkpoint | ConvertTo-Json -Depth 8 | Set-Content -Path $path -Encoding UTF8
+function Write-JsonFile($Object, [string]$Path, [int]$Depth = 20) {
+    Write-CodexJsonFile -Object $Object -Path $Path -Depth $Depth
+}
+
+$path = Invoke-CodexStateMutation -Name "new-checkpoint" -ScriptBlock {
+    $safeId = ($Id -replace "[^a-zA-Z0-9._-]", "-").Trim("-")
+    if (-not $safeId) { Write-Error "Checkpoint id produced an empty safe filename."; exit 1 }
+    $timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMddTHHmmssZ")
+    $checkpointPath = Join-Path ".codex/checkpoints" "$timestamp-$safeId.json"
+
+    $normalizedFiles = Normalize-StringArray $FilesInScope
+    $normalizedValidation = Normalize-StringArray $ValidationPlan
+    $normalizedAgents = Normalize-StringArray $Agents
+    $normalizedBlockers = Normalize-StringArray $Blockers
+
+    $checkpoint = [ordered]@{
+        id = $safeId
+        createdAt = (Get-Date).ToUniversalTime().ToString("o")
+        objective = $Objective
+        status = $Status
+        owner = $Owner
+        filesInScope = @($normalizedFiles)
+        agents = @($normalizedAgents)
+        validationPlan = @($normalizedValidation)
+        rollbackNotes = $RollbackNotes
+        blockers = @($normalizedBlockers)
+        nextAction = $NextAction
+    }
+
+    Write-JsonFile $checkpoint $checkpointPath 8
+    $checkpointPath
+}
 Write-Host "Created checkpoint: $path"

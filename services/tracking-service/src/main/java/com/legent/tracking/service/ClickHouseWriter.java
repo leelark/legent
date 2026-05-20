@@ -20,7 +20,7 @@ public class ClickHouseWriter {
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public void writeBatch(List<TrackingDto.RawEventPayload> events) {
-        String sql = "INSERT INTO raw_events (id, tenant_id, workspace_id, event_type, campaign_id, subscriber_id, message_id, user_agent, ip_address, link_url, timestamp, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO raw_events (id, tenant_id, workspace_id, event_type, campaign_id, subscriber_id, message_id, experiment_id, variant_id, holdout, user_agent, ip_address, link_url, timestamp, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         List<Object[]> batchArgs = events.stream()
                 .map(event -> new Object[]{
@@ -31,6 +31,9 @@ public class ClickHouseWriter {
                         event.getCampaignId(),
                         event.getSubscriberId(),
                         event.getMessageId(),
+                        event.getExperimentId(),
+                        event.getVariantId(),
+                        Boolean.TRUE.equals(event.getHoldout()),
                         event.getUserAgent(),
                         event.getIpAddress(),
                         event.getLinkUrl(),

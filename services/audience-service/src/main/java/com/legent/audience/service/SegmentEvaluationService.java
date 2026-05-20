@@ -4,6 +4,7 @@ import com.legent.common.constant.AppConstants;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -265,11 +266,34 @@ public class SegmentEvaluationService {
     }
 
     private String buildCondition(String field, String op, Object value, String paramName, Map<String, Object> params) {
-        String column = mapFieldToColumn(field);
-        if (column == null)
-            return null;
+        if (op == null || op.isBlank()) {
+            throw new IllegalArgumentException("Segment condition operator is required");
+        }
 
-        return switch (op.toUpperCase()) {
+        String normalizedOp = op.trim().toUpperCase(Locale.ROOT);
+        boolean listMembershipField = "list_membership".equalsIgnoreCase(field);
+
+        if ("IN_LIST".equals(normalizedOp) || "NOT_IN_LIST".equals(normalizedOp)) {
+            if (!listMembershipField) {
+                throw new IllegalArgumentException("List membership operators require list_membership field");
+            }
+            String listId = requireNonBlankStringValue(value, "list membership value");
+            params.put(paramName, listId);
+            if ("IN_LIST".equals(normalizedOp)) {
+                return "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.workspace_id = :wid AND lm.subscriber_id = s.id AND lm.list_id = :"
+                        + paramName + " AND lm.status = 'ACTIVE')";
+            }
+            return "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.workspace_id = :wid AND lm.subscriber_id = s.id AND lm.list_id = :"
+                    + paramName + " AND lm.status = 'ACTIVE')";
+        }
+
+        if (listMembershipField) {
+            throw new IllegalArgumentException("list_membership only supports IN_LIST and NOT_IN_LIST operators");
+        }
+
+        String column = mapFieldToColumn(field);
+
+        return switch (normalizedOp) {
             case "EQUALS" -> {
                 params.put(paramName, value);
                 yield column + " = :" + paramName;
@@ -300,23 +324,20 @@ public class SegmentEvaluationService {
             }
             case "IS_NULL" -> column + " IS NULL";
             case "IS_NOT_NULL" -> column + " IS NOT NULL";
-            case "IN_LIST" -> {
-                params.put(paramName, value);
-                yield "EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.workspace_id = :wid AND lm.subscriber_id = s.id AND lm.list_id = :"
-                        + paramName + " AND lm.status = 'ACTIVE')";
-            }
-            case "NOT_IN_LIST" -> {
-                params.put(paramName, value);
-                yield "NOT EXISTS (SELECT 1 FROM list_memberships lm WHERE lm.tenant_id = :tid AND lm.workspace_id = :wid AND lm.subscriber_id = s.id AND lm.list_id = :"
-                        + paramName + " AND lm.status = 'ACTIVE')";
-            }
             case "IN_SEGMENT" -> {
                 params.put(paramName, value);
                 yield "EXISTS (SELECT 1 FROM segment_memberships sm WHERE sm.tenant_id = :tid AND sm.workspace_id = :wid AND sm.subscriber_id = s.id AND sm.segment_id = :"
                         + paramName + ")";
             }
-            default -> null;
+            default -> throw new IllegalArgumentException("Unsupported segment operator: " + op);
         };
+    }
+
+    private String requireNonBlankStringValue(Object value, String fieldName) {
+        if (!(value instanceof String text) || text.isBlank()) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        return text;
     }
 
     private String mapFieldToColumn(String field) {

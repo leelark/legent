@@ -9,6 +9,7 @@ import com.legent.audience.repository.DataExtensionFieldRepository;
 import com.legent.audience.repository.DataExtensionRecordRepository;
 import com.legent.audience.repository.DataExtensionRepository;
 import com.legent.common.exception.NotFoundException;
+import com.legent.common.exception.ValidationException;
 import com.legent.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -172,12 +173,148 @@ class DataExtensionServiceTest {
         assertThat(response.getScannedRows()).isEqualTo(501);
     }
 
+    @Test
+    void updateRelationshipsRequiresTargetInSameTenantAndWorkspace() {
+        DataExtension source = dataExtension();
+        DataExtension target = targetDataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(source));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1"))
+                .thenReturn(fields(), fields());
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-target"))
+                .thenReturn(Optional.of(target));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-target"))
+                .thenReturn(List.of(field("subscriberKey", DataExtensionField.FieldType.TEXT, true, true)));
+        when(deRepository.save(source)).thenReturn(source);
+
+        DataExtensionDto.RelationshipRequest request = DataExtensionDto.RelationshipRequest.builder()
+                .relationships(List.of(DataExtensionDto.RelationshipDefinition.builder()
+                        .name("customer_profile")
+                        .sourceField("subscriberKey")
+                        .targetDataExtensionId("de-target")
+                        .targetField("subscriberKey")
+                        .cardinality("MANY_TO_ONE")
+                        .build()))
+                .build();
+
+        DataExtensionDto.Response response = service.updateRelationships("de-1", request);
+
+        assertThat(response.getRelationships()).hasSize(1);
+        assertThat(source.getRelationshipJson()).contains("customer_profile");
+        verify(deRepository).findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-target");
+    }
+
+    @Test
+    void updateRelationshipsRejectsMissingSourceFieldBeforeTargetLookup() {
+        DataExtension source = dataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(source));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        DataExtensionDto.RelationshipRequest request = DataExtensionDto.RelationshipRequest.builder()
+                .relationships(List.of(DataExtensionDto.RelationshipDefinition.builder()
+                        .name("bad_source")
+                        .sourceField("missingField")
+                        .targetDataExtensionId("de-target")
+                        .targetField("subscriberKey")
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> service.updateRelationships("de-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Relationship source field does not exist");
+    }
+
+    @Test
+    void updateRelationshipsRejectsMissingTargetField() {
+        DataExtension source = dataExtension();
+        DataExtension target = targetDataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(source));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-target"))
+                .thenReturn(Optional.of(target));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-target"))
+                .thenReturn(List.of(field("externalId", DataExtensionField.FieldType.TEXT, true, true)));
+
+        DataExtensionDto.RelationshipRequest request = DataExtensionDto.RelationshipRequest.builder()
+                .relationships(List.of(DataExtensionDto.RelationshipDefinition.builder()
+                        .name("bad_target")
+                        .sourceField("subscriberKey")
+                        .targetDataExtensionId("de-target")
+                        .targetField("subscriberKey")
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> service.updateRelationships("de-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Relationship target field does not exist");
+    }
+
+    @Test
+    void updateSendableConfigRejectsUnknownSendableField() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(dataExtension()));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        DataExtensionDto.SendableConfigRequest request = DataExtensionDto.SendableConfigRequest.builder()
+                .sendable(true)
+                .sendableField("missingEmail")
+                .primaryKeyField("subscriberKey")
+                .build();
+
+        assertThatThrownBy(() -> service.updateSendableConfig("de-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("sendableField must reference an existing field");
+    }
+
+    @Test
+    void updateRetentionPolicyNoneClearsRetentionFields() {
+        DataExtension de = dataExtension();
+        de.setRetentionDays(30);
+        de.setRetentionAction("DELETE_RECORDS");
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+        when(deRepository.save(de)).thenReturn(de);
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        DataExtensionDto.Response response = service.updateRetentionPolicy("de-1",
+                DataExtensionDto.RetentionPolicyRequest.builder()
+                        .retentionAction("NONE")
+                        .retentionDays(365)
+                        .build());
+
+        assertThat(response.getRetentionAction()).isEqualTo("NONE");
+        assertThat(response.getRetentionDays()).isNull();
+    }
+
+    @Test
+    void deleteDataExtensionSoftDeletesAndSavesScopedEntity() {
+        DataExtension de = dataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+
+        service.deleteDataExtension("de-1");
+
+        assertThat(de.getDeletedAt()).isNotNull();
+        verify(deRepository).save(de);
+    }
+
     private DataExtension dataExtension() {
         DataExtension de = new DataExtension();
         de.setId("de-1");
         de.setTenantId("tenant-1");
         de.setWorkspaceId("workspace-1");
         de.setName("Customers");
+        return de;
+    }
+
+    private DataExtension targetDataExtension() {
+        DataExtension de = new DataExtension();
+        de.setId("de-target");
+        de.setTenantId("tenant-1");
+        de.setWorkspaceId("workspace-1");
+        de.setName("Customer Profiles");
         return de;
     }
 

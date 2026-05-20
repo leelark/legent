@@ -10,6 +10,7 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.security.TenantContext;
 import com.legent.platform.service.GlobalSearchService;
 import com.legent.platform.service.NotificationEngine;
+import com.legent.platform.service.PlatformEventIdempotencyService;
 import com.legent.platform.service.WebhookDispatcherService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ public class PlatformEventConsumer {
     private final WebhookDispatcherService webhookDispatcherService;
     private final NotificationEngine notificationEngine;
     private final GlobalSearchService searchService;
+    private final PlatformEventIdempotencyService idempotencyService;
 
     @KafkaListener(topics = {AppConstants.TOPIC_WEBHOOK_TRIGGERED}, groupId = AppConstants.GROUP_PLATFORM)
     public void consumeWebhookTriggers(EventEnvelope<String> event) {
@@ -36,7 +38,16 @@ public class PlatformEventConsumer {
             String eventTypeToDispatch = requirePayloadString(payload, "eventToDispatch", AppConstants.TOPIC_WEBHOOK_TRIGGERED);
             Object data = payload.get("data");
 
-            webhookDispatcherService.dispatch(context.tenantId(), eventTypeToDispatch, data);
+            if (!claimIfNew(context, event, AppConstants.TOPIC_WEBHOOK_TRIGGERED)) {
+                return;
+            }
+            try {
+                webhookDispatcherService.dispatch(context.tenantId(), eventTypeToDispatch, data);
+            } catch (RuntimeException ex) {
+                releaseClaim(context, event, AppConstants.TOPIC_WEBHOOK_TRIGGERED);
+                throw ex;
+            }
+            markProcessed(context, event, AppConstants.TOPIC_WEBHOOK_TRIGGERED);
 
         } catch (Exception e) {
             log.error("Failed to process webhook trigger", e);
@@ -58,7 +69,16 @@ public class PlatformEventConsumer {
             String severity = findStringValue(payload, "severity");
             String linkUrl = findStringValue(payload, "linkUrl");
 
-            notificationEngine.createNotification(context.tenantId(), userId, title, message, severity, linkUrl);
+            if (!claimIfNew(context, event, AppConstants.TOPIC_NOTIFICATION_CREATED)) {
+                return;
+            }
+            try {
+                notificationEngine.createNotification(context.tenantId(), userId, title, message, severity, linkUrl);
+            } catch (RuntimeException ex) {
+                releaseClaim(context, event, AppConstants.TOPIC_NOTIFICATION_CREATED);
+                throw ex;
+            }
+            markProcessed(context, event, AppConstants.TOPIC_NOTIFICATION_CREATED);
 
         } catch (Exception e) {
             log.error("Failed to process notification creation", e);
@@ -81,7 +101,16 @@ public class PlatformEventConsumer {
             String searchableText = requirePayloadString(payload, "searchableText", AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
             Map<String, Object> metadata = metadataMap(payload.get("metadata"), AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
 
-            searchService.indexDocument(context.tenantId(), entityType, entityId, title, searchableText, metadata);
+            if (!claimIfNew(context, event, AppConstants.TOPIC_SEARCH_INDEX_UPDATED)) {
+                return;
+            }
+            try {
+                searchService.indexDocument(context.tenantId(), entityType, entityId, title, searchableText, metadata);
+            } catch (RuntimeException ex) {
+                releaseClaim(context, event, AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
+                throw ex;
+            }
+            markProcessed(context, event, AppConstants.TOPIC_SEARCH_INDEX_UPDATED);
 
         } catch (Exception e) {
             log.error("Failed to update abstract search index", e);
@@ -139,7 +168,34 @@ public class PlatformEventConsumer {
         if (environmentId != null) {
             TenantContext.setEnvironmentId(environmentId);
         }
-        return new EventContext(tenantId);
+        return new EventContext(tenantId, workspaceId);
+    }
+
+    private boolean claimIfNew(EventContext context, EventEnvelope<?> event, String expectedEventType) {
+        return idempotencyService.claimIfNew(
+                context.tenantId(),
+                context.workspaceId(),
+                expectedEventType,
+                event.getEventId(),
+                event.getIdempotencyKey());
+    }
+
+    private void markProcessed(EventContext context, EventEnvelope<?> event, String expectedEventType) {
+        idempotencyService.markProcessed(
+                context.tenantId(),
+                context.workspaceId(),
+                expectedEventType,
+                event.getEventId(),
+                event.getIdempotencyKey());
+    }
+
+    private void releaseClaim(EventContext context, EventEnvelope<?> event, String expectedEventType) {
+        idempotencyService.releaseClaim(
+                context.tenantId(),
+                context.workspaceId(),
+                expectedEventType,
+                event.getEventId(),
+                event.getIdempotencyKey());
     }
 
     private String resolveWorkspaceId(EventEnvelope<?> event, Map<String, Object> payload) {
@@ -205,6 +261,6 @@ public class PlatformEventConsumer {
         return value.trim();
     }
 
-    private record EventContext(String tenantId) {
+    private record EventContext(String tenantId, String workspaceId) {
     }
 }

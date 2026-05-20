@@ -39,6 +39,33 @@ function Invoke-EgressRenderValidator([string]$EvidencePath, [string]$Name, [str
     return Start-Process -FilePath "powershell" -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
 }
 
+function Invoke-GaValidator([string]$EvidenceDir, [string]$Name, [string]$ManifestPath = $null) {
+    $outPath = Join-Path $tempRoot "$Name.out"
+    $errPath = Join-Path $tempRoot "$Name.err"
+    $arguments = @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/ops/validate-ga-evidence.ps1",
+        "-EvidenceDir", $EvidenceDir
+    )
+    if ($ManifestPath) {
+        $arguments += @("-ManifestPath", $ManifestPath)
+    }
+    return Start-Process -FilePath "powershell" -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
+}
+
+function Invoke-ImageValidator([string]$ManifestPath, [string]$Name, [string]$EvidenceRoot, [string]$KustomizationPath) {
+    $outPath = Join-Path $tempRoot "$Name.out"
+    $errPath = Join-Path $tempRoot "$Name.err"
+    return Start-Process -FilePath "powershell" -ArgumentList @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/ops/validate-image-evidence.ps1",
+        "-ManifestPath", $ManifestPath,
+        "-EvidenceRoot", $EvidenceRoot,
+        "-RequireDigests",
+        "-KustomizationPath", $KustomizationPath
+    ) -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
+}
+
 function Assert-EgressFails([string]$Name, $Evidence, [string]$FailureMessage) {
     $path = Join-Path $tempRoot "$Name.json"
     Write-JsonFile $path $Evidence
@@ -51,6 +78,36 @@ function Assert-EgressPasses([string]$Name, $Evidence, [string]$FailureMessage) 
     $path = Join-Path $tempRoot "$Name.json"
     Write-JsonFile $path $Evidence
     & scripts/ops/validate-production-egress-evidence.ps1 -EvidencePath $path
+    if (-not $?) { Fail $FailureMessage }
+}
+
+function Assert-GaFails([string]$Name, [string]$EvidenceDir, $Manifest, [string]$FailureMessage) {
+    $path = Join-Path $EvidenceDir "ga-evidence-manifest.json"
+    Write-JsonFile $path $Manifest
+    $proc = Invoke-GaValidator $EvidenceDir $Name $path
+    if ($proc.ExitCode -eq 0) { Fail $FailureMessage }
+    $global:LASTEXITCODE = 0
+}
+
+function Assert-GaPasses([string]$Name, [string]$EvidenceDir, $Manifest, [string]$FailureMessage) {
+    $path = Join-Path $EvidenceDir "ga-evidence-manifest.json"
+    Write-JsonFile $path $Manifest
+    & scripts/ops/validate-ga-evidence.ps1 -EvidenceDir $EvidenceDir -ManifestPath $path
+    if (-not $?) { Fail $FailureMessage }
+}
+
+function Assert-ImageFails([string]$Name, $Manifest, [string]$EvidenceRoot, [string]$KustomizationPath, [string]$FailureMessage) {
+    $path = Join-Path $tempRoot "$Name.json"
+    Write-JsonFile $path $Manifest
+    $proc = Invoke-ImageValidator $path $Name $EvidenceRoot $KustomizationPath
+    if ($proc.ExitCode -eq 0) { Fail $FailureMessage }
+    $global:LASTEXITCODE = 0
+}
+
+function Assert-ImagePasses([string]$Name, $Manifest, [string]$EvidenceRoot, [string]$KustomizationPath, [string]$FailureMessage) {
+    $path = Join-Path $tempRoot "$Name.json"
+    Write-JsonFile $path $Manifest
+    & scripts/ops/validate-image-evidence.ps1 -ManifestPath $path -EvidenceRoot $EvidenceRoot -RequireDigests -KustomizationPath $KustomizationPath
     if (-not $?) { Fail $FailureMessage }
 }
 
@@ -68,6 +125,45 @@ function New-EgressEvidence([string]$ReviewedBy, [string]$ReviewedAt, [string]$P
             ports = @(@{ protocol = "TCP"; port = 5432 })
         })
     }
+}
+
+function New-GaManifest([hashtable]$Overrides = @{}) {
+    $manifest = [ordered]@{
+        syntheticSmoke = "synthetic-smoke.txt"
+        liveLoad = "live-load.txt"
+        restoreDrill = "restore-drill.txt"
+        ciSecurityTranscript = "ci-security.txt"
+        filesystemSbom = "filesystem-sbom.txt"
+        monitoringHandoff = "monitoring-handoff.txt"
+        tlsCertificate = "tls-certificate.txt"
+        restrictedAdmission = "restricted-admission.txt"
+        registryImageEvidence = "registry-image-evidence.json"
+    }
+    foreach ($key in $Overrides.Keys) {
+        if ($null -eq $Overrides[$key]) {
+            $manifest.Remove($key)
+        } else {
+            $manifest[$key] = $Overrides[$key]
+        }
+    }
+    return $manifest
+}
+
+function New-ImageManifest([string]$Image, [string]$Digest, [string]$SignatureEvidence = "signature.txt", [string]$ProvenanceEvidence = "signature.txt", [object[]]$ExtraImages = @()) {
+    $images = @(@{
+        image = $Image
+        digest = $Digest
+        sbom = "registry.example/legent/frontend.sbom"
+        sbomDigest = "sha256:" + ("b" * 64)
+        signatureEvidence = $SignatureEvidence
+        provenanceEvidence = $ProvenanceEvidence
+        builderId = "github-actions"
+        predicateType = "https://slsa.dev/provenance/v1"
+        reviewedBy = "release-reviewer"
+        reviewedAt = "2026-05-20"
+    })
+    $images += @($ExtraImages)
+    return @{ schemaVersion = 1; images = $images }
 }
 
 $requiredScripts = @(
@@ -132,6 +228,95 @@ images:
     } | ConvertTo-Json -Depth 6 | Set-Content -Path $validImageManifest -Encoding UTF8
     & scripts/ops/validate-image-evidence.ps1 -ManifestPath $validImageManifest -EvidenceRoot $tempRoot -RequireDigests -KustomizationPath $validKustomization
     if (-not $?) { Fail "Valid image evidence should pass validation." }
+
+    $secondDigest = "sha256:" + ("c" * 64)
+    $multiImageKustomization = Join-Path $tempRoot "multi-image-kustomization.yml"
+    @"
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+images:
+  - name: legent/frontend
+    digest: $digest
+  - name: legent/api
+    digest: $secondDigest
+"@ | Set-Content -Path $multiImageKustomization -Encoding UTF8
+    Assert-ImageFails "missing-production-image" `
+        (New-ImageManifest "legent/frontend" $digest) `
+        $tempRoot `
+        $multiImageKustomization `
+        "Image evidence missing a production image should fail validation."
+
+    $extraImage = @{
+        image = "legent/worker"
+        digest = $secondDigest
+        sbom = "registry.example/legent/worker.sbom"
+        sbomDigest = "sha256:" + ("d" * 64)
+        signatureEvidence = "signature.txt"
+        provenanceEvidence = "signature.txt"
+        builderId = "github-actions"
+        predicateType = "https://slsa.dev/provenance/v1"
+        reviewedBy = "release-reviewer"
+        reviewedAt = "2026-05-20"
+    }
+    Assert-ImageFails "extra-image-evidence" `
+        (New-ImageManifest "legent/frontend" $digest "signature.txt" "signature.txt" @($extraImage)) `
+        $tempRoot `
+        $validKustomization `
+        "Image evidence containing an image not in production kustomization should fail validation."
+
+    Assert-ImageFails "digest-mismatch-image-evidence" `
+        (New-ImageManifest "legent/frontend" $secondDigest) `
+        $tempRoot `
+        $validKustomization `
+        "Image evidence digest mismatch should fail validation."
+
+    Assert-ImageFails "absolute-image-evidence-path" `
+        (New-ImageManifest "legent/frontend" $digest (Join-Path $tempRoot "signature.txt")) `
+        $tempRoot `
+        $validKustomization `
+        "Absolute image evidence paths should fail validation."
+
+    Assert-ImageFails "escaping-image-evidence-path" `
+        (New-ImageManifest "legent/frontend" $digest "..\outside-signature.txt") `
+        $tempRoot `
+        $validKustomization `
+        "Image evidence paths escaping the evidence root should fail validation."
+
+    $gaRoot = Join-Path $tempRoot "ga-evidence"
+    New-Item -ItemType Directory -Force -Path $gaRoot | Out-Null
+    $validGaManifest = New-GaManifest
+    foreach ($artifact in @($validGaManifest.Values)) {
+        Set-Content -Path (Join-Path $gaRoot ([string]$artifact)) -Value "reviewed evidence" -Encoding UTF8
+    }
+    Assert-GaPasses "valid-ga-evidence" `
+        $gaRoot `
+        $validGaManifest `
+        "Valid GA evidence fixture should pass validation."
+
+    Assert-GaFails "placeholder-ga-evidence-field" `
+        $gaRoot `
+        (New-GaManifest @{ syntheticSmoke = "replace-with-smoke.txt" }) `
+        "GA evidence placeholder values should fail validation."
+
+    Assert-GaFails "missing-ga-evidence-artifact" `
+        $gaRoot `
+        (New-GaManifest @{ liveLoad = "missing-load.txt" }) `
+        "GA evidence missing artifacts should fail validation."
+
+    Assert-GaFails "absolute-ga-evidence-path" `
+        $gaRoot `
+        (New-GaManifest @{ syntheticSmoke = (Join-Path $gaRoot "synthetic-smoke.txt") }) `
+        "GA evidence absolute paths should fail validation."
+
+    Assert-GaFails "escaping-ga-evidence-path" `
+        $gaRoot `
+        (New-GaManifest @{ syntheticSmoke = "..\synthetic-smoke.txt" }) `
+        "GA evidence paths escaping the evidence root should fail validation."
+
+    Assert-GaFails "missing-ga-required-field" `
+        $gaRoot `
+        (New-GaManifest @{ tlsCertificate = $null }) `
+        "GA evidence missing required fields should fail validation."
 
     Assert-EgressPasses "reviewed-public-egress" `
         (New-EgressEvidence "release-reviewer" "2026-05-20" "managed-database-provider" @("8.8.8.8/32")) `

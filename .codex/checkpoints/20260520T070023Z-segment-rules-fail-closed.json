@@ -1,0 +1,47 @@
+{
+    "id":  "segment-rules-fail-closed",
+    "createdAt":  "2026-05-20T07:00:23.7703019Z",
+    "objective":  "Make audience segment rule evaluation fail closed",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/bug-history.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "FRONTEND_OWNER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=SegmentEvaluationServiceTest",
+                           "SegmentServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote next highest-value safe P1 item from parallel audits.",
+    "outcome":  "Audience segment evaluation now honors tenant/workspace-scoped list membership rules and fails closed for unsupported operators, invalid fields, and invalid list/operator combinations before evaluation or persistence.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=SegmentEvaluationServiceTest,SegmentServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                          "PASS: .\\mvnw.cmd -pl services/audience-service -am test",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "PASS: git diff --check"
+                      ],
+    "residualRisks":  [
+                          "Frontend SegmentRuleBuilder still exposes invalid list/operator combinations until a follow-up UX slice filters operators client-side; backend now rejects them fail-closed."
+                      ]
+}

@@ -4,7 +4,20 @@ Fresh baseline date: 2026-05-20.
 
 ## Live State
 
-No active product implementation work is registered in memory.
+Current overall implementation work:
+
+No active implementation item is currently leased by the overall thread.
+
+Parallel read-only agents:
+
+| Work Item | Owner | Scope |
+|---|---|---|
+| backend/campaign next item discovery | CAMPAIGN_SERVICE_OWNER | Completed read-only scout; campaign legacy eligibility marker remains blocked pending compatibility decision. |
+| frontend/product next item discovery | FRONTEND_OWNER | Completed read-only scout; selected Automation Studio run-history visibility. |
+| automation/journey next item discovery | AUTOMATION_SERVICE_OWNER | Completed read-only scout; selected Automation Studio run-history visibility as child slice. |
+| data/audience next item discovery | AUDIENCE_SERVICE_OWNER | Completed read-only scout; data-extension governance migration tests remain a safe future candidate. |
+| security/deliverability next item discovery | SECURITY_ENGINEER | Completed read-only scout; email governance policy objects remain a safe future candidate. |
+| devops/release next item discovery | DEVOPS_ENGINEER | Completed read-only scout; release-evidence validator negative fixtures remain a safe future candidate. |
 
 Source of truth:
 - Live thread/team state: `.codex/threads/thread-registry.json`

@@ -1,0 +1,36 @@
+{
+    "id":  "platform-event-idempotency",
+    "createdAt":  "2026-05-20T07:25:05.5476358Z",
+    "objective":  "Add idempotency to platform event consumers",
+    "status":  "DONE",
+    "owner":  "PLATFORM_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/platform-service/src/main/java/com/legent/platform/event/PlatformEventConsumer.java",
+                         "services/platform-service/src/main/java/com/legent/platform/service/PlatformEventIdempotencyService.java",
+                         "services/platform-service/src/main/resources/db/migration/V7__platform_event_idempotency.sql",
+                         "services/platform-service/src/test/java/com/legent/platform/event/PlatformEventConsumerTest.java",
+                         "services/platform-service/src/test/java/com/legent/platform/service/PlatformEventIdempotencyServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/bug-history.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "KAFKA_CONTRACTS_OWNER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/platform-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Platform event idempotency is locally implemented and validated; production release remains blocked on target database migration, Kafka replay, and operational evidence."
+}

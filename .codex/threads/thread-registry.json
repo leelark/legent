@@ -1,8 +1,56 @@
-{
-  "schemaVersion": 1,
-  "freshBaselineDate": "2026-05-20",
-  "mode": "HYBRID_READY",
-  "coordinatorThreadId": null,
-  "heartbeatStaleMinutes": 60,
-  "threads": []
+﻿{
+    "schemaVersion":  1,
+    "freshBaselineDate":  "2026-05-20",
+    "mode":  "HYBRID_READY",
+    "coordinatorThreadId":  "overall-24x7",
+    "heartbeatStaleMinutes":  60,
+    "threads":  [
+                    {
+                        "threadId":  "overall-24x7",
+                        "threadRole":  "OVERALL",
+                        "status":  "PAUSED",
+                        "module":  "overall",
+                        "owner":  "PROGRAM_MANAGER_AGENT",
+                        "backlogItemId":  "",
+                        "checkpointId":  "20260520T094613Z-frequency-optimization-deterministic-policy-contract",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/*.key",
+                                               "**/*.pem",
+                                               "**/node_modules/**",
+                                               "**/target/**",
+                                               "**/.next/**"
+                                           ],
+                        "leaseIds":  [
+                                         "overall-24x7-ai-governance-optimization-foundation-20260520T062631Z",
+                                         "overall-24x7-ai-governance-optimization-foundation-20260520T062729Z",
+                                         "overall-24x7-suppression-delete-tenant-scope-20260520T065235Z",
+                                         "overall-24x7-segment-rules-fail-closed-20260520T070023Z",
+                                         "overall-24x7-automation-studio-live-run-confirmation-20260520T071637Z",
+                                         "overall-24x7-platform-event-idempotency-20260520T072505Z",
+                                         "overall-24x7-campaign-audience-eligibility-final-gate-20260520T074126Z",
+                                         "overall-24x7-campaign-audience-eligibility-final-gate-20260520T075000Z",
+                                         "overall-24x7-clickhouse-experiment-lineage-rollup-idempotency-20260520T075425Z"
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+                                             "019e441a-0292-7281-8a8a-c78c02a88788",
+                                             "019e4423-d99e-7920-a7dd-15c1b3552abf",
+                                             "019e4427-9664-79b0-b5f2-75e96924f121",
+                                             "019e4427-96f9-7803-bcdf-d90e239e4d07",
+                                             "019e4427-9863-79a3-89d3-225cf9d40168"
+                                         ],
+                        "heartbeatAt":  "2026-05-20T09:58:33.4766950Z",
+                        "startedAt":  "2026-05-20T06:25:48.7560832Z",
+                        "lastUpdated":  "2026-05-20T09:58:40.9228597Z",
+                        "handoffPath":  ".codex/threads/overall-24x7-handoff.md",
+                        "nextAction":  "Safe-stopped per user request after completing active work. On resume, validate state and choose the next safe child item from the handoff.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    }
+                ]
 }

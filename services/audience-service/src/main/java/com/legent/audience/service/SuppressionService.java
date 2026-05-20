@@ -95,7 +95,9 @@ public class SuppressionService {
 
     @Transactional
     public void delete(String id) {
-        Suppression existing = suppressionRepository.findById(id)
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
+        Suppression existing = suppressionRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, id)
                 .orElseThrow(() -> new NotFoundException("Suppression", id));
         existing.softDelete();
         suppressionRepository.save(existing);

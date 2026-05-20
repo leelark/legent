@@ -1,6 +1,8 @@
 package com.legent.campaign.service;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -20,12 +22,14 @@ import com.legent.campaign.repository.CampaignVariantRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -118,6 +122,39 @@ class CampaignSendSafetyServiceTest {
         verify(budgetRepository).save(budget);
     }
 
+    @Test
+    void blocksRecipientWhenFrequencyCapReached() {
+        CampaignFrequencyPolicy policy = enabledPolicy(1, 24);
+        when(ledgerRepository.findByTenantIdAndWorkspaceIdAndMessageIdAndDeletedAtIsNull(anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(ledgerRepository.countRecipientTouchesSince(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("person@example.com"),
+                any(Instant.class),
+                anyCollectionOfSendStates())).thenReturn(1L);
+        when(ledgerRepository.save(any(CampaignSendLedger.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var prepared = safetyService.prepareRecipient(
+                campaign(),
+                batch(),
+                new CampaignSendSafetyService.SendPlan(null, List.of(), null, policy),
+                Map.of("email", "person@example.com", "subscriberId", "sub-1"),
+                "msg-1");
+
+        assertThat(prepared.send()).isFalse();
+        assertThat(prepared.skipReason()).isEqualTo("FREQUENCY_CAP");
+
+        ArgumentCaptor<CampaignSendLedger> ledgerCaptor = ArgumentCaptor.forClass(CampaignSendLedger.class);
+        verify(ledgerRepository).save(ledgerCaptor.capture());
+        CampaignSendLedger saved = ledgerCaptor.getValue();
+        assertThat(saved.getTenantId()).isEqualTo("tenant-1");
+        assertThat(saved.getWorkspaceId()).isEqualTo("workspace-1");
+        assertThat(saved.getEmail()).isEqualTo("person@example.com");
+        assertThat(saved.getSendState()).isEqualTo(CampaignSendLedger.SendState.SUPPRESSED);
+        assertThat(saved.getReason()).isEqualTo("FREQUENCY_CAP");
+    }
+
     private Campaign campaign() {
         Campaign campaign = new Campaign();
         campaign.setId("campaign-1");
@@ -145,6 +182,14 @@ class CampaignSendSafetyServiceTest {
         return policy;
     }
 
+    private CampaignFrequencyPolicy enabledPolicy(int maxSends, int windowHours) {
+        CampaignFrequencyPolicy policy = new CampaignFrequencyPolicy();
+        policy.setEnabled(true);
+        policy.setMaxSends(maxSends);
+        policy.setWindowHours(windowHours);
+        return policy;
+    }
+
     private CampaignBudget budget(BigDecimal limit, BigDecimal cost, boolean enforced) {
         CampaignBudget budget = new CampaignBudget();
         budget.setTenantId("tenant-1");
@@ -156,5 +201,10 @@ class CampaignSendSafetyServiceTest {
         budget.setActualSpend(BigDecimal.ZERO);
         budget.setEnforced(enforced);
         return budget;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Collection<CampaignSendLedger.SendState> anyCollectionOfSendStates() {
+        return any(Collection.class);
     }
 }

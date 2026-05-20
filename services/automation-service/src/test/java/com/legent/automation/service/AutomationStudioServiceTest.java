@@ -229,6 +229,56 @@ class AutomationStudioServiceTest {
     }
 
     @Test
+    void emptyRunRequestDefaultsToDryRun() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("Subscriber Import");
+        activity.setActivityType(AutomationStudioDto.ActivityType.IMPORT);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"sourceLocation\":\"import_123.csv\",\"targetType\":\"SUBSCRIBER\",\"fieldMapping\":{\"email\":\"Email Address\"}}");
+        activity.setOutputConfig("{}");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> {
+            AutomationActivityRun run = invocation.getArgument(0);
+            run.setId("run-1");
+            return run;
+        });
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder().triggerSource("TEST").build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.VERIFIED);
+        assertThat(response.isDryRun()).isTrue();
+        verify(audienceDataExtensionClient, never()).startImportActivity(any(), any(), any());
+    }
+
+    @Test
+    void liveRunRequiresExplicitConfirmation() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("Subscriber Import");
+        activity.setActivityType(AutomationStudioDto.ActivityType.IMPORT);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"sourceLocation\":\"import_123.csv\",\"targetType\":\"SUBSCRIBER\",\"fieldMapping\":{\"email\":\"Email Address\"}}");
+        activity.setOutputConfig("{}");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+
+        assertThatThrownBy(() -> service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder().dryRun(false).triggerSource("TEST").build()))
+                .hasMessageContaining("confirmLiveRun=true");
+
+        verify(runRepository, never()).save(any(AutomationActivityRun.class));
+        verify(audienceDataExtensionClient, never()).startImportActivity(any(), any(), any());
+    }
+
+    @Test
     void importActivityLiveRunStartsAudienceImportJob() {
         AutomationActivity activity = new AutomationActivity();
         activity.setId("activity-1");
@@ -251,7 +301,7 @@ class AutomationStudioServiceTest {
         when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
-                AutomationStudioDto.RunRequest.builder().dryRun(false).triggerSource("TEST").build());
+                AutomationStudioDto.RunRequest.builder().dryRun(false).confirmLiveRun(true).triggerSource("TEST").build());
 
         assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
         assertThat(response.getResult()).containsEntry("importJobId", "import-1");
@@ -281,7 +331,7 @@ class AutomationStudioServiceTest {
         when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
-                AutomationStudioDto.RunRequest.builder().dryRun(false).triggerSource("TEST").build());
+                AutomationStudioDto.RunRequest.builder().dryRun(false).confirmLiveRun(true).triggerSource("TEST").build());
 
         assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
         assertThat(response.getResult()).containsEntry("importJobId", "import-2");
@@ -309,9 +359,11 @@ class AutomationStudioServiceTest {
         when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
-                AutomationStudioDto.RunRequest.builder().dryRun(false).triggerSource("TEST").build());
+                AutomationStudioDto.RunRequest.builder().dryRun(false).confirmLiveRun(true).triggerSource("TEST").build());
 
         assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.FAILED);
         assertThat(response.getErrorMessage()).contains("EXTRACT activity execution is not supported");
+        verify(audienceDataExtensionClient, never()).runSqlQueryActivity(any(), any(), any());
+        verify(audienceDataExtensionClient, never()).startImportActivity(any(), any(), any());
     }
 }

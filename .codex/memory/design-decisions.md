@@ -26,15 +26,15 @@ Follow-up: keep source URLs current before product copy or roadmap claims.
 
 ## 2026-05-20 AI Claim Boundary
 
-Source: local audit of foundation intelligence controllers/services and source search for model-provider integrations.
+Source: local audit of foundation intelligence controllers/services, source search for model-provider integrations, `docs/product/ai-governance-optimization-foundation.md`, and current official vendor AI trust/optimization documentation.
 
-Decision: deterministic scoring, heuristics, and rules-based operations assistance are not true model-backed AI parity.
+Decision: deterministic scoring, heuristics, and rules-based operations assistance are not true model-backed AI parity. Model-backed content assistance, send-time optimization, predictive segments, frequency optimization, decisioning, or autonomous action require a feature-specific tenant/workspace policy before implementation.
 
-Rationale: current source evidence did not prove OpenAI, Anthropic, embedding, completion, or other model-provider integration in services/frontend. AI assistance, STO, predictive segments, and generative content require explicit governance, provider disclosure, data-use controls, opt-in, audit, and human review before claims.
+Rationale: current source evidence did not prove OpenAI, Anthropic, embedding, completion, or other model-provider integration in services/frontend. Current operations assistance stores telemetry/evidence JSON and computes rules-based recommendations, so model-backed features need data classification, provider disclosure, masking/minimization, retention, opt-in/out, metering, audit, minimum data thresholds, confidence/fallback behavior, and human review before claims or provider integration.
 
-Impact: use `ai-governance-optimization-foundation` before marking model-backed AI feature work READY.
+Impact: use the claim taxonomy in `docs/product/ai-governance-optimization-foundation.md`: deterministic heuristic, predictive model, generative model, decisioning, autonomous action, and evidence-required. Do not claim Salesforce Einstein parity, AI parity, or autonomous optimization until the relevant follow-up slice has implementation and validation evidence.
 
-Follow-up: do not claim Salesforce Einstein parity until model-backed behavior, data governance, and validation evidence exist.
+Follow-up: implement governed slices for `ai-content-assistance-governance`, `send-time-optimization-governance`, `predictive-segments-governance`, and `frequency-optimization-governance` before product claims or provider integration.
 
 ## 2026-05-20 UI Mode Boundary
 
@@ -45,5 +45,17 @@ Decision: current UI modes are `BASIC` and `ADVANCED`; role-gated Admin is a fut
 Rationale: the shell persists and toggles `BASIC`/`ADVANCED`, while current hiding is coarse and CSS-based. Admin behavior must be backed by authorization and route/control policy.
 
 Impact: use `mode-aware-workflow-contract` before claiming beginner/advanced/admin parity.
+
+## 2026-05-20 Send-Time Optimization Boundary
+
+Source: `ClosedLoopOptimizationService.java`, `OptimizationPerformanceServiceTest.java`, `docs/product/ai-governance-optimization-foundation.md`, and `docs/product/salesforce-parity-matrix.md`.
+
+Decision: Legent may evaluate deterministic send-time optimization readiness, confidence, fallback, and safety gates through `SEND_TIME` policies, but this is not model-backed STO and must not change live campaign launch timing without later campaign/delivery runtime integration and evidence.
+
+Rationale: Salesforce-level STO implies trained prediction behavior and low-data fallback, while current Legent source has deterministic intelligence only. A policy-evaluation contract gives product and engineering a safe boundary before introducing scheduling changes or model providers.
+
+Impact: launch-time changes require human approval, rollback evidence, and quiet-hours, approval, suppression, warmup, rate-limit, provider-capacity, and deliverability gates. Low-data inputs must report fallback and low confidence rather than personalized timing certainty.
+
+Follow-up: implement campaign/delivery scheduling integration, timezone proof, model/data provenance, and target data-quality evidence before any STO parity or production claim.
 
 Decision update rule: add only durable decisions with source, rationale, impact, and validation or follow-up.

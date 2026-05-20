@@ -107,8 +107,8 @@ public class AutomationStudioService {
         AutomationStudioDto.RunRequest safeRequest = request == null ? AutomationStudioDto.RunRequest.builder().dryRun(true).build() : request;
         AutomationStudioDto.VerificationResponse verification = verifyConfig(activity.getActivityType(), readMap(activity.getInputConfig()), readMap(activity.getOutputConfig()));
         boolean dryRun = safeRequest.isDryRun();
-        if (!dryRun && activity.getStatus() != AutomationStudioDto.ActivityStatus.ACTIVE) {
-            throw new ValidationException("status", "Only ACTIVE activities can run outside dry-run mode");
+        if (!dryRun) {
+            requireLiveRunIntent(activity, safeRequest);
         }
 
         AutomationActivityRun run = new AutomationActivityRun();
@@ -392,6 +392,15 @@ public class AutomationStudioService {
         if (activity.getStatus() == AutomationStudioDto.ActivityStatus.ACTIVE && !verification.isValid()) {
             throw new ValidationException("status", "ACTIVE automation activities require verification.valid=true and liveExecutionSupported=true: "
                     + String.join("; ", verification.getErrors()));
+        }
+    }
+
+    private void requireLiveRunIntent(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
+        if (!request.isLiveRunConfirmed()) {
+            throw new ValidationException("confirmLiveRun", "Live automation runs require confirmLiveRun=true");
+        }
+        if (activity.getStatus() != AutomationStudioDto.ActivityStatus.ACTIVE) {
+            throw new ValidationException("status", "Only ACTIVE activities can run outside dry-run mode");
         }
     }
 

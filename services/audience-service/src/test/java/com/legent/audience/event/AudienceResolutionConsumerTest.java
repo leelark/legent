@@ -65,6 +65,14 @@ class AudienceResolutionConsumerTest {
                 sendEligibilityService);
         lenient().when(eventPublisher.publish(any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+        lenient().when(sendEligibilityService.evaluateAll(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
+                .thenAnswer(invocation -> {
+                    List<Subscriber> subscribers = invocation.getArgument(2);
+                    return subscribers.stream()
+                            .map(subscriber -> new SendEligibilityService.EligibilityResult(
+                                    subscriber.getId(), subscriber.getEmail(), true, null))
+                            .toList();
+                });
     }
 
     @AfterEach
@@ -92,8 +100,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(subscribers.subList(AppConstants.SEND_BATCH_SIZE, totalSubscribers));
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
-
         consumer.handleResolutionRequest(requestEvent("event-1", "idem-1"));
 
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
@@ -156,7 +162,7 @@ class AudienceResolutionConsumerTest {
         verify(idempotencyService, never()).registerIfNew(any(), any(), any(), any(), any());
         verify(audienceCandidateRepository, never()).findNextCandidates(any(), any(), any(), any(), any());
         verify(deliverabilityClient, never()).checkSuppressedEmails(any(), any(), anyList());
-        verify(sendEligibilityService, never()).isSendEligible(any());
+        verify(sendEligibilityService, never()).evaluateAll(any(), any(), anyList());
         verify(eventPublisher, never()).publish(any(), any(), any());
     }
 
@@ -172,7 +178,7 @@ class AudienceResolutionConsumerTest {
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
         verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), envelopeCaptor.capture());
         verify(deliverabilityClient, never()).checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList());
-        verify(sendEligibilityService, never()).isSendEligible(any());
+        verify(sendEligibilityService, never()).evaluateAll(any(), any(), anyList());
 
         Map<String, Object> payload = envelopeCaptor.getValue().getPayload();
         assertThat(payload)
@@ -230,8 +236,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(subscribers);
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of("user1@example.com"));
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
-
         consumer.handleResolutionRequest(requestEvent("event-suppressed", "idem-suppressed"));
 
         ArgumentCaptor<List<String>> emailsCaptor = ArgumentCaptor.forClass(List.class);
@@ -254,6 +258,58 @@ class AudienceResolutionConsumerTest {
     }
 
     @Test
+    void appliesAuthoritativeLocalEligibilityBeforePublishingResolvedAudience() {
+        List<Subscriber> subscribers = List.of(subscriber(0), subscriber(1), subscriber(2));
+
+        when(idempotencyService.registerIfNew(eq(TENANT_ID), eq(WORKSPACE_ID), eq(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED), eq("event-local-eligibility"), eq("idem-local-eligibility")))
+                .thenReturn(true);
+        when(audienceCandidateRepository.findNextCandidates(eq(TENANT_ID), eq(WORKSPACE_ID), any(AudienceCandidateCriteria.class), eq(null), eq(resolutionPage())))
+                .thenReturn(subscribers);
+        when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
+                .thenReturn(Set.of());
+        when(sendEligibilityService.evaluateAll(eq(TENANT_ID), eq(WORKSPACE_ID), eq(subscribers)))
+                .thenReturn(List.of(
+                        new SendEligibilityService.EligibilityResult("subscriber-0", "user0@example.com", true, null),
+                        new SendEligibilityService.EligibilityResult("subscriber-1", "user1@example.com", false, "SUPPRESSED"),
+                        new SendEligibilityService.EligibilityResult("subscriber-2", "user2@example.com", true, null)));
+
+        consumer.handleResolutionRequest(requestEvent("event-local-eligibility", "idem-local-eligibility"));
+
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), envelopeCaptor.capture());
+
+        Map<String, Object> payload = envelopeCaptor.getValue().getPayload();
+        assertThat(payload)
+                .containsEntry("totalResolvedSubscribers", 2)
+                .containsEntry("chunkSize", 2)
+                .containsEntry("totalChunks", 1)
+                .containsEntry("isLastChunk", true);
+        assertThat(subscriberPayload(payload))
+                .extracting("email")
+                .containsExactly("user0@example.com", "user2@example.com");
+    }
+
+    @Test
+    void rethrowsLocalEligibilityFailuresWithoutPublishingResolvedAudience() {
+        List<Subscriber> subscribers = List.of(subscriber(0));
+
+        when(idempotencyService.registerIfNew(eq(TENANT_ID), eq(WORKSPACE_ID), eq(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED), eq("event-eligibility-fail"), eq("idem-eligibility-fail")))
+                .thenReturn(true);
+        when(audienceCandidateRepository.findNextCandidates(eq(TENANT_ID), eq(WORKSPACE_ID), any(AudienceCandidateCriteria.class), eq(null), eq(resolutionPage())))
+                .thenReturn(subscribers);
+        when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
+                .thenReturn(Set.of());
+        when(sendEligibilityService.evaluateAll(eq(TENANT_ID), eq(WORKSPACE_ID), eq(subscribers)))
+                .thenThrow(new IllegalStateException("eligibility unavailable"));
+
+        assertThatThrownBy(() -> consumer.handleResolutionRequest(requestEvent("event-eligibility-fail", "idem-eligibility-fail")))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("eligibility unavailable");
+
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), any(), any());
+    }
+
+    @Test
     void deduplicatesSuppressionCandidatesByNormalizedEmail() {
         List<Subscriber> subscribers = List.of(subscriber(0), subscriber(1), subscriber(2));
         subscribers.get(1).setEmail(" USER0@Example.com ");
@@ -264,8 +320,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(subscribers);
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
-
         consumer.handleResolutionRequest(requestEvent("event-duplicate-email", "idem-duplicate-email"));
 
         ArgumentCaptor<List<String>> emailsCaptor = ArgumentCaptor.forClass(List.class);
@@ -302,7 +356,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(subscribers);
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
         RuntimeException publishFailure = new RuntimeException("publish failed");
         when(eventPublisher.publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), any()))
                 .thenThrow(publishFailure);
@@ -321,7 +374,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(subscribers);
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
         RuntimeException publishFailure = new RuntimeException("async publish failed");
         when(eventPublisher.publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), any()))
                 .thenReturn(CompletableFuture.failedFuture(publishFailure));
@@ -347,8 +399,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(List.of(subscriber(0)));
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
-
         consumer.handleResolutionRequest(requestEvent(
                 "event-list",
                 "idem-list",
@@ -370,8 +420,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(List.of(subscriber(0)));
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
-
         consumer.handleResolutionRequest(requestEvent(
                 "event-segment",
                 "idem-segment",
@@ -393,8 +441,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(List.of(subscriber(0)));
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
-
         consumer.handleResolutionRequest(requestEvent(
                 "event-mixed",
                 "idem-mixed",
@@ -418,8 +464,6 @@ class AudienceResolutionConsumerTest {
                 .thenReturn(List.of(subscriber(0)));
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
-        when(sendEligibilityService.isSendEligible(any(Subscriber.class))).thenReturn(true);
-
         consumer.handleResolutionRequest(requestEvent(
                 "event-exclude",
                 "idem-exclude",

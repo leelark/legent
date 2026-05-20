@@ -16,7 +16,7 @@ import java.util.Map;
 @Service
 public class ClosedLoopOptimizationService extends PerformanceLedgerSupport {
 
-    private static final List<String> OPTIMIZATION_TYPES = List.of("DELIVERABILITY", "ENGAGEMENT", "REVENUE", "CONSENT");
+    private static final List<String> OPTIMIZATION_TYPES = List.of("DELIVERABILITY", "ENGAGEMENT", "REVENUE", "CONSENT", "SEND_TIME", "FREQUENCY");
 
     public ClosedLoopOptimizationService(CorePlatformRepository repository, ObjectMapper objectMapper) {
         super(repository, objectMapper);
@@ -60,12 +60,16 @@ public class ClosedLoopOptimizationService extends PerformanceLedgerSupport {
 
         List<String> blockedReasons = new ArrayList<>();
         List<Map<String, Object>> recommendations = new ArrayList<>();
+        Map<String, Object> sendTimeAssessment = new LinkedHashMap<>();
+        Map<String, Object> frequencyAssessment = new LinkedHashMap<>();
         int risk = consentRisk(signals, guardrails, blockedReasons, recommendations);
         risk += switch (optimizationType) {
             case "DELIVERABILITY" -> deliverabilityRisk(signals, blockedReasons, recommendations);
             case "ENGAGEMENT" -> engagementRisk(signals, recommendations);
             case "REVENUE" -> revenueRisk(signals, recommendations);
             case "CONSENT" -> consentLoopRisk(signals, recommendations);
+            case "SEND_TIME" -> sendTimeRisk(signals, guardrails, blockedReasons, recommendations, sendTimeAssessment);
+            case "FREQUENCY" -> frequencyRisk(signals, guardrails, blockedReasons, recommendations, frequencyAssessment);
             default -> 10;
         };
         risk = clamp(risk, 0, 100);
@@ -73,10 +77,14 @@ public class ClosedLoopOptimizationService extends PerformanceLedgerSupport {
         boolean approvalRequired = !blockedReasons.isEmpty()
                 || risk >= 50
                 || bool(approvalPolicy.get("requireHumanApproval"))
+                || ("SEND_TIME".equals(optimizationType) && bool(signals.get("changesLaunchTiming")))
+                || ("FREQUENCY".equals(optimizationType) && bool(frequencyAssessment.get("approvalRequired")))
                 || ("REVENUE".equals(optimizationType) && (bool(signals.get("changesAudience")) || number(signals.get("revenueAtRisk"), 0) >= 10000));
         boolean rollbackRequired = bool(rollbackPolicy.get("snapshotRequired"))
                 || bool(signals.get("changesAudience"))
                 || bool(signals.get("changesContent"))
+                || ("SEND_TIME".equals(optimizationType) && bool(signals.get("changesLaunchTiming")))
+                || ("FREQUENCY".equals(optimizationType) && bool(frequencyAssessment.get("rollbackRequired")))
                 || bool(signals.get("autoApplyRequested"));
 
         Map<String, Object> result = new LinkedHashMap<>();
@@ -89,6 +97,22 @@ public class ClosedLoopOptimizationService extends PerformanceLedgerSupport {
         result.put("rollbackRequired", rollbackRequired);
         result.put("blockedReasons", blockedReasons);
         result.put("recommendations", recommendations);
+        if ("SEND_TIME".equals(optimizationType)) {
+            result.put("confidenceBand", sendTimeAssessment.get("confidenceBand"));
+            result.put("fallbackMode", sendTimeAssessment.get("fallbackMode"));
+            result.put("dataQualityReasons", sendTimeAssessment.get("dataQualityReasons"));
+            result.put("lookbackDays", sendTimeAssessment.get("lookbackDays"));
+        }
+        if ("FREQUENCY".equals(optimizationType)) {
+            result.put("confidenceBand", frequencyAssessment.get("confidenceBand"));
+            result.put("fallbackMode", frequencyAssessment.get("fallbackMode"));
+            result.put("dataQualityReasons", frequencyAssessment.get("dataQualityReasons"));
+            result.put("lookbackDays", frequencyAssessment.get("lookbackDays"));
+            result.put("minimumVariantsMet", frequencyAssessment.get("minimumVariantsMet"));
+            result.put("saturationCategory", frequencyAssessment.get("saturationCategory"));
+            result.put("recommendedCap", frequencyAssessment.get("recommendedCap"));
+            result.put("safetyImpact", frequencyAssessment.get("safetyImpact"));
+        }
         result.put("evaluatedAt", Instant.now().toString());
 
         Map<String, Object> values = baseValues(asString(policy.get("workspace_id")));
@@ -167,6 +191,241 @@ public class ClosedLoopOptimizationService extends PerformanceLedgerSupport {
             recommendations.add(rec("engagement.fatigue", "HIGH", "Apply frequency cap and suppress over-contacted subscribers."));
         }
         return risk;
+    }
+
+    private int sendTimeRisk(Map<String, Object> signals,
+                             Map<String, Object> guardrails,
+                             List<String> blockedReasons,
+                             List<Map<String, Object>> recommendations,
+                             Map<String, Object> assessment) {
+        int risk = 0;
+        List<String> dataQualityReasons = new ArrayList<>();
+        double minEvents = number(guardrails.get("minEligibleEngagementEvents"), 1_000);
+        double minContacts = number(guardrails.get("minEligibleContacts"), 500);
+        int lookbackDays = (int) number(guardrails.get("lookbackDays"), 90);
+        double events = number(signals.get("eligibleEngagementEvents"), 0);
+        double contacts = number(signals.get("eligibleContacts"), 0);
+        double coveragePercent = number(signals.get("engagementWindowCoveragePercent"), 0);
+
+        if (lookbackDays < 28) {
+            risk += 10;
+            dataQualityReasons.add("Lookback window is shorter than 28 days.");
+        }
+        boolean lowData = events < minEvents || contacts < minContacts;
+        if (lowData) {
+            risk += 25;
+            dataQualityReasons.add("Eligible engagement data is below the configured STO threshold.");
+            recommendations.add(rec("send_time.fallback", "MEDIUM", "Use the default schedule or tenant-level fallback until enough engagement data exists."));
+        }
+        if (coveragePercent > 0 && coveragePercent < number(guardrails.get("minEngagementWindowCoveragePercent"), 60)) {
+            risk += 15;
+            dataQualityReasons.add("Engagement window coverage is below policy threshold.");
+            recommendations.add(rec("send_time.coverage", "MEDIUM", "Collect broader engagement-window coverage before personalized timing recommendations."));
+        }
+
+        String sendClassification = normalize(asString(signals.get("sendClassification")));
+        if ("TRANSACTIONAL".equals(sendClassification) && !bool(guardrails.get("allowTransactionalSendTimePolicy"))) {
+            risk += 45;
+            blockedReasons.add("Transactional sends require a separate send-time policy.");
+            recommendations.add(rec("send_time.transactional_policy", "BLOCKER", "Use a transactional-specific timing policy before evaluating transactional sends."));
+        }
+        if ("COMMERCIAL".equals(sendClassification) && bool(signals.get("usesTransactionalEngagementData")) && !bool(guardrails.get("allowTransactionalDataForCommercial"))) {
+            risk += 45;
+            blockedReasons.add("Commercial STO cannot use transactional engagement data under this policy.");
+            recommendations.add(rec("send_time.data_separation", "BLOCKER", "Separate commercial and transactional engagement data before STO evaluation."));
+        }
+        if (bool(signals.get("autoApplyRequested"))) {
+            risk += 50;
+            blockedReasons.add("Send-time optimization cannot auto-apply launch timing in this governance slice.");
+            recommendations.add(rec("send_time.manual_review", "BLOCKER", "Require human approval before any launch-time change."));
+        }
+        if (bool(signals.get("changesLaunchTiming"))) {
+            risk += requireSendTimeGate(signals, "quietHoursGatePassed", "Quiet-hours policy gate has not passed.", blockedReasons, recommendations);
+            risk += requireSendTimeGate(signals, "approvalGatePassed", "Campaign approval gate has not passed.", blockedReasons, recommendations);
+            risk += requireSendTimeGate(signals, "suppressionGatePassed", "Suppression gate has not passed.", blockedReasons, recommendations);
+            risk += requireSendTimeGate(signals, "warmupGatePassed", "Warmup gate has not passed.", blockedReasons, recommendations);
+            risk += requireSendTimeGate(signals, "rateLimitGatePassed", "Rate-limit gate has not passed.", blockedReasons, recommendations);
+            risk += requireSendTimeGate(signals, "providerCapacityGatePassed", "Provider-capacity gate has not passed.", blockedReasons, recommendations);
+            risk += requireSendTimeGate(signals, "deliverabilityGatePassed", "Deliverability gate has not passed.", blockedReasons, recommendations);
+            recommendations.add(rec("send_time.approval", "HIGH", "Launch-time recommendations require human review and scheduling evidence."));
+        }
+
+        String confidenceBand = "LOW";
+        if (blockedReasons.isEmpty() && !lowData && coveragePercent >= 80 && dataQualityReasons.isEmpty()) {
+            confidenceBand = "HIGH";
+        } else if (blockedReasons.isEmpty() && events >= (minEvents / 2) && contacts >= (minContacts / 2)) {
+            confidenceBand = "MEDIUM";
+        }
+        assessment.put("confidenceBand", confidenceBand);
+        assessment.put("fallbackMode", lowData ? "LOW_DATA_DEFAULT_SCHEDULE" : "NONE");
+        assessment.put("dataQualityReasons", dataQualityReasons);
+        assessment.put("lookbackDays", lookbackDays);
+        return risk;
+    }
+
+    private int requireSendTimeGate(Map<String, Object> signals,
+                                    String key,
+                                    String blockedReason,
+                                    List<String> blockedReasons,
+                                    List<Map<String, Object>> recommendations) {
+        if (Boolean.TRUE.equals(signals.get(key)) || "true".equalsIgnoreCase(String.valueOf(signals.get(key)))) {
+            return 0;
+        }
+        blockedReasons.add(blockedReason);
+        recommendations.add(rec("send_time." + key, "BLOCKER", blockedReason));
+        return 35;
+    }
+
+    private int frequencyRisk(Map<String, Object> signals,
+                              Map<String, Object> guardrails,
+                              List<String> blockedReasons,
+                              List<Map<String, Object>> recommendations,
+                              Map<String, Object> assessment) {
+        int risk = 0;
+        List<String> dataQualityReasons = new ArrayList<>();
+        List<String> safetyImpact = new ArrayList<>();
+        double minEvents = number(guardrails.get("minEligibleSendEvents"), 1_000);
+        double minContacts = number(guardrails.get("minEligibleContacts"), 500);
+        double minVariants = number(guardrails.get("minFrequencyVariants"), 5);
+        int lookbackDays = (int) number(guardrails.get("lookbackDays"), 28);
+        double events = number(firstObject(signals.get("eligibleSendEvents"), signals.get("historicalSendEvents"), signals.get("sendEvents")), 0);
+        double contacts = number(firstObject(signals.get("eligibleContacts"), signals.get("subscriberCount")), 0);
+        double variants = number(firstObject(signals.get("frequencyVariantCount"), signals.get("variantCount")), 0);
+        int currentCap = (int) number(firstObject(signals.get("currentFrequencyCap"), signals.get("currentCap"), guardrails.get("defaultFrequencyCap")), 0);
+        int requestedCap = (int) number(firstObject(signals.get("requestedFrequencyCap"), signals.get("proposedFrequencyCap"), signals.get("recommendedFrequencyCap")), currentCap);
+
+        if (lookbackDays < 28) {
+            risk += 10;
+            dataQualityReasons.add("Lookback window is shorter than 28 days.");
+        }
+        boolean lowData = events < minEvents || contacts < minContacts;
+        if (lowData) {
+            risk += 25;
+            dataQualityReasons.add("Eligible send/contact history is below the configured frequency threshold.");
+            recommendations.add(rec("frequency.fallback", "MEDIUM", "Keep the current cap until enough frequency history exists."));
+        }
+        boolean minimumVariantsMet = variants >= minVariants;
+        if (!minimumVariantsMet) {
+            risk += 15;
+            dataQualityReasons.add("Frequency variants are below the policy threshold.");
+            recommendations.add(rec("frequency.variants", "MEDIUM", "Collect enough sending-frequency variants before optimization."));
+        }
+
+        risk += blockFrequencySignal(signals, "suppressed", "Suppressed recipients cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+        risk += blockFrequencySignal(signals, "unsubscribed", "Unsubscribed recipients cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+        risk += blockFrequencySignal(signals, "complaintProne", "Complaint-prone cohorts cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+        risk += blockFrequencySignal(signals, "bounceRisk", "Bounce-risk cohorts cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+        risk += blockFrequencySignal(signals, "warmupBlocked", "Warmup-blocked senders cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+        risk += blockFrequencySignal(signals, "overFrequencyCap", "Recipients over the current cap cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+        risk += blockFrequencySignal(signals, "providerBlocked", "Provider-blocked sends cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+        risk += blockFrequencySignal(signals, "rateLimitBlocked", "Rate-limit-blocked sends cannot receive frequency increases.", safetyImpact, blockedReasons, recommendations);
+
+        double fatigueRate = number(signals.get("fatigueRate"), 0);
+        double unsubscribeRate = number(signals.get("unsubscribeRate"), 0);
+        double complaintRate = Math.max(number(signals.get("complaintRate"), 0), number(signals.get("complaintRatePercent"), 0) / 100);
+        double bounceRate = Math.max(number(signals.get("hardBounceRate"), 0), number(signals.get("hardBounceRatePercent"), 0) / 100);
+        double capUtilization = number(signals.get("frequencyCapUtilizationPercent"), 0);
+        String saturationCategory = "LOW";
+        if (fatigueRate >= 0.25 || unsubscribeRate >= 0.02 || complaintRate >= 0.003 || bounceRate >= 0.05 || capUtilization >= 95) {
+            saturationCategory = "HIGH";
+            risk += 30;
+            safetyImpact.add("High saturation or negative engagement signal detected.");
+            recommendations.add(rec("frequency.reduce", "HIGH", "Reduce or hold send frequency for saturated cohorts."));
+        } else if (fatigueRate >= 0.15 || unsubscribeRate >= 0.01 || complaintRate >= 0.0015 || bounceRate >= 0.025 || capUtilization >= 80) {
+            saturationCategory = "MEDIUM";
+            risk += 15;
+            safetyImpact.add("Moderate saturation signal detected.");
+            recommendations.add(rec("frequency.monitor", "MEDIUM", "Hold cap increases until saturation signals improve."));
+        }
+
+        boolean cadenceChange = bool(signals.get("changesCadence")) || (requestedCap > 0 && currentCap > 0 && requestedCap != currentCap);
+        boolean cadenceIncrease = bool(signals.get("cadenceIncreaseRequested"))
+                || bool(signals.get("increasesFrequencyCap"))
+                || (requestedCap > 0 && currentCap > 0 && requestedCap > currentCap);
+        if (bool(signals.get("autoApplyRequested"))) {
+            risk += 50;
+            blockedReasons.add("Frequency optimization cannot auto-apply cadence changes in this governance slice.");
+            safetyImpact.add("Auto-apply blocked.");
+            recommendations.add(rec("frequency.manual_review", "BLOCKER", "Require human approval before any cadence change."));
+        }
+        if (cadenceChange || cadenceIncrease) {
+            risk += requireFrequencyGate(signals, "suppressionGatePassed", "Suppression gate has not passed.", safetyImpact, blockedReasons, recommendations);
+            risk += requireFrequencyGate(signals, "unsubscribeGatePassed", "Unsubscribe/preference gate has not passed.", safetyImpact, blockedReasons, recommendations);
+            risk += requireFrequencyGate(signals, "warmupGatePassed", "Warmup gate has not passed.", safetyImpact, blockedReasons, recommendations);
+            risk += requireFrequencyGate(signals, "rateLimitGatePassed", "Rate-limit gate has not passed.", safetyImpact, blockedReasons, recommendations);
+            risk += requireFrequencyGate(signals, "providerCapacityGatePassed", "Provider-capacity gate has not passed.", safetyImpact, blockedReasons, recommendations);
+            risk += requireFrequencyGate(signals, "deliverabilityGatePassed", "Deliverability gate has not passed.", safetyImpact, blockedReasons, recommendations);
+            risk += requireFrequencyGate(signals, "frequencyCapGatePassed", "Current frequency-cap ledger gate has not passed.", safetyImpact, blockedReasons, recommendations);
+            recommendations.add(rec("frequency.approval", "HIGH", "Cadence changes require human approval and rollback evidence."));
+        }
+
+        int recommendedCap = recommendedFrequencyCap(currentCap, requestedCap, saturationCategory, lowData, blockedReasons.isEmpty());
+        String confidenceBand = "LOW";
+        if (blockedReasons.isEmpty() && !lowData && minimumVariantsMet && "LOW".equals(saturationCategory)) {
+            confidenceBand = "HIGH";
+        } else if (blockedReasons.isEmpty() && !lowData && minimumVariantsMet) {
+            confidenceBand = "MEDIUM";
+        }
+
+        assessment.put("confidenceBand", confidenceBand);
+        assessment.put("fallbackMode", lowData ? "LOW_DATA_CURRENT_CAP" : "NONE");
+        assessment.put("dataQualityReasons", dataQualityReasons);
+        assessment.put("lookbackDays", lookbackDays);
+        assessment.put("minimumVariantsMet", minimumVariantsMet);
+        assessment.put("saturationCategory", saturationCategory);
+        assessment.put("recommendedCap", recommendedCap);
+        assessment.put("safetyImpact", safetyImpact);
+        assessment.put("approvalRequired", cadenceChange || cadenceIncrease || !blockedReasons.isEmpty() || "HIGH".equals(saturationCategory));
+        assessment.put("rollbackRequired", cadenceChange || cadenceIncrease || bool(signals.get("autoApplyRequested")));
+        return risk;
+    }
+
+    private int blockFrequencySignal(Map<String, Object> signals,
+                                     String key,
+                                     String blockedReason,
+                                     List<String> safetyImpact,
+                                     List<String> blockedReasons,
+                                     List<Map<String, Object>> recommendations) {
+        if (!bool(signals.get(key))) {
+            return 0;
+        }
+        blockedReasons.add(blockedReason);
+        safetyImpact.add(blockedReason);
+        recommendations.add(rec("frequency." + key, "BLOCKER", blockedReason));
+        return 40;
+    }
+
+    private int requireFrequencyGate(Map<String, Object> signals,
+                                     String key,
+                                     String blockedReason,
+                                     List<String> safetyImpact,
+                                     List<String> blockedReasons,
+                                     List<Map<String, Object>> recommendations) {
+        if (bool(signals.get(key))) {
+            return 0;
+        }
+        blockedReasons.add(blockedReason);
+        safetyImpact.add(blockedReason);
+        recommendations.add(rec("frequency." + key, "BLOCKER", blockedReason));
+        return 35;
+    }
+
+    private int recommendedFrequencyCap(int currentCap,
+                                        int requestedCap,
+                                        String saturationCategory,
+                                        boolean lowData,
+                                        boolean noBlockers) {
+        int baseline = currentCap > 0 ? currentCap : Math.max(1, requestedCap);
+        if (lowData || !noBlockers) {
+            return baseline;
+        }
+        if ("HIGH".equals(saturationCategory)) {
+            return Math.max(1, baseline - 1);
+        }
+        if ("MEDIUM".equals(saturationCategory)) {
+            return baseline;
+        }
+        return requestedCap > 0 ? Math.min(Math.max(baseline, requestedCap), baseline + 1) : baseline;
     }
 
     private int revenueRisk(Map<String, Object> signals, List<Map<String, Object>> recommendations) {

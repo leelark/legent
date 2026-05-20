@@ -1,0 +1,37 @@
+{
+    "id":  "send-time-optimization-governance",
+    "createdAt":  "2026-05-20T08:50:07.0282991Z",
+    "objective":  "Define governed send-time optimization contract",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "docs/product/ai-governance-optimization-foundation.md",
+                         "docs/product/salesforce-parity-matrix.md",
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/performance/ClosedLoopOptimizationService.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/OptimizationPerformanceServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "DELIVERY_SERVICE_OWNER",
+                   "DELIVERABILITY_ENGINEER",
+                   "PERFORMANCE_ENGINEER",
+                   "DATA_ARCHITECT",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "STO deterministic governance complete; campaign/delivery runtime scheduling integration remains future work."
+}

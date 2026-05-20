@@ -44,11 +44,22 @@ public class ClickHouseRollupService {
         }
         Instant safeTo = to == null ? Instant.now().truncatedTo(ChronoUnit.DAYS).plus(1, ChronoUnit.DAYS) : to;
         Instant safeFrom = from == null ? safeTo.minus(30, ChronoUnit.DAYS) : from;
-        String sql = campaignDayRefreshSql();
         try {
-            int rows = jdbc.update(sql, tenantId, workspaceId, Timestamp.from(safeFrom), Timestamp.from(safeTo));
+            int deletedRows = jdbc.update(
+                    campaignDayDeleteSql(),
+                    tenantId,
+                    workspaceId,
+                    Timestamp.from(safeFrom),
+                    Timestamp.from(safeTo));
+            int rows = jdbc.update(
+                    campaignDayRefreshSql(),
+                    tenantId,
+                    workspaceId,
+                    Timestamp.from(safeFrom),
+                    Timestamp.from(safeTo));
             return Map.of(
                     "status", "REFRESHED",
+                    "rowsDeleted", deletedRows,
                     "rowsWritten", rows,
                     "from", safeFrom,
                     "to", safeTo,
@@ -110,7 +121,7 @@ public class ClickHouseRollupService {
         datasets.add(dataset(
                 "raw_events",
                 "Raw immutable tracking stream in ClickHouse",
-                List.of("tenant_id", "workspace_id", "event_type", "campaign_id", "message_id"),
+                List.of("tenant_id", "workspace_id", "event_type", "campaign_id", "experiment_id", "variant_id", "holdout", "message_id"),
                 List.of("timestamp", "metadata")));
         return datasets;
     }
@@ -150,6 +161,9 @@ public class ClickHouseRollupService {
                     campaign_id Nullable(String),
                     subscriber_id Nullable(String),
                     message_id Nullable(String),
+                    experiment_id Nullable(String),
+                    variant_id Nullable(String),
+                    holdout UInt8 DEFAULT 0,
                     user_agent Nullable(String),
                     ip_address Nullable(String),
                     link_url Nullable(String),
@@ -158,7 +172,7 @@ public class ClickHouseRollupService {
                 )
                 ENGINE = MergeTree()
                 PARTITION BY toYYYYMM(timestamp)
-                ORDER BY (tenant_id, workspace_id, event_type, timestamp, id)
+                ORDER BY (tenant_id, workspace_id, campaign_id, experiment_id, variant_id, event_type, timestamp, id)
                 TTL timestamp + INTERVAL 180 DAY DELETE
                 """);
     }
@@ -168,6 +182,16 @@ public class ClickHouseRollupService {
         statements.addAll(rawEventSchemaStatements());
         statements.addAll(rollupSchemaStatements());
         return statements;
+    }
+
+    String campaignDayDeleteSql() {
+        return """
+                DELETE FROM campaign_day_rollups
+                WHERE tenant_id = ?
+                  AND workspace_id = ?
+                  AND bucket_date >= toDate(?)
+                  AND bucket_date < toDate(?)
+                """;
     }
 
     String campaignDayRefreshSql() {

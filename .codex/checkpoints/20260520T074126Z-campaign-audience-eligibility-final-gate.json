@@ -1,0 +1,42 @@
+{
+    "id":  "campaign-audience-eligibility-final-gate",
+    "createdAt":  "2026-05-20T07:41:26.8169065Z",
+    "objective":  "Add final suppression and preference gate before campaign delivery handoff",
+    "status":  "BLOCKED",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/service/SendEligibilityService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/event/AudienceResolutionConsumer.java",
+                         "services/audience-service/src/main/java/com/legent/audience/repository/SuppressionRepository.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SendEligibilityServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/event/AudienceResolutionConsumerTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/bug-history.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/state/team-state.json"
+                     ],
+    "agents":  [
+                   "AUDIENCE_SERVICE_OWNER",
+                   "DELIVERY_SERVICE_OWNER",
+                   "DELIVERABILITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=AudienceResolutionConsumerTest,SendEligibilityServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                           ".\\mvnw.cmd -pl services/audience-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+                     "Legacy campaign recipient payload compatibility decision required before fail-closed marker enforcement."
+                 ],
+    "nextAction":  "Make a compatibility decision for existing campaign legacy recipient JSON payloads, then implement eligibility marker enforcement if approved."
+}

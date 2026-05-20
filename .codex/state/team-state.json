@@ -1,4 +1,4 @@
-﻿{
+{
     "version":  1,
     "lastRebuilt":  "2026-05-20",
     "freshBaselineDate":  "2026-05-20",
@@ -14,58 +14,6 @@
 
                   ],
     "backlogWork":  [
-                        {
-                            "id":  "ai-governance-optimization-foundation",
-                            "title":  "Design AI governance before model-backed optimization features",
-                            "status":  "BACKLOG",
-                            "priorityScore":  54,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  4,
-                                            "userImpact":  5,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "PRODUCT_MANAGER_AGENT",
-                            "partnerAgents":  [
-                                                  "SECURITY_ENGINEER",
-                                                  "DATA_ARCHITECT",
-                                                  "FRONTEND_OWNER"
-                                              ],
-                            "scope":  "Define and implement the governance foundation for AI assistance, send-time optimization, predictive segments, and frequency optimization before claiming true model-backed AI parity.",
-                            "nonGoals":  "Do not add provider credentials, call external model APIs, or claim Salesforce Einstein parity in this slice.",
-                            "sourceFiles":  [
-                                                "PROJECT_CONTEXT.md",
-                                                "docs/product/salesforce-parity-matrix.md",
-                                                "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
-                                                "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
-                                                "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java",
-                                                "services/foundation-service/src/main/java/com/legent/foundation/service/performance/OperationsAssistanceService.java"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "AI capability claims distinguish deterministic heuristics from model-backed features.",
-                                                       "Data-use, provider disclosure, opt-in, human review, audit, metering, and minimum data-threshold requirements are documented.",
-                                                       "Backlog follow-ups are split into content assistance, send-time optimization, predictive segments, and frequency optimization."
-                                                   ],
-                            "validationProfile":  "research-security",
-                            "validationCommands":  [
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
-                                                   ],
-                            "dependencies":  [
-                                                 "AI architecture decision",
-                                                 "data-use policy"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "design-decisions.md",
-                                                  "security-findings.md"
-                                              ],
-                            "nextAction":  "Create the AI governance design before implementation slices are marked READY.",
-                            "lastUpdated":  "2026-05-20"
-                        },
                         {
                             "id":  "email-governance-policy-objects",
                             "title":  "Add first-class email send governance policy objects",
@@ -224,7 +172,7 @@
                             "id":  "mode-aware-workflow-contract",
                             "title":  "Turn BASIC and ADVANCED UI mode into a workflow contract",
                             "status":  "BACKLOG",
-                            "priorityScore":  42,
+                            "priorityScore":  38,
                             "scoring":  {
                                             "productionReadinessImpact":  2,
                                             "securityRisk":  2,
@@ -367,6 +315,277 @@
                                               ],
                             "nextAction":  "Design platform event idempotency storage and tests.",
                             "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "external-provider-capacity",
+                            "title":  "Verify external email provider capacity and sender reputation",
+                            "status":  "BLOCKED",
+                            "priorityScore":  52,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  3,
+                                            "userImpact":  3,
+                                            "performanceImpact":  4,
+                                            "technicalDebtImpact":  3
+                                        },
+                            "owner":  "DELIVERABILITY_ENGINEER",
+                            "partnerAgents":  [
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "RELEASE_MANAGER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Verify provider API/SMTP limits, sender reputation, DNS authentication, warmup status, feedback-loop handling, and rate-control policy before production high-volume claims.",
+                            "nonGoals":  "Do not claim inbox placement, provider capacity, or 10 lakh send readiness from repository-only checks.",
+                            "sourceFiles":  [
+                                                ".codex/memory/blocked-items.md",
+                                                "docs/security/deliverability-and-safety.md",
+                                                "docs/load-testing/high-volume-readiness.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Provider capacity evidence is dated and reviewed.",
+                                                       "Sender/domain warmup and DNS authentication evidence is present.",
+                                                       "Feedback loop, bounce, complaint, suppression, and rate-control handling are verified."
+                                                   ],
+                            "validationProfile":  "performance",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                   ],
+                            "dependencies":  [
+                                                 "provider contract or quota evidence",
+                                                 "warmed sender-domain evidence",
+                                                 "DNS and feedback-loop verification"
+                                             ],
+                            "blockers":  [
+                                             "External provider and sender reputation evidence not present in repository"
+                                         ],
+                            "memoryTargets":  [
+                                                  "blocked-items.md",
+                                                  "performance-bottlenecks.md",
+                                                  "unresolved-risks.md"
+                                              ],
+                            "nextAction":  "Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "ai-content-assistance-governance",
+                            "title":  "Implement governed draft-only AI content assistance foundation",
+                            "status":  "BACKLOG",
+                            "priorityScore":  58,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  5,
+                                            "userImpact":  5,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "CONTENT_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "SECURITY_ENGINEER",
+                                                  "PRODUCT_MANAGER_AGENT",
+                                                  "FOUNDATION_SERVICE_OWNER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Add tenant/workspace-scoped AI policy and audit scaffolding for draft-only content assistance, including provider disclosure, prompt/data classification, output safety review, and human approval before send or publication.",
+                            "nonGoals":  "Do not call external model APIs, add provider credentials, autopublish generated content, or claim Salesforce Einstein parity in this slice.",
+                            "sourceFiles":  [
+                                                "docs/product/ai-governance-optimization-foundation.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                                "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                                "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
+                                                "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Tenant/workspace AI policy defines feature class, provider disclosure, allowed data classes, training stance, retention, opt-in/out, and kill switch.",
+                                                       "Content assistance remains draft-only and requires human review before send or publication.",
+                                                       "Audit records capture policy version, actor, data classes, prompt template version, output hash, and review decision without storing secrets.",
+                                                       "Tests cover policy denial, missing tenant/workspace context, and no-review/autopublish rejection."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI governance foundation",
+                                                 "model provider security decision"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "security-findings.md",
+                                                  "design-decisions.md"
+                                              ],
+                            "nextAction":  "Design the tenant/workspace AI policy and audit schema for draft-only content assistance before implementation.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "send-time-optimization-governance",
+                            "title":  "Define governed send-time optimization contract",
+                            "status":  "BACKLOG",
+                            "priorityScore":  56,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  3,
+                                            "userImpact":  4,
+                                            "performanceImpact":  4,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "CAMPAIGN_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "DELIVERY_SERVICE_OWNER",
+                                                  "DELIVERABILITY_ENGINEER",
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "DATA_ARCHITECT",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Define send-time optimization readiness thresholds, fallback behavior, confidence/data-quality surfaces, and send-path safety contracts before any model-backed scheduling changes.",
+                            "nonGoals":  "Do not bypass campaign approval, quiet hours, suppression, warmup, provider capacity, rate limits, or deliverability checks. Do not claim throughput or engagement lift without measured evidence.",
+                            "sourceFiles":  [
+                                                "docs/product/ai-governance-optimization-foundation.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/InboxSafetyService.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "STO contract defines minimum data thresholds, lookback windows, low-data fallback, confidence bands, and data-quality reasons.",
+                                                       "Commercial and transactional send data are separated by policy.",
+                                                       "Scheduling recommendations cannot bypass quiet hours, approvals, suppression, warmup, rate limits, provider capacity, or deliverability gates.",
+                                                       "Follow-up implementation tests are identified for campaign and delivery service boundaries."
+                                                   ],
+                            "validationProfile":  "research-backend",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI governance foundation",
+                                                 "send governance policy objects"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "performance-bottlenecks.md",
+                                                  "design-decisions.md"
+                                              ],
+                            "nextAction":  "Create a migration-safe STO contract and validation plan before implementation.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "predictive-segments-governance",
+                            "title":  "Define governed predictive segment contract",
+                            "status":  "BACKLOG",
+                            "priorityScore":  53,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  4,
+                                            "userImpact":  4,
+                                            "performanceImpact":  3,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "AUDIENCE_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "DATA_ARCHITECT",
+                                                  "SECURITY_ENGINEER",
+                                                  "PRODUCT_MANAGER_AGENT",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Define predictive segment data provenance, threshold, preview, approval, tenant isolation, and rollback controls before model-backed audience creation.",
+                            "nonGoals":  "Do not infer or target protected/sensitive categories, weaken suppression/preference controls, or create sendable audiences without preview and approval.",
+                            "sourceFiles":  [
+                                                "docs/product/ai-governance-optimization-foundation.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                                                "frontend/src/components/audience/SegmentRuleBuilder.tsx"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Predictive segment contract declares allowed feature sources, data freshness, minimum counts, bias/drift checks, and protected-data exclusions.",
+                                                       "Predicted segments expose modeled-vs-rule-derived status, reasons, preview counts, suppression impact, and rollback snapshot.",
+                                                       "Audience-changing recommendations require human approval and tenant/workspace isolation tests.",
+                                                       "Follow-up implementation scope is split from Contact Builder data-designer governance when needed."
+                                                   ],
+                            "validationProfile":  "research-backend",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI governance foundation",
+                                                 "contact data-designer governance"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "security-findings.md",
+                                                  "design-decisions.md"
+                                              ],
+                            "nextAction":  "Design predictive segment governance around provenance, preview, approval, and rollback.",
+                            "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "frequency-optimization-governance",
+                            "title":  "Define governed engagement frequency optimization contract",
+                            "status":  "BACKLOG",
+                            "priorityScore":  60,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  4,
+                                            "userImpact":  4,
+                                            "performanceImpact":  4,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "CAMPAIGN_SERVICE_OWNER",
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "DATA_ARCHITECT",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Define frequency optimization lookback, variant, fatigue, confidence, and deliverability guardrail contract before recommendations can affect send cadence.",
+                            "nonGoals":  "Do not increase frequency for suppressed, unsubscribed, complaint-prone, warmup-blocked, over-cap, or provider-blocked recipients. Do not claim deliverability lift without evidence.",
+                            "sourceFiles":  [
+                                                "docs/product/ai-governance-optimization-foundation.md",
+                                                "docs/product/salesforce-parity-matrix.md",
+                                                "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java",
+                                                "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Frequency contract defines lookback window, required variants, low-data fallback, saturation categories, confidence bands, and recommended cap.",
+                                                       "Fatigue, unsubscribe, complaint, bounce, suppression, warmup, provider health, and rate controls are fail-closed safety inputs.",
+                                                       "Recommendations expose expected safety impact and require approval when cadence increases or risk is non-low.",
+                                                       "Focused implementation tests are identified for suppressions, caps, provider blocking, and tenant/workspace isolation."
+                                                   ],
+                            "validationProfile":  "research-backend",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "AI governance foundation",
+                                                 "deliverability evidence"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "performance-bottlenecks.md",
+                                                  "security-findings.md",
+                                                  "design-decisions.md"
+                                              ],
+                            "nextAction":  "Design the frequency optimization safety contract before implementation.",
+                            "lastUpdated":  "2026-05-20"
                         }
                     ],
     "blockedWork":  [
@@ -483,13 +702,13 @@
                                "performance",
                                "release"
                            ],
-    "lastUpdated":  "2026-05-20",
+    "lastUpdated":  "2026-05-20T07:24:36.1869494Z",
     "doneWork":  [
                      {
                          "id":  "salesforce-parity-research-refresh",
                          "title":  "Refresh Salesforce and competitor parity matrix",
                          "status":  "DONE",
-                         "priorityScore":  49,
+                         "priorityScore":  42,
                          "scoring":  {
                                          "productionReadinessImpact":  3,
                                          "securityRisk":  1,
@@ -539,6 +758,466 @@
                          "nextAction":  "Continue with the highest-priority READY item: journey-runtime-node-contract.",
                          "lastUpdated":  "2026-05-20",
                          "completedAt":  "2026-05-20T06:42:14+05:30"
+                     },
+                     {
+                         "id":  "kafka-dlq-sharding",
+                         "title":  "Shard Kafka DLQ routing instead of fixed partition zero",
+                         "status":  "DONE",
+                         "priorityScore":  51,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "KAFKA_CONTRACTS_OWNER",
+                         "partnerAgents":  [
+                                               "SRE_MONITORING_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Shared Kafka listener DLQ routing now preserves failed record source partitions, and the shared/local DLQ topic topology supports six partitions instead of a single hot partition.",
+                         "nonGoals":  "Do not widen Kafka deserialization trusted packages.",
+                         "sourceFiles":  [
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaConsumerConfig.java",
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaConsumerConfigTest.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java",
+                                             "docker-compose.yml"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "DLQ recoverer no longer routes every failed record to partition 0.",
+                                                    "DLQ topic partitioning supports current high-volume source topic partition counts.",
+                                                    "Kafka config tests cover source-partition routing and topic partition compatibility.",
+                                                    "Local Compose topic initialization is aligned with the shared six-partition DLQ topic."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -am \u0027-Dtest=KafkaConsumerConfigTest,KafkaTopicConfigTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -am test",
+                                                    "docker compose config --quiet",
+                                                    "rg -n \"new TopicPartition\\(AppConstants\\.TOPIC_KAFKA_DLQ, 0\\)|kafka\\.dead-letter:1|kafka.dead-letter:1\" shared docker-compose.yml (expected no matches)",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: salesforce-parity-research-refresh.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T06:23:33+05:30"
+                     },
+                     {
+                         "id":  "egress-evidence-validator-hardening",
+                         "title":  "Harden production egress evidence validator",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "RELEASE_MANAGER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Production egress evidence validator now rejects template/example files, placeholder reviewer/rule values, documentation CIDRs, unsupported FQDN evidence, broad/non-canonical CIDRs, future dates, and unsupported schema versions while accepting reviewed public or private endpoint CIDR evidence.",
+                         "nonGoals":  "Do not replace real external egress review with local checks.",
+                         "sourceFiles":  [
+                                             "scripts/ops/validate-production-egress-evidence.ps1",
+                                             "scripts/ops/test-release-evidence-validators.ps1",
+                                             "docs/operations/ga-evidence-matrix.md",
+                                             ".codex/commands/release-pass.md",
+                                             ".codex/workflows/validation-gates.md",
+                                             ".codex/reports/autonomous-org-hardening-2026-05-20.md",
+                                             ".codex/reports/autonomous-org-build-2026-05-20.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Template evidence fails validation.",
+                                                    "Documentation/example CIDRs fail validation.",
+                                                    "Placeholder reviewer/provider/rule values and unsupported FQDN evidence fail validation.",
+                                                    "Release evidence validator self-test passes with valid public and reviewed private endpoint controls."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "EXPECTED-FAIL powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-egress-evidence.ps1 -EvidencePath docs\\operations\\production-egress-evidence.template.json",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: kafka-dlq-sharding.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T06:06:53+05:30"
+                     },
+                     {
+                         "id":  "campaign-send-content-reference-contract",
+                         "title":  "Align campaign send handoff with email-send contract",
+                         "status":  "DONE",
+                         "priorityScore":  56,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "CONTENT_SERVICE_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Campaign send now always creates and publishes a durable contentReference for email.send.requested while retaining optional inline rendered content only as configured fallback under the payload cap.",
+                         "nonGoals":  "Do not bypass content rendering, sanitization, or tracking URL safety.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                             "services/campaign-service/src/main/resources/application.yml",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/producer/EventContractValidatorTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Campaign send handoff always includes contentReference before publishing email.send.requested.",
+                                                    "Configured-off and configured-on content-reference tests both emit contract-compliant payloads.",
+                                                    "Reference-only payloads remain valid and inline-only or blank-reference shared Kafka payloads are rejected."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \u0027-Dtest=SendExecutionServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -am \u0027-Dtest=EventContractValidatorTest,EventPublisherTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service,shared/legent-kafka -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: egress-evidence-validator-hardening.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T05:48:37+05:30"
+                     },
+                     {
+                         "id":  "delivery-feedback-outbox",
+                         "title":  "Make delivery feedback publication durable",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  3,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Added a delivery-local outbox so email sent/failed/bounced/retry feedback is persisted with stable event IDs and retried after Kafka publish failures.",
+                         "nonGoals":  "Do not mark real provider successes failed solely because Kafka is unavailable.",
+                         "sourceFiles":  [
+                                             "services/delivery-service/src/main/java/com/legent/delivery/DeliveryApplication.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/domain/DeliveryFeedbackOutboxEvent.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryFeedbackMessage.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventPublisher.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryFeedbackOutboxEventRepository.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java",
+                                             "services/delivery-service/src/main/resources/db/migration/V15__delivery_feedback_outbox_events.sql",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventPublisherTest.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryOrchestrationServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Delivery feedback is durably retried via a leased outbox.",
+                                                    "Kafka publish failures do not convert accepted provider sends into delivery failures.",
+                                                    "Outbox retries reuse stable event IDs, idempotency keys, payloads, and partition keys.",
+                                                    "Delivery scheduling is enabled so feedback, retry, and provider health scheduled jobs can run."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am \u0027-Dtest=DeliveryEventPublisherTest,DeliveryFeedbackOutboxServiceTest,DeliveryOrchestrationServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: campaign-send-content-reference-contract.",
+                         "lastUpdated":  "2026-05-20",
+                         "completedAt":  "2026-05-20T05:23:01+05:30"
+                     },
+                     {
+                         "id":  "audience-bulk-suppression-check",
+                         "title":  "Replace broad suppression fetch with bulk candidate check",
+                         "priorityScore":  62,
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "status":  "DONE",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/client/DeliverabilityServiceClient.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/event/AudienceResolutionConsumer.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/client/DeliverabilityServiceClientTest.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/event/AudienceResolutionConsumerTest.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/config/SecurityConfig.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/repository/SuppressionListRepository.java",
+                                             "services/deliverability-service/src/main/resources/db/migration/V10__suppression_bulk_lookup_index.sql",
+                                             "services/deliverability-service/src/test/java/com/legent/deliverability/controller/SuppressionControllerTest.java",
+                                             "services/deliverability-service/src/test/java/com/legent/deliverability/repository/SuppressionListRepositoryBulkLookupTest.java",
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "scripts/ops/validate-route-map.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Audience resolution checks only candidate emails.",
+                                                    "Lookup remains tenant/workspace scoped.",
+                                                    "Focused audience and deliverability tests cover bulk checks.",
+                                                    "Public edge denies child internal suppression routes."
+                                                ],
+                         "validationProfile":  "performance",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service,services/deliverability-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production | Out-Null",
+                                                    "docker compose config --quiet",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue with next highest-priority READY item: delivery-feedback-outbox.",
+                         "lastUpdated":  "2026-05-20",
+                         "scope":  "Add tenant/workspace-scoped bulk suppression lookup for audience resolution candidate emails.",
+                         "nonGoals":  "Do not weaken suppression, unsubscribe, complaint, or tenant isolation behavior.",
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  3,
+                                         "userImpact":  4,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  3
+                                     }
+                     },
+                     {
+                         "id":  "internal-routes-edge-blocking",
+                         "title":  "Block service-internal endpoints at public edge",
+                         "status":  "DONE",
+                         "priorityScore":  61,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "API_ARCHITECT",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Prevent public Nginx/ingress exposure of service-to-service `/internal` routes while preserving internal service calls.",
+                         "nonGoals":  "Do not remove controller-level internal token validation or break service-to-service calls.",
+                         "sourceFiles":  [
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "scripts/ops/validate-route-map.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Public edge denies known `/internal` routes.",
+                                                    "Route map, Nginx, and ingress validators pass.",
+                                                    "Service-to-service token validation remains intact."
+                                                ],
+                         "validationProfile":  "route-runtime",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production",
+                                                    "docker compose config --quiet"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Monitor route drift through `scripts\\ops\\validate-route-map.ps1`.",
+                         "lastUpdated":  "2026-05-20"
+                     },
+                     {
+                         "id":  "fresh-repo-production-audit",
+                         "title":  "Run fresh repository production-readiness audit",
+                         "status":  "DONE",
+                         "priorityScore":  62,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "PROGRAM_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "RELEASE_MANAGER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Run a fresh audit from current repository sources and validators; produce current risks and first implementation slices.",
+                         "nonGoals":  "Do not claim production readiness.",
+                         "sourceFiles":  [
+                                             "AGENTS.md",
+                                             "ARCHITECTURE.md",
+                                             "PROJECT_CONTEXT.md",
+                                             ".codex/commands/full-audit.md",
+                                             ".codex/reports/production-readiness-audit-2026-05-20.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Current findings cite source files or commands.",
+                                                    "Findings are converted into READY, BACKLOG, or BLOCKED queue items.",
+                                                    "Memory receives only fresh verified facts."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "unresolved-risks.md",
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "performance-bottlenecks.md"
+                                           ],
+                         "nextAction":  "Continue with highest-priority READY implementation item.",
+                         "lastUpdated":  "2026-05-20"
+                     },
+                     {
+                         "id":  "feature-flag-tenant-scoped-id-operations",
+                         "title":  "Tenant-scope feature flag by-ID operations",
+                         "status":  "DONE",
+                         "priorityScore":  62,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  6
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add authorization and tenant-scoped repository lookup for feature flag get/update/delete by ID.",
+                         "nonGoals":  "Do not introduce global feature flag management behavior.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/controller/FeatureFlagController.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/FeatureFlagService.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/repository/FeatureFlagRepository.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/FeatureFlagServiceTest.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/controller/FeatureFlagControllerSecurityTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "GET by ID requires feature read permission.",
+                                                    "Get/update/delete by ID use tenant-scoped lookup.",
+                                                    "Cross-tenant and missing-tenant cases are tested."
+                                                ],
+                         "validationProfile":  "security",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Monitor for any required global feature flag admin workflow and design it explicitly if needed.",
+                         "lastUpdated":  "2026-05-20"
                      },
                      {
                          "id":  "journey-runtime-node-contract",
@@ -780,7 +1459,7 @@
                          "id":  "production-egress-policy-render-gate",
                          "title":  "Prove reviewed production egress policy is rendered and applied",
                          "status":  "DONE",
-                         "priorityScore":  47,
+                         "priorityScore":  46,
                          "scoring":  {
                                          "productionReadinessImpact":  4,
                                          "securityRisk":  4,
@@ -834,6 +1513,69 @@
                          "checkpoint":  ".codex/checkpoints/20260520T032145Z-production-egress-policy-render-gate.json",
                          "completedAt":  "2026-05-20T09:18:41+05:30",
                          "outcome":  "Strict egress release validation now validates reviewed evidence, generates or checks a reviewed external egress NetworkPolicy, proves it renders through a temporary production Kustomize overlay, verifies evidence hash/CIDR/port/protocol inclusion, rejects stale or missing generated policies, rejects FQDN rules until a supported generator exists, and guards the app-label selector against uncovered Deployment pod templates. This does not replace target-environment egress evidence."
+                     },
+                     {
+                         "id":  "ai-governance-optimization-foundation",
+                         "title":  "Design AI governance before model-backed optimization features",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  5,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "PRODUCT_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "DATA_ARCHITECT",
+                                               "FRONTEND_OWNER"
+                                           ],
+                         "scope":  "Document and design the governance foundation for AI assistance, send-time optimization, predictive segments, and frequency optimization before claiming true model-backed AI parity.",
+                         "nonGoals":  "Do not add provider credentials, call external model APIs, or claim Salesforce Einstein parity in this slice.",
+                         "sourceFiles":  [
+                                             "PROJECT_CONTEXT.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/performance/OperationsAssistanceService.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "AI capability claims distinguish deterministic heuristics from model-backed features.",
+                                                    "Data-use, provider disclosure, opt-in, human review, audit, metering, and minimum data-threshold requirements are documented.",
+                                                    "Backlog follow-ups are split into content assistance, send-time optimization, predictive segments, and frequency optimization."
+                                                ],
+                         "validationProfile":  "research-security",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                ],
+                         "dependencies":  [
+                                              "AI architecture decision",
+                                              "data-use policy"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "design-decisions.md",
+                                               "security-findings.md"
+                                           ],
+                         "nextAction":  "Promote the highest-scored safe AI follow-up or another unblocked backlog item after integrating six parallel read-only audits.",
+                         "lastUpdated":  "2026-05-20T06:42:46.7998584Z",
+                         "startedAt":  "2026-05-20T06:27:29.1719923Z",
+                         "completedAt":  "2026-05-20T06:42:46.7998584Z",
+                         "outcome":  "AI governance foundation documented deterministic-vs-model-backed claim boundaries, tenant/workspace data-use policy requirements, provider disclosure, opt-in/out, audit, metering, human review, minimum data thresholds, fallback behavior, and four follow-up governed AI slices. Enforcement remains future implementation work.",
+                         "validationRun":  [
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Governance is documented but not enforced in code yet. Model-backed AI claims and provider integration remain blocked until follow-up slices add implementation and tests."
+                                           ]
                      }
                  ]
 }
