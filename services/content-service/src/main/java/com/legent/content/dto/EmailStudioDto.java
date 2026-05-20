@@ -158,6 +158,53 @@ public class EmailStudioDto {
     }
 
     @Data
+    public static class SendGovernancePolicyRequest {
+        @NotBlank
+        @Size(max = 128)
+        private String policyKey;
+        @NotBlank
+        @Size(max = 255)
+        private String name;
+        private String description;
+        @NotBlank
+        private String classification = "COMMERCIAL";
+        private String senderProfileId;
+        private String deliveryProfileId;
+        private String sendingDomain;
+        private String providerId;
+        private String unsubscribePolicy = "REQUIRED";
+        private Boolean suppressionRequired = true;
+        private Boolean consentRequired = false;
+        private Boolean trackingAllowed = true;
+        private Integer sendLogRetentionDays = 365;
+        private String publicationPolicy = "APPROVED_CONTENT_REQUIRED";
+        private Boolean active = true;
+    }
+
+    @Data
+    public static class SendGovernancePolicyResponse {
+        private String id;
+        private String policyKey;
+        private String name;
+        private String description;
+        private String classification;
+        private Boolean commercial;
+        private String senderProfileId;
+        private String deliveryProfileId;
+        private String sendingDomain;
+        private String providerId;
+        private String unsubscribePolicy;
+        private Boolean suppressionRequired;
+        private Boolean consentRequired;
+        private Boolean trackingAllowed;
+        private Integer sendLogRetentionDays;
+        private String publicationPolicy;
+        private Boolean active;
+        private String createdAt;
+        private String updatedAt;
+    }
+
+    @Data
     public static class LandingPageRequest {
         @NotBlank
         private String name;

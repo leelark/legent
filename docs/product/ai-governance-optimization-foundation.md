@@ -24,6 +24,9 @@ These facts are used only as product and governance references. They do not prov
 - Salesforce Help search results for Einstein Send Time Optimization state that Marketing Cloud uses machine learning, weekly model recreation from engagement data, low-data fallback to a generalized model, and about 90 days of engagement data for email STO: https://help.salesforce.com/s/articleView?id=sf.mc_anb_einstein_sto_app.htm&language=en_US&type=0
 - Salesforce Help search results for Einstein Engagement Scoring state that activation requires historical contact or subscriber engagement data, including at least 1,000 events in the prior 90 days, and that scores are typically available after implementation delay: https://help.salesforce.com/s/articleView?id=mktg.mc_anb_activate_einstein_engagement_scoring.htm&language=en_US&type=5
 - Salesforce Help search results for Einstein Engagement Frequency state that frequency metrics derive from the prior 28 days, transactional and test sends are excluded, and at least five sending-frequency variants are required: https://help.salesforce.com/s/articleView?id=sf.mc_anb_eef.htm&type=5
+- Salesforce model-card results for Einstein Engagement Frequency state that the model analyzes up to 90 days of engagement history, requires sufficient subscriber and frequency-variant data, excludes third-party, demographic, and rendered-content inputs, and refreshes scores/models weekly: https://help.salesforce.com/s/articleView?id=mktg.mktg_einstein_model_card_eef.htm&language=en_US&type=5
+- Klaviyo Smart Sending documentation separates channel windows and notes that attempted delivery, not only successful inbox receipt, can reset a profile timer; transactional email is normally exempt from marketing smart-sending windows: https://help.klaviyo.com/hc/en-us/articles/115002779311
+- Braze frequency-capping documentation distinguishes individual-level message caps from infrastructure rate limits and frames dynamic caps as a way to avoid over-messaging while preserving relevance: https://www.braze.com/resources/articles/whats-frequency-capping
 - Salesforce model-card search results for Einstein Engagement Scoring describe model details, intended use, analyzed and excluded factors, and performance/data-richness metrics: https://help.salesforce.com/s/articleView?id=mktg.mktg_einstein_model_card_ees.htm&language=en_US&type=5
 - HubSpot describes AI trust controls around admin data access controls, third-party provider contractual restrictions, model cards, limited vendor retention, and no third-party model training on customer data: https://www.hubspot.com/products/artificial-intelligence/ai-trust
 - Braze public documentation describes send-time optimization as statistically analyzing past interactions and channel behavior to select likely engagement windows: https://www.braze.com/resources/articles/send-time-optimization
@@ -58,6 +61,9 @@ Every future AI feature must declare a policy record before implementation. The 
 ### Content Assistance
 
 - Default mode is draft-only and human-reviewed before send or publication.
+- Current local implementation evidence is a foundation-service governance control plane in `AiContentAssistanceGovernanceService.java`, backed by `ai_content_assistance_policies` and `ai_content_assistance_audits`; it does not call model providers or generate content.
+- Policy records require tenant/workspace scope, feature class, provider disclosure, allowed/prohibited data classes, training stance, retention, opt-in/out, kill switch, draft-only mode, and human review.
+- Evaluation records block publish, auto-publish, send, and test-send actions; draft application requires human review and stores prompt/output evidence as hashes only.
 - Prompts must use minimum necessary context. Brand kit and template fragments are allowed only under tenant policy.
 - Subscriber attributes and event history are prohibited unless the tenant policy explicitly enables them for personalization generation.
 - Outputs require safety checks, brand-policy checks, and audit records with prompt template version and output hash. Avoid storing raw customer-sensitive prompts unless policy permits it.
@@ -89,11 +95,19 @@ Every future AI feature must declare a policy record before implementation. The 
 ### Frequency Optimization
 
 - Current implementation evidence is a deterministic governance contract in `ClosedLoopOptimizationService.java`, not model-backed engagement-frequency optimization and not live cadence control.
-- Requires a defined lookback window, minimum frequency variants, and low-data fallback classification.
-- Must treat fatigue, unsubscribe, complaint, bounce, and suppression signals as safety signals, not only optimization features.
-- Must never increase send frequency for a recipient who is suppressed, unsubscribed, complaint-prone, warmup-blocked, over cap, or provider-blocked.
-- Must expose saturation categories, recommended cap, confidence band, and expected safety impact.
-- Cadence changes require human approval and rollback evidence, and cap increases are blocked unless suppression, unsubscribe/preference, warmup, rate-limit, provider-capacity, deliverability, and frequency-ledger gates have passed.
+- Policy scope is tenant, workspace, and environment scoped. Commercial, transactional, and test sends must be classified separately; commercial optimization must exclude transactional and test-send history unless a separate transactional policy explicitly exists.
+- Data readiness requires a defined lookback window, minimum eligible send events and contacts, minimum frequency variants, and data freshness. Default contract minimums are a 28-day active metric window, 90-day richer history when available, at least 5 sending-frequency variants, at least 1,000 eligible send events, and at least 500 eligible contacts unless a tenant policy tightens them.
+- Low-data evaluation must return a low-confidence fallback such as `LOW_DATA_CURRENT_CAP`; it must not present personalized cadence certainty or increase a cap.
+- Must treat fatigue, unsubscribe, complaint, bounce, suppression, warmup rollback, provider block, rate-limit block, current cap utilization, and frequency-ledger state as safety signals, not only optimization features.
+- Must never increase send frequency for a recipient or cohort that is suppressed, unsubscribed, complaint-prone, bounce-risk, warmup-blocked, over cap, provider-blocked, or rate-limit-blocked.
+- Reputation and deliverability inputs must be tenant/workspace scoped. Do not use legacy domain-only reputation records for frequency decisions, and treat missing sent-count or unavailable reputation evidence as low-confidence/no-increase.
+- Delivery safety inputs must remain authoritative after a recommendation is approved. Warmup capacity, provider health, circuit state, provider/domain capacity, inbox safety, and send-rate reservations can only further reduce or defer sends; frequency optimization must not override them.
+- When risk tiers differ across delivery services, the frequency contract must use the stricter effective tier/cap and expose the tier source in reason codes before recommending an increase.
+- Campaign interaction points are launch/preflight for advisory blockers and `CampaignSendSafetyService.prepareRecipient` for final per-recipient enforcement. Scheduled sends must either revalidate readiness at execution time or carry an immutable approved frequency snapshot before publishing audience resolution.
+- Recommendation output must expose saturation category, current cap, recommended cap, confidence band, fallback mode, data-quality reasons, expected safety impact, and blocker reason codes.
+- Cap increases and other cadence changes require human approval and rollback evidence, and are blocked unless suppression, unsubscribe/preference, warmup, rate-limit, provider-capacity, deliverability, and frequency-ledger gates have passed.
+- Auto-apply remains blocked in this governance slice. Future live cadence control must prove campaign/journey integration, policy versioning, tenant/workspace audit, rollback snapshot, and target-environment provider evidence before release claims.
+- Focused validation map: foundation policy tests cover low-data fallback, unsafe cap increases, approval and rollback flags, saturation output, confidence band, recommended cap, and gate blockers; campaign send-safety tests cover tenant/workspace frequency caps before delivery handoff; delivery/deliverability follow-ups must keep warmup, provider capacity, reputation, suppression, and rate controls authoritative at send time.
 
 ## Audit And Review Requirements
 
@@ -110,15 +124,15 @@ All AI and model-backed optimization features must emit audit records that can a
 
 For external-facing content, human review is mandatory until the feature has explicit tenant policy, QA evidence, safety tests, and release approval for a narrower no-review mode. No AI feature may bypass existing approval, suppression, unsubscribe, warmup, rate control, signed tracking, content safety, or provider health checks.
 
-## Required Follow-Up Slices
+## Governance Slice Status
 
-The backlog must split model-backed AI work into separate implementation slices:
+The backlog must split model-backed AI work into separate implementation slices. Completed deterministic governance slices are product-contract evidence only; they do not prove model-backed AI or live autonomous action.
 
-| Backlog ID | Purpose | First Validation |
-|---|---|---|
-| `ai-content-assistance-governance` | Implement tenant/workspace AI policy and audit scaffolding for draft-only content assistance. | Focused foundation/content tests plus docs and artifact hygiene. |
-| `send-time-optimization-governance` | Implement deterministic STO data-readiness, fallback, confidence, and send-path safety contracts before scheduling changes. | Focused foundation policy/evaluation tests plus campaign/delivery integration follow-up before runtime scheduling. |
-| `predictive-segments-governance` | Define predictive segment data provenance, threshold, preview, approval, and rollback controls. | Audience/foundation tests for tenant isolation, preview counts, and policy denial. |
-| `frequency-optimization-governance` | Define frequency optimization lookback, variants, fatigue safety, and deliverability guardrails. | Deliverability/campaign tests for suppressions, caps, and fail-closed policy. |
+| Backlog ID | Purpose | Status | First Validation |
+|---|---|---|---|
+| `ai-content-assistance-governance` | Implement tenant/workspace AI policy and audit scaffolding for draft-only content assistance. | DONE_LOCAL_CONTRACT | `AiContentAssistanceGovernanceServiceTest`; `.\\mvnw.cmd -pl services/foundation-service,services/content-service -am test`. |
+| `send-time-optimization-governance` | Implement deterministic STO data-readiness, fallback, confidence, and send-path safety contracts before scheduling changes. | DONE_LOCAL_CONTRACT | Focused foundation policy/evaluation tests plus campaign/delivery integration follow-up before runtime scheduling. |
+| `predictive-segments-governance` | Define predictive segment data provenance, threshold, preview, approval, and rollback controls. | DONE_LOCAL_CONTRACT | Audience/foundation tests for tenant isolation, preview counts, and policy denial. |
+| `frequency-optimization-governance` | Define frequency optimization lookback, variants, fatigue safety, and deliverability guardrails. | DONE_LOCAL_CONTRACT | Foundation frequency policy tests plus campaign send-safety frequency cap tests; delivery/deliverability runtime evidence remains follow-up. |
 
-These slices remain BACKLOG until their implementation scope, schema/API shape, and validation plans are narrowed. None should call external model APIs or add provider credentials without a separate security and data-processing review.
+Open follow-ups remain separate from these governance contracts: model/provider integration, generated draft application in content workflows, live cadence control, runtime scheduling, journey integration, provider-capacity proof, and production evidence. None should call external model APIs or add provider credentials without a separate security and data-processing review.

@@ -200,6 +200,13 @@ public class TrackingEventConsumer {
         e.setExperimentId(p.getExperimentId());
         e.setVariantId(p.getVariantId());
         e.setHoldout(Boolean.TRUE.equals(p.getHoldout()));
+        e.setExperimentScope(p.getExperimentScope());
+        e.setWorkflowId(p.getWorkflowId());
+        e.setWorkflowVersion(p.getWorkflowVersion());
+        e.setWorkflowRunId(p.getWorkflowRunId());
+        e.setStepId(p.getStepId());
+        e.setPathId(p.getPathId());
+        e.setGoalId(p.getGoalId());
         e.setEventType(p.getEventType().trim().toUpperCase(java.util.Locale.ROOT));
         e.setUserAgent(p.getUserAgent());
         e.setIpAddress(p.getIpAddress());

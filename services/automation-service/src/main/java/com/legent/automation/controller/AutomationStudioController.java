@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -77,7 +78,9 @@ public class AutomationStudioController {
 
     @GetMapping("/{id}/runs")
     @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
-    public ApiResponse<List<AutomationStudioDto.RunResponse>> listRuns(@PathVariable String id) {
-        return ApiResponse.ok(automationStudioService.listRuns(id));
+    public ApiResponse<List<AutomationStudioDto.RunResponse>> listRuns(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "50") int limit) {
+        return ApiResponse.ok(automationStudioService.listRuns(id, limit));
     }
 }

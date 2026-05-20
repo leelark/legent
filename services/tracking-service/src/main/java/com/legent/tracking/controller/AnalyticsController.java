@@ -68,6 +68,14 @@ public class AnalyticsController {
         return ApiResponse.ok(analyticsService.getExperimentMetrics(tenantId, workspaceId, id, experimentId));
     }
 
+    @GetMapping("/journeys/{workflowId}/goals")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> getJourneyGoalMetrics(@PathVariable String workflowId) {
+        String tenantId = TenantContext.getTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        return ApiResponse.ok(analyticsService.getJourneyGoalMetrics(tenantId, workspaceId, workflowId));
+    }
+
     @PostMapping("/events/export")
     @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<TrackingDto.EventExportResponse> exportEvents(@RequestBody(required = false) TrackingDto.EventExportRequest request) {

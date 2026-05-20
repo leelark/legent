@@ -1,0 +1,59 @@
+{
+    "id":  "automation-activity-dependency-run-contract",
+    "createdAt":  "2026-05-20T14:34:09.8800328Z",
+    "objective":  "Add Automation Studio dependency and run contract",
+    "status":  "COMPLETED",
+    "owner":  "AUTOMATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/automation-service/src/main/java/com/legent/automation/dto/AutomationStudioDto.java",
+                         "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
+                         "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
+                         "services/automation-service/src/main/java/com/legent/automation/repository/AutomationActivityRepository.java",
+                         "services/automation-service/src/main/java/com/legent/automation/repository/AutomationActivityRunRepository.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                         "services/automation-service/src/main/resources/db/migration/**",
+                         "services/automation-service/src/test/java/com/legent/automation/service/AutomationStudioServiceTest.java",
+                         "docs/product/automation-studio-activity-orchestration-plan.md",
+                         "docs/product/automation-studio-activity-security-contract.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "DATABASE_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "FRONTEND_OWNER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=AutomationStudioServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/automation-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote automation-activity-capability-verification-ui.",
+    "completedAt":  "2026-05-20T14:43:38.3438505Z",
+    "outcome":  "Implemented Automation Studio dependency and run contract: activity dependency IDs, failure policy, cycle and workspace validation, bounded run listing, trace IDs, error codes, dependency trace summaries, V7 migration, controller limit parameter, and focused regression tests without adding new activity side effects.",
+    "validationRun":  [
+                          "PASS: focused AutomationStudioServiceTest (17 tests)",
+                          "PASS: full automation-service gate (52 automation-service tests plus shared upstream tests)",
+                          "PASS: production ddl-auto scan remains validate-only outside test configs",
+                          "PASS: Codex validation",
+                          "PASS: repo artifact hygiene",
+                          "PASS: git diff --check (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "Dependency metadata is validation and run-history contract only; multi-step execution remains a follow-up.",
+                          "Sanitizer and redaction utilities remain future implementation work before new executable families.",
+                          "File/extract, webhook/notification, send handoff, and script sandbox slices remain unimplemented."
+                      ]
+}

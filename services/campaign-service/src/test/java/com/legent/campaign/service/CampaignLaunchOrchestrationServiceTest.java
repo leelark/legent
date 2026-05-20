@@ -201,6 +201,22 @@ class CampaignLaunchOrchestrationServiceTest {
     }
 
     @Test
+    void previewBlocksMissingSendGovernancePolicySelection() {
+        Campaign campaign = completeCampaign();
+        campaign.setSendGovernancePolicyId(null);
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "campaign-1"))
+                .thenReturn(Optional.of(campaign));
+
+        CampaignLaunchDto.LaunchPlanResponse response = service.preview(request(CampaignLaunchDto.LaunchAction.PREVIEW));
+
+        assertThat(response.getBlockers()).contains("Send governance policy is not selected.");
+        assertThat(response.getSteps()).anySatisfy(step -> {
+            assertThat(step.getKey()).isEqualTo("launch_controls");
+            assertThat(step.getStatus()).isEqualTo("BLOCKED");
+        });
+    }
+
+    @Test
     void previewBlocksSenderAndSendingDomainMismatch() {
         Campaign campaign = completeCampaign();
         campaign.setSenderEmail("marketing@example.com");
@@ -266,6 +282,8 @@ class CampaignLaunchOrchestrationServiceTest {
         campaign.setName("Ready campaign");
         campaign.setSubject("Launch subject");
         campaign.setContentId("template-1");
+        campaign.setSenderProfileId("sender-1");
+        campaign.setSendGovernancePolicyId("policy-1");
         campaign.setSenderEmail("marketing@example.com");
         campaign.setSendingDomain("example.com");
         campaign.setProviderId("provider-1");

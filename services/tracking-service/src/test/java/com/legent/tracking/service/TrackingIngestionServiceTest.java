@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -160,6 +161,57 @@ class TrackingIngestionServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> ingestionService.processOpen("t1", "c1", "s1", "m1", null, "idem-4", null, "192.168.1.1"));
+
+        verify(outboxService, never()).enqueue(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void processConversion_PublishesJourneyGoalLineage() {
+        TrackingDto.ConversionRequest request = TrackingDto.ConversionRequest.builder()
+                .campaignId("campaign-1")
+                .subscriberId("subscriber-1")
+                .messageId("message-1")
+                .experimentId("experiment-1")
+                .variantId("variant-a")
+                .holdout(true)
+                .workflowId("workflow-1")
+                .workflowVersion(2)
+                .workflowRunId("run-1")
+                .stepId("step-1")
+                .pathId("path-a")
+                .goalId("goal-1")
+                .eventName("Purchase")
+                .value(new java.math.BigDecimal("19.95"))
+                .currency("USD")
+                .build();
+
+        ingestionService.processConversion("tenant-1", "workspace-1", "idem-conv", request, null, "127.0.0.1");
+
+        ArgumentCaptor<TrackingDto.RawEventPayload> captor = ArgumentCaptor.forClass(TrackingDto.RawEventPayload.class);
+        verify(outboxService).enqueue(captor.capture());
+        TrackingDto.RawEventPayload payload = captor.getValue();
+        assertEquals("CONVERSION", payload.getEventType());
+        assertEquals("JOURNEY", payload.getExperimentScope());
+        assertEquals("workflow-1", payload.getWorkflowId());
+        assertEquals(2, payload.getWorkflowVersion());
+        assertEquals("run-1", payload.getWorkflowRunId());
+        assertEquals("step-1", payload.getStepId());
+        assertEquals("path-a", payload.getPathId());
+        assertEquals("goal-1", payload.getGoalId());
+        assertTrue(Boolean.TRUE.equals(payload.getHoldout()));
+        assertEquals("workflow-1", payload.getMetadata().get("workflowId"));
+        assertEquals("goal-1", payload.getMetadata().get("goalId"));
+    }
+
+    @Test
+    void processConversion_RejectsJourneyScopeWithoutGoalContract() {
+        TrackingDto.ConversionRequest request = TrackingDto.ConversionRequest.builder()
+                .experimentScope("JOURNEY")
+                .eventName("Purchase")
+                .build();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> ingestionService.processConversion("tenant-1", "workspace-1", "idem-conv", request, null, "127.0.0.1"));
 
         verify(outboxService, never()).enqueue(org.mockito.ArgumentMatchers.any());
     }

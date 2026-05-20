@@ -12,6 +12,8 @@ import {
   AutomationActivity,
   AutomationActivityRun,
   AutomationActivityType,
+  AutomationFailurePolicy,
+  AutomationVerificationResponse,
   archiveWorkflow,
   cloneWorkflow,
   createAutomationActivity,
@@ -74,6 +76,108 @@ const runStatusVariant = (status?: AutomationActivityRun['status']): 'success' |
   return 'default';
 };
 
+const ACTIVITY_TYPES: AutomationActivityType[] = ['SQL_QUERY', 'IMPORT', 'WEBHOOK', 'NOTIFICATION', 'FILE_DROP', 'EXTRACT', 'SCRIPT'];
+const LIVE_SUPPORTED_ACTIVITY_TYPES = new Set<AutomationActivityType>(['SQL_QUERY', 'IMPORT', 'WEBHOOK', 'NOTIFICATION']);
+const UNSAFE_ARTIFACT_REFERENCE_TOKENS = ['http://', 'https://', 's3://', 'gs://', 'file:'];
+
+const isUnsafeArtifactReference = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  return (
+    normalized.length === 0 ||
+    normalized.startsWith('.') ||
+    normalized.startsWith('/') ||
+    normalized.includes('/') ||
+    normalized.includes('\\') ||
+    normalized.includes('..') ||
+    UNSAFE_ARTIFACT_REFERENCE_TOKENS.some((token) => normalized.startsWith(token))
+  );
+};
+
+const isUnsafeWebhookEventType = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  return !/^automation\.[a-z0-9][a-z0-9._-]{1,126}$/.test(normalized);
+};
+
+const parseJsonRecord = (value: string) => {
+  if (!value.trim()) {
+    return {};
+  }
+  const parsed = JSON.parse(value);
+  if (!isRecord(parsed) || Array.isArray(parsed)) {
+    throw new Error('Payload JSON must be an object');
+  }
+  return parsed;
+};
+
+const ACTIVITY_CAPABILITY: Record<AutomationActivityType, { label: string; description: string; liveSupported: boolean }> = {
+  SQL_QUERY: {
+    label: 'Live execution',
+    description: 'SELECT-only query activity with dry-run support and bounded row controls.',
+    liveSupported: true,
+  },
+  IMPORT: {
+    label: 'Live execution',
+    description: 'CSV import activity with explicit live confirmation on the backend.',
+    liveSupported: true,
+  },
+  FILE_DROP: {
+    label: 'Design only',
+    description: 'File-drop detection is pending scoped artifact ownership and storage safety work.',
+    liveSupported: false,
+  },
+  EXTRACT: {
+    label: 'Design only',
+    description: 'Extract and file-transfer work is pending artifact, retention, and adapter controls.',
+    liveSupported: false,
+  },
+  SCRIPT: {
+    label: 'Blocked',
+    description: 'Script execution is blocked until signed artifact sandboxing is approved.',
+    liveSupported: false,
+  },
+  WEBHOOK: {
+    label: 'Live execution',
+    description: 'Publishes guarded platform webhook events with bounded metadata and idempotent runs.',
+    liveSupported: true,
+  },
+  NOTIFICATION: {
+    label: 'Live execution',
+    description: 'Publishes terminal-state platform notifications with scoped recipients and idempotent runs.',
+    liveSupported: true,
+  },
+};
+
+const asStringArray = (value: unknown) => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+const asVerification = (value: unknown): AutomationVerificationResponse | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const valid = value.valid;
+  return {
+    valid: valid === true,
+    errors: asStringArray(value.errors),
+    warnings: asStringArray(value.warnings),
+    normalizedConfig: isRecord(value.normalizedConfig) ? value.normalizedConfig : {},
+  };
+};
+
+const formatFailurePolicy = (policy?: AutomationFailurePolicy) =>
+  policy ? policy.replaceAll('_', ' ').toLowerCase() : 'stop on failure';
+
+const toDisplayValue = (value: unknown) => {
+  if (value === null || value === undefined || value === '') {
+    return 'None';
+  }
+  if (Array.isArray(value)) {
+    return value.length ? value.join(', ') : 'None';
+  }
+  if (typeof value === 'object') {
+    return JSON.stringify(value);
+  }
+  return String(value);
+};
+
 export default function AutomationPage() {
   const uiMode = useUIStore((state) => state.uiMode);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -86,9 +190,29 @@ export default function AutomationPage() {
   const [activityName, setActivityName] = useState('');
   const [activityType, setActivityType] = useState<AutomationActivityType>('SQL_QUERY');
   const [activitySql, setActivitySql] = useState('SELECT subscriber_key, email FROM subscribers');
+  const [activityTargetDataExtensionId, setActivityTargetDataExtensionId] = useState('');
+  const [activityImportSource, setActivityImportSource] = useState('');
+  const [activityImportTargetType, setActivityImportTargetType] = useState<'SUBSCRIBER' | 'DATA_EXTENSION'>('SUBSCRIBER');
+  const [activityImportTargetId, setActivityImportTargetId] = useState('');
+  const [activityImportEmailField, setActivityImportEmailField] = useState('Email Address');
+  const [activityExtractSourceType, setActivityExtractSourceType] = useState('');
+  const [activityExtractSourceId, setActivityExtractSourceId] = useState('');
+  const [activityExtractDestination, setActivityExtractDestination] = useState('');
+  const [activityWebhookEventType, setActivityWebhookEventType] = useState('automation.activity.completed');
+  const [activityWebhookAuthRef, setActivityWebhookAuthRef] = useState('');
+  const [activityWebhookPayloadJson, setActivityWebhookPayloadJson] = useState('');
+  const [activityNotificationUserId, setActivityNotificationUserId] = useState('');
+  const [activityNotificationTitle, setActivityNotificationTitle] = useState('');
+  const [activityNotificationMessage, setActivityNotificationMessage] = useState('');
+  const [activityNotificationSeverity, setActivityNotificationSeverity] = useState<'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS'>('INFO');
+  const [activityNotificationTerminalStatus, setActivityNotificationTerminalStatus] = useState<'SUCCEEDED' | 'FAILED'>('FAILED');
+  const [activityNotificationLinkUrl, setActivityNotificationLinkUrl] = useState('/app/automation');
+  const [activityScriptRef, setActivityScriptRef] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [activityActionErrors, setActivityActionErrors] = useState<Record<string, string | undefined>>({});
+  const [verificationResults, setVerificationResults] = useState<Record<string, AutomationVerificationResponse | undefined>>({});
   const [expandedRunHistory, setExpandedRunHistory] = useState<string[]>([]);
   const [activityRuns, setActivityRuns] = useState<Record<string, AutomationActivityRun[]>>({});
   const [runHistoryLoading, setRunHistoryLoading] = useState<Record<string, boolean>>({});
@@ -99,6 +223,7 @@ export default function AutomationPage() {
   const activeActivityCount = activities.filter((activity) => activity.status === 'ACTIVE').length;
   const showActivityAuthoring = isModeFeatureVisible(AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring, uiMode);
   const showActivityExecution = isModeFeatureVisible(AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution, uiMode);
+  const selectedActivityCapability = ACTIVITY_CAPABILITY[activityType];
 
   const loadWorkflows = async () => {
     setLoading(true);
@@ -124,7 +249,7 @@ export default function AutomationPage() {
     setRunHistoryLoading((current) => ({ ...current, [activityId]: true }));
     setRunHistoryError((current) => ({ ...current, [activityId]: undefined }));
     try {
-      const runs = await listAutomationActivityRuns(activityId);
+      const runs = await listAutomationActivityRuns(activityId, 5);
       setActivityRuns((current) => ({ ...current, [activityId]: runs.slice(0, 5) }));
     } catch (e: unknown) {
       setRunHistoryError((current) => ({
@@ -178,25 +303,18 @@ export default function AutomationPage() {
     setCreating(true);
     setError(null);
     try {
-      const inputConfig =
-        activityType === 'SQL_QUERY'
-          ? { sql: activitySql }
-          : activityType === 'WEBHOOK'
-            ? { url: 'https://example.com/webhook', method: 'POST' }
-            : activityType === 'FILE_DROP'
-              ? { locationPattern: 's3://bucket/path/*.csv' }
-              : activityType === 'IMPORT'
-                ? { sourceLocation: 's3://bucket/file.csv', targetType: 'DATA_EXTENSION', targetId: 'data-extension-id', fieldMapping: {} }
-                : activityType === 'EXTRACT'
-                  ? { sourceType: 'RAW_EVENTS' }
-                  : { scriptRef: 'signed-script-artifact' };
-      const outputConfig = activityType === 'SQL_QUERY' ? { targetDataExtensionId: 'data-extension-id' } : { destination: 's3://bucket/output/' };
+      const config = buildActivityConfig();
+      if (!config) {
+        setCreating(false);
+        return;
+      }
       await createAutomationActivity({
         name: activityName.trim(),
         activityType,
         status: 'DRAFT',
-        inputConfig,
-        outputConfig,
+        failurePolicy: 'STOP_ON_FAILURE',
+        inputConfig: config.inputConfig,
+        outputConfig: config.outputConfig,
       });
       setActivityName('');
       setShowCreateActivity(false);
@@ -208,14 +326,154 @@ export default function AutomationPage() {
     }
   };
 
+  const buildActivityConfig = () => {
+    if (activityType === 'SQL_QUERY') {
+      if (!activitySql.trim()) {
+        setError('SQL activity requires a SELECT statement');
+        return null;
+      }
+      return {
+        inputConfig: { sql: activitySql.trim() },
+        outputConfig: activityTargetDataExtensionId.trim()
+          ? { targetDataExtensionId: activityTargetDataExtensionId.trim() }
+          : {},
+      };
+    }
+    if (activityType === 'IMPORT') {
+      if (!activityImportSource.trim()) {
+        setError('Import activity requires a scoped artifact ID');
+        return null;
+      }
+      if (isUnsafeArtifactReference(activityImportSource)) {
+        setError('Import activity requires an opaque scoped artifact ID');
+        return null;
+      }
+      if (!activityImportEmailField.trim()) {
+        setError('Import activity requires an email field mapping');
+        return null;
+      }
+      if (activityImportTargetType === 'DATA_EXTENSION' && !activityImportTargetId.trim()) {
+        setError('Data extension imports require a target data extension ID');
+        return null;
+      }
+      return {
+        inputConfig: {
+          artifactId: activityImportSource.trim(),
+          targetType: activityImportTargetType,
+          ...(activityImportTargetType === 'DATA_EXTENSION' ? { targetId: activityImportTargetId.trim() } : {}),
+          fieldMapping: { email: activityImportEmailField.trim() },
+        },
+        outputConfig: {},
+      };
+    }
+    if (activityType === 'FILE_DROP') {
+      if (!activityImportSource.trim()) {
+        setError('File-drop activity requires a scoped artifact ID');
+        return null;
+      }
+      if (isUnsafeArtifactReference(activityImportSource)) {
+        setError('File-drop activity requires an opaque scoped artifact ID');
+        return null;
+      }
+      return {
+        inputConfig: { artifactId: activityImportSource.trim() },
+        outputConfig: {},
+      };
+    }
+    if (activityType === 'EXTRACT') {
+      const sourceType = activityExtractSourceType.trim().toUpperCase();
+      if (!sourceType || !activityExtractSourceId.trim() || !activityExtractDestination.trim()) {
+        setError('Extract activity requires a source type, source ID, and output artifact ID');
+        return null;
+      }
+      if (isUnsafeArtifactReference(activityExtractDestination)) {
+        setError('Extract activity requires an opaque output artifact ID');
+        return null;
+      }
+      if (sourceType !== 'DATA_EXTENSION' && isUnsafeArtifactReference(activityExtractSourceId)) {
+        setError('Extract source artifact must be an opaque scoped artifact ID');
+        return null;
+      }
+      return {
+        inputConfig: {
+          sourceType,
+          ...(sourceType === 'DATA_EXTENSION'
+            ? { sourceId: activityExtractSourceId.trim() }
+            : { sourceArtifactId: activityExtractSourceId.trim() }),
+        },
+        outputConfig: { artifactId: activityExtractDestination.trim() },
+      };
+    }
+    if (activityType === 'WEBHOOK') {
+      if (isUnsafeWebhookEventType(activityWebhookEventType)) {
+        setError('Webhook activity requires an automation.* platform event type');
+        return null;
+      }
+      if (activityWebhookAuthRef.trim() && isUnsafeArtifactReference(activityWebhookAuthRef)) {
+        setError('Webhook auth reference must be opaque');
+        return null;
+      }
+      let data: Record<string, unknown>;
+      try {
+        data = parseJsonRecord(activityWebhookPayloadJson);
+      } catch {
+        setError('Webhook payload must be valid JSON object metadata');
+        return null;
+      }
+      return {
+        inputConfig: {
+          eventToDispatch: activityWebhookEventType.trim().toLowerCase(),
+          ...(activityWebhookAuthRef.trim() ? { webhookAuthRef: activityWebhookAuthRef.trim() } : {}),
+          ...(Object.keys(data).length > 0 ? { data } : {}),
+        },
+        outputConfig: {},
+      };
+    }
+    if (activityType === 'NOTIFICATION') {
+      if (!activityNotificationUserId.trim() || isUnsafeArtifactReference(activityNotificationUserId)) {
+        setError('Notification activity requires an opaque user ID');
+        return null;
+      }
+      if (!activityNotificationTitle.trim() || !activityNotificationMessage.trim()) {
+        setError('Notification activity requires a title and message');
+        return null;
+      }
+      if (activityNotificationLinkUrl.trim() && (!activityNotificationLinkUrl.trim().startsWith('/') || activityNotificationLinkUrl.trim().startsWith('//'))) {
+        setError('Notification link must be an application path');
+        return null;
+      }
+      return {
+        inputConfig: {
+          userId: activityNotificationUserId.trim(),
+          title: activityNotificationTitle.trim(),
+          message: activityNotificationMessage.trim(),
+          severity: activityNotificationSeverity,
+          terminalStatus: activityNotificationTerminalStatus,
+          ...(activityNotificationLinkUrl.trim() ? { linkUrl: activityNotificationLinkUrl.trim() } : {}),
+        },
+        outputConfig: {},
+      };
+    }
+    if (!activityScriptRef.trim()) {
+      setError('Script activity requires a signed artifact reference');
+      return null;
+    }
+    return {
+      inputConfig: { scriptRef: activityScriptRef.trim() },
+      outputConfig: {},
+    };
+  };
+
   const runActivityAction = async (activityId: string, mode: 'verify' | 'dryRun') => {
     if (!showActivityExecution) {
       return;
     }
     setActionBusy(`${activityId}:${mode}`);
+    setActivityActionErrors((current) => ({ ...current, [activityId]: undefined }));
     try {
       if (mode === 'verify') {
-        await verifyAutomationActivity(activityId);
+        const verification = await verifyAutomationActivity(activityId);
+        setVerificationResults((current) => ({ ...current, [activityId]: verification }));
       } else {
         await runAutomationActivity(activityId, { dryRun: true, triggerSource: 'MANUAL' });
       }
@@ -224,7 +482,10 @@ export default function AutomationPage() {
         await loadActivityRuns(activityId);
       }
     } catch (e: unknown) {
-      setError(getAutomationErrorMessage(e, `Failed to ${mode} activity`));
+      setActivityActionErrors((current) => ({
+        ...current,
+        [activityId]: getAutomationErrorMessage(e, `Failed to ${mode} activity`),
+      }));
     } finally {
       setActionBusy(null);
     }
@@ -318,7 +579,7 @@ export default function AutomationPage() {
         </div>
         {showActivityAuthoring && showCreateActivity && (
           <div
-            className="grid gap-3 border-b border-border-default p-5 md:grid-cols-[1fr_180px_1fr_auto]"
+            className="grid gap-4 border-b border-border-default p-5 xl:grid-cols-[1fr_180px_minmax(280px,1.4fr)_auto]"
             data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring.id}
             data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring.visibility}
           >
@@ -326,16 +587,115 @@ export default function AutomationPage() {
             <div>
               <label className="mb-1 block text-sm font-medium text-content-primary">Type</label>
               <select
+                aria-label="Activity Type"
                 value={activityType}
                 onChange={(event) => setActivityType(event.target.value as AutomationActivityType)}
                 className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
               >
-                {['SQL_QUERY', 'FILE_DROP', 'IMPORT', 'EXTRACT', 'SCRIPT', 'WEBHOOK'].map((type) => (
-                  <option key={type} value={type}>{type}</option>
+                {ACTIVITY_TYPES.map((type) => (
+                  <option key={type} value={type}>
+                    {type}{LIVE_SUPPORTED_ACTIVITY_TYPES.has(type) ? '' : ' - draft only'}
+                  </option>
                 ))}
               </select>
             </div>
-            <Input label="SQL" value={activitySql} onChange={(event) => setActivitySql(event.target.value)} />
+            <div className="grid gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={selectedActivityCapability.liveSupported ? 'success' : activityType === 'SCRIPT' ? 'danger' : 'warning'}>
+                  {selectedActivityCapability.label}
+                </Badge>
+                <span className="text-xs leading-5 text-content-secondary">{selectedActivityCapability.description}</span>
+              </div>
+              {activityType === 'SQL_QUERY' && (
+                <div className="grid gap-3 md:grid-cols-[1fr_220px]">
+                  <Input label="SQL" value={activitySql} onChange={(event) => setActivitySql(event.target.value)} />
+                  <Input label="Target Data Extension ID" value={activityTargetDataExtensionId} onChange={(event) => setActivityTargetDataExtensionId(event.target.value)} />
+                </div>
+              )}
+              {activityType === 'IMPORT' && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input label="Scoped Artifact ID" value={activityImportSource} onChange={(event) => setActivityImportSource(event.target.value)} />
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-content-primary">Target Type</label>
+                    <select
+                      aria-label="Import Target Type"
+                      value={activityImportTargetType}
+                      onChange={(event) => setActivityImportTargetType(event.target.value as 'SUBSCRIBER' | 'DATA_EXTENSION')}
+                      className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                    >
+                      <option value="SUBSCRIBER">SUBSCRIBER</option>
+                      <option value="DATA_EXTENSION">DATA_EXTENSION</option>
+                    </select>
+                  </div>
+                  {activityImportTargetType === 'DATA_EXTENSION' && (
+                    <Input label="Target Data Extension ID" value={activityImportTargetId} onChange={(event) => setActivityImportTargetId(event.target.value)} />
+                  )}
+                  <Input label="Email Field Mapping" value={activityImportEmailField} onChange={(event) => setActivityImportEmailField(event.target.value)} />
+                </div>
+              )}
+              {activityType === 'FILE_DROP' && (
+                <Input label="Scoped Artifact ID" value={activityImportSource} onChange={(event) => setActivityImportSource(event.target.value)} />
+              )}
+              {activityType === 'EXTRACT' && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input label="Source Type" value={activityExtractSourceType} onChange={(event) => setActivityExtractSourceType(event.target.value)} />
+                  <Input label="Source ID or Artifact ID" value={activityExtractSourceId} onChange={(event) => setActivityExtractSourceId(event.target.value)} />
+                  <Input label="Output Artifact ID" value={activityExtractDestination} onChange={(event) => setActivityExtractDestination(event.target.value)} />
+                </div>
+              )}
+              {activityType === 'WEBHOOK' && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input label="Platform Event Type" value={activityWebhookEventType} onChange={(event) => setActivityWebhookEventType(event.target.value)} />
+                  <Input label="Webhook Auth Ref" value={activityWebhookAuthRef} onChange={(event) => setActivityWebhookAuthRef(event.target.value)} />
+                  <div className="md:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-content-primary">Payload JSON</label>
+                    <textarea
+                      aria-label="Webhook Payload JSON"
+                      value={activityWebhookPayloadJson}
+                      onChange={(event) => setActivityWebhookPayloadJson(event.target.value)}
+                      rows={3}
+                      className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                    />
+                  </div>
+                </div>
+              )}
+              {activityType === 'NOTIFICATION' && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input label="Recipient User ID" value={activityNotificationUserId} onChange={(event) => setActivityNotificationUserId(event.target.value)} />
+                  <Input label="Title" value={activityNotificationTitle} onChange={(event) => setActivityNotificationTitle(event.target.value)} />
+                  <Input label="Message" value={activityNotificationMessage} onChange={(event) => setActivityNotificationMessage(event.target.value)} />
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-content-primary">Severity</label>
+                    <select
+                      aria-label="Notification Severity"
+                      value={activityNotificationSeverity}
+                      onChange={(event) => setActivityNotificationSeverity(event.target.value as 'INFO' | 'WARNING' | 'ERROR' | 'SUCCESS')}
+                      className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                    >
+                      {['INFO', 'WARNING', 'ERROR', 'SUCCESS'].map((severity) => (
+                        <option key={severity} value={severity}>{severity}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-content-primary">Terminal Status</label>
+                    <select
+                      aria-label="Notification Terminal Status"
+                      value={activityNotificationTerminalStatus}
+                      onChange={(event) => setActivityNotificationTerminalStatus(event.target.value as 'SUCCEEDED' | 'FAILED')}
+                      className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                    >
+                      <option value="FAILED">FAILED</option>
+                      <option value="SUCCEEDED">SUCCEEDED</option>
+                    </select>
+                  </div>
+                  <Input label="Link URL" value={activityNotificationLinkUrl} onChange={(event) => setActivityNotificationLinkUrl(event.target.value)} />
+                </div>
+              )}
+              {activityType === 'SCRIPT' && (
+                <Input label="Signed Artifact Reference" value={activityScriptRef} onChange={(event) => setActivityScriptRef(event.target.value)} />
+              )}
+            </div>
             <Button className="mt-6" onClick={handleCreateActivity} loading={creating}>Create</Button>
           </div>
         )}
@@ -347,13 +707,32 @@ export default function AutomationPage() {
             const runs = activityRuns[activity.id] ?? [];
             const historyError = runHistoryError[activity.id];
             const historyLoading = runHistoryLoading[activity.id];
+            const capability = ACTIVITY_CAPABILITY[activity.activityType];
+            const storedVerification = verificationResults[activity.id] ?? asVerification(activity.verification);
+            const verificationErrors = storedVerification?.errors ?? [];
+            const verificationWarnings = storedVerification?.warnings ?? [];
+            const liveExecutionSupported = isRecord(storedVerification?.normalizedConfig)
+              ? storedVerification?.normalizedConfig.liveExecutionSupported !== false && capability.liveSupported
+              : capability.liveSupported;
+            const dependencyIds = activity.dependencyActivityIds ?? [];
+            const actionError = activityActionErrors[activity.id];
 
             return (
               <div key={activity.id} className="p-4">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <div>
-                    <p className="font-semibold text-content-primary">{activity.name}</p>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold text-content-primary">{activity.name}</p>
+                      <Badge variant={liveExecutionSupported ? 'success' : activity.activityType === 'SCRIPT' ? 'danger' : 'warning'}>
+                        {capability.label}
+                      </Badge>
+                    </div>
                     <p className="text-sm text-content-secondary">{activity.activityType}</p>
+                    <p className="mt-1 max-w-3xl text-xs leading-5 text-content-muted">{capability.description}</p>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-content-muted">
+                      <span>Failure policy: {formatFailurePolicy(activity.failurePolicy)}</span>
+                      <span>Dependencies: {dependencyIds.length ? dependencyIds.length : 'none'}</span>
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge variant={activity.status === 'ACTIVE' ? 'success' : 'default'}>{activity.status}</Badge>
@@ -382,6 +761,8 @@ export default function AutomationPage() {
                           size="sm"
                           loading={actionBusy === `${activity.id}:dryRun`}
                           onClick={() => runActivityAction(activity.id, 'dryRun')}
+                          disabled={!liveExecutionSupported}
+                          title={liveExecutionSupported ? undefined : `${activity.activityType} dry-run execution is not supported yet`}
                           data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.id}
                           data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.visibility}
                         >
@@ -391,6 +772,36 @@ export default function AutomationPage() {
                     )}
                   </div>
                 </div>
+                {(actionError || storedVerification) && (
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    {actionError && (
+                      <div className="rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
+                        {actionError}
+                      </div>
+                    )}
+                    {storedVerification && (
+                      <div
+                        className="rounded-lg border border-border-default bg-surface-secondary/70 px-3 py-2 text-sm"
+                        aria-label={`Verification result for ${activity.name}`}
+                      >
+                        <div className="mb-1 flex flex-wrap items-center gap-2">
+                          <Badge variant={storedVerification.valid ? 'success' : 'danger'}>
+                            {storedVerification.valid ? 'Verified' : 'Verification failed'}
+                          </Badge>
+                          <span className="text-xs text-content-muted">
+                            Live support: {String(storedVerification.normalizedConfig.liveExecutionSupported ?? liveExecutionSupported)}
+                          </span>
+                        </div>
+                        {verificationErrors.length > 0 && (
+                          <p className="text-xs leading-5 text-danger">{verificationErrors.join('; ')}</p>
+                        )}
+                        {verificationWarnings.length > 0 && (
+                          <p className="text-xs leading-5 text-amber-700 dark:text-amber-300">{verificationWarnings.join('; ')}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {isExpanded && (
                   <div className="mt-4 rounded-lg border border-border-default bg-surface-secondary/60 p-3">
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -427,6 +838,9 @@ export default function AutomationPage() {
                             <div className="grid gap-1 text-content-secondary sm:grid-cols-2">
                               <span>Trigger: {run.triggerSource || 'Unknown'}</span>
                               <span>Rows: {run.rowsRead ?? 0} read, {run.rowsWritten ?? 0} written</span>
+                              <span>Error code: {run.errorCode || 'None'}</span>
+                              <span>Trace: {run.traceId || 'None'}</span>
+                              <span>Dependencies: {toDisplayValue(run.dependencyTrace?.dependencyCount)}</span>
                               <span>Started: {formatRunTimestamp(run.startedAt)}</span>
                               <span>Completed: {formatRunTimestamp(run.completedAt)}</span>
                             </div>

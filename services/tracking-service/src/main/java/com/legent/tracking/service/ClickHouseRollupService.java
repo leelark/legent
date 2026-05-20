@@ -121,7 +121,7 @@ public class ClickHouseRollupService {
         datasets.add(dataset(
                 "raw_events",
                 "Raw immutable tracking stream in ClickHouse",
-                List.of("tenant_id", "workspace_id", "event_type", "campaign_id", "experiment_id", "variant_id", "holdout", "message_id"),
+                List.of("tenant_id", "workspace_id", "event_type", "campaign_id", "experiment_id", "variant_id", "holdout", "experiment_scope", "workflow_id", "workflow_run_id", "step_id", "path_id", "goal_id", "message_id"),
                 List.of("timestamp", "metadata")));
         return datasets;
     }
@@ -164,6 +164,13 @@ public class ClickHouseRollupService {
                     experiment_id Nullable(String),
                     variant_id Nullable(String),
                     holdout UInt8 DEFAULT 0,
+                    experiment_scope Nullable(String),
+                    workflow_id Nullable(String),
+                    workflow_version Nullable(Int32),
+                    workflow_run_id Nullable(String),
+                    step_id Nullable(String),
+                    path_id Nullable(String),
+                    goal_id Nullable(String),
                     user_agent Nullable(String),
                     ip_address Nullable(String),
                     link_url Nullable(String),
@@ -172,7 +179,7 @@ public class ClickHouseRollupService {
                 )
                 ENGINE = MergeTree()
                 PARTITION BY toYYYYMM(timestamp)
-                ORDER BY (tenant_id, workspace_id, campaign_id, experiment_id, variant_id, event_type, timestamp, id)
+                ORDER BY (tenant_id, workspace_id, campaign_id, workflow_id, step_id, experiment_id, variant_id, event_type, timestamp, id)
                 TTL timestamp + INTERVAL 180 DAY DELETE
                 """);
     }

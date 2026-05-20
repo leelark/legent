@@ -107,6 +107,51 @@ class ImportServiceTest {
         }
     }
 
+    @Test
+    void startImportRejectsRawUrlObjectKey() {
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
+        try {
+            ImportService service = new ImportService(null, null, null, null);
+
+            assertThrows(IllegalArgumentException.class, () -> service.startImport(ImportDto.StartRequest.builder()
+                    .fileName("https://storage.example.com/import.csv")
+                    .targetType("SUBSCRIBER")
+                    .fieldMapping(Map.of("email", "Email"))
+                    .build()));
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    @Test
+    void startImportAcceptsAutomationScopedArtifactObjectKey() {
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
+        try {
+            ImportJobRepository repository = mock(ImportJobRepository.class);
+            ImportProcessingService processingService = mock(ImportProcessingService.class);
+            ImportEventPublisher publisher = mock(ImportEventPublisher.class);
+            when(repository.save(any(ImportJob.class))).thenAnswer(invocation -> {
+                ImportJob job = invocation.getArgument(0);
+                job.setId("import-1");
+                return job;
+            });
+            ImportService service = new ImportService(repository, processingService, publisher, null);
+
+            ImportDto.StatusResponse response = service.startImport(ImportDto.StartRequest.builder()
+                    .fileName("tenants/tenant-1/workspaces/workspace-1/automation-artifacts/artifact-1/import.csv")
+                    .targetType("SUBSCRIBER")
+                    .fieldMapping(Map.of("email", "Email"))
+                    .build());
+
+            assertEquals("SUBSCRIBER", response.getTargetType());
+            verify(processingService).processImport("import-1");
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
     private ImportService service() {
         ImportService service = new ImportService(null, null, null, null);
         ReflectionTestUtils.setField(service, "maxImportFileSizeBytes", 1024L);

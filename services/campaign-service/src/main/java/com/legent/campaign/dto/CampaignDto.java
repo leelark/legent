@@ -34,6 +34,7 @@ public class CampaignDto {
         private String subject;
         private String preheader;
         private String senderProfileId;
+        private String sendGovernancePolicyId;
         private String templateId;
         private String senderName;
         private String senderEmail;
@@ -89,6 +90,7 @@ public class CampaignDto {
         private String subject;
         private String preheader;
         private String senderProfileId;
+        private String sendGovernancePolicyId;
         private String senderName;
         private String senderEmail;
         private String replyToEmail;
@@ -123,6 +125,7 @@ public class CampaignDto {
         private String subject;
         private String preheader;
         private String senderProfileId;
+        private String sendGovernancePolicyId;
         private String senderName;
         private String senderEmail;
         private String replyToEmail;

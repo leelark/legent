@@ -1,0 +1,37 @@
+{
+    "id":  "automation-file-trigger-extract-family",
+    "createdAt":  "2026-05-20T15:40:57.3293340Z",
+    "objective":  "Implement scoped file, trigger, and extract activity family",
+    "status":  "DONE",
+    "owner":  "AUTOMATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/automation-service/src/main/java/com/legent/automation",
+                         "services/automation-service/src/test/java/com/legent/automation",
+                         "services/automation-service/src/main/resources/db/migration",
+                         "services/audience-service/src/main/java/com/legent/audience/service",
+                         "services/audience-service/src/test/java/com/legent/audience/service",
+                         "frontend/src/app/(workspace)/automation/page.tsx",
+                         "frontend/src/lib/automation-api.ts",
+                         "frontend/tests/e2e/automation-studio.spec.ts",
+                         "frontend/tests/e2e/support/workspace-mock.ts",
+                         "docs/product/automation-studio-activity-orchestration-plan.md",
+                         "docs/product/automation-studio-activity-security-contract.md"
+                     ],
+    "agents":  [
+                   "AUDIENCE_SERVICE_OWNER",
+                   "SECURITY_ENGINEER",
+                   "DEVOPS_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/automation-service",
+                           "services/audience-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed locally; continue with the next safe backlog item."
+}

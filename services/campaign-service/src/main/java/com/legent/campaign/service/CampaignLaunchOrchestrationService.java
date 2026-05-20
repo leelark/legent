@@ -82,7 +82,7 @@ public class CampaignLaunchOrchestrationService {
                 .primaryAction(readiness.primaryAction())
                 .message(readiness.blocked() ? "Resolve blockers before launch." : "Campaign is ready for controlled execution.")
                 .affectedResourceIds(Map.of("campaignId", campaignId))
-                .launchControls(launchControls(request))
+                .launchControls(launchControls(campaign, request))
                 .blockers(readiness.blockers())
                 .warnings(readiness.warnings())
                 .recommendations(readiness.recommendations())
@@ -423,7 +423,7 @@ public class CampaignLaunchOrchestrationService {
         evaluatePublicationCalendar(request.getPublicationCalendar(), effectiveLaunchTime, blockers, warnings, recommendations, controlIssues);
         evaluateBlackoutWindows(request.getBlackoutWindows(), effectiveLaunchTime, blockers, recommendations, controlIssues);
         evaluateDependencies(request.getDependencies(), blockers, recommendations, controlIssues);
-        evaluateSendClassification(request.getSendClassification(), blockers, warnings, recommendations, controlIssues);
+        evaluateSendClassification(campaign, request.getSendClassification(), blockers, warnings, recommendations, controlIssues);
         evaluateBudgetGuard(campaign, request.getBudgetGuard(), blockers, warnings, recommendations, controlIssues);
         evaluateFrequencyGuard(campaign, request.getFrequencyGuard(), blockers, warnings, recommendations, controlIssues);
 
@@ -434,7 +434,7 @@ public class CampaignLaunchOrchestrationService {
                 blocked ? "Calendar, dependency, or guardrail issue found."
                         : warned ? "Launch controls have warnings."
                         : "Calendar, dependencies, classifications, budget, and frequency controls ready.",
-                launchControls(request)));
+                launchControls(campaign, request)));
     }
 
     private void evaluatePublicationCalendar(CampaignLaunchDto.PublicationCalendar calendar,
@@ -511,16 +511,21 @@ public class CampaignLaunchOrchestrationService {
         }
     }
 
-    private void evaluateSendClassification(CampaignLaunchDto.SendClassification classification,
+    private void evaluateSendClassification(Campaign campaign,
+                                            CampaignLaunchDto.SendClassification classification,
                                             List<String> blockers,
                                             List<String> warnings,
                                             List<CampaignLaunchDto.LaunchRecommendation> recommendations,
                                             List<String> controlIssues) {
+        String persistedPolicyId = campaign.getSendGovernancePolicyId();
+        if (persistedPolicyId == null || persistedPolicyId.isBlank()) {
+            blockers.add("Send governance policy is not selected.");
+            controlIssues.add("BLOCKER:send_governance_policy_missing");
+            recommendations.add(recommend("classification.required", "BLOCKER", "Select send governance policy",
+                    "Use a tenant/workspace-owned policy before schedule or launch.", false));
+            return;
+        }
         if (classification == null) {
-            warnings.add("Send classification is not selected.");
-            controlIssues.add("WARN:send_classification_missing");
-            recommendations.add(recommend("classification.required", "WARN", "Select send classification",
-                    "Use a governed sender, delivery profile, and unsubscribe policy.", false));
             return;
         }
         if (classification.getClassificationKey() == null || classification.getClassificationKey().isBlank()) {
@@ -834,12 +839,13 @@ public class CampaignLaunchOrchestrationService {
         return value == null ? defaultValue : value;
     }
 
-    private Map<String, Object> launchControls(CampaignLaunchDto.LaunchPlanRequest request) {
+    private Map<String, Object> launchControls(Campaign campaign, CampaignLaunchDto.LaunchPlanRequest request) {
         Map<String, Object> controls = new LinkedHashMap<>();
         controls.put("publicationCalendar", request.getPublicationCalendar());
         controls.put("blackoutWindows", request.getBlackoutWindows() == null ? List.of() : request.getBlackoutWindows());
         controls.put("dependencies", request.getDependencies() == null ? List.of() : request.getDependencies());
         controls.put("sendClassification", request.getSendClassification());
+        controls.put("sendGovernancePolicyId", campaign.getSendGovernancePolicyId());
         controls.put("budgetGuard", request.getBudgetGuard());
         controls.put("frequencyGuard", request.getFrequencyGuard());
         return controls;

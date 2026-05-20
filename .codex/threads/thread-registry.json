@@ -1,8 +1,8 @@
 ﻿{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
-    "mode":  "HYBRID_READY",
-    "coordinatorThreadId":  "multi-module-coordinator-20260520T113233Z",
+    "mode":  "ONE_OVERALL_TEAM",
+    "coordinatorThreadId":  "overall-20260520T133124Z",
     "heartbeatStaleMinutes":  60,
     "threads":  [
                     {
@@ -35,7 +35,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T11:52:30.5885789Z",
                         "startedAt":  "2026-05-20T06:25:48.7560832Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5362044Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/overall-24x7-handoff.md",
                         "nextAction":  "Archived stale safe-stopped coordinator; superseded by multi-module-coordinator-20260520T113233Z.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -73,7 +73,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T10:21:30.3925579Z",
                         "startedAt":  "2026-05-20T10:07:16.5823839Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5499530Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/deliverability-service-20260520T100626Z-handoff.md",
                         "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -110,7 +110,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T10:21:30.6208978Z",
                         "startedAt":  "2026-05-20T10:07:17.2291262Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5499530Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/content-service-20260520T100625Z-handoff.md",
                         "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -147,7 +147,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T10:21:30.6609071Z",
                         "startedAt":  "2026-05-20T10:07:17.4047526Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5511158Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/audience-service-20260520T100624Z-handoff.md",
                         "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -188,7 +188,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T10:21:30.6758853Z",
                         "startedAt":  "2026-05-20T10:07:17.7879469Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5511158Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/automation-service-20260520T100624Z-handoff.md",
                         "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -225,7 +225,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T10:21:30.7094825Z",
                         "startedAt":  "2026-05-20T10:07:18.3690780Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5521160Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/tracking-service-20260520T100626Z-handoff.md",
                         "nextAction":  "Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -262,7 +262,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T10:21:30.7528164Z",
                         "startedAt":  "2026-05-20T10:07:18.8866897Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5521160Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/frontend-20260520T100626Z-handoff.md",
                         "nextAction":  "Archived duplicate frontend registration; frontend-20260520T100638Z is active.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -299,7 +299,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T11:33:45.7207624Z",
                         "startedAt":  "2026-05-20T10:07:21.7965271Z",
-                        "lastUpdated":  "2026-05-20T13:12:32.5527291Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/frontend-20260520T100638Z-handoff.md",
                         "nextAction":  "Archived safe-stopped frontend module thread before frontend-20260520T113115Z starts.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -336,7 +336,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T13:21:41.7830523Z",
                         "startedAt":  "2026-05-20T10:08:33.0423029Z",
-                        "lastUpdated":  "2026-05-20T13:21:41.7830523Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/foundation-service-20260520T100717Z-handoff.md",
                         "nextAction":  "Safe-stopped by user request after completing foundation-service scoped fixes and final reassessment. Resume from .codex/checkpoints/20260520T131300Z-foundation-service-safe-stop.json and foundation handoff.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -344,7 +344,7 @@
                     {
                         "threadId":  "multi-module-coordinator-20260520T113233Z",
                         "threadRole":  "OVERALL",
-                        "status":  "ACTIVE",
+                        "status":  "PAUSED",
                         "module":  "multi-module-coordinator",
                         "owner":  "PROGRAM_MANAGER_AGENT",
                         "backlogItemId":  "",
@@ -383,9 +383,9 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T13:24:50.3857224Z",
                         "startedAt":  "2026-05-20T11:32:52.2887183Z",
-                        "lastUpdated":  "2026-05-20T13:25:36.5361972Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/multi-module-coordinator-20260520T113233Z-handoff.md",
-                        "nextAction":  "READY assignments staged for deliverability, content, automation, and tracking; no active leases; keep external evidence and campaign compatibility blockers explicit.",
+                        "nextAction":  "Superseded by ONE_OVERALL_TEAM coordinator overall-20260520T133124Z for the current run.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
                     },
                     {
@@ -420,7 +420,7 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T13:14:17.9511942Z",
                         "startedAt":  "2026-05-20T11:33:07.5122852Z",
-                        "lastUpdated":  "2026-05-20T13:14:17.9511942Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/frontend-20260520T113115Z-handoff.md",
                         "nextAction":  "Safe-stopped by user request after completing template-studio-mode-contract; frontend heartbeat automation deleted.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
@@ -457,9 +457,44 @@
                                          ],
                         "heartbeatAt":  "2026-05-20T13:16:16.7756807Z",
                         "startedAt":  "2026-05-20T12:13:43.3798675Z",
-                        "lastUpdated":  "2026-05-20T13:16:47.6313930Z",
+                        "lastUpdated":  "2026-05-20T17:10:11.1399545Z",
                         "handoffPath":  ".codex/threads/audience-service-20260520T121322Z-handoff.md",
                         "nextAction":  "Safe stop requested by user after completing predictive-segments-governance and contact-data-designer-preview-governance. Resume from checkpoint 20260520T125000Z-contact-data-designer-preview-governance for additive Contact Builder provenance/classification/audit tables, controller API validation, frontend relationship-designer controls, or internal endpoint security-chain tests.",
+                        "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
+                    },
+                    {
+                        "threadId":  "overall-20260520T133124Z",
+                        "threadRole":  "OVERALL",
+                        "status":  "PAUSED",
+                        "module":  "overall",
+                        "owner":  "PROGRAM_MANAGER_AGENT",
+                        "backlogItemId":  "frequency-optimization-governance",
+                        "checkpointId":  "20260520T133212Z-frequency-optimization-governance",
+                        "worktreeId":  "",
+                        "branch":  "",
+                        "allowedPaths":  [
+                                             "**"
+                                         ],
+                        "forbiddenPaths":  [
+                                               ".env",
+                                               "**/*.key",
+                                               "**/*.pem",
+                                               "**/node_modules/**",
+                                               "**/target/**",
+                                               "**/.next/**"
+                                           ],
+                        "leaseIds":  [
+
+                                     ],
+                        "maxParallelAgents":  6,
+                        "activeAgents":  [
+
+                                         ],
+                        "heartbeatAt":  "2026-05-20T17:13:37.3491151Z",
+                        "startedAt":  "2026-05-20T13:31:25.9182092Z",
+                        "lastUpdated":  "2026-05-20T17:13:37.3491151Z",
+                        "handoffPath":  ".codex/threads/overall-20260520T133124Z-handoff.md",
+                        "nextAction":  "Safe-stopped by user request after completing email-governance-policy-objects. Resume from .codex/checkpoints/20260520T164135Z-email-governance-policy-objects.json and .codex/threads/overall-20260520T133124Z-handoff.md.",
                         "notes":  "Registered by .codex/utilities/register-thread.ps1. Do not read secrets."
                     }
                 ]

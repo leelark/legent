@@ -35,6 +35,13 @@ public class TrackingDto {
         private String experimentId;
         private String variantId;
         private Boolean holdout;
+        private String experimentScope;
+        private String workflowId;
+        private Integer workflowVersion;
+        private String workflowRunId;
+        private String stepId;
+        private String pathId;
+        private String goalId;
         private String userAgent;
         private String ipAddress;
         private String linkUrl;
@@ -53,6 +60,14 @@ public class TrackingDto {
         private String campaignId;
         private String experimentId;
         private String variantId;
+        private Boolean holdout;
+        private String experimentScope;
+        private String workflowId;
+        private Integer workflowVersion;
+        private String workflowRunId;
+        private String stepId;
+        private String pathId;
+        private String goalId;
         @NotBlank
         private String eventName;
         private BigDecimal value; // AUDIT-027: Use BigDecimal instead of Double for monetary precision

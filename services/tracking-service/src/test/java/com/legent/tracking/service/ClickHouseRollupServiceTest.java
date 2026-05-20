@@ -27,7 +27,7 @@ class ClickHouseRollupServiceTest {
                 .filteredOn(row -> "raw_events".equals(row.get("name")))
                 .singleElement()
                 .satisfies(row -> assertThat((java.util.List<String>) row.get("dimensions"))
-                        .contains("workspace_id", "experiment_id", "variant_id", "holdout"));
+                        .contains("workspace_id", "experiment_id", "variant_id", "holdout", "workflow_id", "step_id", "goal_id"));
     }
 
     @Test
@@ -48,9 +48,11 @@ class ClickHouseRollupServiceTest {
                 .contains("experiment_id Nullable(String)")
                 .contains("variant_id Nullable(String)")
                 .contains("holdout UInt8 DEFAULT 0")
+                .contains("workflow_id Nullable(String)")
+                .contains("goal_id Nullable(String)")
                 .contains("ENGINE = MergeTree()")
                 .contains("PARTITION BY toYYYYMM(timestamp)")
-                .contains("ORDER BY (tenant_id, workspace_id, campaign_id, experiment_id, variant_id, event_type, timestamp, id)")
+                .contains("ORDER BY (tenant_id, workspace_id, campaign_id, workflow_id, step_id, experiment_id, variant_id, event_type, timestamp, id)")
                 .contains("TTL timestamp + INTERVAL 180 DAY DELETE");
     }
 

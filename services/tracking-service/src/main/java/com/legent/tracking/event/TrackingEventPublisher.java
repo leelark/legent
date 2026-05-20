@@ -45,7 +45,13 @@ public class TrackingEventPublisher {
         if (idempotencyKey != null) {
             envelope.setIdempotencyKey(idempotencyKey);
         }
-        CompletableFuture<?> send = eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, payload.getMessageId(), envelope);
+        String partitionKey = firstNonBlank(
+                payload.getMessageId(),
+                payload.getWorkflowRunId(),
+                payload.getSubscriberId(),
+                payload.getCampaignId(),
+                payload.getId());
+        CompletableFuture<?> send = eventPublisher.publish(AppConstants.TOPIC_TRACKING_INGESTED, partitionKey, envelope);
         if (send == null) {
             throw new IllegalStateException("Kafka publish returned no send future");
         }
@@ -95,12 +101,11 @@ public class TrackingEventPublisher {
         }
     }
 
-    private String firstNonBlank(String primary, String fallback) {
-        if (primary != null && !primary.isBlank()) {
-            return primary.trim();
-        }
-        if (fallback != null && !fallback.isBlank()) {
-            return fallback.trim();
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
         }
         return null;
     }

@@ -18,11 +18,13 @@ import com.legent.common.util.IdGenerator;
 import com.legent.security.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,6 +35,10 @@ import java.util.Set;
 @Service
 @RequiredArgsConstructor
 public class WorkflowStudioService {
+
+    private static final int JOURNEY_ANALYTICS_RUN_LIMIT = 200;
+    private static final int JOURNEY_ANALYTICS_PATH_LIMIT = 10;
+    private static final int JOURNEY_ANALYTICS_DIAGNOSTIC_LIMIT = 5;
 
     private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = Map.of(
             "DRAFT", Set.of("ACTIVE", "PAUSED", "ARCHIVED", "SCHEDULED"),
@@ -276,27 +282,227 @@ public class WorkflowStudioService {
 
     public Map<String, Object> journeyAnalytics(String workflowId) {
         findWorkflow(workflowId);
-        List<WorkflowInstance> runs = listRuns(workflowId);
+        WorkflowGraphDto graph = parseDefinition(getLatestDefinition(workflowId));
+        String tenantId = requireTenant();
+        String workspaceId = requireWorkspace();
+        List<WorkflowInstance> runs = workflowInstanceRepository.findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByCreatedAtDesc(
+                tenantId,
+                workspaceId,
+                workflowId,
+                PageRequest.of(0, JOURNEY_ANALYTICS_RUN_LIMIT));
+
         Map<String, Long> runStatusCounts = new LinkedHashMap<>();
         for (WorkflowInstance run : runs) {
             String status = run.getStatus() == null ? "UNKNOWN" : run.getStatus();
             runStatusCounts.put(status, runStatusCounts.getOrDefault(status, 0L) + 1);
         }
-        Map<String, Long> nodeExecutions = new LinkedHashMap<>();
-        for (WorkflowInstance run : runs.stream().limit(100).toList()) {
-            for (InstanceHistory history : instanceHistoryRepository
-                    .findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(requireTenant(), requireWorkspace(), run.getId())) {
-                String key = history.getNodeId() == null ? "UNKNOWN" : history.getNodeId();
-                nodeExecutions.put(key, nodeExecutions.getOrDefault(key, 0L) + 1);
-            }
+
+        List<String> runIds = runs.stream()
+                .map(WorkflowInstance::getId)
+                .filter(id -> id != null && !id.isBlank())
+                .toList();
+        List<InstanceHistory> histories = runIds.isEmpty()
+                ? List.of()
+                : instanceHistoryRepository.findScopedHistoryForInstances(tenantId, workspaceId, runIds);
+
+        Map<String, List<InstanceHistory>> historiesByRun = new LinkedHashMap<>();
+        for (InstanceHistory history : histories) {
+            historiesByRun.computeIfAbsent(history.getInstanceId(), ignored -> new ArrayList<>()).add(history);
         }
+
+        Map<String, WorkflowGraphDto.WorkflowNode> graphNodes = graph.getNodes() == null ? Map.of() : graph.getNodes();
+        Map<String, StepCounter> stepCounters = new LinkedHashMap<>();
+        Map<String, PathCounter> pathCounters = new LinkedHashMap<>();
+        Map<String, DecisionCounter> decisionCounters = new LinkedHashMap<>();
+
+        for (WorkflowInstance run : runs) {
+            List<InstanceHistory> runHistory = historiesByRun.getOrDefault(run.getId(), List.of());
+            List<String> path = new ArrayList<>();
+
+            for (InstanceHistory history : runHistory) {
+                String nodeId = defaultString(history.getNodeId(), "UNKNOWN");
+                path.add(nodeId);
+                StepCounter counter = stepCounters.computeIfAbsent(nodeId, id -> new StepCounter(
+                        id,
+                        nodeType(graphNodes.get(id)),
+                        nodeLabel(graphNodes.get(id), id)));
+                counter.record(run.getId(), history.getStatus());
+            }
+
+            if (path.isEmpty() && run.getCurrentNodeId() != null && !run.getCurrentNodeId().isBlank()) {
+                path.add(run.getCurrentNodeId());
+            }
+            recordPath(pathCounters, path, run.getStatus());
+            recordDecisionTargets(decisionCounters, graphNodes, path, run.getStatus());
+        }
+
+        Map<String, Long> nodeExecutions = new LinkedHashMap<>();
+        List<Map<String, Object>> stepMetrics = stepCounters.values().stream()
+                .sorted(Comparator.comparing(StepCounter::entered).reversed().thenComparing(StepCounter::nodeId))
+                .map(counter -> {
+                    nodeExecutions.put(counter.nodeId(), counter.entered());
+                    return counter.toMap();
+                })
+                .toList();
+
+        List<Map<String, Object>> topPaths = pathCounters.values().stream()
+                .sorted(Comparator.comparing(PathCounter::runs).reversed().thenComparing(PathCounter::signature))
+                .limit(JOURNEY_ANALYTICS_PATH_LIMIT)
+                .map(PathCounter::toMap)
+                .toList();
+        List<Map<String, Object>> pathTests = decisionCounters.values().stream()
+                .sorted(Comparator.comparing(DecisionCounter::observedRuns).reversed().thenComparing(DecisionCounter::nodeId))
+                .map(DecisionCounter::toMap)
+                .toList();
+
+        List<Map<String, Object>> conversionGoals = graphNodes.values().stream()
+                .filter(node -> node != null && "EXIT_GOAL".equals(node.getType()))
+                .map(node -> {
+                    StepCounter counter = stepCounters.get(node.getId());
+                    long hits = counter == null ? 0L : counter.completed();
+                    Map<String, Object> goal = new LinkedHashMap<>();
+                    goal.put("goalId", node.getId());
+                    goal.put("label", nodeLabel(node, node.getId()));
+                    goal.put("hits", hits);
+                    goal.put("observedRunRate", runs.isEmpty() ? 0.0d : ratio(hits, runs.size()));
+                    return goal;
+                })
+                .toList();
+
+        List<Map<String, Object>> diagnostics = deterministicDiagnostics(runs, stepCounters, conversionGoals);
+
+        Map<String, Object> experimentScopes = new LinkedHashMap<>();
+        experimentScopes.put("campaignExperiments", "Reported through campaign and tracking experiment analytics.");
+        experimentScopes.put("journeyPathTests", "Reported from observed workflow decision paths.");
+        experimentScopes.put("separated", true);
+
+        List<String> evidenceNotes = List.of(
+                "Journey path tests are observed execution summaries, not causal attribution.",
+                "Diagnostics are deterministic threshold signals and do not claim anomaly accuracy.",
+                "Analytics are bounded to the most recent " + JOURNEY_ANALYTICS_RUN_LIMIT + " workflow runs."
+        );
+
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("workflowId", workflowId);
         response.put("runCount", runs.size());
+        response.put("runLimit", JOURNEY_ANALYTICS_RUN_LIMIT);
         response.put("runStatusCounts", runStatusCounts);
         response.put("nodeExecutions", nodeExecutions);
-        response.put("capabilities", journeyCapabilities(workflowId).get("capabilities"));
+        response.put("stepMetrics", stepMetrics);
+        response.put("topPaths", topPaths);
+        response.put("pathTests", pathTests);
+        response.put("conversionGoals", conversionGoals);
+        response.put("diagnostics", diagnostics);
+        response.put("experimentScopes", experimentScopes);
+        response.put("capabilities", graphCapabilities(graph));
+        response.put("evidenceNotes", evidenceNotes);
         return response;
+    }
+
+    private void recordPath(Map<String, PathCounter> pathCounters, List<String> path, String status) {
+        if (path.isEmpty()) {
+            return;
+        }
+        List<String> boundedPath = path.size() > 20 ? path.subList(0, 20) : path;
+        String signature = String.join(" -> ", boundedPath);
+        pathCounters.computeIfAbsent(signature, ignored -> new PathCounter(signature, List.copyOf(boundedPath)))
+                .record(status);
+    }
+
+    private void recordDecisionTargets(Map<String, DecisionCounter> decisionCounters,
+                                       Map<String, WorkflowGraphDto.WorkflowNode> graphNodes,
+                                       List<String> path,
+                                       String status) {
+        for (int i = 0; i + 1 < path.size(); i++) {
+            String nodeId = path.get(i);
+            WorkflowGraphDto.WorkflowNode node = graphNodes.get(nodeId);
+            String type = nodeType(node);
+            if (!Set.of("CONDITION", "BRANCH", "SPLIT").contains(type)) {
+                continue;
+            }
+            decisionCounters.computeIfAbsent(nodeId, id -> new DecisionCounter(id, type, nodeLabel(node, id)))
+                    .record(path.get(i + 1), status);
+        }
+    }
+
+    private List<Map<String, Object>> deterministicDiagnostics(List<WorkflowInstance> runs,
+                                                               Map<String, StepCounter> stepCounters,
+                                                               List<Map<String, Object>> conversionGoals) {
+        List<Map<String, Object>> diagnostics = new ArrayList<>();
+        long failedRuns = runs.stream().filter(run -> "FAILED".equals(run.getStatus())).count();
+        if (runs.size() >= 5 && ratio(failedRuns, runs.size()) >= 0.2d) {
+            diagnostics.add(diagnostic(
+                    "ELEVATED_FAILED_RUNS",
+                    "warning",
+                    "Workflow failures exceed the deterministic threshold.",
+                    runs.size(),
+                    Map.of("failedRuns", failedRuns, "failureRate", ratio(failedRuns, runs.size()))));
+        }
+
+        long totalGoalHits = conversionGoals.stream()
+                .map(goal -> goal.get("hits"))
+                .filter(Number.class::isInstance)
+                .map(Number.class::cast)
+                .mapToLong(Number::longValue)
+                .sum();
+        if (!conversionGoals.isEmpty() && runs.size() >= 5 && totalGoalHits == 0L) {
+            diagnostics.add(diagnostic(
+                    "NO_GOAL_COMPLETIONS",
+                    "info",
+                    "No exit-goal completions were observed in the bounded run window.",
+                    runs.size(),
+                    Map.of("goalCount", conversionGoals.size())));
+        }
+
+        stepCounters.values().stream()
+                .filter(counter -> counter.entered() >= 5)
+                .filter(counter -> ratio(counter.failed(), counter.entered()) >= 0.2d)
+                .sorted(Comparator.comparing(StepCounter::failed).reversed().thenComparing(StepCounter::nodeId))
+                .limit(JOURNEY_ANALYTICS_DIAGNOSTIC_LIMIT)
+                .forEach(counter -> diagnostics.add(diagnostic(
+                        "STEP_FAILURE_CONCENTRATION",
+                        "warning",
+                        "A workflow step crossed the deterministic failure threshold.",
+                        counter.entered(),
+                        Map.of(
+                                "nodeId", counter.nodeId(),
+                                "nodeType", counter.nodeType(),
+                                "failed", counter.failed(),
+                                "failureRate", ratio(counter.failed(), counter.entered())))));
+        return diagnostics;
+    }
+
+    private Map<String, Object> diagnostic(String code,
+                                           String severity,
+                                           String message,
+                                           long sampleSize,
+                                           Map<String, Object> evidence) {
+        Map<String, Object> diagnostic = new LinkedHashMap<>();
+        diagnostic.put("code", code);
+        diagnostic.put("severity", severity);
+        diagnostic.put("message", message);
+        diagnostic.put("sampleSize", sampleSize);
+        diagnostic.put("evidence", evidence);
+        return diagnostic;
+    }
+
+    private String nodeType(WorkflowGraphDto.WorkflowNode node) {
+        return node == null || node.getType() == null || node.getType().isBlank()
+                ? "UNKNOWN"
+                : node.getType();
+    }
+
+    private String nodeLabel(WorkflowGraphDto.WorkflowNode node, String fallback) {
+        if (node == null || node.getConfiguration() == null) {
+            return fallback;
+        }
+        Object label = Optional.ofNullable(node.getConfiguration().get("label"))
+                .orElse(node.getConfiguration().get("name"));
+        return label == null || String.valueOf(label).isBlank() ? fallback : String.valueOf(label);
+    }
+
+    private double ratio(long numerator, long denominator) {
+        return denominator <= 0 ? 0.0d : (double) numerator / denominator;
     }
 
     public Map<String, Object> simulate(String workflowId, WorkflowGraphDto graph, Map<String, Object> context, boolean dryRun) {
@@ -529,6 +735,160 @@ public class WorkflowStudioService {
             throw new IllegalStateException("Workflow has no active definition version");
         }
         workflowGraphValidator.validateRuntimeSupported(parseDefinition(getDefinitionVersion(workflow.getId(), activeVersion)));
+    }
+
+    private static final class StepCounter {
+        private final String nodeId;
+        private final String nodeType;
+        private final String label;
+        private final Set<String> runIds = new LinkedHashSet<>();
+        private long entered;
+        private long completed;
+        private long failed;
+
+        private StepCounter(String nodeId, String nodeType, String label) {
+            this.nodeId = nodeId;
+            this.nodeType = nodeType;
+            this.label = label;
+        }
+
+        private void record(String runId, String status) {
+            if (runId != null && !runId.isBlank()) {
+                runIds.add(runId);
+            }
+            entered++;
+            if ("SUCCESS".equals(status)) {
+                completed++;
+            } else if ("ERROR".equals(status) || "FAILED".equals(status)) {
+                failed++;
+            }
+        }
+
+        private Map<String, Object> toMap() {
+            Map<String, Object> metric = new LinkedHashMap<>();
+            metric.put("nodeId", nodeId);
+            metric.put("nodeType", nodeType);
+            metric.put("label", label);
+            metric.put("entered", entered);
+            metric.put("completed", completed);
+            metric.put("failed", failed);
+            metric.put("uniqueRuns", runIds.size());
+            metric.put("completionRate", entered == 0 ? 0.0d : (double) completed / entered);
+            metric.put("failureRate", entered == 0 ? 0.0d : (double) failed / entered);
+            return metric;
+        }
+
+        private String nodeId() {
+            return nodeId;
+        }
+
+        private String nodeType() {
+            return nodeType;
+        }
+
+        private long entered() {
+            return entered;
+        }
+
+        private long completed() {
+            return completed;
+        }
+
+        private long failed() {
+            return failed;
+        }
+    }
+
+    private static final class PathCounter {
+        private final String signature;
+        private final List<String> nodes;
+        private long runs;
+        private long completed;
+        private long failed;
+        private long waiting;
+
+        private PathCounter(String signature, List<String> nodes) {
+            this.signature = signature;
+            this.nodes = nodes;
+        }
+
+        private void record(String status) {
+            runs++;
+            if ("COMPLETED".equals(status)) {
+                completed++;
+            } else if ("FAILED".equals(status)) {
+                failed++;
+            } else if ("WAITING".equals(status)) {
+                waiting++;
+            }
+        }
+
+        private Map<String, Object> toMap() {
+            Map<String, Object> metric = new LinkedHashMap<>();
+            metric.put("signature", signature);
+            metric.put("nodes", nodes);
+            metric.put("runs", runs);
+            metric.put("completed", completed);
+            metric.put("failed", failed);
+            metric.put("waiting", waiting);
+            metric.put("completionRate", runs == 0 ? 0.0d : (double) completed / runs);
+            return metric;
+        }
+
+        private String signature() {
+            return signature;
+        }
+
+        private long runs() {
+            return runs;
+        }
+    }
+
+    private static final class DecisionCounter {
+        private final String nodeId;
+        private final String nodeType;
+        private final String label;
+        private final Map<String, Long> targetCounts = new LinkedHashMap<>();
+        private long observedRuns;
+        private long completedRuns;
+        private long failedRuns;
+
+        private DecisionCounter(String nodeId, String nodeType, String label) {
+            this.nodeId = nodeId;
+            this.nodeType = nodeType;
+            this.label = label;
+        }
+
+        private void record(String targetNodeId, String status) {
+            observedRuns++;
+            targetCounts.put(targetNodeId, targetCounts.getOrDefault(targetNodeId, 0L) + 1);
+            if ("COMPLETED".equals(status)) {
+                completedRuns++;
+            } else if ("FAILED".equals(status)) {
+                failedRuns++;
+            }
+        }
+
+        private Map<String, Object> toMap() {
+            Map<String, Object> metric = new LinkedHashMap<>();
+            metric.put("nodeId", nodeId);
+            metric.put("nodeType", nodeType);
+            metric.put("label", label);
+            metric.put("observedRuns", observedRuns);
+            metric.put("completedRuns", completedRuns);
+            metric.put("failedRuns", failedRuns);
+            metric.put("observedTargets", targetCounts);
+            metric.put("interpretation", "Observed path distribution only; not a causal winner claim.");
+            return metric;
+        }
+
+        private String nodeId() {
+            return nodeId;
+        }
+
+        private long observedRuns() {
+            return observedRuns;
+        }
     }
 
     private Map<String, Object> graphCapabilities(WorkflowGraphDto graph) {

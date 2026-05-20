@@ -1,0 +1,61 @@
+{
+    "id":  "ai-content-assistance-governance",
+    "createdAt":  "2026-05-20T13:46:22.5423269Z",
+    "objective":  "Implement governed draft-only AI content assistance foundation",
+    "status":  "COMPLETED",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "docs/product/ai-governance-optimization-foundation.md",
+                         "docs/product/salesforce-parity-matrix.md",
+                         "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                         "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                         "services/content-service/src/main/java/com/legent/content/**",
+                         "services/content-service/src/test/java/com/legent/content/**",
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/performance/**",
+                         "services/foundation-service/src/main/java/com/legent/foundation/dto/**",
+                         "services/foundation-service/src/main/resources/db/migration/**",
+                         "services/foundation-service/src/test/java/com/legent/foundation/**",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "PRODUCT_MANAGER_AGENT",
+                   "FOUNDATION_SERVICE_OWNER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service",
+                           "services/content-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Design the tenant/workspace AI policy and audit schema for draft-only content assistance before implementation.",
+    "completedAt":  "2026-05-20T14:08:38.3251598Z",
+    "outcome":  "Implemented foundation-service draft-only AI content assistance policy/audit governance with tenant/workspace-scoped V16 tables, controller endpoints, summary exposure, hash-only audit records, publish/send denial, docs, and focused tests.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/foundation-service -Dtest=AiContentAssistanceGovernanceServiceTest test (8 tests)",
+                          "PASS: .\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "PASS: git diff --check (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "No model-provider integration or generated content application exists in this slice.",
+                          "Content-service publish/test-send review gates for AI-generated artifacts remain a separate implementation.",
+                          "Production readiness and AI parity claims remain blocked by external evidence and provider/model-card review."
+                      ]
+}

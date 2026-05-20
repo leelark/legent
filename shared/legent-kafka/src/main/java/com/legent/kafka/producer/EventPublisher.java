@@ -63,6 +63,8 @@ public class EventPublisher {
             "shardId",
             "messageId",
             "mid",
+            "workflowRunId",
+            "workflowId",
             "subscriberId",
             "subscriberKey",
             "recipientId",

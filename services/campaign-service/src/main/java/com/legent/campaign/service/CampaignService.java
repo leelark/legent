@@ -167,6 +167,7 @@ public class CampaignService {
         clone.setContentId(source.getContentId());
         clone.setType(source.getType());
         clone.setSenderProfileId(source.getSenderProfileId());
+        clone.setSendGovernancePolicyId(source.getSendGovernancePolicyId());
         clone.setSenderName(source.getSenderName());
         clone.setSenderEmail(source.getSenderEmail());
         clone.setReplyToEmail(source.getReplyToEmail());

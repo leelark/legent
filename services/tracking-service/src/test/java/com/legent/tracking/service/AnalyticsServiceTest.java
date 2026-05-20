@@ -5,18 +5,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import javax.sql.DataSource;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 @ExtendWith(MockitoExtension.class)
 class AnalyticsServiceTest {
 
-    @Mock private DataSource dataSource;
+    @Mock private JdbcTemplate jdbcTemplate;
 
     @InjectMocks private AnalyticsService service;
 
@@ -40,5 +43,30 @@ class AnalyticsServiceTest {
         )));
 
         assertThat(csv).contains("\"https://example.com/a,b\"");
+    }
+
+    @Test
+    void getJourneyGoalMetrics_scopesByTenantWorkspaceAndWorkflow() {
+        List<Map<String, Object>> expected = List.of(Map.of(
+                "goal_id", "goal-1",
+                "conversions", 3L,
+                "revenue", "42.00"
+        ));
+        when(jdbcTemplate.queryForList(anyString(), org.mockito.ArgumentMatchers.eq("tenant-1"),
+                org.mockito.ArgumentMatchers.eq("workspace-1"), org.mockito.ArgumentMatchers.eq("workflow-1")))
+                .thenReturn(expected);
+
+        List<Map<String, Object>> result = service.getJourneyGoalMetrics("tenant-1", "workspace-1", "workflow-1");
+
+        assertThat(result).isEqualTo(expected);
+        verify(jdbcTemplate).queryForList(org.mockito.ArgumentMatchers.contains("workflow_id = ?"),
+                org.mockito.ArgumentMatchers.eq("tenant-1"),
+                org.mockito.ArgumentMatchers.eq("workspace-1"),
+                org.mockito.ArgumentMatchers.eq("workflow-1"));
+    }
+
+    @Test
+    void getJourneyGoalMetrics_missingScopeReturnsEmptyWithoutQuery() {
+        assertThat(service.getJourneyGoalMetrics("tenant-1", "", "workflow-1")).isEmpty();
     }
 }

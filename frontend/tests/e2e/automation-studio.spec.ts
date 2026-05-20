@@ -22,25 +22,77 @@ const activities = [
     name: 'Nightly SQL sync',
     activityType: 'SQL_QUERY',
     status: 'ACTIVE',
+    dependencyActivityIds: [],
+    failurePolicy: 'STOP_ON_FAILURE',
+    verification: {
+      valid: true,
+      errors: [],
+      warnings: ['SQL activity has no outputConfig.targetDataExtensionId; result will not populate a data extension.'],
+      normalizedConfig: { liveExecutionSupported: true },
+    },
   },
   {
     id: 'activity-2',
     name: 'Dormant audience extract',
     activityType: 'EXTRACT',
     status: 'DRAFT',
+    dependencyActivityIds: ['activity-1'],
+    failurePolicy: 'SKIP_DEPENDENTS',
+    verification: {
+      valid: true,
+      errors: [],
+      warnings: ['EXTRACT activity supports dry-run validation only; live file movement is not enabled.'],
+      normalizedConfig: { liveExecutionSupported: false, validationOnly: true },
+    },
+  },
+  {
+    id: 'activity-4',
+    name: 'Inbound import artifact',
+    activityType: 'FILE_DROP',
+    status: 'DRAFT',
+    dependencyActivityIds: [],
+    failurePolicy: 'STOP_ON_FAILURE',
+    verification: {
+      valid: true,
+      errors: [],
+      warnings: ['FILE_DROP activity supports dry-run validation only; live file movement is not enabled.'],
+      normalizedConfig: { liveExecutionSupported: false, validationOnly: true },
+    },
   },
   {
     id: 'activity-3',
     name: 'Webhook retry audit',
     activityType: 'WEBHOOK',
     status: 'ACTIVE',
+    dependencyActivityIds: [],
+    failurePolicy: 'STOP_ON_FAILURE',
+    verification: {
+      valid: true,
+      errors: [],
+      warnings: [],
+      normalizedConfig: { liveExecutionSupported: true, eventToDispatch: 'automation.activity.completed' },
+    },
+  },
+  {
+    id: 'activity-5',
+    name: 'Failure notification',
+    activityType: 'NOTIFICATION',
+    status: 'ACTIVE',
+    dependencyActivityIds: [],
+    failurePolicy: 'STOP_ON_FAILURE',
+    verification: {
+      valid: true,
+      errors: [],
+      warnings: [],
+      normalizedConfig: { liveExecutionSupported: true, terminalStatus: 'FAILED' },
+    },
   },
 ];
 
 async function mockAutomationStudioApis(
   page: Page,
   seen: Record<string, unknown> = {},
-  options: { uiMode?: 'BASIC' | 'ADVANCED' } = {}
+  options: { uiMode?: 'BASIC' | 'ADVANCED'; failVerifyActivityId?: string } = {}
 ) {
   let dryRunPosted = false;
   const uiMode = options.uiMode ?? 'ADVANCED';
@@ -76,7 +128,9 @@ async function mockAutomationStudioApis(
       return fulfill(route, ok({
         id: 'activity-new',
         name: 'Created activity',
-        activityType: 'SQL_QUERY',
+        activityType: seen.createdActivity && typeof seen.createdActivity === 'object' && 'activityType' in seen.createdActivity
+          ? (seen.createdActivity as { activityType?: string }).activityType
+          : 'SQL_QUERY',
         status: 'DRAFT',
       }));
     }
@@ -85,6 +139,7 @@ async function mockAutomationStudioApis(
     }
     if (path === '/automation-studio/activities/activity-1/runs' && method === 'POST') {
       dryRunPosted = true;
+      seen.dryRunPayload = JSON.parse(request.postData() || '{}');
       return fulfill(route, ok({
         id: 'run-after-dry-run',
         activityId: 'activity-1',
@@ -93,6 +148,9 @@ async function mockAutomationStudioApis(
         triggerSource: 'MANUAL',
         rowsRead: 9,
         rowsWritten: 8,
+        traceId: 'trace-after-dry-run',
+        errorCode: null,
+        dependencyTrace: { dependencyCount: 0, failurePolicy: 'STOP_ON_FAILURE' },
         startedAt: '2026-05-20T08:30:00Z',
         completedAt: '2026-05-20T08:31:00Z',
       }));
@@ -107,6 +165,9 @@ async function mockAutomationStudioApis(
           triggerSource: 'MANUAL',
           rowsRead: 9,
           rowsWritten: 8,
+          traceId: 'trace-after-dry-run',
+          errorCode: null,
+          dependencyTrace: { dependencyCount: 0, failurePolicy: 'STOP_ON_FAILURE' },
           startedAt: '2026-05-20T08:30:00Z',
           completedAt: '2026-05-20T08:31:00Z',
         },
@@ -119,6 +180,9 @@ async function mockAutomationStudioApis(
           triggerSource: 'MANUAL',
           rowsRead: 120,
           rowsWritten: 118,
+          traceId: 'trace-1',
+          errorCode: null,
+          dependencyTrace: { dependencyCount: 0, failurePolicy: 'STOP_ON_FAILURE' },
           startedAt: '2026-05-20T07:10:00Z',
           completedAt: '2026-05-20T07:11:00Z',
         },
@@ -130,11 +194,33 @@ async function mockAutomationStudioApis(
           triggerSource: 'SCHEDULED',
           rowsRead: 40,
           rowsWritten: 0,
+          traceId: 'trace-2',
+          errorCode: 'ACTIVITY_EXECUTION_FAILED',
+          dependencyTrace: { dependencyCount: 0, failurePolicy: 'STOP_ON_FAILURE' },
           errorMessage: 'SMTP connection failed',
           startedAt: '2026-05-19T22:00:00Z',
           completedAt: '2026-05-19T22:01:00Z',
         },
       ]));
+    }
+    const verifyMatch = path.match(/^\/automation-studio\/activities\/([^/]+)\/verify$/);
+    if (verifyMatch && method === 'POST') {
+      const activityId = verifyMatch[1];
+      seen.verifyActivityId = activityId;
+      if (options.failVerifyActivityId === activityId) {
+        return fulfill(route, {
+          success: false,
+          error: { message: 'Verification service unavailable' },
+        }, 500);
+      }
+      return fulfill(route, ok({
+        valid: activityId === 'activity-1',
+        errors: activityId === 'activity-1' ? [] : [`${activityId} is not executable`],
+        warnings: activityId === 'activity-1' ? ['No target data extension selected'] : [],
+        normalizedConfig: {
+          liveExecutionSupported: activityId === 'activity-1',
+        },
+      }));
     }
     if (path === '/automation-studio/activities/activity-2/runs') {
       return fulfill(route, ok([]));
@@ -150,7 +236,8 @@ async function mockAutomationStudioApis(
 }
 
 test('automation studio shows recent activity runs and refreshes after dry run', async ({ page }) => {
-  await mockAutomationStudioApis(page);
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen);
 
   await page.goto('/app/automation');
   await expect(page.getByText('Automation Studio Activities')).toBeVisible();
@@ -162,14 +249,59 @@ test('automation studio shows recent activity runs and refreshes after dry run',
   await expect(runList).toContainText('SUCCEEDED');
   await expect(runList).toContainText('Dry run');
   await expect(runList).toContainText('Rows: 120 read, 118 written');
+  await expect(runList).toContainText('Trace: trace-1');
   await expect(runList).toContainText('FAILED');
   await expect(runList).toContainText('Live');
+  await expect(runList).toContainText('Error code: ACTIVITY_EXECUTION_FAILED');
   await expect(runList).toContainText('SMTP connection failed');
 
   await page.getByRole('button', { name: 'Dry Run' }).first().click();
 
   await expect(runList).toContainText('Rows: 9 read, 8 written');
+  expect(seen.dryRunPayload).toMatchObject({ dryRun: true, triggerSource: 'MANUAL' });
   await expect(runList).not.toContainText('SMTP connection failed');
+});
+
+test('automation studio surfaces capability and verification results per activity', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen);
+
+  await page.goto('/app/automation');
+
+  const sqlRow = page.locator('div.p-4').filter({ hasText: 'Nightly SQL sync' });
+  await expect(sqlRow).toContainText('Live execution');
+  await expect(sqlRow).toContainText('Failure policy: stop on failure');
+
+  const webhookRow = page.locator('div.p-4').filter({ hasText: 'Webhook retry audit' });
+  await expect(webhookRow).toContainText('Live execution');
+  await expect(webhookRow).toContainText('Verified');
+  await expect(webhookRow.getByRole('button', { name: 'Dry Run' })).toBeEnabled();
+
+  const notificationRow = page.locator('div.p-4').filter({ hasText: 'Failure notification' });
+  await expect(notificationRow).toContainText('Live execution');
+  await expect(notificationRow).toContainText('Verified');
+
+  const fileDropRow = page.locator('div.p-4').filter({ hasText: 'Inbound import artifact' });
+  await expect(fileDropRow).toContainText('Design only');
+  await expect(fileDropRow.getByRole('button', { name: 'Dry Run' })).toBeDisabled();
+
+  await sqlRow.getByRole('button', { name: 'Verify' }).click();
+  await expect(page.getByLabel('Verification result for Nightly SQL sync')).toContainText('Verified');
+  await expect(page.getByLabel('Verification result for Nightly SQL sync')).toContainText('No target data extension selected');
+  expect(seen.verifyActivityId).toBe('activity-1');
+});
+
+test('automation studio scopes action errors to the activity row', async ({ page }) => {
+  await mockAutomationStudioApis(page, {}, { failVerifyActivityId: 'activity-1' });
+
+  await page.goto('/app/automation');
+
+  const sqlRow = page.locator('div.p-4').filter({ hasText: 'Nightly SQL sync' });
+  const extractRow = page.locator('div.p-4').filter({ hasText: 'Dormant audience extract' });
+
+  await sqlRow.getByRole('button', { name: 'Verify' }).click();
+  await expect(sqlRow).toContainText('Verification service unavailable');
+  await expect(extractRow).not.toContainText('Verification service unavailable');
 });
 
 test('basic mode hides advanced automation activity controls and skips activity payloads', async ({ page }) => {
@@ -187,6 +319,125 @@ test('basic mode hides advanced automation activity controls and skips activity 
 
   await page.getByRole('button', { name: 'Show run history for Nightly SQL sync' }).click();
   await expect(page.getByRole('list', { name: 'Recent runs for Nightly SQL sync' })).toBeVisible();
+  expect(seen.createdActivity).toBeUndefined();
+});
+
+test('advanced mode exposes automation activity controls and creates explicit payloads', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+
+  await expect(page.getByRole('button', { name: 'New Activity' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Verify' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Dry Run' }).first()).toBeVisible();
+  await expect(page.locator('[data-mode-feature="automation.workflow.activity-authoring"]')).not.toHaveCount(0);
+  await expect(page.locator('[data-mode-feature="automation.workflow.activity-execution"]')).not.toHaveCount(0);
+
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Subscriber import');
+  await page.getByLabel('Activity Type').selectOption('IMPORT');
+  await page.getByLabel('Scoped Artifact ID').fill('artifact-1');
+  await page.getByLabel('Email Field Mapping').fill('Email');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect.poll(() => seen.createdActivity).toBeTruthy();
+  expect(seen.createdActivity).toMatchObject({
+    name: 'Subscriber import',
+    activityType: 'IMPORT',
+    status: 'DRAFT',
+    failurePolicy: 'STOP_ON_FAILURE',
+    inputConfig: {
+      artifactId: 'artifact-1',
+      targetType: 'SUBSCRIBER',
+      fieldMapping: { email: 'Email' },
+    },
+  });
+});
+
+test('advanced mode creates guarded webhook activity payloads', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Webhook event');
+  await page.getByLabel('Activity Type').selectOption('WEBHOOK');
+  await page.getByLabel('Platform Event Type').fill('automation.activity.completed');
+  await page.getByLabel('Webhook Auth Ref').fill('whref-1');
+  await page.getByLabel('Webhook Payload JSON').fill('{"status":"completed"}');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect.poll(() => seen.createdActivity).toBeTruthy();
+  expect(seen.createdActivity).toMatchObject({
+    name: 'Webhook event',
+    activityType: 'WEBHOOK',
+    inputConfig: {
+      eventToDispatch: 'automation.activity.completed',
+      webhookAuthRef: 'whref-1',
+      data: { status: 'completed' },
+    },
+  });
+  expect(JSON.stringify(seen.createdActivity)).not.toContain('https://');
+});
+
+test('advanced mode creates terminal notification activity payloads', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Notify operator');
+  await page.getByLabel('Activity Type').selectOption('NOTIFICATION');
+  await page.getByLabel('Recipient User ID').fill('user-1');
+  await page.getByLabel('Title').fill('Automation failed');
+  await page.getByLabel('Message').fill('Run failed');
+  await page.getByLabel('Notification Severity').selectOption('ERROR');
+  await page.getByLabel('Notification Terminal Status').selectOption('FAILED');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect.poll(() => seen.createdActivity).toBeTruthy();
+  expect(seen.createdActivity).toMatchObject({
+    name: 'Notify operator',
+    activityType: 'NOTIFICATION',
+    inputConfig: {
+      userId: 'user-1',
+      title: 'Automation failed',
+      message: 'Run failed',
+      severity: 'ERROR',
+      terminalStatus: 'FAILED',
+    },
+  });
+});
+
+test('advanced mode blocks unsafe file activity references before posting', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Unsafe import');
+  await page.getByLabel('Activity Type').selectOption('IMPORT');
+  await page.getByLabel('Scoped Artifact ID').fill('https://storage.example.com/import.csv');
+  await page.getByLabel('Email Field Mapping').fill('Email');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect(page.getByText('Import activity requires an opaque scoped artifact ID')).toBeVisible();
+  expect(seen.createdActivity).toBeUndefined();
+});
+
+test('advanced mode blocks unsafe webhook event references before posting', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Unsafe webhook');
+  await page.getByLabel('Activity Type').selectOption('WEBHOOK');
+  await page.getByLabel('Platform Event Type').fill('https://example.com/webhook');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect(page.getByText('Webhook activity requires an automation.* platform event type')).toBeVisible();
   expect(seen.createdActivity).toBeUndefined();
 });
 

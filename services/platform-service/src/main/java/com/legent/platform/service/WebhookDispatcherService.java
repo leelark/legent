@@ -138,7 +138,7 @@ public class WebhookDispatcherService {
             retry.setWebhookId(webhookId);
             retry.setEventType(eventType);
             retry.setPayload(payload);
-            retry.setErrorMessage(errorMessage);
+            retry.setErrorMessage(WebhookResponseSanitizer.sanitize(errorMessage));
             retry.setRetryCount(0);
             retry.setMaxRetries(3);
             retry.setStatus("PENDING");
@@ -192,7 +192,7 @@ public class WebhookDispatcherService {
         whLog.setWebhookId(webhookId);
         whLog.setEventType(eventType);
         whLog.setStatusCode(statusCode);
-        whLog.setResponseBody(responseBody != null && responseBody.length() > 1000 ? responseBody.substring(0, 1000) : responseBody);
+        whLog.setResponseBody(WebhookResponseSanitizer.sanitize(responseBody));
         whLog.setIsSuccess(isSuccess);
         logRepository.save(whLog);
     }

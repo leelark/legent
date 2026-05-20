@@ -1,0 +1,54 @@
+{
+    "id":  "automation-activity-capability-verification-ui",
+    "createdAt":  "2026-05-20T14:44:09.8151791Z",
+    "objective":  "Expose Automation Studio capability and verification states",
+    "status":  "COMPLETED",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/automation/page.tsx",
+                         "frontend/src/lib/automation-api.ts",
+                         "frontend/tests/e2e/automation-studio.spec.ts",
+                         "frontend/tests/e2e/ui-mode.spec.ts",
+                         "docs/product/automation-studio-activity-orchestration-plan.md",
+                         "docs/product/automation-studio-activity-security-contract.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "AUTOMATION_SERVICE_OWNER",
+                   "UX_STRATEGIST",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts --project=chromium --reporter=line",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select next highest-priority READY work item.",
+    "completedAt":  "2026-05-20T15:02:17.5751673Z",
+    "outcome":  "Implemented Automation Studio capability and verification UI with backend-aligned frontend types, capability state, verification result rendering, row-scoped action errors, dependency/failure policy display, run trace metadata, and explicit per-type create payloads while preserving BASIC/ADVANCED gates.",
+    "validationRun":  [
+                          "PASS: frontend lint",
+                          "PASS: frontend build:ci",
+                          "PASS: targeted Playwright automation-studio + ui-mode (8 tests)",
+                          "PASS: Codex validation",
+                          "PASS: repo artifact hygiene",
+                          "PASS: git diff --check (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "UI clarity only; backend validation and service safety remain authoritative.",
+                          "Live-run controls, dependency execution, sanitizer/redaction utilities, and executable file/webhook/send/script families remain separate slices."
+                      ]
+}

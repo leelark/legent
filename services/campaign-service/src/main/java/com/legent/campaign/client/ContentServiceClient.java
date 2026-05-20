@@ -158,6 +158,41 @@ public class ContentServiceClient {
         }
     }
 
+    public SendGovernancePolicySummary getSendGovernancePolicy(String tenantId,
+                                                               String workspaceId,
+                                                               String policyId) {
+        String scopedTenantId = requireText("tenantId", tenantId);
+        String scopedWorkspaceId = requireWorkspaceId(workspaceId);
+        String scopedPolicyId = requireText("policyId", policyId);
+        try {
+            Map<String, Object> response = webClient.get()
+                    .uri("/api/v1/content/send-governance-policies/{policyId}/internal", scopedPolicyId)
+                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, true))
+                    .retrieve()
+                    .bodyToMono(MAP_TYPE)
+                    .timeout(READ_TIMEOUT)
+                    .block();
+            Map<String, Object> data = responseData(response, "send governance policy");
+            return new SendGovernancePolicySummary(
+                    requireResponseText(data, "id"),
+                    stringValue(data.get("policyKey")),
+                    stringValue(data.get("classification")),
+                    booleanValue(data.get("commercial")),
+                    stringValue(data.get("senderProfileId")),
+                    stringValue(data.get("deliveryProfileId")),
+                    stringValue(data.get("sendingDomain")),
+                    stringValue(data.get("providerId")),
+                    stringValue(data.get("unsubscribePolicy")),
+                    booleanValue(data.get("suppressionRequired")),
+                    booleanValue(data.get("consentRequired")),
+                    booleanValue(data.get("trackingAllowed")),
+                    intValue(data.get("sendLogRetentionDays")),
+                    booleanValue(data.get("active")));
+        } catch (Exception e) {
+            throw new ContentServiceException("Failed to read send governance policy " + scopedPolicyId, e);
+        }
+    }
+
     private Map<String, Object> responseData(Map<String, Object> response, String label) {
         if (response == null || !response.containsKey("data") || !(response.get("data") instanceof Map<?, ?> raw)) {
             throw new ContentServiceException("Invalid response from content-service for " + label);
@@ -255,6 +290,21 @@ public class ContentServiceClient {
                                         String textBody,
                                         Map<String, String> metadata) {}
 
+    public record SendGovernancePolicySummary(String id,
+                                              String policyKey,
+                                              String classification,
+                                              Boolean commercial,
+                                              String senderProfileId,
+                                              String deliveryProfileId,
+                                              String sendingDomain,
+                                              String providerId,
+                                              String unsubscribePolicy,
+                                              Boolean suppressionRequired,
+                                              Boolean consentRequired,
+                                              Boolean trackingAllowed,
+                                              Integer sendLogRetentionDays,
+                                              Boolean active) {}
+
     /**
      * Exception thrown when content-service operations fail.
      */
@@ -303,6 +353,14 @@ public class ContentServiceClient {
     private String requireText(String field, String value) {
         if (value == null || value.isBlank()) {
             throw new ContentServiceException(field + " is required for content-service calls");
+        }
+        return value.trim();
+    }
+
+    private String requireResponseText(Map<String, Object> data, String field) {
+        String value = stringValue(data.get(field));
+        if (value == null || value.isBlank()) {
+            throw new ContentServiceException("Content-service returned incomplete send governance policy: " + field);
         }
         return value.trim();
     }

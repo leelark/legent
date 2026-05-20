@@ -27,6 +27,7 @@ class ContentControllerRbacTest {
             ContentController.class,
             EmailController.class,
             EmailStudioController.class,
+            SendGovernancePolicyController.class,
             TemplateController.class,
             TemplateVersionController.class,
             TemplateWorkflowController.class
@@ -54,9 +55,15 @@ class ContentControllerRbacTest {
                 .contains("content:read", "template:*");
         assertThat(expression(EmailStudioController.class, "renderTemplate"))
                 .contains("content:read", "template:*");
+        assertThat(expression(SendGovernancePolicyController.class, "get"))
+                .contains("content:read", "template:*");
         assertThat(expression(TemplateController.class, "previewTemplate"))
                 .contains("content:read", "template:*");
 
+        assertThat(expression(SendGovernancePolicyController.class, "create"))
+                .contains("content:write", "template:*");
+        assertThat(expression(SendGovernancePolicyController.class, "update"))
+                .contains("content:write", "template:*");
         assertThat(expression(EmailStudioController.class, "createTestSend"))
                 .contains("content:write", "template:*");
         assertThat(expression(EmailStudioController.class, "createTestSendMatrix"))
@@ -70,6 +77,8 @@ class ContentControllerRbacTest {
         assertThat(expression(EmailStudioController.class, "deleteLandingPage"))
                 .contains("content:delete", "content:*", "template:*");
         assertThat(expression(ContentBlockController.class, "deleteBlock"))
+                .contains("content:delete", "content:*", "template:*");
+        assertThat(expression(SendGovernancePolicyController.class, "delete"))
                 .contains("content:delete", "content:*", "template:*");
         assertThat(expression(TemplateController.class, "deleteTemplate"))
                 .contains("content:delete", "content:*", "template:*");

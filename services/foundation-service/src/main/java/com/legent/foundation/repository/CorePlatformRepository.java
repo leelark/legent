@@ -24,6 +24,8 @@ public class CorePlatformRepository {
 
     private static final Set<String> ALLOWED_DYNAMIC_TABLES = Set.of(
             "admin_sync_events",
+            "ai_content_assistance_audits",
+            "ai_content_assistance_policies",
             "ai_copilot_recommendations",
             "autonomous_optimization_policies",
             "autonomous_optimization_recommendations",

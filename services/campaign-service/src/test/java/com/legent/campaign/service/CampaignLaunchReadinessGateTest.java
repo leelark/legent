@@ -1,5 +1,6 @@
 package com.legent.campaign.service;
 
+import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.client.DeliverabilityReadinessClient;
 import com.legent.campaign.client.DeliveryReadinessClient;
 import com.legent.campaign.client.ReadinessDependencyException;
@@ -21,17 +22,20 @@ class CampaignLaunchReadinessGateTest {
 
     @Mock private DeliverabilityReadinessClient deliverabilityClient;
     @Mock private DeliveryReadinessClient deliveryClient;
+    @Mock private ContentServiceClient contentServiceClient;
 
     private CampaignLaunchReadinessGate gate;
 
     @BeforeEach
     void setUp() {
-        gate = new CampaignLaunchReadinessGate(deliverabilityClient, deliveryClient);
+        gate = new CampaignLaunchReadinessGate(deliverabilityClient, deliveryClient, contentServiceClient);
     }
 
     @Test
     void evaluateBlocksUnverifiedDnsAndUnsafeSuppressionHealth() {
         Campaign campaign = completeCampaign();
+        when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "policy-1"))
+                .thenReturn(validPolicy());
         when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(
                 new DeliverabilityReadinessClient.AuthCheck("domain-1", "example.com", "PENDING",
                         true, false, false, true, Instant.now())
@@ -61,6 +65,8 @@ class CampaignLaunchReadinessGateTest {
     @Test
     void evaluateFailsClosedWhenDeliveryChecksUnavailable() {
         Campaign campaign = completeCampaign();
+        when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "policy-1"))
+                .thenReturn(validPolicy());
         when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(verifiedAuth()));
         when(deliverabilityClient.suppressionHealth("tenant-1", "workspace-1")).thenReturn(
                 new DeliverabilityReadinessClient.SuppressionHealth(0, 0, 0, 0, Instant.now())
@@ -82,6 +88,8 @@ class CampaignLaunchReadinessGateTest {
     @Test
     void evaluatePassesWhenAuthoritativeServicesAreReady() {
         Campaign campaign = completeCampaign();
+        when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "policy-1"))
+                .thenReturn(validPolicy());
         when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(verifiedAuth()));
         when(deliverabilityClient.suppressionHealth("tenant-1", "workspace-1")).thenReturn(
                 new DeliverabilityReadinessClient.SuppressionHealth(0, 0, 0, 0, Instant.now())
@@ -104,6 +112,8 @@ class CampaignLaunchReadinessGateTest {
     void evaluateBlocksMissingProviderBeforeDeliveryServiceChecks() {
         Campaign campaign = completeCampaign();
         campaign.setProviderId(null);
+        when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "policy-1"))
+                .thenReturn(validPolicyWithoutProvider());
         when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(verifiedAuth()));
         when(deliverabilityClient.suppressionHealth("tenant-1", "workspace-1")).thenReturn(
                 new DeliverabilityReadinessClient.SuppressionHealth(0, 0, 0, 0, Instant.now())
@@ -112,6 +122,84 @@ class CampaignLaunchReadinessGateTest {
         CampaignLaunchReadinessGate.GateResult result = gate.evaluate(campaign);
 
         assertThat(result.blockers()).contains("Delivery provider is required before launch readiness can verify warmup and capacity.");
+        assertThat(result.blocked()).isTrue();
+    }
+
+    @Test
+    void evaluateBlocksMissingSendGovernancePolicyBeforeLaunch() {
+        Campaign campaign = completeCampaign();
+        campaign.setSendGovernancePolicyId(null);
+        when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(verifiedAuth()));
+        when(deliverabilityClient.suppressionHealth("tenant-1", "workspace-1")).thenReturn(
+                new DeliverabilityReadinessClient.SuppressionHealth(0, 0, 0, 0, Instant.now())
+        );
+        when(deliveryClient.warmupStatus("tenant-1", "workspace-1")).thenReturn(readyWarmupStatus());
+        when(deliveryClient.evaluateProviderCapacity("tenant-1", "workspace-1", "provider-1", "example.com", 0))
+                .thenReturn(openCapacity());
+
+        CampaignLaunchReadinessGate.GateResult result = gate.evaluate(campaign);
+
+        assertThat(result.blockers()).contains("Send governance policy is required before launch.");
+        assertThat(result.blocked()).isTrue();
+    }
+
+    @Test
+    void evaluateFailsClosedWhenSendGovernancePolicyUnavailable() {
+        Campaign campaign = completeCampaign();
+        when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "policy-1"))
+                .thenThrow(new ContentServiceClient.ContentServiceException("content-service unavailable"));
+        when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(verifiedAuth()));
+        when(deliverabilityClient.suppressionHealth("tenant-1", "workspace-1")).thenReturn(
+                new DeliverabilityReadinessClient.SuppressionHealth(0, 0, 0, 0, Instant.now())
+        );
+        when(deliveryClient.warmupStatus("tenant-1", "workspace-1")).thenReturn(readyWarmupStatus());
+        when(deliveryClient.evaluateProviderCapacity("tenant-1", "workspace-1", "provider-1", "example.com", 0))
+                .thenReturn(openCapacity());
+
+        CampaignLaunchReadinessGate.GateResult result = gate.evaluate(campaign);
+
+        assertThat(result.blockers()).contains("Send governance policy check unavailable: content-service unavailable.");
+        assertThat(result.blocked()).isTrue();
+    }
+
+    @Test
+    void evaluateBlocksInactiveCommercialPolicyAndCampaignMismatch() {
+        Campaign campaign = completeCampaign();
+        campaign.setSenderProfileId("sender-campaign");
+        when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "policy-1"))
+                .thenReturn(new ContentServiceClient.SendGovernancePolicySummary(
+                        "policy-1",
+                        "promo.default",
+                        "COMMERCIAL",
+                        true,
+                        "sender-policy",
+                        "delivery-1",
+                        "other.example.com",
+                        "provider-2",
+                        "OPTIONAL",
+                        false,
+                        false,
+                        true,
+                        365,
+                        false));
+        when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(verifiedAuth()));
+        when(deliverabilityClient.suppressionHealth("tenant-1", "workspace-1")).thenReturn(
+                new DeliverabilityReadinessClient.SuppressionHealth(0, 0, 0, 0, Instant.now())
+        );
+        when(deliveryClient.warmupStatus("tenant-1", "workspace-1")).thenReturn(readyWarmupStatus());
+        when(deliveryClient.evaluateProviderCapacity("tenant-1", "workspace-1", "provider-1", "example.com", 0))
+                .thenReturn(openCapacity());
+
+        CampaignLaunchReadinessGate.GateResult result = gate.evaluate(campaign);
+
+        assertThat(result.blockers()).contains(
+                "Send governance policy policy-1 is inactive.",
+                "Commercial send governance policy must require suppression checks.",
+                "Commercial send governance policy must require unsubscribe handling.",
+                "Campaign sender profile does not match the selected send governance policy.",
+                "Campaign sending domain does not match the selected send governance policy.",
+                "Campaign delivery provider does not match the selected send governance policy."
+        );
         assertThat(result.blocked()).isTrue();
     }
 
@@ -158,6 +246,42 @@ class CampaignLaunchReadinessGateTest {
         );
     }
 
+    private ContentServiceClient.SendGovernancePolicySummary validPolicy() {
+        return new ContentServiceClient.SendGovernancePolicySummary(
+                "policy-1",
+                "promo.default",
+                "COMMERCIAL",
+                true,
+                "sender-1",
+                "delivery-1",
+                "example.com",
+                "provider-1",
+                "REQUIRED",
+                true,
+                false,
+                true,
+                365,
+                true);
+    }
+
+    private ContentServiceClient.SendGovernancePolicySummary validPolicyWithoutProvider() {
+        return new ContentServiceClient.SendGovernancePolicySummary(
+                "policy-1",
+                "promo.default",
+                "COMMERCIAL",
+                true,
+                "sender-1",
+                "delivery-1",
+                "example.com",
+                null,
+                "REQUIRED",
+                true,
+                false,
+                true,
+                365,
+                true);
+    }
+
     private Campaign completeCampaign() {
         Campaign campaign = new Campaign();
         campaign.setId("campaign-1");
@@ -166,6 +290,8 @@ class CampaignLaunchReadinessGateTest {
         campaign.setName("Ready campaign");
         campaign.setSubject("Launch subject");
         campaign.setContentId("template-1");
+        campaign.setSenderProfileId("sender-1");
+        campaign.setSendGovernancePolicyId("policy-1");
         campaign.setSenderEmail("marketing@example.com");
         campaign.setSendingDomain("example.com");
         campaign.setProviderId("provider-1");

@@ -30,6 +30,13 @@ class ClickHouseWriterTest {
                 .experimentId("experiment-1")
                 .variantId("variant-a")
                 .holdout(true)
+                .experimentScope("JOURNEY")
+                .workflowId("workflow-1")
+                .workflowVersion(3)
+                .workflowRunId("run-1")
+                .stepId("step-1")
+                .pathId("path-a")
+                .goalId("goal-1")
                 .timestamp(Instant.parse("2026-05-16T00:00:00Z"))
                 .build();
         TrackingDto.RawEventPayload defaultHoldoutEvent = TrackingDto.RawEventPayload.builder()
@@ -53,12 +60,21 @@ class ClickHouseWriterTest {
                 .contains("workspace_id")
                 .contains("experiment_id")
                 .contains("variant_id")
-                .contains("holdout");
+                .contains("holdout")
+                .contains("workflow_id")
+                .contains("goal_id");
         assertThat(argsCaptor.getValue().get(0)[2]).isEqualTo("workspace-1");
         assertThat(argsCaptor.getValue().get(0)[3]).isEqualTo("OPEN");
         assertThat(argsCaptor.getValue().get(0)[7]).isEqualTo("experiment-1");
         assertThat(argsCaptor.getValue().get(0)[8]).isEqualTo("variant-a");
         assertThat(argsCaptor.getValue().get(0)[9]).isEqualTo(true);
+        assertThat(argsCaptor.getValue().get(0)[10]).isEqualTo("JOURNEY");
+        assertThat(argsCaptor.getValue().get(0)[11]).isEqualTo("workflow-1");
+        assertThat(argsCaptor.getValue().get(0)[12]).isEqualTo(3);
+        assertThat(argsCaptor.getValue().get(0)[13]).isEqualTo("run-1");
+        assertThat(argsCaptor.getValue().get(0)[14]).isEqualTo("step-1");
+        assertThat(argsCaptor.getValue().get(0)[15]).isEqualTo("path-a");
+        assertThat(argsCaptor.getValue().get(0)[16]).isEqualTo("goal-1");
         assertThat(argsCaptor.getValue().get(1)[3]).isEqualTo("CLICK");
         assertThat(argsCaptor.getValue().get(1)[9]).isEqualTo(false);
     }

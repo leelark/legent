@@ -1,7 +1,9 @@
 package com.legent.automation.dto;
 
+import com.legent.automation.domain.AutomationArtifact;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +21,8 @@ public class AutomationStudioDto {
         IMPORT,
         EXTRACT,
         SCRIPT,
-        WEBHOOK
+        WEBHOOK,
+        NOTIFICATION
     }
 
     public enum ActivityStatus {
@@ -35,6 +38,12 @@ public class AutomationStudioDto {
         FAILED
     }
 
+    public enum FailurePolicy {
+        STOP_ON_FAILURE,
+        SKIP_DEPENDENTS,
+        CONTINUE_INDEPENDENT
+    }
+
     @Data
     @Builder
     @NoArgsConstructor
@@ -46,6 +55,8 @@ public class AutomationStudioDto {
         private ActivityType activityType;
         private ActivityStatus status;
         private String scheduleExpression;
+        private List<String> dependencyActivityIds;
+        private FailurePolicy failurePolicy;
         private Map<String, Object> inputConfig;
         private Map<String, Object> outputConfig;
     }
@@ -60,6 +71,8 @@ public class AutomationStudioDto {
         private ActivityType activityType;
         private ActivityStatus status;
         private String scheduleExpression;
+        private List<String> dependencyActivityIds;
+        private FailurePolicy failurePolicy;
         private Map<String, Object> inputConfig;
         private Map<String, Object> outputConfig;
         private Map<String, Object> verification;
@@ -87,6 +100,7 @@ public class AutomationStudioDto {
     public static class RunRequest {
         private Boolean dryRun;
         private Boolean confirmLiveRun;
+        private String idempotencyKey;
         private String triggerSource;
         private Map<String, Object> overrides;
 
@@ -111,10 +125,53 @@ public class AutomationStudioDto {
         private String triggerSource;
         private Long rowsRead;
         private Long rowsWritten;
+        private String traceId;
+        private String errorCode;
         private String errorMessage;
+        private String idempotencyKey;
+        private Map<String, Object> dependencyTrace;
         private Map<String, Object> result;
         private Instant startedAt;
         private Instant completedAt;
+        private Instant createdAt;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ArtifactRequest {
+        private String activityId;
+        private AutomationArtifact.SourceKind sourceKind;
+        private AutomationArtifact.ArtifactStatus status;
+        @NotBlank
+        private String displayName;
+        @NotBlank
+        private String contentType;
+        @NotNull
+        @Positive
+        private Long sizeBytes;
+        @NotBlank
+        private String sha256;
+        private String retentionPolicy;
+        private Instant expiresAt;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ArtifactResponse {
+        private String artifactId;
+        private String activityId;
+        private AutomationArtifact.SourceKind sourceKind;
+        private AutomationArtifact.ArtifactStatus status;
+        private String displayName;
+        private String contentType;
+        private Long sizeBytes;
+        private String sha256;
+        private String retentionPolicy;
+        private Instant expiresAt;
         private Instant createdAt;
     }
 }

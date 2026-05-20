@@ -2,7 +2,7 @@
     "version":  1,
     "lastRebuilt":  "2026-05-20",
     "freshBaselineDate":  "2026-05-20",
-    "mode":  "autonomous-organization",
+    "mode":  "ONE_OVERALL_TEAM",
     "maxParallelAgents":  6,
     "activeAgents":  [
 
@@ -11,221 +11,7 @@
 
                    ],
     "readyWork":  [
-                      {
-                          "id":  "frequency-optimization-governance",
-                          "title":  "Define governed engagement frequency optimization contract",
-                          "status":  "READY",
-                          "priorityScore":  60,
-                          "scoring":  {
-                                          "productionReadinessImpact":  4,
-                                          "securityRisk":  4,
-                                          "userImpact":  4,
-                                          "performanceImpact":  4,
-                                          "technicalDebtImpact":  4
-                                      },
-                          "owner":  "DELIVERABILITY_SERVICE_OWNER",
-                          "partnerAgents":  [
-                                                "CAMPAIGN_SERVICE_OWNER",
-                                                "PERFORMANCE_ENGINEER",
-                                                "DATA_ARCHITECT",
-                                                "TEST_ARCHITECT"
-                                            ],
-                          "scope":  "Define frequency optimization lookback, variant, fatigue, confidence, and deliverability guardrail contract before recommendations can affect send cadence.",
-                          "nonGoals":  "Do not increase frequency for suppressed, unsubscribed, complaint-prone, warmup-blocked, over-cap, or provider-blocked recipients. Do not claim deliverability lift without evidence.",
-                          "sourceFiles":  [
-                                              "docs/product/ai-governance-optimization-foundation.md",
-                                              "docs/product/salesforce-parity-matrix.md",
-                                              "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
-                                              "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java",
-                                              "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
-                                              "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java"
-                                          ],
-                          "acceptanceCriteria":  [
-                                                     "Frequency contract defines lookback window, required variants, low-data fallback, saturation categories, confidence bands, and recommended cap.",
-                                                     "Fatigue, unsubscribe, complaint, bounce, suppression, warmup, provider health, and rate controls are fail-closed safety inputs.",
-                                                     "Recommendations expose expected safety impact and require approval when cadence increases or risk is non-low.",
-                                                     "Focused implementation tests are identified for suppressions, caps, provider blocking, and tenant/workspace isolation."
-                                                 ],
-                          "validationProfile":  "research-backend",
-                          "validationCommands":  [
-                                                     "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                     "git diff --check"
-                                                 ],
-                          "dependencies":  [
-                                               "AI governance foundation",
-                                               "deliverability evidence"
-                                           ],
-                          "blockers":  [
 
-                                       ],
-                          "memoryTargets":  [
-                                                "enhancement-log.md",
-                                                "performance-bottlenecks.md",
-                                                "security-findings.md",
-                                                "design-decisions.md"
-                                            ],
-                          "nextAction":  "Design the frequency optimization safety contract before implementation.",
-                          "lastUpdated":  "2026-05-20T12:00:46.2168096Z"
-                      },
-                      {
-                          "id":  "ai-content-assistance-governance",
-                          "title":  "Implement governed draft-only AI content assistance foundation",
-                          "status":  "READY",
-                          "priorityScore":  58,
-                          "scoring":  {
-                                          "productionReadinessImpact":  3,
-                                          "securityRisk":  5,
-                                          "userImpact":  5,
-                                          "performanceImpact":  2,
-                                          "technicalDebtImpact":  4
-                                      },
-                          "owner":  "CONTENT_SERVICE_OWNER",
-                          "partnerAgents":  [
-                                                "SECURITY_ENGINEER",
-                                                "PRODUCT_MANAGER_AGENT",
-                                                "FOUNDATION_SERVICE_OWNER",
-                                                "TEST_ARCHITECT"
-                                            ],
-                          "scope":  "Add tenant/workspace-scoped AI policy and audit scaffolding for draft-only content assistance, including provider disclosure, prompt/data classification, output safety review, and human approval before send or publication.",
-                          "nonGoals":  "Do not call external model APIs, add provider credentials, autopublish generated content, or claim Salesforce Einstein parity in this slice.",
-                          "sourceFiles":  [
-                                              "docs/product/ai-governance-optimization-foundation.md",
-                                              "docs/product/salesforce-parity-matrix.md",
-                                              "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
-                                              "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
-                                              "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
-                                              "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java"
-                                          ],
-                          "acceptanceCriteria":  [
-                                                     "Tenant/workspace AI policy defines feature class, provider disclosure, allowed data classes, training stance, retention, opt-in/out, and kill switch.",
-                                                     "Content assistance remains draft-only and requires human review before send or publication.",
-                                                     "Audit records capture policy version, actor, data classes, prompt template version, output hash, and review decision without storing secrets.",
-                                                     "Tests cover policy denial, missing tenant/workspace context, and no-review/autopublish rejection."
-                                                 ],
-                          "validationProfile":  "backend-focused",
-                          "validationCommands":  [
-                                                     ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
-                                                     "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                     "git diff --check"
-                                                 ],
-                          "dependencies":  [
-                                               "AI governance foundation",
-                                               "model provider security decision"
-                                           ],
-                          "blockers":  [
-
-                                       ],
-                          "memoryTargets":  [
-                                                "enhancement-log.md",
-                                                "security-findings.md",
-                                                "design-decisions.md"
-                                            ],
-                          "nextAction":  "Design the tenant/workspace AI policy and audit schema for draft-only content assistance before implementation.",
-                          "lastUpdated":  "2026-05-20T12:00:46.2168096Z"
-                      },
-                      {
-                          "id":  "automation-studio-activity-orchestration",
-                          "title":  "Expand Automation Studio activity orchestration safely",
-                          "status":  "READY",
-                          "priorityScore":  48,
-                          "scoring":  {
-                                          "productionReadinessImpact":  4,
-                                          "securityRisk":  2,
-                                          "userImpact":  4,
-                                          "performanceImpact":  2,
-                                          "technicalDebtImpact":  4
-                                      },
-                          "owner":  "AUTOMATION_SERVICE_OWNER",
-                          "partnerAgents":  [
-                                                "PLATFORM_SERVICE_OWNER",
-                                                "SRE_MONITORING_ENGINEER",
-                                                "TEST_ARCHITECT"
-                                            ],
-                          "scope":  "Decompose support for file/trigger starts, extracts, script/webhook/send activities, dependency ordering, notifications, and richer run-history/error details.",
-                          "nonGoals":  "Do not add arbitrary script execution or external storage credentials without a separate security design.",
-                          "sourceFiles":  [
-                                              "services/automation-service/src/main/java/com/legent/automation/controller/AutomationStudioController.java",
-                                              "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
-                                              "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
-                                              "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
-                                              "frontend/src/app/(workspace)/automation/page.tsx"
-                                          ],
-                          "acceptanceCriteria":  [
-                                                     "Unsupported activity types fail closed with clear validation.",
-                                                     "Dependency ordering and run-history design is documented before new activity execution is added.",
-                                                     "Security review exists for scripts, file transfer, webhooks, and external object storage.",
-                                                     "Follow-up READY slices are split by activity family."
-                                                 ],
-                          "validationProfile":  "research-backend",
-                          "validationCommands":  [
-                                                     "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
-                                                 ],
-                          "dependencies":  [
-                                               "security design for executable/external activities"
-                                           ],
-                          "blockers":  [
-
-                                       ],
-                          "memoryTargets":  [
-                                                "enhancement-log.md",
-                                                "technical-debt.md",
-                                                "security-findings.md"
-                                            ],
-                          "nextAction":  "Create implementation plan and split executable activity families before coding.",
-                          "lastUpdated":  "2026-05-20T13:24:50.3857224Z"
-                      },
-                      {
-                          "id":  "flow-analytics-experimentation",
-                          "title":  "Add journey step analytics and experimentation depth",
-                          "status":  "READY",
-                          "priorityScore":  39,
-                          "scoring":  {
-                                          "productionReadinessImpact":  3,
-                                          "securityRisk":  1,
-                                          "userImpact":  4,
-                                          "performanceImpact":  2,
-                                          "technicalDebtImpact":  4
-                                      },
-                          "owner":  "TRACKING_SERVICE_OWNER",
-                          "partnerAgents":  [
-                                                "AUTOMATION_SERVICE_OWNER",
-                                                "FRONTEND_OWNER",
-                                                "DATA_ARCHITECT"
-                                            ],
-                          "scope":  "Add journey step metrics, conversion goals, random cohort and A/B reporting, winning-path reporting, and anomaly surfacing around journey/campaign execution.",
-                          "nonGoals":  "Do not claim causal attribution or anomaly accuracy without measured evidence.",
-                          "sourceFiles":  [
-                                              "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java",
-                                              "services/tracking-service/src/main/java/com/legent/tracking/controller/BiAnalyticsController.java",
-                                              "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
-                                              "services/automation-service/src/main/java/com/legent/automation/controller/WorkflowController.java",
-                                              "frontend/src/app/(workspace)/analytics/page.tsx"
-                                          ],
-                          "acceptanceCriteria":  [
-                                                     "Journey step metrics and conversion goals have explicit event contracts.",
-                                                     "Experiment reporting separates campaign experiments from journey path tests.",
-                                                     "Anomaly language is evidence-based and avoids unsupported AI claims.",
-                                                     "Validation plan covers tracking ingestion, rollups, and UI rendering."
-                                                 ],
-                          "validationProfile":  "backend-frontend-focused",
-                          "validationCommands":  [
-                                                     ".\\mvnw.cmd -pl services/tracking-service,services/automation-service -am test",
-                                                     "cd frontend; npm run lint"
-                                                 ],
-                          "dependencies":  [
-                                               "event contract design"
-                                           ],
-                          "blockers":  [
-
-                                       ],
-                          "memoryTargets":  [
-                                                "enhancement-log.md",
-                                                "technical-debt.md",
-                                                "performance-bottlenecks.md"
-                                            ],
-                          "nextAction":  "Design the event and rollup contract before implementation.",
-                          "lastUpdated":  "2026-05-20T13:24:50.3857224Z"
-                      }
                   ],
     "backlogWork":  [
                         {
@@ -330,6 +116,174 @@
                                               ],
                             "nextAction":  "No-schema backend preview/relationship/sendable guards completed in checkpoint 20260520T125000Z-contact-data-designer-preview-governance; parent remains open for additive provenance/classification/audit tables, controller API validation, and frontend relationship-designer controls.",
                             "lastUpdated":  "2026-05-20T13:14:00Z"
+                        },
+                        {
+                            "id":  "automation-file-trigger-extract-family",
+                            "parentId":  "automation-studio-activity-orchestration",
+                            "title":  "Implement scoped file, trigger, and extract activity family",
+                            "status":  "BACKLOG",
+                            "priorityScore":  58,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  4,
+                                            "userImpact":  4,
+                                            "performanceImpact":  3,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "AUTOMATION_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "AUDIENCE_SERVICE_OWNER",
+                                                  "SECURITY_ENGINEER",
+                                                  "DEVOPS_ENGINEER"
+                                              ],
+                            "scope":  "Implement file-drop/import-artifact/extract/file-transfer semantics using scoped artifact IDs, storage metadata, dependency traces, and no raw credentials.",
+                            "nonGoals":  "Do not accept raw external URLs, raw object-store credentials, cross-workspace artifact IDs, or unbounded file movement.",
+                            "sourceFiles":  [
+                                                "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/service/ImportService.java",
+                                                "services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java",
+                                                "docs/product/automation-studio-activity-orchestration-plan.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Artifact references are service-minted and tenant/workspace-scoped.",
+                                                       "File/extract validation denies traversal, raw URLs, unsafe content types, and cross-workspace artifacts.",
+                                                       "Dry runs record validation only; live runs require explicit confirmation and idempotency.",
+                                                       "Tests cover success, failure, duplicate trigger, and no-secret persistence."
+                                                   ],
+                            "validationProfile":  "security",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/automation-service,services/audience-service -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "automation-activity-security-design",
+                                                 "automation-activity-dependency-run-contract"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "security-findings.md",
+                                                  "technical-debt.md"
+                                              ],
+                            "nextAction":  "Start only after security and dependency/run contracts are implemented.",
+                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
+                        },
+                        {
+                            "id":  "automation-webhook-notification-family",
+                            "parentId":  "automation-studio-activity-orchestration",
+                            "title":  "Implement guarded webhook and notification activity family",
+                            "status":  "BACKLOG",
+                            "priorityScore":  57,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  5,
+                                            "userImpact":  3,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "PLATFORM_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "AUTOMATION_SERVICE_OWNER",
+                                                  "SECURITY_ENGINEER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Add webhook and notification activities with outbound URL guard, secret refs, response limits, retry/idempotency, terminal notification policy, and failure recording.",
+                            "nonGoals":  "Do not allow private/localhost/metadata URLs, raw auth headers, ambient secrets, or unbounded response storage.",
+                            "sourceFiles":  [
+                                                "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                                "services/platform-service/src/main/java/com/legent/platform/service/WebhookDeliveryService.java",
+                                                "shared/legent-common/src/main/java/com/legent/common/security/OutboundUrlGuard.java",
+                                                "docs/product/automation-studio-activity-orchestration-plan.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Webhook URLs pass outbound guard and resolved-address blocking.",
+                                                       "Auth uses secret refs only and responses are size-limited/redacted.",
+                                                       "Notifications fire only terminal states and failures do not mask activity failure.",
+                                                       "Tests cover retries, idempotency, denials, and redaction."
+                                                   ],
+                            "validationProfile":  "security",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/automation-service,services/platform-service,shared/legent-common -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "automation-activity-security-design",
+                                                 "automation-activity-dependency-run-contract",
+                                                 "platform-event-idempotency"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "security-findings.md",
+                                                  "technical-debt.md"
+                                              ],
+                            "nextAction":  "Start after outbound, redaction, and dependency contracts exist.",
+                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
+                        },
+                        {
+                            "id":  "automation-send-activity-handoff",
+                            "parentId":  "automation-studio-activity-orchestration",
+                            "title":  "Implement governed Automation Studio send activity handoff",
+                            "status":  "BACKLOG",
+                            "priorityScore":  63,
+                            "scoring":  {
+                                            "productionReadinessImpact":  5,
+                                            "securityRisk":  4,
+                                            "userImpact":  4,
+                                            "performanceImpact":  3,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "CAMPAIGN_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "AUTOMATION_SERVICE_OWNER",
+                                                  "DELIVERABILITY_ENGINEER",
+                                                  "SECURITY_ENGINEER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Define and implement send activity handoff that preserves campaign policy, preflight, suppression, warmup, rate, inbox-safety, tenant/workspace scope, idempotency, and explicit live confirmation.",
+                            "nonGoals":  "Do not bypass campaign orchestration, launch broad campaigns from contact-level journeys without explicit governance, or weaken deliverability gates.",
+                            "sourceFiles":  [
+                                                "services/automation-service/src/main/java/com/legent/automation/service/node/SendEmailNodeHandler.java",
+                                                "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                                                "services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java",
+                                                "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignSendSafetyService.java",
+                                                "docs/product/automation-studio-activity-orchestration-plan.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Send activity semantics distinguish campaign launch from contact/journey handoff.",
+                                                       "Preflight, suppression, warmup, rate, inbox-safety, and send-policy requirements remain fail-closed.",
+                                                       "Kafka envelopes carry tenant/workspace and idempotency identity.",
+                                                       "Tests cover cross-workspace denial, duplicate publish prevention, and no send on unsafe preflight."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/automation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "git diff --check"
+                                                   ],
+                            "dependencies":  [
+                                                 "automation-activity-security-design",
+                                                 "automation-activity-dependency-run-contract",
+                                                 "email-governance-policy-objects"
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "enhancement-log.md",
+                                                  "security-findings.md",
+                                                  "technical-debt.md",
+                                                  "performance-bottlenecks.md"
+                                              ],
+                            "nextAction":  "Start only after send governance and activity run contracts are ready.",
+                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
                         }
                     ],
     "blockedWork":  [
@@ -546,6 +500,58 @@
                                               ],
                             "nextAction":  "Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims.",
                             "lastUpdated":  "2026-05-20"
+                        },
+                        {
+                            "id":  "automation-script-activity-security-sandbox",
+                            "parentId":  "automation-studio-activity-orchestration",
+                            "title":  "Design Automation Studio script activity sandbox",
+                            "status":  "BLOCKED",
+                            "priorityScore":  52,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  5,
+                                            "userImpact":  3,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "SECURITY_ENGINEER",
+                            "partnerAgents":  [
+                                                  "DEVOPS_ENGINEER",
+                                                  "AUTOMATION_SERVICE_OWNER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Design signed script artifact execution, sandboxing, no-ambient-secret runtime, egress/file limits, timeout/resource caps, audit, approval, and operational evidence before scripts can execute.",
+                            "nonGoals":  "Do not execute inline scripts or unsigned artifacts.",
+                            "sourceFiles":  [
+                                                "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                                "services/automation-service/src/main/java/com/legent/automation/dto/AutomationStudioDto.java",
+                                                "docs/product/automation-studio-activity-orchestration-plan.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Inline scripts remain rejected.",
+                                                       "Sandbox and signing model is approved with no ambient secrets.",
+                                                       "Runtime limits, egress/file restrictions, audit, and failure handling are testable.",
+                                                       "Production use requires operational evidence and security signoff."
+                                                   ],
+                            "validationProfile":  "security",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                   ],
+                            "dependencies":  [
+                                                 "security sandbox decision",
+                                                 "runtime isolation design",
+                                                 "operations signoff"
+                                             ],
+                            "blockers":  [
+                                             "Sandbox/signing/security design not approved"
+                                         ],
+                            "memoryTargets":  [
+                                                  "security-findings.md",
+                                                  "blocked-items.md",
+                                                  "technical-debt.md"
+                                              ],
+                            "nextAction":  "Blocked until sandbox/signing model and runtime isolation evidence exist.",
+                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
                         }
                     ],
     "standingRisks":  [
@@ -563,7 +569,7 @@
                                "performance",
                                "release"
                            ],
-    "lastUpdated":  "2026-05-20T13:24:50.3857224Z",
+    "lastUpdated":  "2026-05-20T15:37:20.3915435Z",
     "doneWork":  [
                      {
                          "id":  "salesforce-parity-research-refresh",
@@ -2966,6 +2972,482 @@
                                                "UI mode is a frontend UX contract only; backend authorization, content-service permissions, and renderer/sanitizer behavior remain authoritative.",
                                                "BASIC mode intentionally preserves Save Draft and Preview/QA while hiding authoring/publish/approval/test-send/resource-management controls.",
                                                "Shared audit JSONL was leased by an active audience module during completion recording; durable detail is in checkpoint, backlog, memory, and handoff."
+                                           ]
+                     },
+                     {
+                         "id":  "frequency-optimization-governance",
+                         "title":  "Define governed engagement frequency optimization contract",
+                         "status":  "DONE",
+                         "priorityScore":  60,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "CAMPAIGN_SERVICE_OWNER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "DATA_ARCHITECT",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Define frequency optimization lookback, variant, fatigue, confidence, and deliverability guardrail contract before recommendations can affect send cadence.",
+                         "nonGoals":  "Do not increase frequency for suppressed, unsubscribed, complaint-prone, warmup-blocked, over-cap, or provider-blocked recipients. Do not claim deliverability lift without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Frequency contract defines lookback window, required variants, low-data fallback, saturation categories, confidence bands, and recommended cap.",
+                                                    "Fatigue, unsubscribe, complaint, bounce, suppression, warmup, provider health, and rate controls are fail-closed safety inputs.",
+                                                    "Recommendations expose expected safety impact and require approval when cadence increases or risk is non-low.",
+                                                    "Focused implementation tests are identified for suppressions, caps, provider blocking, and tenant/workspace isolation."
+                                                ],
+                         "validationProfile":  "research-backend",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "AI governance foundation",
+                                              "deliverability evidence"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "performance-bottlenecks.md",
+                                               "security-findings.md",
+                                               "design-decisions.md"
+                                           ],
+                         "nextAction":  "Select next highest-priority READY work item: ai-content-assistance-governance.",
+                         "lastUpdated":  "2026-05-20T13:44:07.9756909Z",
+                         "startedAt":  "2026-05-20T13:32:12.3215410Z",
+                         "completedAt":  "2026-05-20T13:44:07.9756909Z",
+                         "outcome":  "Frequency optimization governance parent reconciled as a completed local contract: docs now define commercial/transactional/test boundaries, 28/90-day readiness expectations, minimum variants/events/contacts, low-data no-increase fallback, tenant/workspace-scoped reputation/deliverability requirements, strict delivery risk/cap handling, campaign preflight/send-safety interaction points, scheduled-send revalidation or immutable snapshot requirement, and no auto-apply/live cadence claims.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am -Dtest=OptimizationPerformanceServiceTest -Dsurefire.failIfNoSpecifiedTests=false test (11 tests),PASS: .\\mvnw.cmd -pl services/campaign-service -am -Dtest=CampaignSendSafetyServiceTest -Dsurefire.failIfNoSpecifiedTests=false test (4 tests),PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1,PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "No model-backed frequency optimization, weekly model refresh, or live cadence control exists; do not claim Salesforce Einstein parity.,Provider capacity, warmed sender reputation, production egress, live load, and target delivery evidence remain external blockers.,Future runtime slice needs scheduled-send revalidation or immutable approved frequency snapshots, direct reputation/warmup tests, provider health/capacity enforcement tests, and send-execution no-publish coverage."
+                                           ]
+                     },
+                     {
+                         "id":  "ai-content-assistance-governance",
+                         "title":  "Implement governed draft-only AI content assistance foundation",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  5,
+                                         "userImpact":  5,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "CONTENT_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "FOUNDATION_SERVICE_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add tenant/workspace-scoped AI policy and audit scaffolding for draft-only content assistance, including provider disclosure, prompt/data classification, output safety review, and human approval before send or publication.",
+                         "nonGoals":  "Do not call external model APIs, add provider credentials, autopublish generated content, or claim Salesforce Einstein parity in this slice.",
+                         "sourceFiles":  [
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Tenant/workspace AI policy defines feature class, provider disclosure, allowed data classes, training stance, retention, opt-in/out, and kill switch.",
+                                                    "Content assistance remains draft-only and requires human review before send or publication.",
+                                                    "Audit records capture policy version, actor, data classes, prompt template version, output hash, and review decision without storing secrets.",
+                                                    "Tests cover policy denial, missing tenant/workspace context, and no-review/autopublish rejection."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "AI governance foundation",
+                                              "model provider security decision"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "security-findings.md",
+                                               "design-decisions.md"
+                                           ],
+                         "nextAction":  "Design the tenant/workspace AI policy and audit schema for draft-only content assistance before implementation.",
+                         "lastUpdated":  "2026-05-20T14:06:42.2651647Z",
+                         "startedAt":  "2026-05-20T13:46:22.5997556Z",
+                         "completedAt":  "2026-05-20T14:06:42.2651647Z",
+                         "outcome":  "Implemented tenant/workspace draft-only AI content assistance policy and audit governance in foundation-service, with V16 tables, controller routes, summary exposure, policy/evaluate DTOs, hash-only audit evidence, publish/send denial, docs, and focused tests. Validation passed: focused AiContentAssistanceGovernanceServiceTest, full foundation/content Maven gate, Codex validation, repo artifact hygiene, and git diff --check.",
+                         "validationRun":  [
+
+                                           ],
+                         "residualRisks":  [
+
+                                           ]
+                     },
+                     {
+                         "id":  "automation-studio-activity-orchestration",
+                         "title":  "Expand Automation Studio activity orchestration safely",
+                         "status":  "DONE",
+                         "priorityScore":  48,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PLATFORM_SERVICE_OWNER",
+                                               "SRE_MONITORING_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Decompose support for file/trigger starts, extracts, script/webhook/send activities, dependency ordering, notifications, and richer run-history/error details.",
+                         "nonGoals":  "Do not add arbitrary script execution or external storage credentials without a separate security design.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/controller/AutomationStudioController.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
+                                             "frontend/src/app/(workspace)/automation/page.tsx"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Unsupported activity types fail closed with clear validation.",
+                                                    "Dependency ordering and run-history design is documented before new activity execution is added.",
+                                                    "Security review exists for scripts, file transfer, webhooks, and external object storage.",
+                                                    "Follow-up READY slices are split by activity family."
+                                                ],
+                         "validationProfile":  "research-backend",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                ],
+                         "dependencies":  [
+                                              "security design for executable/external activities"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "security-findings.md"
+                                           ],
+                         "nextAction":  "Promote automation-activity-security-design first, then automation-activity-dependency-run-contract and automation-activity-capability-verification-ui.",
+                         "lastUpdated":  "2026-05-20T14:28:48.3029497Z",
+                         "startedAt":  "2026-05-20T14:09:26.2812453Z",
+                         "completedAt":  "2026-05-20T14:28:48.3029497Z",
+                         "outcome":  "Completed Automation Studio activity orchestration decomposition: documented current SQL/import-only execution, fail-closed unsupported families, config/result secret boundary, artifact ownership, webhook/script/send safety requirements, and split the parent into security, dependency/run, capability UI, file/extract, webhook/notification, send handoff, and blocked script sandbox child slices.",
+                         "validationRun":  [
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Dependency ordering, bounded run detail, capability UI, file/extract, webhook/notification, send handoff, and script sandbox implementation remain follow-up slices.",
+                                               "Workflow Kafka side effects still need outbox or after-commit hardening before broader orchestration fan-out.",
+                                               "Executable activity families must not store raw secrets or bypass tenant/workspace, route, deliverability, or campaign safety gates."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-activity-security-design",
+                         "parentId":  "automation-studio-activity-orchestration",
+                         "title":  "Define Automation Studio activity security contract",
+                         "status":  "DONE",
+                         "priorityScore":  57,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "SECURITY_ENGINEER",
+                         "partnerAgents":  [
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "PLATFORM_SERVICE_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Define the security contract for Automation Studio activity config, run results, artifact ownership, internal routes, webhooks, scripts, and send handoffs before executable families expand.",
+                         "nonGoals":  "Do not add new activity execution, credentials, external storage access, or public internal routes in this slice.",
+                         "sourceFiles":  [
+                                             "docs/product/automation-studio-activity-orchestration-plan.md",
+                                             "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                             "shared/legent-common/src/main/java/com/legent/common/security/OutboundUrlGuard.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Secret-looking config/result keys and response redaction rules are documented for create, update, verify, run, and list paths.",
+                                                    "File/import/extract artifact ownership requires tenant/workspace-scoped service-minted artifact IDs and no raw URLs or credentials.",
+                                                    "Script remains blocked pending signed artifact sandbox approval; webhook and send handoff safety contracts are explicit.",
+                                                    "Focused implementation tests are listed for security, route, and tenant/workspace isolation coverage."
+                                                ],
+                         "validationProfile":  "research-security",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "automation-studio-activity-orchestration split"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "enhancement-log.md"
+                                           ],
+                         "nextAction":  "Promote automation-activity-dependency-run-contract.",
+                         "lastUpdated":  "2026-05-20T14:33:24.8598319Z",
+                         "startedAt":  "2026-05-20T14:30:29.6513188Z",
+                         "completedAt":  "2026-05-20T14:33:24.8598319Z",
+                         "outcome":  "Completed Automation Studio activity security contract covering sensitive-data redaction, scoped artifact ownership, public-edge route controls, webhook guardrails, blocked script execution, governed send handoff, dependency/run-history requirements, and focused test matrix.",
+                         "validationRun":  [
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Implementation is not yet added; sanitizer and redaction tests are required in follow-up slices.",
+                                               "File/import work still needs scoped artifact IDs before file-transfer parity claims.",
+                                               "Workflow fan-out still needs outbox or after-commit hardening before broader side-effect expansion."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-activity-dependency-run-contract",
+                         "parentId":  "automation-studio-activity-orchestration",
+                         "title":  "Add Automation Studio dependency and run contract",
+                         "status":  "DONE",
+                         "priorityScore":  52,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  3,
+                                         "userImpact":  4,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "FRONTEND_OWNER"
+                                           ],
+                         "scope":  "Add validation-only dependency/order semantics, cycle detection, executor boundaries, failure policy, bounded run listing/detail schema, and richer error traces for existing activity execution.",
+                         "nonGoals":  "Do not add file, extract, webhook, send, or script live execution in this slice.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/AutomationStudioServiceTest.java",
+                                             "docs/product/automation-studio-activity-orchestration-plan.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Activity dependency/order model rejects cycles and invalid cross-workspace references.",
+                                                    "Run history listing is bounded and returns stable detail/error schema.",
+                                                    "Executor boundaries keep unsupported types fail-closed.",
+                                                    "Tests cover ordering, cycle rejection, upstream failure skip, list limits, and tenant/workspace isolation."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=AutomationStudioServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/automation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "automation-activity-security-design"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "test-impact-map.md"
+                                           ],
+                         "nextAction":  "Promote automation-activity-capability-verification-ui.",
+                         "lastUpdated":  "2026-05-20T14:43:22.4318346Z",
+                         "startedAt":  "2026-05-20T14:34:09.9254316Z",
+                         "completedAt":  "2026-05-20T14:43:22.4318346Z",
+                         "outcome":  "Implemented Automation Studio dependency and run contract: activity dependency IDs, failure policy, cycle and workspace validation, bounded run listing, trace IDs, error codes, dependency trace summaries, V7 migration, controller limit parameter, and focused regression tests without adding new activity side effects.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/automation-service -am \"-Dtest=AutomationStudioServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (17 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/automation-service -am test (52 automation-service tests plus shared upstream tests)",
+                                               "PASS: rg ddl-auto scan: production services validate; test configs create-drop",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Dependency metadata is validation and run-history contract only; multi-step execution remains a follow-up.",
+                                               "Sanitizer and redaction utilities remain future implementation work before new executable families.",
+                                               "File/extract, webhook/notification, send handoff, and script sandbox slices remain unimplemented."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-activity-capability-verification-ui",
+                         "parentId":  "automation-studio-activity-orchestration",
+                         "title":  "Expose Automation Studio capability and verification states",
+                         "status":  "DONE",
+                         "priorityScore":  44,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  2,
+                                         "userImpact":  5,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "UX_STRATEGIST",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Show activity capability metadata, per-type config surfaces, verification result detail, unsupported/draft-only states, and row-scoped run errors in Automation Studio.",
+                         "nonGoals":  "Do not add live-run buttons, credentials, or new backend execution behavior in this slice.",
+                         "sourceFiles":  [
+                                             "frontend/src/app/(workspace)/automation/page.tsx",
+                                             "frontend/src/lib/automation-api.ts",
+                                             "frontend/tests/e2e/automation-studio.spec.ts",
+                                             "docs/product/automation-studio-activity-orchestration-plan.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Unsupported activity families are labeled clearly and cannot imply execution support.",
+                                                    "Verification results and backend validation errors are visible at the relevant activity row/form.",
+                                                    "Per-type forms avoid placeholder URLs, signed-script placeholders, or ambiguous config values.",
+                                                    "Frontend tests cover unsupported states, verify result display, and row-scoped error behavior."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts --project=chromium --reporter=line",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "automation-studio-activity-orchestration split"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "test-impact-map.md"
+                                           ],
+                         "nextAction":  "Select next highest-priority READY work item.",
+                         "lastUpdated":  "2026-05-20T15:02:01.6478606Z",
+                         "startedAt":  "2026-05-20T14:44:09.8732845Z",
+                         "completedAt":  "2026-05-20T15:02:01.6478606Z",
+                         "outcome":  "Implemented Automation Studio capability and verification UI: frontend types now mirror backend dependency and trace fields, activity rows show capability, verification, failure policy, dependencies, row-scoped action errors, and run trace metadata; per-type create forms avoid placeholder external execution values; BASIC mode still hides authoring and execution controls.",
+                         "validationRun":  [
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: cd frontend; npm run build:ci",
+                                               "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line (8 tests)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "This is UI clarity only; backend validation and service safety remain authoritative.",
+                                               "Live-run controls, dependency execution, sanitizer/redaction utilities, and executable file/webhook/send/script families remain separate slices.",
+                                               "Generated Playwright artifacts were produced during validation and remain ignored local artifacts only."
+                                           ]
+                     },
+                     {
+                         "id":  "flow-analytics-experimentation",
+                         "title":  "Add journey step analytics and experimentation depth",
+                         "status":  "DONE",
+                         "priorityScore":  39,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  1,
+                                         "userImpact":  4,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "TRACKING_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "FRONTEND_OWNER",
+                                               "DATA_ARCHITECT"
+                                           ],
+                         "scope":  "Add journey step metrics, conversion goals, random cohort and A/B reporting, winning-path reporting, and anomaly surfacing around journey/campaign execution.",
+                         "nonGoals":  "Do not claim causal attribution or anomaly accuracy without measured evidence.",
+                         "sourceFiles":  [
+                                             "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java",
+                                             "services/tracking-service/src/main/java/com/legent/tracking/controller/BiAnalyticsController.java",
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/controller/WorkflowController.java",
+                                             "frontend/src/app/(workspace)/analytics/page.tsx"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Journey step metrics and conversion goals have explicit event contracts.",
+                                                    "Experiment reporting separates campaign experiments from journey path tests.",
+                                                    "Anomaly language is evidence-based and avoids unsupported AI claims.",
+                                                    "Validation plan covers tracking ingestion, rollups, and UI rendering."
+                                                ],
+                         "validationProfile":  "backend-frontend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/tracking-service,services/automation-service -am test",
+                                                    "cd frontend; npm run lint"
+                                                ],
+                         "dependencies":  [
+                                              "event contract design"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md"
+                                           ],
+                         "nextAction":  "Select the next highest-priority safe local work item.",
+                         "lastUpdated":  "2026-05-20T15:35:23.2596806Z",
+                         "startedAt":  "2026-05-20T15:02:56.6708296Z",
+                         "completedAt":  "2026-05-20T15:35:23.2596806Z",
+                         "outcome":  "Implemented bounded journey step analytics, observed path-test reporting, deterministic diagnostics, and tracking-owned journey conversion lineage with frontend analytics visibility.",
+                         "validationRun":  [
+                                               "PASS: .\\\\mvnw.cmd -pl services\\\\automation-service -am -Dtest=WorkflowStudioServiceTest,AutomationControllerRbacTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                               "PASS: .\\\\mvnw.cmd -pl services\\\\tracking-service -am -Dtest=AnalyticsServiceTest,ClickHouseWriterTest,ClickHouseRollupServiceTest,TrackingIngestionServiceTest,TrackingEventConsumerTest,TrackingAnalyticsControllerRbacTest,TrackingEventPublisherTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                               "PASS: .\\\\mvnw.cmd -pl shared\\\\legent-kafka -Dtest=EventContractValidatorTest,EventPublisherTest test",
+                                               "PASS: .\\\\mvnw.cmd -pl services\\\\tracking-service,services\\\\automation-service -am test",
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: cd frontend; npm run build:ci",
+                                               "PASS: cd frontend; .\\\\node_modules\\\\.bin\\\\playwright.cmd test analytics.spec.ts --project=chromium --reporter=line",
+                                               "PASS: rg ddl-auto scan shows production validate only and test create-drop only",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\\\utilities\\\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\\\ops\\\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Journey path reporting is observed execution evidence only, not causal winner automation.",
+                                               "ClickHouse journey-lineage DDL and high-volume behavior still need target-environment proof before BI or throughput claims.",
+                                               "Workflow topic ingestion into tracking-owned rollups remains a future slice; this slice adds conversion lineage and automation-owned bounded analytics."
                                            ]
                      }
                  ],

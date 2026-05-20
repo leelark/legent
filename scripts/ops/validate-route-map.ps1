@@ -121,7 +121,8 @@ if ($nginx -notmatch $contentSnapshotDenyPattern) {
 }
 foreach ($pathRegex in @(
     "^/api/v1/content/[^/]+/render/internal$",
-    "^/api/v1/content/rendered-content/[^/]+/internal$"
+    "^/api/v1/content/rendered-content/[^/]+/internal$",
+    "^/api/v1/content/send-governance-policies/[^/]+/internal$"
 )) {
     $denyPattern = "if\s*\(\s*$uriToken\s+~\s+$([regex]::Escape($pathRegex))\s*\)\s*\{[\s\S]*?return\s+404\s*;"
     if ($nginx -notmatch $denyPattern) {
@@ -180,7 +181,8 @@ if (Test-Path $IngressPath) {
     }
     foreach ($pathRegex in @(
         "^/api/v1/content/[^/]+/render/internal$",
-        "^/api/v1/content/rendered-content/[^/]+/internal$"
+        "^/api/v1/content/rendered-content/[^/]+/internal$",
+        "^/api/v1/content/send-governance-policies/[^/]+/internal$"
     )) {
         $denyPattern = "location\s+~\s+$([regex]::Escape($pathRegex))\s*\{[\s\S]*?return\s+404\s*;"
         if ($ingress -notmatch $denyPattern) {

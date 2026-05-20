@@ -1,0 +1,47 @@
+{
+    "id":  "frequency-optimization-governance",
+    "createdAt":  "2026-05-20T13:32:12.2557966Z",
+    "objective":  "Define governed engagement frequency optimization contract",
+    "status":  "DONE",
+    "owner":  "DELIVERABILITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "docs/product/ai-governance-optimization-foundation.md",
+                         "docs/product/salesforce-parity-matrix.md",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "CAMPAIGN_SERVICE_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "DATA_ARCHITECT",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select next highest-priority READY item: ai-content-assistance-governance.",
+    "completedAt":  "2026-05-20T13:44:59.0739441Z",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=OptimizationPerformanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (11 tests)",
+                          "PASS: .\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignSendSafetyServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (4 tests)",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: git diff --check (CRLF warnings only)"
+                      ],
+    "outcome":  "Frequency optimization governance parent reconciled as completed local contract; docs and memory now reflect deterministic-only readiness, no auto-apply, safety-gated cap increases, and runtime follow-up risks."
+}

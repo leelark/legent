@@ -79,7 +79,7 @@ public class ImportService {
         String tenantId = AudienceScope.tenantId();
         String workspaceId = AudienceScope.workspaceId();
 
-        validateStartRequest(request);
+        validateStartRequest(request, tenantId, workspaceId);
 
         ImportJob job = new ImportJob();
         job.setTenantId(tenantId);
@@ -165,7 +165,8 @@ public class ImportService {
         }
     }
 
-    private void validateStartRequest(ImportDto.StartRequest request) {
+    private void validateStartRequest(ImportDto.StartRequest request, String tenantId, String workspaceId) {
+        validateServiceOwnedObjectKey(request.getFileName(), tenantId, workspaceId);
         if (request.getFieldMapping() == null || request.getFieldMapping().isEmpty()) {
             throw new IllegalArgumentException("Field mapping is required");
         }
@@ -181,6 +182,40 @@ public class ImportService {
                 && (request.getTargetId() == null || request.getTargetId().isBlank())) {
             throw new IllegalArgumentException("targetId is required for data extension imports");
         }
+    }
+
+    private void validateServiceOwnedObjectKey(String fileName, String tenantId, String workspaceId) {
+        String normalized = fileName == null ? null : fileName.trim();
+        if (normalized == null
+                || normalized.isEmpty()
+                || normalized.length() > 512
+                || normalized.contains("..")
+                || normalized.contains("\\")
+                || normalized.startsWith("/")
+                || hasUriScheme(normalized)
+                || !normalized.toLowerCase(Locale.ROOT).endsWith(".csv")) {
+            throw new IllegalArgumentException("Import fileName must be a service-owned CSV object key");
+        }
+        String automationPrefix = "tenants/" + tenantId + "/workspaces/" + workspaceId + "/automation-artifacts/";
+        boolean legacyImportKey = normalized.startsWith("import_") && !normalized.contains("/");
+        String suffix = normalized.startsWith(automationPrefix) ? normalized.substring(automationPrefix.length()) : "";
+        String[] parts = suffix.split("/");
+        boolean automationArtifactKey = normalized.startsWith(automationPrefix)
+                && parts.length == 2
+                && !parts[0].isBlank()
+                && !parts[1].isBlank();
+        if (!legacyImportKey && !automationArtifactKey) {
+            throw new IllegalArgumentException("Import fileName must be service generated for the current workspace");
+        }
+    }
+
+    private boolean hasUriScheme(String value) {
+        String lower = value.toLowerCase(Locale.ROOT);
+        return lower.startsWith("http://")
+                || lower.startsWith("https://")
+                || lower.startsWith("s3://")
+                || lower.startsWith("gs://")
+                || lower.startsWith("file:");
     }
 
     private String normalizeTargetType(String targetType) {

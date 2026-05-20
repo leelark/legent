@@ -58,6 +58,30 @@ Impact: launch-time changes require human approval, rollback evidence, and quiet
 
 Follow-up: implement campaign/delivery scheduling integration, timezone proof, model/data provenance, and target data-quality evidence before any STO parity or production claim.
 
+## 2026-05-20 Frequency Optimization Boundary
+
+Source: `ClosedLoopOptimizationService.java`, `OptimizationPerformanceServiceTest.java`, `CampaignSendSafetyService.java`, `CampaignSendSafetyServiceTest.java`, `ReputationEngine.java`, `WarmupService.java`, `SendRateControlService.java`, and `docs/product/ai-governance-optimization-foundation.md`.
+
+Decision: Legent may expose deterministic frequency optimization readiness, fallback, saturation, recommended-cap, confidence, approval, rollback, and safety-gate evaluation, but this is not model-backed engagement-frequency optimization and must not control live cadence automatically.
+
+Rationale: current local evidence supports rules-based frequency policy evaluation and tenant/workspace frequency-cap enforcement before delivery handoff. Current evidence does not prove model/provider integration, weekly model refresh, live journey/campaign cadence control, provider-approved capacity, or production send evidence.
+
+Impact: commercial frequency optimization must exclude transactional/test-send history unless a separate policy exists. Cap increases require human approval, rollback evidence, and pass/fail evidence for suppression, unsubscribe/preference, warmup, rate-limit, provider capacity, deliverability, and frequency-ledger gates. Delivery and deliverability controls can only reduce or defer sends after approval; frequency recommendations cannot override them. Scheduled sends must revalidate readiness at execution time or carry an immutable approved frequency snapshot.
+
+Follow-up: implement first-class AI policy/audit persistence, live cadence/journey integration, scheduled-send revalidation or immutable snapshot tests, provider-capacity proof, direct reputation/warmup regression tests, and target evidence before any model-backed frequency or parity claim.
+
+## 2026-05-20 AI Content Assistance Governance Boundary
+
+Source: `AiContentAssistanceGovernanceService.java`, `AiContentAssistancePolicyRequest.java`, `AiContentAssistanceEvaluateRequest.java`, `V16__ai_content_assistance_governance.sql`, `AiContentAssistanceGovernanceServiceTest.java`, `docs/product/ai-governance-optimization-foundation.md`, and `docs/product/salesforce-parity-matrix.md`.
+
+Decision: Legent may persist tenant/workspace-scoped draft-only AI content assistance policy and audit records, but this is a governance control plane only. It does not call model providers, generate content, auto-apply output, publish, send, or prove Salesforce Einstein parity.
+
+Rationale: current local source still has no model-provider integration. The safe first slice is to define policy and audit invariants before any provider credentials, prompt assembly, model calls, content workflow application, or public product claim.
+
+Impact: AI content policies require provider disclosure, allowed/prohibited data classes, training stance, retention policy, opt-in/out, kill switch, draft-only mode, and human review. Evaluation stores prompt/output hashes only, redacts secret-like context keys, records policy version/actor/data classes/review decision, never invokes a provider, and denies publish, auto-publish, send, or test-send actions.
+
+Follow-up: implement model-provider security review, content-service draft application hooks, publish/test-send review gates for AI-generated artifacts, usage metering, and target evidence before generated-content or AI parity claims.
+
 ## 2026-05-20 Multi-Module Coordinator Boundary
 
 Source: `.codex/prompts/multi-module-coordinator-24x7.md`, `.codex/workflows/multi-thread-autonomous-teams.md`, `.codex/teams/module-team-registry.json`, and `.codex/skills/legent-multi-thread-coordination/SKILL.md`.

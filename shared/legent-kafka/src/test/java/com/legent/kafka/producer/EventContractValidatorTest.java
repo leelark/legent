@@ -156,6 +156,20 @@ class EventContractValidatorTest {
     }
 
     @Test
+    void validate_acceptsJourneyConversionRoutingWithoutMessageId() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_TRACKING_INGESTED,
+                Map.of(
+                        "eventType", "CONVERSION",
+                        "workflowRunId", "run-1",
+                        "workflowId", "workflow-1",
+                        "goalId", "goal-1")
+        );
+
+        assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_TRACKING_INGESTED, envelope));
+    }
+
+    @Test
     void validate_rejectsMissingRequiredPayloadKey() {
         EventEnvelope<Map<String, Object>> envelope = envelope(
                 AppConstants.TOPIC_EMAIL_BOUNCED,

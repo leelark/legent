@@ -39,6 +39,9 @@ metadata:
       location ~ ^/api/v1/content/rendered-content/[^/]+/internal$ {
         return 404;
       }
+      location ~ ^/api/v1/content/send-governance-policies/[^/]+/internal$ {
+        return 404;
+      }
 spec:
   ingressClassName: nginx
   tls:

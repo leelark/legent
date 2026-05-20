@@ -38,6 +38,14 @@ public class AutomationActivity extends TenantAwareEntity {
     private String scheduleExpression;
 
     @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "dependency_activity_ids", columnDefinition = "jsonb")
+    private String dependencyActivityIds = "[]";
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "failure_policy", nullable = false, length = 32)
+    private AutomationStudioDto.FailurePolicy failurePolicy = AutomationStudioDto.FailurePolicy.STOP_ON_FAILURE;
+
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "input_config", columnDefinition = "jsonb")
     private String inputConfig = "{}";
 

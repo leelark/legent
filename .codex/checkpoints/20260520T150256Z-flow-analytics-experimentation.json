@@ -1,0 +1,43 @@
+{
+    "id":  "flow-analytics-experimentation",
+    "createdAt":  "2026-05-20T15:02:56.6358086Z",
+    "objective":  "Add journey step analytics and experimentation depth",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/**",
+                         "services/tracking-service/src/test/java/com/legent/tracking/**",
+                         "services/automation-service/src/main/java/com/legent/automation/controller/WorkflowController.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/**",
+                         "services/automation-service/src/test/java/com/legent/automation/**",
+                         "frontend/src/app/(workspace)/analytics/page.tsx",
+                         "frontend/src/lib/**analytics**",
+                         "frontend/tests/e2e/**analytics**",
+                         "docs/product/salesforce-parity-matrix.md",
+                         "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "AUTOMATION_SERVICE_OWNER",
+                   "FRONTEND_OWNER",
+                   "DATA_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service",
+                           "services/automation-service -am test",
+                           "cd frontend; npm run lint"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-priority safe local work item."
+}

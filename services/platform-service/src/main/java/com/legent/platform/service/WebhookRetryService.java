@@ -235,7 +235,7 @@ public class WebhookRetryService {
             retry.setRetryCount(nextRetryCount);
             retry.setStatus("PENDING");
             retry.setNextRetryAt(nextRetryAt);
-            retry.setLastError(errorMessage);
+            retry.setLastError(WebhookResponseSanitizer.sanitize(errorMessage));
             retry.setClaimStartedAt(null);
             retry.setUpdatedAt(Instant.now());
             retryRepository.save(retry);
@@ -257,7 +257,7 @@ public class WebhookRetryService {
     private void markRetryFailed(WebhookRetry retry, String errorMessage) {
         retry.setStatus("FAILED");
         retry.setUpdatedAt(Instant.now());
-        retry.setLastError(errorMessage);
+        retry.setLastError(WebhookResponseSanitizer.sanitize(errorMessage));
         retry.setClaimStartedAt(null);
         retryRepository.save(retry);
         log.warn("Webhook retry {} failed permanently: {}", retry.getId(), errorMessage);
@@ -283,7 +283,7 @@ public class WebhookRetryService {
             whLog.setWebhookId(webhookId);
             whLog.setEventType(eventType);
             whLog.setStatusCode(statusCode);
-            whLog.setResponseBody(responseBody != null && responseBody.length() > 1000 ? responseBody.substring(0, 1000) : responseBody);
+            whLog.setResponseBody(WebhookResponseSanitizer.sanitize(responseBody));
             whLog.setIsSuccess(isSuccess);
             logRepository.save(whLog);
         } catch (Exception e) {

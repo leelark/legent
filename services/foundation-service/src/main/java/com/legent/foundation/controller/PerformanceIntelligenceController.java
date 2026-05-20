@@ -1,6 +1,8 @@
 package com.legent.foundation.controller;
 
 import com.legent.common.dto.ApiResponse;
+import com.legent.foundation.dto.performance.AiContentAssistanceEvaluateRequest;
+import com.legent.foundation.dto.performance.AiContentAssistancePolicyRequest;
 import com.legent.foundation.dto.performance.ExtensionPackageRequest;
 import com.legent.foundation.dto.performance.ExtensionValidationRequest;
 import com.legent.foundation.dto.performance.OperationsAssistRequest;
@@ -8,6 +10,7 @@ import com.legent.foundation.dto.performance.OptimizationEvaluateRequest;
 import com.legent.foundation.dto.performance.OptimizationPolicyRequest;
 import com.legent.foundation.dto.performance.PersonalizationEvaluateRequest;
 import com.legent.foundation.dto.performance.WorkflowBenchmarkRequest;
+import com.legent.foundation.service.performance.AiContentAssistanceGovernanceService;
 import com.legent.foundation.service.performance.ClosedLoopOptimizationService;
 import com.legent.foundation.service.performance.ExtensionGovernanceService;
 import com.legent.foundation.service.performance.OperationsAssistanceService;
@@ -39,6 +42,7 @@ public class PerformanceIntelligenceController {
     private final ExtensionGovernanceService extensionGovernanceService;
     private final OperationsAssistanceService operationsAssistanceService;
     private final WorkflowBenchmarkService workflowBenchmarkService;
+    private final AiContentAssistanceGovernanceService aiContentAssistanceGovernanceService;
 
     @GetMapping("/summary")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
@@ -68,6 +72,32 @@ public class PerformanceIntelligenceController {
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
     public ApiResponse<Map<String, Object>> evaluateOptimization(@Valid @RequestBody OptimizationEvaluateRequest request) {
         return ApiResponse.ok(optimizationService.evaluate(request));
+    }
+
+    @PostMapping("/ai-content/policies")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> upsertAiContentPolicy(@Valid @RequestBody AiContentAssistancePolicyRequest request) {
+        return ApiResponse.ok(aiContentAssistanceGovernanceService.upsertPolicy(request));
+    }
+
+    @GetMapping("/ai-content/policies")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listAiContentPolicies(@RequestParam(required = false) String workspaceId) {
+        return ApiResponse.ok(aiContentAssistanceGovernanceService.listPolicies(workspaceId));
+    }
+
+    @PostMapping("/ai-content/evaluate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> evaluateAiContentAssistance(@Valid @RequestBody AiContentAssistanceEvaluateRequest request) {
+        return ApiResponse.ok(aiContentAssistanceGovernanceService.evaluate(request));
+    }
+
+    @GetMapping("/ai-content/audits")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listAiContentAudits(
+            @RequestParam(required = false) String workspaceId,
+            @RequestParam(defaultValue = "100") int limit) {
+        return ApiResponse.ok(aiContentAssistanceGovernanceService.listAudits(workspaceId, limit));
     }
 
     @PostMapping("/extensions/packages")

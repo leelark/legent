@@ -102,7 +102,8 @@ public class TrackingIngestionService {
         meta.put("currency", request.getCurrency());
 
         TrackingDto.RawEventPayload payload = buildPayload("CONVERSION", tenantId, workspaceId, request.getCampaignId(), request.getSubscriberId(), request.getMessageId(),
-                request.getExperimentId(), request.getVariantId(), false, idempotencyKey, null, userAgentString, ipAddress, meta);
+                request.getExperimentId(), request.getVariantId(), Boolean.TRUE.equals(request.getHoldout()), idempotencyKey, null, userAgentString, ipAddress, meta);
+        applyConversionLineage(request, payload, meta);
         saveEventToDatabase(payload);
         publishEventWithOutbox(payload);
     }
@@ -193,6 +194,13 @@ public class TrackingIngestionService {
             event.setExperimentId(payload.getExperimentId());
             event.setVariantId(payload.getVariantId());
             event.setHoldout(Boolean.TRUE.equals(payload.getHoldout()));
+            event.setExperimentScope(payload.getExperimentScope());
+            event.setWorkflowId(payload.getWorkflowId());
+            event.setWorkflowVersion(payload.getWorkflowVersion());
+            event.setWorkflowRunId(payload.getWorkflowRunId());
+            event.setStepId(payload.getStepId());
+            event.setPathId(payload.getPathId());
+            event.setGoalId(payload.getGoalId());
             event.setUserAgent(payload.getUserAgent());
             event.setIpAddress(payload.getIpAddress());
             event.setLinkUrl(payload.getLinkUrl());
@@ -251,6 +259,83 @@ public class TrackingIngestionService {
                 .timestamp(Instant.now())
                 .metadata(metadata)
                 .build();
+    }
+
+    private void applyConversionLineage(TrackingDto.ConversionRequest request,
+                                        TrackingDto.RawEventPayload payload,
+                                        Map<String, Object> metadata) {
+        boolean hasJourneyLineage = hasJourneyLineage(request);
+        String experimentScope = normalizeExperimentScope(request.getExperimentScope(), hasJourneyLineage);
+        if ("JOURNEY".equals(experimentScope) && !hasJourneyLineage) {
+            throw new IllegalArgumentException("workflowId and goalId are required for journey conversion lineage");
+        }
+        payload.setExperimentScope(experimentScope);
+        payload.setWorkflowId(trimToNull(request.getWorkflowId()));
+        payload.setWorkflowVersion(request.getWorkflowVersion());
+        payload.setWorkflowRunId(trimToNull(request.getWorkflowRunId()));
+        payload.setStepId(trimToNull(request.getStepId()));
+        payload.setPathId(trimToNull(request.getPathId()));
+        payload.setGoalId(trimToNull(request.getGoalId()));
+
+        putIfPresent(metadata, "experimentScope", experimentScope);
+        putIfPresent(metadata, "workflowId", payload.getWorkflowId());
+        putIfPresent(metadata, "workflowVersion", payload.getWorkflowVersion());
+        putIfPresent(metadata, "workflowRunId", payload.getWorkflowRunId());
+        putIfPresent(metadata, "stepId", payload.getStepId());
+        putIfPresent(metadata, "pathId", payload.getPathId());
+        putIfPresent(metadata, "goalId", payload.getGoalId());
+    }
+
+    private String normalizeExperimentScope(String rawScope, boolean hasJourneyLineage) {
+        String normalized = trimToNull(rawScope);
+        if (normalized == null) {
+            return hasJourneyLineage ? "JOURNEY" : "CAMPAIGN";
+        }
+        String scope = normalized.toUpperCase(java.util.Locale.ROOT);
+        if (!"CAMPAIGN".equals(scope) && !"JOURNEY".equals(scope)) {
+            throw new IllegalArgumentException("experimentScope must be CAMPAIGN or JOURNEY");
+        }
+        return scope;
+    }
+
+    private boolean hasJourneyLineage(TrackingDto.ConversionRequest request) {
+        boolean hasLineage = hasText(request.getWorkflowId())
+                || request.getWorkflowVersion() != null
+                || hasText(request.getWorkflowRunId())
+                || hasText(request.getStepId())
+                || hasText(request.getPathId())
+                || hasText(request.getGoalId());
+        if (!hasLineage) {
+            return false;
+        }
+        if (!hasText(request.getWorkflowId())) {
+            throw new IllegalArgumentException("workflowId is required for journey conversion lineage");
+        }
+        if (!hasText(request.getGoalId())) {
+            throw new IllegalArgumentException("goalId is required for journey conversion lineage");
+        }
+        return true;
+    }
+
+    private void putIfPresent(Map<String, Object> metadata, String key, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof String text && text.isBlank()) {
+            return;
+        }
+        metadata.put(key, value);
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     private String resolveWorkspaceId(String tenantId, String messageId, String workspaceId) {

@@ -51,7 +51,7 @@ public class EventContractValidator {
                     WorkspaceRequirement.ENVELOPE_ONLY,
                     List.of(
                             List.of("eventType"),
-                            List.of("messageId")),
+                            List.of("messageId", "workflowRunId", "subscriberId", "campaignId")),
                     List.of()),
             AppConstants.TOPIC_WORKFLOW_TRIGGER,
             new EventContract(

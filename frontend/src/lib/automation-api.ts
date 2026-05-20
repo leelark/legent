@@ -132,8 +132,16 @@ export interface WorkflowRunStep {
   version?: number;
 }
 
-export type AutomationActivityType = 'SQL_QUERY' | 'FILE_DROP' | 'IMPORT' | 'EXTRACT' | 'SCRIPT' | 'WEBHOOK';
+export type AutomationActivityType = 'SQL_QUERY' | 'FILE_DROP' | 'IMPORT' | 'EXTRACT' | 'SCRIPT' | 'WEBHOOK' | 'NOTIFICATION';
 export type AutomationActivityStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
+export type AutomationFailurePolicy = 'STOP_ON_FAILURE' | 'SKIP_DEPENDENTS' | 'CONTINUE_INDEPENDENT';
+
+export interface AutomationVerificationResponse {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  normalizedConfig: Record<string, unknown>;
+}
 
 export interface AutomationActivity {
   id: string;
@@ -141,9 +149,11 @@ export interface AutomationActivity {
   activityType: AutomationActivityType;
   status: AutomationActivityStatus;
   scheduleExpression?: string;
+  dependencyActivityIds?: string[];
+  failurePolicy?: AutomationFailurePolicy;
   inputConfig?: Record<string, unknown>;
   outputConfig?: Record<string, unknown>;
-  verification?: Record<string, unknown>;
+  verification?: AutomationVerificationResponse | Record<string, unknown>;
   lastRunAt?: string;
   nextRunAt?: string;
 }
@@ -156,7 +166,11 @@ export interface AutomationActivityRun {
   triggerSource?: string;
   rowsRead?: number;
   rowsWritten?: number;
+  traceId?: string;
+  errorCode?: string;
   errorMessage?: string;
+  idempotencyKey?: string;
+  dependencyTrace?: Record<string, unknown>;
   result?: Record<string, unknown>;
   startedAt?: string;
   completedAt?: string;
@@ -223,14 +237,16 @@ export const createAutomationActivity = async (payload: {
   activityType: AutomationActivityType;
   status?: AutomationActivityStatus;
   scheduleExpression?: string;
+  dependencyActivityIds?: string[];
+  failurePolicy?: AutomationFailurePolicy;
   inputConfig?: Record<string, unknown>;
   outputConfig?: Record<string, unknown>;
 }) => post<AutomationActivity>('/automation-studio/activities', payload);
 export const verifyAutomationActivity = async (id: string) =>
-  post<{ valid: boolean; errors: string[]; warnings: string[]; normalizedConfig: Record<string, unknown> }>(`/automation-studio/activities/${id}/verify`, {});
-export const runAutomationActivity = async (id: string, payload: { dryRun?: boolean; triggerSource?: string; overrides?: Record<string, unknown> }) =>
+  post<AutomationVerificationResponse>(`/automation-studio/activities/${id}/verify`, {});
+export const runAutomationActivity = async (id: string, payload: { dryRun?: boolean; confirmLiveRun?: boolean; idempotencyKey?: string; triggerSource?: string; overrides?: Record<string, unknown> }) =>
   post<AutomationActivityRun>(`/automation-studio/activities/${id}/runs`, payload);
-export const listAutomationActivityRuns = async (id: string) =>
-  get<AutomationActivityRun[]>(`/automation-studio/activities/${id}/runs`);
+export const listAutomationActivityRuns = async (id: string, limit = 50) =>
+  get<AutomationActivityRun[]>(`/automation-studio/activities/${id}/runs?limit=${limit}`);
 export const getWorkflowCapabilities = async (id: string) => get<WorkflowValidationResponse>(`/workflows/${id}/capabilities`);
 export const getWorkflowAnalytics = async (id: string) => get<Record<string, unknown>>(`/workflows/${id}/analytics`);

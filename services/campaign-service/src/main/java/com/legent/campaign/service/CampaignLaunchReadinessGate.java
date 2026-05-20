@@ -2,6 +2,7 @@ package com.legent.campaign.service;
 
 import com.legent.campaign.client.DeliverabilityReadinessClient;
 import com.legent.campaign.client.DeliveryReadinessClient;
+import com.legent.campaign.client.ContentServiceClient;
 import com.legent.campaign.client.ReadinessDependencyException;
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.dto.CampaignLaunchDto;
@@ -25,6 +26,7 @@ public class CampaignLaunchReadinessGate {
 
     private final DeliverabilityReadinessClient deliverabilityClient;
     private final DeliveryReadinessClient deliveryClient;
+    private final ContentServiceClient contentServiceClient;
 
     public GateResult evaluate(Campaign campaign) {
         List<String> blockers = new ArrayList<>();
@@ -42,6 +44,8 @@ public class CampaignLaunchReadinessGate {
         details.put("senderDomain", senderDomain);
         details.put("sendingDomain", sendingDomain);
         details.put("providerId", providerId);
+
+        evaluateSendGovernancePolicy(campaign, sendingDomain, providerId, blockers, recommendations, details);
 
         if (sendingDomain == null) {
             blockers.add("Authoritative deliverability checks require a sending domain.");
@@ -75,6 +79,85 @@ public class CampaignLaunchReadinessGate {
         ));
 
         return new GateResult(blockers, warnings, recommendations, steps, details);
+    }
+
+    private void evaluateSendGovernancePolicy(Campaign campaign,
+                                              String sendingDomain,
+                                              String providerId,
+                                              List<String> blockers,
+                                              List<CampaignLaunchDto.LaunchRecommendation> recommendations,
+                                              Map<String, Object> details) {
+        String policyId = normalizeReference(campaign.getSendGovernancePolicyId());
+        if (policyId == null) {
+            blockers.add("Send governance policy is required before launch.");
+            recommendations.add(recommend("authoritative.send_governance.required", "BLOCKER", "Select send governance policy",
+                    "Choose a tenant/workspace-owned policy so sender, classification, unsubscribe, suppression, and retention controls are explicit.", false));
+            details.put("sendGovernancePolicy", Map.of("selected", false));
+            return;
+        }
+
+        try {
+            ContentServiceClient.SendGovernancePolicySummary policy = contentServiceClient.getSendGovernancePolicy(
+                    campaign.getTenantId(), campaign.getWorkspaceId(), policyId);
+            Map<String, Object> policyDetails = new LinkedHashMap<>();
+            policyDetails.put("id", policy.id());
+            policyDetails.put("policyKey", policy.policyKey());
+            policyDetails.put("classification", policy.classification());
+            policyDetails.put("senderProfileId", policy.senderProfileId());
+            policyDetails.put("deliveryProfileId", policy.deliveryProfileId());
+            policyDetails.put("sendingDomain", policy.sendingDomain());
+            policyDetails.put("providerId", policy.providerId());
+            policyDetails.put("unsubscribePolicy", policy.unsubscribePolicy());
+            policyDetails.put("suppressionRequired", policy.suppressionRequired());
+            policyDetails.put("sendLogRetentionDays", policy.sendLogRetentionDays());
+            policyDetails.put("active", policy.active());
+            details.put("sendGovernancePolicy", policyDetails);
+
+            if (!Boolean.TRUE.equals(policy.active())) {
+                blockers.add("Send governance policy " + policyId + " is inactive.");
+            }
+            boolean commercial = Boolean.TRUE.equals(policy.commercial())
+                    || "COMMERCIAL".equalsIgnoreCase(defaultString(policy.classification()));
+            if (commercial) {
+                if (!Boolean.TRUE.equals(policy.suppressionRequired())) {
+                    blockers.add("Commercial send governance policy must require suppression checks.");
+                }
+                if (!"REQUIRED".equalsIgnoreCase(defaultString(policy.unsubscribePolicy()))) {
+                    blockers.add("Commercial send governance policy must require unsubscribe handling.");
+                }
+            }
+
+            String policySenderProfileId = normalizeReference(policy.senderProfileId());
+            String campaignSenderProfileId = normalizeReference(campaign.getSenderProfileId());
+            if (policySenderProfileId != null && campaignSenderProfileId == null) {
+                blockers.add("Campaign must use sender profile " + policy.senderProfileId() + " required by send governance policy.");
+            } else if (policySenderProfileId != null && !policySenderProfileId.equals(campaignSenderProfileId)) {
+                blockers.add("Campaign sender profile does not match the selected send governance policy.");
+            }
+
+            String policySendingDomain = normalizeDomain(policy.sendingDomain());
+            if (policySendingDomain != null && sendingDomain == null) {
+                blockers.add("Campaign must use sending domain " + policy.sendingDomain() + " required by send governance policy.");
+            } else if (policySendingDomain != null && !policySendingDomain.equals(sendingDomain)) {
+                blockers.add("Campaign sending domain does not match the selected send governance policy.");
+            }
+
+            String policyProviderId = normalizeValue(policy.providerId());
+            if (policyProviderId != null && providerId == null) {
+                blockers.add("Campaign must use provider " + policy.providerId() + " required by send governance policy.");
+            } else if (policyProviderId != null && !policyProviderId.equals(providerId)) {
+                blockers.add("Campaign delivery provider does not match the selected send governance policy.");
+            }
+
+            if (policy.sendLogRetentionDays() == null || policy.sendLogRetentionDays() < 1) {
+                blockers.add("Send governance policy must define positive send-log retention days.");
+            }
+        } catch (ContentServiceClient.ContentServiceException e) {
+            blockers.add("Send governance policy check unavailable: " + e.getMessage() + ".");
+            recommendations.add(recommend("authoritative.send_governance.unavailable", "BLOCKER", "Restore governance policy lookup",
+                    "Campaign launch fails closed until content-service can verify the selected send governance policy.", false));
+            details.put("sendGovernancePolicy", Map.of("available", false, "policyId", policyId, "reason", e.getMessage()));
+        }
     }
 
     private void evaluateAuthentication(String tenantId,
@@ -356,6 +439,18 @@ public class CampaignLaunchReadinessGate {
         }
         String normalized = value.trim().toLowerCase(Locale.ROOT);
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private String normalizeReference(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isBlank() ? null : normalized;
+    }
+
+    private String defaultString(String value) {
+        return value == null ? "" : value;
     }
 
     public record GateResult(

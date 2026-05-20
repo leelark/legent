@@ -1,0 +1,61 @@
+{
+    "id":  "email-governance-policy-objects",
+    "createdAt":  "2026-05-20T16:41:35.3228836Z",
+    "objective":  "Add first-class email send governance policy objects",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/content-service/src/main/java/com/legent/content/**",
+                         "services/content-service/src/test/java/com/legent/content/**",
+                         "services/content-service/src/main/resources/db/migration/**",
+                         "services/campaign-service/src/main/java/com/legent/campaign/**",
+                         "services/campaign-service/src/test/java/com/legent/campaign/**",
+                         "services/campaign-service/src/main/resources/db/migration/**",
+                         "services/delivery-service/src/main/java/com/legent/delivery/**",
+                         "services/delivery-service/src/test/java/com/legent/delivery/**",
+                         "services/delivery-service/src/main/resources/db/migration/**",
+                         "docs/product/salesforce-parity-matrix.md",
+                         "docs/product/automation-studio-activity-orchestration-plan.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "DELIVERABILITY_ENGINEER",
+                   "CAMPAIGN_SERVICE_OWNER",
+                   "DATABASE_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/content-service",
+                           "services/campaign-service",
+                           "services/delivery-service -am test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Safe stop requested after completion; resume with automation-send-activity-handoff or delivery/message policy snapshot work only after reading this checkpoint and memory.",
+    "completedAt":  "2026-05-20T17:08:23Z",
+    "outcome":  "Implemented first-class tenant/workspace-scoped send governance policy objects in content-service, campaign-level policy selection, content internal policy lookup, campaign launch/preflight fail-closed validation, public-edge denies for the new internal endpoint, and focused regression coverage.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/content-service -am \"-Dtest=SendGovernancePolicyServiceTest,SendGovernancePolicyControllerTest,ContentControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (11 tests)",
+                          "PASS: .\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=ContentServiceClientTest,CampaignLaunchReadinessGateTest,CampaignLaunchOrchestrationServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (19 tests)",
+                          "PASS: .\\mvnw.cmd -pl services/content-service,services/campaign-service,services/delivery-service -am test (86 service tests plus upstream shared tests)",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: git diff --check (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "This is a local governance contract and does not claim legal CAN-SPAM compliance, Salesforce parity, inbox placement, production readiness, or 10 lakh throughput evidence.",
+                          "Delivery-service runtime safety remains authoritative; no delivery-owned policy/profile tables or per-message policy snapshots were added in this slice.",
+                          "Target Flyway migration application, production route-edge behavior, and service-to-service content lookup availability still require environment evidence before release claims."
+                      ]
+}

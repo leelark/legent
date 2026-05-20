@@ -6,7 +6,13 @@ Fresh baseline date: 2026-05-20.
 
 Current overall coordination work:
 
-Multi-module coordinator `multi-module-coordinator-20260520T113233Z` remains registered in `MULTI_MODULE_COORDINATOR_ONLY` mode. The stale `overall-24x7` coordinator registration is archived and superseded. No module source implementation is owned by this coordinator, and current lease count is zero.
+Overall thread `overall-20260520T133124Z` has been safe-stopped at user request after completing its active work. It superseded the previous multi-module coordinator for this run. `frequency-optimization-governance`, `ai-content-assistance-governance`, `automation-studio-activity-orchestration`, `automation-activity-security-design`, `automation-activity-dependency-run-contract`, `automation-activity-capability-verification-ui`, `flow-analytics-experimentation`, `automation-file-trigger-extract-family`, `automation-webhook-notification-family`, and `email-governance-policy-objects` are completed locally. No active work item is leased at this moment.
+
+Active overall work:
+
+| Work Item | Owner | Scope |
+|---|---|---|
+| _None currently_ | _N/A_ | Overall team is safe-stopped at user request. |
 
 Active module threads:
 
@@ -18,10 +24,7 @@ READY planned assignments:
 
 | Work Item | Owner | Module |
 |---|---|---|
-| `frequency-optimization-governance` | DELIVERABILITY_SERVICE_OWNER | deliverability-service |
-| `ai-content-assistance-governance` | CONTENT_SERVICE_OWNER | content-service |
-| `automation-studio-activity-orchestration` | AUTOMATION_SERVICE_OWNER | automation-service |
-| `flow-analytics-experimentation` | TRACKING_SERVICE_OWNER | tracking-service |
+| _None currently_ | _N/A_ | All current READY work is leased by the overall team. |
 
 Safe-stopped module threads:
 
@@ -30,6 +33,7 @@ Safe-stopped module threads:
 | `frontend-20260520T113115Z` | FRONTEND_OWNER | Completed `campaign-budget-frequency-mode-contract`, `automation-mode-contract`, and `template-studio-mode-contract`; source validation passed and thread was safe-stopped at user request. | Resume only if a new frontend module request arrives; start by reading `.codex/checkpoints/20260520T124500Z-template-studio-mode-contract.json` and this handoff before selecting any new frontend work. |
 | `audience-service-20260520T121322Z` | AUDIENCE_SERVICE_OWNER | Completed `predictive-segments-governance` and the no-schema backend slice `contact-data-designer-preview-governance`; source validation passed and thread was safe-stopped at user request. | Resume `contact-data-designer-governance` from additive provenance/classification/audit tables, controller/API validation, frontend relationship-designer controls, or the smaller internal endpoint security-chain test slice. |
 | `foundation-service-20260520T100717Z` | FOUNDATION_SERVICE_OWNER | Completed admin settings context mismatch, config by-ID scope, differentiation upsert exact-match, public contact admin restriction, config create/upsert mismatch, and tenant get self-scope; reassessment scouts completed and the thread was safe-stopped at user request. | Resume from `.codex/checkpoints/20260520T131300Z-foundation-service-safe-stop.json` and `.codex/threads/foundation-service-20260520T100717Z-handoff.md`. Highest safe candidates: differentiation evaluate exact workspace matching, core-platform workspace consistency guards, compliance privacy-request workspace scoping, or permission-group tenant mismatch guard. Policy/schema blockers are tenant lifecycle, config version history, and tenant-scoped public contact inbox. |
+| `overall-20260520T133124Z` | PROGRAM_MANAGER_AGENT | Completed the ONE_OVERALL_TEAM run through `email-governance-policy-objects`; all leases released and user requested safe stop. | Resume from `.codex/checkpoints/20260520T164135Z-email-governance-policy-objects.json` and `.codex/threads/overall-20260520T133124Z-handoff.md`. Highest related candidates: `automation-send-activity-handoff` or delivery/message policy snapshot work. |
 | `frontend-20260520T100638Z` | FRONTEND_OWNER | Completed `mode-aware-workflow-contract`: typed BASIC/ADVANCED mode metadata, render-time Settings navigation filtering, Admin role-gate separation, and campaign Experiment Engine render/payload gating. | Archived before `frontend-20260520T113115Z`; budget/frequency follow-up completed in `.codex/checkpoints/20260520T113830Z-campaign-budget-frequency-mode-contract.json`. |
 | `overall-24x7` | PROGRAM_MANAGER_AGENT | Completed `frequency-optimization-deterministic-policy-contract`; later stale after safe stop. | Archived and superseded by `multi-module-coordinator-20260520T113233Z`. |
 
@@ -47,7 +51,7 @@ Source of truth:
 
 ## Next Action
 
-Review safe-stopped module handoffs before restarting any module team. Frontend and audience heartbeat automations were deleted by their safe-stop flows; no foundation-service automation was found. The `legent-multi-module-coordinator` heartbeat automation remains the coordinator resume path. For unstarted READY module assignments, render module prompts with `.codex/utilities/get-module-prompt.ps1 -Module <module> -BacklogItemId <id>` when starting those teams. Keep unstarted teams as READY, not blocked.
+Safe stop is active. On resume, do not assume an active lease exists; run Codex validation, read the latest checkpoint/handoff, then select the next highest-priority safe local backlog item. For any future module-specific thread, render module prompts with `.codex/utilities/get-module-prompt.ps1 -Module <module> -BacklogItemId <id>` and avoid duplicate source ownership with the overall thread.
 
 Foundation module status:
 - `foundation-service-20260520T100717Z` completed `admin-settings-context-mismatch-fail-closed`; focused and full foundation tests passed.

@@ -54,6 +54,27 @@ public class RawEvent {
     @Column(nullable = false)
     private boolean holdout = false;
 
+    @Column(name = "experiment_scope")
+    private String experimentScope;
+
+    @Column(name = "workflow_id")
+    private String workflowId;
+
+    @Column(name = "workflow_version")
+    private Integer workflowVersion;
+
+    @Column(name = "workflow_run_id")
+    private String workflowRunId;
+
+    @Column(name = "step_id")
+    private String stepId;
+
+    @Column(name = "path_id")
+    private String pathId;
+
+    @Column(name = "goal_id")
+    private String goalId;
+
     @Column(name = "user_agent")
     private String userAgent;
 

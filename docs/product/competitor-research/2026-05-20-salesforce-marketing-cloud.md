@@ -54,5 +54,5 @@ Summer 2026 Salesforce release material beyond 2026-05-20 was not used as curren
 | `email-governance-policy-objects` | Beginner safe defaults, Advanced sender controls, Admin policy/audit | High | BACKLOG |
 | `contact-data-designer-governance` | Beginner list/import presets, Advanced relationships/query preview, Admin retention/deletion | High | BACKLOG |
 | `journey-runtime-node-contract` | Beginner recipes, Advanced accurate node availability, Admin publish/simulation gates | High | READY |
-| `automation-studio-activity-orchestration` | Beginner scheduled recipes, Advanced activity builder, Admin run policy | High | BACKLOG |
-| `ai-governance-optimization-foundation` | Suggestions require uncertainty, opt-in, audit, and data-use controls | High | BACKLOG |
+| `automation-studio-activity-orchestration` | Beginner scheduled recipes, Advanced activity builder, Admin run policy | High | SPLIT_LOCAL: parent decomposed into security design, dependency/run contract, capability UI, file/extract, webhook/notification, send handoff, and script sandbox slices. |
+| `ai-governance-optimization-foundation` | Suggestions require uncertainty, opt-in, audit, and data-use controls; draft-only policy/audit scaffold is local, model-provider generation remains future work | High | PARTIAL_LOCAL |

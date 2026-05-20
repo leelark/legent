@@ -23,6 +23,8 @@ public class PerformanceIntelligenceSummaryService extends PerformanceLedgerSupp
         result.put("personalizationEvaluations", listLatest("personalization_evaluation_runs", resolvedWorkspace, 10));
         result.put("optimizationPolicies", listScoped("performance_optimization_policies", resolvedWorkspace, "created_at DESC"));
         result.put("optimizationRuns", listLatest("performance_optimization_runs", resolvedWorkspace, 10));
+        result.put("aiContentAssistancePolicies", listScoped("ai_content_assistance_policies", resolvedWorkspace, "created_at DESC"));
+        result.put("aiContentAssistanceAudits", listLatest("ai_content_assistance_audits", resolvedWorkspace, 10));
         result.put("extensionPackages", listScoped("extension_governance_packages", resolvedWorkspace, "created_at DESC"));
         result.put("extensionValidationRuns", listLatest("extension_governance_test_runs", resolvedWorkspace, 10));
         result.put("operationsReviews", listLatest("operations_assistance_reviews", resolvedWorkspace, 10));

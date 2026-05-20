@@ -98,6 +98,43 @@ public class AnalyticsService {
         }
     }
 
+    public List<Map<String, Object>> getJourneyGoalMetrics(String tenantId, String workspaceId, String workflowId) {
+        if (tenantId == null || tenantId.isBlank()
+                || workspaceId == null || workspaceId.isBlank()
+                || workflowId == null || workflowId.isBlank()) {
+            return new ArrayList<>();
+        }
+        try {
+            return jdbcTemplate.queryForList("""
+                SELECT
+                    COALESCE(goal_id, 'UNSPECIFIED') AS goal_id,
+                    step_id,
+                    path_id,
+                    COALESCE(experiment_scope, 'JOURNEY') AS experiment_scope,
+                    COUNT(*) AS conversions,
+                    COUNT(DISTINCT subscriber_id) AS unique_subscribers,
+                    COALESCE(SUM(CASE
+                        WHEN metadata IS NOT NULL
+                         AND metadata->>'value' ~ '^[0-9]+(\\.[0-9]+)?$'
+                        THEN (metadata->>'value')::numeric
+                        ELSE 0
+                    END), 0) AS revenue
+                FROM raw_events
+                WHERE tenant_id = ?
+                  AND workspace_id = ?
+                  AND workflow_id = ?
+                  AND event_type = 'CONVERSION'
+                GROUP BY COALESCE(goal_id, 'UNSPECIFIED'), step_id, path_id, COALESCE(experiment_scope, 'JOURNEY')
+                ORDER BY conversions DESC, goal_id
+                LIMIT 100
+            """, tenantId, workspaceId, workflowId);
+        } catch (DataAccessException e) {
+            log.error("Failed to query journey goal metrics for tenant {} workspace {} workflow {}",
+                    tenantId, workspaceId, workflowId, e);
+            return new ArrayList<>();
+        }
+    }
+
     public List<Map<String, Object>> getRollups(String tenantId, String workspaceId, String campaignId, String grain) {
         if (tenantId == null || tenantId.isBlank() || workspaceId == null || workspaceId.isBlank()) {
             return new ArrayList<>();
@@ -145,7 +182,8 @@ public class AnalyticsService {
         List<Object> params = new ArrayList<>(List.of(tenantId, workspaceId));
         StringBuilder sql = new StringBuilder("""
                 SELECT id, event_type, campaign_id, subscriber_id, message_id, experiment_id, variant_id,
-                       holdout, link_url, "timestamp", metadata
+                       holdout, experiment_scope, workflow_id, workflow_version, workflow_run_id, step_id,
+                       path_id, goal_id, link_url, "timestamp", metadata
                 FROM raw_events
                 WHERE tenant_id = ? AND workspace_id = ?
                 """);
@@ -181,7 +219,8 @@ public class AnalyticsService {
 
     public String toCsv(List<Map<String, Object>> rows) {
         List<String> headers = List.of("id", "event_type", "campaign_id", "subscriber_id", "message_id",
-                "experiment_id", "variant_id", "holdout", "link_url", "timestamp", "metadata");
+                "experiment_id", "variant_id", "holdout", "experiment_scope", "workflow_id", "workflow_version",
+                "workflow_run_id", "step_id", "path_id", "goal_id", "link_url", "timestamp", "metadata");
         StringBuilder csv = new StringBuilder(String.join(",", headers)).append('\n');
         for (Map<String, Object> row : rows) {
             for (int i = 0; i < headers.size(); i++) {
@@ -204,7 +243,7 @@ public class AnalyticsService {
                 taxonomy("BOUNCE", "deliverability", "Provider reported bounce.", List.of("messageId"), List.of("bounceType", "smtpCode", "diagnostic")),
                 taxonomy("COMPLAINT", "deliverability", "Recipient complaint or feedback loop event.", List.of("messageId"), List.of("fblProvider")),
                 taxonomy("UNSUBSCRIBE", "consent", "Recipient unsubscribe event.", List.of("subscriberId"), List.of("source", "listId")),
-                taxonomy("CONVERSION", "business", "Tracked conversion event.", List.of("eventName"), List.of("value", "currency"))
+                taxonomy("CONVERSION", "business", "Tracked conversion event.", List.of("eventName"), List.of("value", "currency", "experimentScope", "workflowId", "workflowRunId", "stepId", "pathId", "goalId"))
         );
     }
 

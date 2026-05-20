@@ -43,6 +43,9 @@ public class Campaign extends TenantAwareEntity {
 
     @Column(name = "sender_profile_id", length = 64)
     private String senderProfileId;
+
+    @Column(name = "send_governance_policy_id", length = 64)
+    private String sendGovernancePolicyId;
     
     @Column(name = "content_id")
     private String contentId;

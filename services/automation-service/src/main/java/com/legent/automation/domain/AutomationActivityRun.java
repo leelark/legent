@@ -42,8 +42,21 @@ public class AutomationActivityRun extends TenantAwareEntity {
     @Column(name = "rows_written")
     private Long rowsWritten = 0L;
 
+    @Column(name = "trace_id", length = 64)
+    private String traceId;
+
+    @Column(name = "idempotency_key", length = 128)
+    private String idempotencyKey;
+
+    @Column(name = "error_code", length = 64)
+    private String errorCode;
+
     @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "dependency_trace_json", columnDefinition = "jsonb")
+    private String dependencyTraceJson = "{}";
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "result_json", columnDefinition = "jsonb")

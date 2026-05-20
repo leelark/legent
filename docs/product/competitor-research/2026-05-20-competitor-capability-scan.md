@@ -48,6 +48,6 @@ Competitor parity is converging around marketer-owned visual journeys, guided se
 | `journey-runtime-node-contract` | Beginner recipes and Advanced node library must reflect executable runtime behavior. | High | READY |
 | `segment-builder-v2` | Beginner presets, Advanced nested behavioral filters, Admin governance. | Medium | PROPOSED |
 | `mode-aware-workflow-contract` | BASIC and ADVANCED exist; role-gated Admin is not yet a product contract. | Medium | BACKLOG |
-| `deliverability-aware-automation` | Warmup, engaged-first ramps, quiet hours, suppression, and volume caps must be journey-aware. | High | BACKLOG |
+| `deliverability-aware-automation` | Warmup, engaged-first ramps, quiet hours, suppression, and volume caps must be journey-aware. | High | BACKLOG: related send handoff controls are split under `automation-send-activity-handoff`; live deliverability evidence remains external. |
 | `flow-analytics-experimentation` | Step metrics, conversion goals, A/B, random cohorts, and winning-path reporting. | Medium | BACKLOG |
-| `ai-governance-optimization-foundation` | AI suggestions require opt-in, provider disclosure, audit, and privacy guardrails. | High | BACKLOG |
+| `ai-governance-optimization-foundation` | AI suggestions require opt-in, provider disclosure, audit, and privacy guardrails; local draft-only policy/audit scaffold exists, model-provider generation remains future work. | High | PARTIAL_LOCAL |

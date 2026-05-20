@@ -92,6 +92,38 @@ class ContentServiceClientTest {
         assertNull(capturedRequest.get());
     }
 
+    @Test
+    void getSendGovernancePolicySendsTenantWorkspaceAndInternalToken() {
+        responseBody = """
+                {"success":true,"data":{"id":"policy-1","policyKey":"promo.default","classification":"COMMERCIAL","commercial":true,"senderProfileId":"sender-1","deliveryProfileId":"delivery-1","sendingDomain":"example.com","providerId":"provider-1","unsubscribePolicy":"REQUIRED","suppressionRequired":true,"consentRequired":false,"trackingAllowed":true,"sendLogRetentionDays":365,"active":true}}
+                """;
+
+        ContentServiceClient.SendGovernancePolicySummary policy = client.getSendGovernancePolicy(
+                "tenant-1",
+                "workspace-1",
+                "policy-1");
+
+        assertEquals("promo.default", policy.policyKey());
+        assertEquals("COMMERCIAL", policy.classification());
+        assertTrue(policy.suppressionRequired());
+        CapturedRequest request = capturedRequest.get();
+        assertEquals("GET", request.method());
+        assertEquals("/api/v1/content/send-governance-policies/policy-1/internal", request.path());
+        assertEquals("tenant-1", request.header(AppConstants.HEADER_TENANT_ID));
+        assertEquals("workspace-1", request.header(AppConstants.HEADER_WORKSPACE_ID));
+        assertEquals(INTERNAL_TOKEN, request.header("X-Internal-Token"));
+    }
+
+    @Test
+    void getSendGovernancePolicyFailsClosedBeforeHttpWhenPolicyIdIsMissing() {
+        ContentServiceClient.ContentServiceException exception = assertThrows(
+                ContentServiceClient.ContentServiceException.class,
+                () -> client.getSendGovernancePolicy("tenant-1", "workspace-1", " "));
+
+        assertTrue(exception.getMessage().contains("policyId"));
+        assertNull(capturedRequest.get());
+    }
+
     private void handleRequest(HttpExchange exchange) throws IOException {
         String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
         capturedRequest.set(new CapturedRequest(

@@ -214,3 +214,171 @@ Validation:
 
 Residual risk:
 - Target ClickHouse DDL migration/application and high-volume refresh behavior still require environment evidence before release, throughput, or BI-grade experiment claims.
+
+## 2026-05-20 AI Content Assistance Governance
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/performance/AiContentAssistanceGovernanceService.java`, `services/foundation-service/src/main/resources/db/migration/V16__ai_content_assistance_governance.sql`, `services/foundation-service/src/test/java/com/legent/foundation/service/AiContentAssistanceGovernanceServiceTest.java`, and `docs/product/ai-governance-optimization-foundation.md`.
+
+Status: completed local governance-contract implementation cycle.
+
+Outcome:
+- Added tenant/workspace-scoped AI content assistance policies and audits for draft-only assistance.
+- Policy records capture feature class, provider disclosure, data-class allow/block lists, training stance, retention, opt-in/out, kill switch, draft-only mode, and required human review.
+- Evaluation records deny publish, auto-publish, send, and test-send actions; draft application requires human review.
+- Audit evidence stores policy version, actor, data classes, prompt template version, prompt/output hashes, guardrail findings, review decision, evidence refs, and redacted context without storing raw prompt/output or invoking a provider.
+
+Validation:
+- `.\mvnw.cmd -pl services/foundation-service -Dtest=AiContentAssistanceGovernanceServiceTest test`
+- `.\mvnw.cmd -pl services/foundation-service,services/content-service -am test`
+
+Residual risk:
+- No model-provider integration or generated content application exists in this slice.
+- Content-service publish/test-send review gates for AI-generated artifacts remain a separate implementation.
+
+## 2026-05-20 Automation Studio activity orchestration split
+
+Source: `docs/product/automation-studio-activity-orchestration-plan.md`, `AutomationStudioService.java`, `AutomationActivity.java`, `AutomationActivityRun.java`, `AudienceDataExtensionClient.java`, `WorkflowEngine.java`, and read-only backend/frontend/security/QA scouts.
+
+Status: completed planning/decomposition cycle.
+
+Outcome:
+- Confirmed only SQL query and import activities have live execution today; other activity families remain fail-closed.
+- Documented security requirements for non-secret config/result JSON, secret refs, scoped artifacts, `OutboundUrlGuard`, send handoff semantics, and script sandbox blocking.
+- Added `docs/product/automation-studio-activity-security-contract.md` with the implementation order, sanitizer/redaction contract, artifact ownership model, internal route checklist, activity-family guardrails, and focused test matrix.
+- Split the parent into leaseable child slices: `automation-activity-security-design`, `automation-activity-dependency-run-contract`, `automation-activity-capability-verification-ui`, `automation-file-trigger-extract-family`, `automation-webhook-notification-family`, `automation-send-activity-handoff`, and `automation-script-activity-security-sandbox`.
+
+Residual risk:
+- Dependency metadata and bounded run listing are now local, but actual multi-step execution, capability UI, file/extract, webhook, notification, send, and script sandbox work are not implemented yet.
+- Kafka side effects inside workflow runtime still need outbox or after-commit hardening before expanding fan-out.
+
+## 2026-05-20 Automation Studio dependency/run contract
+
+Source: `AutomationStudioDto.java`, `AutomationActivity.java`, `AutomationActivityRun.java`, `AutomationActivityRunRepository.java`, `AutomationStudioService.java`, `AutomationStudioController.java`, `V7__automation_activity_dependency_run_contract.sql`, and `AutomationStudioServiceTest.java`.
+
+Status: local implementation cycle in validation.
+
+Outcome:
+- Added tenant/workspace-scoped dependency metadata and failure policy to Automation Studio activities.
+- Added dependency existence and cycle validation before create/update persistence.
+- Added trace ID, error code, dependency trace JSON, and bounded pageable run listing.
+- Preserved current side-effect surface: only existing SQL/import execution paths remain live-supported.
+- Focused `AutomationStudioServiceTest` passed with 17 tests, including cross-workspace dependency denial, cycle rejection, dependency trace metadata, and bounded run listing.
+
+Residual risk:
+- Dependency metadata does not yet orchestrate multi-step execution; it is a validation/run-history contract for the next execution slice.
+- Sanitizer/redaction utilities from the security contract are still future implementation work.
+
+## 2026-05-20 Automation Studio capability and verification UI
+
+Source: `frontend/src/app/(workspace)/automation/page.tsx`, `frontend/src/lib/automation-api.ts`, `frontend/tests/e2e/automation-studio.spec.ts`, and `frontend/tests/e2e/ui-mode.spec.ts`.
+
+Status: completed local frontend implementation cycle.
+
+Outcome:
+- Automation Studio now shows per-activity capability state from supported live types and backend verification metadata.
+- Unsupported executable families show draft/design/blocked state and keep dry-run side effects disabled while verification remains available.
+- Activity authoring no longer uses placeholder external URLs or signed-script placeholders; per-type fields build explicit SQL/import/file/extract/webhook/script config payloads.
+- Verify results, row-scoped action errors, dependency count, failure policy, run trace ID, error code, and dependency trace counts are visible in the activity surface.
+- BASIC mode still hides authoring and execution controls; ADVANCED mode keeps those controls and now has payload coverage.
+
+Validation:
+- `cd frontend; npm run lint`
+- `cd frontend; npm run build:ci`
+- `cd frontend; .\node_modules\.bin\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line`
+
+Residual risk:
+- This is UI clarity only; backend validation and service safety remain authoritative.
+- Live execution controls, dependency execution, sanitizer/redaction utilities, and executable file/webhook/send/script families remain separate slices.
+
+## 2026-05-20 Flow analytics experimentation
+
+Source: `WorkflowStudioService.java`, `InstanceHistoryRepository.java`, `TrackingDto.java`, `RawEvent.java`, `TrackingIngestionService.java`, `AnalyticsService.java`, `ClickHouseWriter.java`, `ClickHouseRollupService.java`, `V12__tracking_journey_goal_lineage.sql`, `analytics/page.tsx`, `workspace-mock.ts`, and `analytics.spec.ts`.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Automation workflow analytics now uses a bounded recent-run window and returns step metrics, observed path signatures, journey path-test target counts, exit-goal hits, deterministic diagnostics, and evidence notes that avoid causal or AI claims.
+- Tracking conversion events now have explicit journey lineage fields for workflow, version, run, step, path, goal, experiment scope, and holdout; Postgres and ClickHouse raw-event contracts include the additive columns.
+- Tracking analytics exposes journey goal metrics separately from campaign experiment reporting.
+- The analytics dashboard shows journey runs, step metrics, observed paths, path tests, conversion goals, deterministic signals, and tracking-owned goal conversions.
+
+Validation:
+- Focused automation, tracking, and shared Kafka tests passed.
+- Full `.\mvnw.cmd -pl services/tracking-service,services/automation-service -am test` passed.
+- Frontend lint, production build, and targeted Chromium analytics Playwright spec passed.
+- Codex validation, repo artifact hygiene, JPA config scan, and `git diff --check` passed.
+
+Residual risk:
+- Journey path reporting is observed execution evidence only, not causal winner automation.
+- ClickHouse journey-lineage DDL and high-volume behavior need target-environment proof before BI or throughput claims.
+- Tracking-owned workflow-topic ingestion and rollups remain future work.
+
+## 2026-05-20 Automation file/import/extract artifact ownership
+
+Source: `AutomationArtifact.java`, `AutomationArtifactService.java`, `AutomationArtifactController.java`, `AutomationStudioService.java`, `V8__automation_artifact_ownership.sql`, `ImportService.java`, `automation/page.tsx`, and `automation-studio.spec.ts`.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Added service-minted automation artifact metadata with tenant/workspace scope, source kind, status, generated object key, content type, size, SHA-256, retention, and expiry.
+- Automation Studio import activities now require scoped `artifactId` references; raw object-key fields are rejected before persistence, and live import handoff records only artifact summary plus import job ID/status.
+- File-drop and extract activities now support validation-only dry-run records with redacted artifact summaries while live file movement stays disabled.
+- Live Automation Studio side effects now require explicit confirmation plus an idempotency key, and duplicate live import requests skip the audience handoff.
+- Audience internal import start now rejects raw URLs, traversal, absolute paths, and unscoped object keys while allowing service-generated automation artifact keys.
+- Automation Studio UI now sends artifact IDs for import/file/extract activity authoring and blocks unsafe file references client-side.
+
+Validation:
+- Focused automation/audience tests passed.
+- Full `.\mvnw.cmd -pl services/automation-service,services/audience-service -am test` passed.
+- Frontend lint, production build, and targeted Chromium Automation Studio Playwright spec passed.
+- Route validation, repo artifact hygiene, Codex validation, and `git diff --check` passed.
+
+Residual risk:
+- This does not prove target object storage contents or adapter behavior.
+- Live file movement, inbox polling, provider export/import, and file-transfer parity still require storage-adapter tests and target evidence.
+
+## 2026-05-20 Automation webhook/notification activity family
+
+Source: `AutomationStudioService.java`, `AutomationStudioDto.java`, `WebhookDispatcherService.java`, `WebhookRetryService.java`, `WebhookResponseSanitizer.java`, `automation/page.tsx`, and `automation-studio.spec.ts`.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Automation Studio webhook activities now publish bounded `automation.*` platform events to `webhook.triggered` instead of accepting raw endpoints, methods, headers, or bodies.
+- Notification activities now support live terminal-state platform notifications with explicit recipient, title, message, severity, terminal status, and app-relative link validation.
+- Live webhook/notification runs require active status, explicit confirmation, and idempotency keys; duplicate live webhook runs skip repeat platform publication.
+- Platform webhook delivery keeps endpoint ownership, outbound URL guard, signing, retry/idempotency behavior, and now bounds/redacts stored delivery responses and retry errors.
+- Automation Studio UI exposes guarded webhook and terminal notification authoring with client-side unsafe-reference rejection and Playwright coverage.
+
+Validation:
+- Focused automation-service, platform-service, and shared common tests passed.
+- Full `.\mvnw.cmd -pl services/automation-service,services/platform-service,shared/legent-common -am test` passed.
+- Frontend lint, production build, and targeted Chromium Automation Studio Playwright spec passed.
+- Route validation, repo artifact hygiene, Codex validation, and `git diff --check` passed.
+
+Residual risk:
+- This does not prove target platform migration application, Kafka replay behavior, production egress, or real third-party endpoint behavior.
+- Governed send handoff, live file movement, and script sandboxing remain separate slices.
+
+## 2026-05-20 Email governance policy objects
+
+Source: `SendGovernancePolicy.java`, `SendGovernancePolicyController.java`, `SendGovernancePolicyService.java`, `V10__send_governance_policies.sql`, `Campaign.java`, `ContentServiceClient.java`, `CampaignLaunchReadinessGate.java`, `CampaignLaunchOrchestrationService.java`, `V15__campaign_send_governance_policy.sql`, `config/nginx/nginx.conf`, `infrastructure/kubernetes/ingress/ingress.yml`, and `scripts/ops/validate-route-map.ps1`.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Content-service now owns tenant/workspace-scoped send governance policy objects with policy key, classification, sender/delivery references, sending domain, provider, unsubscribe/suppression controls, tracking, send-log retention, active state, and audit columns.
+- Campaigns now store `sendGovernancePolicyId`; create/update/duplicate DTO flows preserve it, and launch controls block missing policy selection.
+- Campaign preflight/direct send/Launch Command Center readiness call content-service internal policy lookup and fail closed for missing, unavailable, inactive, commercial unsafe, sender-profile mismatch, sending-domain mismatch, provider mismatch, or invalid retention policy.
+- Public edge Nginx and Kubernetes ingress deny the new content internal policy endpoint, and route validation enforces the deny regex.
+
+Validation:
+- Focused content policy/RBAC/internal-token tests passed.
+- Focused campaign content-client, launch-readiness, and launch-orchestration tests passed.
+- Full `.\mvnw.cmd -pl services/content-service,services/campaign-service,services/delivery-service -am test` passed.
+- Route validation, repo artifact hygiene, Codex validation, and `git diff --check` passed.
+
+Residual risk:
+- This is a local governance contract, not a legal compliance, Salesforce parity, inbox-placement, production-readiness, or 10 lakh throughput claim.
+- Delivery-service runtime safety remains authoritative; delivery-owned profile tables and per-message immutable policy snapshots remain follow-up work.
+- Target Flyway migration application, service-to-service policy lookup availability, and public-edge behavior still require environment evidence before release claims.
