@@ -21,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/admin/contact-requests")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN')")
+@PreAuthorize("hasRole('PLATFORM_ADMIN')")
 public class AdminContactRequestController {
 
     private final PublicContactService publicContactService;

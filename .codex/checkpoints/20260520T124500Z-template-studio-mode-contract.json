@@ -1,0 +1,44 @@
+{
+  "id": "template-studio-mode-contract",
+  "createdAt": "2026-05-20T12:45:00Z",
+  "objective": "Apply the BASIC/ADVANCED frontend mode contract to Template Studio tabs, command-center actions, builder library blocks, and advanced rule payloads.",
+  "status": "DONE",
+  "owner": "FRONTEND_OWNER",
+  "threadId": "frontend-20260520T113115Z",
+  "filesInScope": [
+    "frontend/src/lib/ui-mode-contract.ts",
+    "frontend/src/app/(workspace)/email/templates/[id]/page.tsx",
+    "frontend/src/components/content/TemplateBuilder.tsx",
+    "frontend/src/components/content/TemplateStudioCommandCenter.tsx",
+    "frontend/tests/e2e/template-builder.spec.ts"
+  ],
+  "agents": [
+    "FRONTEND_OWNER",
+    "UX_STRATEGIST",
+    "SECURITY_ENGINEER",
+    "TEST_ARCHITECT"
+  ],
+  "validationPlan": [
+    "cd frontend; npm run lint",
+    "cd frontend; npm run build:ci",
+    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/template-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly requested.",
+  "blockers": [],
+  "nextAction": "Safe-stop frontend module thread and delete heartbeat automation per user request.",
+  "outcome": "Template Studio now has ADVANCED_ONLY feature metadata for advanced blocks, conditional rules, reusable content, dynamic content, personalization tokens, version operations, approval workflow, asset library, brand kits, test sends, and publish controls. BASIC mode keeps identity editing, core builder, Save Draft, and Preview/QA, while unmounting advanced tabs/actions, skipping hidden optional advanced resource loads, hiding advanced builder blocks/rules/raw HTML snapshot, and scrubbing conditional block settings from BASIC save payloads.",
+  "validationRun": [
+    "PASS: cd frontend; npm run lint",
+    "PASS: cd frontend; npm run build:ci",
+    "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/template-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+    "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "PASS: git diff --check (CRLF warnings only)"
+  ],
+  "residualRisks": [
+    "UI mode is not an authorization boundary; content-service permissions for publish, approvals, assets, brand kits, dynamic rules, tokens, and test sends remain authoritative.",
+    "BASIC mode intentionally preserves Save Draft and Preview/QA; backend rendering/validation still owns HTML sanitization and content safety.",
+    "The shared audit JSONL was already leased by an active audience module during completion recording, so durable detail is kept in this checkpoint, handoff, backlog, and memory."
+  ]
+}

@@ -1,4 +1,4 @@
-{
+﻿{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
     "leases":  [
@@ -918,6 +918,1132 @@
                        "acquiredAt":  "2026-05-20T10:20:57.1541895Z",
                        "expiresAt":  "2026-05-20T14:20:57.1541895Z",
                        "heartbeatAt":  "2026-05-20T10:32:26.8213906Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-campaign-budget-frequency-mode-contract-20260520T114022Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "campaign-budget-frequency-mode-contract",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/lib/ui-mode-contract.ts",
+                                            "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                                            "frontend/tests/e2e/campaign-engine.spec.ts",
+                                            ".codex/checkpoints/20260520T113830Z-campaign-budget-frequency-mode-contract.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/enhancement-log.md",
+                                            ".codex/backlog/queue.json",
+                                            ".codex/threads/frontend-20260520T113115Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/lib/ui-mode-contract.ts",
+                                          "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                                          "frontend/tests/e2e/campaign-engine.spec.ts",
+                                          ".codex/checkpoints/20260520T113830Z-campaign-budget-frequency-mode-contract.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/enhancement-log.md",
+                                          ".codex/backlog/queue.json",
+                                          ".codex/threads/frontend-20260520T113115Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:40:22.9639574Z",
+                       "expiresAt":  "2026-05-20T15:40:22.9639574Z",
+                       "heartbeatAt":  "2026-05-20T11:54:20.6728812Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-admin-settings-context-mismatch-fail-closed-20260520T114253Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "admin-settings-context-mismatch-fail-closed",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java",
+                                            "services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java",
+                                          "services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:42:53.4652244Z",
+                       "expiresAt":  "2026-05-20T15:42:53.4652244Z",
+                       "heartbeatAt":  "2026-05-20T11:54:10.7617860Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-thread-registry-reconciliation-20260520T114433Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-thread-registry-reconciliation",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\threads\\thread-registry.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\threads\\thread-registry.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:44:33.9337823Z",
+                       "expiresAt":  "2026-05-20T11:59:33.9337823Z",
+                       "heartbeatAt":  "2026-05-20T11:46:35.0037817Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-thread-registry-reconciliation-20260520T115219Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-thread-registry-reconciliation",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\threads\\thread-registry.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\threads\\thread-registry.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:52:19.3947133Z",
+                       "expiresAt":  "2026-05-20T12:07:19.3947133Z",
+                       "heartbeatAt":  "2026-05-20T11:52:38.4864750Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-record-admin-settings-context-mismatch-fail-closed-20260520T115559Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "record-admin-settings-context-mismatch-fail-closed",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:55:59.6191129Z",
+                       "expiresAt":  "2026-05-20T12:55:59.6191129Z",
+                       "heartbeatAt":  "2026-05-20T11:57:56.2523875Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-automation-mode-contract-20260520T115629Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "automation-mode-contract",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/lib/ui-mode-contract.ts",
+                                            "frontend/src/app/(workspace)/automation/page.tsx",
+                                            "frontend/src/app/(workspace)/automations/builder/page.tsx",
+                                            "frontend/src/components/automation/JourneyBuilder.tsx",
+                                            "frontend/src/components/automation/NodeEditorModal.tsx",
+                                            "frontend/tests/e2e/automation-studio.spec.ts",
+                                            "frontend/tests/e2e/automation-builder.spec.ts"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/lib/ui-mode-contract.ts",
+                                          "frontend/src/app/(workspace)/automation/page.tsx",
+                                          "frontend/src/app/(workspace)/automations/builder/page.tsx",
+                                          "frontend/src/components/automation/JourneyBuilder.tsx",
+                                          "frontend/src/components/automation/NodeEditorModal.tsx",
+                                          "frontend/tests/e2e/automation-studio.spec.ts",
+                                          "frontend/tests/e2e/automation-builder.spec.ts"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:56:29.1905557Z",
+                       "expiresAt":  "2026-05-20T15:56:29.1905557Z",
+                       "heartbeatAt":  "2026-05-20T12:05:49.4999084Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-automation-mode-contract-checkpoint-20260520T115640Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "automation-mode-contract-checkpoint",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/checkpoints/20260520T115700Z-automation-mode-contract.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/checkpoints/20260520T115700Z-automation-mode-contract.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:56:40.8028034Z",
+                       "expiresAt":  "2026-05-20T15:56:40.8028034Z",
+                       "heartbeatAt":  "2026-05-20T12:06:01.2948700Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-config-by-id-tenant-scope-20260520T115819Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "config-by-id-tenant-scope",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                                            "services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java",
+                                            "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                                          "services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java",
+                                          "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T11:58:19.3451173Z",
+                       "expiresAt":  "2026-05-20T15:58:19.3451173Z",
+                       "heartbeatAt":  "2026-05-20T12:06:24.3952339Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-backlog-memory-dashboard-reconciliation-20260520T120012Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-backlog-memory-dashboard-reconciliation",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\backlog\\queue.json",
+                                            ".codex\\state\\team-state.json",
+                                            ".codex\\memory\\active-work-items.md",
+                                            ".codex\\dashboards\\team-dashboard.md",
+                                            ".codex\\threads\\thread-registry.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\backlog\\queue.json",
+                                          ".codex\\state\\team-state.json",
+                                          ".codex\\memory\\active-work-items.md",
+                                          ".codex\\dashboards\\team-dashboard.md",
+                                          ".codex\\threads\\thread-registry.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:00:12.8160497Z",
+                       "expiresAt":  "2026-05-20T12:20:12.8160497Z",
+                       "heartbeatAt":  "2026-05-20T12:02:20.7806898Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-fix-admin-settings-priority-20260520T120257Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-fix-admin-settings-priority",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\backlog\\queue.json",
+                                            ".codex\\state\\team-state.json",
+                                            ".codex\\dashboards\\team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\backlog\\queue.json",
+                                          ".codex\\state\\team-state.json",
+                                          ".codex\\dashboards\\team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:02:57.3643162Z",
+                       "expiresAt":  "2026-05-20T12:12:57.3643162Z",
+                       "heartbeatAt":  "2026-05-20T12:03:17.3945188Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-automation-mode-contract-record-20260520T120400Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "automation-mode-contract-record",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/enhancement-log.md",
+                                            ".codex/threads/frontend-20260520T113115Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/enhancement-log.md",
+                                          ".codex/threads/frontend-20260520T113115Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:04:00.3853881Z",
+                       "expiresAt":  "2026-05-20T16:04:00.3853881Z",
+                       "heartbeatAt":  "2026-05-20T12:06:19.6132111Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-record-config-by-id-tenant-scope-partial-20260520T120445Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "record-config-by-id-tenant-scope-partial",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/checkpoints/20260520T115831Z-config-by-id-tenant-scope.json",
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/checkpoints/20260520T115831Z-config-by-id-tenant-scope.json",
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:04:45.0966872Z",
+                       "expiresAt":  "2026-05-20T13:04:45.0966872Z",
+                       "heartbeatAt":  "2026-05-20T12:09:26.2221331Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-queue-array-cleanup-20260520T120632Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "queue-array-cleanup",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:06:32.8685031Z",
+                       "expiresAt":  "2026-05-20T16:06:32.8685031Z",
+                       "heartbeatAt":  "2026-05-20T12:06:53.3551625Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-automation-final-codex-validation-record-20260520T120712Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "automation-final-codex-validation-record",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/checkpoints/20260520T115700Z-automation-mode-contract.json",
+                                            ".codex/threads/frontend-20260520T113115Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/checkpoints/20260520T115700Z-automation-mode-contract.json",
+                                          ".codex/threads/frontend-20260520T113115Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:07:12.3082320Z",
+                       "expiresAt":  "2026-05-20T16:07:12.3082320Z",
+                       "heartbeatAt":  "2026-05-20T12:07:32.8083241Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-automation-queue-validation-record-20260520T120757Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "automation-queue-validation-record",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:07:57.8674513Z",
+                       "expiresAt":  "2026-05-20T16:07:57.8674513Z",
+                       "heartbeatAt":  "2026-05-20T12:08:37.1865876Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-record-config-by-id-tenant-scope-shared-20260520T120949Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "record-config-by-id-tenant-scope-shared",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:09:49.5572498Z",
+                       "expiresAt":  "2026-05-20T13:09:49.5572498Z",
+                       "heartbeatAt":  "2026-05-20T12:12:28.8729287Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-final-dashboard-refresh-20260520T121331Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-final-dashboard-refresh",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\dashboards\\team-dashboard.md",
+                                            ".codex\\threads\\thread-registry.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\dashboards\\team-dashboard.md",
+                                          ".codex\\threads\\thread-registry.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:13:31.9230592Z",
+                       "expiresAt":  "2026-05-20T12:23:31.9230592Z",
+                       "heartbeatAt":  "2026-05-20T12:14:05.2266254Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-differentiation-upsert-workspace-exact-match-20260520T121337Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "differentiation-upsert-workspace-exact-match",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java",
+                                            "services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java",
+                                            ".codex/checkpoints/20260520T121400Z-differentiation-upsert-workspace-exact-match.json"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java",
+                                          "services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java",
+                                          ".codex/checkpoints/20260520T121400Z-differentiation-upsert-workspace-exact-match.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:13:37.3010713Z",
+                       "expiresAt":  "2026-05-20T16:13:37.3010713Z",
+                       "heartbeatAt":  "2026-05-20T12:23:42.8851954Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-fix-config-priority-20260520T121457Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-fix-config-priority",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\backlog\\queue.json",
+                                            ".codex\\state\\team-state.json",
+                                            ".codex\\dashboards\\team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\backlog\\queue.json",
+                                          ".codex\\state\\team-state.json",
+                                          ".codex\\dashboards\\team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:14:57.3266755Z",
+                       "expiresAt":  "2026-05-20T12:24:57.3266755Z",
+                       "heartbeatAt":  "2026-05-20T12:17:12.1308157Z"
+                   },
+                   {
+                       "leaseId":  "audience-service-20260520T121322Z-predictive-segments-governance-20260520T122113Z",
+                       "threadId":  "audience-service-20260520T121322Z",
+                       "workItemId":  "predictive-segments-governance",
+                       "agentId":  "",
+                       "owner":  "AUDIENCE_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/domain/Segment.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/dto/SegmentDto.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/mapper/SegmentMapper.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/service/PredictiveSegmentGovernanceService.java",
+                                            "services/audience-service/src/test/java/com/legent/audience/service/PredictiveSegmentGovernanceServiceTest.java",
+                                            "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                                            "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java",
+                                            "services/audience-service/src/test/java/com/legent/audience/controller/AudienceControllerRbacTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/domain/Segment.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/dto/SegmentDto.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/mapper/SegmentMapper.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/service/PredictiveSegmentGovernanceService.java",
+                                          "services/audience-service/src/test/java/com/legent/audience/service/PredictiveSegmentGovernanceServiceTest.java",
+                                          "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                                          "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java",
+                                          "services/audience-service/src/test/java/com/legent/audience/controller/AudienceControllerRbacTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:21:13.8031099Z",
+                       "expiresAt":  "2026-05-20T16:21:13.8031099Z",
+                       "heartbeatAt":  "2026-05-20T12:33:34.2971616Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-record-differentiation-upsert-workspace-exact-match-20260520T122117Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "record-differentiation-upsert-workspace-exact-match",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:21:17.4842828Z",
+                       "expiresAt":  "2026-05-20T13:21:17.4842828Z",
+                       "heartbeatAt":  "2026-05-20T12:23:51.2944669Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-public-contact-admin-platform-admin-only-20260520T122530Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "public-contact-admin-platform-admin-only",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java",
+                                            "services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java",
+                                            ".codex/checkpoints/20260520T122600Z-public-contact-admin-platform-admin-only.json"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java",
+                                          "services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java",
+                                          ".codex/checkpoints/20260520T122600Z-public-contact-admin-platform-admin-only.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:25:30.6826860Z",
+                       "expiresAt":  "2026-05-20T16:25:30.6826860Z",
+                       "heartbeatAt":  "2026-05-20T12:32:22.9382480Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-record-public-contact-admin-platform-admin-only-20260520T123012Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "record-public-contact-admin-platform-admin-only",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:30:12.5500019Z",
+                       "expiresAt":  "2026-05-20T13:30:12.5500019Z",
+                       "heartbeatAt":  "2026-05-20T12:32:32.3190949Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-config-create-upsert-context-mismatch-fail-closed-20260520T123447Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "config-create-upsert-context-mismatch-fail-closed",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                                            "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java",
+                                            ".codex/checkpoints/20260520T123400Z-config-create-upsert-context-mismatch-fail-closed.json"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                                          "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java",
+                                          ".codex/checkpoints/20260520T123400Z-config-create-upsert-context-mismatch-fail-closed.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:34:47.2896715Z",
+                       "expiresAt":  "2026-05-20T16:34:47.2896715Z",
+                       "heartbeatAt":  "2026-05-20T12:39:44.6931052Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-fix-foundation-priority-scores-20260520T123551Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-fix-foundation-priority-scores",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\backlog\\queue.json",
+                                            ".codex\\state\\team-state.json",
+                                            ".codex\\dashboards\\team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\backlog\\queue.json",
+                                          ".codex\\state\\team-state.json",
+                                          ".codex\\dashboards\\team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:35:51.2715342Z",
+                       "expiresAt":  "2026-05-20T12:45:51.2715342Z",
+                       "heartbeatAt":  "2026-05-20T12:36:21.6010430Z"
+                   },
+                   {
+                       "leaseId":  "audience-service-20260520T121322Z-record-predictive-segments-governance-20260520T123639Z",
+                       "threadId":  "audience-service-20260520T121322Z",
+                       "workItemId":  "record-predictive-segments-governance",
+                       "agentId":  "",
+                       "owner":  "AUDIENCE_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/performance-bottlenecks.md",
+                                            ".codex/memory/unresolved-risks.md",
+                                            ".codex/checkpoints/20260520T122119Z-predictive-segments-governance.json",
+                                            ".codex/threads/audience-service-20260520T121322Z-handoff.md",
+                                            ".codex/audit/events/2026-05-20.jsonl"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/performance-bottlenecks.md",
+                                          ".codex/memory/unresolved-risks.md",
+                                          ".codex/checkpoints/20260520T122119Z-predictive-segments-governance.json",
+                                          ".codex/threads/audience-service-20260520T121322Z-handoff.md",
+                                          ".codex/audit/events/2026-05-20.jsonl"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:36:39.3705250Z",
+                       "expiresAt":  "2026-05-20T13:36:39.3705250Z",
+                       "heartbeatAt":  "2026-05-20T12:40:29.6812286Z"
+                   },
+                   {
+                       "leaseId":  "audience-service-20260520T121322Z-predictive-segments-governance-20260520T123938Z",
+                       "threadId":  "audience-service-20260520T121322Z",
+                       "workItemId":  "predictive-segments-governance",
+                       "agentId":  "",
+                       "owner":  "AUDIENCE_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:39:38.8143507Z",
+                       "expiresAt":  "2026-05-20T13:09:38.8143507Z",
+                       "heartbeatAt":  "2026-05-20T12:39:57.1750523Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-tenant-get-self-scope-20260520T124041Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "tenant-get-self-scope",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/foundation-service/src/main/java/com/legent/foundation/service/TenantService.java",
+                                            "services/foundation-service/src/test/java/com/legent/foundation/service/TenantServiceTest.java",
+                                            ".codex/checkpoints/20260520T124300Z-tenant-get-self-scope.json"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/foundation-service/src/main/java/com/legent/foundation/service/TenantService.java",
+                                          "services/foundation-service/src/test/java/com/legent/foundation/service/TenantServiceTest.java",
+                                          ".codex/checkpoints/20260520T124300Z-tenant-get-self-scope.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:40:41.8237888Z",
+                       "expiresAt":  "2026-05-20T16:40:41.8237888Z",
+                       "heartbeatAt":  "2026-05-20T12:55:33.1627457Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-record-config-create-upsert-context-20260520T124210Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-record-config-create-upsert-context",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\backlog\\queue.json",
+                                            ".codex\\state\\team-state.json",
+                                            ".codex\\memory\\active-work-items.md",
+                                            ".codex\\memory\\security-findings.md",
+                                            ".codex\\memory\\technical-debt.md",
+                                            ".codex\\memory\\successful-fixes.md",
+                                            ".codex\\memory\\root-cause-history.md",
+                                            ".codex\\memory\\release-history.md",
+                                            ".codex\\dashboards\\team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\backlog\\queue.json",
+                                          ".codex\\state\\team-state.json",
+                                          ".codex\\memory\\active-work-items.md",
+                                          ".codex\\memory\\security-findings.md",
+                                          ".codex\\memory\\technical-debt.md",
+                                          ".codex\\memory\\successful-fixes.md",
+                                          ".codex\\memory\\root-cause-history.md",
+                                          ".codex\\memory\\release-history.md",
+                                          ".codex\\dashboards\\team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:42:10.5164265Z",
+                       "expiresAt":  "2026-05-20T12:57:10.5164265Z",
+                       "heartbeatAt":  "2026-05-20T12:46:40.0763931Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-template-studio-mode-contract-20260520T124716Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "template-studio-mode-contract",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/lib/ui-mode-contract.ts",
+                                            "frontend/src/app/(workspace)/email/templates/[id]/page.tsx",
+                                            "frontend/src/components/content/TemplateBuilder.tsx",
+                                            "frontend/src/components/content/TemplateStudioCommandCenter.tsx",
+                                            "frontend/tests/e2e/template-builder.spec.ts",
+                                            ".codex/checkpoints/20260520T124500Z-template-studio-mode-contract.json"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/lib/ui-mode-contract.ts",
+                                          "frontend/src/app/(workspace)/email/templates/[id]/page.tsx",
+                                          "frontend/src/components/content/TemplateBuilder.tsx",
+                                          "frontend/src/components/content/TemplateStudioCommandCenter.tsx",
+                                          "frontend/tests/e2e/template-builder.spec.ts",
+                                          ".codex/checkpoints/20260520T124500Z-template-studio-mode-contract.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:47:16.7186397Z",
+                       "expiresAt":  "2026-05-20T16:47:16.7186397Z",
+                       "heartbeatAt":  "2026-05-20T13:12:32.4856526Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-record-config-create-and-tenant-get-scope-fixes-20260520T124831Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "record-config-create-and-tenant-get-scope-fixes",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/threads/foundation-service-20260520T100717Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:48:31.9275057Z",
+                       "expiresAt":  "2026-05-20T13:48:31.9275057Z",
+                       "heartbeatAt":  "2026-05-20T12:55:36.1529081Z"
+                   },
+                   {
+                       "leaseId":  "audience-service-20260520T121322Z-contact-data-designer-preview-governance-20260520T125358Z",
+                       "threadId":  "audience-service-20260520T121322Z",
+                       "workItemId":  "contact-data-designer-preview-governance",
+                       "agentId":  "",
+                       "owner":  "AUDIENCE_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/audience-service/src/main/java/com/legent/audience/dto/DataExtensionDto.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/service/DataExtensionService.java",
+                                            "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                                            "services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java",
+                                            "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                                            ".codex/checkpoints/20260520T125000Z-contact-data-designer-preview-governance.json",
+                                            ".codex/audit/events/2026-05-20.jsonl"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/audience-service/src/main/java/com/legent/audience/dto/DataExtensionDto.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/service/DataExtensionService.java",
+                                          "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                                          "services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java",
+                                          "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                                          ".codex/checkpoints/20260520T125000Z-contact-data-designer-preview-governance.json",
+                                          ".codex/audit/events/2026-05-20.jsonl"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:53:58.8460595Z",
+                       "expiresAt":  "2026-05-20T15:53:58.8460595Z",
+                       "heartbeatAt":  "2026-05-20T13:16:00.1033680Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-fix-tenant-get-priority-20260520T125755Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-fix-tenant-get-priority",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\backlog\\queue.json",
+                                            ".codex\\state\\team-state.json",
+                                            ".codex\\dashboards\\team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\backlog\\queue.json",
+                                          ".codex\\state\\team-state.json",
+                                          ".codex\\dashboards\\team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T12:57:55.9652942Z",
+                       "expiresAt":  "2026-05-20T13:07:55.9652942Z",
+                       "heartbeatAt":  "2026-05-20T12:59:05.1072193Z"
+                   },
+                   {
+                       "leaseId":  "frontend-20260520T113115Z-template-studio-mode-contract-record-20260520T131008Z",
+                       "threadId":  "frontend-20260520T113115Z",
+                       "workItemId":  "template-studio-mode-contract-record",
+                       "agentId":  "",
+                       "owner":  "FRONTEND_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/enhancement-log.md",
+                                            ".codex/threads/frontend-20260520T113115Z-handoff.md",
+                                            ".codex/state/team-state.json",
+                                            ".codex/threads/thread-registry.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/enhancement-log.md",
+                                          ".codex/threads/frontend-20260520T113115Z-handoff.md",
+                                          ".codex/state/team-state.json",
+                                          ".codex/threads/thread-registry.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T13:10:08.5189352Z",
+                       "expiresAt":  "2026-05-20T13:40:08.5189352Z",
+                       "heartbeatAt":  "2026-05-20T13:13:25.2728156Z"
+                   },
+                   {
+                       "leaseId":  "audience-service-20260520T121322Z-record-contact-data-designer-preview-governance-memory-20260520T131219Z",
+                       "threadId":  "audience-service-20260520T121322Z",
+                       "workItemId":  "record-contact-data-designer-preview-governance-memory",
+                       "agentId":  "",
+                       "owner":  "AUDIENCE_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/performance-bottlenecks.md",
+                                            ".codex/memory/unresolved-risks.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/threads/audience-service-20260520T121322Z-handoff.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/performance-bottlenecks.md",
+                                          ".codex/memory/unresolved-risks.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/threads/audience-service-20260520T121322Z-handoff.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T13:12:19.0399128Z",
+                       "expiresAt":  "2026-05-20T14:12:19.0399128Z",
+                       "heartbeatAt":  "2026-05-20T13:16:08.3759125Z"
+                   },
+                   {
+                       "leaseId":  "audience-service-20260520T121322Z-record-contact-data-designer-preview-governance-safe-stop-20260520T131358Z",
+                       "threadId":  "audience-service-20260520T121322Z",
+                       "workItemId":  "record-contact-data-designer-preview-governance-safe-stop",
+                       "agentId":  "",
+                       "owner":  "AUDIENCE_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/backlog/queue.json",
+                                            ".codex/state/team-state.json",
+                                            ".codex/threads/thread-registry.json",
+                                            ".codex/worktrees/leases/active-leases.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/backlog/queue.json",
+                                          ".codex/state/team-state.json",
+                                          ".codex/threads/thread-registry.json",
+                                          ".codex/worktrees/leases/active-leases.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T13:13:58.0307840Z",
+                       "expiresAt":  "2026-05-20T14:13:58.0307840Z",
+                       "heartbeatAt":  "2026-05-20T13:16:47.5862419Z"
+                   },
+                   {
+                       "leaseId":  "foundation-service-20260520T100717Z-foundation-service-safe-stop-record-20260520T131713Z",
+                       "threadId":  "foundation-service-20260520T100717Z",
+                       "workItemId":  "foundation-service-safe-stop-record",
+                       "agentId":  "",
+                       "owner":  "FOUNDATION_SERVICE_OWNER",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/blocked-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/threads/foundation-service-20260520T100717Z-handoff.md",
+                                            ".codex/checkpoints/20260520T131300Z-foundation-service-safe-stop.json",
+                                            ".codex/state/team-state.json",
+                                            ".codex/threads/thread-registry.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/blocked-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/threads/foundation-service-20260520T100717Z-handoff.md",
+                                          ".codex/checkpoints/20260520T131300Z-foundation-service-safe-stop.json",
+                                          ".codex/state/team-state.json",
+                                          ".codex/threads/thread-registry.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T13:17:13.9901166Z",
+                       "expiresAt":  "2026-05-20T13:47:13.9901166Z",
+                       "heartbeatAt":  "2026-05-20T13:20:50.8653695Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-fix-foundation-safe-stop-checkpoint-20260520T132145Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-fix-foundation-safe-stop-checkpoint",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\checkpoints\\20260520T131300Z-foundation-service-safe-stop.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\checkpoints\\20260520T131300Z-foundation-service-safe-stop.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T13:21:45.3481414Z",
+                       "expiresAt":  "2026-05-20T13:31:45.3481414Z",
+                       "heartbeatAt":  "2026-05-20T13:22:08.8136209Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-complete-foundation-safe-stop-checkpoint-schema-20260520T132249Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-complete-foundation-safe-stop-checkpoint-schema",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\checkpoints\\20260520T131300Z-foundation-service-safe-stop.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\checkpoints\\20260520T131300Z-foundation-service-safe-stop.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T13:22:49.8937517Z",
+                       "expiresAt":  "2026-05-20T13:32:49.8937517Z",
+                       "heartbeatAt":  "2026-05-20T13:23:11.7128711Z"
+                   },
+                   {
+                       "leaseId":  "multi-module-coordinator-20260520T113233Z-coordinator-final-ready-dashboard-refresh-20260520T132417Z",
+                       "threadId":  "multi-module-coordinator-20260520T113233Z",
+                       "workItemId":  "coordinator-final-ready-dashboard-refresh",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex\\backlog\\queue.json",
+                                            ".codex\\state\\team-state.json",
+                                            ".codex\\memory\\active-work-items.md",
+                                            ".codex\\dashboards\\team-dashboard.md",
+                                            ".codex\\threads\\thread-registry.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex\\backlog\\queue.json",
+                                          ".codex\\state\\team-state.json",
+                                          ".codex\\memory\\active-work-items.md",
+                                          ".codex\\dashboards\\team-dashboard.md",
+                                          ".codex\\threads\\thread-registry.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "2b5628702c92ab773085f5df306e248f6a174133",
+                       "acquiredAt":  "2026-05-20T13:24:17.7558529Z",
+                       "expiresAt":  "2026-05-20T13:39:17.7558529Z",
+                       "heartbeatAt":  "2026-05-20T13:25:36.4868021Z"
                    }
                ]
 }

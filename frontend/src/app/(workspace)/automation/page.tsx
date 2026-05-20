@@ -29,6 +29,8 @@ import {
 } from '@/lib/automation-api';
 import { Plus } from '@phosphor-icons/react';
 import Link from 'next/link';
+import { AUTOMATION_WORKFLOW_MODE_FEATURES, isModeFeatureVisible } from '@/lib/ui-mode-contract';
+import { useUIStore } from '@/stores/uiStore';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -73,6 +75,7 @@ const runStatusVariant = (status?: AutomationActivityRun['status']): 'success' |
 };
 
 export default function AutomationPage() {
+  const uiMode = useUIStore((state) => state.uiMode);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [activities, setActivities] = useState<AutomationActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,6 +97,8 @@ export default function AutomationPage() {
   const draftCount = workflows.filter((workflow) => workflow.status === 'DRAFT').length;
   const pausedCount = workflows.filter((workflow) => workflow.status === 'PAUSED' || workflow.status === 'SCHEDULED').length;
   const activeActivityCount = activities.filter((activity) => activity.status === 'ACTIVE').length;
+  const showActivityAuthoring = isModeFeatureVisible(AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring, uiMode);
+  const showActivityExecution = isModeFeatureVisible(AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution, uiMode);
 
   const loadWorkflows = async () => {
     setLoading(true);
@@ -163,6 +168,9 @@ export default function AutomationPage() {
   };
 
   const handleCreateActivity = async () => {
+    if (!showActivityAuthoring) {
+      return;
+    }
     if (!activityName.trim()) {
       setError('Activity name is required');
       return;
@@ -201,6 +209,9 @@ export default function AutomationPage() {
   };
 
   const runActivityAction = async (activityId: string, mode: 'verify' | 'dryRun') => {
+    if (!showActivityExecution) {
+      return;
+    }
     setActionBusy(`${activityId}:${mode}`);
     try {
       if (mode === 'verify') {
@@ -292,12 +303,25 @@ export default function AutomationPage() {
           <CardHeader
             title="Automation Studio Activities"
             subtitle="SQL, file-drop, import, extract, script, and webhook activities with verification and run history."
-            action={<Button icon={<Plus size={16} />} onClick={() => setShowCreateActivity(!showCreateActivity)}>New Activity</Button>}
+            action={showActivityAuthoring ? (
+              <Button
+                icon={<Plus size={16} />}
+                onClick={() => setShowCreateActivity(!showCreateActivity)}
+                data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring.id}
+                data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring.visibility}
+              >
+                New Activity
+              </Button>
+            ) : undefined}
             className="mb-0"
           />
         </div>
-        {showCreateActivity && (
-          <div className="grid gap-3 border-b border-border-default p-5 md:grid-cols-[1fr_180px_1fr_auto]">
+        {showActivityAuthoring && showCreateActivity && (
+          <div
+            className="grid gap-3 border-b border-border-default p-5 md:grid-cols-[1fr_180px_1fr_auto]"
+            data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring.id}
+            data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityAuthoring.visibility}
+          >
             <Input label="Activity Name" value={activityName} onChange={(event) => setActivityName(event.target.value)} />
             <div>
               <label className="mb-1 block text-sm font-medium text-content-primary">Type</label>
@@ -342,8 +366,29 @@ export default function AutomationPage() {
                     >
                       {isExpanded ? 'Hide history' : 'Run history'}
                     </Button>
-                    <Button size="sm" variant="secondary" loading={actionBusy === `${activity.id}:verify`} onClick={() => runActivityAction(activity.id, 'verify')}>Verify</Button>
-                    <Button size="sm" loading={actionBusy === `${activity.id}:dryRun`} onClick={() => runActivityAction(activity.id, 'dryRun')}>Dry Run</Button>
+                    {showActivityExecution && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          loading={actionBusy === `${activity.id}:verify`}
+                          onClick={() => runActivityAction(activity.id, 'verify')}
+                          data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.id}
+                          data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.visibility}
+                        >
+                          Verify
+                        </Button>
+                        <Button
+                          size="sm"
+                          loading={actionBusy === `${activity.id}:dryRun`}
+                          onClick={() => runActivityAction(activity.id, 'dryRun')}
+                          data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.id}
+                          data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.visibility}
+                        >
+                          Dry Run
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
                 {isExpanded && (

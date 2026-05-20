@@ -39,7 +39,9 @@ public class SegmentDto {
         private String description;
         private String status;
         private String segmentType;
+        private String derivationMode;
         private Map<String, Object> rules;
+        private Map<String, Object> predictiveGovernance;
         private long memberCount;
         private Instant lastEvaluatedAt;
         private Long evaluationDurationMs;
@@ -69,5 +71,53 @@ public class SegmentDto {
         private String op;         // EQUALS, CONTAINS, IN_LIST, etc.
         private Object value;      // single value or list
         private String valueType;  // STRING, NUMBER, DATE
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class PredictivePreviewRequest {
+        @NotNull @Size(min = 1, max = 12) private List<String> featureSources;
+        private List<String> dataClassesUsed;
+        private List<String> excludedDataClasses;
+        @NotNull @Min(0) private Long eligibleContactCount;
+        @NotNull @Min(0) private Long historicalEventCount;
+        @NotNull @Min(0) private Long modeledCount;
+        @NotNull @Min(0) private Long suppressionImpactCount;
+        @NotNull @Min(1) @Max(365) private Integer dataFreshnessDays;
+        private Boolean tenantPolicyEnabled;
+        @Size(max = 128) private String policyVersion;
+        private Boolean protectedDataExcluded;
+        private Boolean biasDriftCheckPassed;
+        @Size(max = 40) private String derivationMode;
+        @Size(max = 128) private String approvalStatus;
+        @Size(max = 255) private String approvedBy;
+        @Size(max = 64) private String approvedAt;
+        @Size(max = 128) private String rollbackSnapshotId;
+        private List<String> reasonCodes;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class PredictivePreviewResponse {
+        private boolean valid;
+        private boolean applyAllowed;
+        private boolean approvalRequired;
+        private String derivationMode;
+        private String confidenceBand;
+        private String riskBand;
+        private String policyVersion;
+        private List<String> featureSources;
+        private List<String> dataClassesUsed;
+        private List<String> excludedDataClasses;
+        private long eligibleContactCount;
+        private long historicalEventCount;
+        private int dataFreshnessDays;
+        private long previewCount;
+        private long suppressionImpactCount;
+        private long netEligibleCount;
+        private String approvalStatus;
+        private String rollbackSnapshotId;
+        private String rollbackSnapshotStatus;
+        private List<String> reasonCodes;
+        private List<String> blockedReasons;
+        private List<String> warnings;
     }
 }

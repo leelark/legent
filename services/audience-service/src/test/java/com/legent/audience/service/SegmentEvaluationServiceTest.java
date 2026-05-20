@@ -1,6 +1,7 @@
 package com.legent.audience.service;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -207,11 +208,54 @@ class SegmentEvaluationServiceTest {
         verify(entityManager, never()).createNativeQuery(anyString());
     }
 
+    @Test
+    @DisplayName("evaluateCount rejects unapproved predictive segment before query")
+    void evaluateCount_rejectsUnapprovedPredictiveSegmentBeforeQuery() {
+        Segment segment = segmentWithRules(predictiveRules(Map.of("tenantPolicyEnabled", false)));
+        segment.setSegmentType(Segment.SegmentType.PREDICTIVE);
+
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-predictive"))
+                .thenReturn(Optional.of(segment));
+
+        assertThatThrownBy(() -> evaluationService.evaluateCount("seg-predictive"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Predictive segment governance is not approved");
+        verify(cacheService, never()).get(anyString(), eq(SegmentDto.CountPreview.class));
+        verify(entityManager, never()).createNativeQuery(anyString());
+    }
+
+    @Test
+    @DisplayName("recompute rejects unapproved predictive segment before membership mutation")
+    void recompute_rejectsUnapprovedPredictiveSegmentBeforeMembershipMutation() {
+        Segment segment = segmentWithRules(predictiveRules(Map.of("tenantPolicyEnabled", false)));
+        segment.setId("seg-predictive");
+        segment.setSegmentType(Segment.SegmentType.PREDICTIVE);
+
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-predictive"))
+                .thenReturn(Optional.of(segment));
+
+        assertThatThrownBy(() -> evaluationService.recompute("seg-predictive", TENANT_ID, WORKSPACE_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Predictive segment governance is not approved");
+        verify(membershipRepository, never()).deleteAllByTenantIdAndWorkspaceIdAndSegmentId(anyString(), anyString(), anyString());
+        verify(eventPublisher, never()).publishRecomputed(any());
+        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getWorkspaceId()).isNull();
+    }
+
     private Segment segmentWithRules(Map<String, Object> rules) {
         Segment segment = new Segment();
         segment.setTenantId(TENANT_ID);
         segment.setWorkspaceId(WORKSPACE_ID);
         segment.setRules(rules);
         return segment;
+    }
+
+    private Map<String, Object> predictiveRules(Map<String, Object> governance) {
+        Map<String, Object> rules = new LinkedHashMap<>();
+        rules.put("operator", "AND");
+        rules.put("conditions", List.of(Map.of("field", "status", "op", "EQUALS", "value", "ACTIVE")));
+        rules.put(PredictiveSegmentGovernanceService.GOVERNANCE_KEY, governance);
+        return rules;
     }
 }

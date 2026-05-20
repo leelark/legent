@@ -39,12 +39,13 @@ interface JourneyBuilderProps {
   nodes: JourneyNode[];
   onNodesChange: (nodes: JourneyNode[]) => void;
   workflowId?: string;
+  showDraftNodeTypes?: boolean;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProps) {
+function JourneyBuilder({ nodes, onNodesChange, workflowId, showDraftNodeTypes = true }: JourneyBuilderProps) {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingNode, setEditingNode] = useState<JourneyNode | null>(null);
@@ -122,6 +123,13 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
   const handleSaveToBackend = async () => {
     setLoading(true);
     try {
+      if (!showDraftNodeTypes) {
+        const unsupportedNodes = nodes.filter((node) => !isNodeRuntimeSupported(node.type));
+        if (unsupportedNodes.length > 0) {
+          setValidationErrors(unsupportedNodes.map((node) => `${node.label} uses ${node.type}, which requires Advanced mode before saving.`));
+          return;
+        }
+      }
       const graph = buildWorkflowGraph(nodes);
       const validation = await validateWorkflow(resolveWorkflowId(), graph);
       setValidationErrors(validation.errors ?? []);
@@ -230,6 +238,7 @@ function JourneyBuilder({ nodes, onNodesChange, workflowId }: JourneyBuilderProp
         open={editorOpen}
         node={editingNode}
         runtimeSupportedTypes={runtimeSupportedTypes}
+        showDraftNodeTypes={showDraftNodeTypes}
         onClose={() => setEditorOpen(false)}
         onSave={handleSave}
       />

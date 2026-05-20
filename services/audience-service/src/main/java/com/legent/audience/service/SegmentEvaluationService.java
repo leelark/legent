@@ -62,6 +62,7 @@ public class SegmentEvaluationService {
         String workspaceId = AudienceScope.workspaceId();
         Segment segment = segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, segmentId)
                 .orElseThrow(() -> new NotFoundException("Segment", segmentId));
+        PredictiveSegmentGovernanceService.requireApprovedForMaterialization(segment);
 
         String cacheKey = AppConstants.CACHE_SEGMENT_COUNT_PREFIX + tenantId + ":" + workspaceId + ":" + segmentId;
         Optional<SegmentDto.CountPreview> cached = cacheService.get(cacheKey, SegmentDto.CountPreview.class);
@@ -101,6 +102,7 @@ public class SegmentEvaluationService {
         try {
             Segment segment = segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, segmentId)
                     .orElseThrow(() -> new NotFoundException("Segment", segmentId));
+            PredictiveSegmentGovernanceService.requireApprovedForMaterialization(segment);
 
             segment.setStatus(Segment.SegmentStatus.COMPUTING);
             segmentRepository.save(segment);

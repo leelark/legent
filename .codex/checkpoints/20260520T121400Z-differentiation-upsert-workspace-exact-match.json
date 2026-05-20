@@ -1,0 +1,33 @@
+{
+    "id": "differentiation-upsert-workspace-exact-match",
+    "createdAt": "2026-05-20T12:14:00Z",
+    "objective": "Prevent DifferentiationPlatformService upsert-by-key from matching workspace-scoped rows when the current request is tenant-scoped or lacks workspace context.",
+    "status": "DONE",
+    "owner": "FOUNDATION_SERVICE_OWNER",
+    "filesInScope": [
+        "services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java",
+        "services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java"
+    ],
+    "agents": [
+        "019e4548-6ed2-7640-b07f-8f82ab1018a9"
+    ],
+    "validationPlan": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=DifferentiationPlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+        ".\\mvnw.cmd -pl services/foundation-service -am test",
+        "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java"
+    ],
+    "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers": [],
+    "validationRun": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=DifferentiationPlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 5 tests.",
+        ".\\mvnw.cmd -pl services/foundation-service -am test passed with 103 foundation-service tests and upstream shared-module tests.",
+        "git diff --check for touched differentiation service/test/checkpoint files passed with CRLF warnings only."
+    ],
+    "outcome": "DifferentiationPlatformService upsertByKey now uses null-safe exact workspace matching so tenant-scoped upserts cannot match workspace-scoped rows when workspaceId is null.",
+    "residualRisks": [
+        "Existing list/evaluate helper queries still intentionally include tenant-level rows with workspace rows and should be reviewed per endpoint semantics before changing behavior.",
+        "Tenant lifecycle policy, public contact admin scoping, and config version-history scope still need separate policy or schema decisions.",
+        "Production release remains blocked by target-environment evidence and strict release gates."
+    ],
+    "nextAction": "Record completion in backlog/memory/handoff, release leases, then select the next safe foundation-service item."
+}

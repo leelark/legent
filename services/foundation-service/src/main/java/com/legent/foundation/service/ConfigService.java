@@ -84,10 +84,11 @@ public class ConfigService {
     @Transactional
     public ConfigDto.Response createConfig(String tenantId, ConfigDto.CreateRequest request) {
         String resolvedTenantId = normalize(tenantId);
-        String scope = resolveScope(request.getScopeType(), request.getWorkspaceId(), request.getEnvironmentId(), resolvedTenantId);
-        String workspaceId = scopedWorkspace(scope, request.getWorkspaceId());
-        String environmentId = scopedEnvironment(scope, request.getEnvironmentId());
-        String effectiveTenantId = SCOPE_GLOBAL.equals(scope) ? null : resolvedTenantId;
+        ConfigScopeTarget target = resolveCreateScopeTarget(resolvedTenantId, request);
+        String scope = target.scope();
+        String workspaceId = target.workspaceId();
+        String environmentId = target.environmentId();
+        String effectiveTenantId = target.effectiveTenantId();
 
         if (configRepository.existsByScope(effectiveTenantId, workspaceId, environmentId, request.getConfigKey())) {
             throw new ConflictException("SystemConfig", "configKey", request.getConfigKey());
@@ -108,8 +109,7 @@ public class ConfigService {
 
     @Transactional
     public ConfigDto.Response updateConfig(String id, ConfigDto.UpdateRequest request) {
-        SystemConfig existing = configRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("SystemConfig", id));
+        SystemConfig existing = findMutableConfigById(id);
 
         existing.setConfigValue(request.getConfigValue());
         if (request.getDescription() != null) {
@@ -143,8 +143,7 @@ public class ConfigService {
 
     @Transactional
     public void deleteConfig(String id) {
-        SystemConfig existing = configRepository.findById(id)
-                .orElseThrow(() -> new NotFoundException("SystemConfig", id));
+        SystemConfig existing = findMutableConfigById(id);
         existing.softDelete();
         configRepository.save(existing);
         recordVersion(existing, com.legent.foundation.domain.ConfigVersionHistory.ChangeType.DELETE);
@@ -155,13 +154,11 @@ public class ConfigService {
     @Transactional
     public ConfigDto.Response upsertConfig(String tenantId, String workspaceId, String environmentId, ConfigDto.CreateRequest request) {
         String resolvedTenantId = normalize(tenantId);
-        String resolvedWorkspaceId = normalize(workspaceId != null ? workspaceId : request.getWorkspaceId());
-        String resolvedEnvironmentId = normalize(environmentId != null ? environmentId : request.getEnvironmentId());
-        String scope = resolveScope(request.getScopeType(), resolvedWorkspaceId, resolvedEnvironmentId, resolvedTenantId);
-
-        String scopedWorkspace = scopedWorkspace(scope, resolvedWorkspaceId);
-        String scopedEnvironment = scopedEnvironment(scope, resolvedEnvironmentId);
-        String effectiveTenantId = SCOPE_GLOBAL.equals(scope) ? null : resolvedTenantId;
+        ConfigScopeTarget target = resolveUpsertScopeTarget(resolvedTenantId, workspaceId, environmentId, request);
+        String scope = target.scope();
+        String scopedWorkspace = target.workspaceId();
+        String scopedEnvironment = target.environmentId();
+        String effectiveTenantId = target.effectiveTenantId();
 
         SystemConfig config = configRepository
                 .findByScope(effectiveTenantId, scopedWorkspace, scopedEnvironment, request.getConfigKey())
@@ -257,6 +254,28 @@ public class ConfigService {
         }
     }
 
+    private SystemConfig findMutableConfigById(String id) {
+        String tenantId = normalize(TenantContext.requireTenantId());
+        SystemConfig config = configRepository.findByIdAndTenantIdAndDeletedAtIsNull(id, tenantId)
+                .orElseThrow(() -> new NotFoundException("SystemConfig", id));
+        requireConfigContext(config, id);
+        return config;
+    }
+
+    private void requireConfigContext(SystemConfig config, String id) {
+        String configWorkspaceId = normalize(config.getWorkspaceId());
+        String contextWorkspaceId = normalize(TenantContext.getWorkspaceId());
+        if (configWorkspaceId != null && !configWorkspaceId.equals(contextWorkspaceId)) {
+            throw new NotFoundException("SystemConfig", id);
+        }
+
+        String configEnvironmentId = normalize(config.getEnvironmentId());
+        String contextEnvironmentId = normalize(TenantContext.getEnvironmentId());
+        if (configEnvironmentId != null && !configEnvironmentId.equals(contextEnvironmentId)) {
+            throw new NotFoundException("SystemConfig", id);
+        }
+    }
+
     private String resolveScope(String requestedScope, String workspaceId, String environmentId, String tenantId) {
         if (requestedScope != null && !requestedScope.isBlank()) {
             return requestedScope.trim().toUpperCase(Locale.ROOT);
@@ -271,6 +290,97 @@ public class ConfigService {
             return SCOPE_TENANT;
         }
         return SCOPE_GLOBAL;
+    }
+
+    private ConfigScopeTarget resolveCreateScopeTarget(String tenantId, ConfigDto.CreateRequest request) {
+        String requestedWorkspaceId = normalize(request.getWorkspaceId());
+        String requestedEnvironmentId = normalize(request.getEnvironmentId());
+        String scope = resolveScope(request.getScopeType(), requestedWorkspaceId, requestedEnvironmentId, tenantId);
+        String workspaceId = scopedWorkspace(scope, requestedWorkspaceId);
+        String environmentId = scopedEnvironment(scope, requestedEnvironmentId);
+
+        if (requiresWorkspace(scope)) {
+            workspaceId = resolveRequestScopeValue("workspaceId", workspaceId, TenantContext.getWorkspaceId());
+        }
+        if (SCOPE_ENVIRONMENT.equals(scope)) {
+            environmentId = resolveRequestScopeValue("environmentId", environmentId, TenantContext.getEnvironmentId());
+        }
+        requireScopedValues(scope, workspaceId, environmentId);
+        return new ConfigScopeTarget(scope, workspaceId, environmentId, effectiveTenantId(scope, tenantId));
+    }
+
+    private ConfigScopeTarget resolveUpsertScopeTarget(String tenantId,
+                                                       String trustedWorkspaceId,
+                                                       String trustedEnvironmentId,
+                                                       ConfigDto.CreateRequest request) {
+        String resolvedWorkspaceId = resolveTrustedScopeValue(
+                "workspaceId", trustedWorkspaceId, request.getWorkspaceId(), TenantContext.getWorkspaceId());
+        String resolvedEnvironmentId = resolveTrustedScopeValue(
+                "environmentId", trustedEnvironmentId, request.getEnvironmentId(), TenantContext.getEnvironmentId());
+        String scope = resolveScope(request.getScopeType(), resolvedWorkspaceId, resolvedEnvironmentId, tenantId);
+        String workspaceId = scopedWorkspace(scope, resolvedWorkspaceId);
+        String environmentId = scopedEnvironment(scope, resolvedEnvironmentId);
+
+        if (requiresWorkspace(scope) && workspaceId == null) {
+            workspaceId = requireContextScopeValue("workspaceId", TenantContext.getWorkspaceId(), scope);
+        }
+        if (SCOPE_ENVIRONMENT.equals(scope) && environmentId == null) {
+            environmentId = requireContextScopeValue("environmentId", TenantContext.getEnvironmentId(), scope);
+        }
+        requireScopedValues(scope, workspaceId, environmentId);
+        return new ConfigScopeTarget(scope, workspaceId, environmentId, effectiveTenantId(scope, tenantId));
+    }
+
+    private String resolveTrustedScopeValue(String label, String trustedValue, String requestedValue, String contextValue) {
+        String trusted = normalize(trustedValue);
+        String requested = normalize(requestedValue);
+        if (trusted != null) {
+            if (requested != null && !trusted.equals(requested)) {
+                throw new IllegalArgumentException(label + " does not match the trusted scope");
+            }
+            return trusted;
+        }
+        if (requested != null) {
+            return resolveRequestScopeValue(label, requested, contextValue);
+        }
+        return null;
+    }
+
+    private String resolveRequestScopeValue(String label, String requestedValue, String contextValue) {
+        String requested = normalize(requestedValue);
+        String context = normalize(contextValue);
+        if (requested != null) {
+            if (context == null || !requested.equals(context)) {
+                throw new IllegalArgumentException(label + " does not match the current context");
+            }
+            return requested;
+        }
+        return context;
+    }
+
+    private String requireContextScopeValue(String label, String contextValue, String scope) {
+        String context = normalize(contextValue);
+        if (context == null) {
+            throw new IllegalArgumentException(label + " is required for " + scope + " scope");
+        }
+        return context;
+    }
+
+    private void requireScopedValues(String scope, String workspaceId, String environmentId) {
+        if (requiresWorkspace(scope) && workspaceId == null) {
+            throw new IllegalArgumentException("workspaceId is required for " + scope + " scope");
+        }
+        if (SCOPE_ENVIRONMENT.equals(scope) && environmentId == null) {
+            throw new IllegalArgumentException("environmentId is required for ENVIRONMENT scope");
+        }
+    }
+
+    private boolean requiresWorkspace(String scope) {
+        return SCOPE_WORKSPACE.equals(scope) || SCOPE_ENVIRONMENT.equals(scope);
+    }
+
+    private String effectiveTenantId(String scope, String tenantId) {
+        return SCOPE_GLOBAL.equals(scope) ? null : tenantId;
     }
 
     private String scopedWorkspace(String scope, String workspaceId) {
@@ -322,6 +432,9 @@ public class ConfigService {
             log.warn("Invalid JSON object payload; using empty object: {}", ex.getMessage());
             return new HashMap<>();
         }
+    }
+
+    private record ConfigScopeTarget(String scope, String workspaceId, String environmentId, String effectiveTenantId) {
     }
 
     private String normalize(String value) {

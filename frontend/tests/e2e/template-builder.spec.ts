@@ -1,6 +1,7 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
 
 type SeenRequests = {
+  advancedRequests?: string[];
   draftPayload?: Record<string, unknown>;
   updatePayload?: Record<string, unknown>;
   renderPayload?: Record<string, unknown>;
@@ -23,14 +24,21 @@ async function fulfill(route: Route, data: unknown) {
   });
 }
 
-async function mockTemplateStudioApis(page: Page, seen: SeenRequests) {
-  await page.addInitScript(() => {
+async function mockTemplateStudioApis(
+  page: Page,
+  seen: SeenRequests,
+  options: { uiMode?: 'BASIC' | 'ADVANCED' } = {},
+) {
+  const uiMode = options.uiMode ?? 'ADVANCED';
+  seen.advancedRequests = [];
+  await page.addInitScript((mode) => {
     localStorage.setItem('legent_user_id', 'template-user');
     localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
     localStorage.setItem('legent_tenant_id', 'tenant-1');
     localStorage.setItem('legent_workspace_id', 'workspace-1');
     localStorage.setItem('legent_environment_id', 'local');
-  });
+    localStorage.setItem('legent_ui_mode', mode);
+  }, uiMode);
 
   const initialBlocks = [
     {
@@ -118,7 +126,7 @@ async function mockTemplateStudioApis(page: Page, seen: SeenRequests) {
         tenantId: 'tenant-1',
         userId: 'template-user',
         theme: 'light',
-        uiMode: 'ADVANCED',
+        uiMode,
         density: 'comfortable',
         sidebarCollapsed: false,
         metadata: {},
@@ -175,39 +183,47 @@ async function mockTemplateStudioApis(page: Page, seen: SeenRequests) {
       }));
     }
     if (path === '/templates/tpl-1/versions') {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok([
         { id: 'version-1', versionNumber: 1, isPublished: true, createdAt: '2026-05-18T10:00:00Z' },
       ]));
     }
     if (path === '/templates/tpl-1/approvals') {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok([]));
     }
     if (path === '/templates/tpl-1/dynamic-content') {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok([
         { id: 'rule-1', templateId: 'tpl-1', slotKey: 'main', name: 'VIP', priority: 1, operator: 'EQUALS', active: true },
       ]));
     }
     if (path === '/templates/tpl-1/test-sends') {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok([
         { id: 'test-1', templateId: 'tpl-1', recipientEmail: 'qa@example.com', status: 'QUEUED', createdAt: '2026-05-18T11:00:00Z' },
       ]));
     }
     if (path.startsWith('/assets')) {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok({ content: [
         { id: 'asset-1', name: 'Hero', fileName: 'hero.png', contentType: 'image/png', sizeBytes: 1200 },
       ] }));
     }
     if (path.startsWith('/content/snippets')) {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok({ content: [
         { id: 'snippet-1', snippetKey: 'footer.disclaimer', name: 'Footer Disclaimer', snippetType: 'HTML', content: '<p>Footer</p>' },
       ] }));
     }
     if (path.startsWith('/personalization-tokens')) {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok({ content: [
         { id: 'token-1', tokenKey: 'firstName', displayName: 'First name', dataPath: 'firstName', defaultValue: 'there' },
       ] }));
     }
     if (path.startsWith('/brand-kits')) {
+      seen.advancedRequests?.push(path);
       return fulfill(route, ok({ content: [
         { id: 'brand-1', name: 'Primary Brand', primaryColor: '#2563eb', isDefault: true },
       ] }));
@@ -219,14 +235,17 @@ async function mockTemplateStudioApis(page: Page, seen: SeenRequests) {
 
 test('template builder supports add, edit, drag reorder, responsive rules, and save payload', async ({ page }) => {
   const seen: SeenRequests = {};
-  await mockTemplateStudioApis(page, seen);
+  await mockTemplateStudioApis(page, seen, { uiMode: 'ADVANCED' });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
   await page.goto('/app/email/templates/tpl-1', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Template Studio' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('html')).toHaveClass(/mode-advanced/);
   const builder = page.getByTestId('template-builder');
   await expect(builder).toBeVisible();
   await expect(page.locator('[data-testid^="builder-block-"]')).toHaveCount(2);
+  await expect(builder.getByTestId('block-library-DYNAMIC')).toBeVisible();
+  await expect(builder.getByRole('button', { name: 'Rules' })).toBeVisible();
 
   await builder.getByTestId('block-library-BUTTON').click();
   await expect(page.locator('[data-testid^="builder-block-"]')).toHaveCount(3);
@@ -283,7 +302,7 @@ test('template builder supports add, edit, drag reorder, responsive rules, and s
 
 test('template module exposes library controls and command-center QA flow', async ({ page }) => {
   const seen: SeenRequests = {};
-  await mockTemplateStudioApis(page, seen);
+  await mockTemplateStudioApis(page, seen, { uiMode: 'ADVANCED' });
   await page.setViewportSize({ width: 1440, height: 1000 });
 
   await page.goto('/app/email/templates', { waitUntil: 'domcontentloaded' });
@@ -307,4 +326,51 @@ test('template module exposes library controls and command-center QA flow', asyn
 
   await page.getByRole('tab', { name: 'Preview & QA' }).click();
   await expect(page.getByTestId('template-preview-frame')).toContainText('Rendered launch QA');
+});
+
+test('basic template studio hides advanced controls and saves scrubbed builder payloads', async ({ page }) => {
+  const seen: SeenRequests = {};
+  await mockTemplateStudioApis(page, seen, { uiMode: 'BASIC' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await page.goto('/app/email/templates/tpl-1', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Template Studio' })).toBeVisible({ timeout: 45_000 });
+  await expect(page.locator('html')).toHaveClass(/mode-basic/);
+  await expect(page.getByTestId('template-builder')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Save Draft' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Run QA' })).toBeVisible();
+
+  for (const tabName of ['Blocks/Snippets', 'Dynamic Rules', 'Tokens', 'Versions', 'Approvals', 'Assets', 'Brand Kit', 'Test Sends']) {
+    await expect(page.getByRole('tab', { name: tabName })).toHaveCount(0);
+  }
+  for (const buttonName of ['Export HTML', 'Publish', 'Approval']) {
+    await expect(page.getByRole('button', { name: buttonName })).toHaveCount(0);
+  }
+  await expect(page.getByTestId('block-library-DYNAMIC')).toHaveCount(0);
+  await expect(page.getByTestId('block-library-HTML')).toHaveCount(0);
+  await expect(page.getByTestId('block-library-PRODUCT')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Rules' })).toHaveCount(0);
+  await expect(page.getByLabel('Content')).toBeVisible();
+  await expect(page.getByLabel('HTML Content')).toHaveCount(0);
+  expect(seen.advancedRequests).toEqual([]);
+
+  await page.getByRole('button', { name: 'Save Draft' }).click();
+  await expect.poll(() => Boolean(seen.updatePayload)).toBeTruthy();
+  await expect.poll(() => Boolean(seen.draftPayload)).toBeTruthy();
+
+  const updatePayload = seen.updatePayload ?? {};
+  expect(String(updatePayload.htmlContent)).not.toMatch(/class="[^"]*legent-hide-mobile/);
+  expect(String(updatePayload.htmlContent)).not.toMatch(/class="[^"]*legent-hide-desktop/);
+  expect(String(updatePayload.htmlContent)).not.toContain('data-legent-visibility-rule');
+
+  const metadata = JSON.parse(String(updatePayload.metadata)) as {
+    builderBlocks: Array<{ settings?: Record<string, unknown> }>;
+  };
+  for (const block of metadata.builderBlocks) {
+    expect(block.settings?.hideOnMobile).toBeUndefined();
+    expect(block.settings?.hideOnDesktop).toBeUndefined();
+    expect(block.settings?.visibilityRule).toBeUndefined();
+  }
+  expect(seen.renderPayload).toBeUndefined();
+  expect(seen.validatePayload).toBeUndefined();
 });

@@ -128,6 +128,72 @@ Validation:
 Residual risk:
 - Budget, frequency, template command-center, and automation advanced controls still need separate mode-metadata slices with payload/default-policy decisions.
 
+## 2026-05-20 Campaign budget and frequency mode contract
+
+Source: `frontend/src/lib/ui-mode-contract.ts`, `frontend/src/app/(workspace)/campaigns/new/page.tsx`, `frontend/tests/e2e/campaign-engine.spec.ts`, and six read-only frontend scouts.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Added campaign mode metadata for Budget Guard and Workspace Frequency Policy.
+- BASIC mode now unmounts those advanced controls and omits the hidden budget/frequency post-create API calls.
+- The campaign wizard keeps the simple Frequency Cap visible in BASIC as a safety control while treating the workspace frequency policy as Advanced.
+
+Validation:
+- `cd frontend; npm run lint`
+- `cd frontend; npm run build:ci`
+- `cd frontend; .\node_modules\.bin\playwright.cmd test tests/e2e/campaign-engine.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line`
+- `git diff --check`
+
+Residual risk:
+- UI mode is not an authorization boundary; backend safety and authorization remain authoritative.
+- Template Studio and Automation Studio still need separate mode-metadata slices.
+
+## 2026-05-20 Automation mode contract
+
+Source: `frontend/src/lib/ui-mode-contract.ts`, `frontend/src/app/(workspace)/automation/page.tsx`, `frontend/src/app/(workspace)/automations/builder/page.tsx`, `frontend/src/components/automation/JourneyBuilder.tsx`, `frontend/src/components/automation/NodeEditorModal.tsx`, `frontend/tests/e2e/automation-studio.spec.ts`, and `frontend/tests/e2e/automation-builder.spec.ts`.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Added Automation Studio mode metadata for activity authoring, activity execution, manual trigger, and draft journey node types.
+- BASIC mode now unmounts New Activity, Verify, Dry Run, and manual Trigger controls.
+- BASIC mode blocks saving loaded draft-only journey nodes with a visible validation error instead of silently dropping unsupported nodes.
+- Advanced mode keeps existing authoring, execution, and draft-node visibility behavior.
+
+Validation:
+- `cd frontend; npm run lint`
+- `cd frontend; npm run build:ci`
+- `cd frontend; .\node_modules\.bin\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line`
+- `git diff --check`
+
+Residual risk:
+- UI mode is not authorization; backend workflow validation and activity execution safety remain authoritative.
+- Template Studio still needs a separate mode-metadata slice.
+
+## 2026-05-20 Template Studio mode contract
+
+Source: `frontend/src/lib/ui-mode-contract.ts`, `frontend/src/app/(workspace)/email/templates/[id]/page.tsx`, `frontend/src/components/content/TemplateBuilder.tsx`, `frontend/src/components/content/TemplateStudioCommandCenter.tsx`, `frontend/tests/e2e/template-builder.spec.ts`, and six read-only frontend scouts.
+
+Status: completed local implementation cycle.
+
+Outcome:
+- Added Template Studio mode metadata for advanced builder blocks, conditional rules, reusable content, dynamic content, personalization tokens, version operations, approval workflow, asset library, brand kits, test sends, and publish controls.
+- BASIC mode keeps identity fields, core builder, Save Draft, and Preview/QA available while unmounting advanced Template Studio tabs and command/header actions.
+- BASIC mode skips hidden optional resource loads for versions, approvals, assets, snippets, tokens, dynamic rules, brand kits, and test-send records.
+- The builder hides advanced block types and the Rules/raw HTML surfaces in BASIC, and BASIC save payloads scrub conditional visibility settings from metadata and generated HTML row classes.
+
+Validation:
+- `cd frontend; npm run lint`
+- `cd frontend; npm run build:ci`
+- `cd frontend; .\node_modules\.bin\playwright.cmd test tests/e2e/template-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line`
+- `.codex\utilities\validate-codex-system.ps1`
+- `git diff --check`
+
+Residual risk:
+- UI mode is not authorization; content-service permissions and renderer/sanitizer behavior remain authoritative.
+- BASIC mode intentionally preserves Save Draft and Preview/QA; backend validation remains the safety boundary for HTML and rendered content.
+
 ## 2026-05-20 ClickHouse experiment lineage and rollup idempotency
 
 Source: `services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseWriter.java`, `services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java`, `services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseWriterTest.java`, and `services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java`.

@@ -1,0 +1,45 @@
+{
+  "id": "automation-mode-contract",
+  "createdAt": "2026-05-20T11:57:00Z",
+  "objective": "Apply the BASIC/ADVANCED frontend mode contract to Automation Studio side-effecting and advanced workflow controls.",
+  "status": "DONE",
+  "owner": "FRONTEND_OWNER",
+  "threadId": "frontend-20260520T113115Z",
+  "filesInScope": [
+    "frontend/src/lib/ui-mode-contract.ts",
+    "frontend/src/app/(workspace)/automation/page.tsx",
+    "frontend/src/app/(workspace)/automations/builder/page.tsx",
+    "frontend/src/components/automation/JourneyBuilder.tsx",
+    "frontend/src/components/automation/NodeEditorModal.tsx",
+    "frontend/tests/e2e/automation-studio.spec.ts",
+    "frontend/tests/e2e/automation-builder.spec.ts"
+  ],
+  "agents": [
+    "FRONTEND_OWNER",
+    "UX_STRATEGIST",
+    "SECURITY_ENGINEER",
+    "TEST_ARCHITECT"
+  ],
+  "validationPlan": [
+    "cd frontend; npm run lint",
+    "cd frontend; npm run build:ci",
+    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly requested.",
+  "blockers": [],
+  "nextAction": "Release frontend leases, run Codex validation, and continue with the next safe frontend slice if available.",
+  "outcome": "Automation Studio activity authoring/execution controls and manual workflow trigger now use ADVANCED_ONLY mode metadata and are absent from BASIC mode. BASIC mode also blocks saving loaded draft-only journey nodes instead of silently dropping them.",
+  "validationRun": [
+    "PASS: cd frontend; npm run lint",
+    "PASS: cd frontend; npm run build:ci",
+    "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+    "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "PASS: git diff --check (CRLF warnings only)"
+  ],
+  "residualRisks": [
+    "UI mode is not an authorization boundary; backend workflow and activity validation remains authoritative.",
+    "Template Studio still needs a separate BASIC/ADVANCED mode-metadata slice."
+  ]
+}

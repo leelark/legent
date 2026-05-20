@@ -6,6 +6,7 @@ import com.legent.foundation.domain.Tenant;
 import com.legent.foundation.dto.TenantDto;
 import com.legent.foundation.mapper.TenantMapper;
 import com.legent.foundation.repository.TenantRepository;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,10 @@ public class TenantService {
 
     @Transactional(readOnly = true)
     public TenantDto.Response getTenant(String id) {
+        String currentTenantId = TenantContext.requireTenantId();
+        if (!currentTenantId.equals(id)) {
+            throw new NotFoundException("Tenant", id);
+        }
         Tenant tenant = tenantRepository.findActiveById(id)
                 .orElseThrow(() -> new NotFoundException("Tenant", id));
         return tenantMapper.toResponse(tenant);

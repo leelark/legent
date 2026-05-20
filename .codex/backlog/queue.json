@@ -1,10 +1,224 @@
-{
+﻿{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
     "lastUpdated":  "2026-05-20",
     "selectionPolicy":  "Sort READY work by priorityScore descending, then no blockers, smallest safe scope, validation availability, and lease compatibility.",
     "readyWork":  [
+                      {
+                          "id":  "frequency-optimization-governance",
+                          "title":  "Define governed engagement frequency optimization contract",
+                          "status":  "READY",
+                          "priorityScore":  60,
+                          "scoring":  {
+                                          "productionReadinessImpact":  4,
+                                          "securityRisk":  4,
+                                          "userImpact":  4,
+                                          "performanceImpact":  4,
+                                          "technicalDebtImpact":  4
+                                      },
+                          "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                          "partnerAgents":  [
+                                                "CAMPAIGN_SERVICE_OWNER",
+                                                "PERFORMANCE_ENGINEER",
+                                                "DATA_ARCHITECT",
+                                                "TEST_ARCHITECT"
+                                            ],
+                          "scope":  "Define frequency optimization lookback, variant, fatigue, confidence, and deliverability guardrail contract before recommendations can affect send cadence.",
+                          "nonGoals":  "Do not increase frequency for suppressed, unsubscribed, complaint-prone, warmup-blocked, over-cap, or provider-blocked recipients. Do not claim deliverability lift without evidence.",
+                          "sourceFiles":  [
+                                              "docs/product/ai-governance-optimization-foundation.md",
+                                              "docs/product/salesforce-parity-matrix.md",
+                                              "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
+                                              "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java",
+                                              "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                              "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java"
+                                          ],
+                          "acceptanceCriteria":  [
+                                                     "Frequency contract defines lookback window, required variants, low-data fallback, saturation categories, confidence bands, and recommended cap.",
+                                                     "Fatigue, unsubscribe, complaint, bounce, suppression, warmup, provider health, and rate controls are fail-closed safety inputs.",
+                                                     "Recommendations expose expected safety impact and require approval when cadence increases or risk is non-low.",
+                                                     "Focused implementation tests are identified for suppressions, caps, provider blocking, and tenant/workspace isolation."
+                                                 ],
+                          "validationProfile":  "research-backend",
+                          "validationCommands":  [
+                                                     "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                     "git diff --check"
+                                                 ],
+                          "dependencies":  [
+                                               "AI governance foundation",
+                                               "deliverability evidence"
+                                           ],
+                          "blockers":  [
 
+                                       ],
+                          "memoryTargets":  [
+                                                "enhancement-log.md",
+                                                "performance-bottlenecks.md",
+                                                "security-findings.md",
+                                                "design-decisions.md"
+                                            ],
+                          "nextAction":  "Design the frequency optimization safety contract before implementation.",
+                          "lastUpdated":  "2026-05-20T12:00:46.2168096Z"
+                      },
+                      {
+                          "id":  "ai-content-assistance-governance",
+                          "title":  "Implement governed draft-only AI content assistance foundation",
+                          "status":  "READY",
+                          "priorityScore":  58,
+                          "scoring":  {
+                                          "productionReadinessImpact":  3,
+                                          "securityRisk":  5,
+                                          "userImpact":  5,
+                                          "performanceImpact":  2,
+                                          "technicalDebtImpact":  4
+                                      },
+                          "owner":  "CONTENT_SERVICE_OWNER",
+                          "partnerAgents":  [
+                                                "SECURITY_ENGINEER",
+                                                "PRODUCT_MANAGER_AGENT",
+                                                "FOUNDATION_SERVICE_OWNER",
+                                                "TEST_ARCHITECT"
+                                            ],
+                          "scope":  "Add tenant/workspace-scoped AI policy and audit scaffolding for draft-only content assistance, including provider disclosure, prompt/data classification, output safety review, and human approval before send or publication.",
+                          "nonGoals":  "Do not call external model APIs, add provider credentials, autopublish generated content, or claim Salesforce Einstein parity in this slice.",
+                          "sourceFiles":  [
+                                              "docs/product/ai-governance-optimization-foundation.md",
+                                              "docs/product/salesforce-parity-matrix.md",
+                                              "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                              "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                              "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
+                                              "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java"
+                                          ],
+                          "acceptanceCriteria":  [
+                                                     "Tenant/workspace AI policy defines feature class, provider disclosure, allowed data classes, training stance, retention, opt-in/out, and kill switch.",
+                                                     "Content assistance remains draft-only and requires human review before send or publication.",
+                                                     "Audit records capture policy version, actor, data classes, prompt template version, output hash, and review decision without storing secrets.",
+                                                     "Tests cover policy denial, missing tenant/workspace context, and no-review/autopublish rejection."
+                                                 ],
+                          "validationProfile":  "backend-focused",
+                          "validationCommands":  [
+                                                     ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                                                     "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                     "git diff --check"
+                                                 ],
+                          "dependencies":  [
+                                               "AI governance foundation",
+                                               "model provider security decision"
+                                           ],
+                          "blockers":  [
+
+                                       ],
+                          "memoryTargets":  [
+                                                "enhancement-log.md",
+                                                "security-findings.md",
+                                                "design-decisions.md"
+                                            ],
+                          "nextAction":  "Design the tenant/workspace AI policy and audit schema for draft-only content assistance before implementation.",
+                          "lastUpdated":  "2026-05-20T12:00:46.2168096Z"
+                      },
+                      {
+                          "id":  "automation-studio-activity-orchestration",
+                          "title":  "Expand Automation Studio activity orchestration safely",
+                          "status":  "READY",
+                          "priorityScore":  48,
+                          "scoring":  {
+                                          "productionReadinessImpact":  4,
+                                          "securityRisk":  2,
+                                          "userImpact":  4,
+                                          "performanceImpact":  2,
+                                          "technicalDebtImpact":  4
+                                      },
+                          "owner":  "AUTOMATION_SERVICE_OWNER",
+                          "partnerAgents":  [
+                                                "PLATFORM_SERVICE_OWNER",
+                                                "SRE_MONITORING_ENGINEER",
+                                                "TEST_ARCHITECT"
+                                            ],
+                          "scope":  "Decompose support for file/trigger starts, extracts, script/webhook/send activities, dependency ordering, notifications, and richer run-history/error details.",
+                          "nonGoals":  "Do not add arbitrary script execution or external storage credentials without a separate security design.",
+                          "sourceFiles":  [
+                                              "services/automation-service/src/main/java/com/legent/automation/controller/AutomationStudioController.java",
+                                              "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                              "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
+                                              "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
+                                              "frontend/src/app/(workspace)/automation/page.tsx"
+                                          ],
+                          "acceptanceCriteria":  [
+                                                     "Unsupported activity types fail closed with clear validation.",
+                                                     "Dependency ordering and run-history design is documented before new activity execution is added.",
+                                                     "Security review exists for scripts, file transfer, webhooks, and external object storage.",
+                                                     "Follow-up READY slices are split by activity family."
+                                                 ],
+                          "validationProfile":  "research-backend",
+                          "validationCommands":  [
+                                                     "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                 ],
+                          "dependencies":  [
+                                               "security design for executable/external activities"
+                                           ],
+                          "blockers":  [
+
+                                       ],
+                          "memoryTargets":  [
+                                                "enhancement-log.md",
+                                                "technical-debt.md",
+                                                "security-findings.md"
+                                            ],
+                          "nextAction":  "Create implementation plan and split executable activity families before coding.",
+                          "lastUpdated":  "2026-05-20T13:24:50.3857224Z"
+                      },
+                      {
+                          "id":  "flow-analytics-experimentation",
+                          "title":  "Add journey step analytics and experimentation depth",
+                          "status":  "READY",
+                          "priorityScore":  39,
+                          "scoring":  {
+                                          "productionReadinessImpact":  3,
+                                          "securityRisk":  1,
+                                          "userImpact":  4,
+                                          "performanceImpact":  2,
+                                          "technicalDebtImpact":  4
+                                      },
+                          "owner":  "TRACKING_SERVICE_OWNER",
+                          "partnerAgents":  [
+                                                "AUTOMATION_SERVICE_OWNER",
+                                                "FRONTEND_OWNER",
+                                                "DATA_ARCHITECT"
+                                            ],
+                          "scope":  "Add journey step metrics, conversion goals, random cohort and A/B reporting, winning-path reporting, and anomaly surfacing around journey/campaign execution.",
+                          "nonGoals":  "Do not claim causal attribution or anomaly accuracy without measured evidence.",
+                          "sourceFiles":  [
+                                              "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java",
+                                              "services/tracking-service/src/main/java/com/legent/tracking/controller/BiAnalyticsController.java",
+                                              "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                              "services/automation-service/src/main/java/com/legent/automation/controller/WorkflowController.java",
+                                              "frontend/src/app/(workspace)/analytics/page.tsx"
+                                          ],
+                          "acceptanceCriteria":  [
+                                                     "Journey step metrics and conversion goals have explicit event contracts.",
+                                                     "Experiment reporting separates campaign experiments from journey path tests.",
+                                                     "Anomaly language is evidence-based and avoids unsupported AI claims.",
+                                                     "Validation plan covers tracking ingestion, rollups, and UI rendering."
+                                                 ],
+                          "validationProfile":  "backend-frontend-focused",
+                          "validationCommands":  [
+                                                     ".\\mvnw.cmd -pl services/tracking-service,services/automation-service -am test",
+                                                     "cd frontend; npm run lint"
+                                                 ],
+                          "dependencies":  [
+                                               "event contract design"
+                                           ],
+                          "blockers":  [
+
+                                       ],
+                          "memoryTargets":  [
+                                                "enhancement-log.md",
+                                                "technical-debt.md",
+                                                "performance-bottlenecks.md"
+                                            ],
+                          "nextAction":  "Design the event and rollup contract before implementation.",
+                          "lastUpdated":  "2026-05-20T13:24:50.3857224Z"
+                      }
                   ],
     "backlogWork":  [
                         {
@@ -107,327 +321,8 @@
                                                   "technical-debt.md",
                                                   "security-findings.md"
                                               ],
-                            "nextAction":  "Decompose data-designer governance into migration-safe service and UI slices.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
-                            "id":  "automation-studio-activity-orchestration",
-                            "title":  "Expand Automation Studio activity orchestration safely",
-                            "status":  "BACKLOG",
-                            "priorityScore":  48,
-                            "scoring":  {
-                                            "productionReadinessImpact":  4,
-                                            "securityRisk":  2,
-                                            "userImpact":  4,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "AUTOMATION_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "PLATFORM_SERVICE_OWNER",
-                                                  "SRE_MONITORING_ENGINEER",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Decompose support for file/trigger starts, extracts, script/webhook/send activities, dependency ordering, notifications, and richer run-history/error details.",
-                            "nonGoals":  "Do not add arbitrary script execution or external storage credentials without a separate security design.",
-                            "sourceFiles":  [
-                                                "services/automation-service/src/main/java/com/legent/automation/controller/AutomationStudioController.java",
-                                                "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
-                                                "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivity.java",
-                                                "services/automation-service/src/main/java/com/legent/automation/domain/AutomationActivityRun.java",
-                                                "frontend/src/app/(workspace)/automation/page.tsx"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Unsupported activity types fail closed with clear validation.",
-                                                       "Dependency ordering and run-history design is documented before new activity execution is added.",
-                                                       "Security review exists for scripts, file transfer, webhooks, and external object storage.",
-                                                       "Follow-up READY slices are split by activity family."
-                                                   ],
-                            "validationProfile":  "research-backend",
-                            "validationCommands":  [
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
-                                                   ],
-                            "dependencies":  [
-                                                 "security design for executable/external activities"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "technical-debt.md",
-                                                  "security-findings.md"
-                                              ],
-                            "nextAction":  "Create implementation plan and split executable activity families before coding.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
-                            "id":  "flow-analytics-experimentation",
-                            "title":  "Add journey step analytics and experimentation depth",
-                            "status":  "BACKLOG",
-                            "priorityScore":  39,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  1,
-                                            "userImpact":  4,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "TRACKING_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "AUTOMATION_SERVICE_OWNER",
-                                                  "FRONTEND_OWNER",
-                                                  "DATA_ARCHITECT"
-                                              ],
-                            "scope":  "Add journey step metrics, conversion goals, random cohort and A/B reporting, winning-path reporting, and anomaly surfacing around journey/campaign execution.",
-                            "nonGoals":  "Do not claim causal attribution or anomaly accuracy without measured evidence.",
-                            "sourceFiles":  [
-                                                "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java",
-                                                "services/tracking-service/src/main/java/com/legent/tracking/controller/BiAnalyticsController.java",
-                                                "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
-                                                "services/automation-service/src/main/java/com/legent/automation/controller/WorkflowController.java",
-                                                "frontend/src/app/(workspace)/analytics/page.tsx"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Journey step metrics and conversion goals have explicit event contracts.",
-                                                       "Experiment reporting separates campaign experiments from journey path tests.",
-                                                       "Anomaly language is evidence-based and avoids unsupported AI claims.",
-                                                       "Validation plan covers tracking ingestion, rollups, and UI rendering."
-                                                   ],
-                            "validationProfile":  "backend-frontend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/tracking-service,services/automation-service -am test",
-                                                       "cd frontend; npm run lint"
-                                                   ],
-                            "dependencies":  [
-                                                 "event contract design"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "technical-debt.md",
-                                                  "performance-bottlenecks.md"
-                                              ],
-                            "nextAction":  "Design the event and rollup contract before implementation.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
-                            "id":  "external-provider-capacity",
-                            "title":  "Verify external email provider capacity and sender reputation",
-                            "status":  "BLOCKED",
-                            "priorityScore":  52,
-                            "scoring":  {
-                                            "productionReadinessImpact":  4,
-                                            "securityRisk":  3,
-                                            "userImpact":  3,
-                                            "performanceImpact":  4,
-                                            "technicalDebtImpact":  3
-                                        },
-                            "owner":  "DELIVERABILITY_ENGINEER",
-                            "partnerAgents":  [
-                                                  "PERFORMANCE_ENGINEER",
-                                                  "RELEASE_MANAGER",
-                                                  "SRE_MONITORING_ENGINEER"
-                                              ],
-                            "scope":  "Verify provider API/SMTP limits, sender reputation, DNS authentication, warmup status, feedback-loop handling, and rate-control policy before production high-volume claims.",
-                            "nonGoals":  "Do not claim inbox placement, provider capacity, or 10 lakh send readiness from repository-only checks.",
-                            "sourceFiles":  [
-                                                ".codex/memory/blocked-items.md",
-                                                "docs/security/deliverability-and-safety.md",
-                                                "docs/load-testing/high-volume-readiness.md"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Provider capacity evidence is dated and reviewed.",
-                                                       "Sender/domain warmup and DNS authentication evidence is present.",
-                                                       "Feedback loop, bounce, complaint, suppression, and rate-control handling are verified."
-                                                   ],
-                            "validationProfile":  "performance",
-                            "validationCommands":  [
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
-                                                   ],
-                            "dependencies":  [
-                                                 "provider contract or quota evidence",
-                                                 "warmed sender-domain evidence",
-                                                 "DNS and feedback-loop verification"
-                                             ],
-                            "blockers":  [
-                                             "External provider and sender reputation evidence not present in repository"
-                                         ],
-                            "memoryTargets":  [
-                                                  "blocked-items.md",
-                                                  "performance-bottlenecks.md",
-                                                  "unresolved-risks.md"
-                                              ],
-                            "nextAction":  "Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
-                            "id":  "ai-content-assistance-governance",
-                            "title":  "Implement governed draft-only AI content assistance foundation",
-                            "status":  "BACKLOG",
-                            "priorityScore":  58,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  5,
-                                            "userImpact":  5,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "CONTENT_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "SECURITY_ENGINEER",
-                                                  "PRODUCT_MANAGER_AGENT",
-                                                  "FOUNDATION_SERVICE_OWNER",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Add tenant/workspace-scoped AI policy and audit scaffolding for draft-only content assistance, including provider disclosure, prompt/data classification, output safety review, and human approval before send or publication.",
-                            "nonGoals":  "Do not call external model APIs, add provider credentials, autopublish generated content, or claim Salesforce Einstein parity in this slice.",
-                            "sourceFiles":  [
-                                                "docs/product/ai-governance-optimization-foundation.md",
-                                                "docs/product/salesforce-parity-matrix.md",
-                                                "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
-                                                "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
-                                                "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
-                                                "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Tenant/workspace AI policy defines feature class, provider disclosure, allowed data classes, training stance, retention, opt-in/out, and kill switch.",
-                                                       "Content assistance remains draft-only and requires human review before send or publication.",
-                                                       "Audit records capture policy version, actor, data classes, prompt template version, output hash, and review decision without storing secrets.",
-                                                       "Tests cover policy denial, missing tenant/workspace context, and no-review/autopublish rejection."
-                                                   ],
-                            "validationProfile":  "backend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "AI governance foundation",
-                                                 "model provider security decision"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "security-findings.md",
-                                                  "design-decisions.md"
-                                              ],
-                            "nextAction":  "Design the tenant/workspace AI policy and audit schema for draft-only content assistance before implementation.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
-                            "id":  "predictive-segments-governance",
-                            "title":  "Define governed predictive segment contract",
-                            "status":  "BACKLOG",
-                            "priorityScore":  53,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  4,
-                                            "userImpact":  4,
-                                            "performanceImpact":  3,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "AUDIENCE_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "DATA_ARCHITECT",
-                                                  "SECURITY_ENGINEER",
-                                                  "PRODUCT_MANAGER_AGENT",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Define predictive segment data provenance, threshold, preview, approval, tenant isolation, and rollback controls before model-backed audience creation.",
-                            "nonGoals":  "Do not infer or target protected/sensitive categories, weaken suppression/preference controls, or create sendable audiences without preview and approval.",
-                            "sourceFiles":  [
-                                                "docs/product/ai-governance-optimization-foundation.md",
-                                                "docs/product/salesforce-parity-matrix.md",
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
-                                                "frontend/src/components/audience/SegmentRuleBuilder.tsx"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Predictive segment contract declares allowed feature sources, data freshness, minimum counts, bias/drift checks, and protected-data exclusions.",
-                                                       "Predicted segments expose modeled-vs-rule-derived status, reasons, preview counts, suppression impact, and rollback snapshot.",
-                                                       "Audience-changing recommendations require human approval and tenant/workspace isolation tests.",
-                                                       "Follow-up implementation scope is split from Contact Builder data-designer governance when needed."
-                                                   ],
-                            "validationProfile":  "research-backend",
-                            "validationCommands":  [
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "AI governance foundation",
-                                                 "contact data-designer governance"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "security-findings.md",
-                                                  "design-decisions.md"
-                                              ],
-                            "nextAction":  "Design predictive segment governance around provenance, preview, approval, and rollback.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
-                            "id":  "frequency-optimization-governance",
-                            "title":  "Define governed engagement frequency optimization contract",
-                            "status":  "BACKLOG",
-                            "priorityScore":  60,
-                            "scoring":  {
-                                            "productionReadinessImpact":  4,
-                                            "securityRisk":  4,
-                                            "userImpact":  4,
-                                            "performanceImpact":  4,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "DELIVERABILITY_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "CAMPAIGN_SERVICE_OWNER",
-                                                  "PERFORMANCE_ENGINEER",
-                                                  "DATA_ARCHITECT",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Define frequency optimization lookback, variant, fatigue, confidence, and deliverability guardrail contract before recommendations can affect send cadence.",
-                            "nonGoals":  "Do not increase frequency for suppressed, unsubscribed, complaint-prone, warmup-blocked, over-cap, or provider-blocked recipients. Do not claim deliverability lift without evidence.",
-                            "sourceFiles":  [
-                                                "docs/product/ai-governance-optimization-foundation.md",
-                                                "docs/product/salesforce-parity-matrix.md",
-                                                "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
-                                                "services/delivery-service/src/main/java/com/legent/delivery/service/WarmupService.java",
-                                                "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Frequency contract defines lookback window, required variants, low-data fallback, saturation categories, confidence bands, and recommended cap.",
-                                                       "Fatigue, unsubscribe, complaint, bounce, suppression, warmup, provider health, and rate controls are fail-closed safety inputs.",
-                                                       "Recommendations expose expected safety impact and require approval when cadence increases or risk is non-low.",
-                                                       "Focused implementation tests are identified for suppressions, caps, provider blocking, and tenant/workspace isolation."
-                                                   ],
-                            "validationProfile":  "research-backend",
-                            "validationCommands":  [
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "AI governance foundation",
-                                                 "deliverability evidence"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "performance-bottlenecks.md",
-                                                  "security-findings.md",
-                                                  "design-decisions.md"
-                                              ],
-                            "nextAction":  "Design the frequency optimization safety contract before implementation.",
-                            "lastUpdated":  "2026-05-20"
+                            "nextAction":  "No-schema backend preview/relationship/sendable guards completed in checkpoint 20260520T125000Z-contact-data-designer-preview-governance; parent remains open for additive provenance/classification/audit tables, controller API validation, and frontend relationship-designer controls.",
+                            "lastUpdated":  "2026-05-20T13:14:00Z"
                         }
                     ],
     "blockedWork":  [
@@ -571,7 +466,7 @@
                                                  "Cross-service contract design"
                                              ],
                             "blockers":  [
-
+                                             "Compatibility decision required for legacy campaign recipient payload behavior before implementation."
                                          ],
                             "memoryTargets":  [
                                                   "security-findings.md",
@@ -594,6 +489,56 @@
                             "residualRisks":  [
                                                   "Campaign legacy recipient JSON payloads remain a possible bypass until product/operations decide whether old in-flight batches should fail closed, be grandfathered, or be migrated to an eligibility marker."
                                               ]
+                        },
+                        {
+                            "id":  "external-provider-capacity",
+                            "title":  "Verify external email provider capacity and sender reputation",
+                            "status":  "BLOCKED",
+                            "priorityScore":  52,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  3,
+                                            "userImpact":  3,
+                                            "performanceImpact":  4,
+                                            "technicalDebtImpact":  3
+                                        },
+                            "owner":  "DELIVERABILITY_ENGINEER",
+                            "partnerAgents":  [
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "RELEASE_MANAGER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Verify provider API/SMTP limits, sender reputation, DNS authentication, warmup status, feedback-loop handling, and rate-control policy before production high-volume claims.",
+                            "nonGoals":  "Do not claim inbox placement, provider capacity, or 10 lakh send readiness from repository-only checks.",
+                            "sourceFiles":  [
+                                                ".codex/memory/blocked-items.md",
+                                                "docs/security/deliverability-and-safety.md",
+                                                "docs/load-testing/high-volume-readiness.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Provider capacity evidence is dated and reviewed.",
+                                                       "Sender/domain warmup and DNS authentication evidence is present.",
+                                                       "Feedback loop, bounce, complaint, suppression, and rate-control handling are verified."
+                                                   ],
+                            "validationProfile":  "performance",
+                            "validationCommands":  [
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                   ],
+                            "dependencies":  [
+                                                 "provider contract or quota evidence",
+                                                 "warmed sender-domain evidence",
+                                                 "DNS and feedback-loop verification"
+                                             ],
+                            "blockers":  [
+                                             "External provider and sender reputation evidence not present in repository"
+                                         ],
+                            "memoryTargets":  [
+                                                  "blocked-items.md",
+                                                  "performance-bottlenecks.md",
+                                                  "unresolved-risks.md"
+                                              ],
+                            "nextAction":  "Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims.",
+                            "lastUpdated":  "2026-05-20"
                         }
                     ],
     "doneWork":  [
@@ -2338,6 +2283,666 @@
                          "residualRisks":  [
                                                "Budget, frequency, template command-center, and automation advanced controls still need separate mode-metadata slices with payload/default-policy decisions.",
                                                "Mode visibility is UX affordance only; backend authorization and safety defaults remain authoritative."
+                                           ]
+                     },
+                     {
+                         "id":  "campaign-budget-frequency-mode-contract",
+                         "title":  "Apply UI mode contract to campaign budget and frequency controls",
+                         "status":  "DONE",
+                         "priorityScore":  34,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "UX_STRATEGIST",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "mode-aware-workflow-contract",
+                         "scope":  "Render-gate campaign Budget Guard and Workspace Frequency Policy in BASIC mode and prevent hidden advanced budget/frequency API payloads from being submitted.",
+                         "nonGoals":  "Do not hide the simple Frequency Cap safety control or change backend authorization, spend, delivery, or frequency enforcement.",
+                         "sourceFiles":  [
+                                             "frontend/src/lib/ui-mode-contract.ts",
+                                             "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                                             "frontend/tests/e2e/campaign-engine.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Budget Guard and Workspace Frequency Policy have explicit ADVANCED_ONLY mode metadata.",
+                                                    "BASIC mode removes advanced budget/frequency controls from the DOM/focus order.",
+                                                    "BASIC mode skips hidden budget/frequency API payloads while preserving base campaign safety fields.",
+                                                    "Focused Playwright coverage proves BASIC and ADVANCED behavior."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/campaign-engine.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Continue with automation-mode-contract or template-studio-mode-contract.",
+                         "lastUpdated":  "2026-05-20T11:54:20.4031217Z",
+                         "startedAt":  "2026-05-20T11:38:30Z",
+                         "completedAt":  "2026-05-20T11:54:20.4031217Z",
+                         "checkpoint":  ".codex/checkpoints/20260520T113830Z-campaign-budget-frequency-mode-contract.json",
+                         "outcome":  "Campaign Budget Guard and Workspace Frequency Policy now use ADVANCED_ONLY mode metadata, render-time BASIC gating, and BASIC-mode hidden payload omission while preserving simple Frequency Cap as a safety control.",
+                         "validationRun":  [
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: cd frontend; npm run build:ci",
+                                               "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/campaign-engine.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "UI mode is a UX contract only; backend authorization and safety remain authoritative.",
+                                               "Template Studio and Automation Studio mode metadata remain open frontend follow-up slices."
+                                           ]
+                     },
+                     {
+                         "id":  "admin-settings-context-mismatch-fail-closed",
+                         "title":  "Fail closed on admin settings context mismatches",
+                         "status":  "DONE",
+                         "priorityScore":  50,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Reject admin settings request-body workspaceId/environmentId mismatches against TenantContext before validate/apply/reset/impact can proceed.",
+                         "nonGoals":  "Do not redesign global config administration or cross-service config propagation in this slice.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Validation reports workspace/environment mismatches without resolving dependencies in the requested foreign scope.",
+                                                    "Apply and reset fail before config service/repository side effects when request scope conflicts with TenantContext.",
+                                                    "Focused and full foundation-service tests pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AdminSettingsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue foundation tenant/config ownership hardening; top audit findings are tenant lifecycle cross-tenant control and config by-ID tenant scoping.",
+                         "lastUpdated":  "2026-05-20T11:55:00Z",
+                         "startedAt":  "2026-05-20T11:42:53Z",
+                         "completedAt":  "2026-05-20T11:52:00Z",
+                         "checkpoint":  ".codex/checkpoints/20260520T114343Z-admin-settings-context-mismatch-fail-closed.json",
+                         "outcome":  "Admin settings service now rejects request-body workspaceId/environmentId mismatches and reset missing scoped context before config changes can cross scope.",
+                         "validationRun":  [
+                                               "Focused AdminSettingsServiceTest passed with 6 tests.",
+                                               "Full .\\mvnw.cmd -pl services/foundation-service -am test passed with 98 foundation-service tests and upstream shared-module tests.",
+                                               "git diff --check passed for touched files with CRLF warnings only."
+                                           ],
+                         "residualRisks":  [
+                                               "Tenant lifecycle cross-tenant controls and ConfigService update/delete raw-ID scoping remain open foundation audit findings.",
+                                               "Production release remains blocked by external target-environment evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-mode-contract",
+                         "title":  "Apply BASIC and ADVANCED mode metadata to Automation Studio",
+                         "status":  "DONE",
+                         "priorityScore":  37,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  3,
+                                         "userImpact":  4,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "UX_STRATEGIST",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "mode-aware-workflow-contract",
+                         "scope":  "Add automation mode metadata/allowlists and render-gate advanced activity controls, manual trigger, and advanced journey graph save behavior in BASIC mode without changing backend authorization.",
+                         "nonGoals":  "Do not edit automation-service backend contracts or silently drop loaded advanced nodes in BASIC mode.",
+                         "sourceFiles":  [
+                                             "frontend/src/lib/ui-mode-contract.ts",
+                                             "frontend/src/app/(workspace)/automation/page.tsx",
+                                             "frontend/src/app/(workspace)/automations/builder/page.tsx",
+                                             "frontend/src/components/automation/JourneyBuilder.tsx",
+                                             "frontend/src/components/automation/NodeEditorModal.tsx",
+                                             "frontend/tests/e2e/automation-studio.spec.ts",
+                                             "frontend/tests/e2e/automation-builder.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "BASIC mode hides or blocks advanced automation activity controls and manual live trigger surfaces.",
+                                                    "BASIC mode cannot submit hidden advanced activity or graph payloads silently.",
+                                                    "ADVANCED mode keeps current automation behavior.",
+                                                    "Targeted Playwright coverage proves BASIC and ADVANCED paths."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line"
+                                                ],
+                         "dependencies":  [
+                                              "campaign-budget-frequency-mode-contract lease released"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "test-impact-map.md"
+                                           ],
+                         "nextAction":  "Continue with template-studio-mode-contract after final Codex validation.",
+                         "lastUpdated":  "2026-05-20T12:05:49.2181884Z",
+                         "completedAt":  "2026-05-20T12:05:49.2181884Z",
+                         "outcome":  "Automation Studio activity authoring/execution controls, manual workflow trigger, and draft-only journey node saving now use BASIC/ADVANCED mode metadata and guards without changing backend contracts.",
+                         "validationRun":  [
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: cd frontend; npm run build:ci",
+                                               "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "UI mode is not authorization; backend workflow validation and activity execution safety remain authoritative.",
+                                               "Template Studio mode metadata remains open."
+                                           ]
+                     },
+                     {
+                         "id":  "config-by-id-tenant-scope",
+                         "title":  "Tenant-scope config update/delete by ID",
+                         "status":  "DONE",
+                         "priorityScore":  50,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "foundation-tenant-config-ownership",
+                         "scope":  "Require current-tenant and current-scope repository resolution before ConfigService update/delete by ID can mutate config rows.",
+                         "nonGoals":  "Do not redesign global config administration or config version-history schema in this slice.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Known config IDs outside the current tenant return not found before save/delete side effects.",
+                                                    "Workspace/environment-scoped configs require matching TenantContext scope before mutation.",
+                                                    "Focused and full foundation-service tests pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ConfigServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue foundation tenant/config ownership hardening with differentiation exact workspace matching, config version scoping, and tenant lifecycle policy follow-ups.",
+                         "lastUpdated":  "2026-05-20T12:10:00Z",
+                         "startedAt":  "2026-05-20T11:58:19Z",
+                         "completedAt":  "2026-05-20T12:10:00Z",
+                         "checkpoint":  ".codex/checkpoints/20260520T115831Z-config-by-id-tenant-scope.json",
+                         "outcome":  "Config update/delete by ID now resolves mutable rows through current tenant and non-deleted repository predicates, then fails closed for missing or mismatched workspace/environment context.",
+                         "validationRun":  [
+                                               "Focused ConfigServiceTest passed with 8 tests.",
+                                               "Full .\\mvnw.cmd -pl services/foundation-service -am test passed with 101 foundation-service tests and upstream shared-module tests.",
+                                               "git diff --check passed for touched files with CRLF warnings only."
+                                           ],
+                         "residualRisks":  [
+                                               "Tenant lifecycle arbitrary-ID/list policy remains open pending a platform-admin versus self-tenant decision.",
+                                               "Config version history and global config administration remain separate foundation follow-ups.",
+                                               "Production release remains blocked by external target-environment evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "differentiation-upsert-workspace-exact-match",
+                         "title":  "Use exact workspace matching for differentiation upserts",
+                         "status":  "DONE",
+                         "priorityScore":  46,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "foundation-tenant-config-ownership",
+                         "scope":  "Prevent DifferentiationPlatformService upsert-by-key from matching workspace-scoped rows when the request is tenant-scoped or has no workspace context.",
+                         "nonGoals":  "Do not change list/evaluate endpoint semantics or redesign tenant-level versus workspace-level visibility in this slice.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "upsertByKey uses null-safe exact workspace matching for lookup.",
+                                                    "Tenant-scoped upserts do not use a broad workspace predicate.",
+                                                    "Focused and full foundation-service tests pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=DifferentiationPlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue foundation-service loop with policy-dependent tenant lifecycle/public contact items or a schema-scoped config version-history slice.",
+                         "lastUpdated":  "2026-05-20T12:22:00Z",
+                         "startedAt":  "2026-05-20T12:13:37Z",
+                         "completedAt":  "2026-05-20T12:22:00Z",
+                         "checkpoint":  ".codex/checkpoints/20260520T121400Z-differentiation-upsert-workspace-exact-match.json",
+                         "outcome":  "Differentiation upsert lookup now uses COALESCE(workspace_id, \u0027\u0027) = COALESCE(:workspaceId, \u0027\u0027), preventing null workspace requests from selecting arbitrary workspace rows before update.",
+                         "validationRun":  [
+                                               "Focused DifferentiationPlatformServiceTest passed with 5 tests.",
+                                               "Full .\\mvnw.cmd -pl services/foundation-service -am test passed with 103 foundation-service tests and upstream shared-module tests.",
+                                               "git diff --check passed for touched files with CRLF warnings only."
+                                           ],
+                         "residualRisks":  [
+                                               "List/evaluate query semantics still need endpoint-by-endpoint review before changing tenant-level plus workspace-level visibility.",
+                                               "Tenant lifecycle policy, public contact admin scoping, and config version-history scope remain separate follow-ups.",
+                                               "Production release remains blocked by external target-environment evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "public-contact-admin-platform-admin-only",
+                         "title":  "Restrict public contact admin inbox to platform admins",
+                         "status":  "DONE",
+                         "priorityScore":  41,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Restrict global public contact request admin list/status endpoints to PLATFORM_ADMIN because the table has no tenant/workspace ownership columns.",
+                         "nonGoals":  "Do not add tenant/workspace contact inbox behavior without schema migration and product ownership decision.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Admin contact controller requires PLATFORM_ADMIN only.",
+                                                    "List and updateStatus do not override the class-level platform-admin restriction.",
+                                                    "Focused and full foundation-service tests pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AdminContactRequestControllerSecurityTest,PublicContactServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue foundation-service loop with config create/upsert context mismatch fail-closed fix or tenant self-scope guard.",
+                         "lastUpdated":  "2026-05-20T12:31:00Z",
+                         "startedAt":  "2026-05-20T12:25:30Z",
+                         "completedAt":  "2026-05-20T12:31:00Z",
+                         "checkpoint":  ".codex/checkpoints/20260520T122600Z-public-contact-admin-platform-admin-only.json",
+                         "outcome":  "Admin contact request list/status controller access is now platform-admin only, preventing tenant/org admins from viewing or changing global public contact PII rows.",
+                         "validationRun":  [
+                                               "Focused AdminContactRequestControllerSecurityTest and PublicContactServiceTest passed with 6 tests.",
+                                               "Full .\\mvnw.cmd -pl services/foundation-service -am test passed with 106 foundation-service tests and upstream shared-module tests.",
+                                               "git diff --check passed for touched files with CRLF warnings only."
+                                           ],
+                         "residualRisks":  [
+                                               "Tenant/workspace-scoped contact inbox still requires schema migration and product ownership decision.",
+                                               "Additional service-level public contact status/PII tests can be expanded separately.",
+                                               "Production release remains blocked by external target-environment evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "predictive-segments-governance",
+                         "title":  "Define governed predictive segment contract",
+                         "status":  "DONE",
+                         "priorityScore":  53,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATA_ARCHITECT",
+                                               "SECURITY_ENGINEER",
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Define predictive segment data provenance, threshold, preview, approval, tenant isolation, and rollback controls before model-backed audience creation.",
+                         "nonGoals":  "Do not infer or target protected/sensitive categories, weaken suppression/preference controls, or create sendable audiences without preview and approval.",
+                         "sourceFiles":  [
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                                             "frontend/src/components/audience/SegmentRuleBuilder.tsx"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Predictive segment contract declares allowed feature sources, data freshness, minimum counts, bias/drift checks, and protected-data exclusions.",
+                                                    "Predicted segments expose modeled-vs-rule-derived status, reasons, preview counts, suppression impact, and rollback snapshot.",
+                                                    "Audience-changing recommendations require human approval and tenant/workspace isolation tests.",
+                                                    "Follow-up implementation scope is split from Contact Builder data-designer governance when needed."
+                                                ],
+                         "validationProfile":  "research-backend",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "AI governance foundation",
+                                              "contact data-designer governance"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "security-findings.md",
+                                               "design-decisions.md"
+                                           ],
+                         "nextAction":  "Promote the next safe audience-service item after coordinator review, likely contact-data-designer-governance or internal endpoint security filter coverage.",
+                         "lastUpdated":  "2026-05-20T12:39:56.8390025Z",
+                         "startedAt":  "2026-05-20T12:21:19.2451016Z",
+                         "completedAt":  "2026-05-20T12:39:56.8390025Z",
+                         "outcome":  "Audience-service now has a predictive segment governance preview contract plus fail-closed predictive segment create, evaluate, and recompute guards. Predictive segments require tenant policy enablement, policy version, approved feature-source allowlist, protected-data exclusion, minimum data thresholds, freshness limits, bias/drift pass, preview and suppression impact counts, human approval audit fields, and rollback snapshot evidence before apply/materialization.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -am \"-Dtest=PredictiveSegmentGovernanceServiceTest,SegmentServiceTest,SegmentEvaluationServiceTest,AudienceControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -am test",
+                                               "PASS: git diff --check on touched audience-service and metadata files, with CRLF warnings only",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                                           ],
+                         "residualRisks":  [
+                                               "No external model provider, model card, tenant AI policy store, or production evidence exists; do not claim model-backed AI or Salesforce Einstein parity.",
+                                               "Predictive segment governance is stored in the segment rules JSON contract in this slice; first-class policy/audit tables remain future work.",
+                                               "Segment recompute still materializes full membership sets in memory for existing rule segments; high-volume chunked segment materialization and durable rollback snapshots remain follow-up work."
+                                           ]
+                     },
+                     {
+                         "id":  "config-create-upsert-context-mismatch-fail-closed",
+                         "title":  "Reject config create/upsert context mismatches",
+                         "status":  "DONE",
+                         "priorityScore":  41,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "foundation-tenant-config-ownership",
+                         "scope":  "Reject request-body workspace/environment mismatches before ConfigService create/upsert repository lookup or save.",
+                         "nonGoals":  "Do not add schema-backed config version history or global config administration in this slice.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Create/upsert fails closed when body workspaceId does not match TenantContext workspace.",
+                                                    "Create/upsert fails closed when body environmentId does not match TenantContext environment.",
+                                                    "Explicit scoped create/upsert requires trusted args or matching TenantContext."
+                                                ],
+                         "validationProfile":  "security",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ConfigServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue with tenant self-scope guard and schema-backed config version-history scoping follow-ups.",
+                         "lastUpdated":  "2026-05-20T12:42:42.3066261Z",
+                         "startedAt":  "2026-05-20T12:34:00Z",
+                         "completedAt":  "2026-05-20T12:42:42.3066261Z",
+                         "outcome":  "Config create/upsert now rejects request-body workspace/environment mismatches before repository lookup or save; explicit workspace/environment scope requires trusted args or matching TenantContext.",
+                         "validationRun":  [
+                                               "Focused ConfigServiceTest passed with 11 tests.",
+                                               "Full .\\mvnw.cmd -pl services/foundation-service -am test passed with 109 foundation-service tests and upstream shared-module tests.",
+                                               "git diff --check for touched config service/test files passed with CRLF warnings only."
+                                           ],
+                         "residualRisks":  [
+                                               "Config version-history records still lack workspace/environment fields and need a schema-backed follow-up.",
+                                               "Tenant lifecycle cross-tenant policy remains a separate platform-admin versus self-tenant decision.",
+                                               "Production release remains blocked by target-environment evidence and strict release gates."
+                                           ]
+                     },
+                     {
+                         "id":  "tenant-get-self-scope",
+                         "title":  "Restrict tenant get-by-ID to current tenant",
+                         "status":  "DONE",
+                         "priorityScore":  44,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  5,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "tenant-lifecycle-cross-tenant-control",
+                         "scope":  "Add a service-level TenantContext self-tenant guard to TenantService.getTenant without changing broader lifecycle/list policy.",
+                         "nonGoals":  "Do not redesign platform-admin tenant lifecycle or list/get-by-slug behavior in this slice.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/TenantService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/TenantServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "getTenant returns the current tenant when ID matches TenantContext.",
+                                                    "Cross-tenant IDs return not found before repository/mapper access.",
+                                                    "Missing tenant context fails before repository/mapper access.",
+                                                    "Focused and full foundation-service tests pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=TenantServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/TenantService.java services/foundation-service/src/test/java/com/legent/foundation/service/TenantServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Leave broader tenant list/get-by-slug/lifecycle policy open for platform-admin versus self-tenant decision.",
+                         "lastUpdated":  "2026-05-20T12:49:00Z",
+                         "startedAt":  "2026-05-20T12:40:41Z",
+                         "completedAt":  "2026-05-20T12:49:00Z",
+                         "checkpoint":  ".codex/checkpoints/20260520T124300Z-tenant-get-self-scope.json",
+                         "outcome":  "TenantService.getTenant now requires requested ID to equal TenantContext before loading the tenant row.",
+                         "validationRun":  [
+                                               "Focused TenantServiceTest passed with 3 tests.",
+                                               "Full .\\mvnw.cmd -pl services/foundation-service -am test passed with 112 foundation-service tests and upstream shared-module tests.",
+                                               "git diff --check passed for touched files with CRLF warnings only."
+                                           ],
+                         "residualRisks":  [
+                                               "Tenant list, get-by-slug, create/update/delete/suspend/restore/archive/hard-delete policy remains open.",
+                                               "Production release remains blocked by external target-environment evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "template-studio-mode-contract",
+                         "title":  "Apply BASIC and ADVANCED mode metadata to Template Studio",
+                         "status":  "DONE",
+                         "priorityScore":  33,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "UX_STRATEGIST",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "parentId":  "mode-aware-workflow-contract",
+                         "scope":  "Add Template Studio mode metadata, render-gate advanced template tabs, block-library entries, and inspector rules in BASIC mode, and prevent hidden advanced template settings from entering save payloads via BASIC interactions.",
+                         "nonGoals":  "Do not change content-service APIs or claim backend authorization from frontend mode metadata.",
+                         "sourceFiles":  [
+                                             "frontend/src/lib/ui-mode-contract.ts",
+                                             "frontend/src/app/(workspace)/email/templates/[id]/page.tsx",
+                                             "frontend/src/components/content/TemplateBuilder.tsx",
+                                             "frontend/src/components/content/TemplateStudioCommandCenter.tsx",
+                                             "frontend/tests/e2e/template-builder.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Advanced template tabs and builder controls are absent from BASIC DOM/focus order.",
+                                                    "BASIC saves do not add new advanced visibility/dynamic settings from hidden controls.",
+                                                    "ADVANCED behavior remains covered by existing template tests."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/template-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line"
+                                                ],
+                         "dependencies":  [
+                                              "campaign-budget-frequency-mode-contract lease released"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "test-impact-map.md"
+                                           ],
+                         "nextAction":  "Frontend module safe stop requested; do not continue loop until a new explicit frontend module request arrives.",
+                         "lastUpdated":  "2026-05-20T13:12:32.2163289Z",
+                         "completedAt":  "2026-05-20T13:12:32.2163289Z",
+                         "outcome":  "Template Studio now respects BASIC/ADVANCED mode metadata: BASIC keeps identity editing, core builder, Save Draft, and Preview/QA, while advanced tabs/actions/resource loads/builder rule controls are unmounted and BASIC save payloads scrub conditional block settings.",
+                         "validationRun":  [
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: cd frontend; npm run build:ci",
+                                               "PASS: cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/template-builder.spec.ts tests/e2e/ui-mode.spec.ts --project=chromium --reporter=line",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "UI mode is a frontend UX contract only; backend authorization, content-service permissions, and renderer/sanitizer behavior remain authoritative.",
+                                               "BASIC mode intentionally preserves Save Draft and Preview/QA while hiding authoring/publish/approval/test-send/resource-management controls.",
+                                               "Shared audit JSONL was leased by an active audience module during completion recording; durable detail is in checkpoint, backlog, memory, and handoff."
                                            ]
                      }
                  ],

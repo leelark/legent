@@ -278,7 +278,7 @@ test('campaign wizard saves experiment, budget, and frequency policy', async ({ 
   expect(seen.experiment).toMatchObject({ experimentType: 'AB', winnerMetric: 'CLICKS', holdoutPercentage: 5, status: 'ACTIVE' });
 });
 
-test('campaign wizard basic mode hides experiment engine and skips experiment payload', async ({ page }) => {
+test('campaign wizard basic mode hides advanced delivery controls and skips advanced payloads', async ({ page }) => {
   const seen: Record<string, unknown> = {};
   await mockCampaignApis(page, seen, { uiMode: 'BASIC' });
   await page.goto('/app/campaigns/new');
@@ -294,6 +294,14 @@ test('campaign wizard basic mode hides experiment engine and skips experiment pa
   await page.getByRole('button', { name: 'Next', exact: true }).click();
 
   await expect(page.getByText('Experiment Engine')).toHaveCount(0);
+  await expect(page.getByText('Budget Guard')).toHaveCount(0);
+  await expect(page.getByText('Workspace Frequency Policy')).toHaveCount(0);
+  await expect(page.locator('[data-mode-feature="campaign.workflow.budget-guard"]')).toHaveCount(0);
+  await expect(page.locator('[data-mode-feature="campaign.workflow.frequency-policy"]')).toHaveCount(0);
+  await expect(page.locator('[data-mode-feature="campaign.workflow.experiment-engine"]')).toHaveCount(0);
+  await expect(page.getByLabel('Budget Limit')).toHaveCount(0);
+  await expect(page.getByLabel('Cost Per Send')).toHaveCount(0);
+  await expect(page.getByLabel('Enforce budget')).toHaveCount(0);
   await expect(page.getByLabel('Enable', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await expect(page.getByText('Experiment')).toBeVisible();
@@ -303,6 +311,8 @@ test('campaign wizard basic mode hides experiment engine and skips experiment pa
   await expect(page.getByText('Draft saved')).toBeVisible();
 
   expect(seen.campaign).toMatchObject({ name: 'Basic Launch', templateId: 'tpl-1' });
+  expect(seen.budget).toBeUndefined();
+  expect(seen.frequency).toBeUndefined();
   expect(seen.experiment).toBeUndefined();
 });
 

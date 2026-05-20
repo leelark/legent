@@ -37,8 +37,13 @@ const activities = [
   },
 ];
 
-async function mockAutomationStudioApis(page: Page) {
+async function mockAutomationStudioApis(
+  page: Page,
+  seen: Record<string, unknown> = {},
+  options: { uiMode?: 'BASIC' | 'ADVANCED' } = {}
+) {
   let dryRunPosted = false;
+  const uiMode = options.uiMode ?? 'ADVANCED';
 
   await page.addInitScript(() => {
     localStorage.setItem('legent_user_id', 'automation-user');
@@ -61,10 +66,19 @@ async function mockAutomationStudioApis(page: Page) {
       return fulfill(route, ok([{ tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: true }]));
     }
     if (path === '/users/preferences') {
-      return fulfill(route, ok({ tenantId: 'tenant-1', userId: 'automation-user', theme: 'light', uiMode: 'ADVANCED', density: 'comfortable', metadata: {} }));
+      return fulfill(route, ok({ tenantId: 'tenant-1', userId: 'automation-user', theme: 'light', uiMode, density: 'comfortable', metadata: {} }));
     }
     if (path === '/workflows') {
       return fulfill(route, ok([]));
+    }
+    if (path === '/automation-studio/activities' && method === 'POST') {
+      seen.createdActivity = JSON.parse(request.postData() || '{}');
+      return fulfill(route, ok({
+        id: 'activity-new',
+        name: 'Created activity',
+        activityType: 'SQL_QUERY',
+        status: 'DRAFT',
+      }));
     }
     if (path === '/automation-studio/activities') {
       return fulfill(route, ok(activities));
@@ -156,6 +170,24 @@ test('automation studio shows recent activity runs and refreshes after dry run',
 
   await expect(runList).toContainText('Rows: 9 read, 8 written');
   await expect(runList).not.toContainText('SMTP connection failed');
+});
+
+test('basic mode hides advanced automation activity controls and skips activity payloads', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'BASIC' });
+
+  await page.goto('/app/automation');
+  await expect(page.getByText('Automation Studio Activities')).toBeVisible();
+
+  await expect(page.getByRole('button', { name: 'New Activity' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Verify' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Dry Run' })).toHaveCount(0);
+  await expect(page.locator('[data-mode-feature="automation.workflow.activity-authoring"]')).toHaveCount(0);
+  await expect(page.locator('[data-mode-feature="automation.workflow.activity-execution"]')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Show run history for Nightly SQL sync' }).click();
+  await expect(page.getByRole('list', { name: 'Recent runs for Nightly SQL sync' })).toBeVisible();
+  expect(seen.createdActivity).toBeUndefined();
 });
 
 test('automation studio scopes empty and error run-history states to each activity', async ({ page }) => {

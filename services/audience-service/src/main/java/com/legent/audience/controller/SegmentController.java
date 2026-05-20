@@ -1,6 +1,7 @@
 package com.legent.audience.controller;
 
 import com.legent.audience.dto.SegmentDto;
+import com.legent.audience.service.PredictiveSegmentGovernanceService;
 import com.legent.audience.service.SegmentService;
 import com.legent.audience.service.SegmentEvaluationService;
 import com.legent.common.dto.ApiResponse;
@@ -20,6 +21,7 @@ public class SegmentController {
 
     private final SegmentService segmentService;
     private final SegmentEvaluationService evaluationService;
+    private final PredictiveSegmentGovernanceService predictiveGovernanceService;
 
     @GetMapping
     @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
@@ -41,6 +43,13 @@ public class SegmentController {
     @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<SegmentDto.Response> create(@Valid @RequestBody SegmentDto.CreateRequest request) {
         return ApiResponse.ok(segmentService.create(request));
+    }
+
+    @PostMapping("/predictive-preview")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
+    public ApiResponse<SegmentDto.PredictivePreviewResponse> previewPredictiveSegment(
+            @Valid @RequestBody SegmentDto.PredictivePreviewRequest request) {
+        return ApiResponse.ok(predictiveGovernanceService.preview(request));
     }
 
     @PutMapping("/{id}")

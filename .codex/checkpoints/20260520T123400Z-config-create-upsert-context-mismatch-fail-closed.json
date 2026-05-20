@@ -1,0 +1,33 @@
+{
+    "id": "config-create-upsert-context-mismatch-fail-closed",
+    "createdAt": "2026-05-20T12:34:00Z",
+    "objective": "Reject config create/upsert request-body workspace/environment mismatches before scope lookup or mutation.",
+    "status": "DONE",
+    "owner": "FOUNDATION_SERVICE_OWNER",
+    "filesInScope": [
+        "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+        "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+    ],
+    "agents": [
+        "019e4558-5071-7f93-9d35-57f681935383"
+    ],
+    "validationPlan": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ConfigServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+        ".\\mvnw.cmd -pl services/foundation-service -am test",
+        "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+    ],
+    "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers": [],
+    "validationRun": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ConfigServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 11 tests.",
+        ".\\mvnw.cmd -pl services/foundation-service -am test passed with 109 foundation-service tests and upstream shared-module tests.",
+        "git diff --check for touched config service/test/checkpoint files passed with CRLF warnings only."
+    ],
+    "outcome": "Config create/upsert now rejects request-body workspace/environment mismatches before repository lookup or save; explicit workspace/environment scope requires trusted args or matching TenantContext.",
+    "residualRisks": [
+        "Config version-history records still lack workspace/environment fields and need a schema-backed follow-up.",
+        "Tenant lifecycle cross-tenant policy remains a separate platform-admin versus self-tenant decision.",
+        "Production release remains blocked by target-environment evidence and strict release gates."
+    ],
+    "nextAction": "Record completion in shared backlog/memory/handoff after the current audience metadata lease releases, then continue with the next safe foundation-service item."
+}

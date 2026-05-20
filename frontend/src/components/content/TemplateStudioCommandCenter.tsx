@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MetricCard, Panel } from '@/components/ui/PageChrome';
 import type { ContentBlock } from '@/components/content/TemplateBuilder';
+import { TEMPLATE_STUDIO_MODE_FEATURES } from '@/lib/ui-mode-contract';
 import type {
   Asset,
   BrandKit,
@@ -52,6 +53,9 @@ type TemplateStudioCommandCenterProps = {
   brandKits: BrandKit[];
   testSendRecords: TestSendRecord[];
   isBusy: boolean;
+  showApprovalWorkflow: boolean;
+  showPublishControls: boolean;
+  showTestSends: boolean;
   onSaveDraft: () => void;
   onRunPreview: () => void;
   onSubmitApproval: () => void;
@@ -103,6 +107,9 @@ export function TemplateStudioCommandCenter({
   brandKits,
   testSendRecords,
   isBusy,
+  showApprovalWorkflow,
+  showPublishControls,
+  showTestSends,
   onSaveDraft,
   onRunPreview,
   onSubmitApproval,
@@ -130,8 +137,8 @@ export function TemplateStudioCommandCenter({
     { label: 'Builder content', ready: hasCanvas, weight: 20 },
     { label: 'QA run completed', ready: qaHasRun, weight: 15 },
     { label: 'No QA blockers', ready: qaHasRun && qaBlockers === 0, weight: 25 },
-    { label: 'Test send evidence', ready: successfulTests > 0 && failedTests === 0, weight: 15 },
-    { label: 'Approval state', ready: approvalSatisfied, weight: 10 },
+    ...(showTestSends ? [{ label: 'Test send evidence', ready: successfulTests > 0 && failedTests === 0, weight: 15 }] : []),
+    ...(showApprovalWorkflow ? [{ label: 'Approval state', ready: approvalSatisfied, weight: 10 }] : []),
   ];
   const totalWeight = readinessChecks.reduce((sum, check) => sum + check.weight, 0);
   const readinessScore = Math.round(
@@ -154,14 +161,18 @@ export function TemplateStudioCommandCenter({
         : 'Run render and validation',
       state: !qaHasRun ? 'active' : qaBlockers > 0 ? 'blocked' : 'done',
     },
-    {
+  ];
+  if (showTestSends) {
+    workflowSteps.push({
       label: 'Tests',
       detail: testSendRecords.length > 0
         ? `${successfulTests} queued/sent, ${failedTests} failed`
         : 'Queue inbox checks before launch',
       state: failedTests > 0 ? 'blocked' : successfulTests > 0 ? 'done' : 'pending',
-    },
-    {
+    });
+  }
+  if (showApprovalWorkflow) {
+    workflowSteps.push({
       label: 'Approval',
       detail: template.approvalRequired
         ? pendingApprovals > 0
@@ -169,15 +180,17 @@ export function TemplateStudioCommandCenter({
           : `${approvedApprovals} approved`
         : 'Not required',
       state: approvalSatisfied ? 'done' : pendingApprovals > 0 ? 'active' : 'pending',
-    },
-    {
+    });
+  }
+  if (showPublishControls) {
+    workflowSteps.push({
       label: 'Publish',
       detail: normalizeStatus(template.status) === 'PUBLISHED'
         ? `Published ${formatShortDate(template.lastPublishedAt)}`
         : 'Draft not published',
       state: normalizeStatus(template.status) === 'PUBLISHED' ? 'done' : readinessScore >= 85 ? 'active' : 'pending',
-    },
-  ];
+    });
+  }
 
   return (
     <Panel className="space-y-4" data-testid="template-command-center">
@@ -198,8 +211,29 @@ export function TemplateStudioCommandCenter({
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" icon={<Save size={16} />} onClick={onSaveDraft} loading={isBusy}>Save</Button>
           <Button variant="secondary" icon={<FileCheck2 size={16} />} onClick={onRunPreview} loading={isBusy}>Run QA</Button>
-          <Button variant="secondary" icon={<Send size={16} />} onClick={onSubmitApproval} loading={isBusy}>Approval</Button>
-          <Button icon={<Rocket size={16} />} onClick={onPublish} loading={isBusy}>Publish</Button>
+          {showApprovalWorkflow && (
+            <Button
+              data-mode-feature={TEMPLATE_STUDIO_MODE_FEATURES.approvalWorkflow.id}
+              data-mode-visibility={TEMPLATE_STUDIO_MODE_FEATURES.approvalWorkflow.visibility}
+              variant="secondary"
+              icon={<Send size={16} />}
+              onClick={onSubmitApproval}
+              loading={isBusy}
+            >
+              Approval
+            </Button>
+          )}
+          {showPublishControls && (
+            <Button
+              data-mode-feature={TEMPLATE_STUDIO_MODE_FEATURES.publishControls.id}
+              data-mode-visibility={TEMPLATE_STUDIO_MODE_FEATURES.publishControls.visibility}
+              icon={<Rocket size={16} />}
+              onClick={onPublish}
+              loading={isBusy}
+            >
+              Publish
+            </Button>
+          )}
         </div>
       </div>
 

@@ -128,6 +128,55 @@ Product root-cause entries:
   - Fix: added workspace ownership to providers, routing rules, and IP pools; made provider CRUD/selection/orchestration/health/capacity/failover lookups tenant+workspace scoped; added V16 backfill, indexes, uniqueness, checks, and composite FKs for provider-linked tables.
   - Validation: focused migration, controller, repository, selection, operations, health, capacity, orchestration tests, `.\mvnw.cmd -pl services/delivery-service -am test`, Codex validation, repo artifact hygiene, and `git diff --check` passed.
   - Prevention: any provider-linked delivery table must carry tenant+workspace ownership in both service lookups and database constraints.
+- 2026-05-20: Admin settings trusted request-body scope over current context.
+  - Symptom: admin settings validate/apply/reset accepted request-body `workspaceId` and `environmentId` when present, even if they differed from `TenantContext`.
+  - Source evidence: `AdminSettingsService.java`, `AdminSettingsServiceTest.java`, foundation service audit.
+  - Causal chain: `WorkspaceContextFilter` guarded query parameters, but service methods preferred body fields over the current context and did not mirror mismatch checks used by compliance/performance foundation services.
+  - Fix: added service-level context comparison helpers, validation errors for mismatches, fail-closed apply/reset/impact behavior, and reset required-context checks.
+  - Validation: focused `AdminSettingsServiceTest`, full `.\mvnw.cmd -pl services/foundation-service -am test`, and `git diff --check` passed.
+  - Prevention: any foundation request body carrying workspace/environment scope must compare explicit values to `TenantContext` before repository/service side effects.
+- 2026-05-20: Config update/delete resolved raw IDs before ownership checks.
+  - Symptom: known config IDs could reach update/delete lookup without first proving current tenant, workspace, and environment ownership.
+  - Source evidence: `ConfigService.java`, `ConfigRepository.java`, `ConfigServiceTest.java`, foundation service audit.
+  - Causal chain: `updateConfig` and `deleteConfig` used raw `findById`, while tenant context checks happened after entity resolution and global/null-tenant config handling was not separated into a privileged workflow.
+  - Fix: added tenant-scoped non-deleted repository lookup, routed mutable by-ID operations through it, and fail-closed workspace/environment scope mismatches or missing scoped context before save/delete.
+  - Validation: focused `ConfigServiceTest`, full `.\mvnw.cmd -pl services/foundation-service -am test`, and `git diff --check` passed.
+  - Prevention: by-ID mutation paths must use repository ownership predicates before loading mutable entities; global administration needs an explicit privileged path instead of sharing tenant endpoints.
+- 2026-05-20: Differentiation upsert lookup treated null workspace as a wildcard.
+  - Symptom: tenant-scoped or no-workspace differentiation upserts could match any workspace row with the same key before update.
+  - Source evidence: `DifferentiationPlatformService.java`, `DifferentiationPlatformServiceTest.java`, foundation service audit.
+  - Causal chain: `upsertByKey` used `(:workspaceId IS NULL OR workspace_id = :workspaceId)` for lookup, then fell back to tenant-only `updateById` when `workspaceId` was null.
+  - Fix: changed lookup to `COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')` and added focused tests for null workspace context and current workspace context.
+  - Validation: focused `DifferentiationPlatformServiceTest`, full `.\mvnw.cmd -pl services/foundation-service -am test`, and `git diff --check` passed.
+  - Prevention: upsert lookup predicates must match the same ownership scope as the intended insert/update target; null workspace must mean tenant-scope, not wildcard.
+- 2026-05-20: Public contact admin access exposed a global PII table to tenant/org admins.
+  - Symptom: admin contact request list/status endpoints allowed `ADMIN` and `ORG_ADMIN` roles even though `public_contact_requests` has no tenant/workspace ownership columns.
+  - Source evidence: `AdminContactRequestController.java`, `PublicContactService.java`, `PublicContactRequest.java`, `AdminContactRequestControllerSecurityTest.java`, foundation service audit.
+  - Causal chain: the controller used the same broad admin role expression as tenant-scoped admin surfaces, but the backing contact table is global and stores public-contact PII.
+  - Fix: restricted the controller to `hasRole('PLATFORM_ADMIN')` and added reflection tests that fail if class-level or method-level authorization is widened.
+  - Validation: focused contact tests, full `.\mvnw.cmd -pl services/foundation-service -am test`, and `git diff --check` passed.
+  - Prevention: global PII admin surfaces must require platform-admin authority until schema-backed tenant/workspace ownership and product semantics are implemented.
+- 2026-05-20: Config create/upsert trusted body scope before context comparison.
+  - Symptom: config create/upsert could accept request-body `workspaceId` or `environmentId` values before proving they matched the current `TenantContext`.
+  - Source evidence: `ConfigService.java`, `ConfigServiceTest.java`, foundation service audit.
+  - Causal chain: update/delete had by-ID ownership checks, but create/upsert still used explicit body scope and trusted args without consistently rejecting body/context mismatches before lookup/save.
+  - Fix: added fail-closed workspace/environment mismatch checks before repository lookup or save, while allowing explicit scoped calls only when trusted args or `TenantContext` match.
+  - Validation: focused `ConfigServiceTest`, full `.\mvnw.cmd -pl services/foundation-service -am test`, and `git diff --check` passed.
+  - Prevention: create/upsert paths carrying workspace/environment scope must compare body scope with trusted context before any lookup or mutation.
+- 2026-05-20: Tenant get-by-ID did not enforce current tenant before lookup.
+  - Symptom: a caller with `tenant:read` could request a known tenant ID that did not match the current `TenantContext`.
+  - Source evidence: `TenantService.java`, `TenantServiceTest.java`, and foundation tenant lifecycle audit.
+  - Causal chain: tenant lifecycle policy was still broad, and `getTenant` delegated directly to `findById` before proving the request was for the current tenant.
+  - Fix: require `TenantContext.requireTenantId()` and return not-found for any path tenant ID that differs before repository lookup.
+  - Validation: focused `TenantServiceTest`, full `.\mvnw.cmd -pl services/foundation-service -am test`, and `git diff --check` passed.
+  - Prevention: tenant lifecycle endpoints must define explicit self-tenant versus platform-admin ownership before loading tenant records by supplied identifiers.
+- 2026-05-20: Data-extension relationship and preview governance relied on loose JSON metadata.
+  - Symptom: data-extension create/update and query preview accepted nested metadata with limited cascade validation; relationship definitions did not prove supported cardinality, type compatibility, or key compatibility; preview could sort after projection and segment rules could silently carry data-extension relationship metadata as custom fields.
+  - Source evidence: `DataExtensionDto.java`, `DataExtensionService.java`, `SegmentService.java`, `DataExtensionServiceTest.java`, and `SegmentServiceTest.java`.
+  - Causal chain: Contact Builder data-extension metadata stayed JSON-backed, while service validation focused on existence checks and did not enforce relationship/sendable/query-preview invariants before persistence or preview execution.
+  - Fix: added nested DTO validation and payload caps, service-side relationship cardinality/type/key checks, sendable required/primary-key governance with change locks after records exist, upfront preview field/filter/sort validation with relationship-path rejection, sort-before-projection behavior, and segment rejection for unsupported data-extension relationship metadata.
+  - Validation: focused audience data-extension/segment tests, full `.\mvnw.cmd -pl services/audience-service -am test`, Codex validation, repo artifact hygiene, and scoped `git diff --check` passed.
+  - Prevention: relationship joins, provenance, classification, and audit must move into additive schema-backed slices with focused migration and controller/API tests before Contact Builder parity claims.
 
 Root-cause entries must include:
 - symptom,

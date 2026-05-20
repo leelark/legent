@@ -39,7 +39,7 @@ async function fulfill(route: Route, data: unknown) {
 async function mockAutomationApis(
   page: Page,
   seen: Record<string, unknown> = {},
-  options: { definition?: unknown; validationResponse?: unknown } = {}
+  options: { definition?: unknown; validationResponse?: unknown; uiMode?: 'BASIC' | 'ADVANCED' } = {}
 ) {
   await page.addInitScript(() => {
     localStorage.setItem('legent_user_id', 'automation-user');
@@ -62,7 +62,7 @@ async function mockAutomationApis(
       return fulfill(route, ok([{ tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: true }]));
     }
     if (path === '/users/preferences') {
-      return fulfill(route, ok({ tenantId: 'tenant-1', userId: 'automation-user', theme: 'light', uiMode: 'ADVANCED', density: 'comfortable', metadata: {} }));
+      return fulfill(route, ok({ tenantId: 'tenant-1', userId: 'automation-user', theme: 'light', uiMode: options.uiMode ?? 'ADVANCED', density: 'comfortable', metadata: {} }));
     }
     if (path === '/workflow-definitions/workflow-1/latest') {
       return fulfill(route, ok({
@@ -94,6 +94,10 @@ async function mockAutomationApis(
         seen.publishedDefinition = definition;
       }
       return fulfill(route, ok({ workflowId: 'workflow-1', version: 2 }));
+    }
+    if (path === '/workflows/workflow-1/trigger' && method === 'POST') {
+      seen.trigger = JSON.parse(request.postData() || '{}');
+      return fulfill(route, ok({ id: 'manual-run-1' }));
     }
     return fulfill(route, ok([]));
   });
@@ -138,9 +142,27 @@ test('activate blocks unsupported draft-only nodes before published save', async
   await page.getByRole('button', { name: 'Load' }).click();
   await page.getByRole('button', { name: 'Activate Workflow' }).click();
 
-  await expect(page.getByRole('alert')).toContainText('WAIT_UNTIL');
+  await expect(page.getByRole('alert').filter({ hasText: 'WAIT_UNTIL' })).toBeVisible();
   expect(seen.validation).toBeTruthy();
   expect(seen.publishedDefinition).toBeUndefined();
+});
+
+test('basic mode hides manual trigger and blocks draft-only node save', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationApis(page, seen, { uiMode: 'BASIC' });
+  await page.goto('/app/automations/builder?id=workflow-1');
+
+  await expect(page.getByRole('button', { name: 'Trigger' })).toHaveCount(0);
+  await expect(page.locator('[data-mode-feature="automation.workflow.manual-trigger"]')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Load' }).click();
+  await expect(page.getByText('WAIT_UNTIL')).toBeVisible();
+  await expect(page.getByText('Draft only')).toBeVisible();
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect(page.getByText(/requires Advanced mode before saving/)).toBeVisible();
+  expect(seen.definition).toBeUndefined();
+  expect(seen.trigger).toBeUndefined();
 });
 
 test('activate fails closed when validation does not confirm runtime support', async ({ page }) => {
@@ -151,7 +173,7 @@ test('activate fails closed when validation does not confirm runtime support', a
   await page.getByRole('button', { name: 'Load' }).click();
   await page.getByRole('button', { name: 'Activate Workflow' }).click();
 
-  await expect(page.getByRole('alert')).toContainText('Workflow validation did not confirm live runtime support');
+  await expect(page.getByRole('alert').filter({ hasText: 'Workflow validation did not confirm live runtime support' })).toBeVisible();
   expect(seen.publishedDefinition).toBeUndefined();
 });
 
@@ -163,7 +185,7 @@ test('activate saves supported current graph as published after validation', asy
   await page.getByRole('button', { name: 'Load' }).click();
   await page.getByRole('button', { name: 'Activate Workflow' }).click();
 
-  await expect(page.getByRole('alert')).toContainText('Workflow published');
+  await expect(page.getByRole('alert').filter({ hasText: 'Workflow published' })).toBeVisible();
   expect(seen.publishedDefinition).toMatchObject({
     graphVersion: 2,
     initialNodeId: 'entry',

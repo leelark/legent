@@ -83,6 +83,38 @@ class AdminSettingsServiceTest {
     }
 
     @Test
+    void validate_rejectsWorkspaceAndEnvironmentContextMismatch() {
+        AdminSettingsDto.ApplyRequest request = new AdminSettingsDto.ApplyRequest();
+        request.setKey("delivery.max-retries");
+        request.setValue("10");
+        request.setScope("ENVIRONMENT");
+        request.setWorkspaceId("workspace-2");
+        request.setEnvironmentId("prod");
+
+        AdminSettingsDto.ValidateResponse response = service.validate(request);
+
+        assertThat(response.isValid()).isFalse();
+        assertThat(response.getErrors()).contains(
+                "workspaceId does not match the current workspace",
+                "environmentId does not match the current environment"
+        );
+    }
+
+    @Test
+    void apply_doesNotReachConfigServiceWhenWorkspaceContextMismatches() {
+        AdminSettingsDto.ApplyRequest request = new AdminSettingsDto.ApplyRequest();
+        request.setKey("delivery.max-retries");
+        request.setValue("10");
+        request.setScope("WORKSPACE");
+        request.setWorkspaceId("workspace-2");
+
+        assertThatThrownBy(() -> service.apply(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId does not match the current workspace");
+        verifyNoInteractions(configService);
+    }
+
+    @Test
     void reset_rejectsUnsupportedScopeBeforeLookup() {
         AdminSettingsDto.ResetRequest request = new AdminSettingsDto.ResetRequest();
         request.setKey("delivery.max-retries");
@@ -91,6 +123,19 @@ class AdminSettingsServiceTest {
         assertThatThrownBy(() -> service.reset(request))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported setting scope: WORKSPACE-ISH");
+        verifyNoInteractions(configRepository);
+    }
+
+    @Test
+    void reset_rejectsWorkspaceContextMismatchBeforeLookup() {
+        AdminSettingsDto.ResetRequest request = new AdminSettingsDto.ResetRequest();
+        request.setKey("delivery.max-retries");
+        request.setScope("WORKSPACE");
+        request.setWorkspaceId("workspace-2");
+
+        assertThatThrownBy(() -> service.reset(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId does not match the current workspace");
         verifyNoInteractions(configRepository);
     }
 }

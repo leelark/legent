@@ -174,6 +174,55 @@ class DataExtensionServiceTest {
     }
 
     @Test
+    void queryPreviewSortsBeforeProjection() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1")).thenReturn(Optional.of(dataExtension()));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+        DataExtensionRecord lower = record(Map.of("subscriberKey", "low", "email", "low@example.com", "score", 1L));
+        DataExtensionRecord higher = record(Map.of("subscriberKey", "high", "email", "high@example.com", "score", 50L));
+        when(recordRepository.findByTenantIdAndWorkspaceIdAndDataExtensionId(any(), any(), any(), any()))
+                .thenReturn(new PageImpl<>(List.of(lower, higher)));
+        when(recordRepository.countByTenantWorkspaceAndDataExtension("tenant-1", "workspace-1", "de-1")).thenReturn(2L);
+
+        DataExtensionDto.QueryPreviewResponse response = service.previewQuery("de-1",
+                DataExtensionDto.QueryPreviewRequest.builder()
+                        .fields(List.of("email"))
+                        .sortField("score")
+                        .sortDirection("DESC")
+                        .limit(2)
+                        .build());
+
+        assertThat(response.getRows()).containsExactly(
+                Map.of("email", "high@example.com"),
+                Map.of("email", "low@example.com"));
+    }
+
+    @Test
+    void queryPreviewRejectsUnknownSortField() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1")).thenReturn(Optional.of(dataExtension()));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        assertThatThrownBy(() -> service.previewQuery("de-1",
+                DataExtensionDto.QueryPreviewRequest.builder()
+                        .sortField("missingField")
+                        .build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Unknown field: missingField");
+    }
+
+    @Test
+    void queryPreviewRejectsRelationshipPathFields() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1")).thenReturn(Optional.of(dataExtension()));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        assertThatThrownBy(() -> service.previewQuery("de-1",
+                DataExtensionDto.QueryPreviewRequest.builder()
+                        .fields(List.of("profile.email"))
+                        .build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Relationship path fields are not supported");
+    }
+
+    @Test
     void updateRelationshipsRequiresTargetInSameTenantAndWorkspace() {
         DataExtension source = dataExtension();
         DataExtension target = targetDataExtension();
@@ -217,6 +266,7 @@ class DataExtensionServiceTest {
                         .sourceField("missingField")
                         .targetDataExtensionId("de-target")
                         .targetField("subscriberKey")
+                        .cardinality("MANY_TO_ONE")
                         .build()))
                 .build();
 
@@ -243,12 +293,88 @@ class DataExtensionServiceTest {
                         .sourceField("subscriberKey")
                         .targetDataExtensionId("de-target")
                         .targetField("subscriberKey")
+                        .cardinality("MANY_TO_ONE")
                         .build()))
                 .build();
 
         assertThatThrownBy(() -> service.updateRelationships("de-1", request))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Relationship target field does not exist");
+    }
+
+    @Test
+    void updateRelationshipsRejectsMissingCardinality() {
+        DataExtension source = dataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(source));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        DataExtensionDto.RelationshipRequest request = DataExtensionDto.RelationshipRequest.builder()
+                .relationships(List.of(DataExtensionDto.RelationshipDefinition.builder()
+                        .name("missing_cardinality")
+                        .sourceField("subscriberKey")
+                        .targetDataExtensionId("de-target")
+                        .targetField("subscriberKey")
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> service.updateRelationships("de-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Unsupported relationship cardinality");
+    }
+
+    @Test
+    void updateRelationshipsRejectsManyToOneWithoutTargetPrimaryKey() {
+        DataExtension source = dataExtension();
+        DataExtension target = targetDataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(source));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-target"))
+                .thenReturn(Optional.of(target));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-target"))
+                .thenReturn(List.of(field("subscriberKey", DataExtensionField.FieldType.TEXT, true, false)));
+
+        DataExtensionDto.RelationshipRequest request = DataExtensionDto.RelationshipRequest.builder()
+                .relationships(List.of(DataExtensionDto.RelationshipDefinition.builder()
+                        .name("customer_profile")
+                        .sourceField("subscriberKey")
+                        .targetDataExtensionId("de-target")
+                        .targetField("subscriberKey")
+                        .cardinality("MANY_TO_ONE")
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> service.updateRelationships("de-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("targetField to be the target primary key");
+    }
+
+    @Test
+    void updateRelationshipsRejectsTypeMismatch() {
+        DataExtension source = dataExtension();
+        DataExtension target = targetDataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(source));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-target"))
+                .thenReturn(Optional.of(target));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-target"))
+                .thenReturn(List.of(field("subscriberKey", DataExtensionField.FieldType.NUMBER, true, true)));
+
+        DataExtensionDto.RelationshipRequest request = DataExtensionDto.RelationshipRequest.builder()
+                .relationships(List.of(DataExtensionDto.RelationshipDefinition.builder()
+                        .name("customer_profile")
+                        .sourceField("subscriberKey")
+                        .targetDataExtensionId("de-target")
+                        .targetField("subscriberKey")
+                        .cardinality("MANY_TO_ONE")
+                        .build()))
+                .build();
+
+        assertThatThrownBy(() -> service.updateRelationships("de-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("field types must match");
     }
 
     @Test
@@ -266,6 +392,56 @@ class DataExtensionServiceTest {
         assertThatThrownBy(() -> service.updateSendableConfig("de-1", request))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("sendableField must reference an existing field");
+    }
+
+    @Test
+    void createRejectsSendableFieldThatIsNotRequired() {
+        when(deRepository.existsByTenantWorkspaceAndName("tenant-1", "workspace-1", "Customers"))
+                .thenReturn(false);
+
+        DataExtensionDto.CreateRequest request = DataExtensionDto.CreateRequest.builder()
+                .name("Customers")
+                .sendable(true)
+                .sendableField("email")
+                .primaryKeyField("subscriberKey")
+                .fields(List.of(
+                        DataExtensionDto.FieldDefinition.builder()
+                                .fieldName("subscriberKey")
+                                .fieldType("TEXT")
+                                .required(true)
+                                .primaryKey(true)
+                                .build(),
+                        DataExtensionDto.FieldDefinition.builder()
+                                .fieldName("email")
+                                .fieldType("EMAIL")
+                                .required(false)
+                                .build()))
+                .build();
+
+        assertThatThrownBy(() -> service.create(request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("sendableField must be required");
+    }
+
+    @Test
+    void updateSendableConfigRejectsChangeWhenRecordsExist() {
+        DataExtension de = dataExtension();
+        de.setSendable(true);
+        de.setSendableField("email");
+        de.setPrimaryKeyField("subscriberKey");
+        de.setRecordCount(10);
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+
+        DataExtensionDto.SendableConfigRequest request = DataExtensionDto.SendableConfigRequest.builder()
+                .sendable(true)
+                .sendableField("score")
+                .primaryKeyField("subscriberKey")
+                .build();
+
+        assertThatThrownBy(() -> service.updateSendableConfig("de-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("cannot be changed while records exist");
     }
 
     @Test

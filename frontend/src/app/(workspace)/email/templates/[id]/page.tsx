@@ -18,6 +18,7 @@ import { VersionHistory } from '@/components/content/VersionHistory';
 import { AssetUploader } from '@/components/content/AssetUploader';
 import { PersonalizationTester } from '@/components/content/PersonalizationTester';
 import { sanitizeEmailHtml } from '@/lib/sanitize-html';
+import { isModeFeatureVisible, TEMPLATE_STUDIO_MODE_FEATURES } from '@/lib/ui-mode-contract';
 import {
   Asset,
   BrandKit,
@@ -61,6 +62,7 @@ import {
   uploadAssetsBulk,
   validateTemplateEnterprise,
 } from '@/lib/template-studio-api';
+import { useUIStore } from '@/stores/uiStore';
 
 const toText = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -208,10 +210,36 @@ const blocksToHtml = (blocks: ContentBlock[]): string => {
   `;
 };
 
+const stripAdvancedBlockSettings = (block: ContentBlock): ContentBlock => {
+  const settings = { ...(block.settings ?? {}) };
+  delete settings.hideOnMobile;
+  delete settings.hideOnDesktop;
+  delete settings.visibilityRule;
+  return {
+    ...block,
+    settings: Object.keys(settings).length > 0 ? settings : undefined,
+  };
+};
+
+const normalizeBlocksForMode = (blocks: ContentBlock[], includeConditionalRules: boolean) =>
+  includeConditionalRules ? blocks : blocks.map(stripAdvancedBlockSettings);
+
 export default function TemplateStudioPage() {
   const params = useParams();
   const templateId = params?.id as string;
   const { addToast } = useToast();
+  const uiMode = useUIStore((state) => state.uiMode);
+  const showAdvancedBlocks = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.advancedBlocks, uiMode);
+  const showConditionalRules = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.conditionalRules, uiMode);
+  const showReusableContent = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.reusableContent, uiMode);
+  const showDynamicContent = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.dynamicContent, uiMode);
+  const showPersonalizationTokens = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.personalizationTokens, uiMode);
+  const showVersionOperations = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.versionOperations, uiMode);
+  const showApprovalWorkflow = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.approvalWorkflow, uiMode);
+  const showAssetLibrary = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.assetLibrary, uiMode);
+  const showBrandKit = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.brandKit, uiMode);
+  const showTestSends = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.testSends, uiMode);
+  const showPublishControls = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.publishControls, uiMode);
 
   const [template, setTemplate] = useState<Template | null>(null);
   const [name, setName] = useState('');
@@ -265,7 +293,11 @@ export default function TemplateStudioPage() {
   const [isBusy, setIsBusy] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const htmlFromBlocks = useMemo(() => blocksToHtml(blocks), [blocks]);
+  const modeSafeBlocks = useMemo(
+    () => normalizeBlocksForMode(blocks, showConditionalRules),
+    [blocks, showConditionalRules],
+  );
+  const htmlFromBlocks = useMemo(() => blocksToHtml(modeSafeBlocks), [modeSafeBlocks]);
 
   const loadTemplateStudio = useCallback(async () => {
     if (!templateId) return;
@@ -282,14 +314,14 @@ export default function TemplateStudioPage() {
         brandKitsResult,
         testSendsResult,
       ] = await Promise.allSettled([
-        listTemplateVersions(templateId),
-        getTemplateApprovals(templateId),
-        listAssets({ page: 0, size: 40 }),
-        listContentSnippets(0, 50),
-        listPersonalizationTokens(0, 100),
-        listDynamicContentRules(templateId),
-        listBrandKits(0, 50),
-        listTemplateTestSends(templateId),
+        showVersionOperations ? listTemplateVersions(templateId) : Promise.resolve([] as TemplateVersion[]),
+        showApprovalWorkflow ? getTemplateApprovals(templateId) : Promise.resolve([] as TemplateApproval[]),
+        showAssetLibrary ? listAssets({ page: 0, size: 40 }) : Promise.resolve({ content: [] }),
+        showReusableContent ? listContentSnippets(0, 50) : Promise.resolve({ content: [] }),
+        showPersonalizationTokens ? listPersonalizationTokens(0, 100) : Promise.resolve({ content: [] }),
+        showDynamicContent ? listDynamicContentRules(templateId) : Promise.resolve([] as DynamicContentRule[]),
+        showBrandKit ? listBrandKits(0, 50) : Promise.resolve({ content: [] }),
+        showTestSends ? listTemplateTestSends(templateId) : Promise.resolve([] as TestSendRecord[]),
       ]);
 
       const optional = <T,>(result: PromiseSettledResult<T>, fallback: T, label: string) => {
@@ -350,7 +382,18 @@ export default function TemplateStudioPage() {
     } finally {
       setLoading(false);
     }
-  }, [addToast, templateId]);
+  }, [
+    addToast,
+    showApprovalWorkflow,
+    showAssetLibrary,
+    showBrandKit,
+    showDynamicContent,
+    showPersonalizationTokens,
+    showReusableContent,
+    showTestSends,
+    showVersionOperations,
+    templateId,
+  ]);
 
   useEffect(() => {
     void loadTemplateStudio();
@@ -360,7 +403,7 @@ export default function TemplateStudioPage() {
     if (!template) return;
     const mergedMetadata = JSON.stringify({
       ...metadata,
-      builderBlocks: blocks,
+      builderBlocks: modeSafeBlocks,
       updatedByStudioAt: new Date().toISOString(),
     });
 
@@ -387,6 +430,18 @@ export default function TemplateStudioPage() {
     }
   };
 
+  const requireAdvancedFeature = (visible: boolean, label: string) => {
+    if (visible) {
+      return true;
+    }
+    addToast({
+      type: 'warning',
+      title: 'Advanced mode required',
+      message: `Switch to Advanced mode to use ${label}.`,
+    });
+    return false;
+  };
+
   const handleSaveDraft = async () => {
     if (!template) return;
     await withBusy(async () => {
@@ -398,6 +453,7 @@ export default function TemplateStudioPage() {
 
   const handlePublishLatest = async () => {
     if (!template) return;
+    if (!requireAdvancedFeature(showPublishControls, TEMPLATE_STUDIO_MODE_FEATURES.publishControls.label)) return;
     await withBusy(async () => {
       await persistTemplate();
       await publishTemplate(template.id);
@@ -456,6 +512,7 @@ export default function TemplateStudioPage() {
 
   const handleSubmitApproval = async () => {
     if (!template) return;
+    if (!requireAdvancedFeature(showApprovalWorkflow, TEMPLATE_STUDIO_MODE_FEATURES.approvalWorkflow.label)) return;
     await withBusy(async () => {
       await persistTemplate();
       await submitTemplateApproval(template.id, approvalComment);
@@ -467,6 +524,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleApprove = async (approvalId: string) => {
+    if (!requireAdvancedFeature(showApprovalWorkflow, TEMPLATE_STUDIO_MODE_FEATURES.approvalWorkflow.label)) return;
     await withBusy(async () => {
       await approveTemplateApproval(approvalId, 'Approved from Template Studio');
       await refreshApprovals();
@@ -475,6 +533,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleReject = async (approvalId: string) => {
+    if (!requireAdvancedFeature(showApprovalWorkflow, TEMPLATE_STUDIO_MODE_FEATURES.approvalWorkflow.label)) return;
     if (!rejectReason.trim()) {
       addToast({ type: 'warning', title: 'Reason required', message: 'Provide rejection reason first.' });
       return;
@@ -488,6 +547,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleCancelApproval = async (approvalId: string) => {
+    if (!requireAdvancedFeature(showApprovalWorkflow, TEMPLATE_STUDIO_MODE_FEATURES.approvalWorkflow.label)) return;
     await withBusy(async () => {
       await cancelTemplateApproval(approvalId);
       await refreshApprovals();
@@ -497,6 +557,7 @@ export default function TemplateStudioPage() {
 
   const handleVersionPublish = async (version: TemplateVersion) => {
     if (!template) return;
+    if (!requireAdvancedFeature(showVersionOperations, TEMPLATE_STUDIO_MODE_FEATURES.versionOperations.label)) return;
     await withBusy(async () => {
       await publishTemplateVersion(template.id, version.versionNumber);
       addToast({ type: 'success', title: 'Version published', message: `Version v${version.versionNumber} published.` });
@@ -506,6 +567,7 @@ export default function TemplateStudioPage() {
 
   const handleVersionRollback = async (version: TemplateVersion) => {
     if (!template) return;
+    if (!requireAdvancedFeature(showVersionOperations, TEMPLATE_STUDIO_MODE_FEATURES.versionOperations.label)) return;
     await withBusy(async () => {
       await rollbackTemplate(template.id, version.versionNumber, {
         reason: `Rollback from Template Studio to v${version.versionNumber}`,
@@ -518,6 +580,7 @@ export default function TemplateStudioPage() {
 
   const handleTestSend = async () => {
     if (!template) return;
+    if (!requireAdvancedFeature(showTestSends, TEMPLATE_STUDIO_MODE_FEATURES.testSends.label)) return;
     if (!testEmail.trim()) {
       addToast({ type: 'warning', title: 'Email required', message: 'Enter a test recipient email.' });
       return;
@@ -536,6 +599,7 @@ export default function TemplateStudioPage() {
 
   const handleTestMatrix = async () => {
     if (!template) return;
+    if (!requireAdvancedFeature(showTestSends, TEMPLATE_STUDIO_MODE_FEATURES.testSends.label)) return;
     const recipients = testMatrixEmails
       .split(/\r?\n|,/)
       .map((email) => email.trim())
@@ -563,6 +627,7 @@ export default function TemplateStudioPage() {
 
   const handleExport = async () => {
     if (!template) return;
+    if (!requireAdvancedFeature(showVersionOperations, TEMPLATE_STUDIO_MODE_FEATURES.versionOperations.label)) return;
     try {
       const exported = await exportTemplateHtml(template.id);
       const blob = new Blob([exported.htmlContent], { type: 'text/html;charset=utf-8' });
@@ -582,6 +647,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleAssetSearch = async () => {
+    if (!requireAdvancedFeature(showAssetLibrary, TEMPLATE_STUDIO_MODE_FEATURES.assetLibrary.label)) return;
     try {
       const response = await listAssets({ page: 0, size: 40, q: assetQuery.trim() || undefined });
       const assetItems = asArray<Asset>(response);
@@ -596,6 +662,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleAssetUpload = async (file: File) => {
+    if (!requireAdvancedFeature(showAssetLibrary, TEMPLATE_STUDIO_MODE_FEATURES.assetLibrary.label)) return;
     try {
       await uploadAsset(file);
       await handleAssetSearch();
@@ -610,6 +677,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleAssetBulkUpload = async (files: File[]) => {
+    if (!requireAdvancedFeature(showAssetLibrary, TEMPLATE_STUDIO_MODE_FEATURES.assetLibrary.label)) return;
     try {
       await uploadAssetsBulk(files);
       await handleAssetSearch();
@@ -624,6 +692,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleCreateSnippet = async () => {
+    if (!requireAdvancedFeature(showReusableContent, TEMPLATE_STUDIO_MODE_FEATURES.reusableContent.label)) return;
     await withBusy(async () => {
       await createContentSnippet({
         snippetKey: snippetKey.trim(),
@@ -639,6 +708,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleCreateToken = async () => {
+    if (!requireAdvancedFeature(showPersonalizationTokens, TEMPLATE_STUDIO_MODE_FEATURES.personalizationTokens.label)) return;
     await withBusy(async () => {
       await createPersonalizationToken({
         tokenKey: tokenKey.trim(),
@@ -656,6 +726,7 @@ export default function TemplateStudioPage() {
 
   const handleCreateDynamicRule = async () => {
     if (!template) return;
+    if (!requireAdvancedFeature(showDynamicContent, TEMPLATE_STUDIO_MODE_FEATURES.dynamicContent.label)) return;
     await withBusy(async () => {
       const rule = await createDynamicContentRule(template.id, {
         slotKey: dynamicSlot.trim(),
@@ -674,6 +745,7 @@ export default function TemplateStudioPage() {
   };
 
   const handleCreateBrandKit = async () => {
+    if (!requireAdvancedFeature(showBrandKit, TEMPLATE_STUDIO_MODE_FEATURES.brandKit.label)) return;
     await withBusy(async () => {
       const brand = await createBrandKit({
         name: brandName.trim(),
@@ -691,6 +763,27 @@ export default function TemplateStudioPage() {
   const previewFrameClassName = darkModePreview
     ? 'mx-auto min-h-[360px] rounded-lg border border-slate-700 bg-slate-950 p-4 text-slate-100 shadow-inner'
     : 'mx-auto min-h-[360px] rounded-lg border border-border-default bg-white p-4 text-black shadow-inner';
+  const studioTabs = useMemo(() => [
+    { key: 'builder', label: 'Builder' },
+    ...(showReusableContent ? [{ key: 'blocks', label: 'Blocks/Snippets' }] : []),
+    ...(showDynamicContent ? [{ key: 'dynamic', label: 'Dynamic Rules' }] : []),
+    ...(showPersonalizationTokens ? [{ key: 'tokens', label: 'Tokens' }] : []),
+    { key: 'preview', label: 'Preview & QA' },
+    ...(showVersionOperations ? [{ key: 'versions', label: 'Versions' }] : []),
+    ...(showApprovalWorkflow ? [{ key: 'approvals', label: 'Approvals' }] : []),
+    ...(showAssetLibrary ? [{ key: 'assets', label: 'Assets' }] : []),
+    ...(showBrandKit ? [{ key: 'brand', label: 'Brand Kit' }] : []),
+    ...(showTestSends ? [{ key: 'tests', label: 'Test Sends' }] : []),
+  ], [
+    showApprovalWorkflow,
+    showAssetLibrary,
+    showBrandKit,
+    showDynamicContent,
+    showPersonalizationTokens,
+    showReusableContent,
+    showTestSends,
+    showVersionOperations,
+  ]);
 
   if (loading) {
     return (
@@ -733,9 +826,27 @@ export default function TemplateStudioPage() {
           <Link href="/app/email/templates">
             <Button variant="secondary">Back</Button>
           </Link>
-          <Button variant="secondary" onClick={handleExport}>Export HTML</Button>
+          {showVersionOperations && (
+            <Button
+              data-mode-feature={TEMPLATE_STUDIO_MODE_FEATURES.versionOperations.id}
+              data-mode-visibility={TEMPLATE_STUDIO_MODE_FEATURES.versionOperations.visibility}
+              variant="secondary"
+              onClick={handleExport}
+            >
+              Export HTML
+            </Button>
+          )}
           <Button variant="secondary" onClick={handleSaveDraft} loading={isBusy}>Save Draft</Button>
-          <Button onClick={handlePublishLatest} loading={isBusy}>Publish</Button>
+          {showPublishControls && (
+            <Button
+              data-mode-feature={TEMPLATE_STUDIO_MODE_FEATURES.publishControls.id}
+              data-mode-visibility={TEMPLATE_STUDIO_MODE_FEATURES.publishControls.visibility}
+              onClick={handlePublishLatest}
+              loading={isBusy}
+            >
+              Publish
+            </Button>
+          )}
         </div>
         )}
       />
@@ -770,6 +881,9 @@ export default function TemplateStudioPage() {
         brandKits={brandKits}
         testSendRecords={testSendRecords}
         isBusy={isBusy}
+        showApprovalWorkflow={showApprovalWorkflow}
+        showPublishControls={showPublishControls}
+        showTestSends={showTestSends}
         onSaveDraft={handleSaveDraft}
         onRunPreview={handlePreview}
         onSubmitApproval={handleSubmitApproval}
@@ -778,35 +892,27 @@ export default function TemplateStudioPage() {
 
       <Card>
         <Tabs
+          key={uiMode}
           defaultTab="builder"
-          tabs={[
-            { key: 'builder', label: 'Builder' },
-            { key: 'blocks', label: 'Blocks/Snippets' },
-            { key: 'dynamic', label: 'Dynamic Rules' },
-            { key: 'tokens', label: 'Tokens' },
-            { key: 'preview', label: 'Preview & QA' },
-            { key: 'versions', label: 'Versions' },
-            { key: 'approvals', label: 'Approvals' },
-            { key: 'assets', label: 'Assets' },
-            { key: 'brand', label: 'Brand Kit' },
-            { key: 'tests', label: 'Test Sends' },
-          ]}
+          tabs={studioTabs}
         >
           {(tab) => {
             if (tab === 'builder') {
               return (
                 <div className="space-y-4">
-                  <TemplateBuilder blocks={blocks} onBlocksChange={setBlocks} />
-                  <Card>
-                    <CardHeader title="Rendered HTML Snapshot" subtitle="Generated from current blocks." />
-                    <div className="p-4">
-                      <textarea
-                        className="min-h-[220px] w-full rounded-lg border border-border-default bg-surface-secondary p-3 font-mono text-xs"
-                        value={htmlFromBlocks}
-                        onChange={(event) => setBlocks([defaultBlock(event.target.value)])}
-                      />
-                    </div>
-                  </Card>
+                  <TemplateBuilder blocks={blocks} onBlocksChange={setBlocks} uiMode={uiMode} />
+                  {showAdvancedBlocks && (
+                    <Card data-mode-feature={TEMPLATE_STUDIO_MODE_FEATURES.advancedBlocks.id} data-mode-visibility={TEMPLATE_STUDIO_MODE_FEATURES.advancedBlocks.visibility}>
+                      <CardHeader title="Rendered HTML Snapshot" subtitle="Generated from current blocks." />
+                      <div className="p-4">
+                        <textarea
+                          className="min-h-[220px] w-full rounded-lg border border-border-default bg-surface-secondary p-3 font-mono text-xs"
+                          value={htmlFromBlocks}
+                          onChange={(event) => setBlocks([defaultBlock(event.target.value)])}
+                        />
+                      </div>
+                    </Card>
+                  )}
                 </div>
               );
             }

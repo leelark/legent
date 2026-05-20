@@ -1,0 +1,76 @@
+﻿{
+    "id":  "foundation-service-safe-stop",
+    "createdAt":  "2026-05-20T13:13:00Z",
+    "objective":  "Safe-stop the foundation-service module thread after recording completed validated slices, resume candidates, and blocked policy/schema follow-ups.",
+    "completedAt":  "2026-05-20T13:17:00Z",
+    "status":  "SAFE_STOPPED",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "threadId":  "foundation-service-20260520T100717Z",
+    "module":  "foundation-service",
+    "filesInScope":  [
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/blocked-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/threads/foundation-service-20260520T100717Z-handoff.md",
+                         ".codex/checkpoints/20260520T131300Z-foundation-service-safe-stop.json",
+                         ".codex/state/team-state.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "validationPlan":  [
+                           "git diff --check for safe-stop metadata files",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-thread-coordination.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                       ],
+    "completedWork":  [
+                          "admin-settings-context-mismatch-fail-closed",
+                          "config-by-id-tenant-scope",
+                          "differentiation-upsert-workspace-exact-match",
+                          "public-contact-admin-platform-admin-only",
+                          "config-create-upsert-context-mismatch-fail-closed",
+                          "tenant-get-self-scope"
+                      ],
+    "validationRun":  [
+                          "Focused tests and full foundation-service Maven gate passed for each completed source slice before safe stop.",
+                          "git diff --check passed for touched foundation source/test files with CRLF warnings only before safe stop.",
+                          "validate-worktree-leases.ps1 passed during final reassessment.",
+                          "validate-thread-coordination.ps1 passed during final reassessment."
+                      ],
+    "readOnlyReassessmentAgents":  [
+                                       "019e4575-e29c-7b63-8570-73830bcd9b98",
+                                       "019e4575-e2ff-7ec2-94a3-d555661ee0fe",
+                                       "019e4575-e3ad-7401-971b-f803d69acc86",
+                                       "019e4575-e487-78e3-a4c1-d9ebade37a87",
+                                       "019e4575-e589-76c1-ba3d-e6d0230262b1",
+                                       "019e4575-e714-7d31-baf0-2c482b295005"
+                                   ],
+    "safeResumeCandidates":  [
+                                 {
+                                     "id":  "foundation-differentiation-evaluate-scope",
+                                     "summary":  "Narrow decision, omnichannel, and SLO evaluation to exact workspace/null-workspace matching or fail closed on missing workspace.",
+                                     "validation":  "Focused DifferentiationPlatformServiceTest plus full foundation-service gate."
+                                 },
+                                 {
+                                     "id":  "foundation-core-platform-workspace-guards",
+                                     "summary":  "Add same-workspace ownership guards for core-platform membership/team/department, role binding, and access grant creation.",
+                                     "validation":  "Focused CorePlatformServiceTest plus full foundation-service gate."
+                                 },
+                                 {
+                                     "id":  "foundation-compliance-privacy-request-workspace-scope",
+                                     "summary":  "Scope privacy request status update by workspace context.",
+                                     "validation":  "Focused ComplianceEvidenceService tests plus full foundation-service gate."
+                                 },
+                                 {
+                                     "id":  "foundation-permission-group-tenant-context",
+                                     "summary":  "Reject permission group request tenantId mismatches against TenantContext.",
+                                     "validation":  "Focused CorePlatformServiceTest plus full foundation-service gate."
+                                 }
+                             ],
+    "blockedFollowUps":  [
+                             "Tenant lifecycle list/get-by-slug/mutations need platform-admin versus self-tenant policy and route/TenantFilter decision.",
+                             "Config version history and rollback need schema/API design for config_id or exact scope fields and per-scope version semantics.",
+                             "Tenant/workspace public contact inbox and PII lifecycle need product/schema design before implementation."
+                         ],
+    "automationStatus":  "No foundation-service automation found under C:\\Users\\leelark.saxena\\.codex\\automations; the remaining legent-multi-module-coordinator heartbeat automation was deleted at user request after foundation safe stop.",
+    "nextAction":  "Keep foundation-service thread stopped. Resume only from this checkpoint and the foundation handoff after selecting a safe local candidate or resolving policy/schema blockers."
+}

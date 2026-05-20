@@ -1,0 +1,32 @@
+{
+    "id": "tenant-get-self-scope",
+    "createdAt": "2026-05-20T12:43:00Z",
+    "objective": "Fail closed on TenantService.getTenant when the requested tenant ID does not match TenantContext.",
+    "status": "DONE",
+    "owner": "FOUNDATION_SERVICE_OWNER",
+    "filesInScope": [
+        "services/foundation-service/src/main/java/com/legent/foundation/service/TenantService.java",
+        "services/foundation-service/src/test/java/com/legent/foundation/service/TenantServiceTest.java"
+    ],
+    "agents": [
+        "019e4558-4fd0-7cc2-8235-4cf62889edff"
+    ],
+    "validationPlan": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=TenantServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+        ".\\mvnw.cmd -pl services/foundation-service -am test",
+        "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/TenantService.java services/foundation-service/src/test/java/com/legent/foundation/service/TenantServiceTest.java"
+    ],
+    "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers": [],
+    "validationRun": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=TenantServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 3 tests.",
+        ".\\mvnw.cmd -pl services/foundation-service -am test passed with 112 foundation-service tests and upstream shared-module tests.",
+        "git diff --check for touched tenant service/test/checkpoint files passed with CRLF warnings only."
+    ],
+    "outcome": "TenantService.getTenant now requires the requested tenant ID to match TenantContext before repository lookup, hiding cross-tenant IDs and failing closed when tenant context is missing.",
+    "residualRisks": [
+        "Tenant list, get-by-slug, and lifecycle mutation policy still need a platform-admin versus self-tenant decision.",
+        "Production release remains blocked by target-environment evidence and strict release gates."
+    ],
+    "nextAction": "Record completion in backlog/memory/handoff, release leases, then reassess remaining safe foundation-service work."
+}

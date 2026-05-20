@@ -1,0 +1,35 @@
+{
+    "id":  "config-by-id-tenant-scope",
+    "createdAt":  "2026-05-20T11:58:31.0673259Z",
+    "objective":  "Require tenant/scope-aware config lookup before update/delete by ID so known config IDs cannot cross tenant or global boundaries.",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -am -Dtest=ConfigServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           ".\\mvnw.cmd -pl services/foundation-service -am test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ConfigServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 8 tests.",
+                          ".\\mvnw.cmd -pl services/foundation-service -am test passed with 101 foundation-service tests and upstream shared-module tests.",
+                          "git diff --check for touched config service/repository/test files passed with CRLF warnings only."
+                      ],
+    "outcome":  "Config update/delete by ID now resolve mutable configs through current TenantContext tenant plus non-deleted status, and reject workspace/environment-scoped configs when current context is missing or mismatched.",
+    "residualRisks":  [
+                          "Tenant lifecycle arbitrary-ID/list policy remains open pending a platform-admin versus self-tenant decision.",
+                          "Config version history and global config administration still need explicit privileged/scope-aware workflows.",
+                          "Production release remains blocked by target-environment evidence and strict release gates."
+                      ],
+    "nextAction":  "Record completion in shared backlog/active-work memory when the current frontend metadata lease releases, then continue with differentiation exact workspace matching."
+}

@@ -378,7 +378,7 @@ public class DifferentiationPlatformService {
         params.put("workspaceId", workspaceId);
         params.put("keyValue", keyValue);
         List<Map<String, Object>> existing = repository.queryForList(
-                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
+                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '') AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
                 params
         );
         if (existing.isEmpty()) {

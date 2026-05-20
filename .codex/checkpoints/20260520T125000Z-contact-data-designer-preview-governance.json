@@ -1,0 +1,43 @@
+{
+  "id": "contact-data-designer-preview-governance",
+  "createdAt": "2026-05-20T12:50:00Z",
+  "objective": "Harden data-extension preview and relationship governance without schema changes",
+  "status": "DONE",
+  "owner": "AUDIENCE_SERVICE_OWNER",
+  "filesInScope": [
+    "services/audience-service/src/main/java/com/legent/audience/dto/DataExtensionDto.java",
+    "services/audience-service/src/main/java/com/legent/audience/service/DataExtensionService.java",
+    "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+    "services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java",
+    "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java"
+  ],
+  "agents": [
+    "DATABASE_ENGINEER",
+    "SECURITY_ENGINEER",
+    "FRONTEND_OWNER",
+    "TEST_ARCHITECT"
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=DataExtensionServiceTest,SegmentServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+    ".\\mvnw.cmd -pl services/audience-service -am test",
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Resume from additive Contact Builder governance: first-class provenance/classification/audit tables, import/source metadata, and frontend relationship designer remain follow-up work.",
+  "outcome": "Completed a no-schema audience-service governance slice for Contact Builder data-designer safety. Data-extension DTOs now cascade nested validation and cap key request collections; relationship definitions require cardinality. DataExtensionService now fails closed on unsupported preview relationship paths and unknown sort fields, sorts query-preview rows before projection, enforces relationship cardinality/type/primary-key rules, requires sendable fields to be required, requires configured primary keys to be required and marked primary, clears sendable metadata when disabled, and blocks sendable-key changes once records exist. SegmentService now rejects data-extension/relationship-style segment rule metadata instead of treating it as subscriber custom fields.",
+  "validationRun": [
+    "PASS: .\\mvnw.cmd -pl services/audience-service -am \"-Dtest=DataExtensionServiceTest,SegmentServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+    "PASS: .\\mvnw.cmd -pl services/audience-service -am test",
+    "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+    "PASS: git diff --check on services/audience-service and checkpoint/audit files, with CRLF warnings only"
+  ],
+  "residualRisks": [
+    "No first-class data-extension provenance, classification, or governance-audit tables were added in this no-schema slice.",
+    "Relationship metadata remains JSON; relationship joins/query execution remain intentionally unsupported until indexed schema and performance design exist.",
+    "Existing record-level sendable-key uniqueness/null checks are not proven for historical rows; immutable changes now require a reviewed migration path.",
+    "Frontend data-extension designer still needs typed governance UI after backend contracts are expanded."
+  ]
+}

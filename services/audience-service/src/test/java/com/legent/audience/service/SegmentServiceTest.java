@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -153,6 +154,30 @@ class SegmentServiceTest {
     }
 
     @Test
+    @DisplayName("create rejects unsupported data extension relationship fields")
+    void create_rejectsUnsupportedDataExtensionRelationshipField() {
+        SegmentDto.CreateRequest request = createRequest(Map.of("operator", "AND", "conditions", List.of(
+                Map.of(
+                        "field", "email",
+                        "op", "EQUALS",
+                        "value", "person@example.com",
+                        "dataExtensionId", "de-1",
+                        "relationshipPath", "profile.email")
+        )));
+
+        when(segmentRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "High value"))
+                .thenReturn(false);
+        when(segmentMapper.toEntity(request)).thenReturn(segmentFrom(request));
+
+        assertThatThrownBy(() -> segmentService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("data extension relationships");
+
+        verify(segmentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishCreated(any());
+    }
+
+    @Test
     @DisplayName("create accepts valid list membership rule")
     void create_acceptsValidListMembershipRule() {
         Map<String, Object> rules = Map.of("operator", "AND", "conditions", List.of(
@@ -181,6 +206,108 @@ class SegmentServiceTest {
         verify(eventPublisher).publishCreated(entity);
     }
 
+    @Test
+    @DisplayName("create rejects predictive segment without governance contract")
+    void create_rejectsPredictiveSegmentWithoutGovernanceContract() {
+        SegmentDto.CreateRequest request = SegmentDto.CreateRequest.builder()
+                .name("Predicted buyers")
+                .segmentType("PREDICTIVE")
+                .rules(validEmailRule())
+                .build();
+
+        when(segmentRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "Predicted buyers"))
+                .thenReturn(false);
+        when(segmentMapper.toEntity(request)).thenReturn(segmentFrom(request));
+
+        assertThatThrownBy(() -> segmentService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("predictiveGovernance");
+
+        verify(segmentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishCreated(any());
+    }
+
+    @Test
+    @DisplayName("create rejects predictive segment with protected feature data")
+    void create_rejectsPredictiveSegmentWithProtectedFeatureData() {
+        Map<String, Object> rules = predictiveRules(validPredictiveGovernance());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> governance = (Map<String, Object>) rules.get(PredictiveSegmentGovernanceService.GOVERNANCE_KEY);
+        governance.put("dataClassesUsed", List.of("health_data"));
+
+        SegmentDto.CreateRequest request = SegmentDto.CreateRequest.builder()
+                .name("Predicted buyers")
+                .segmentType("PREDICTIVE")
+                .rules(rules)
+                .build();
+
+        when(segmentRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "Predicted buyers"))
+                .thenReturn(false);
+        when(segmentMapper.toEntity(request)).thenReturn(segmentFrom(request));
+
+        assertThatThrownBy(() -> segmentService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("PROHIBITED_DATA_CLASS:HEALTH_DATA");
+
+        verify(segmentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishCreated(any());
+    }
+
+    @Test
+    @DisplayName("create rejects scheduled predictive segment")
+    void create_rejectsScheduledPredictiveSegment() {
+        SegmentDto.CreateRequest request = SegmentDto.CreateRequest.builder()
+                .name("Predicted buyers")
+                .segmentType("PREDICTIVE")
+                .scheduleEnabled(true)
+                .rules(predictiveRules(validPredictiveGovernance()))
+                .build();
+
+        when(segmentRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "Predicted buyers"))
+                .thenReturn(false);
+        when(segmentMapper.toEntity(request)).thenReturn(segmentFrom(request));
+
+        assertThatThrownBy(() -> segmentService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("scheduled recompute");
+
+        verify(segmentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishCreated(any());
+    }
+
+    @Test
+    @DisplayName("create accepts approved predictive governance contract")
+    void create_acceptsApprovedPredictiveGovernanceContract() {
+        Map<String, Object> rules = predictiveRules(validPredictiveGovernance());
+        SegmentDto.CreateRequest request = SegmentDto.CreateRequest.builder()
+                .name("Predicted buyers")
+                .segmentType("PREDICTIVE")
+                .rules(rules)
+                .build();
+        Segment entity = segmentFrom(request);
+        SegmentDto.Response response = SegmentDto.Response.builder()
+                .id("seg-predictive")
+                .name("Predicted buyers")
+                .segmentType("PREDICTIVE")
+                .rules(rules)
+                .build();
+
+        when(segmentRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "Predicted buyers"))
+                .thenReturn(false);
+        when(segmentMapper.toEntity(request)).thenReturn(entity);
+        when(segmentRepository.save(entity)).thenAnswer(invocation -> invocation.getArgument(0));
+        when(segmentMapper.toResponse(entity)).thenReturn(response);
+
+        SegmentDto.Response result = segmentService.create(request);
+
+        assertThat(result).isSameAs(response);
+        assertThat(entity.getSegmentType()).isEqualTo(Segment.SegmentType.PREDICTIVE);
+        assertThat(entity.getTenantId()).isEqualTo(TENANT_ID);
+        assertThat(entity.getWorkspaceId()).isEqualTo(WORKSPACE_ID);
+        verify(segmentRepository).save(entity);
+        verify(eventPublisher).publishCreated(entity);
+    }
+
     private SegmentDto.CreateRequest createRequest(Map<String, Object> rules) {
         return SegmentDto.CreateRequest.builder()
                 .name("High value")
@@ -193,6 +320,7 @@ class SegmentServiceTest {
         Segment segment = new Segment();
         segment.setName(request.getName());
         segment.setRules(request.getRules());
+        segment.setScheduleEnabled(request.isScheduleEnabled());
         return segment;
     }
 
@@ -200,5 +328,36 @@ class SegmentServiceTest {
         return Map.of("operator", "AND", "conditions", List.of(
                 Map.of("field", "email", "op", "EQUALS", "value", "person@example.com")
         ));
+    }
+
+    private Map<String, Object> predictiveRules(Map<String, Object> governance) {
+        Map<String, Object> rules = new LinkedHashMap<>();
+        rules.put("operator", "AND");
+        rules.put("conditions", List.of(Map.of("field", "status", "op", "EQUALS", "value", "ACTIVE")));
+        rules.put(PredictiveSegmentGovernanceService.GOVERNANCE_KEY, governance);
+        return rules;
+    }
+
+    private Map<String, Object> validPredictiveGovernance() {
+        Map<String, Object> governance = new LinkedHashMap<>();
+        governance.put("tenantPolicyEnabled", true);
+        governance.put("policyVersion", "ai-policy-v1");
+        governance.put("derivationMode", "MODEL_BACKED");
+        governance.put("featureSources", List.of("SUBSCRIBER_PROFILE", "ENGAGEMENT_EVENTS", "SUPPRESSION_STATUS"));
+        governance.put("dataClassesUsed", List.of("SUBSCRIBER_PROFILE", "ENGAGEMENT_EVENTS", "SUPPRESSION_STATUS"));
+        governance.put("excludedDataClasses", List.of("PROTECTED_CLASS", "HEALTH_DATA", "PAYMENT_DATA"));
+        governance.put("protectedDataExcluded", true);
+        governance.put("eligibleContactCount", 2_000L);
+        governance.put("historicalEventCount", 4_000L);
+        governance.put("modeledCount", 800L);
+        governance.put("suppressionImpactCount", 100L);
+        governance.put("dataFreshnessDays", 14);
+        governance.put("biasDriftCheckPassed", true);
+        governance.put("approvalStatus", "APPROVED");
+        governance.put("approvedBy", "approver-1");
+        governance.put("approvedAt", "2026-05-20T12:00:00Z");
+        governance.put("rollbackSnapshotId", "snapshot-1");
+        governance.put("reasonCodes", List.of("HIGH_ENGAGEMENT_PROPENSITY", "RECENT_ACTIVITY"));
+        return governance;
     }
 }

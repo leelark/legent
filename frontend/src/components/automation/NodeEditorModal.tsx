@@ -15,6 +15,7 @@ interface NodeEditorModalProps {
   open: boolean;
   node: JourneyNode | null;
   runtimeSupportedTypes?: readonly JourneyNodeType[];
+  showDraftNodeTypes?: boolean;
   onClose: () => void;
   onSave: (node: JourneyNode) => void;
 }
@@ -23,6 +24,7 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
   open,
   node,
   runtimeSupportedTypes = RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES,
+  showDraftNodeTypes = true,
   onClose,
   onSave,
 }) => {
@@ -44,6 +46,9 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
 
   const runtimeSupportedTypeSet = new Set(runtimeSupportedTypes);
   const runtimeSupported = runtimeSupportedTypeSet.has(type);
+  const nodeTypeOptions = showDraftNodeTypes
+    ? JOURNEY_NODE_TYPES
+    : JOURNEY_NODE_TYPES.filter((option) => runtimeSupportedTypeSet.has(option) || option === type);
 
   const handleSave = () => {
     const nextConfig: Record<string, unknown> = { ...(node.config || {}) };
@@ -85,7 +90,7 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
             onChange={(e) => setType(e.target.value as JourneyNode['type'])}
             className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30 transition-all"
           >
-            {JOURNEY_NODE_TYPES.map((option) => {
+            {nodeTypeOptions.map((option) => {
               const optionRuntimeSupported = runtimeSupportedTypeSet.has(option);
               return (
                 <option key={option} value={option} disabled={!optionRuntimeSupported && option !== type}>

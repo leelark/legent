@@ -1,0 +1,33 @@
+{
+    "id": "public-contact-admin-platform-admin-only",
+    "createdAt": "2026-05-20T12:26:00Z",
+    "objective": "Restrict global public contact request admin list/status access to platform administrators because the table has no tenant/workspace ownership columns.",
+    "status": "DONE",
+    "owner": "FOUNDATION_SERVICE_OWNER",
+    "filesInScope": [
+        "services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java",
+        "services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java"
+    ],
+    "agents": [
+        "019e4558-510f-7b01-93b8-e46d717e4f0d"
+    ],
+    "validationPlan": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AdminContactRequestControllerSecurityTest,PublicContactServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+        ".\\mvnw.cmd -pl services/foundation-service -am test",
+        "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java"
+    ],
+    "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers": [],
+    "validationRun": [
+        ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AdminContactRequestControllerSecurityTest,PublicContactServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 6 tests.",
+        ".\\mvnw.cmd -pl services/foundation-service -am test passed with 106 foundation-service tests and upstream shared-module tests.",
+        "git diff --check for touched admin contact controller/checkpoint files passed with CRLF warnings only."
+    ],
+    "outcome": "Admin public contact request list/status endpoints are now restricted to PLATFORM_ADMIN only, with reflection tests guarding against class-level or method-level authorization widening.",
+    "residualRisks": [
+        "Tenant/workspace-scoped contact inbox remains a schema/product-design follow-up because public_contact_requests currently has no tenant/workspace ownership columns.",
+        "Service-level public contact status validation and PII exposure tests can be expanded in a separate slice.",
+        "Production release remains blocked by target-environment evidence and strict release gates."
+    ],
+    "nextAction": "Record completion in backlog/memory/handoff, release leases, then continue with config create/upsert context mismatch fail-closed fix."
+}

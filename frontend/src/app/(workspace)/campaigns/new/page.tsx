@@ -149,6 +149,8 @@ export default function CampaignWizardPage() {
     variantBSubject: '',
     audiences: [] as { audienceType: 'LIST' | 'SEGMENT'; audienceId: string; action: 'INCLUDE' | 'EXCLUDE' }[],
   });
+  const showBudgetGuard = isModeFeatureVisible(CAMPAIGN_WORKFLOW_MODE_FEATURES.budgetGuard, uiMode);
+  const showFrequencyPolicy = isModeFeatureVisible(CAMPAIGN_WORKFLOW_MODE_FEATURES.frequencyPolicy, uiMode);
   const showExperimentEngine = isModeFeatureVisible(CAMPAIGN_WORKFLOW_MODE_FEATURES.experimentEngine, uiMode);
   const experimentEnabled = showExperimentEngine && form.experimentEnabled;
 
@@ -262,20 +264,27 @@ export default function CampaignWizardPage() {
       };
       const created = await createCampaign(payload);
 
-      await Promise.all([
-        updateCampaignBudget(created.id, {
+      const postCreateTasks: Promise<unknown>[] = [];
+
+      if (showBudgetGuard) {
+        postCreateTasks.push(updateCampaignBudget(created.id, {
           currency: 'USD',
           enforced: form.budgetEnforced,
           budgetLimit: Number(form.budgetLimit || 0),
           costPerSend: Number(form.costPerSend || 0),
-        }),
-        updateFrequencyPolicy(created.id, {
+        }));
+      }
+
+      if (showFrequencyPolicy) {
+        postCreateTasks.push(updateFrequencyPolicy(created.id, {
           enabled: Number(form.frequencyCap || 0) > 0,
           maxSends: Number(form.frequencyCap || 0),
           windowHours: Number(form.frequencyWindowHours || 24),
           includeJourneys: form.includeJourneyFrequency,
-        }),
-      ]);
+        }));
+      }
+
+      await Promise.all(postCreateTasks);
 
       if (experimentEnabled) {
         await createCampaignExperiment(created.id, {
@@ -606,57 +615,69 @@ export default function CampaignWizardPage() {
                 />
                 Compliance checks enabled
               </label>
-              <div className="grid gap-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2 md:grid-cols-3">
-                <div className="md:col-span-3">
-                  <p className="text-sm font-semibold text-content-primary">Budget Guard</p>
-                  <p className="text-xs text-content-secondary">Reserve estimated spend before each recipient send.</p>
-                </div>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.000001"
-                  label="Budget Limit"
-                  value={String(form.budgetLimit)}
-                  onChange={(event) => setForm((current) => ({ ...current, budgetLimit: Number(event.target.value || '0') }))}
-                />
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.000001"
-                  label="Cost Per Send"
-                  value={String(form.costPerSend)}
-                  onChange={(event) => setForm((current) => ({ ...current, costPerSend: Number(event.target.value || '0') }))}
-                />
-                <label className="mt-7 flex items-center gap-2 text-sm text-content-primary">
-                  <input
-                    type="checkbox"
-                    checked={form.budgetEnforced}
-                    onChange={(event) => setForm((current) => ({ ...current, budgetEnforced: event.target.checked }))}
+              {showBudgetGuard && (
+                <div
+                  className="grid gap-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2 md:grid-cols-3"
+                  data-mode-feature={CAMPAIGN_WORKFLOW_MODE_FEATURES.budgetGuard.id}
+                  data-mode-visibility={CAMPAIGN_WORKFLOW_MODE_FEATURES.budgetGuard.visibility}
+                >
+                  <div className="md:col-span-3">
+                    <p className="text-sm font-semibold text-content-primary">Budget Guard</p>
+                    <p className="text-xs text-content-secondary">Reserve estimated spend before each recipient send.</p>
+                  </div>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.000001"
+                    label="Budget Limit"
+                    value={String(form.budgetLimit)}
+                    onChange={(event) => setForm((current) => ({ ...current, budgetLimit: Number(event.target.value || '0') }))}
                   />
-                  Enforce budget
-                </label>
-              </div>
-              <div className="grid gap-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2 md:grid-cols-3">
-                <div className="md:col-span-3">
-                  <p className="text-sm font-semibold text-content-primary">Workspace Frequency Policy</p>
-                  <p className="text-xs text-content-secondary">Count reserved and sent messages across campaigns and journeys.</p>
-                </div>
-                <Input
-                  type="number"
-                  min="1"
-                  label="Window Hours"
-                  value={String(form.frequencyWindowHours)}
-                  onChange={(event) => setForm((current) => ({ ...current, frequencyWindowHours: Number(event.target.value || '24') }))}
-                />
-                <label className="mt-7 flex items-center gap-2 text-sm text-content-primary md:col-span-2">
-                  <input
-                    type="checkbox"
-                    checked={form.includeJourneyFrequency}
-                    onChange={(event) => setForm((current) => ({ ...current, includeJourneyFrequency: event.target.checked }))}
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.000001"
+                    label="Cost Per Send"
+                    value={String(form.costPerSend)}
+                    onChange={(event) => setForm((current) => ({ ...current, costPerSend: Number(event.target.value || '0') }))}
                   />
-                  Include journey-triggered sends
-                </label>
-              </div>
+                  <label className="mt-7 flex items-center gap-2 text-sm text-content-primary">
+                    <input
+                      type="checkbox"
+                      checked={form.budgetEnforced}
+                      onChange={(event) => setForm((current) => ({ ...current, budgetEnforced: event.target.checked }))}
+                    />
+                    Enforce budget
+                  </label>
+                </div>
+              )}
+              {showFrequencyPolicy && (
+                <div
+                  className="grid gap-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2 md:grid-cols-3"
+                  data-mode-feature={CAMPAIGN_WORKFLOW_MODE_FEATURES.frequencyPolicy.id}
+                  data-mode-visibility={CAMPAIGN_WORKFLOW_MODE_FEATURES.frequencyPolicy.visibility}
+                >
+                  <div className="md:col-span-3">
+                    <p className="text-sm font-semibold text-content-primary">Workspace Frequency Policy</p>
+                    <p className="text-xs text-content-secondary">Count reserved and sent messages across campaigns and journeys.</p>
+                  </div>
+                  <Input
+                    type="number"
+                    min="1"
+                    label="Window Hours"
+                    value={String(form.frequencyWindowHours)}
+                    onChange={(event) => setForm((current) => ({ ...current, frequencyWindowHours: Number(event.target.value || '24') }))}
+                  />
+                  <label className="mt-7 flex items-center gap-2 text-sm text-content-primary md:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={form.includeJourneyFrequency}
+                      onChange={(event) => setForm((current) => ({ ...current, includeJourneyFrequency: event.target.checked }))}
+                    />
+                    Include journey-triggered sends
+                  </label>
+                </div>
+              )}
               {showExperimentEngine && (
                 <div
                   className="space-y-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2"
@@ -812,12 +833,14 @@ export default function CampaignWizardPage() {
                 <span className="text-content-secondary">Approval Policy</span>
                 <span className="font-medium text-content-primary">{form.approvalRequired ? 'Required' : 'Optional'}</span>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-content-secondary">Budget Guard</span>
-                <span className="font-medium text-content-primary">
-                  {form.budgetEnforced ? `Enforced ${form.budgetLimit || 0} USD` : 'Not enforced'}
-                </span>
-              </div>
+              {showBudgetGuard && (
+                <div className="flex items-center justify-between">
+                  <span className="text-content-secondary">Budget Guard</span>
+                  <span className="font-medium text-content-primary">
+                    {form.budgetEnforced ? `Enforced ${form.budgetLimit || 0} USD` : 'Not enforced'}
+                  </span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-content-secondary">Frequency Cap</span>
                 <span className="font-medium text-content-primary">

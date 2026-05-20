@@ -42,6 +42,9 @@ public class DataExtensionService {
     private static final TypeReference<List<DataExtensionDto.RelationshipDefinition>> RELATIONSHIP_LIST_TYPE = new TypeReference<>() {};
     private static final int MAX_PREVIEW_LIMIT = 500;
     private static final int MAX_PREVIEW_SCAN_ROWS = 5_000;
+    private static final int MAX_RELATIONSHIPS = 20;
+    private static final Set<String> SUPPORTED_RELATIONSHIP_CARDINALITIES =
+            Set.of("ONE_TO_ONE", "ONE_TO_MANY", "MANY_TO_ONE", "MANY_TO_MANY");
 
     private final DataExtensionRepository deRepository;
     private final DataExtensionFieldRepository fieldRepository;
@@ -75,10 +78,13 @@ public class DataExtensionService {
         de.setWorkspaceId(workspaceId);
         de.setName(request.getName());
         de.setDescription(request.getDescription());
-        de.setSendable(request.isSendable());
-        de.setSendableField(normalizeBlank(request.getSendableField()));
-        de.setPrimaryKeyField(normalizeBlank(request.getPrimaryKeyField()));
-        validateSendableFields(request.isSendable(), de.getSendableField(), de.getPrimaryKeyField(), request.getFields());
+        boolean sendable = request.isSendable();
+        String sendableField = sendable ? normalizeBlank(request.getSendableField()) : null;
+        String primaryKeyField = sendable ? normalizeBlank(request.getPrimaryKeyField()) : null;
+        validateSendableFields(sendable, sendableField, primaryKeyField, request.getFields());
+        de.setSendable(sendable);
+        de.setSendableField(sendableField);
+        de.setPrimaryKeyField(primaryKeyField);
         DataExtension savedDe = deRepository.save(de);
 
         saveFields(savedDe.getId(), request.getFields(), true);
@@ -105,8 +111,13 @@ public class DataExtensionService {
     public DataExtensionDto.Response updateSendableConfig(String deId, DataExtensionDto.SendableConfigRequest request) {
         DataExtension de = requireDataExtension(deId);
         boolean sendable = request.getSendable() == null ? de.isSendable() : request.getSendable();
-        String sendableField = request.getSendableField() == null ? de.getSendableField() : normalizeBlank(request.getSendableField());
-        String primaryKeyField = request.getPrimaryKeyField() == null ? de.getPrimaryKeyField() : normalizeBlank(request.getPrimaryKeyField());
+        String sendableField = sendable
+                ? (request.getSendableField() == null ? de.getSendableField() : normalizeBlank(request.getSendableField()))
+                : null;
+        String primaryKeyField = sendable
+                ? (request.getPrimaryKeyField() == null ? de.getPrimaryKeyField() : normalizeBlank(request.getPrimaryKeyField()))
+                : null;
+        validateSendableChangeAllowed(de, sendable, sendableField, primaryKeyField);
         validateSendableFields(sendable, sendableField, primaryKeyField, toFieldDefinitions(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc(deId)));
         de.setSendable(sendable);
         de.setSendableField(sendableField);
@@ -180,6 +191,7 @@ public class DataExtensionService {
         List<DataExtensionField> fields = fieldRepository.findByDataExtensionIdOrderByOrdinalAsc(de.getId());
         Map<String, DataExtensionField> fieldMap = fieldMap(fields);
         DataExtensionDto.QueryPreviewRequest safeRequest = request == null ? new DataExtensionDto.QueryPreviewRequest() : request;
+        validatePreviewRequest(safeRequest, fieldMap);
         List<String> warnings = new ArrayList<>();
         int requestedLimit = safeRequest.getLimit() == null ? 100 : safeRequest.getLimit();
         int limit = Math.max(1, Math.min(requestedLimit, MAX_PREVIEW_LIMIT));
@@ -200,9 +212,9 @@ public class DataExtensionService {
             }
             for (DataExtensionRecord record : page.getContent()) {
                 scannedRows++;
-                Map<String, Object> data = record.getRecordData();
+                Map<String, Object> data = record.getRecordData() == null ? Map.of() : record.getRecordData();
                 if (matchesFilters(data, safeRequest.getFilters(), fieldMap)) {
-                    matchedRows.add(projectFields(data, safeRequest.getFields(), fieldMap));
+                    matchedRows.add(new LinkedHashMap<>(data));
                 }
                 if (!requiresFullPreviewWindow && matchedRows.size() >= limit) {
                     break;
@@ -222,6 +234,7 @@ public class DataExtensionService {
         List<Map<String, Object>> rows = matchedRows.stream()
                 .sorted(sortComparator(safeRequest.getSortField(), safeRequest.getSortDirection()))
                 .limit(limit)
+                .map(row -> projectFields(row, safeRequest.getFields(), fieldMap))
                 .toList();
 
         long total = recordRepository.countByTenantWorkspaceAndDataExtension(tenantId, workspaceId, deId);
@@ -383,15 +396,41 @@ public class DataExtensionService {
         if (sendableField == null || sendableField.isBlank()) {
             throw new ValidationException("sendableField", "Sendable data extensions require a sendable field");
         }
-        Set<String> fieldNames = new HashSet<>();
+        Map<String, DataExtensionDto.FieldDefinition> fieldMap = new LinkedHashMap<>();
         for (DataExtensionDto.FieldDefinition field : fields) {
-            fieldNames.add(field.getFieldName());
+            fieldMap.put(field.getFieldName(), field);
         }
-        if (!fieldNames.contains(sendableField)) {
+        DataExtensionDto.FieldDefinition sendableDefinition = fieldMap.get(sendableField);
+        if (sendableDefinition == null) {
             throw new ValidationException("sendableField", "sendableField must reference an existing field");
         }
-        if (primaryKeyField != null && !primaryKeyField.isBlank() && !fieldNames.contains(primaryKeyField)) {
-            throw new ValidationException("primaryKeyField", "primaryKeyField must reference an existing field");
+        if (!sendableDefinition.isRequired()) {
+            throw new ValidationException("sendableField", "sendableField must be required for sendable data extensions");
+        }
+        if (primaryKeyField != null && !primaryKeyField.isBlank()) {
+            DataExtensionDto.FieldDefinition primaryKeyDefinition = fieldMap.get(primaryKeyField);
+            if (primaryKeyDefinition == null) {
+                throw new ValidationException("primaryKeyField", "primaryKeyField must reference an existing field");
+            }
+            if (!primaryKeyDefinition.isRequired() || !primaryKeyDefinition.isPrimaryKey()) {
+                throw new ValidationException("primaryKeyField", "primaryKeyField must be required and marked as the primary key");
+            }
+        }
+    }
+
+    private void validateSendableChangeAllowed(DataExtension de,
+                                               boolean sendable,
+                                               String sendableField,
+                                               String primaryKeyField) {
+        if (de.getRecordCount() <= 0) {
+            return;
+        }
+        boolean changed = de.isSendable() != sendable
+                || !Objects.equals(normalizeBlank(de.getSendableField()), sendableField)
+                || !Objects.equals(normalizeBlank(de.getPrimaryKeyField()), primaryKeyField);
+        if (changed) {
+            throw new ValidationException("sendableField",
+                    "Sendable configuration cannot be changed while records exist; create a reviewed migration first");
         }
     }
 
@@ -410,6 +449,9 @@ public class DataExtensionService {
 
     private void validateRelationships(DataExtension source,
                                        List<DataExtensionDto.RelationshipDefinition> relationships) {
+        if (relationships.size() > MAX_RELATIONSHIPS) {
+            throw new ValidationException("relationships", "At most " + MAX_RELATIONSHIPS + " relationships are supported");
+        }
         Map<String, DataExtensionField> sourceFields = fieldMap(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc(source.getId()));
         Set<String> names = new HashSet<>();
         for (DataExtensionDto.RelationshipDefinition relationship : relationships) {
@@ -417,16 +459,78 @@ public class DataExtensionService {
             if (name == null || !names.add(name)) {
                 throw new ValidationException("relationships", "Relationship names must be unique and non-empty");
             }
-            if (!sourceFields.containsKey(relationship.getSourceField())) {
+            String cardinality = normalizeCardinality(relationship.getCardinality());
+            DataExtensionField sourceField = sourceFields.get(relationship.getSourceField());
+            if (sourceField == null) {
                 throw new ValidationException("sourceField", "Relationship source field does not exist: " + relationship.getSourceField());
             }
             DataExtension target = deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
                             source.getTenantId(), source.getWorkspaceId(), relationship.getTargetDataExtensionId())
                     .orElseThrow(() -> new NotFoundException("Target DataExtension", relationship.getTargetDataExtensionId()));
             Map<String, DataExtensionField> targetFields = fieldMap(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc(target.getId()));
-            if (!targetFields.containsKey(relationship.getTargetField())) {
+            DataExtensionField targetField = targetFields.get(relationship.getTargetField());
+            if (targetField == null) {
                 throw new ValidationException("targetField", "Relationship target field does not exist: " + relationship.getTargetField());
             }
+            if (sourceField.getFieldType() != targetField.getFieldType()) {
+                throw new ValidationException("relationships", "Relationship source and target field types must match");
+            }
+            validateCardinalityFields(cardinality, sourceField, targetField);
+        }
+    }
+
+    private String normalizeCardinality(String cardinality) {
+        String normalized = normalizeBlank(cardinality) == null ? null : cardinality.trim().toUpperCase(Locale.ROOT);
+        if (normalized == null || !SUPPORTED_RELATIONSHIP_CARDINALITIES.contains(normalized)) {
+            throw new ValidationException("cardinality", "Unsupported relationship cardinality: " + cardinality);
+        }
+        return normalized;
+    }
+
+    private void validateCardinalityFields(String cardinality,
+                                           DataExtensionField sourceField,
+                                           DataExtensionField targetField) {
+        if (("ONE_TO_ONE".equals(cardinality) || "MANY_TO_ONE".equals(cardinality))
+                && !targetField.isPrimaryKey()) {
+            throw new ValidationException("targetField",
+                    cardinality + " relationships require targetField to be the target primary key");
+        }
+        if ("ONE_TO_ONE".equals(cardinality) && !sourceField.isPrimaryKey()) {
+            throw new ValidationException("sourceField",
+                    "ONE_TO_ONE relationships require sourceField to be the source primary key");
+        }
+    }
+
+    private void validatePreviewRequest(DataExtensionDto.QueryPreviewRequest request,
+                                        Map<String, DataExtensionField> fields) {
+        if (request.getFields() != null) {
+            for (String field : request.getFields()) {
+                validatePreviewField(field, "fields", fields);
+            }
+        }
+        if (request.getFilters() != null) {
+            for (DataExtensionDto.QueryFilter filter : request.getFilters()) {
+                validatePreviewField(filter.getFieldName(), "filter.fieldName", fields);
+            }
+        }
+        if (normalizeBlank(request.getSortField()) != null) {
+            validatePreviewField(request.getSortField(), "sortField", fields);
+        }
+    }
+
+    private void validatePreviewField(String field,
+                                      String fieldName,
+                                      Map<String, DataExtensionField> fields) {
+        String normalized = normalizeBlank(field);
+        if (normalized == null) {
+            throw new ValidationException(fieldName, fieldName + " is required");
+        }
+        if (normalized.contains(".") || normalized.contains("->") || normalized.contains("[") || normalized.contains("]")) {
+            throw new ValidationException(fieldName,
+                    "Relationship path fields are not supported in data extension preview yet");
+        }
+        if (!fields.containsKey(normalized)) {
+            throw new ValidationException(fieldName, "Unknown field: " + normalized);
         }
     }
 

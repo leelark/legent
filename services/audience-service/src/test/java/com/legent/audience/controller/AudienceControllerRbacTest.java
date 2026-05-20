@@ -52,6 +52,7 @@ class AudienceControllerRbacTest {
         assertThat(preAuthorizeGrants(SendEligibilityController.class, "check", Set.of("VIEWER"))).isTrue();
         assertThat(expression(DataExtensionController.class, "previewQuery")).contains("audience:read");
         assertThat(expression(DataExtensionController.class, "previewImportMapping")).contains("audience:read");
+        assertThat(expression(SegmentController.class, "previewPredictiveSegment")).contains("audience:read");
     }
 
     @Test

@@ -9,6 +9,8 @@ import { PageHeader } from '@/components/ui/PageChrome';
 import { PlayCircle, Workflow } from 'lucide-react';
 import { pauseWorkflow, resumeWorkflow, saveWorkflowDefinition, triggerWorkflow, validateWorkflow } from '@/lib/automation-api';
 import { useToast } from '@/components/ui/Toast';
+import { AUTOMATION_WORKFLOW_MODE_FEATURES, isModeFeatureVisible } from '@/lib/ui-mode-contract';
+import { useUIStore } from '@/stores/uiStore';
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -33,12 +35,15 @@ const getAutomationErrorMessage = (error: unknown, fallback: string) =>
 export default function AutomationBuilder() {
     const searchParams = useSearchParams();
     const workflowId = searchParams.get('id');
+    const uiMode = useUIStore((state) => state.uiMode);
     const [nodes, setNodes] = useState<JourneyNode[]>([]);
     const [activating, setActivating] = useState(false);
     const [pausing, setPausing] = useState(false);
     const [resuming, setResuming] = useState(false);
     const [triggering, setTriggering] = useState(false);
     const { addToast } = useToast();
+    const showManualTrigger = isModeFeatureVisible(AUTOMATION_WORKFLOW_MODE_FEATURES.manualTrigger, uiMode);
+    const showDraftNodeTypes = isModeFeatureVisible(AUTOMATION_WORKFLOW_MODE_FEATURES.draftNodeTypes, uiMode);
 
     if (!workflowId) {
         return (
@@ -94,6 +99,9 @@ export default function AutomationBuilder() {
     };
 
     const handleManualTrigger = async () => {
+      if (!showManualTrigger) {
+        return;
+      }
       setTriggering(true);
       try {
         await triggerWorkflow(workflowId, {
@@ -126,9 +134,18 @@ export default function AutomationBuilder() {
                   <Button variant="secondary" onClick={handleResume} disabled={resuming} loading={resuming}>
                     Resume
                   </Button>
-                  <Button variant="secondary" onClick={handleManualTrigger} disabled={triggering} loading={triggering}>
-                    Trigger
-                  </Button>
+                  {showManualTrigger && (
+                    <Button
+                      variant="secondary"
+                      onClick={handleManualTrigger}
+                      disabled={triggering}
+                      loading={triggering}
+                      data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.manualTrigger.id}
+                      data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.manualTrigger.visibility}
+                    >
+                      Trigger
+                    </Button>
+                  )}
                 </>
               }
             />
@@ -150,7 +167,7 @@ export default function AutomationBuilder() {
               </div>
               <div className="flex-1 bg-surface-secondary/35 p-4">
                 <div className="h-full min-h-[540px] rounded-xl border border-border-default bg-surface-primary/70 p-4 shadow-inner">
-                <JourneyBuilder nodes={nodes} onNodesChange={setNodes} workflowId={workflowId} />
+                <JourneyBuilder nodes={nodes} onNodesChange={setNodes} workflowId={workflowId} showDraftNodeTypes={showDraftNodeTypes} />
                 </div>
               </div>
             </Card>

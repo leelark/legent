@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -19,6 +20,7 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -95,6 +97,49 @@ class DifferentiationPlatformServiceTest {
         assertThat((Double) decision.get("confidence")).isGreaterThan(0.6);
         Map<?, ?> selected = (Map<?, ?>) decision.get("selectedVariant");
         assertThat(selected.get("key")).isEqualTo("upgrade");
+    }
+
+    @Test
+    void upsertDecisionPolicy_usesNullSafeWorkspaceMatchWhenWorkspaceContextMissing() {
+        TenantContext.setWorkspaceId(null);
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+
+        DifferentiationDto.DecisionPolicyRequest request = new DifferentiationDto.DecisionPolicyRequest();
+        request.setPolicyKey("tenant-policy");
+        request.setName("Tenant Policy");
+
+        Map<String, Object> saved = service.upsertDecisionPolicy(request);
+
+        assertThat(saved.get("workspace_id")).isNull();
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')");
+        assertThat(sqlCaptor.getValue()).doesNotContain(":workspaceId IS NULL OR workspace_id = :workspaceId");
+        assertThat(paramsCaptor.getValue()).containsEntry("workspaceId", null);
+    }
+
+    @Test
+    void upsertDecisionPolicy_usesNullSafeWorkspaceMatchForCurrentWorkspace() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+
+        DifferentiationDto.DecisionPolicyRequest request = new DifferentiationDto.DecisionPolicyRequest();
+        request.setPolicyKey("workspace-policy");
+        request.setName("Workspace Policy");
+
+        Map<String, Object> saved = service.upsertDecisionPolicy(request);
+
+        assertThat(saved.get("workspace_id")).isEqualTo("workspace-1");
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertThat(sqlCaptor.getValue()).contains("COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')");
+        assertThat(sqlCaptor.getValue()).doesNotContain(":workspaceId IS NULL OR workspace_id = :workspaceId");
+        assertThat(paramsCaptor.getValue()).containsEntry("workspaceId", "workspace-1");
     }
 
     @Test

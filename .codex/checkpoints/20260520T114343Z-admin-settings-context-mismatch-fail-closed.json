@@ -1,0 +1,39 @@
+{
+    "id":  "admin-settings-context-mismatch-fail-closed",
+    "createdAt":  "2026-05-20T11:43:43.2745896Z",
+    "objective":  "Reject admin settings workspace and environment request-body context mismatches before config validation, reset, or apply can affect another scope.",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java"
+                     ],
+    "agents":  [
+                   "019e452c-716d-7bd2-b030-7d6f648b0ee4",
+                   "019e452c-7835-71c3-8f7e-d910f7cd70bc",
+                   "019e452c-8372-7da1-a24b-374beefa6c2e",
+                   "019e452c-8d97-7eb0-b8aa-8e2edc34cb52",
+                   "019e452c-951b-7951-84b0-19c328f1b89a",
+                   "019e452c-a081-7762-9583-9ee19abfc7aa"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -am -Dtest=AdminSettingsServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           ".\\mvnw.cmd -pl services/foundation-service -am test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Release source lease, defer shared backlog/memory writes until frontend metadata lease clears, then continue foundation tenant/config ownership hardening.",
+    "completedAt":  "2026-05-20T11:52:00Z",
+    "outcome":  "Admin settings service now rejects request-body workspaceId and environmentId mismatches against the current TenantContext before validate/apply/reset/impact can proceed. Reset also fails closed when WORKSPACE or ENVIRONMENT scope lacks the required context.",
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AdminSettingsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed with 6 tests",
+                          ".\\mvnw.cmd -pl services/foundation-service -am test passed with 98 foundation-service tests and upstream shared-module tests",
+                          "git diff --check for AdminSettingsService.java and AdminSettingsServiceTest.java passed with CRLF warnings only"
+                      ],
+    "residualRisks":  [
+                          "Config update/delete by raw ID and tenant lifecycle cross-tenant controls remain open foundation security findings from parallel audit.",
+                          "Shared backlog and active memory updates are deferred while frontend-20260520T113115Z holds .codex/backlog/queue.json and active-work-items/technical-debt memory leases."
+                      ]
+}

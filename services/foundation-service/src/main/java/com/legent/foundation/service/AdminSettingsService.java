@@ -77,8 +77,20 @@ public class AdminSettingsService {
         String value = request.getValue();
         String type = normalizeUpper(request.getType());
         String scope = normalizeUpper(request.getScope());
-        String workspaceId = normalize(request.getWorkspaceId() != null ? request.getWorkspaceId() : TenantContext.getWorkspaceId());
-        String environmentId = normalize(request.getEnvironmentId() != null ? request.getEnvironmentId() : TenantContext.getEnvironmentId());
+        String workspaceId = resolveContextValue(
+                request.getWorkspaceId(),
+                TenantContext.getWorkspaceId(),
+                "workspaceId",
+                "workspace",
+                errors
+        );
+        String environmentId = resolveContextValue(
+                request.getEnvironmentId(),
+                TenantContext.getEnvironmentId(),
+                "environmentId",
+                "environment",
+                errors
+        );
         String tenantId = normalize(TenantContext.getTenantId());
 
         if (key == null) {
@@ -130,8 +142,8 @@ public class AdminSettingsService {
         }
 
         String tenantId = TenantContext.getTenantId();
-        String workspaceId = normalize(request.getWorkspaceId() != null ? request.getWorkspaceId() : TenantContext.getWorkspaceId());
-        String environmentId = normalize(request.getEnvironmentId() != null ? request.getEnvironmentId() : TenantContext.getEnvironmentId());
+        String workspaceId = requireMatchingContextValue(request.getWorkspaceId(), TenantContext.getWorkspaceId(), "workspaceId", "workspace");
+        String environmentId = requireMatchingContextValue(request.getEnvironmentId(), TenantContext.getEnvironmentId(), "environmentId", "environment");
 
         ConfigDto.CreateRequest upsert = ConfigDto.CreateRequest.builder()
                 .configKey(request.getKey())
@@ -158,14 +170,20 @@ public class AdminSettingsService {
     public AdminSettingsDto.Entry reset(AdminSettingsDto.ResetRequest request) {
         String tenantId = TenantContext.getTenantId();
         String scope = normalizeUpper(request.getScope());
-        String workspaceId = normalize(request.getWorkspaceId() != null ? request.getWorkspaceId() : TenantContext.getWorkspaceId());
-        String environmentId = normalize(request.getEnvironmentId() != null ? request.getEnvironmentId() : TenantContext.getEnvironmentId());
+        String workspaceId = requireMatchingContextValue(request.getWorkspaceId(), TenantContext.getWorkspaceId(), "workspaceId", "workspace");
+        String environmentId = requireMatchingContextValue(request.getEnvironmentId(), TenantContext.getEnvironmentId(), "environmentId", "environment");
 
         if (scope != null && !SUPPORTED_SCOPE_TYPES.contains(scope)) {
             throw new IllegalArgumentException("Unsupported setting scope: " + scope);
         }
 
         String effectiveScope = scope == null ? inferScope(workspaceId, environmentId, tenantId) : scope;
+        if (ConfigService.SCOPE_WORKSPACE.equals(effectiveScope) && workspaceId == null) {
+            throw new IllegalArgumentException("workspaceId required for WORKSPACE scope");
+        }
+        if (ConfigService.SCOPE_ENVIRONMENT.equals(effectiveScope) && (workspaceId == null || environmentId == null)) {
+            throw new IllegalArgumentException("workspaceId and environmentId required for ENVIRONMENT scope");
+        }
         String scopedWorkspace = ConfigService.SCOPE_WORKSPACE.equals(effectiveScope) || ConfigService.SCOPE_ENVIRONMENT.equals(effectiveScope)
                 ? workspaceId : null;
         String scopedEnvironment = ConfigService.SCOPE_ENVIRONMENT.equals(effectiveScope) ? environmentId : null;
@@ -184,6 +202,8 @@ public class AdminSettingsService {
 
     @Transactional(readOnly = true)
     public AdminSettingsDto.ImpactResponse impact(AdminSettingsDto.ApplyRequest request) {
+        requireMatchingContextValue(request.getWorkspaceId(), TenantContext.getWorkspaceId(), "workspaceId", "workspace");
+        requireMatchingContextValue(request.getEnvironmentId(), TenantContext.getEnvironmentId(), "environmentId", "environment");
         String module = defaultModule(request.getModule());
         List<String> impacted = new ArrayList<>(impactMap().getOrDefault(module, List.of("system")));
         if (!impacted.contains(module)) {
@@ -336,6 +356,29 @@ public class AdminSettingsService {
     private String defaultModule(String module) {
         String normalized = normalize(module);
         return normalized == null ? "system" : normalized.toLowerCase(Locale.ROOT);
+    }
+
+    private String resolveContextValue(String explicit,
+                                       String context,
+                                       String fieldName,
+                                       String contextName,
+                                       List<String> errors) {
+        String resolved = normalize(explicit);
+        String current = normalize(context);
+        if (resolved != null && current != null && !current.equals(resolved)) {
+            errors.add(fieldName + " does not match the current " + contextName);
+            return current;
+        }
+        return resolved == null ? current : resolved;
+    }
+
+    private String requireMatchingContextValue(String explicit, String context, String fieldName, String contextName) {
+        String resolved = normalize(explicit);
+        String current = normalize(context);
+        if (resolved != null && current != null && !current.equals(resolved)) {
+            throw new IllegalArgumentException(fieldName + " does not match the current " + contextName);
+        }
+        return resolved == null ? current : resolved;
     }
 
     private String inferScope(String workspaceId, String environmentId, String tenantId) {

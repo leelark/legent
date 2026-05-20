@@ -116,6 +116,76 @@ Validation: focused foundation optimization tests passed with 11 tests, focused 
 
 Residual risk: this is not model-backed engagement frequency optimization, live cadence control, provider capacity evidence, or a production release. External target evidence remains required before parity, deliverability, or throughput claims.
 
+## 2026-05-20 Admin Settings Context Mismatch Fail Closed
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java`.
+
+Outcome: admin settings validate/apply/reset/impact now reject request-body `workspaceId` and `environmentId` mismatches against `TenantContext`; reset also fails closed when WORKSPACE or ENVIRONMENT scope lacks required context.
+
+Validation: focused `AdminSettingsServiceTest` passed with 6 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 98 foundation-service tests plus upstream shared-module tests, and `git diff --check` passed for touched files with CRLF warnings only.
+
+Residual risk: tenant lifecycle cross-tenant operations and config update/delete raw-ID scoping remain open foundation audit findings.
+
+## 2026-05-20 Config By-ID Tenant Scope
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java`, `services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java`.
+
+Outcome: config update/delete by ID now resolve mutable configs by current tenant and non-deleted status before any mutation, and reject workspace/environment-scoped configs when current `TenantContext` lacks or mismatches the required scope.
+
+Validation: focused `ConfigServiceTest` passed with 8 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 101 foundation-service tests plus upstream shared-module tests, and `git diff --check` passed for touched files with CRLF warnings only.
+
+Residual risk: tenant lifecycle cross-tenant policy, scope-aware config version history, and explicit privileged global-config administration remain separate foundation follow-ups.
+
+## 2026-05-20 Config Create/Upsert Context Mismatch Fail Closed
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java`.
+
+Outcome: config create/upsert now rejects request-body workspace/environment mismatches before repository lookup or save; explicit workspace/environment scope requires trusted args or matching `TenantContext`.
+
+Validation: focused `ConfigServiceTest` passed with 11 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 109 foundation-service tests plus upstream shared-module tests, and `git diff --check` passed for touched files with CRLF warnings only.
+
+Residual risk: config version-history records still need schema-backed workspace/environment scoping, and tenant lifecycle cross-tenant policy remains a separate platform-admin versus self-tenant decision.
+
+## 2026-05-20 Differentiation Upsert Workspace Exact Match
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java`.
+
+Outcome: differentiation platform upsert-by-key lookup now uses null-safe exact workspace matching, preventing tenant-scoped or no-workspace requests from selecting workspace-scoped rows before update.
+
+Validation: focused `DifferentiationPlatformServiceTest` passed with 5 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 103 foundation-service tests plus upstream shared-module tests, and `git diff --check` passed for touched files with CRLF warnings only.
+
+Residual risk: list/evaluate query semantics still need endpoint-by-endpoint review before changing tenant-level plus workspace-level visibility; tenant lifecycle policy and config version-history scoping remain separate follow-ups.
+
+## 2026-05-20 Public Contact Admin Platform-Admin Only
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java`, `services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java`.
+
+Outcome: global public contact request admin list/status access now requires `PLATFORM_ADMIN`, preventing ordinary tenant/org admins from viewing or changing public-contact PII rows in a table without tenant/workspace ownership.
+
+Validation: focused `AdminContactRequestControllerSecurityTest` and `PublicContactServiceTest` passed with 6 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 106 foundation-service tests plus upstream shared-module tests, and `git diff --check` passed for touched files with CRLF warnings only.
+
+Residual risk: tenant/workspace-scoped contact inbox remains a schema/product-design follow-up; additional service-level PII/status tests can be expanded separately.
+
+## 2026-05-20 Tenant Get Self Scope
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/TenantService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/TenantServiceTest.java`.
+
+Outcome: tenant reads by ID now require the requested tenant ID to match `TenantContext` before repository lookup, so known cross-tenant IDs are hidden and missing tenant context fails closed.
+
+Validation: focused `TenantServiceTest` passed with 3 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 112 foundation-service tests plus upstream shared-module tests, and `git diff --check` passed for touched files with CRLF warnings only.
+
+Residual risk: tenant list, get-by-slug, and lifecycle mutations still need a platform-admin versus self-tenant policy decision before safe local implementation.
+
+## 2026-05-20 Audience Contact Data Designer Preview Governance
+
+Source: `services/audience-service/src/main/java/com/legent/audience/dto/DataExtensionDto.java`, `services/audience-service/src/main/java/com/legent/audience/service/DataExtensionService.java`, `services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java`, `services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java`, and `services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java`.
+
+Outcome: data-extension contracts now cascade nested validation, cap preview/import/relationship payload shapes, enforce supported relationship cardinalities, field type and primary-key compatibility, lock effective sendable-key changes once records exist, require sendable fields to be required, reject relationship path preview fields until joins are designed, validate preview fields/filters/sorts up front, sort before projection, and block unsupported data-extension relationship metadata in segment conditions.
+
+Validation: focused `DataExtensionServiceTest,SegmentServiceTest` passed with 31 tests, full `.\mvnw.cmd -pl services/audience-service -am test` passed with 122 audience-service tests plus upstream shared modules, Codex system validation passed, repository artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this was a no-schema backend hardening slice. First-class provenance/classification/audit tables, import source metadata, indexed relationship execution, frontend relationship designer controls, and target migration proof remain follow-up work.
+
 No product fix entries exist in the fresh memory baseline.
 
 Current non-product success:

@@ -79,6 +79,7 @@ public class SegmentService {
         }
         normalizeForPersist(entity);
         validateRules(entity.getRules());
+        PredictiveSegmentGovernanceService.validateForPersist(entity);
 
         Segment saved = segmentRepository.save(entity);
         log.info("Segment created: name={}, id={}", saved.getName(), saved.getId());
@@ -100,6 +101,7 @@ public class SegmentService {
         if (request.getStatus() != null) existing.setStatus(Segment.SegmentStatus.valueOf(request.getStatus().toUpperCase()));
         normalizeForPersist(existing);
         validateRules(existing.getRules());
+        PredictiveSegmentGovernanceService.validateForPersist(existing);
 
         Segment saved = segmentRepository.save(existing);
         eventPublisher.publishUpdated(saved);
@@ -131,9 +133,10 @@ public class SegmentService {
             case "FILTER", "DYNAMIC", "DYNAMIC_LIST" -> Segment.SegmentType.FILTER;
             case "MANUAL", "STATIC", "STATIC_LIST" -> Segment.SegmentType.MANUAL;
             case "QUERY" -> Segment.SegmentType.QUERY;
+            case "PREDICTIVE", "MODEL_BACKED" -> Segment.SegmentType.PREDICTIVE;
             default -> throw new ResponseStatusException(
                     HttpStatus.BAD_REQUEST,
-                    "Invalid segmentType: " + segmentType + ". Allowed values: FILTER, QUERY, MANUAL, DYNAMIC, STATIC");
+                    "Invalid segmentType: " + segmentType + ". Allowed values: FILTER, QUERY, MANUAL, PREDICTIVE, DYNAMIC, STATIC");
         };
     }
 
@@ -202,6 +205,7 @@ public class SegmentService {
         String operator = requiredString(condition.get("op"), path + ".op").toUpperCase(Locale.ROOT);
 
         validateFieldName(field, path + ".field");
+        validateNoUnsupportedDataExtensionField(condition, field, path);
 
         if (!SUPPORTED_CONDITION_OPERATORS.contains(operator)) {
             throw new IllegalArgumentException("Unsupported segment operator: " + operator);
@@ -265,6 +269,21 @@ public class SegmentService {
         }
         if (isSqlKeyword(field.toLowerCase(Locale.ROOT))) {
             throw new IllegalArgumentException(fieldName + " is reserved");
+        }
+    }
+
+    private void validateNoUnsupportedDataExtensionField(Map<?, ?> condition, String field, String path) {
+        if (condition.containsKey("dataExtensionId")
+                || condition.containsKey("relationship")
+                || condition.containsKey("relationshipName")
+                || condition.containsKey("relationshipPath")) {
+            throw new IllegalArgumentException(path + ".field uses data extension relationships, which are not supported by segment rules yet");
+        }
+        String normalized = field.toLowerCase(Locale.ROOT);
+        if ("data_extension".equals(normalized)
+                || "data_extension_field".equals(normalized)
+                || "relationship_path".equals(normalized)) {
+            throw new IllegalArgumentException(path + ".field uses data extension relationships, which are not supported by segment rules yet");
         }
     }
 

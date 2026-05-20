@@ -160,4 +160,125 @@ class ConfigServiceTest {
                 verify(eventPublisher).publish(anyString(), any());
                 verify(cacheService, atLeastOnce()).deleteByPattern(anyString());
         }
+
+        @Test
+        @DisplayName("createConfig rejects workspace context mismatch before repository lookup")
+        void createConfig_rejectsWorkspaceContextMismatch() {
+                TenantContext.setWorkspaceId("workspace-1");
+                ConfigDto.CreateRequest request = ConfigDto.CreateRequest.builder()
+                                .configKey("workspace.key")
+                                .configValue("value")
+                                .scopeType(ConfigService.SCOPE_WORKSPACE)
+                                .workspaceId("workspace-2")
+                                .build();
+
+                assertThatThrownBy(() -> configService.createConfig(TENANT_ID, request))
+                                .isInstanceOf(IllegalArgumentException.class)
+                                .hasMessageContaining("workspaceId");
+
+                verify(configRepository, never()).existsByScope(any(), any(), any(), any());
+                verify(configRepository, never()).save(any());
+                verifyNoInteractions(configMapper);
+        }
+
+        @Test
+        @DisplayName("createConfig rejects environment context mismatch before repository lookup")
+        void createConfig_rejectsEnvironmentContextMismatch() {
+                TenantContext.setWorkspaceId("workspace-1");
+                TenantContext.setEnvironmentId("dev");
+                ConfigDto.CreateRequest request = ConfigDto.CreateRequest.builder()
+                                .configKey("environment.key")
+                                .configValue("value")
+                                .scopeType(ConfigService.SCOPE_ENVIRONMENT)
+                                .workspaceId("workspace-1")
+                                .environmentId("prod")
+                                .build();
+
+                assertThatThrownBy(() -> configService.createConfig(TENANT_ID, request))
+                                .isInstanceOf(IllegalArgumentException.class)
+                                .hasMessageContaining("environmentId");
+
+                verify(configRepository, never()).existsByScope(any(), any(), any(), any());
+                verify(configRepository, never()).save(any());
+                verifyNoInteractions(configMapper);
+        }
+
+        @Test
+        @DisplayName("upsertConfig rejects trusted workspace and body mismatch before repository lookup")
+        void upsertConfig_rejectsTrustedWorkspaceBodyMismatch() {
+                ConfigDto.CreateRequest request = ConfigDto.CreateRequest.builder()
+                                .configKey("workspace.key")
+                                .configValue("value")
+                                .scopeType(ConfigService.SCOPE_WORKSPACE)
+                                .workspaceId("workspace-2")
+                                .build();
+
+                assertThatThrownBy(() -> configService.upsertConfig(TENANT_ID, "workspace-1", null, request))
+                                .isInstanceOf(IllegalArgumentException.class)
+                                .hasMessageContaining("workspaceId");
+
+                verify(configRepository, never()).findByScope(any(), any(), any(), any());
+                verify(configRepository, never()).save(any());
+                verifyNoInteractions(configMapper);
+        }
+
+        @Test
+        @DisplayName("updateConfig resolves by current tenant before mutation")
+        void updateConfig_rejectsConfigOutsideCurrentTenant() {
+                ConfigDto.UpdateRequest request = ConfigDto.UpdateRequest.builder()
+                                .configValue("new.value")
+                                .build();
+
+                when(configRepository.findByIdAndTenantIdAndDeletedAtIsNull("config-1", TENANT_ID))
+                                .thenReturn(Optional.empty());
+
+                assertThatThrownBy(() -> configService.updateConfig("config-1", request))
+                                .isInstanceOf(NotFoundException.class);
+
+                verify(configRepository, never()).findById(anyString());
+                verify(configRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("updateConfig rejects workspace-scoped config outside current workspace")
+        void updateConfig_rejectsWorkspaceScopedConfigOutsideCurrentWorkspace() {
+                TenantContext.setWorkspaceId("workspace-1");
+                ConfigDto.UpdateRequest request = ConfigDto.UpdateRequest.builder()
+                                .configValue("new.value")
+                                .build();
+                SystemConfig existing = new SystemConfig();
+                existing.setTenantId(TENANT_ID);
+                existing.setWorkspaceId("workspace-2");
+                existing.setConfigKey("workspace.key");
+                existing.setConfigValue("old.value");
+
+                when(configRepository.findByIdAndTenantIdAndDeletedAtIsNull("config-1", TENANT_ID))
+                                .thenReturn(Optional.of(existing));
+
+                assertThatThrownBy(() -> configService.updateConfig("config-1", request))
+                                .isInstanceOf(NotFoundException.class);
+
+                verify(configRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("deleteConfig rejects environment-scoped config outside current environment")
+        void deleteConfig_rejectsEnvironmentScopedConfigOutsideCurrentEnvironment() {
+                TenantContext.setWorkspaceId("workspace-1");
+                TenantContext.setEnvironmentId("dev");
+                SystemConfig existing = new SystemConfig();
+                existing.setTenantId(TENANT_ID);
+                existing.setWorkspaceId("workspace-1");
+                existing.setEnvironmentId("prod");
+                existing.setConfigKey("environment.key");
+                existing.setConfigValue("old.value");
+
+                when(configRepository.findByIdAndTenantIdAndDeletedAtIsNull("config-1", TENANT_ID))
+                                .thenReturn(Optional.of(existing));
+
+                assertThatThrownBy(() -> configService.deleteConfig("config-1"))
+                                .isInstanceOf(NotFoundException.class);
+
+                verify(configRepository, never()).save(any());
+        }
 }

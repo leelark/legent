@@ -1,0 +1,47 @@
+{
+    "id":  "predictive-segments-governance",
+    "createdAt":  "2026-05-20T12:21:19.1006905Z",
+    "objective":  "Define governed predictive segment contract",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                         "services/audience-service/src/main/java/com/legent/audience/domain/Segment.java",
+                         "services/audience-service/src/main/java/com/legent/audience/dto/SegmentDto.java",
+                         "services/audience-service/src/main/java/com/legent/audience/mapper/SegmentMapper.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/PredictiveSegmentGovernanceService.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/PredictiveSegmentGovernanceServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/controller/AudienceControllerRbacTest.java"
+                     ],
+    "agents":  [
+                   "DATA_ARCHITECT",
+                   "SECURITY_ENGINEER",
+                   "PRODUCT_MANAGER_AGENT",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [],
+    "nextAction":  "Promote the next safe audience-service item after coordinator review, likely contact-data-designer-governance or internal endpoint security filter coverage.",
+    "outcome":  "Audience-service now has a predictive segment governance preview contract plus fail-closed predictive segment create/evaluate/recompute guards. Predictive segments require tenant policy enablement, policy version, approved feature-source allowlist, protected-data exclusion, minimum data thresholds, freshness limits, bias/drift pass, preview and suppression impact counts, human approval audit fields, and rollback snapshot evidence before apply/materialization.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/audience-service -am \"-Dtest=PredictiveSegmentGovernanceServiceTest,SegmentServiceTest,SegmentEvaluationServiceTest,AudienceControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          "PASS: .\\mvnw.cmd -pl services/audience-service -am test",
+                          "PASS: git diff --check on touched audience-service files, with CRLF warnings only",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "BLOCKED: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1 due unrelated foundation backlog score mismatch for differentiation-upsert-workspace-exact-match"
+                      ],
+    "residualRisks":  [
+                          "No external model provider, model card, tenant AI policy store, or production evidence exists; do not claim model-backed AI or Salesforce Einstein parity.",
+                          "Predictive segment governance is stored in the segment rules JSON contract in this slice; first-class policy/audit tables remain future work.",
+                          "Segment recompute still materializes full membership sets in memory for existing rule segments; high-volume chunked segment materialization and durable rollback snapshots remain follow-up work.",
+                          "No external model provider, model card, tenant AI policy store, or production evidence exists; do not claim model-backed AI or Salesforce Einstein parity."
+                      ]
+}

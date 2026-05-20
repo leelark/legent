@@ -87,6 +87,6 @@ public class Segment extends TenantAwareEntity {
     }
 
     public enum SegmentType {
-        FILTER, QUERY, MANUAL
+        FILTER, QUERY, MANUAL, PREDICTIVE
     }
 }

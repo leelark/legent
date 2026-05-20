@@ -24,5 +24,7 @@ public interface SegmentMapper {
 
     @Mapping(target = "status", expression = "java(entity.getStatus().name())")
     @Mapping(target = "segmentType", expression = "java(entity.getSegmentType().name())")
+    @Mapping(target = "derivationMode", expression = "java(com.legent.audience.service.PredictiveSegmentGovernanceService.derivationMode(entity))")
+    @Mapping(target = "predictiveGovernance", expression = "java(com.legent.audience.service.PredictiveSegmentGovernanceService.responseGovernance(entity))")
     SegmentDto.Response toResponse(Segment entity);
 }

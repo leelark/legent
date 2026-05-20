@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { sanitizeEmailHtml } from '@/lib/sanitize-html';
+import { isModeFeatureVisible, TEMPLATE_STUDIO_MODE_FEATURES, type UiMode } from '@/lib/ui-mode-contract';
 
 export interface ContentBlock {
   id: string;
@@ -39,6 +40,7 @@ export interface ContentBlock {
 interface TemplateBuilderProps {
   blocks: ContentBlock[];
   onBlocksChange: (blocks: ContentBlock[]) => void;
+  uiMode: UiMode;
 }
 
 type BuilderViewMode = 'desktop' | 'mobile';
@@ -61,6 +63,7 @@ type DragPayload =
 const DRAG_MIME = 'application/x-legent-template-block';
 const MAX_HISTORY = 30;
 const BLOCK_CATEGORIES: BlockCategory[] = ['All', 'Structure', 'Content', 'Commerce', 'Personalization'];
+const ADVANCED_BLOCK_TYPES = new Set<string>(['PRODUCT', 'CTA', 'COUNTDOWN', 'HTML', 'DYNAMIC']);
 
 const BLOCK_LIBRARY: BlockBlueprint[] = [
   {
@@ -190,6 +193,18 @@ const defaultStyles = {
 const serializeBlocks = (items: ContentBlock[]) => JSON.stringify(items);
 
 const createBlockId = () => `block-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+
+const htmlToPlainText = (html: string) => html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+const escapeHtmlText = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const plainTextToHtml = (value: string) => `<p style="margin:0;line-height:1.6;">${escapeHtmlText(value)}</p>`;
 
 const createBlock = (type: string): ContentBlock => {
   const blueprint = BLOCK_LIBRARY.find((block) => block.type === type) ?? BLOCK_LIBRARY[1];
@@ -334,7 +349,9 @@ function DropZone({
   );
 }
 
-export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBlocksChange }) => {
+export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBlocksChange, uiMode }) => {
+  const showAdvancedBlocks = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.advancedBlocks, uiMode);
+  const showConditionalRules = isModeFeatureVisible(TEMPLATE_STUDIO_MODE_FEATURES.conditionalRules, uiMode);
   const [selectedId, setSelectedId] = useState<string | null>(blocks[0]?.id ?? null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [activeDropIndex, setActiveDropIndex] = useState<number | null>(null);
@@ -370,6 +387,12 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
     }
   }, [blocks]);
 
+  useEffect(() => {
+    if (!showConditionalRules && inspectorTab === 'rules') {
+      setInspectorTab('content');
+    }
+  }, [inspectorTab, showConditionalRules]);
+
   const selectedBlock = useMemo(
     () => blocks.find((block) => block.id === selectedId) ?? null,
     [blocks, selectedId],
@@ -378,6 +401,9 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
   const filteredLibrary = useMemo(() => {
     const query = libraryQuery.trim().toLowerCase();
     return BLOCK_LIBRARY.filter((block) => {
+      if (!showAdvancedBlocks && ADVANCED_BLOCK_TYPES.has(block.type)) {
+        return false;
+      }
       const categoryMatch = libraryCategory === 'All' || block.category === libraryCategory;
       const queryMatch =
         !query ||
@@ -386,7 +412,12 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
         block.description.toLowerCase().includes(query);
       return categoryMatch && queryMatch;
     });
-  }, [libraryCategory, libraryQuery]);
+  }, [libraryCategory, libraryQuery, showAdvancedBlocks]);
+
+  const visibleCategories = useMemo(
+    () => BLOCK_CATEGORIES.filter((category) => showAdvancedBlocks || (category !== 'Commerce' && category !== 'Personalization')),
+    [showAdvancedBlocks],
+  );
 
   const commitBlocks = (nextBlocks: ContentBlock[], nextSelectedId?: string | null) => {
     const currentSignature = serializeBlocks(blocks);
@@ -429,6 +460,9 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
   };
 
   const insertBlockAt = (type: string, index = blocks.length) => {
+    if (!showAdvancedBlocks && ADVANCED_BLOCK_TYPES.has(type)) {
+      return;
+    }
     const nextBlock = createBlock(type);
     const nextBlocks = [...blocks];
     nextBlocks.splice(clampIndex(index, nextBlocks.length), 0, nextBlock);
@@ -483,6 +517,9 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
   };
 
   const patchBlockSettings = (id: string, patch: Record<string, unknown>) => {
+    if (!showConditionalRules) {
+      return;
+    }
     commitBlocks(
       blocks.map((block) =>
         block.id === id
@@ -537,7 +574,7 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
         </div>
 
         <div className="mt-3 flex flex-wrap gap-1.5">
-          {BLOCK_CATEGORIES.map((category) => (
+          {visibleCategories.map((category) => (
             <button
               className={clsx(
                 'rounded-md border px-2 py-1 text-xs font-semibold transition-colors',
@@ -788,13 +825,19 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
               {[
                 { key: 'content', label: 'Content', icon: <Code2 className="h-4 w-4" /> },
                 { key: 'style', label: 'Style', icon: <Type className="h-4 w-4" /> },
-                { key: 'rules', label: 'Rules', icon: <Braces className="h-4 w-4" /> },
+                ...(showConditionalRules ? [{
+                  key: 'rules',
+                  label: 'Rules',
+                  icon: <Braces className="h-4 w-4" />,
+                }] : []),
               ].map((tab) => (
                 <button
                   className={clsx(
                     'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-semibold transition-colors',
                     inspectorTab === tab.key ? 'bg-surface-elevated text-content-primary shadow-sm' : 'text-content-secondary hover:text-content-primary',
                   )}
+                  data-mode-feature={tab.key === 'rules' ? TEMPLATE_STUDIO_MODE_FEATURES.conditionalRules.id : undefined}
+                  data-mode-visibility={tab.key === 'rules' ? TEMPLATE_STUDIO_MODE_FEATURES.conditionalRules.visibility : undefined}
                   key={tab.key}
                   onClick={() => setInspectorTab(tab.key as InspectorTab)}
                   type="button"
@@ -812,17 +855,31 @@ export const TemplateBuilder: React.FC<TemplateBuilderProps> = ({ blocks, onBloc
                   value={selectedBlock.name}
                   onChange={(event) => patchBlock(selectedBlock.id, { name: event.target.value })}
                 />
-                <div>
-                  <label className="mb-1 block text-sm font-medium text-content-primary" htmlFor="selected-block-content">
-                    HTML Content
-                  </label>
-                  <textarea
-                    className="min-h-[240px] w-full rounded-lg border border-border-default bg-surface-primary p-3 font-mono text-xs text-content-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-                    id="selected-block-content"
-                    onChange={(event) => patchBlock(selectedBlock.id, { content: event.target.value })}
-                    value={selectedBlock.content}
-                  />
-                </div>
+                {showAdvancedBlocks ? (
+                  <div data-mode-feature={TEMPLATE_STUDIO_MODE_FEATURES.advancedBlocks.id} data-mode-visibility={TEMPLATE_STUDIO_MODE_FEATURES.advancedBlocks.visibility}>
+                    <label className="mb-1 block text-sm font-medium text-content-primary" htmlFor="selected-block-content">
+                      HTML Content
+                    </label>
+                    <textarea
+                      className="min-h-[240px] w-full rounded-lg border border-border-default bg-surface-primary p-3 font-mono text-xs text-content-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      id="selected-block-content"
+                      onChange={(event) => patchBlock(selectedBlock.id, { content: event.target.value })}
+                      value={selectedBlock.content}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-content-primary" htmlFor="selected-block-content">
+                      Content
+                    </label>
+                    <textarea
+                      className="min-h-[180px] w-full rounded-lg border border-border-default bg-surface-primary p-3 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+                      id="selected-block-content"
+                      onChange={(event) => patchBlock(selectedBlock.id, { content: plainTextToHtml(event.target.value) })}
+                      value={htmlToPlainText(selectedBlock.content)}
+                    />
+                  </div>
+                )}
               </div>
             )}
 

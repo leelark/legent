@@ -7,6 +7,7 @@ import java.util.Map;
 import java.time.Instant;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
@@ -21,7 +22,7 @@ public class DataExtensionDto {
         private boolean sendable;
         private String sendableField;
         private String primaryKeyField;
-        @NotNull @Size(min = 1) private List<FieldDefinition> fields;
+        @NotNull @Size(min = 1, max = 200) private List<@Valid FieldDefinition> fields;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -37,7 +38,7 @@ public class DataExtensionDto {
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class SchemaUpdateRequest {
-        @NotNull @Size(min = 1) private List<FieldDefinition> fields;
+        @NotNull @Size(min = 1, max = 200) private List<@Valid FieldDefinition> fields;
         private Boolean replaceExisting;
     }
 
@@ -60,18 +61,18 @@ public class DataExtensionDto {
         @NotBlank private String targetDataExtensionId;
         @NotBlank @Size(max = 128) private String sourceField;
         @NotBlank @Size(max = 128) private String targetField;
-        @Pattern(regexp = "^(ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY)$") private String cardinality;
+        @NotBlank @Pattern(regexp = "^(ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY)$") private String cardinality;
         private Boolean required;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class RelationshipRequest {
-        @NotNull private List<RelationshipDefinition> relationships;
+        @NotNull @Size(max = 20) private List<@Valid RelationshipDefinition> relationships;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class RecordRequest {
-        @NotNull private Map<String, Object> data;
+        @NotNull @Size(max = 200) private Map<String, Object> data;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -83,10 +84,10 @@ public class DataExtensionDto {
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class QueryPreviewRequest {
-        private List<String> fields;
-        private List<QueryFilter> filters;
+        @Size(max = 200) private List<@Size(max = 128) String> fields;
+        @Size(max = 50) private List<@Valid QueryFilter> filters;
         @Size(max = 128) private String sortField;
-        private String sortDirection;
+        @Pattern(regexp = "^(ASC|DESC|asc|desc)$") private String sortDirection;
         @Min(1) @Max(500) private Integer limit;
     }
 
@@ -123,9 +124,9 @@ public class DataExtensionDto {
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class ImportMappingPreviewRequest {
-        @NotNull private Map<String, String> fieldMapping;
-        private List<String> sourceHeaders;
-        private List<Map<String, Object>> sampleRows;
+        @NotNull @Size(max = 200) private Map<String, String> fieldMapping;
+        @Size(max = 500) private List<@Size(max = 255) String> sourceHeaders;
+        @Size(max = 10) private List<@Size(max = 200) Map<String, Object>> sampleRows;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
