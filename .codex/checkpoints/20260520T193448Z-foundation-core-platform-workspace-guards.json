@@ -1,0 +1,51 @@
+{
+    "id":  "foundation-core-platform-workspace-guards",
+    "createdAt":  "2026-05-20T19:34:48.7584531Z",
+    "objective":  "Add foundation core-platform workspace ownership guards",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/CorePlatformService.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/CorePlatformServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/foundation-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/foundation-service"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "outcome":  "Implemented service-level workspace ownership guards for core-platform team, department, membership, role binding, access grant, and permission-group tenant mismatch creation paths.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (28 tests)",
+                          "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (138 foundation-service tests plus shared upstream tests)",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                          "PASS: git diff --check -- services/foundation-service (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "Role-binding/access-grant list and access-policy preview read paths remain tenant-wide and need a separately leased controller/service slice.",
+                          "Nullable permission lists still serialize through the generic JSON helper and should be normalized in a small follow-up.",
+                          "This is local validation only; production promotion remains blocked by target-environment evidence gates."
+                      ],
+    "nextAction":  "Promote next safe foundation item: role-binding/access-grant read scoping or differentiation evaluate exact workspace matching."
+}

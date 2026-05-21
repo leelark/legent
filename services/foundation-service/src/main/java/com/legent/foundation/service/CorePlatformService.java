@@ -174,9 +174,9 @@ public class CorePlatformService {
 
     @Transactional
     public Map<String, Object> createTeam(CorePlatformDto.TeamRequest request) {
-        assertExists("workspaces", request.getWorkspaceId(), "workspaceId");
+        String workspaceId = requireWorkspaceInCurrentContext(request.getWorkspaceId(), "workspaceId");
         Map<String, Object> values = baseValues(requireTenant());
-        values.put("workspace_id", request.getWorkspaceId());
+        values.put("workspace_id", workspaceId);
         values.put("name", request.getName());
         values.put("code", nullable(request.getCode()));
         values.put("status", defaultValue(request.getStatus(), "ACTIVE"));
@@ -201,9 +201,9 @@ public class CorePlatformService {
 
     @Transactional
     public Map<String, Object> createDepartment(CorePlatformDto.DepartmentRequest request) {
-        assertExists("workspaces", request.getWorkspaceId(), "workspaceId");
+        String workspaceId = requireWorkspaceInCurrentContext(request.getWorkspaceId(), "workspaceId");
         Map<String, Object> values = baseValues(requireTenant());
-        values.put("workspace_id", request.getWorkspaceId());
+        values.put("workspace_id", workspaceId);
         values.put("name", request.getName());
         values.put("code", nullable(request.getCode()));
         values.put("metadata", toJson(request.getMetadata()));
@@ -233,16 +233,23 @@ public class CorePlatformService {
             assertExists("business_units", businessUnitId, "businessUnitId");
         }
         String workspaceId = nullable(request.getWorkspaceId());
+        Map<String, Object> workspace = null;
         if (workspaceId != null) {
-            assertExists("workspaces", workspaceId, "workspaceId");
+            workspace = requireWorkspaceInCurrentContextRow(workspaceId, "workspaceId");
+            assertMatchesRowValue(workspace, "organization_id", request.getOrganizationId(), "workspaceId must belong to organizationId");
+            if (businessUnitId != null) {
+                assertMatchesRowValue(workspace, "business_unit_id", businessUnitId, "workspaceId must belong to businessUnitId");
+            }
         }
         String teamId = nullable(request.getTeamId());
         if (teamId != null) {
-            assertExists("teams", teamId, "teamId");
+            requireWorkspaceForRelatedRecord(workspaceId, "teamId");
+            assertRecordWorkspace("teams", teamId, workspaceId, "teamId");
         }
         String departmentId = nullable(request.getDepartmentId());
         if (departmentId != null) {
-            assertExists("departments", departmentId, "departmentId");
+            requireWorkspaceForRelatedRecord(workspaceId, "departmentId");
+            assertRecordWorkspace("departments", departmentId, workspaceId, "departmentId");
         }
 
         Map<String, Object> values = baseValues(requireTenant());
@@ -288,7 +295,7 @@ public class CorePlatformService {
         values.put("display_name", request.getDisplayName());
         values.put("description", nullable(request.getDescription()));
         values.put("is_system", request.getSystem() != null && request.getSystem());
-        values.put("permissions", toJson(request.getPermissions()));
+        values.put("permissions", toJsonArray(request.getPermissions()));
         values.put("metadata", toJson(request.getMetadata()));
         Map<String, Object> saved = repository.insert("role_definitions", values, List.of("permissions", "metadata"));
         recordAudit("ROLE_DEFINITION_CREATE", "RoleDefinition", saved.get("id"), saved);
@@ -306,11 +313,17 @@ public class CorePlatformService {
 
     @Transactional
     public Map<String, Object> createPermissionGroup(CorePlatformDto.PermissionGroupRequest request) {
-        Map<String, Object> values = baseValues(requireTenant());
-        values.put("tenant_id", nullable(request.getTenantId()) == null ? requireTenant() : request.getTenantId());
+        String tenantId = requireTenant();
+        String requestedTenantId = nullable(request.getTenantId());
+        if (requestedTenantId != null && !tenantId.equals(requestedTenantId)) {
+            throw new AccessDeniedException("tenantId does not match the current tenant");
+        }
+
+        Map<String, Object> values = baseValues(tenantId);
+        values.put("tenant_id", tenantId);
         values.put("group_key", request.getGroupKey());
         values.put("display_name", request.getDisplayName());
-        values.put("permissions", toJson(request.getPermissions()));
+        values.put("permissions", toJsonArray(request.getPermissions()));
         values.put("metadata", toJson(request.getMetadata()));
         Map<String, Object> saved = repository.insert("permission_groups", values, List.of("permissions", "metadata"));
         recordAudit("PERMISSION_GROUP_CREATE", "PermissionGroup", saved.get("id"), saved);
@@ -337,14 +350,17 @@ public class CorePlatformService {
         if (nullable(request.getPermissionGroupId()) != null) {
             assertScopedDefinitionExists("permission_groups", request.getPermissionGroupId(), "permissionGroupId");
         }
-        String workspaceId = nullable(request.getWorkspaceId());
+        String workspaceId = workspaceFromRequestOrContext(request.getWorkspaceId());
         if (workspaceId != null) {
-            assertExists("workspaces", workspaceId, "workspaceId");
+            requireWorkspaceInCurrentContextRow(workspaceId, "workspaceId");
         }
         String teamId = nullable(request.getTeamId());
         if (teamId != null) {
-            assertExists("teams", teamId, "teamId");
+            requireWorkspaceForRelatedRecord(workspaceId, "teamId");
+            assertRecordWorkspace("teams", teamId, workspaceId, "teamId");
         }
+        assertPrincipalWorkspace(request.getPrincipalType(), request.getPrincipalId(), workspaceId);
+        assertResourceWorkspace(request.getResourceType(), request.getResourceId(), workspaceId);
         Map<String, Object> values = baseValues(requireTenant());
         values.put("principal_type", request.getPrincipalType().trim().toUpperCase());
         values.put("principal_id", request.getPrincipalId());
@@ -368,13 +384,26 @@ public class CorePlatformService {
         return repository.listByTenant("principal_role_bindings", requireTenant(), "created_at DESC");
     }
 
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listRoleBindings(Set<String> roles) {
+        if (canReadTenantWideCore(roles)) {
+            return listRoleBindings();
+        }
+        return listByCurrentWorkspace("principal_role_bindings", "created_at DESC");
+    }
+
     @Transactional
     public Map<String, Object> createAccessGrant(CorePlatformDto.AccessGrantRequest request) {
+        String workspaceId = workspaceFromRequestOrContext(request.getWorkspaceId());
+        if (workspaceId != null) {
+            requireWorkspaceInCurrentContextRow(workspaceId, "workspaceId");
+            assertUserMembershipInWorkspace(request.getGranteeUserId(), workspaceId, "granteeUserId");
+        }
         Map<String, Object> values = baseValues(requireTenant());
         values.put("grantor_user_id", currentActor());
         values.put("grantee_user_id", request.getGranteeUserId());
-        values.put("workspace_id", nullable(request.getWorkspaceId()));
-        values.put("permissions", toJson(request.getPermissions()));
+        values.put("workspace_id", workspaceId);
+        values.put("permissions", toJsonArray(request.getPermissions()));
         values.put("reason", nullable(request.getReason()));
         values.put("status", "PENDING");
         values.put("expires_at", request.getExpiresAt());
@@ -389,6 +418,14 @@ public class CorePlatformService {
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listAccessGrants() {
         return repository.listByTenant("delegated_access_grants", requireTenant(), "created_at DESC");
+    }
+
+    @Transactional(readOnly = true)
+    public List<Map<String, Object>> listAccessGrants(Set<String> roles) {
+        if (canReadTenantWideCore(roles)) {
+            return listAccessGrants();
+        }
+        return listByCurrentWorkspace("delegated_access_grants", "created_at DESC");
     }
 
     @Transactional
@@ -416,8 +453,28 @@ public class CorePlatformService {
 
     @Transactional(readOnly = true)
     public Map<String, Object> previewAccessPolicy(String principalId) {
+        return previewAccessPolicy(principalId, (String) null);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<String, Object> previewAccessPolicy(String principalId, Set<String> roles) {
+        if (canReadTenantWideCore(roles)) {
+            return previewAccessPolicy(principalId);
+        }
+        return previewAccessPolicy(principalId, requireCurrentWorkspaceForScopedCoreRead());
+    }
+
+    private Map<String, Object> previewAccessPolicy(String principalId, String workspaceId) {
         if (principalId == null || principalId.isBlank()) {
             throw new IllegalArgumentException("principalId is required");
+        }
+        Map<String, Object> params = new LinkedHashMap<>();
+        params.put("tenantId", requireTenant());
+        params.put("principalId", principalId);
+        String workspacePredicate = "";
+        if (workspaceId != null) {
+            params.put("workspaceId", workspaceId);
+            workspacePredicate = "                  AND prb.workspace_id = :workspaceId\n";
         }
         List<Map<String, Object>> bindings = repository.queryForList("""
                 SELECT prb.*, rd.role_key, rd.display_name AS role_name, rd.permissions AS role_permissions,
@@ -427,20 +484,26 @@ public class CorePlatformService {
                 LEFT JOIN permission_groups pg ON pg.id = prb.permission_group_id AND pg.deleted_at IS NULL
                 WHERE prb.tenant_id = :tenantId
                   AND prb.principal_id = :principalId
+%s
                   AND prb.deleted_at IS NULL
                   AND (prb.effective_from IS NULL OR prb.effective_from <= NOW())
                   AND (prb.effective_until IS NULL OR prb.effective_until > NOW())
                 ORDER BY prb.created_at DESC
-                """, Map.of("tenantId", requireTenant(), "principalId", principalId));
+                """.formatted(workspacePredicate), params);
+        String grantWorkspacePredicate = "";
+        if (workspaceId != null) {
+            grantWorkspacePredicate = "                  AND workspace_id = :workspaceId\n";
+        }
         List<Map<String, Object>> grants = repository.queryForList("""
                 SELECT * FROM delegated_access_grants
                 WHERE tenant_id = :tenantId
                   AND grantee_user_id = :principalId
+%s
                   AND status = 'APPROVED'
                   AND deleted_at IS NULL
                   AND (expires_at IS NULL OR expires_at > NOW())
                 ORDER BY created_at DESC
-                """, Map.of("tenantId", requireTenant(), "principalId", principalId));
+                """.formatted(grantWorkspacePredicate), params);
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("principalId", principalId);
         response.put("bindings", bindings);
@@ -904,6 +967,107 @@ public class CorePlatformService {
         return workspaceId;
     }
 
+    private String requireWorkspaceInCurrentContext(String requestedWorkspaceId, String fieldName) {
+        String workspaceId = nullable(requestedWorkspaceId);
+        if (workspaceId == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        requireWorkspaceInCurrentContextRow(workspaceId, fieldName);
+        return workspaceId;
+    }
+
+    private Map<String, Object> requireWorkspaceInCurrentContextRow(String workspaceId, String fieldName) {
+        assertMatchesCurrentWorkspace(workspaceId);
+        return requireTenantRow("workspaces", workspaceId, fieldName, List.of("id", "organization_id", "business_unit_id"));
+    }
+
+    private String workspaceFromRequestOrContext(String requestedWorkspaceId) {
+        String workspaceId = nullable(requestedWorkspaceId);
+        String contextWorkspaceId = nullable(TenantContext.getWorkspaceId());
+        if (workspaceId != null) {
+            assertMatchesCurrentWorkspace(workspaceId);
+            return workspaceId;
+        }
+        return contextWorkspaceId;
+    }
+
+    private void assertMatchesCurrentWorkspace(String workspaceId) {
+        String contextWorkspaceId = nullable(TenantContext.getWorkspaceId());
+        if (workspaceId != null && contextWorkspaceId != null && !contextWorkspaceId.equals(workspaceId)) {
+            throw new AccessDeniedException("workspaceId does not match the current workspace");
+        }
+    }
+
+    private void requireWorkspaceForRelatedRecord(String workspaceId, String fieldName) {
+        if (workspaceId == null) {
+            throw new IllegalArgumentException("workspaceId is required when " + fieldName + " is provided");
+        }
+    }
+
+    private void assertRecordWorkspace(String table, String id, String workspaceId, String fieldName) {
+        Map<String, Object> row = requireTenantRow(table, id, fieldName, List.of("id", "workspace_id"));
+        assertMatchesRowValue(row, "workspace_id", workspaceId, fieldName + " must belong to workspaceId");
+    }
+
+    private void assertPrincipalWorkspace(String principalType, String principalId, String workspaceId) {
+        if (workspaceId == null || principalType == null || principalType.isBlank()) {
+            return;
+        }
+        String normalized = principalType.trim().toUpperCase();
+        if ("USER".equals(normalized)) {
+            assertUserMembershipInWorkspace(principalId, workspaceId, "principalId");
+        } else if ("TEAM".equals(normalized)) {
+            assertRecordWorkspace("teams", principalId, workspaceId, "principalId");
+        } else if ("DEPARTMENT".equals(normalized)) {
+            assertRecordWorkspace("departments", principalId, workspaceId, "principalId");
+        }
+    }
+
+    private void assertResourceWorkspace(String resourceType, String resourceId, String workspaceId) {
+        String normalizedType = nullable(resourceType);
+        String normalizedId = nullable(resourceId);
+        if (workspaceId == null || normalizedType == null || normalizedId == null) {
+            return;
+        }
+        switch (normalizedType.trim().toUpperCase()) {
+            case "WORKSPACE" -> {
+                if (!workspaceId.equals(normalizedId)) {
+                    throw new IllegalArgumentException("resourceId must match workspaceId for WORKSPACE resources");
+                }
+            }
+            case "TEAM" -> assertRecordWorkspace("teams", normalizedId, workspaceId, "resourceId");
+            case "DEPARTMENT" -> assertRecordWorkspace("departments", normalizedId, workspaceId, "resourceId");
+            case "MEMBERSHIP", "MEMBERSHIP_LINK" -> assertRecordWorkspace("membership_links", normalizedId, workspaceId, "resourceId");
+            default -> {
+                // Other resource types are owned by downstream services and cannot be proven here.
+            }
+        }
+    }
+
+    private void assertUserMembershipInWorkspace(String userId, String workspaceId, String fieldName) {
+        List<Map<String, Object>> rows = repository.queryForList("""
+                SELECT id
+                FROM membership_links
+                WHERE tenant_id = :tenantId
+                  AND user_id = :userId
+                  AND workspace_id = :workspaceId
+                  AND status = 'ACTIVE'
+                  AND deleted_at IS NULL
+                LIMIT 1
+                """, Map.of("tenantId", requireTenant(), "userId", userId, "workspaceId", workspaceId));
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " must have an active membership in workspaceId");
+        }
+    }
+
+    private void assertMatchesRowValue(Map<String, Object> row, String column, String expected, String message) {
+        String actual = nullable(asString(row.get(column)));
+        String normalizedExpected = nullable(expected);
+        if (normalizedExpected != null && !normalizedExpected.equals(actual)) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
     private boolean canReadTenantWideCore(Set<String> roles) {
         return rbacEvaluator.hasPermission("tenant:*", roles);
     }
@@ -992,6 +1156,10 @@ public class CorePlatformService {
         }
     }
 
+    private String toJsonArray(List<?> value) {
+        return toJson(value == null ? Collections.emptyList() : value);
+    }
+
     private int toInt(Object value) {
         if (value instanceof Number number) {
             return number.intValue();
@@ -1037,13 +1205,7 @@ public class CorePlatformService {
     }
 
     private void assertExists(String table, String id, String fieldName) {
-        List<Map<String, Object>> rows = repository.queryForList(
-                "SELECT id FROM " + table + " WHERE id = :id AND tenant_id = :tenantId AND deleted_at IS NULL LIMIT 1",
-                Map.of("id", id, "tenantId", requireTenant())
-        );
-        if (rows.isEmpty()) {
-            throw new IllegalArgumentException(fieldName + " is invalid for current tenant");
-        }
+        requireTenantRow(table, id, fieldName, List.of("id"));
     }
 
     private void assertScopedDefinitionExists(String table, String id, String fieldName) {
@@ -1054,5 +1216,29 @@ public class CorePlatformService {
         if (rows.isEmpty()) {
             throw new IllegalArgumentException(fieldName + " is invalid for current tenant");
         }
+    }
+
+    private Map<String, Object> requireTenantRow(String table, String id, String fieldName, List<String> columns) {
+        if (nullable(id) == null) {
+            throw new IllegalArgumentException(fieldName + " is required");
+        }
+        String safeTable = CorePlatformRepository.safeTable(table);
+        String selectColumns = columns.stream()
+                .map(CorePlatformRepository::safeColumn)
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("id");
+        List<Map<String, Object>> rows = repository.queryForList(
+                "SELECT " + selectColumns + " FROM " + safeTable
+                        + " WHERE id = :id AND tenant_id = :tenantId AND deleted_at IS NULL LIMIT 1",
+                Map.of("id", id, "tenantId", requireTenant())
+        );
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException(fieldName + " is invalid for current tenant");
+        }
+        return rows.get(0);
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 }

@@ -2,6 +2,38 @@
 
 Fresh baseline date: 2026-05-20.
 
+## 2026-05-20 Foundation Config Version History Scope
+
+Root cause: `system_configs` became tenant/workspace/environment scoped in later migrations, but `config_version_history` and versioning service APIs remained tenant/key/version only. History reads, compare, rollback, and version allocation could therefore cross workspace/environment boundaries.
+
+Fix: added nullable workspace/environment history columns and exact-scope repository methods; updated config writes, version reads, compare, admin/controller callers, and rollback to use exact nullable scope; made history writes authoritative; added rollback cache/event side effects; and added exact-scope unique version indexing.
+
+Avoidance: whenever a live entity gains tenant/workspace/environment scope, its audit/history/version tables and service APIs must gain the same identity before rollback or compare features are considered safe.
+
+## 2026-05-21 Tracking Ingestion Batch Retry Horizon
+
+Root cause: the first batch-consumer slice treated `IN_PROGRESS` idempotency claims as retryable, but the tracking batch listener inherited the shared Kafka error handler whose roughly 30-second DLQ horizon was shorter than the default 15-minute stale-claim reclaim window. A crash-after-claim event could therefore be recovered to DLQ before it became reclaimable.
+
+Fix: added a tracking-only batch listener factory error handler with a retry horizon tied to the stale-claim age plus a configured buffer, kept the shared Kafka handler unchanged, set tracking-only `max.poll.interval.ms`, and added fail-fast config tests.
+
+Avoidance: any Kafka consumer that uses durable stale-claim recovery must align retry/DLQ timing and max poll interval with the claim reclaim window instead of reusing a short shared handler blindly.
+
+## 2026-05-21 Tracking Idempotency Migration Test Gating
+
+Root cause: the V13 raw-write phase migration assertion lived inside a class-level Testcontainers test, so no-Docker validation skipped both PostgreSQL behavior and Docker-independent migration drift checks.
+
+Fix: split the V13 migration assertion into a no-Spring, no-Testcontainers test while keeping PostgreSQL/Flyway behavior in the Docker-gated idempotency service test.
+
+Avoidance: static migration contract tests should not be colocated with Docker-gated integration classes unless skipping them is intentional and separately documented.
+
+## 2026-05-20 Automation Send Handoff Review Hardening
+
+Root cause: the first governed send handoff slice mixed pre-publish idempotency registration with Kafka publication, exact-key unsafe override checks, and campaign-wide send semantics that were not explicit enough when a workflow subscriber trace was present.
+
+Fix: `SendEmailNodeHandler` now uses claim/publish/mark/release behavior; Automation Studio and workflow graph checks normalize unsafe send override keys; shared Kafka validation enforces true launch confirmation and matching payload/envelope idempotency; campaign consumption requires campaign-orchestration markers when a subscriber trace is present and tests prove campaign audiences remain the send source.
+
+Avoidance: side-effecting producers should not mark idempotency processed before the side effect is accepted. Config-key deny lists should normalize common client variants. Contact/journey traces must be explicitly separated from campaign-wide launch ownership in tests and consumer validation.
+
 ## 2026-05-20 Suppression Delete Tenant Scope
 
 Root cause: suppression deletion was the only CRUD path using a raw ID lookup instead of the audience service's tenant/workspace scope convention.
@@ -149,6 +181,13 @@ Product root-cause entries:
   - Fix: changed lookup to `COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')` and added focused tests for null workspace context and current workspace context.
   - Validation: focused `DifferentiationPlatformServiceTest`, full `.\mvnw.cmd -pl services/foundation-service -am test`, and `git diff --check` passed.
   - Prevention: upsert lookup predicates must match the same ownership scope as the intended insert/update target; null workspace must mean tenant-scope, not wildcard.
+- 2026-05-20: Differentiation evaluate paths kept the old null-workspace wildcard.
+  - Symptom: decision-policy evaluation, omnichannel simulation, and SLO evaluation could select the newest matching workspace row in the current tenant when workspace context was absent.
+  - Source evidence: six read-only foundation differentiation scouts, `DifferentiationPlatformService.java`, `DifferentiationPlatformServiceTest.java`, and `V13__phase4_differentiation_platform.sql`.
+  - Causal chain: upsert lookup had moved to exact nullable workspace matching, but evaluate/simulate reads still used `(:workspaceId IS NULL OR workspace_id = :workspaceId)` while inserting decision/run/incident records under the selected row's workspace.
+  - Fix: changed all three evaluate/simulate lookups to `COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')` and added SQL/params capture tests for current workspace and missing-workspace contexts.
+  - Validation: focused `DifferentiationPlatformServiceTest` passed with 9 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 154 foundation-service tests plus upstream shared modules, Codex validation/monitor/lease checks passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: differentiation read/evaluate queries must use the same ownership predicate as matching write/upsert paths; tenant/global inheritance needs explicit policy and tests rather than implicit null wildcard behavior.
 - 2026-05-20: Public contact admin access exposed a global PII table to tenant/org admins.
   - Symptom: admin contact request list/status endpoints allowed `ADMIN` and `ORG_ADMIN` roles even though `public_contact_requests` has no tenant/workspace ownership columns.
   - Source evidence: `AdminContactRequestController.java`, `PublicContactService.java`, `PublicContactRequest.java`, `AdminContactRequestControllerSecurityTest.java`, foundation service audit.
@@ -177,6 +216,34 @@ Product root-cause entries:
   - Fix: added nested DTO validation and payload caps, service-side relationship cardinality/type/key checks, sendable required/primary-key governance with change locks after records exist, upfront preview field/filter/sort validation with relationship-path rejection, sort-before-projection behavior, and segment rejection for unsupported data-extension relationship metadata.
   - Validation: focused audience data-extension/segment tests, full `.\mvnw.cmd -pl services/audience-service -am test`, Codex validation, repo artifact hygiene, and scoped `git diff --check` passed.
   - Prevention: relationship joins, provenance, classification, and audit must move into additive schema-backed slices with focused migration and controller/API tests before Contact Builder parity claims.
+- 2026-05-20: Foundation core-platform creation paths checked tenant existence but not workspace ownership.
+  - Symptom: team, department, membership, role binding, access grant, and permission-group creation could accept related IDs that were valid for the tenant but not valid for the current workspace or tenant request context.
+  - Source evidence: `CorePlatformService.java`, `V6__platform_core_foundation.sql`, six read-only foundation scouts, and `CorePlatformServiceTest.java`.
+  - Causal chain: platform core records are SQL-map backed instead of JPA entities, so helper validation stopped at `id + tenant_id`; workspace relationships were left to nullable foreign keys and controller RBAC instead of service-level ownership checks.
+  - Fix: added workspace/context helpers, same-workspace row checks for teams/departments/memberships, principal/resource workspace checks for role bindings, grantee membership checks for access grants, and tenant mismatch denial for permission groups.
+  - Validation: focused `CorePlatformServiceTest` passed with 28 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 138 foundation-service tests plus upstream shared modules, Codex validation/monitor/lease checks passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: core-platform relationship mutations must prove tenant and workspace ownership at service boundaries before persistence; list/preview read scoping needs the next leased slice.
+- 2026-05-20: Foundation core-platform read paths stayed tenant-wide after mutation guards.
+  - Symptom: workspace-readable callers could list tenant-wide principal role bindings, delegated access grants, and preview access policy rows even after creation paths were workspace-guarded.
+  - Source evidence: `CorePlatformService.java`, `CorePlatformController.java`, six read-only foundation read-scope scouts, `CorePlatformServiceTest.java`, and `CorePlatformControllerTest.java`.
+  - Causal chain: controller methods called tenant-wide no-arg service reads, while role information was only used for mutation authorization; the SQL-map read helpers had no role-aware workspace branch.
+  - Fix: added role-aware service overloads, exact-workspace read predicates for workspace-scoped callers, fail-closed missing-workspace checks, controller role plumbing, and focused service/controller regression tests.
+  - Validation: focused `CorePlatformServiceTest,CorePlatformControllerTest` passed with 45 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 150 foundation-service tests plus upstream modules, Codex validation/monitor/lease checks passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: foundation read endpoints that expose access-control state must explicitly distinguish tenant-wide from workspace-scoped roles and must not rely on mutation guards to protect list/preview surfaces.
+- 2026-05-20: Compliance privacy-request status update resolved by tenant and raw ID only.
+  - Symptom: `/api/v1/compliance/privacy-requests/{id}/status` required workspace context at the controller boundary, but the service update path did not scope the mutation to the current workspace before writing immutable audit evidence.
+  - Source evidence: `ComplianceEvidenceService.java`, `ComplianceEvidenceServiceTest.java`, six compliance privacy-request scouts, and `CorePlatformRepository.updateByIdAndWorkspace`.
+  - Causal chain: `updatePrivacyRequest` required tenant context and called tenant-only `updateById`; the audit record was created after that mutation, so a known in-tenant request ID from another workspace could be updated and audited under the caller's context.
+  - Fix: require `TenantContext.requireWorkspaceId()`, update with `updateByIdAndWorkspace("privacy_requests", id, tenantId, workspaceId, ...)`, and only insert audit evidence after the scoped update succeeds.
+  - Validation: focused `ComplianceEvidenceServiceTest` passed with 5 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 157 foundation-service tests plus upstream modules, Codex validation/monitor/lease checks passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: compliance mutations that write audit evidence must prove the same tenant/workspace ownership used by the request context before any status/data change; nullable or tenant-global privacy request handling needs explicit admin policy.
+- 2026-05-20: Core-platform nullable permission lists used object JSON defaults.
+  - Symptom: role definition, permission group, and delegated access grant requests could omit `permissions`, and the service would persist `{}` into JSONB array-shaped columns.
+  - Source evidence: six read-only permission-list scouts, `CorePlatformService.java`, `CorePlatformDto.java`, `CorePlatformRepository.java`, `V6__platform_core_foundation.sql`, and `CorePlatformServiceTest.java`.
+  - Causal chain: request DTO permission fields are nullable, repository inserts always include provided JSON columns and bypass DB defaults, and the generic `toJson(null)` helper intentionally returns `{}` for object-shaped metadata/details payloads.
+  - Fix: added a permission-list-specific `toJsonArray` helper and routed only role-definition, permission-group, and access-grant permission fields through it, preserving generic object defaulting for metadata.
+  - Validation: focused `CorePlatformServiceTest` passed with 41 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 161 foundation-service tests plus upstream modules, V6 migration diff check passed, Codex validation/monitor/lease checks passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: JSON helpers must match the target column shape; do not reuse object-defaulting helpers for array-shaped fields without focused null-shape tests.
 
 Root-cause entries must include:
 - symptom,

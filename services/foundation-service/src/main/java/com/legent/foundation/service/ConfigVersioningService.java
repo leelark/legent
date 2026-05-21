@@ -1,8 +1,10 @@
 package com.legent.foundation.service;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 
 import com.legent.common.exception.NotFoundException;
@@ -36,49 +38,60 @@ public class ConfigVersioningService {
      * Get version history for a specific config key.
      */
     @Transactional(readOnly = true)
-    public List<ConfigVersionHistory> getConfigVersionHistory(String tenantId, String configKey) {
-        return versionHistoryRepository.findByTenantIdAndConfigKeyOrderByVersionDesc(tenantId, configKey);
+    public List<ConfigVersionHistory> getConfigVersionHistory(
+            String tenantId, String workspaceId, String environmentId, String configKey) {
+        return versionHistoryRepository.findByExactScopeAndConfigKeyOrderByVersionDesc(
+                tenantId, workspaceId, environmentId, configKey);
     }
 
     /**
      * Get all version history for a tenant.
      */
     @Transactional(readOnly = true)
-    public Page<ConfigVersionHistory> getTenantVersionHistory(String tenantId, Pageable pageable) {
-        return versionHistoryRepository.findByTenantIdOrderByChangedAtDesc(tenantId, pageable);
+    public Page<ConfigVersionHistory> getTenantVersionHistory(
+            String tenantId, String workspaceId, String environmentId, Pageable pageable) {
+        return versionHistoryRepository.findByExactScopeOrderByChangedAtDesc(
+                tenantId, workspaceId, environmentId, pageable);
     }
 
     /**
      * Get a specific version of a config.
      */
     @Transactional(readOnly = true)
-    public ConfigVersionHistory getConfigVersion(String tenantId, String configKey, int version) {
-        return versionHistoryRepository.findByTenantIdAndConfigKeyAndVersion(tenantId, configKey, version)
+    public ConfigVersionHistory getConfigVersion(
+            String tenantId, String workspaceId, String environmentId, String configKey, int version) {
+        return versionHistoryRepository.findByExactScopeAndConfigKeyAndVersion(
+                        tenantId, workspaceId, environmentId, configKey, version)
                 .orElseThrow(() -> new NotFoundException("ConfigVersion",
-                        tenantId + "/" + configKey + " v" + version));
+                        scopeLabel(tenantId, workspaceId, environmentId, configKey, version)));
     }
 
     /**
      * Rollback a config to a specific version.
      */
     @Transactional
-    public ConfigDto.Response rollbackConfig(String tenantId, String configKey, int targetVersion) {
+    public ConfigDto.Response rollbackConfig(
+            String tenantId, String workspaceId, String environmentId, String configKey, int targetVersion) {
         String currentUser = TenantContext.getUserId();
 
         // Get the target version from history
         ConfigVersionHistory targetVersionHistory = versionHistoryRepository
-                .findByTenantIdAndConfigKeyAndVersion(tenantId, configKey, targetVersion)
+                .findByExactScopeAndConfigKeyAndVersion(
+                        tenantId, workspaceId, environmentId, configKey, targetVersion)
                 .orElseThrow(() -> new NotFoundException("ConfigVersion",
-                        tenantId + "/" + configKey + " v" + targetVersion));
+                        scopeLabel(tenantId, workspaceId, environmentId, configKey, targetVersion)));
 
         // Find current config
         Optional<SystemConfig> currentConfigOpt = configRepository
-                .findByTenantIdAndConfigKey(tenantId, configKey);
+                .findByScope(tenantId, workspaceId, environmentId, configKey);
 
-        int previousVersion = 1;
+        Integer maxVersion = versionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(
+                tenantId, workspaceId, environmentId, configKey);
+        int previousVersion = maxVersion == null ? 0 : maxVersion;
+        int newVersion = previousVersion + 1;
+        SystemConfig restoredConfig;
         if (currentConfigOpt.isPresent()) {
             SystemConfig currentConfig = currentConfigOpt.get();
-            previousVersion = currentConfig.getConfigVersion() != null ? currentConfig.getConfigVersion() : 1;
 
             // Restore values from history
             currentConfig.setConfigValue(targetVersionHistory.getConfigValue());
@@ -86,30 +99,34 @@ public class ConfigVersioningService {
             currentConfig.setCategory(targetVersionHistory.getCategory());
             currentConfig.setDescription(targetVersionHistory.getDescription());
             currentConfig.setEncrypted(targetVersionHistory.isEncrypted());
-            currentConfig.setConfigVersion(previousVersion + 1);
+            currentConfig.setConfigVersion(newVersion);
             currentConfig.setLastModifiedBy(currentUser);
             currentConfig.setUpdatedAt(Instant.now());
 
-            configRepository.save(currentConfig);
+            restoredConfig = configRepository.save(currentConfig);
         } else {
             // Create new config from history
             SystemConfig newConfig = new SystemConfig();
             newConfig.setTenantId(tenantId);
+            newConfig.setWorkspaceId(workspaceId);
+            newConfig.setEnvironmentId(environmentId);
+            newConfig.setScopeType(resolveScopeType(tenantId, workspaceId, environmentId));
             newConfig.setConfigKey(configKey);
             newConfig.setConfigValue(targetVersionHistory.getConfigValue());
             newConfig.setValueType(SystemConfig.ValueType.valueOf(targetVersionHistory.getValueType()));
             newConfig.setCategory(targetVersionHistory.getCategory());
             newConfig.setDescription(targetVersionHistory.getDescription());
             newConfig.setEncrypted(targetVersionHistory.isEncrypted());
-            newConfig.setConfigVersion(1);
+            newConfig.setConfigVersion(newVersion);
             newConfig.setLastModifiedBy(currentUser);
-            configRepository.save(newConfig);
+            restoredConfig = configRepository.save(newConfig);
         }
 
         // Create rollback history entry
-        int newVersion = previousVersion + 1;
         ConfigVersionHistory rollbackEntry = new ConfigVersionHistory();
         rollbackEntry.setTenantId(tenantId);
+        rollbackEntry.setWorkspaceId(workspaceId);
+        rollbackEntry.setEnvironmentId(environmentId);
         rollbackEntry.setConfigKey(configKey);
         rollbackEntry.setConfigValue(targetVersionHistory.getConfigValue());
         rollbackEntry.setValueType(targetVersionHistory.getValueType());
@@ -122,16 +139,20 @@ public class ConfigVersioningService {
         rollbackEntry.setRollbackToVersion(targetVersion);
         versionHistoryRepository.save(rollbackEntry);
 
-        log.info("Config rolled back: tenant={}, key={}, from version {} to {}",
-                tenantId, configKey, previousVersion, targetVersion);
+        log.info("Config rolled back: tenant={}, workspace={}, environment={}, key={}, from version {} to {}",
+                tenantId, workspaceId, environmentId, configKey, previousVersion, targetVersion);
 
+        Map<String, Object> auditDetails = new LinkedHashMap<>();
+        auditDetails.put("tenantId", tenantId);
+        auditDetails.put("workspaceId", workspaceId);
+        auditDetails.put("environmentId", environmentId);
+        auditDetails.put("fromVersion", previousVersion);
+        auditDetails.put("toVersion", targetVersion);
+        auditDetails.put("newVersion", newVersion);
         auditService.log("CONFIG_ROLLBACK", "SystemConfig", configKey,
-                Map.of("tenantId", tenantId,
-                        "fromVersion", previousVersion,
-                        "toVersion", targetVersion,
-                        "newVersion", newVersion));
+                auditDetails);
 
-        return configService.resolveConfig(configKey);
+        return configService.finalizeRollback(restoredConfig);
     }
 
     /**
@@ -143,8 +164,8 @@ public class ConfigVersioningService {
         String currentUser = TenantContext.getUserId();
 
         // Get next version number
-        Integer maxVersion = versionHistoryRepository
-                .findMaxVersionByTenantIdAndConfigKey(config.getTenantId(), config.getConfigKey());
+        Integer maxVersion = versionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(
+                config.getTenantId(), config.getWorkspaceId(), config.getEnvironmentId(), config.getConfigKey());
         int nextVersion = (maxVersion != null ? maxVersion : 0) + 1;
 
         // Update config version
@@ -153,6 +174,8 @@ public class ConfigVersioningService {
         // Create history entry
         ConfigVersionHistory history = new ConfigVersionHistory();
         history.setTenantId(config.getTenantId());
+        history.setWorkspaceId(config.getWorkspaceId());
+        history.setEnvironmentId(config.getEnvironmentId());
         history.setConfigKey(config.getConfigKey());
         history.setConfigValue(config.getConfigValue());
         history.setValueType(config.getValueType().name());
@@ -164,29 +187,55 @@ public class ConfigVersioningService {
         history.setChangedBy(currentUser);
         versionHistoryRepository.save(history);
 
-        log.debug("Config version recorded: tenant={}, key={}, version={}, changeType={}",
-                config.getTenantId(), config.getConfigKey(), nextVersion, changeType);
+        log.debug("Config version recorded: tenant={}, workspace={}, environment={}, key={}, version={}, changeType={}",
+                config.getTenantId(), config.getWorkspaceId(), config.getEnvironmentId(),
+                config.getConfigKey(), nextVersion, changeType);
     }
 
     /**
      * Compare two versions of a config.
      */
     @Transactional(readOnly = true)
-    public Map<String, Object> compareVersions(String tenantId, String configKey, int version1, int version2) {
-        ConfigVersionHistory v1 = getConfigVersion(tenantId, configKey, version1);
-        ConfigVersionHistory v2 = getConfigVersion(tenantId, configKey, version2);
+    public Map<String, Object> compareVersions(
+            String tenantId, String workspaceId, String environmentId, String configKey, int version1, int version2) {
+        ConfigVersionHistory v1 = getConfigVersion(tenantId, workspaceId, environmentId, configKey, version1);
+        ConfigVersionHistory v2 = getConfigVersion(tenantId, workspaceId, environmentId, configKey, version2);
 
-        return Map.of(
-                "configKey", configKey,
-                "version1", version1,
-                "version2", version2,
-                "value1", v1.getConfigValue(),
-                "value2", v2.getConfigValue(),
-                "areEqual", v1.getConfigValue().equals(v2.getConfigValue()),
-                "changedAt1", v1.getChangedAt(),
-                "changedAt2", v2.getChangedAt(),
-                "changedBy1", v1.getChangedBy(),
-                "changedBy2", v2.getChangedBy()
-        );
+        Map<String, Object> comparison = new LinkedHashMap<>();
+        comparison.put("tenantId", tenantId);
+        comparison.put("workspaceId", workspaceId);
+        comparison.put("environmentId", environmentId);
+        comparison.put("configKey", configKey);
+        comparison.put("version1", version1);
+        comparison.put("version2", version2);
+        comparison.put("value1", v1.getConfigValue());
+        comparison.put("value2", v2.getConfigValue());
+        comparison.put("areEqual", Objects.equals(v1.getConfigValue(), v2.getConfigValue()));
+        comparison.put("changedAt1", v1.getChangedAt());
+        comparison.put("changedAt2", v2.getChangedAt());
+        comparison.put("changedBy1", v1.getChangedBy());
+        comparison.put("changedBy2", v2.getChangedBy());
+        return comparison;
+    }
+
+    private SystemConfig.ScopeType resolveScopeType(String tenantId, String workspaceId, String environmentId) {
+        if (environmentId != null) {
+            return SystemConfig.ScopeType.ENVIRONMENT;
+        }
+        if (workspaceId != null) {
+            return SystemConfig.ScopeType.WORKSPACE;
+        }
+        if (tenantId != null) {
+            return SystemConfig.ScopeType.TENANT;
+        }
+        return SystemConfig.ScopeType.GLOBAL;
+    }
+
+    private String scopeLabel(String tenantId, String workspaceId, String environmentId, String configKey, int version) {
+        return "tenant=" + tenantId
+                + "/workspace=" + workspaceId
+                + "/environment=" + environmentId
+                + "/" + configKey
+                + " v" + version;
     }
 }

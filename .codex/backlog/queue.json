@@ -1,122 +1,13 @@
-{
+﻿{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
-    "lastUpdated":  "2026-05-20",
+    "lastUpdated":  "2026-05-20T22:57:19.4891311Z",
     "selectionPolicy":  "Sort READY work by priorityScore descending, then no blockers, smallest safe scope, validation availability, and lease compatibility.",
     "readyWork":  [
 
                   ],
     "backlogWork":  [
-                        {
-                            "id":  "contact-data-designer-governance",
-                            "title":  "Deepen Contact Builder style data-designer governance",
-                            "status":  "BACKLOG",
-                            "priorityScore":  49,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  3,
-                                            "userImpact":  4,
-                                            "performanceImpact":  3,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "AUDIENCE_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "DATABASE_ENGINEER",
-                                                  "SECURITY_ENGINEER",
-                                                  "FRONTEND_OWNER"
-                                              ],
-                            "scope":  "Add explicit data-source provenance, relationship cardinality controls, deletion audit, sendable-key governance, and safer relationship/query preview behavior for data extensions and contact records.",
-                            "nonGoals":  "Do not migrate historical Flyway files or weaken tenant/workspace scoping.",
-                            "sourceFiles":  [
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/SubscriberController.java",
-                                                "frontend/src/app/(workspace)/audience/data-extensions/page.tsx",
-                                                "frontend/src/components/audience/SegmentRuleBuilder.tsx"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Relationship/cardinality changes are validated and audited.",
-                                                       "Sendable-key and retention/deletion policy changes are tenant/workspace scoped.",
-                                                       "Query preview and segment behavior document performance constraints.",
-                                                       "Tests cover cross-workspace denial and invalid relationship changes."
-                                                   ],
-                            "validationProfile":  "backend-frontend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/audience-service -am test",
-                                                       "cd frontend; npm run lint"
-                                                   ],
-                            "dependencies":  [
-                                                 "data-governance schema design"
-                                             ],
-                            "blockers":  [
 
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "technical-debt.md",
-                                                  "security-findings.md"
-                                              ],
-                            "nextAction":  "No-schema backend preview/relationship/sendable guards completed in checkpoint 20260520T125000Z-contact-data-designer-preview-governance; parent remains open for additive provenance/classification/audit tables, controller API validation, and frontend relationship-designer controls.",
-                            "lastUpdated":  "2026-05-20T13:14:00Z"
-                        },
-                        {
-                            "id":  "automation-send-activity-handoff",
-                            "parentId":  "automation-studio-activity-orchestration",
-                            "title":  "Implement governed Automation Studio send activity handoff",
-                            "status":  "BACKLOG",
-                            "priorityScore":  63,
-                            "scoring":  {
-                                            "productionReadinessImpact":  5,
-                                            "securityRisk":  4,
-                                            "userImpact":  4,
-                                            "performanceImpact":  3,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "CAMPAIGN_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "AUTOMATION_SERVICE_OWNER",
-                                                  "DELIVERABILITY_ENGINEER",
-                                                  "SECURITY_ENGINEER",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Define and implement send activity handoff that preserves campaign policy, preflight, suppression, warmup, rate, inbox-safety, tenant/workspace scope, idempotency, and explicit live confirmation.",
-                            "nonGoals":  "Do not bypass campaign orchestration, launch broad campaigns from contact-level journeys without explicit governance, or weaken deliverability gates.",
-                            "sourceFiles":  [
-                                                "services/automation-service/src/main/java/com/legent/automation/service/node/SendEmailNodeHandler.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignSendSafetyService.java",
-                                                "docs/product/automation-studio-activity-orchestration-plan.md"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Send activity semantics distinguish campaign launch from contact/journey handoff.",
-                                                       "Preflight, suppression, warmup, rate, inbox-safety, and send-policy requirements remain fail-closed.",
-                                                       "Kafka envelopes carry tenant/workspace and idempotency identity.",
-                                                       "Tests cover cross-workspace denial, duplicate publish prevention, and no send on unsafe preflight."
-                                                   ],
-                            "validationProfile":  "backend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/automation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am test",
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "automation-activity-security-design",
-                                                 "automation-activity-dependency-run-contract",
-                                                 "email-governance-policy-objects"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "security-findings.md",
-                                                  "technical-debt.md",
-                                                  "performance-bottlenecks.md"
-                                              ],
-                            "nextAction":  "Start only after send governance and activity run contracts are ready.",
-                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
-                        }
                     ],
     "blockedWork":  [
                         {
@@ -384,6 +275,106 @@
                                               ],
                             "nextAction":  "Blocked until sandbox/signing model and runtime isolation evidence exist.",
                             "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
+                        },
+                        {
+                            "id":  "tracking-ingestion-batch-consumer-readiness",
+                            "title":  "Make tracking ingestion Kafka consumer batch-ready",
+                            "status":  "BLOCKED",
+                            "priorityScore":  55,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  3,
+                                            "userImpact":  3,
+                                            "performanceImpact":  5,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "TRACKING_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "KAFKA_CONTRACTS_OWNER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Add a tracking-service-specific Spring Kafka batch listener factory, change tracking.ingested consumption to receive EventEnvelope batches directly, preserve fail-closed tenant/workspace/idempotency behavior, prevent replay after non-idempotent ClickHouse success, and add focused listener/factory tests.",
+                            "nonGoals":  "Do not claim production throughput, alter Kafka trusted packages, change ClickHouse schema, or weaken signed tracking/outbox/idempotency behavior.",
+                            "sourceFiles":  [
+                                                "services/tracking-service/src/main/java/com/legent/tracking/event/TrackingEventConsumer.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/config/TrackingKafkaConsumerConfig.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingEventIdempotencyService.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingEventFinalizationService.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                                "services/tracking-service/src/main/resources/application.yml",
+                                                "services/tracking-service/src/main/resources/db/migration/V13__tracking_idempotency_raw_write_phase.sql",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/event/TrackingEventConsumerTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/config/TrackingKafkaConsumerConfigTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/config/TrackingKafkaConsumerConfigContextTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyServiceTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyMigrationTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventFinalizationServiceTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseInitSqlTest.java",
+                                                "infrastructure/docker/local/clickhouse-init/init.sql",
+                                                ".codex/backlog/queue.json",
+                                                ".codex/checkpoints/20260520T214747Z-tracking-ingestion-batch-consumer-readiness.json",
+                                                ".codex/state/team-state.json",
+                                                ".codex/threads/thread-registry.json",
+                                                ".codex/worktrees/leases/active-leases.json",
+                                                ".codex/memory/active-work-items.md",
+                                                ".codex/memory/blocked-items.md",
+                                                ".codex/memory/performance-bottlenecks.md",
+                                                ".codex/memory/unresolved-risks.md",
+                                                ".codex/memory/release-history.md",
+                                                ".codex/memory/root-cause-history.md",
+                                                ".codex/memory/successful-fixes.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "The tracking.ingested listener directly accepts List\u003cEventEnvelope\u003cString\u003e\u003e and references a named tracking batch listener factory.",
+                                                       "The tracking batch factory sets batchListener=true, AckMode.BATCH, configurable concurrency, and bounded max.poll.records without widening trusted packages.",
+                                                       "Envelope eventId, tenantId, workspaceId, payload, and eventType validation happens before idempotency claims or ClickHouse side effects.",
+                                                       "Duplicate/idempotency-rejected events are skipped without ClickHouse writes, aggregation, processed marks, or claim releases.",
+                                                       "A valid multi-record batch is written to ClickHouse in one writeBatch call and processed claims are marked only after aggregation succeeds.",
+                                                       "ClickHouse write failure releases claimed events for Kafka retry, while aggregation/mark failure after ClickHouse success does not release claims for duplicate raw inserts.",
+                                                       "Focused tests cover listener annotation/factory wiring, batch factory settings, valid batch write behavior, duplicate filtering, mismatch fail-closed behavior, and retry release semantics."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingEventConsumerTest,TrackingKafkaConsumerConfigTest,ClickHouseWriterTest,TrackingIngestionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                       ".\\mvnw.cmd -pl shared/legent-kafka,services/tracking-service -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                       "git diff --check -- services/tracking-service .codex"
+                                                   ],
+                            "dependencies":  [
+
+                                             ],
+                            "blockers":  [
+                                             "Docker/Testcontainers unavailable locally; TrackingEventIdempotencyServiceTest PostgreSQL/Flyway behavior skipped.",
+                                             "ClickHouse runtime evidence unavailable; raw_events dedupe/reconciliation and ambiguous/partial JdbcTemplate.batchUpdate failure behavior remain unproven."
+                                         ],
+                            "memoryTargets":  [
+                                                  "performance-bottlenecks.md",
+                                                  "technical-debt.md",
+                                                  "release-history.md"
+                                              ],
+                            "nextAction":  "Collect Docker/PostgreSQL and ClickHouse runtime evidence, prove raw_events dedupe or reconciliation for ambiguous/partial batch writes, then re-run tracking validation before marking DONE.",
+                            "lastUpdated":  "2026-05-20T22:57:19.4891311Z",
+                            "startedAt":  "2026-05-20T21:47:47.8962137Z",
+                            "completedAt":  "2026-05-20T22:55:51.0163717Z",
+                            "outcome":  "Local tracking ingestion batch-consumer hardening is implemented and validated: tracking now uses a dedicated long-horizon batch Kafka error handler, raw-write/finalization ledger phases, duplicate batch filtering, Docker-independent migration checks, and ClickHouse local/runtime schema repair for writer lineage columns. It is not DONE because Docker/Testcontainers Postgres proof and live ClickHouse raw_events dedupe/reconciliation evidence are unavailable.",
+                            "validationRun":  [
+                                                  "PASS: .\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingEventConsumerTest,TrackingEventIdempotencyMigrationTest,TrackingEventIdempotencyServiceTest,TrackingEventFinalizationServiceTest,TrackingKafkaConsumerConfigTest,TrackingKafkaConsumerConfigContextTest,TrackingEventPublisherTest,ClickHouseWriterTest,ClickHouseRollupServiceTest,ClickHouseInitSqlTest,TrackingIngestionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (48 tests, 7 Docker-gated skips)",
+                                                  "PASS: .\\mvnw.cmd -pl shared/legent-kafka -am \"-Dtest=EventContractValidatorTest,EventPublisherTest,KafkaConsumerConfigTest,KafkaTopicConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (32 tests)",
+                                                  "PASS: .\\mvnw.cmd -pl shared/legent-kafka,services/tracking-service -am test (shared/common/security/cache/kafka plus tracking; tracking 70 tests, 7 Docker-gated skips)",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-thread-coordination.ps1",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                  "PASS: git diff --check -- services/tracking-service shared/legent-kafka infrastructure/docker/local .codex (CRLF warnings only)"
+                                              ],
+                            "residualRisks":  [
+                                                  "Docker/Testcontainers was unavailable, so TrackingEventIdempotencyServiceTest PostgreSQL/Flyway behavior is skipped until Docker or target Postgres evidence is available.",
+                                                  "ClickHouse raw_events still lacks live dedupe/reconciliation proof for ambiguous or partial JdbcTemplate.batchUpdate failures; duplicate raw analytics and overcount risk remains.",
+                                                  "This is local validation only, not production throughput, BI-grade ClickHouse, or release readiness evidence."
+                                              ]
                         }
                     ],
     "doneWork":  [
@@ -3475,6 +3466,704 @@
                                                "This is a local governance contract and does not claim legal CAN-SPAM compliance, Salesforce parity, inbox placement, production readiness, or 10 lakh throughput evidence.",
                                                "Delivery-service runtime safety remains authoritative; no delivery-owned policy/profile tables or per-message policy snapshots were added in this slice.",
                                                "Target Flyway migration application, production route-edge behavior, and service-to-service content lookup availability still require environment evidence before release claims."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-send-activity-handoff",
+                         "parentId":  "automation-studio-activity-orchestration",
+                         "title":  "Implement governed Automation Studio send activity handoff",
+                         "status":  "DONE",
+                         "priorityScore":  63,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "DELIVERABILITY_ENGINEER",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Define and implement send activity handoff that preserves campaign policy, preflight, suppression, warmup, rate, inbox-safety, tenant/workspace scope, idempotency, and explicit live confirmation.",
+                         "nonGoals":  "Do not bypass campaign orchestration, launch broad campaigns from contact-level journeys without explicit governance, or weaken deliverability gates.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/service/node/SendEmailNodeHandler.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignSendSafetyService.java",
+                                             "docs/product/automation-studio-activity-orchestration-plan.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Send activity semantics distinguish campaign launch from contact/journey handoff.",
+                                                    "Preflight, suppression, warmup, rate, inbox-safety, and send-policy requirements remain fail-closed.",
+                                                    "Kafka envelopes carry tenant/workspace and idempotency identity.",
+                                                    "Tests cover cross-workspace denial, duplicate publish prevention, and no send on unsafe preflight."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "automation-activity-security-design",
+                                              "automation-activity-dependency-run-contract",
+                                              "email-governance-policy-objects"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md"
+                                           ],
+                         "nextAction":  "Run final Codex validation and select the next safe local work item if any READY work remains.",
+                         "lastUpdated":  "2026-05-20T18:44:47.4660168Z",
+                         "startedAt":  "2026-05-20T18:17:54.9895983Z",
+                         "completedAt":  "2026-05-20T18:44:47.4660168Z",
+                         "outcome":  "Implemented governed Automation Studio send activity handoff through campaign orchestration with explicit confirmation, tenant/workspace context, deterministic idempotency, unsafe override rejection, and campaign-service send lifecycle ownership.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/automation-service -am \"-Dtest=AutomationStudioServiceTest,WorkflowGraphValidatorTest,SendEmailNodeHandlerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (40 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignEventConsumerTest,CampaignEventPublisherTest,OrchestrationServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (29 tests)",
+                                               "PASS: .\\mvnw.cmd -pl shared/legent-kafka -am \"-Dtest=EventContractValidatorTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (16 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/automation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am test"
+                                           ],
+                         "residualRisks":  [
+                                               "Local handoff contract only; no production send, inbox placement, Salesforce parity, or 10 lakh throughput claim.",
+                                               "Delivery-owned immutable policy snapshots, target Kafka replay, provider capacity, deliverability evidence, production egress, and live send-path proof remain required.",
+                                               "Workflow send publication is still direct Kafka publication rather than outbox/after-commit for broader fan-out."
+                                           ]
+                     },
+                     {
+                         "id":  "contact-data-designer-governance",
+                         "title":  "Deepen Contact Builder style data-designer governance",
+                         "status":  "DONE",
+                         "priorityScore":  49,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  3,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "SECURITY_ENGINEER",
+                                               "FRONTEND_OWNER"
+                                           ],
+                         "scope":  "Add explicit data-source provenance, relationship cardinality controls, deletion audit, sendable-key governance, and safer relationship/query preview behavior for data extensions and contact records.",
+                         "nonGoals":  "Do not migrate historical Flyway files or weaken tenant/workspace scoping.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/SubscriberController.java",
+                                             "frontend/src/app/(workspace)/audience/data-extensions/page.tsx",
+                                             "frontend/src/components/audience/SegmentRuleBuilder.tsx"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Relationship/cardinality changes are validated and audited.",
+                                                    "Sendable-key and retention/deletion policy changes are tenant/workspace scoped.",
+                                                    "Query preview and segment behavior document performance constraints.",
+                                                    "Tests cover cross-workspace denial and invalid relationship changes."
+                                                ],
+                         "validationProfile":  "backend-frontend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                    "cd frontend; npm run lint"
+                                                ],
+                         "dependencies":  [
+                                              "data-governance schema design"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "enhancement-log.md",
+                                               "technical-debt.md",
+                                               "security-findings.md"
+                                           ],
+                         "nextAction":  "Fix automation-send-activity-handoff review findings before selecting unrelated new work.",
+                         "lastUpdated":  "2026-05-20T19:12:54.3617392Z",
+                         "startedAt":  "2026-05-20T19:01:01.5279826Z",
+                         "completedAt":  "2026-05-20T19:12:54.3617392Z",
+                         "outcome":  "Implemented backend-first Contact Builder data-extension governance metadata, field classification, and tenant/workspace-scoped governance audit trail.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -am -Dtest=DataExtensionServiceTest,DataExtensionGovernanceMigrationTest,AudienceControllerRbacTest -Dsurefire.failIfNoSpecifiedTests=false test (32 tests),PASS: .\\mvnw.cmd -pl services/audience-service -am test (131 audience-service tests plus upstream shared modules),PASS: cd frontend; npm run lint,PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1,PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1,PASS: git diff --check (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Target Flyway migration application against representative legacy rows remains unproven.,Frontend governance drawer, import/contact provenance population, and indexed relationship execution remain follow-up work.,Automation send-handoff review findings should be fixed before unrelated new work."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-send-activity-handoff-review",
+                         "parentId":  "automation-send-activity-handoff",
+                         "title":  "Fix governed send activity handoff review findings",
+                         "status":  "DONE",
+                         "priorityScore":  63,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "CAMPAIGN_SERVICE_OWNER",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "KAFKA_CONTRACTS_OWNER"
+                                           ],
+                         "scope":  "Fix read-only diff-review findings in Automation Studio send handoff: do not mark idempotency processed before successful publish, reject unsafe send override key variants, tighten producer-side send requested contract, and clarify contact/journey versus campaign-wide launch semantics.",
+                         "nonGoals":  "Do not bypass campaign preflight, suppression, warmup, rate, inbox-safety, send-governance policy, or delivery runtime controls.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/service/node/SendEmailNodeHandler.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/node/SendEmailNodeHandlerTest.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/AutomationStudioServiceTest.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/WorkflowGraphValidatorTest.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java",
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventContractValidator.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/producer/EventContractValidatorTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Send node retries are not skipped when Kafka publish fails after idempotency claim.",
+                                                    "Unsafe send override variants with punctuation, underscores, or alternate casing are rejected before persistence or publish.",
+                                                    "Producer contract rejects send.requested payloads unless confirmLaunch is true and payload/envelope idempotency agree.",
+                                                    "Tests document current campaign-wide launch semantics or fail closed for unsupported contact-level journey sends."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=AutomationStudioServiceTest,WorkflowGraphValidatorTest,SendEmailNodeHandlerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignEventConsumerTest,CampaignEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -am \"-Dtest=EventContractValidatorTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/automation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "automation-send-activity-handoff"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Select the next safe foundation ownership item after Codex state and memory validation.",
+                         "lastUpdated":  "2026-05-20T19:28:09.9349844Z",
+                         "startedAt":  "2026-05-20T19:15:22.7277330Z",
+                         "completedAt":  "2026-05-20T19:28:09.9349844Z",
+                         "outcome":  "Fixed automation send handoff review findings: SEND_EMAIL now claims before publish and marks processed only after successful campaign send-request publish; unsafe send override keys are normalized across Automation Studio and graph validation; shared send.requested validation rejects non-true confirmation and envelope/payload idempotency mismatches; campaign consumer now fails closed when subscriber trace appears without explicit campaign-orchestration markers.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/automation-service,services/campaign-service,shared/legent-kafka -am \"-Dtest=SendEmailNodeHandlerTest,AutomationStudioServiceTest,WorkflowGraphValidatorTest,CampaignEventConsumerTest,OrchestrationServiceTest,EventContractValidatorTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/automation-service,services/campaign-service -am test"
+                                           ],
+                         "residualRisks":  [
+                                               "Local backend contract evidence only; production send, provider capacity, target Kafka replay, target migration, and high-volume evidence remain separate release blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "foundation-core-platform-workspace-guards",
+                         "title":  "Add foundation core-platform workspace ownership guards",
+                         "status":  "DONE",
+                         "priorityScore":  51,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add workspace consistency guards for core-platform membership, team/department relationships, role bindings, and access grant creation so related tenant-owned IDs cannot cross workspace boundaries.",
+                         "nonGoals":  "Do not redesign tenant lifecycle policy, config version history, or public contact inbox schema in this slice.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/CorePlatformService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/CorePlatformServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Membership/team/department creation rejects related records outside the current workspace.",
+                                                    "Role binding creation rejects principals or role definitions outside the current workspace or tenant context where applicable.",
+                                                    "Access grant creation rejects resource/principal workspace mismatches before persistence.",
+                                                    "Focused tests cover same-workspace success and cross-workspace denial cases."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/foundation-service"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Promote next safe foundation item: role-binding/access-grant read scoping or differentiation evaluate exact workspace matching.",
+                         "lastUpdated":  "2026-05-20T19:51:53.5686172Z",
+                         "startedAt":  "2026-05-20T19:34:48.8026152Z",
+                         "completedAt":  "2026-05-20T19:51:53.5686172Z",
+                         "outcome":  "Implemented foundation core-platform workspace ownership guards for team, department, membership, role binding, access grant, and permission-group tenant mismatch paths with focused regression coverage.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (28 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (138 foundation-service tests plus shared upstream tests)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                                               "PASS: git diff --check -- services/foundation-service (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Role-binding/access-grant list and access-policy preview read paths remain tenant-wide and need a separately leased controller/service slice.",
+                                               "JSON array defaulting for nullable permission lists remains a small follow-up hardening candidate.",
+                                               "This is local validation only; production release still requires target-environment evidence gates."
+                                           ]
+                     },
+                     {
+                         "id":  "foundation-core-platform-read-scope",
+                         "title":  "Scope core-platform role-binding and access-grant reads by workspace",
+                         "status":  "DONE",
+                         "priorityScore":  51,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add role-aware workspace scoping for core-platform role-binding lists, access-grant lists, and access-policy preview so workspace-readable callers cannot inspect tenant-wide access records.",
+                         "nonGoals":  "Do not redesign RBAC policy semantics, add schema migrations, or change creation guards already completed in foundation-core-platform-workspace-guards.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/CorePlatformService.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/controller/CorePlatformController.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/CorePlatformServiceTest.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/controller/CorePlatformControllerTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Workspace-scoped principals list only role bindings in the current workspace while tenant-wide roles retain tenant-wide reads.",
+                                                    "Workspace-scoped principals list only delegated access grants in the current workspace while tenant-wide roles retain tenant-wide reads.",
+                                                    "Access-policy preview for workspace-scoped principals filters role bindings and grants by current workspace and fails closed without workspace context.",
+                                                    "Controller tests prove authenticated roles are passed into scoped service methods."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest,CorePlatformControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/foundation-service"
+                                                ],
+                         "dependencies":  [
+                                              "foundation-core-platform-workspace-guards"
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Promote next safe foundation item: differentiation evaluate exact workspace matching, compliance privacy-request workspace scoping, or nullable permission-list JSON defaulting.",
+                         "lastUpdated":  "2026-05-20T20:05:12.7484182Z",
+                         "startedAt":  "2026-05-20T19:55:13.8073932Z",
+                         "completedAt":  "2026-05-20T20:05:12.7484182Z",
+                         "outcome":  "Implemented role-aware workspace scoping for core-platform role-binding/access-grant lists and access-policy preview, with controller role plumbing and focused regression tests.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest,CorePlatformControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (45 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (150 foundation-service tests plus shared upstream tests)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                                               "PASS: git diff --check -- services/foundation-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Workspace-scoped reads intentionally hide workspace_id null tenant/global role bindings and grants; inherited/global visibility needs a product/security decision before broadening.",
+                                               "Access-policy preview filters returned rows by workspace but does not prove principal membership before query because the endpoint has no principal type.",
+                                               "This is local validation only; production release still requires target-environment evidence gates."
+                                           ]
+                     },
+                     {
+                         "id":  "foundation-differentiation-evaluate-scope",
+                         "title":  "Scope differentiation evaluate paths by exact workspace",
+                         "status":  "DONE",
+                         "priorityScore":  50,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "DATA_ARCHITECT"
+                                           ],
+                         "scope":  "Narrow differentiation decision-policy evaluation, omnichannel simulation, and SLO evaluation lookups so a request uses the current workspace exactly and cannot wildcard into arbitrary workspace rows when workspace context is missing.",
+                         "nonGoals":  "Do not redesign tenant/global inheritance semantics, change list/inventory visibility, add schema migrations, or alter upsert behavior already fixed by differentiation-upsert-workspace-exact-match.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Decision policy evaluation uses exact current workspace/null-workspace matching instead of a null-workspace wildcard.",
+                                                    "Omnichannel flow simulation uses exact current workspace/null-workspace matching instead of a null-workspace wildcard.",
+                                                    "SLO policy evaluation uses exact current workspace/null-workspace matching instead of a null-workspace wildcard.",
+                                                    "Focused tests prove current-workspace matching and missing-workspace tenant-scope behavior cannot select arbitrary workspace rows."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=DifferentiationPlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/foundation-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote next safe foundation item: compliance privacy-request workspace scoping or nullable permission-list JSON defaulting.",
+                         "lastUpdated":  "2026-05-20T20:16:40.7171369Z",
+                         "startedAt":  "2026-05-20T20:10:21.4843015Z",
+                         "completedAt":  "2026-05-20T20:16:40.7171369Z",
+                         "outcome":  "Differentiation decision, omnichannel, and SLO evaluation lookups now use exact nullable workspace matching instead of null-workspace wildcard predicates, with focused SQL/params regression tests.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=DifferentiationPlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (9 tests; rerun after fixing test assertion compile issue)",
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (154 foundation-service tests plus shared upstream tests)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                                               "PASS: git diff --check -- services/foundation-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Evaluation paths now use exact nullable workspace matching; any inherited tenant/global policy fallback remains blocked on an explicit product/security decision.",
+                                               "HTTP differentiation routes already require workspace context, but service-level null workspace now only matches null-workspace tenant/global rows rather than fail-closing completely.",
+                                               "This is local validation only; production release still requires target-environment evidence gates."
+                                           ]
+                     },
+                     {
+                         "id":  "foundation-compliance-privacy-request-workspace-scope",
+                         "title":  "Scope compliance privacy-request status updates by workspace",
+                         "status":  "DONE",
+                         "priorityScore":  46,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  2
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "DATA_ARCHITECT"
+                                           ],
+                         "scope":  "Make compliance privacy-request status updates prove current workspace ownership before mutation and audit evidence creation.",
+                         "nonGoals":  "Do not redesign privacy request schema, change list/export semantics, or add tenant/global privacy inbox behavior.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/ComplianceEvidenceService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/ComplianceEvidenceServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Updating a privacy request uses current workspace ownership in addition to tenant and ID.",
+                                                    "Cross-workspace privacy request IDs are not updated and do not create audit evidence.",
+                                                    "Missing workspace context fails closed for status updates before repository mutation.",
+                                                    "Focused tests cover same-workspace success, cross-workspace denial, and audit evidence scope."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ComplianceEvidenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/foundation-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote next safe foundation item: nullable permission-list JSON defaulting or select the next highest-value local backlog item after pending scan.",
+                         "lastUpdated":  "2026-05-20T20:28:10.0512527Z",
+                         "startedAt":  "2026-05-20T20:20:33.1984277Z",
+                         "completedAt":  "2026-05-20T20:28:10.0512527Z",
+                         "outcome":  "Privacy-request status updates now require current workspace context and use tenant+workspace+ID scoped mutation before audit evidence is created, with focused no-audit denial tests.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ComplianceEvidenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (5 tests; rerun after removing Java-time test fixture value)",
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (157 foundation-service tests plus shared upstream tests)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check -- services/foundation-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Privacy request status updates now require current workspace context; nullable/tenant-global privacy request mutation needs an explicit admin policy before support is added.",
+                                               "List/export nullable workspace behavior was out of scope and should be reviewed separately if service-level non-HTTP callers are added.",
+                                               "This is local validation only; production release still requires target-environment evidence gates."
+                                           ]
+                     },
+                     {
+                         "id":  "foundation-permission-list-json-defaulting",
+                         "title":  "Default nullable core-platform permission lists to JSON arrays",
+                         "status":  "DONE",
+                         "priorityScore":  30,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  2,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "DATA_ARCHITECT"
+                                           ],
+                         "scope":  "Harden role definition, permission group, and delegated access grant creation so nullable permission lists are persisted as explicit empty JSON arrays instead of JSON null values.",
+                         "nonGoals":  "Do not alter permission semantics, RBAC roles, schema history, or tenant/global visibility behavior.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/CorePlatformService.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/CorePlatformServiceTest.java",
+                                             "services/foundation-service/src/main/resources/db/migration/V6__platform_core_foundation.sql"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Null request permission lists persist as [] for role definitions, permission groups, and delegated access grants.",
+                                                    "Existing non-empty permission lists continue to persist unchanged.",
+                                                    "Focused tests capture serialized values for null and non-empty permission lists.",
+                                                    "No service ownership, tenant/workspace, or route behavior changes are introduced."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/foundation-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local item after refreshing active state and memory.",
+                         "lastUpdated":  "2026-05-20T20:45:16.8253856Z",
+                         "startedAt":  "2026-05-20T20:34:24.2629626Z",
+                         "completedAt":  "2026-05-20T20:45:16.8253856Z",
+                         "outcome":  "Core-platform role definition, permission group, and delegated access grant creation now serialize omitted permission lists as JSON arrays [] while preserving object-shaped metadata defaults and non-empty permission arrays.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=CorePlatformServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (41 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (161 foundation-service tests plus shared upstream tests)",
+                                               "PASS: git diff --exit-code -- services/foundation-service/src/main/resources/db/migration/V6__platform_core_foundation.sql",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check -- services/foundation-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Existing role_definition, permission_group, or delegated_access_grant rows that already contain JSON object/null permission shapes are not backfilled by this local code slice.",
+                                               "Newly created omitted permission lists now return [] instead of {}; strict external clients relying on the old malformed shape need compatibility review.",
+                                               "This is local validation only; production release still requires target-environment evidence gates."
+                                           ]
+                     },
+                     {
+                         "id":  "codex-state-dashboard-convergence",
+                         "title":  "Converge Codex team state and dashboard rendering",
+                         "status":  "DONE",
+                         "priorityScore":  24,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  1,
+                                         "userImpact":  1,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "PROGRAM_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "DOCUMENTATION_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Reconcile team-state queue mirrors with queue.json, fix dashboard Markdown rendering for work item IDs, and add validation to catch future queue/team-state drift.",
+                         "nonGoals":  "Do not change product/backend/frontend code, stale archived thread policy, or blocked production evidence requirements.",
+                         "sourceFiles":  [
+                                             ".codex/utilities/monitor-autonomous-org.ps1",
+                                             ".codex/utilities/validate-codex-system.ps1",
+                                             ".codex/state/team-state.json",
+                                             ".codex/memory/active-work-items.md",
+                                             ".codex/dashboards/team-dashboard.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "team-state.json no longer mirrors queue-DONE items as backlog work.",
+                                                    "Dashboard work-item IDs render as Markdown code spans instead of raw PowerShell object text.",
+                                                    "Codex validation fails when team-state ready/backlog mirrors drift from queue.json.",
+                                                    "Active work memory reflects the convergence item during the lease and is cleared after completion."
+                                                ],
+                         "validationProfile":  "docs-memory",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\cleanup-autonomous-org.ps1 -DryRun",
+                                                    "git diff --check -- .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe implementation item from pending-scan candidates.",
+                         "lastUpdated":  "2026-05-20T20:58:39.3047183Z",
+                         "startedAt":  "2026-05-20T20:56:18.4361750Z",
+                         "completedAt":  "2026-05-20T20:58:39.3047183Z",
+                         "outcome":  "Codex dashboard now renders work item IDs as Markdown code spans, team-state queue mirrors are reconciled with queue.json, and Codex validation now catches ready/backlog/active mirror drift.",
+                         "validationRun":  [
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\cleanup-autonomous-org.ps1 -DryRun",
+                                               "PASS: git diff --check -- .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Validator now requires team-state ready/backlog/active mirrors to match queue.json; future manual queue edits must update team-state or validation will fail.",
+                                               "This is internal orchestration hygiene only and not a product release."
+                                           ]
+                     },
+                     {
+                         "id":  "foundation-config-version-history-scope",
+                         "title":  "Scope config version history and rollback by workspace/environment",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "DATA_ARCHITECT"
+                                           ],
+                         "scope":  "Add workspace/environment scope to config version history, exact-scope history queries, scoped version numbering, and rollback lookup so config history cannot cross workspace/environment boundaries.",
+                         "nonGoals":  "Do not edit historical migrations, decide tenant lifecycle policy, or add platform-admin global config workflows.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/main/java/com/legent/foundation/domain/ConfigVersionHistory.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigVersionHistoryRepository.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigVersioningService.java",
+                                             "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                                             "services/foundation-service/src/main/resources/db/migration/V17__config_version_history_scope.sql",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigVersioningServiceTest.java",
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Workspace/environment-scoped config changes create scoped history rows.",
+                                                    "Version numbers are independent per tenant+key+workspace+environment exact scope.",
+                                                    "History reads, compare, and rollback use exact nullable workspace/environment matching and deny cross-scope access.",
+                                                    "Rollback resolves or creates the current config in the same exact scope as the target version.",
+                                                    "Focused tests cover same-scope success, cross-scope denial, rollback exact-scope lookup, and scoped version recording."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ConfigVersioningServiceTest,ConfigServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/foundation-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe local item from pending scan.",
+                         "lastUpdated":  "2026-05-20T21:34:27.8405287Z",
+                         "startedAt":  "2026-05-20T21:01:07.1286183Z",
+                         "completedAt":  "2026-05-20T21:34:27.8405287Z",
+                         "outcome":  "Scoped config version history by exact tenant/workspace/environment context. Added V17 nullable scope columns plus exact-scope unique version index, entity/repository exact nullable scope methods, scoped history writes, exact-scope history/compare/rollback, rollback cache/event side effects, and focused regression coverage for service, controller, admin settings, and config writes.",
+                         "validationRun":  [
+                                               "PASS: rg stale config version-history tenant/key-only usage and reflection scan returned no matches",
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service \"-Dtest=ConfigVersioningServiceTest,ConfigServiceTest,AdminSettingsServiceTest,ConfigVersionControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (38 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (foundation-service 182 tests plus upstream shared modules)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: git diff --check -- services/foundation-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "V17 leaves legacy pre-scope config_version_history rows nullable because historical workspace/environment ownership cannot be safely inferred; target database preflight should check duplicate tenant/key/version rows before applying the unique exact-scope index.",
+                                               "Concurrent same-scope writes now have database uniqueness protection, but there is no retry loop for duplicate-version races; callers will fail and retry at a higher layer if a race occurs."
                                            ]
                      }
                  ],

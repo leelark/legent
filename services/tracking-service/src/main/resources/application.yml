@@ -82,6 +82,20 @@ management:
 legent:
   tracking:
     signing-key: ${LEGENT_TRACKING_SIGNING_KEY}
+    kafka:
+      ingested:
+        listener:
+          concurrency: ${LEGENT_TRACKING_KAFKA_INGESTED_CONCURRENCY:${spring.kafka.listener.concurrency:3}}
+        consumer:
+          max-poll-records: ${LEGENT_TRACKING_KAFKA_INGESTED_MAX_POLL_RECORDS:500}
+          max-poll-interval: ${LEGENT_TRACKING_KAFKA_INGESTED_MAX_POLL_INTERVAL:PT20M}
+        retry:
+          initial-interval: ${LEGENT_TRACKING_KAFKA_INGESTED_RETRY_INITIAL_INTERVAL:PT1S}
+          multiplier: ${LEGENT_TRACKING_KAFKA_INGESTED_RETRY_MULTIPLIER:2.0}
+          max-interval: ${LEGENT_TRACKING_KAFKA_INGESTED_RETRY_MAX_INTERVAL:PT30S}
+          buffer: ${LEGENT_TRACKING_KAFKA_INGESTED_RETRY_BUFFER:PT1M}
+    idempotency:
+      stale-claim-age: ${LEGENT_TRACKING_IDEMPOTENCY_STALE_CLAIM_AGE:PT15M}
     raw-event-retention:
       enabled: ${LEGENT_TRACKING_RAW_EVENT_RETENTION_ENABLED:true}
       interval-ms: ${LEGENT_TRACKING_RAW_EVENT_RETENTION_INTERVAL_MS:3600000}

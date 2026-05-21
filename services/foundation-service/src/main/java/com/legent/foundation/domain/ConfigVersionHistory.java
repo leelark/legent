@@ -25,6 +25,12 @@ public class ConfigVersionHistory {
     @Column(name = "tenant_id", length = 36)
     private String tenantId;
 
+    @Column(name = "workspace_id", length = 64)
+    private String workspaceId;
+
+    @Column(name = "environment_id", length = 64)
+    private String environmentId;
+
     @Column(name = "config_key", nullable = false, length = 128)
     private String configKey;
 

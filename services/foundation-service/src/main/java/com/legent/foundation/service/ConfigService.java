@@ -234,24 +234,37 @@ public class ConfigService {
     }
 
     private void recordVersion(SystemConfig config, com.legent.foundation.domain.ConfigVersionHistory.ChangeType changeType) {
-        try {
-            com.legent.foundation.domain.ConfigVersionHistory entry = new com.legent.foundation.domain.ConfigVersionHistory();
-            entry.setTenantId(config.getTenantId());
-            entry.setConfigKey(config.getConfigKey());
-            entry.setConfigValue(config.getConfigValue());
-            entry.setValueType(config.getValueType() != null ? config.getValueType().name() : "STRING");
-            entry.setCategory(config.getCategory());
-            entry.setDescription(config.getDescription());
-            entry.setEncrypted(config.isEncrypted());
-            Integer maxVersion = configVersionHistoryRepository.findMaxVersionByTenantIdAndConfigKey(config.getTenantId(), config.getConfigKey());
-            entry.setVersion((maxVersion == null ? 0 : maxVersion) + 1);
-            entry.setChangeType(changeType.name());
-            entry.setChangedBy(normalize(TenantContext.getUserId()));
-            configVersionHistoryRepository.save(entry);
-            config.setConfigVersion(entry.getVersion());
-        } catch (Exception ex) {
-            log.warn("Failed to record config version for key={}: {}", config.getConfigKey(), ex.getMessage());
-        }
+        com.legent.foundation.domain.ConfigVersionHistory entry = new com.legent.foundation.domain.ConfigVersionHistory();
+        entry.setTenantId(config.getTenantId());
+        entry.setWorkspaceId(config.getWorkspaceId());
+        entry.setEnvironmentId(config.getEnvironmentId());
+        entry.setConfigKey(config.getConfigKey());
+        entry.setConfigValue(config.getConfigValue());
+        entry.setValueType(config.getValueType() != null ? config.getValueType().name() : "STRING");
+        entry.setCategory(config.getCategory());
+        entry.setDescription(config.getDescription());
+        entry.setEncrypted(config.isEncrypted());
+        Integer maxVersion = configVersionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(
+                config.getTenantId(),
+                config.getWorkspaceId(),
+                config.getEnvironmentId(),
+                config.getConfigKey());
+        entry.setVersion((maxVersion == null ? 0 : maxVersion) + 1);
+        entry.setChangeType(changeType.name());
+        entry.setChangedBy(normalize(TenantContext.getUserId()));
+        configVersionHistoryRepository.save(entry);
+        config.setConfigVersion(entry.getVersion());
+    }
+
+    ConfigDto.Response finalizeRollback(SystemConfig config) {
+        invalidateCache(config.getTenantId(), config.getConfigKey());
+        publishConfigUpdatedEvent(
+                config.getTenantId(),
+                config.getWorkspaceId(),
+                config.getEnvironmentId(),
+                config.getConfigKey(),
+                "ROLLED_BACK");
+        return configMapper.toResponse(config);
     }
 
     private SystemConfig findMutableConfigById(String id) {

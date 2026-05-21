@@ -181,7 +181,18 @@ public class ClickHouseRollupService {
                 PARTITION BY toYYYYMM(timestamp)
                 ORDER BY (tenant_id, workspace_id, campaign_id, workflow_id, step_id, experiment_id, variant_id, event_type, timestamp, id)
                 TTL timestamp + INTERVAL 180 DAY DELETE
-                """);
+                """,
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS workspace_id String AFTER tenant_id",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS experiment_id Nullable(String) AFTER message_id",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS variant_id Nullable(String) AFTER experiment_id",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS holdout UInt8 DEFAULT 0 AFTER variant_id",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS experiment_scope Nullable(String) AFTER holdout",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS workflow_id Nullable(String) AFTER experiment_scope",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS workflow_version Nullable(Int32) AFTER workflow_id",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS workflow_run_id Nullable(String) AFTER workflow_version",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS step_id Nullable(String) AFTER workflow_run_id",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS path_id Nullable(String) AFTER step_id",
+                "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS goal_id Nullable(String) AFTER path_id");
     }
 
     List<String> analyticsSchemaStatements() {

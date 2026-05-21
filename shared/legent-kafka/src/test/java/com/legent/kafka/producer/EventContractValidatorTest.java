@@ -76,6 +76,109 @@ class EventContractValidatorTest {
     }
 
     @Test
+    void validate_allowsConfirmedCampaignSendRequestedPayload() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_SEND_REQUESTED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-1",
+                        "confirmLaunch", true,
+                        "handoffBoundary", "CAMPAIGN_ORCHESTRATION")
+        );
+
+        assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_allowsStringConfirmedCampaignSendRequestedPayload() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_SEND_REQUESTED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-1",
+                        "confirmLaunch", "true",
+                        "handoffBoundary", "CAMPAIGN_ORCHESTRATION")
+        );
+
+        assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsCampaignSendRequestedWithoutConfirmation() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_SEND_REQUESTED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-1")
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsCampaignSendRequestedWhenConfirmationIsFalse() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_SEND_REQUESTED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-1",
+                        "confirmLaunch", false)
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsCampaignSendRequestedWhenStringConfirmationIsFalse() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_SEND_REQUESTED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-1",
+                        "confirmLaunch", "false")
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsCampaignSendRequestedWithoutPayloadIdempotencyKey() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_SEND_REQUESTED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "confirmLaunch", true)
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_SEND_REQUESTED, envelope));
+    }
+
+    @Test
+    void validate_rejectsCampaignSendRequestedWhenPayloadIdempotencyKeyMismatchesEnvelope() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_SEND_REQUESTED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "payload-idem",
+                        "confirmLaunch", true)
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_SEND_REQUESTED, envelope));
+    }
+
+    @Test
     void validate_rejectsEmailSendRequestedWithTemplateOnlyPayload() {
         EventEnvelope<Map<String, Object>> envelope = envelope(
                 AppConstants.TOPIC_EMAIL_SEND_REQUESTED,

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
@@ -97,6 +98,33 @@ class DifferentiationPlatformServiceTest {
         assertThat((Double) decision.get("confidence")).isGreaterThan(0.6);
         Map<?, ?> selected = (Map<?, ?>) decision.get("selectedVariant");
         assertThat(selected.get("key")).isEqualTo("upgrade");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertExactWorkspaceScope(sqlCaptor.getValue(), paramsCaptor.getValue(), "workspace-1");
+        assertThat(paramsCaptor.getValue()).containsEntry("policyKey", "next-best-offer");
+    }
+
+    @Test
+    void evaluateDecisionPolicy_usesExactNullWorkspaceScopeWhenContextMissing() {
+        TenantContext.setWorkspaceId(null);
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+
+        DifferentiationDto.DecisionEvaluateRequest request = new DifferentiationDto.DecisionEvaluateRequest();
+        request.setPolicyKey("tenant-policy");
+
+        assertThatThrownBy(() -> service.evaluateDecisionPolicy(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Active decision policy not found");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertExactWorkspaceScope(sqlCaptor.getValue(), paramsCaptor.getValue(), null);
+        assertThat(paramsCaptor.getValue()).containsEntry("policyKey", "tenant-policy");
     }
 
     @Test
@@ -168,5 +196,88 @@ class DifferentiationPlatformServiceTest {
         assertThat(result.get("selfHealingTriggered")).isEqualTo(true);
         assertThat((Double) result.get("errorBudgetBurnPercent")).isGreaterThan(100);
         assertThat((List<?>) result.get("recommendedActions")).isNotEmpty();
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertExactWorkspaceScope(sqlCaptor.getValue(), paramsCaptor.getValue(), "workspace-1");
+        assertThat(paramsCaptor.getValue()).containsEntry("serviceName", "delivery-service");
+    }
+
+    @Test
+    void simulateOmnichannelFlow_usesExactWorkspaceScopeForCurrentWorkspace() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(Map.of(
+                "id", "flow-1",
+                "workspace_id", "workspace-1",
+                "flow_key", "welcome-flow",
+                "transactional", false,
+                "channels", List.of("EMAIL", "SMS")
+        )));
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+
+        DifferentiationDto.OmnichannelSimulationRequest request = new DifferentiationDto.OmnichannelSimulationRequest();
+        request.setFlowKey("welcome-flow");
+        request.setPreferredChannels(List.of("EMAIL"));
+        request.setRecipient(Map.of("consent", Map.of("email", true)));
+
+        Map<String, Object> result = service.simulateOmnichannelFlow(request);
+
+        assertThat(result.get("flowId")).isEqualTo("flow-1");
+        assertThat((List<?>) result.get("route")).map(String::valueOf).contains("EMAIL");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertExactWorkspaceScope(sqlCaptor.getValue(), paramsCaptor.getValue(), "workspace-1");
+        assertThat(paramsCaptor.getValue()).containsEntry("flowKey", "welcome-flow");
+    }
+
+    @Test
+    void simulateOmnichannelFlow_usesExactNullWorkspaceScopeWhenContextMissing() {
+        TenantContext.setWorkspaceId(null);
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+
+        DifferentiationDto.OmnichannelSimulationRequest request = new DifferentiationDto.OmnichannelSimulationRequest();
+        request.setFlowKey("tenant-flow");
+
+        assertThatThrownBy(() -> service.simulateOmnichannelFlow(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Active omnichannel flow not found");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertExactWorkspaceScope(sqlCaptor.getValue(), paramsCaptor.getValue(), null);
+        assertThat(paramsCaptor.getValue()).containsEntry("flowKey", "tenant-flow");
+    }
+
+    @Test
+    void evaluateSloPolicy_usesExactNullWorkspaceScopeWhenContextMissing() {
+        TenantContext.setWorkspaceId(null);
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+
+        DifferentiationDto.SloEvaluateRequest request = new DifferentiationDto.SloEvaluateRequest();
+        request.setServiceName("tenant-service");
+
+        assertThatThrownBy(() -> service.evaluateSloPolicy(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Active SLO policy not found");
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertExactWorkspaceScope(sqlCaptor.getValue(), paramsCaptor.getValue(), null);
+        assertThat(paramsCaptor.getValue()).containsEntry("serviceName", "tenant-service");
+    }
+
+    private void assertExactWorkspaceScope(String sql, Map<String, Object> params, String workspaceId) {
+        assertThat(sql).contains("COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')");
+        assertThat(sql).doesNotContain(":workspaceId IS NULL OR workspace_id = :workspaceId");
+        assertThat(params).containsEntry("tenantId", "tenant-1");
+        assertThat(params).containsEntry("workspaceId", workspaceId);
     }
 }

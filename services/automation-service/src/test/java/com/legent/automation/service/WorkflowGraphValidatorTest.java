@@ -44,6 +44,26 @@ class WorkflowGraphValidatorTest {
     }
 
     @Test
+    void validateRuntimeSupportedRejectsSendEmailSafetyOverrides() {
+        WorkflowGraphDto graph = graph(
+                "send",
+                Map.of(
+                        "send", node("send", "SEND_EMAIL", Map.of(
+                                "campaignId", "campaign-1",
+                                "sender-email", "sender@example.com",
+                                "skip_suppression", true), "end", List.of()),
+                        "end", node("end", "END", Map.of(), null, List.of())
+                ));
+
+        assertThat(validator.runtimeSupportErrors(graph))
+                .singleElement()
+                .satisfies(error -> assertThat(error)
+                        .contains("node send type SEND_EMAIL cannot override campaign recipients")
+                        .contains("sender-email")
+                        .contains("skip_suppression"));
+    }
+
+    @Test
     void validateRuntimeSupportedRejectsInvalidDelayMinutes() {
         WorkflowGraphDto graph = graph(
                 "delay",

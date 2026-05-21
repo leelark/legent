@@ -76,6 +76,19 @@ public class DataExtensionController {
         return ApiResponse.ok(deService.updateRetentionPolicy(id, request));
     }
 
+    @PutMapping("/{id}/governance")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
+    public ApiResponse<DataExtensionDto.Response> updateGovernance(@PathVariable String id,
+                                                                    @Valid @RequestBody DataExtensionDto.GovernanceMetadata request) {
+        return ApiResponse.ok(deService.updateGovernance(id, request));
+    }
+
+    @GetMapping("/{id}/governance-audit")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
+    public ApiResponse<java.util.List<DataExtensionDto.GovernanceAuditResponse>> listGovernanceAudit(@PathVariable String id) {
+        return ApiResponse.ok(deService.listGovernanceAudit(id));
+    }
+
     @PutMapping("/{id}/relationships")
     @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
     public ApiResponse<DataExtensionDto.Response> updateRelationships(@PathVariable String id,

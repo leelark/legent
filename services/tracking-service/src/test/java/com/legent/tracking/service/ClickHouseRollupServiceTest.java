@@ -54,6 +54,11 @@ class ClickHouseRollupServiceTest {
                 .contains("PARTITION BY toYYYYMM(timestamp)")
                 .contains("ORDER BY (tenant_id, workspace_id, campaign_id, workflow_id, step_id, experiment_id, variant_id, event_type, timestamp, id)")
                 .contains("TTL timestamp + INTERVAL 180 DAY DELETE");
+        assertThat(service.rawEventSchemaStatements())
+                .contains(
+                        "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS workspace_id String AFTER tenant_id",
+                        "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS workflow_id Nullable(String) AFTER experiment_scope",
+                        "ALTER TABLE raw_events ADD COLUMN IF NOT EXISTS goal_id Nullable(String) AFTER path_id");
     }
 
     @Test

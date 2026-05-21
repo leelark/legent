@@ -1,0 +1,46 @@
+{
+    "id":  "codex-state-dashboard-convergence",
+    "createdAt":  "2026-05-20T20:56:18.3902278Z",
+    "objective":  "Converge Codex team state and dashboard rendering",
+    "status":  "DONE",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         ".codex/utilities/monitor-autonomous-org.ps1",
+                         ".codex/utilities/validate-codex-system.ps1",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**"
+                     ],
+    "agents":  [
+                   "DOCUMENTATION_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\cleanup-autonomous-org.ps1 -DryRun",
+                           "git diff --check -- .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote the next highest-value safe implementation item from pending-scan candidates.",
+    "completedAt":  "2026-05-20T20:58:50.2806075Z",
+    "outcome":  "Codex dashboard now renders work item IDs as Markdown code spans, team-state queue mirrors are reconciled with queue.json, and Codex validation now catches ready/backlog/active mirror drift.",
+    "validationRun":  [
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\cleanup-autonomous-org.ps1 -DryRun",
+                          "PASS: git diff --check -- .codex (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "Validator now requires team-state ready/backlog/active mirrors to match queue.json; future manual queue edits must update team-state or validation will fail.",
+                          "This is internal orchestration hygiene only and not a product release."
+                      ]
+}

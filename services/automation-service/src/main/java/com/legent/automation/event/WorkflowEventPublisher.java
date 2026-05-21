@@ -33,6 +33,7 @@ public class WorkflowEventPublisher {
                 envelope.setWorkspaceId(String.valueOf(workspaceId).trim());
                 envelope.setOwnershipScope("WORKSPACE");
             }
+            applyOptionalEnvelopeMetadata(envelope, payload);
             eventPublisher.publish(topic, jobId, envelope).join();
         } catch (CompletionException e) {
             throw publishFailure(topic, e);
@@ -49,5 +50,27 @@ public class WorkflowEventPublisher {
             return runtimeException;
         }
         return new IllegalStateException("Failed to publish workflow action to " + topic, cause);
+    }
+
+    private <T> void applyOptionalEnvelopeMetadata(EventEnvelope<T> envelope, Map<String, Object> payload) {
+        if (payload == null) {
+            return;
+        }
+        Object idempotencyKey = payload.get("idempotencyKey");
+        if (idempotencyKey != null && !String.valueOf(idempotencyKey).isBlank()) {
+            envelope.setIdempotencyKey(String.valueOf(idempotencyKey).trim());
+        }
+        Object environmentId = payload.get("environmentId");
+        if (environmentId != null && !String.valueOf(environmentId).isBlank()) {
+            envelope.setEnvironmentId(String.valueOf(environmentId).trim());
+        }
+        Object actorId = payload.get("actorId");
+        if (actorId != null && !String.valueOf(actorId).isBlank()) {
+            envelope.setActorId(String.valueOf(actorId).trim());
+        }
+        Object ownershipScope = payload.get("ownershipScope");
+        if (ownershipScope != null && !String.valueOf(ownershipScope).isBlank()) {
+            envelope.setOwnershipScope(String.valueOf(ownershipScope).trim());
+        }
     }
 }

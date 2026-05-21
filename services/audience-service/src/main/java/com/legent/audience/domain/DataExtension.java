@@ -1,5 +1,7 @@
 package com.legent.audience.domain;
 
+import java.time.Instant;
+
 import com.legent.common.model.TenantAwareEntity;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -46,6 +48,27 @@ public class DataExtension extends TenantAwareEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "relationship_json", columnDefinition = "jsonb")
     private String relationshipJson = "[]";
+
+    @Column(name = "source_type", nullable = false, length = 32)
+    private String sourceType = "MANUAL";
+
+    @Column(name = "source_system", length = 128)
+    private String sourceSystem;
+
+    @Column(name = "source_reference", length = 255)
+    private String sourceReference;
+
+    @Column(name = "data_classification", nullable = false, length = 32)
+    private String dataClassification = "INTERNAL";
+
+    @Column(name = "governance_notes", length = 1000)
+    private String governanceNotes;
+
+    @Column(name = "governance_reviewed_by", length = 36)
+    private String governanceReviewedBy;
+
+    @Column(name = "governance_reviewed_at")
+    private Instant governanceReviewedAt;
 
     @Column(name = "record_count", nullable = false)
     private long recordCount = 0;

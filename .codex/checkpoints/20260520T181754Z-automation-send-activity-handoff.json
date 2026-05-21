@@ -1,0 +1,49 @@
+{
+    "id":  "automation-send-activity-handoff",
+    "createdAt":  "2026-05-20T18:17:54.9568000Z",
+    "objective":  "Implement governed Automation Studio send activity handoff",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/automation-service/src/main/java/com/legent/automation/**",
+                         "services/automation-service/src/test/java/com/legent/automation/**",
+                         "services/campaign-service/src/main/java/com/legent/campaign/**",
+                         "services/campaign-service/src/test/java/com/legent/campaign/**",
+                         "services/delivery-service/src/main/java/com/legent/delivery/**",
+                         "services/delivery-service/src/test/java/com/legent/delivery/**",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/**",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/**",
+                         "docs/product/automation-studio-activity-orchestration-plan.md",
+                         "docs/product/automation-studio-activity-security-contract.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "AUTOMATION_SERVICE_OWNER",
+                   "DELIVERABILITY_ENGINEER",
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/automation-service",
+                           "services/campaign-service",
+                           "services/delivery-service",
+                           "services/deliverability-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select next safe local work item after validation."
+}

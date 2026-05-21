@@ -30,6 +30,15 @@ public class EventContractValidator {
                             List.of("email"),
                             List.of("contentReference")),
                     List.of()),
+            AppConstants.TOPIC_SEND_REQUESTED,
+            new EventContract(
+                    SCHEMA_V1,
+                    WorkspaceRequirement.ENVELOPE_OR_PAYLOAD,
+                    List.of(
+                            List.of("campaignId"),
+                            List.of("confirmLaunch"),
+                            List.of("idempotencyKey")),
+                    List.of()),
             AppConstants.TOPIC_AUDIENCE_RESOLVED,
             new EventContract(
                     SCHEMA_V1,
@@ -115,6 +124,7 @@ public class EventContractValidator {
         Map<String, Object> payload = payloadMap(topic, envelope.getPayload());
         validateWorkspace(topic, envelope, payload, contract.workspaceRequirement());
         validatePayloadKeys(topic, payload, contract);
+        validateTopicSpecificContract(topic, envelope, payload);
     }
 
     private Map<String, Object> payloadMap(String topic, Object payload) {
@@ -190,6 +200,30 @@ public class EventContractValidator {
         }
     }
 
+    private void validateTopicSpecificContract(String topic, EventEnvelope<?> envelope, Map<String, Object> payload) {
+        if (AppConstants.TOPIC_SEND_REQUESTED.equals(topic)) {
+            validateCampaignSendRequested(topic, envelope, payload);
+        }
+    }
+
+    private void validateCampaignSendRequested(String topic, EventEnvelope<?> envelope, Map<String, Object> payload) {
+        Object confirmLaunch = rawValueForKey(payload, "confirmLaunch").orElse(null);
+        if (!isExplicitTrue(confirmLaunch)) {
+            throw new IllegalArgumentException("payload confirmLaunch must be true for topic [" + topic + "]");
+        }
+
+        String envelopeKey = normalize(envelope.getIdempotencyKey()).orElse(null);
+        String payloadKey = rawValueForKey(payload, "idempotencyKey")
+                .flatMap(this::normalize)
+                .orElse(null);
+        if (payloadKey == null) {
+            throw new IllegalArgumentException("payload idempotencyKey is required for topic [" + topic + "]");
+        }
+        if (envelopeKey != null && !envelopeKey.equals(payloadKey)) {
+            throw new IllegalArgumentException("idempotencyKey mismatch between envelope and payload for topic [" + topic + "]");
+        }
+    }
+
     private String describeGroup(List<String> group) {
         if (group.size() == 1) {
             return "key [" + group.get(0) + "]";
@@ -214,6 +248,26 @@ public class EventContractValidator {
             }
         }
         return Optional.empty();
+    }
+
+    private Optional<Object> rawValueForKey(Map<String, Object> map, String wantedKey) {
+        for (Map.Entry<String, Object> entry : map.entrySet()) {
+            String key = entry.getKey();
+            if (key != null && wantedKey.equalsIgnoreCase(key) && isPresentValue(entry.getValue())) {
+                return Optional.of(entry.getValue());
+            }
+        }
+        return Optional.empty();
+    }
+
+    private boolean isExplicitTrue(Object value) {
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        if (value instanceof CharSequence text) {
+            return "true".equalsIgnoreCase(text.toString().trim());
+        }
+        return false;
     }
 
     private boolean isPresentValue(Object value) {

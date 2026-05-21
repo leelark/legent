@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -38,6 +39,25 @@ public class WorkflowGraphValidator {
             "DELAY",
             "CONDITION",
             "END"
+    );
+    private static final Set<String> SEND_EMAIL_FORBIDDEN_NORMALIZED_CONFIG_KEYS = Set.of(
+            "recipientemail",
+            "email",
+            "subscriberid",
+            "contactid",
+            "recipients",
+            "audienceids",
+            "audienceoverride",
+            "contentid",
+            "templateid",
+            "senderemail",
+            "providerid",
+            "sendingdomain",
+            "sendgovernancepolicyid",
+            "skipsuppression",
+            "skipwarmup",
+            "ignoreratelimits",
+            "forcesend"
     );
 
     public WorkflowGraphDto validateAndNormalize(WorkflowGraphDto graph) {
@@ -160,8 +180,18 @@ public class WorkflowGraphValidator {
                 errors.add("node " + node.getId() + " type " + type + " is not supported by the live workflow runtime");
                 continue;
             }
-            if ("SEND_EMAIL".equals(type) && isBlank(node.getConfiguration().get("campaignId"))) {
-                errors.add("node " + node.getId() + " type SEND_EMAIL requires configuration.campaignId");
+            if ("SEND_EMAIL".equals(type)) {
+                if (isBlank(node.getConfiguration().get("campaignId"))) {
+                    errors.add("node " + node.getId() + " type SEND_EMAIL requires configuration.campaignId");
+                }
+                List<String> forbiddenKeys = node.getConfiguration().keySet().stream()
+                        .filter(key -> key != null
+                                && SEND_EMAIL_FORBIDDEN_NORMALIZED_CONFIG_KEYS.contains(normalizeConfigKey(key)))
+                        .toList();
+                if (!forbiddenKeys.isEmpty()) {
+                    errors.add("node " + node.getId() + " type SEND_EMAIL cannot override campaign recipients, content, sender, provider, governance, or safety controls: "
+                            + String.join(", ", forbiddenKeys));
+                }
             }
             if ("DELAY".equals(type) && !validDelayMinutes(node.getConfiguration().get("minutes"))) {
                 errors.add("node " + node.getId() + " type DELAY requires configuration.minutes between 1 and 10080");
@@ -175,6 +205,10 @@ public class WorkflowGraphValidator {
 
     private boolean isBlank(Object value) {
         return value == null || String.valueOf(value).trim().isEmpty();
+    }
+
+    private String normalizeConfigKey(String key) {
+        return key.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
     }
 
     private boolean validDelayMinutes(Object value) {

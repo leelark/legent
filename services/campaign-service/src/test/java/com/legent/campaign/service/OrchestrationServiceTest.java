@@ -1,10 +1,13 @@
 package com.legent.campaign.service;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.SendJob;
+import com.legent.campaign.dto.CampaignDto;
 import com.legent.campaign.dto.CampaignEngineDto;
 import com.legent.campaign.dto.SendJobDto;
 import com.legent.campaign.event.CampaignEventPublisher;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -198,5 +202,72 @@ class OrchestrationServiceTest {
                 .hasMessageContaining("Sender email domain must match");
         verify(sendJobRepository, never()).save(any(SendJob.class));
         verify(eventPublisher, never()).publishAudienceResolutionRequested(anyString(), anyString(), anyString(), anyList());
+    }
+
+    @Test
+    void triggerFromAutomationRequiresWorkspaceContext() {
+        TenantContext.clear();
+        TenantContext.setTenantId(TENANT_ID);
+
+        CampaignDto.TriggerLaunchRequest request = CampaignDto.TriggerLaunchRequest.builder()
+                .triggerSource("AUTOMATION")
+                .triggerReference("workflow-1")
+                .idempotencyKey("automation-send-1")
+                .build();
+
+        assertThatThrownBy(() -> orchestrationService.triggerFromAutomation("camp-1", request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+
+        verify(campaignRepository, never()).findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(anyString(), anyString(), anyString());
+        verify(sendJobRepository, never()).save(any(SendJob.class));
+        verify(eventPublisher, never()).publishAudienceResolutionRequested(anyString(), anyString(), anyString(), anyList());
+    }
+
+    @Test
+    void triggerFromAutomationUsesCampaignAudienceAndTreatsSubscriberMetadataAsTraceOnly() {
+        Campaign campaign = new Campaign();
+        campaign.setId("camp-1");
+        campaign.setTenantId(TENANT_ID);
+        campaign.setWorkspaceId(WORKSPACE_ID);
+        campaign.setStatus(Campaign.CampaignStatus.APPROVED);
+        campaign.addAudience("LIST", "list-1");
+
+        SendJob savedJob = new SendJob();
+        savedJob.setId("job-automation-1");
+        savedJob.setCampaignId("camp-1");
+        savedJob.setStatus(SendJob.JobStatus.RESOLVING);
+
+        SendJobDto.Response expectedResponse = new SendJobDto.Response();
+        expectedResponse.setId("job-automation-1");
+        expectedResponse.setStatus(SendJob.JobStatus.RESOLVING);
+
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "camp-1"))
+                .thenReturn(Optional.of(campaign));
+        when(sendJobRepository.save(any(SendJob.class))).thenReturn(savedJob);
+        when(sendJobMapper.toJobResponse(savedJob)).thenReturn(expectedResponse);
+
+        CampaignDto.TriggerLaunchRequest request = CampaignDto.TriggerLaunchRequest.builder()
+                .triggerSource("AUTOMATION")
+                .triggerReference("workflow-instance-1")
+                .idempotencyKey("automation-send-1")
+                .metadata(Map.of(
+                        "subscriberId", "subscriber-1",
+                        "handoffBoundary", "CAMPAIGN_ORCHESTRATION"))
+                .build();
+
+        SendJobDto.Response response = orchestrationService.triggerFromAutomation("camp-1", request);
+
+        assertThat(response.getId()).isEqualTo("job-automation-1");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Map<String, String>>> audienceCaptor =
+                (ArgumentCaptor<List<Map<String, String>>>) (ArgumentCaptor<?>) ArgumentCaptor.forClass(List.class);
+        verify(eventPublisher).publishAudienceResolutionRequested(
+                eq(TENANT_ID),
+                eq("camp-1"),
+                eq("job-automation-1"),
+                audienceCaptor.capture());
+        assertThat(audienceCaptor.getValue())
+                .containsExactly(Map.of("type", "LIST", "id", "list-1", "action", "INCLUDE"));
     }
 }

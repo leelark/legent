@@ -14,277 +14,7 @@
 
                   ],
     "backlogWork":  [
-                        {
-                            "id":  "email-governance-policy-objects",
-                            "title":  "Add first-class email send governance policy objects",
-                            "status":  "BACKLOG",
-                            "priorityScore":  50,
-                            "scoring":  {
-                                            "productionReadinessImpact":  4,
-                                            "securityRisk":  3,
-                                            "userImpact":  4,
-                                            "performanceImpact":  1,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "CONTENT_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "DELIVERABILITY_ENGINEER",
-                                                  "CAMPAIGN_SERVICE_OWNER",
-                                                  "DATABASE_ENGINEER"
-                                              ],
-                            "scope":  "Model send classifications, sender profiles, delivery profiles, CAN-SPAM/commercial-vs-transactional type, suppression/publication policy, and send-log retention as explicit workflow controls.",
-                            "nonGoals":  "Do not bypass existing suppression, unsubscribe, warmup, inbox safety, or content sanitization controls.",
-                            "sourceFiles":  [
-                                                "services/content-service/src/main/java/com/legent/content/controller/TemplateController.java",
-                                                "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
-                                                "services/delivery-service/src/main/java/com/legent/delivery/service/InboxSafetyService.java",
-                                                "docs/product/salesforce-parity-matrix.md"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Send governance objects have tenant/workspace-scoped ownership and auditability.",
-                                                       "Campaign launch references explicit send policy choices before handoff.",
-                                                       "Deliverability and suppression controls remain fail-closed.",
-                                                       "Focused tests cover missing, invalid, and cross-tenant policy usage."
-                                                   ],
-                            "validationProfile":  "backend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/content-service,services/campaign-service,services/delivery-service -am test"
-                                                   ],
-                            "dependencies":  [
-                                                 "schema design"
-                                             ],
-                            "blockers":  [
 
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "technical-debt.md",
-                                                  "security-findings.md"
-                                              ],
-                            "nextAction":  "Design schema/API boundaries for send governance before implementation.",
-                            "lastUpdated":  "2026-05-20"
-                        },
-                        {
-                            "id":  "contact-data-designer-governance",
-                            "title":  "Deepen Contact Builder style data-designer governance",
-                            "status":  "BACKLOG",
-                            "priorityScore":  49,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  3,
-                                            "userImpact":  4,
-                                            "performanceImpact":  3,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "AUDIENCE_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "DATABASE_ENGINEER",
-                                                  "SECURITY_ENGINEER",
-                                                  "FRONTEND_OWNER"
-                                              ],
-                            "scope":  "Add explicit data-source provenance, relationship cardinality controls, deletion audit, sendable-key governance, and safer relationship/query preview behavior for data extensions and contact records.",
-                            "nonGoals":  "Do not migrate historical Flyway files or weaken tenant/workspace scoping.",
-                            "sourceFiles":  [
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/SegmentController.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/controller/SubscriberController.java",
-                                                "frontend/src/app/(workspace)/audience/data-extensions/page.tsx",
-                                                "frontend/src/components/audience/SegmentRuleBuilder.tsx"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Relationship/cardinality changes are validated and audited.",
-                                                       "Sendable-key and retention/deletion policy changes are tenant/workspace scoped.",
-                                                       "Query preview and segment behavior document performance constraints.",
-                                                       "Tests cover cross-workspace denial and invalid relationship changes."
-                                                   ],
-                            "validationProfile":  "backend-frontend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/audience-service -am test",
-                                                       "cd frontend; npm run lint"
-                                                   ],
-                            "dependencies":  [
-                                                 "data-governance schema design"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "technical-debt.md",
-                                                  "security-findings.md"
-                                              ],
-                            "nextAction":  "No-schema backend preview/relationship/sendable guards completed in checkpoint 20260520T125000Z-contact-data-designer-preview-governance; parent remains open for additive provenance/classification/audit tables, controller API validation, and frontend relationship-designer controls.",
-                            "lastUpdated":  "2026-05-20T13:14:00Z"
-                        },
-                        {
-                            "id":  "automation-file-trigger-extract-family",
-                            "parentId":  "automation-studio-activity-orchestration",
-                            "title":  "Implement scoped file, trigger, and extract activity family",
-                            "status":  "BACKLOG",
-                            "priorityScore":  58,
-                            "scoring":  {
-                                            "productionReadinessImpact":  4,
-                                            "securityRisk":  4,
-                                            "userImpact":  4,
-                                            "performanceImpact":  3,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "AUTOMATION_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "AUDIENCE_SERVICE_OWNER",
-                                                  "SECURITY_ENGINEER",
-                                                  "DEVOPS_ENGINEER"
-                                              ],
-                            "scope":  "Implement file-drop/import-artifact/extract/file-transfer semantics using scoped artifact IDs, storage metadata, dependency traces, and no raw credentials.",
-                            "nonGoals":  "Do not accept raw external URLs, raw object-store credentials, cross-workspace artifact IDs, or unbounded file movement.",
-                            "sourceFiles":  [
-                                                "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/service/ImportService.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java",
-                                                "docs/product/automation-studio-activity-orchestration-plan.md"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Artifact references are service-minted and tenant/workspace-scoped.",
-                                                       "File/extract validation denies traversal, raw URLs, unsafe content types, and cross-workspace artifacts.",
-                                                       "Dry runs record validation only; live runs require explicit confirmation and idempotency.",
-                                                       "Tests cover success, failure, duplicate trigger, and no-secret persistence."
-                                                   ],
-                            "validationProfile":  "security",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/automation-service,services/audience-service -am test",
-                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "automation-activity-security-design",
-                                                 "automation-activity-dependency-run-contract"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "security-findings.md",
-                                                  "technical-debt.md"
-                                              ],
-                            "nextAction":  "Start only after security and dependency/run contracts are implemented.",
-                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
-                        },
-                        {
-                            "id":  "automation-webhook-notification-family",
-                            "parentId":  "automation-studio-activity-orchestration",
-                            "title":  "Implement guarded webhook and notification activity family",
-                            "status":  "BACKLOG",
-                            "priorityScore":  57,
-                            "scoring":  {
-                                            "productionReadinessImpact":  4,
-                                            "securityRisk":  5,
-                                            "userImpact":  3,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "PLATFORM_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "AUTOMATION_SERVICE_OWNER",
-                                                  "SECURITY_ENGINEER",
-                                                  "SRE_MONITORING_ENGINEER"
-                                              ],
-                            "scope":  "Add webhook and notification activities with outbound URL guard, secret refs, response limits, retry/idempotency, terminal notification policy, and failure recording.",
-                            "nonGoals":  "Do not allow private/localhost/metadata URLs, raw auth headers, ambient secrets, or unbounded response storage.",
-                            "sourceFiles":  [
-                                                "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
-                                                "services/platform-service/src/main/java/com/legent/platform/service/WebhookDeliveryService.java",
-                                                "shared/legent-common/src/main/java/com/legent/common/security/OutboundUrlGuard.java",
-                                                "docs/product/automation-studio-activity-orchestration-plan.md"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Webhook URLs pass outbound guard and resolved-address blocking.",
-                                                       "Auth uses secret refs only and responses are size-limited/redacted.",
-                                                       "Notifications fire only terminal states and failures do not mask activity failure.",
-                                                       "Tests cover retries, idempotency, denials, and redaction."
-                                                   ],
-                            "validationProfile":  "security",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/automation-service,services/platform-service,shared/legent-common -am test",
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "automation-activity-security-design",
-                                                 "automation-activity-dependency-run-contract",
-                                                 "platform-event-idempotency"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "security-findings.md",
-                                                  "technical-debt.md"
-                                              ],
-                            "nextAction":  "Start after outbound, redaction, and dependency contracts exist.",
-                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
-                        },
-                        {
-                            "id":  "automation-send-activity-handoff",
-                            "parentId":  "automation-studio-activity-orchestration",
-                            "title":  "Implement governed Automation Studio send activity handoff",
-                            "status":  "BACKLOG",
-                            "priorityScore":  63,
-                            "scoring":  {
-                                            "productionReadinessImpact":  5,
-                                            "securityRisk":  4,
-                                            "userImpact":  4,
-                                            "performanceImpact":  3,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "CAMPAIGN_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "AUTOMATION_SERVICE_OWNER",
-                                                  "DELIVERABILITY_ENGINEER",
-                                                  "SECURITY_ENGINEER",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Define and implement send activity handoff that preserves campaign policy, preflight, suppression, warmup, rate, inbox-safety, tenant/workspace scope, idempotency, and explicit live confirmation.",
-                            "nonGoals":  "Do not bypass campaign orchestration, launch broad campaigns from contact-level journeys without explicit governance, or weaken deliverability gates.",
-                            "sourceFiles":  [
-                                                "services/automation-service/src/main/java/com/legent/automation/service/node/SendEmailNodeHandler.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java",
-                                                "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignSendSafetyService.java",
-                                                "docs/product/automation-studio-activity-orchestration-plan.md"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Send activity semantics distinguish campaign launch from contact/journey handoff.",
-                                                       "Preflight, suppression, warmup, rate, inbox-safety, and send-policy requirements remain fail-closed.",
-                                                       "Kafka envelopes carry tenant/workspace and idempotency identity.",
-                                                       "Tests cover cross-workspace denial, duplicate publish prevention, and no send on unsafe preflight."
-                                                   ],
-                            "validationProfile":  "backend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/automation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am test",
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "automation-activity-security-design",
-                                                 "automation-activity-dependency-run-contract",
-                                                 "email-governance-policy-objects"
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "enhancement-log.md",
-                                                  "security-findings.md",
-                                                  "technical-debt.md",
-                                                  "performance-bottlenecks.md"
-                                              ],
-                            "nextAction":  "Start only after send governance and activity run contracts are ready.",
-                            "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
-                        }
                     ],
     "blockedWork":  [
                         {
@@ -552,6 +282,106 @@
                                               ],
                             "nextAction":  "Blocked until sandbox/signing model and runtime isolation evidence exist.",
                             "lastUpdated":  "2026-05-20T14:27:53.7014884Z"
+                        },
+                        {
+                            "id":  "tracking-ingestion-batch-consumer-readiness",
+                            "title":  "Make tracking ingestion Kafka consumer batch-ready",
+                            "status":  "BLOCKED",
+                            "priorityScore":  55,
+                            "scoring":  {
+                                            "productionReadinessImpact":  4,
+                                            "securityRisk":  3,
+                                            "userImpact":  3,
+                                            "performanceImpact":  5,
+                                            "technicalDebtImpact":  4
+                                        },
+                            "owner":  "TRACKING_SERVICE_OWNER",
+                            "partnerAgents":  [
+                                                  "PERFORMANCE_ENGINEER",
+                                                  "KAFKA_CONTRACTS_OWNER",
+                                                  "TEST_ARCHITECT"
+                                              ],
+                            "scope":  "Add a tracking-service-specific Spring Kafka batch listener factory, change tracking.ingested consumption to receive EventEnvelope batches directly, preserve fail-closed tenant/workspace/idempotency behavior, prevent replay after non-idempotent ClickHouse success, and add focused listener/factory tests.",
+                            "nonGoals":  "Do not claim production throughput, alter Kafka trusted packages, change ClickHouse schema, or weaken signed tracking/outbox/idempotency behavior.",
+                            "sourceFiles":  [
+                                                "services/tracking-service/src/main/java/com/legent/tracking/event/TrackingEventConsumer.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/config/TrackingKafkaConsumerConfig.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingEventIdempotencyService.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingEventFinalizationService.java",
+                                                "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                                "services/tracking-service/src/main/resources/application.yml",
+                                                "services/tracking-service/src/main/resources/db/migration/V13__tracking_idempotency_raw_write_phase.sql",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/event/TrackingEventConsumerTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/config/TrackingKafkaConsumerConfigTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/config/TrackingKafkaConsumerConfigContextTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyServiceTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyMigrationTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventFinalizationServiceTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java",
+                                                "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseInitSqlTest.java",
+                                                "infrastructure/docker/local/clickhouse-init/init.sql",
+                                                ".codex/backlog/queue.json",
+                                                ".codex/checkpoints/20260520T214747Z-tracking-ingestion-batch-consumer-readiness.json",
+                                                ".codex/state/team-state.json",
+                                                ".codex/threads/thread-registry.json",
+                                                ".codex/worktrees/leases/active-leases.json",
+                                                ".codex/memory/active-work-items.md",
+                                                ".codex/memory/blocked-items.md",
+                                                ".codex/memory/performance-bottlenecks.md",
+                                                ".codex/memory/unresolved-risks.md",
+                                                ".codex/memory/release-history.md",
+                                                ".codex/memory/root-cause-history.md",
+                                                ".codex/memory/successful-fixes.md"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "The tracking.ingested listener directly accepts List\u003cEventEnvelope\u003cString\u003e\u003e and references a named tracking batch listener factory.",
+                                                       "The tracking batch factory sets batchListener=true, AckMode.BATCH, configurable concurrency, and bounded max.poll.records without widening trusted packages.",
+                                                       "Envelope eventId, tenantId, workspaceId, payload, and eventType validation happens before idempotency claims or ClickHouse side effects.",
+                                                       "Duplicate/idempotency-rejected events are skipped without ClickHouse writes, aggregation, processed marks, or claim releases.",
+                                                       "A valid multi-record batch is written to ClickHouse in one writeBatch call and processed claims are marked only after aggregation succeeds.",
+                                                       "ClickHouse write failure releases claimed events for Kafka retry, while aggregation/mark failure after ClickHouse success does not release claims for duplicate raw inserts.",
+                                                       "Focused tests cover listener annotation/factory wiring, batch factory settings, valid batch write behavior, duplicate filtering, mismatch fail-closed behavior, and retry release semantics."
+                                                   ],
+                            "validationProfile":  "backend-focused",
+                            "validationCommands":  [
+                                                       ".\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingEventConsumerTest,TrackingKafkaConsumerConfigTest,ClickHouseWriterTest,TrackingIngestionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                       ".\\mvnw.cmd -pl shared/legent-kafka,services/tracking-service -am test",
+                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                       "git diff --check -- services/tracking-service .codex"
+                                                   ],
+                            "dependencies":  [
+
+                                             ],
+                            "blockers":  [
+                                             "Docker/Testcontainers unavailable locally; TrackingEventIdempotencyServiceTest PostgreSQL/Flyway behavior skipped.",
+                                             "ClickHouse runtime evidence unavailable; raw_events dedupe/reconciliation and ambiguous/partial JdbcTemplate.batchUpdate failure behavior remain unproven."
+                                         ],
+                            "memoryTargets":  [
+                                                  "performance-bottlenecks.md",
+                                                  "technical-debt.md",
+                                                  "release-history.md"
+                                              ],
+                            "nextAction":  "Collect Docker/PostgreSQL and ClickHouse runtime evidence, prove raw_events dedupe or reconciliation for ambiguous/partial batch writes, then re-run tracking validation before marking DONE.",
+                            "lastUpdated":  "2026-05-20T22:57:19.4891311Z",
+                            "startedAt":  "2026-05-20T21:47:47.8962137Z",
+                            "completedAt":  "2026-05-20T22:55:51.0163717Z",
+                            "outcome":  "Local tracking ingestion batch-consumer hardening is implemented and validated: tracking now uses a dedicated long-horizon batch Kafka error handler, raw-write/finalization ledger phases, duplicate batch filtering, Docker-independent migration checks, and ClickHouse local/runtime schema repair for writer lineage columns. It is not DONE because Docker/Testcontainers Postgres proof and live ClickHouse raw_events dedupe/reconciliation evidence are unavailable.",
+                            "validationRun":  [
+                                                  "PASS: .\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingEventConsumerTest,TrackingEventIdempotencyMigrationTest,TrackingEventIdempotencyServiceTest,TrackingEventFinalizationServiceTest,TrackingKafkaConsumerConfigTest,TrackingKafkaConsumerConfigContextTest,TrackingEventPublisherTest,ClickHouseWriterTest,ClickHouseRollupServiceTest,ClickHouseInitSqlTest,TrackingIngestionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (48 tests, 7 Docker-gated skips)",
+                                                  "PASS: .\\mvnw.cmd -pl shared/legent-kafka -am \"-Dtest=EventContractValidatorTest,EventPublisherTest,KafkaConsumerConfigTest,KafkaTopicConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (32 tests)",
+                                                  "PASS: .\\mvnw.cmd -pl shared/legent-kafka,services/tracking-service -am test (shared/common/security/cache/kafka plus tracking; tracking 70 tests, 7 Docker-gated skips)",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-thread-coordination.ps1",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                                                  "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                  "PASS: git diff --check -- services/tracking-service shared/legent-kafka infrastructure/docker/local .codex (CRLF warnings only)"
+                                              ],
+                            "residualRisks":  [
+                                                  "Docker/Testcontainers was unavailable, so TrackingEventIdempotencyServiceTest PostgreSQL/Flyway behavior is skipped until Docker or target Postgres evidence is available.",
+                                                  "ClickHouse raw_events still lacks live dedupe/reconciliation proof for ambiguous or partial JdbcTemplate.batchUpdate failures; duplicate raw analytics and overcount risk remains.",
+                                                  "This is local validation only, not production throughput, BI-grade ClickHouse, or release readiness evidence."
+                                              ]
                         }
                     ],
     "standingRisks":  [
@@ -3453,5 +3283,7 @@
                  ],
     "inProgressWork":  [
 
-                       ]
+                       ],
+    "lastActivity":  "2026-05-20T22:57:19.4891311Z",
+    "nextAction":  "Safe-stopped by user request; no active agents, active work, or active leases. tracking-ingestion-batch-consumer-readiness is locally validated but BLOCKED on Docker/PostgreSQL and ClickHouse dedupe/reconciliation evidence."
 }

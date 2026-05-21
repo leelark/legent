@@ -120,6 +120,31 @@ foreach ($item in $allItems) {
     }
 }
 
+function Get-IdSet($Items) {
+    $set = @{}
+    foreach ($item in @($Items)) {
+        if ($item -and $item.id) {
+            $set[[string]$item.id] = $true
+        }
+    }
+    return $set
+}
+
+function Assert-MatchingIdSet([string]$Name, $ExpectedItems, $ActualItems) {
+    $expected = Get-IdSet $ExpectedItems
+    $actual = Get-IdSet $ActualItems
+    foreach ($id in $expected.Keys) {
+        if (-not $actual.ContainsKey($id)) { Fail "team-state $Name missing queue item: $id" }
+    }
+    foreach ($id in $actual.Keys) {
+        if (-not $expected.ContainsKey($id)) { Fail "team-state $Name contains stale or unexpected item: $id" }
+    }
+}
+
+Assert-MatchingIdSet "readyWork" (Get-QueueBucket $queue "readyWork") @($state.readyWork)
+Assert-MatchingIdSet "backlogWork" (Get-QueueBucket $queue "backlogWork") @($state.backlogWork)
+Assert-MatchingIdSet "activeWork" (Get-QueueBucket $queue "inProgressWork") @($state.activeWork)
+
 $registry = Read-Json ".codex/worktrees/worktree-registry.json"
 $leases = Read-Json ".codex/worktrees/leases/active-leases.json"
 if ($null -eq $registry.activeWorktrees) { Fail "worktree registry missing activeWorktrees." }

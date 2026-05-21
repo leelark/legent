@@ -2,17 +2,16 @@ package com.legent.campaign.event;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.security.TenantContext;
-
-import java.util.Map;
-
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletionException;
 
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import java.util.List;
 
 
 @Component
@@ -24,15 +23,22 @@ public class CampaignEventPublisher {
 
     public void publishSendRequested(String tenantId, String campaignId, String jobId, Instant scheduledAt) {
         String workspaceId = TenantContext.requireWorkspaceId();
+        String idempotencyKey = sendRequestedIdempotencyKey(campaignId, jobId);
+        Map<String, String> payload = new LinkedHashMap<>();
+        payload.put("campaignId", campaignId);
+        payload.put("jobId", jobId);
+        payload.put("workspaceId", workspaceId);
+        payload.put("idempotencyKey", idempotencyKey);
+        payload.put("confirmLaunch", "true");
+        if (scheduledAt != null) {
+            payload.put("scheduledAt", scheduledAt.toString());
+        }
         EventEnvelope<Map<String, String>> envelope = EventEnvelope.wrap(
-                AppConstants.TOPIC_SEND_REQUESTED, tenantId, SOURCE,
-                Map.of(
-                        "campaignId", campaignId,
-                        "jobId", jobId,
-                        "workspaceId", workspaceId,
-                        "scheduledAt", scheduledAt != null ? scheduledAt.toString() : ""
-                )
+                AppConstants.TOPIC_SEND_REQUESTED, tenantId, SOURCE, payload
         );
+        envelope.setWorkspaceId(workspaceId);
+        envelope.setOwnershipScope("WORKSPACE");
+        envelope.setIdempotencyKey(idempotencyKey);
         publishAndAwait(AppConstants.TOPIC_SEND_REQUESTED, envelope);
     }
 
@@ -104,5 +110,13 @@ public class CampaignEventPublisher {
             return runtimeException;
         }
         return new IllegalStateException("Failed to publish event to " + topic, cause);
+    }
+
+    private String sendRequestedIdempotencyKey(String campaignId, String jobId) {
+        String requestId = TenantContext.getRequestId();
+        if (requestId != null && !requestId.isBlank()) {
+            return requestId.trim();
+        }
+        return "send:" + campaignId + ":" + jobId;
     }
 }

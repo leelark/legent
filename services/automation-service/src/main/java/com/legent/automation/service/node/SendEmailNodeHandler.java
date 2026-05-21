@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 @Slf4j
 @Component
@@ -37,12 +36,14 @@ public class SendEmailNodeHandler implements NodeHandler {
         if (instance.getWorkspaceId() == null || instance.getWorkspaceId().isBlank()) {
             throw new IllegalStateException("workspaceId is required for SEND_EMAIL action");
         }
+        if (instance.getSubscriberId() == null || instance.getSubscriberId().isBlank()) {
+            throw new IllegalStateException("subscriberId is required for SEND_EMAIL action");
+        }
 
         log.debug("Executing SEND_EMAIL node for instance {}. target campaign: {}", instance.getId(), campaignId);
 
-        String traceJobId = UUID.randomUUID().toString();
         String launchIdempotencyKey = instance.getId() + ":" + node.getId();
-        if (!idempotencyService.registerIfNew(
+        if (!idempotencyService.claimIfNew(
                 instance.getTenantId(),
                 instance.getWorkspaceId(),
                 "workflow.action.send_email",
@@ -53,19 +54,51 @@ public class SendEmailNodeHandler implements NodeHandler {
             return node.getNextNodeId();
         }
 
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("campaignId", campaignId);
-        payload.put("triggerSource", "AUTOMATION");
-        payload.put("triggerReference", instance.getId());
-        payload.put("idempotencyKey", launchIdempotencyKey);
-        payload.put("instanceId", instance.getId());
-        payload.put("workspaceId", instance.getWorkspaceId());
-        payload.put("environmentId", instance.getEnvironmentId());
-        payload.put("actorId", TenantContext.getUserId());
-        payload.put("ownershipScope", instance.getOwnershipScope());
+        boolean published = false;
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("campaignId", campaignId);
+            payload.put("triggerSource", "AUTOMATION");
+            payload.put("triggerReference", instance.getId());
+            payload.put("idempotencyKey", launchIdempotencyKey);
+            payload.put("instanceId", instance.getId());
+            payload.put("workflowInstanceId", instance.getId());
+            payload.put("workflowId", instance.getWorkflowId());
+            payload.put("workflowVersion", instance.getVersion());
+            payload.put("nodeId", node.getId());
+            payload.put("subscriberId", instance.getSubscriberId());
+            payload.put("workspaceId", instance.getWorkspaceId());
+            payload.put("environmentId", instance.getEnvironmentId());
+            payload.put("actorId", TenantContext.getUserId());
+            payload.put("ownershipScope", instance.getOwnershipScope());
+            payload.put("confirmLaunch", true);
+            payload.put("handoffBoundary", "CAMPAIGN_ORCHESTRATION");
+            payload.put("requiresCampaignPreflight", true);
+            payload.put("sendLifecycleOwner", "campaign-service");
+            payload.put("traceId", launchIdempotencyKey);
 
-        // Emit campaign trigger request. Campaign service remains the send lifecycle owner.
-        eventPublisher.publishAction(AppConstants.TOPIC_SEND_REQUESTED, instance.getTenantId(), traceJobId, payload);
+            // Emit campaign trigger request. Campaign service remains the send lifecycle owner.
+            eventPublisher.publishAction(AppConstants.TOPIC_SEND_REQUESTED, instance.getTenantId(), launchIdempotencyKey, payload);
+            published = true;
+            idempotencyService.markProcessed(
+                    instance.getTenantId(),
+                    instance.getWorkspaceId(),
+                    "workflow.action.send_email",
+                    launchIdempotencyKey,
+                    launchIdempotencyKey
+            );
+        } catch (RuntimeException ex) {
+            if (!published) {
+                idempotencyService.releaseClaim(
+                        instance.getTenantId(),
+                        instance.getWorkspaceId(),
+                        "workflow.action.send_email",
+                        launchIdempotencyKey,
+                        launchIdempotencyKey
+                );
+            }
+            throw ex;
+        }
 
         return node.getNextNodeId();
     }

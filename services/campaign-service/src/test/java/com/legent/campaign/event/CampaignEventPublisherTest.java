@@ -14,6 +14,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.eq;
@@ -65,6 +66,29 @@ class CampaignEventPublisherTest {
         Map<String, String> payload = envelopeCaptor.getValue().getPayload();
         assertFalse(payload.containsKey("subscribers"));
         assertFalse(payload.containsKey("payload"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishSendRequestedUsesConfirmedDeterministicIdempotencyPayload() {
+        when(eventPublisher.publish(
+                eq(AppConstants.TOPIC_SEND_REQUESTED),
+                org.mockito.ArgumentMatchers.<EventEnvelope<Map<String, String>>>any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        publisher.publishSendRequested("tenant-1", "campaign-1", "job-1", null);
+
+        ArgumentCaptor<EventEnvelope<Map<String, String>>> envelopeCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_REQUESTED), envelopeCaptor.capture());
+        EventEnvelope<Map<String, String>> envelope = envelopeCaptor.getValue();
+        Map<String, String> payload = envelope.getPayload();
+        assertEquals("workspace-1", envelope.getWorkspaceId());
+        assertEquals("send:campaign-1:job-1", envelope.getIdempotencyKey());
+        assertEquals("campaign-1", payload.get("campaignId"));
+        assertEquals("workspace-1", payload.get("workspaceId"));
+        assertEquals("send:campaign-1:job-1", payload.get("idempotencyKey"));
+        assertEquals("true", payload.get("confirmLaunch"));
+        assertFalse(payload.containsKey("scheduledAt"));
     }
 
     @Test

@@ -46,7 +46,8 @@ public class AutomationStudioService {
             AutomationStudioDto.ActivityType.SQL_QUERY,
             AutomationStudioDto.ActivityType.IMPORT,
             AutomationStudioDto.ActivityType.WEBHOOK,
-            AutomationStudioDto.ActivityType.NOTIFICATION);
+            AutomationStudioDto.ActivityType.NOTIFICATION,
+            AutomationStudioDto.ActivityType.SEND_EMAIL);
     private static final Set<AutomationStudioDto.ActivityType> VALIDATION_ONLY_ACTIVITY_TYPES = EnumSet.of(
             AutomationStudioDto.ActivityType.FILE_DROP,
             AutomationStudioDto.ActivityType.EXTRACT);
@@ -71,6 +72,24 @@ public class AutomationStudioService {
             "webhookauthref",
             "storageconnectionref",
             "scriptartifactref");
+    private static final Set<String> SEND_ACTIVITY_FORBIDDEN_NORMALIZED_KEYS = Set.of(
+            "recipientemail",
+            "email",
+            "subscriberid",
+            "contactid",
+            "recipients",
+            "audienceids",
+            "audienceoverride",
+            "contentid",
+            "templateid",
+            "senderemail",
+            "providerid",
+            "sendingdomain",
+            "sendgovernancepolicyid",
+            "skipsuppression",
+            "skipwarmup",
+            "ignoreratelimits",
+            "forcesend");
 
     private final AutomationActivityRepository activityRepository;
     private final AutomationActivityRunRepository runRepository;
@@ -293,6 +312,7 @@ public class AutomationStudioService {
         rejectSensitiveKeys("outputConfig", outputConfig);
         rejectRawFileActivityReferences(request.getActivityType(), inputConfig, outputConfig);
         rejectRawWebhookActivityReferences(request.getActivityType(), inputConfig);
+        rejectUnsafeSendActivityReferences(request.getActivityType(), inputConfig);
         activity.setInputConfig(writeJson(inputConfig));
         activity.setOutputConfig(writeJson(outputConfig));
     }
@@ -367,7 +387,7 @@ public class AutomationStudioService {
             normalized.put("liveExecutionSupported", liveExecutionSupported);
             normalized.put("validationOnly", validationOnly);
             if (!liveExecutionSupported && !validationOnly) {
-                errors.add(type.name() + " activity execution is not supported in Automation Studio. Supported live activity types: SQL_QUERY, IMPORT, WEBHOOK, NOTIFICATION.");
+                errors.add(type.name() + " activity execution is not supported in Automation Studio. Supported live activity types: SQL_QUERY, IMPORT, WEBHOOK, NOTIFICATION, SEND_EMAIL.");
             } else if (validationOnly) {
                 warnings.add(type.name() + " activity supports dry-run validation only; live file movement is not enabled.");
             }
@@ -379,6 +399,7 @@ public class AutomationStudioService {
                 case SCRIPT -> verifyScript(input, errors, warnings);
                 case WEBHOOK -> verifyWebhook(input, errors, normalized);
                 case NOTIFICATION -> verifyNotification(input, errors, normalized);
+                case SEND_EMAIL -> verifySendEmail(input, errors, normalized);
             }
         }
         return AutomationStudioDto.VerificationResponse.builder()
@@ -571,6 +592,38 @@ public class AutomationStudioService {
         }
     }
 
+    private void verifySendEmail(Map<String, Object> input, List<String> errors, Map<String, Object> normalized) {
+        String campaignId = asString(input.get("campaignId"));
+        if (campaignId == null) {
+            errors.add("Send email activity requires inputConfig.campaignId");
+        } else if (!isSafeReference(campaignId)) {
+            errors.add("Send email activity campaignId must be an opaque campaign reference");
+        } else {
+            normalized.put("campaignId", campaignId);
+        }
+        String scheduledAt = asString(input.get("scheduledAt"));
+        if (scheduledAt != null) {
+            try {
+                Instant.parse(scheduledAt);
+                normalized.put("scheduledAt", scheduledAt);
+            } catch (Exception ex) {
+                errors.add("Send email activity scheduledAt must be an ISO-8601 instant");
+            }
+        }
+        String triggerReference = asString(input.get("triggerReference"));
+        if (triggerReference != null && !isSafeReference(triggerReference)) {
+            errors.add("Send email activity triggerReference must be an opaque reference");
+        }
+        List<String> forbiddenOverrides = sendActivityForbiddenOverrides(input);
+        if (!forbiddenOverrides.isEmpty()) {
+            errors.add("Send email activity cannot override recipients, content, sender, provider, governance policy, or safety controls: "
+                    + String.join(", ", forbiddenOverrides));
+        }
+        normalized.put("handoffBoundary", "CAMPAIGN_ORCHESTRATION");
+        normalized.put("requiresCampaignPreflight", true);
+        normalized.put("requiresSideEffectIdempotency", true);
+    }
+
     private Map<String, Object> runResult(AutomationActivity activity, AutomationStudioDto.RunRequest request, AutomationActivityRun run) {
         if (activity.getActivityType() == AutomationStudioDto.ActivityType.SQL_QUERY) {
             return runSqlQueryActivity(activity, request);
@@ -589,6 +642,9 @@ public class AutomationStudioService {
         }
         if (activity.getActivityType() == AutomationStudioDto.ActivityType.NOTIFICATION) {
             return runNotificationActivity(activity, request, run);
+        }
+        if (activity.getActivityType() == AutomationStudioDto.ActivityType.SEND_EMAIL) {
+            return runSendEmailActivity(activity, request, run);
         }
         Map<String, Object> result = new LinkedHashMap<>();
         if (!request.isDryRun()) {
@@ -753,6 +809,87 @@ public class AutomationStudioService {
         return result;
     }
 
+    private Map<String, Object> runSendEmailActivity(AutomationActivity activity,
+                                                     AutomationStudioDto.RunRequest request,
+                                                     AutomationActivityRun run) {
+        Map<String, Object> input = readMap(activity.getInputConfig());
+        String campaignId = asString(input.get("campaignId"));
+        String scheduledAt = asString(firstNonNull(valueFromOverrides(request, "scheduledAt"), input.get("scheduledAt")));
+        if (scheduledAt != null) {
+            try {
+                Instant.parse(scheduledAt);
+            } catch (Exception ex) {
+                throw new ValidationException("scheduledAt", "Send email scheduledAt must be an ISO-8601 instant");
+            }
+        }
+        String triggerSource = normalizeSendTriggerSource(asString(firstNonNull(
+                valueFromOverrides(request, "triggerSource"),
+                request.getTriggerSource(),
+                input.get("triggerSource"))));
+        String triggerReference = asString(firstNonNull(
+                valueFromOverrides(request, "triggerReference"),
+                input.get("triggerReference")));
+        if (triggerReference == null) {
+            triggerReference = activity.getId() + ":" + run.getId();
+        }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("activityType", activity.getActivityType().name());
+        result.put("dryRun", request.isDryRun());
+        result.put("rowsRead", 0L);
+        result.put("rowsWritten", 0L);
+        result.put("checkedAt", Instant.now().toString());
+        result.put("campaignId", campaignId);
+        result.put("triggerSource", triggerSource);
+        result.put("triggerReference", triggerReference);
+        result.put("handoffBoundary", "CAMPAIGN_ORCHESTRATION");
+        result.put("requiresCampaignPreflight", true);
+        result.put("deliveryBoundary", "campaign.send_lifecycle");
+        if (scheduledAt != null) {
+            result.put("scheduledAt", scheduledAt);
+        }
+        if (request.isDryRun()) {
+            result.put("message", "Send activity verified; no campaign send request published.");
+            return result;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("tenantId", activity.getTenantId());
+        payload.put("workspaceId", activity.getWorkspaceId());
+        payload.put("ownershipScope", "WORKSPACE");
+        payload.put("campaignId", campaignId);
+        payload.put("triggerSource", triggerSource);
+        payload.put("triggerReference", triggerReference);
+        payload.put("idempotencyKey", normalizeBlank(request.getIdempotencyKey()));
+        payload.put("confirmLaunch", true);
+        payload.put("activityId", activity.getId());
+        payload.put("activityRunId", run.getId());
+        payload.put("activityType", activity.getActivityType().name());
+        payload.put("traceId", run.getTraceId());
+        payload.put("handoffBoundary", "CAMPAIGN_ORCHESTRATION");
+        payload.put("requiresCampaignPreflight", true);
+        payload.put("sendLifecycleOwner", "campaign-service");
+        String environmentId = TenantContext.getEnvironmentId();
+        if (environmentId != null && !environmentId.isBlank()) {
+            payload.put("environmentId", environmentId);
+        }
+        String actorId = TenantContext.getUserId();
+        if (actorId != null && !actorId.isBlank()) {
+            payload.put("actorId", actorId);
+        }
+        if (scheduledAt != null) {
+            payload.put("scheduledAt", scheduledAt);
+        }
+
+        publishActionEvent(AppConstants.TOPIC_SEND_REQUESTED,
+                campaignId + ":" + activity.getId(),
+                payload,
+                request.getIdempotencyKey());
+        result.put("message", "Campaign send request accepted by campaign orchestration.");
+        result.put("publishedTopic", AppConstants.TOPIC_SEND_REQUESTED);
+        return result;
+    }
+
     private Map<String, Object> runSqlQueryActivity(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
         Map<String, Object> input = readMap(activity.getInputConfig());
         Map<String, Object> output = readMap(activity.getOutputConfig());
@@ -860,6 +997,28 @@ public class AutomationStudioService {
                         "Webhook activities use platform webhook subscriptions; raw endpoint, method, header, and body config is not accepted");
             }
         }
+    }
+
+    private void rejectUnsafeSendActivityReferences(AutomationStudioDto.ActivityType type, Map<String, Object> input) {
+        if (type != AutomationStudioDto.ActivityType.SEND_EMAIL) {
+            return;
+        }
+        String campaignId = asString(input.get("campaignId"));
+        if (campaignId != null && !isSafeReference(campaignId)) {
+            throw new ValidationException("inputConfig.campaignId",
+                    "Send email activities require an opaque campaignId reference");
+        }
+        List<String> forbiddenOverrides = sendActivityForbiddenOverrides(input);
+        if (!forbiddenOverrides.isEmpty()) {
+            throw new ValidationException("inputConfig",
+                    "Send email activities hand off an existing governed campaign; configure recipients, content, sender, provider, governance policy, and safety controls on the campaign");
+        }
+    }
+
+    private List<String> sendActivityForbiddenOverrides(Map<String, Object> input) {
+        return input.keySet().stream()
+                .filter(key -> key != null && SEND_ACTIVITY_FORBIDDEN_NORMALIZED_KEYS.contains(normalizeKey(key)))
+                .toList();
     }
 
     private void rejectUnsafeArtifactId(String path, Object value) {
@@ -1004,6 +1163,13 @@ public class AutomationStudioService {
                                       String partitionKey,
                                       Map<String, Object> payload,
                                       String idempotencyKey) {
+        publishActionEvent(topic, partitionKey, payload, idempotencyKey);
+    }
+
+    private void publishActionEvent(String topic,
+                                    String partitionKey,
+                                    Map<String, Object> payload,
+                                    String idempotencyKey) {
         String previousRequestId = TenantContext.getRequestId();
         TenantContext.setRequestId(idempotencyKey);
         try {
@@ -1011,6 +1177,18 @@ public class AutomationStudioService {
         } finally {
             TenantContext.setRequestId(previousRequestId);
         }
+    }
+
+    private String normalizeSendTriggerSource(String value) {
+        String normalized = normalizeBlank(value);
+        if (normalized == null) {
+            return "AUTOMATION_STUDIO";
+        }
+        normalized = normalized.trim().toUpperCase(Locale.ROOT);
+        if (!normalized.matches("[A-Z0-9_-]{1,64}")) {
+            throw new ValidationException("triggerSource", "Send email triggerSource must be a compact identifier");
+        }
+        return normalized;
     }
 
     @SuppressWarnings("unchecked")
@@ -1047,7 +1225,7 @@ public class AutomationStudioService {
         return SENSITIVE_KEY_NAMES.stream().anyMatch(normalized::contains);
     }
 
-    private String normalizeKey(String key) {
+    private static String normalizeKey(String key) {
         return key.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
     }
 

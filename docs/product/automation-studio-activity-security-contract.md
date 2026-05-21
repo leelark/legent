@@ -8,10 +8,10 @@ Backlog item: `automation-activity-security-design`.
 
 - `AutomationActivity.inputConfig`, `outputConfig`, and `verificationJson` are persisted as JSON and returned by activity responses.
 - `AutomationActivityRun.resultJson` and `errorMessage` are persisted and returned by run-history responses.
-- `AutomationStudioService` currently supports live execution for `SQL_QUERY`, `IMPORT`, `WEBHOOK`, and `NOTIFICATION`; file-drop/extract remain validation-only and script execution remains blocked.
+- `AutomationStudioService` currently supports live execution for `SQL_QUERY`, `IMPORT`, `WEBHOOK`, `NOTIFICATION`, and `SEND_EMAIL`; file-drop/extract remain validation-only and script execution remains blocked.
 - `AudienceDataExtensionClient` calls audience-service internal SQL/import routes with tenant/workspace headers and an internal service credential.
 - `OutboundUrlGuard` already blocks non-public resolved addresses, localhost-style hosts, reserved IPv4/IPv6 ranges, user-info URLs, and non-HTTPS URLs when required.
-- `SendEmailNodeHandler` publishes a campaign send request with `campaignId`, workflow reference, workspace/environment context, and idempotency identity; campaign service remains the send lifecycle owner.
+- `SendEmailNodeHandler` and Automation Studio `SEND_EMAIL` activities publish confirmed campaign send requests with `campaignId`, workspace/environment context, source workflow/node or activity/run identity, deterministic idempotency, and campaign-service lifecycle ownership.
 
 ## Required Invariants
 
@@ -106,12 +106,13 @@ Every new service-to-service route used by Automation Studio must have:
 3. Add capability UI so unsupported families are visible as unavailable, not implied. DONE_LOCAL in `automation-activity-capability-verification-ui`.
 4. Add file/import/extract artifact ownership. DONE_LOCAL in `automation-file-trigger-extract-family`.
 5. Add webhook/notification execution. DONE_LOCAL in `automation-webhook-notification-family`.
-6. Add governed send handoff.
+6. Add governed send handoff. DONE_LOCAL in `automation-send-activity-handoff`.
 7. Revisit script only after sandbox approval and operational evidence.
 
 ## Residual Risks
 
 - Local import execution now resolves `inputConfig.artifactId` to automation-owned artifact metadata and passes the service-generated object key only to the internal audience-service handoff. Target storage adapter evidence is still absent, so file-transfer parity and live file movement remain unclaimed.
 - Local webhook/notification execution now uses platform event handoff, explicit live confirmation, idempotency keys, terminal notification policy, and bounded/redacted platform webhook response persistence. Target platform migration, Kafka replay, provider egress, and real endpoint behavior still require environment evidence before release claims.
+- Local send activity execution now uses campaign-service handoff only, requires explicit live confirmation and idempotency, rejects unsafe send overrides, and enforces `send.requested` confirmation/idempotency contracts. Delivery-owned immutable policy snapshots, target Kafka replay, provider capacity, deliverability evidence, and live send-path proof remain required before release or parity claims.
 - Current workflow send publication happens inside the workflow transaction. Broader orchestration fan-out should be paired with outbox or after-commit publication.
 - Run-history listing is locally bounded/pageable, but retention and high-volume query behavior still need target evidence before high-volume automation claims.

@@ -17,9 +17,11 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.audience.domain.DataExtension;
 import com.legent.audience.domain.DataExtensionField;
+import com.legent.audience.domain.DataExtensionGovernanceAudit;
 import com.legent.audience.domain.DataExtensionRecord;
 import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.repository.DataExtensionFieldRepository;
+import com.legent.audience.repository.DataExtensionGovernanceAuditRepository;
 import com.legent.audience.repository.DataExtensionRecordRepository;
 import com.legent.audience.repository.DataExtensionRepository;
 import com.legent.common.exception.ConflictException;
@@ -45,10 +47,15 @@ public class DataExtensionService {
     private static final int MAX_RELATIONSHIPS = 20;
     private static final Set<String> SUPPORTED_RELATIONSHIP_CARDINALITIES =
             Set.of("ONE_TO_ONE", "ONE_TO_MANY", "MANY_TO_ONE", "MANY_TO_MANY");
+    private static final Set<String> SUPPORTED_SOURCE_TYPES =
+            Set.of("MANUAL", "IMPORT", "QUERY", "API", "AUTOMATION", "INTEGRATION");
+    private static final Set<String> SUPPORTED_CLASSIFICATIONS =
+            Set.of("PUBLIC", "INTERNAL", "CONFIDENTIAL", "RESTRICTED");
 
     private final DataExtensionRepository deRepository;
     private final DataExtensionFieldRepository fieldRepository;
     private final DataExtensionRecordRepository recordRepository;
+    private final DataExtensionGovernanceAuditRepository governanceAuditRepository;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -85,9 +92,11 @@ public class DataExtensionService {
         de.setSendable(sendable);
         de.setSendableField(sendableField);
         de.setPrimaryKeyField(primaryKeyField);
+        applyGovernanceMetadata(de, request.getGovernance());
         DataExtension savedDe = deRepository.save(de);
 
         saveFields(savedDe.getId(), request.getFields(), true);
+        writeGovernanceAudit(savedDe, "CREATED", "Data extension created", governanceSnapshot(savedDe));
 
         log.info("Data extension created: tenant={}, name={}, id={}, fields={}",
                 tenantId, de.getName(), savedDe.getId(), request.getFields().size());
@@ -122,7 +131,11 @@ public class DataExtensionService {
         de.setSendable(sendable);
         de.setSendableField(sendableField);
         de.setPrimaryKeyField(primaryKeyField);
-        return toResponse(deRepository.save(de));
+        DataExtension saved = deRepository.save(de);
+        writeGovernanceAudit(saved, "SENDABLE_UPDATED", "Sendable configuration updated",
+                Map.of("sendable", saved.isSendable(), "sendableField", nullSafe(saved.getSendableField()),
+                        "primaryKeyField", nullSafe(saved.getPrimaryKeyField())));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -139,7 +152,33 @@ public class DataExtensionService {
             de.setRetentionDays(request.getRetentionDays());
             de.setRetentionAction(action);
         }
-        return toResponse(deRepository.save(de));
+        DataExtension saved = deRepository.save(de);
+        writeGovernanceAudit(saved, "RETENTION_UPDATED", "Retention policy updated",
+                Map.of("retentionAction", nullSafe(saved.getRetentionAction()),
+                        "retentionDays", saved.getRetentionDays() == null ? "" : saved.getRetentionDays()));
+        return toResponse(saved);
+    }
+
+    @Transactional
+    public DataExtensionDto.Response updateGovernance(String deId, DataExtensionDto.GovernanceMetadata request) {
+        DataExtension de = requireDataExtension(deId);
+        applyGovernanceMetadata(de, request);
+        de.setGovernanceReviewedBy(TenantContext.getUserId());
+        de.setGovernanceReviewedAt(Instant.now());
+        DataExtension saved = deRepository.save(de);
+        writeGovernanceAudit(saved, "GOVERNANCE_UPDATED", "Governance metadata updated", governanceSnapshot(saved));
+        return toResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DataExtensionDto.GovernanceAuditResponse> listGovernanceAudit(String deId) {
+        DataExtension de = requireDataExtension(deId);
+        return governanceAuditRepository
+                .findTop20ByTenantIdAndWorkspaceIdAndDataExtensionIdOrderByCreatedAtDesc(
+                        de.getTenantId(), de.getWorkspaceId(), de.getId())
+                .stream()
+                .map(this::mapGovernanceAudit)
+                .toList();
     }
 
     @Transactional
@@ -150,7 +189,10 @@ public class DataExtensionService {
                 : request.getRelationships();
         validateRelationships(de, relationships);
         de.setRelationshipJson(writeRelationships(relationships));
-        return toResponse(deRepository.save(de));
+        DataExtension saved = deRepository.save(de);
+        writeGovernanceAudit(saved, "RELATIONSHIPS_UPDATED", "Relationship metadata updated",
+                Map.of("relationshipCount", relationships.size()));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -321,6 +363,7 @@ public class DataExtensionService {
         DataExtension de = requireDataExtension(id);
         de.softDelete();
         deRepository.save(de);
+        writeGovernanceAudit(de, "DELETED", "Data extension soft-deleted", governanceSnapshot(de));
         log.info("Data extension deleted: tenant={}, id={}", TenantContext.requireTenantId(), id);
     }
 
@@ -348,6 +391,8 @@ public class DataExtensionService {
             field.setFieldType(parseFieldType(fd.getFieldType()));
             field.setRequired(fd.isRequired());
             field.setPrimaryKey(fd.isPrimaryKey());
+            field.setDataClassification(normalizeAllowed(
+                    fd.getDataClassification(), "field.dataClassification", SUPPORTED_CLASSIFICATIONS, "INTERNAL"));
             field.setDefaultValue(fd.getDefaultValue());
             field.setMaxLength(fd.getMaxLength());
             field.setOrdinal(fd.getOrdinal() > 0 ? fd.getOrdinal() : ordinal);
@@ -374,6 +419,7 @@ public class DataExtensionService {
                 throw new ValidationException("fieldName", "Duplicate field name: " + name);
             }
             parseFieldType(field.getFieldType());
+            normalizeAllowed(field.getDataClassification(), "field.dataClassification", SUPPORTED_CLASSIFICATIONS, "INTERNAL");
             if (field.getMaxLength() != null && field.getMaxLength() < 1) {
                 throw new ValidationException("maxLength", "maxLength must be positive");
             }
@@ -712,6 +758,7 @@ public class DataExtensionService {
                 .id(de.getId()).name(de.getName()).description(de.getDescription())
                 .sendable(de.isSendable()).sendableField(de.getSendableField())
                 .primaryKeyField(de.getPrimaryKeyField())
+                .governance(toGovernanceMetadata(de))
                 .retentionDays(de.getRetentionDays())
                 .retentionAction(de.getRetentionAction())
                 .relationships(readRelationships(de.getRelationshipJson()))
@@ -724,10 +771,34 @@ public class DataExtensionService {
         return fields.stream()
                 .map(f -> DataExtensionDto.FieldDefinition.builder()
                         .fieldName(f.getFieldName()).fieldType(f.getFieldType().name())
+                        .dataClassification(f.getDataClassification())
                         .required(f.isRequired()).primaryKey(f.isPrimaryKey())
                         .defaultValue(f.getDefaultValue()).maxLength(f.getMaxLength())
                         .ordinal(f.getOrdinal()).build())
                 .toList();
+    }
+
+    private DataExtensionDto.GovernanceMetadata toGovernanceMetadata(DataExtension de) {
+        return DataExtensionDto.GovernanceMetadata.builder()
+                .sourceType(de.getSourceType())
+                .sourceSystem(de.getSourceSystem())
+                .sourceReference(de.getSourceReference())
+                .dataClassification(de.getDataClassification())
+                .governanceNotes(de.getGovernanceNotes())
+                .reviewedBy(de.getGovernanceReviewedBy())
+                .reviewedAt(de.getGovernanceReviewedAt())
+                .build();
+    }
+
+    private DataExtensionDto.GovernanceAuditResponse mapGovernanceAudit(DataExtensionGovernanceAudit audit) {
+        return DataExtensionDto.GovernanceAuditResponse.builder()
+                .id(audit.getId())
+                .action(audit.getAction())
+                .summary(audit.getSummary())
+                .metadata(audit.getMetadata())
+                .createdAt(audit.getCreatedAt())
+                .createdBy(audit.getCreatedBy())
+                .build();
     }
 
     private Map<String, DataExtensionField> fieldMap(List<DataExtensionField> fields) {
@@ -755,6 +826,73 @@ public class DataExtensionService {
         } catch (Exception ex) {
             return List.of();
         }
+    }
+
+    private void applyGovernanceMetadata(DataExtension de, DataExtensionDto.GovernanceMetadata governance) {
+        DataExtensionDto.GovernanceMetadata safeGovernance = governance == null
+                ? new DataExtensionDto.GovernanceMetadata()
+                : governance;
+        de.setSourceType(normalizeAllowed(
+                safeGovernance.getSourceType(), "sourceType", SUPPORTED_SOURCE_TYPES,
+                de.getSourceType() == null ? "MANUAL" : de.getSourceType()));
+        de.setSourceSystem(normalizeLength(safeGovernance.getSourceSystem(), 128));
+        de.setSourceReference(normalizeLength(safeGovernance.getSourceReference(), 255));
+        de.setDataClassification(normalizeAllowed(
+                safeGovernance.getDataClassification(), "dataClassification", SUPPORTED_CLASSIFICATIONS,
+                de.getDataClassification() == null ? "INTERNAL" : de.getDataClassification()));
+        de.setGovernanceNotes(normalizeLength(safeGovernance.getGovernanceNotes(), 1000));
+    }
+
+    private void writeGovernanceAudit(DataExtension de,
+                                      String action,
+                                      String summary,
+                                      Map<String, Object> metadata) {
+        DataExtensionGovernanceAudit audit = new DataExtensionGovernanceAudit();
+        audit.setTenantId(de.getTenantId());
+        audit.setWorkspaceId(de.getWorkspaceId());
+        audit.setDataExtensionId(de.getId());
+        audit.setAction(action);
+        audit.setSummary(summary);
+        audit.setCreatedBy(TenantContext.getUserId());
+        audit.setMetadata(metadata == null ? Map.of() : metadata);
+        governanceAuditRepository.save(audit);
+    }
+
+    private Map<String, Object> governanceSnapshot(DataExtension de) {
+        Map<String, Object> snapshot = new LinkedHashMap<>();
+        snapshot.put("sourceType", nullSafe(de.getSourceType()));
+        snapshot.put("sourceSystem", nullSafe(de.getSourceSystem()));
+        snapshot.put("sourceReference", nullSafe(de.getSourceReference()));
+        snapshot.put("dataClassification", nullSafe(de.getDataClassification()));
+        snapshot.put("governanceNotes", nullSafe(de.getGovernanceNotes()));
+        return snapshot;
+    }
+
+    private String normalizeAllowed(String value,
+                                    String field,
+                                    Set<String> allowed,
+                                    String defaultValue) {
+        String normalized = normalizeBlank(value);
+        if (normalized == null) {
+            return defaultValue;
+        }
+        normalized = normalized.toUpperCase(Locale.ROOT);
+        if (!allowed.contains(normalized)) {
+            throw new ValidationException(field, "Unsupported " + field + ": " + value);
+        }
+        return normalized;
+    }
+
+    private String normalizeLength(String value, int maxLength) {
+        String normalized = normalizeBlank(value);
+        if (normalized != null && normalized.length() > maxLength) {
+            throw new ValidationException("governance", "Governance value exceeds max length " + maxLength);
+        }
+        return normalized;
+    }
+
+    private String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 
     private String normalizeBlank(String value) {

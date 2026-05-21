@@ -52,6 +52,7 @@ class AudienceControllerRbacTest {
         assertThat(preAuthorizeGrants(SendEligibilityController.class, "check", Set.of("VIEWER"))).isTrue();
         assertThat(expression(DataExtensionController.class, "previewQuery")).contains("audience:read");
         assertThat(expression(DataExtensionController.class, "previewImportMapping")).contains("audience:read");
+        assertThat(expression(DataExtensionController.class, "listGovernanceAudit")).contains("audience:read");
         assertThat(expression(SegmentController.class, "previewPredictiveSegment")).contains("audience:read");
     }
 
@@ -62,6 +63,7 @@ class AudienceControllerRbacTest {
         assertThat(preAuthorizeGrants(SubscriberController.class, "delete", Set.of("VIEWER"))).isFalse();
         assertThat(preAuthorizeGrants(ImportController.class, "uploadImport", Set.of("VIEWER"))).isFalse();
         assertThat(preAuthorizeGrants(PreferenceController.class, "resubscribe", Set.of("VIEWER"))).isFalse();
+        assertThat(preAuthorizeGrants(DataExtensionController.class, "updateGovernance", Set.of("VIEWER"))).isFalse();
     }
 
     @Test

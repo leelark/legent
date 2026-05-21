@@ -186,11 +186,14 @@ public class ComplianceEvidenceService {
 
     @Transactional
     public Map<String, Object> updatePrivacyRequest(String id, ComplianceDto.PrivacyStatusRequest request) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
         String status = request.getStatus().trim().toUpperCase();
-        Map<String, Object> updated = repository.updateById(
+        Map<String, Object> updated = repository.updateByIdAndWorkspace(
                 "privacy_requests",
                 id,
-                TenantContext.requireTenantId(),
+                tenantId,
+                workspaceId,
                 mapWithNullable(
                         "status", status,
                         "completed_at", List.of("COMPLETED", "REJECTED", "CANCELLED").contains(status) ? Instant.now() : null,

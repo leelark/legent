@@ -88,6 +88,45 @@ class CorePlatformControllerTest {
         verify(corePlatformService).listAuditEvents("workspace-1", "MEMBERSHIP_CREATE", 25, Set.of("WORKSPACE_OWNER"));
     }
 
+    @Test
+    void listRoleBindings_passesAuthenticatedRolesToScopedServiceRead() {
+        CorePlatformController controller = new CorePlatformController(corePlatformService);
+        UserPrincipal principal = principal(Set.of("WORKSPACE_OWNER"));
+        when(corePlatformService.listRoleBindings(principal.getRoles()))
+                .thenReturn(List.of(Map.of("id", "binding-1")));
+
+        ApiResponse<List<Map<String, Object>>> response = controller.listRoleBindings(principal);
+
+        assertThat(response.getData()).extracting(row -> row.get("id")).containsExactly("binding-1");
+        verify(corePlatformService).listRoleBindings(Set.of("WORKSPACE_OWNER"));
+    }
+
+    @Test
+    void listAccessGrants_passesAuthenticatedRolesToScopedServiceRead() {
+        CorePlatformController controller = new CorePlatformController(corePlatformService);
+        UserPrincipal principal = principal(Set.of("WORKSPACE_OWNER"));
+        when(corePlatformService.listAccessGrants(principal.getRoles()))
+                .thenReturn(List.of(Map.of("id", "grant-1")));
+
+        ApiResponse<List<Map<String, Object>>> response = controller.listAccessGrants(principal);
+
+        assertThat(response.getData()).extracting(row -> row.get("id")).containsExactly("grant-1");
+        verify(corePlatformService).listAccessGrants(Set.of("WORKSPACE_OWNER"));
+    }
+
+    @Test
+    void previewAccessPolicy_passesAuthenticatedRolesToScopedServiceRead() {
+        CorePlatformController controller = new CorePlatformController(corePlatformService);
+        UserPrincipal principal = principal(Set.of("WORKSPACE_OWNER"));
+        when(corePlatformService.previewAccessPolicy("user-2", principal.getRoles()))
+                .thenReturn(Map.of("principalId", "user-2"));
+
+        ApiResponse<Map<String, Object>> response = controller.previewAccessPolicy(principal, "user-2");
+
+        assertThat(response.getData()).containsEntry("principalId", "user-2");
+        verify(corePlatformService).previewAccessPolicy("user-2", Set.of("WORKSPACE_OWNER"));
+    }
+
     private UserPrincipal principal(Set<String> roles) {
         return new UserPrincipal("user-1", "tenant-1", "workspace-1", null, roles);
     }

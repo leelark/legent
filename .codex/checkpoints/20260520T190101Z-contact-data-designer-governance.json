@@ -1,0 +1,43 @@
+{
+    "id":  "contact-data-designer-governance",
+    "createdAt":  "2026-05-20T19:01:01.3715726Z",
+    "objective":  "Deepen Contact Builder style data-designer governance",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/domain/DataExtension.java",
+                         "services/audience-service/src/main/java/com/legent/audience/domain/DataExtensionField.java",
+                         "services/audience-service/src/main/java/com/legent/audience/domain/DataExtensionGovernanceAudit.java",
+                         "services/audience-service/src/main/java/com/legent/audience/dto/DataExtensionDto.java",
+                         "services/audience-service/src/main/java/com/legent/audience/repository/DataExtensionGovernanceAuditRepository.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/DataExtensionService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                         "services/audience-service/src/main/resources/db/migration/V18__data_extension_governance_metadata.sql",
+                         "services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/repository/DataExtensionGovernanceMigrationTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "DATABASE_ENGINEER",
+                   "SECURITY_ENGINEER",
+                   "FRONTEND_OWNER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am test",
+                           "cd frontend; npm run lint"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Fix automation-send-activity-handoff review findings before selecting unrelated new work."
+}

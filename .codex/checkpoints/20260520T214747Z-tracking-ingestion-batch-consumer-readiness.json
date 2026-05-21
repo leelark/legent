@@ -1,0 +1,111 @@
+﻿{
+    "id":  "tracking-ingestion-batch-consumer-readiness",
+    "createdAt":  "2026-05-20T21:47:47.8216502Z",
+    "objective":  "Make tracking ingestion Kafka consumer batch-ready",
+    "status":  "BLOCKED",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/event/TrackingEventConsumer.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/config/TrackingKafkaConsumerConfig.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingEventIdempotencyService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingEventFinalizationService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                         "services/tracking-service/src/main/resources/application.yml",
+                         "services/tracking-service/src/main/resources/db/migration/V13__tracking_idempotency_raw_write_phase.sql",
+                         "services/tracking-service/src/test/java/com/legent/tracking/event/TrackingEventConsumerTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/config/TrackingKafkaConsumerConfigTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/config/TrackingKafkaConsumerConfigContextTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyMigrationTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventFinalizationServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseInitSqlTest.java",
+                         "infrastructure/docker/local/clickhouse-init/init.sql",
+                         ".codex/backlog/queue.json",
+                         ".codex/checkpoints/20260520T214747Z-tracking-ingestion-batch-consumer-readiness.json",
+                         ".codex/state/team-state.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/blocked-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md"
+                     ],
+    "agents":  [
+                   "TRACKING_SERVICE_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "KAFKA_CONTRACTS_OWNER",
+                   "TEST_ARCHITECT",
+                   "DOCUMENTATION_ENGINEER"
+               ],
+    "implementationWorkers":  [
+                                  {
+                                      "agentId":  "019e4768-d5da-7791-880f-7992e60642ed",
+                                      "nickname":  "Kepler",
+                                      "lane":  "IdempotencyLedger",
+                                      "scope":  "TrackingEventIdempotencyService, V13 raw-write phase migration, and optional idempotency regression test."
+                                  },
+                                  {
+                                      "agentId":  "019e4768-d665-7fe0-961c-42d89280de89",
+                                      "nickname":  "Kant",
+                                      "lane":  "FinalizationService",
+                                      "scope":  "TrackingEventFinalizationService and focused finalization service test."
+                                  },
+                                  {
+                                      "agentId":  "019e4768-d6f7-72e1-8679-c66d61876707",
+                                      "nickname":  "Carson",
+                                      "lane":  "TrackingConsumerResume",
+                                      "scope":  "TrackingEventConsumer resume integration."
+                                  },
+                                  {
+                                      "agentId":  "019e4768-d812-7c82-946e-e0240d8d5aad",
+                                      "nickname":  "Laplace",
+                                      "lane":  "TrackingConsumerResumeTests",
+                                      "scope":  "TrackingEventConsumerTest resume coverage."
+                                  },
+                                  {
+                                      "agentId":  "019e4768-d9ea-7773-9f7e-e9f0d0ccb28b",
+                                      "nickname":  "Darwin",
+                                      "lane":  "ReadOnlyCompileReview",
+                                      "scope":  "Read-only compile and migration review."
+                                  },
+                                  {
+                                      "agentId":  "019e4768-daf0-7e81-a1fe-ef66dbf9942d",
+                                      "nickname":  "Lovelace",
+                                      "lane":  "StateMemory",
+                                      "scope":  "Allowed state, checkpoint, active memory, and thread-registry reconciliation."
+                                  }
+                              ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingEventConsumerTest,TrackingKafkaConsumerConfigTest,ClickHouseWriterTest,TrackingIngestionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl shared/legent-kafka,services/tracking-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "git diff --check -- services/tracking-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Safe-stopped locally. Resume only after Docker/PostgreSQL and ClickHouse runtime evidence is available; prove raw_events dedupe or reconciliation for ambiguous/partial batch writes, then re-run tracking validation before marking DONE.",
+    "lastUpdated":  "2026-05-20T22:57:19.4891311Z",
+    "outcome":  "Local tracking ingestion batch-consumer hardening is implemented and validated: tracking now uses a dedicated long-horizon batch Kafka error handler, raw-write/finalization ledger phases, duplicate batch filtering, Docker-independent migration checks, and ClickHouse local/runtime schema repair for writer lineage columns. It is not DONE because Docker/Testcontainers Postgres proof and live ClickHouse raw_events dedupe/reconciliation evidence are unavailable.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingEventConsumerTest,TrackingEventIdempotencyMigrationTest,TrackingEventIdempotencyServiceTest,TrackingEventFinalizationServiceTest,TrackingKafkaConsumerConfigTest,TrackingKafkaConsumerConfigContextTest,TrackingEventPublisherTest,ClickHouseWriterTest,ClickHouseRollupServiceTest,ClickHouseInitSqlTest,TrackingIngestionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (48 tests, 7 Docker-gated skips)",
+                          "PASS: .\\mvnw.cmd -pl shared/legent-kafka -am \"-Dtest=EventContractValidatorTest,EventPublisherTest,KafkaConsumerConfigTest,KafkaTopicConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (32 tests)",
+                          "PASS: .\\mvnw.cmd -pl shared/legent-kafka,services/tracking-service -am test (shared/common/security/cache/kafka plus tracking; tracking 70 tests, 7 Docker-gated skips)",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-thread-coordination.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "PASS: git diff --check -- services/tracking-service shared/legent-kafka infrastructure/docker/local .codex (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "Docker/Testcontainers was unavailable, so TrackingEventIdempotencyServiceTest PostgreSQL/Flyway behavior is skipped until Docker or target Postgres evidence is available.",
+                          "ClickHouse raw_events still lacks live dedupe/reconciliation proof for ambiguous or partial JdbcTemplate.batchUpdate failures; duplicate raw analytics and overcount risk remains.",
+                          "This is local validation only, not production throughput, BI-grade ClickHouse, or release readiness evidence."
+                      ]
+}

@@ -22,7 +22,8 @@ public class AutomationStudioDto {
         EXTRACT,
         SCRIPT,
         WEBHOOK,
-        NOTIFICATION
+        NOTIFICATION,
+        SEND_EMAIL
     }
 
     public enum ActivityStatus {

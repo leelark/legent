@@ -2,6 +2,46 @@
 
 Fresh baseline date: 2026-05-20.
 
+## 2026-05-21 Tracking Ingestion Batch Consumer Local Hardening
+
+Source: `TrackingEventConsumer.java`, `TrackingKafkaConsumerConfig.java`, `TrackingEventIdempotencyService.java`, `TrackingEventFinalizationService.java`, `ClickHouseRollupService.java`, `V13__tracking_idempotency_raw_write_phase.sql`, focused tracking tests, and shared Kafka tests.
+
+Outcome: tracking ingestion now consumes `tracking.ingested` as Kafka batches with fail-closed envelope/scope checks, same-batch duplicate filtering, raw-write/finalization idempotency phases, and a tracking-only long-horizon retry handler so stale `IN_PROGRESS` claims can be reclaimed before DLQ recovery. Docker-independent migration coverage now runs without Testcontainers, and local/service ClickHouse schema setup repairs writer lineage columns.
+
+Validation: focused tracking validation passed with 48 tests and 7 Docker-gated skips; focused shared Kafka validation passed with 32 tests; full `.\mvnw.cmd -pl shared/legent-kafka,services/tracking-service -am test` passed with tracking-service 70 tests and 7 Docker-gated skips; Codex system, thread coordination, lease, artifact hygiene, and scoped diff checks passed.
+
+Residual risk: the item is blocked, not done. PostgreSQL/Flyway idempotency behavior still needs Docker or target evidence, and ClickHouse raw-events dedupe/reconciliation for ambiguous or partial batch writes remains unproven.
+
+## 2026-05-20 Foundation Config Version History Scope
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/domain/ConfigVersionHistory.java`, `ConfigVersionHistoryRepository.java`, `ConfigVersioningService.java`, `ConfigService.java`, `ConfigVersionController.java`, `AdminSettingsService.java`, `services/foundation-service/src/main/resources/db/migration/V17__config_version_history_scope.sql`, and focused foundation tests.
+
+Outcome: config version history now records workspace/environment scope, exact nullable scope predicates are used for history, compare, rollback, and version numbering, rollback uses `ConfigRepository.findByScope`, rollback config side effects invalidate/publish through `ConfigService`, history writes fail the mutation if version recording fails, and V17 adds an exact-scope unique key/version index.
+
+Validation: focused `ConfigVersioningServiceTest,ConfigServiceTest,AdminSettingsServiceTest,ConfigVersionControllerTest` passed with 38 tests; full `.\mvnw.cmd -pl services/foundation-service -am test` passed with foundation-service and upstream shared modules; Codex validation, monitor check, repo artifact hygiene, and scoped `git diff --check` passed.
+
+Residual risk: legacy pre-V17 history rows remain nullable because historical workspace/environment ownership cannot be safely inferred; target databases should be checked for duplicate tenant/key/version rows before migration.
+
+## 2026-05-20 Automation Send Handoff Review Hardening
+
+Source: `services/automation-service/src/main/java/com/legent/automation/service/node/SendEmailNodeHandler.java`, `services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java`, `services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java`, `services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java`, `shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventContractValidator.java`, and focused automation/campaign/Kafka tests.
+
+Outcome: review findings on the governed send handoff are fixed locally. Workflow `SEND_EMAIL` now claims before Kafka publish, marks processed only after successful publish, and releases the pending claim on publish failure. Send override keys are normalized so snake/kebab/case variants cannot bypass governed-campaign handoff rules. `send.requested` producer validation now rejects non-true `confirmLaunch` and envelope/payload idempotency mismatches before Kafka. Campaign consumption now fails closed when a `subscriberId` trace appears without explicit `CAMPAIGN_ORCHESTRATION` handoff markers, while tests document campaign-wide audience semantics.
+
+Validation: focused `SendEmailNodeHandlerTest,AutomationStudioServiceTest,WorkflowGraphValidatorTest,CampaignEventConsumerTest,OrchestrationServiceTest,EventContractValidatorTest` passed with 89 tests; full `.\mvnw.cmd -pl services/automation-service,services/campaign-service -am test` passed across shared dependencies, campaign, and automation.
+
+Residual risk: this is local backend contract evidence only. Production send proof, target Kafka replay, target Flyway/migration proof, provider capacity, deliverability evidence, and high-volume load evidence remain separate release blockers.
+
+## 2026-05-20 Automation Send Activity Handoff
+
+Source: `services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java`, `services/automation-service/src/main/java/com/legent/automation/service/node/SendEmailNodeHandler.java`, `services/automation-service/src/main/java/com/legent/automation/event/WorkflowEventPublisher.java`, `services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java`, `services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java`, `services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventPublisher.java`, `services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java`, `shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventContractValidator.java`, and focused automation/campaign/Kafka tests.
+
+Outcome: Automation Studio `SEND_EMAIL` activities and workflow `SEND_EMAIL` nodes now hand off only confirmed `send.requested` campaign launch commands with tenant/workspace context, source activity/run or workflow/node identity, deterministic idempotency, and campaign-service send lifecycle ownership. Unsafe recipient, content, sender, provider, governance-policy, and safety-control overrides are rejected; campaign consumption now fails closed on missing confirmation, workspace, or idempotency.
+
+Validation: focused automation tests passed with 40 tests, focused campaign tests passed with 29 tests, shared Kafka contract tests passed with 16 tests, and full `.\mvnw.cmd -pl services/automation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am test` passed.
+
+Residual risk: this is a local governed handoff contract, not production send evidence, Salesforce parity, inbox-placement proof, or 10 lakh throughput proof. Delivery-owned immutable policy snapshots, target Kafka replay, provider capacity, deliverability, production egress, and live send-path evidence remain required before release claims.
+
 ## 2026-05-20 Suppression Delete Tenant Scope
 
 Source: `services/audience-service/src/main/java/com/legent/audience/service/SuppressionService.java`, `services/audience-service/src/main/java/com/legent/audience/repository/SuppressionRepository.java`, `services/audience-service/src/test/java/com/legent/audience/service/SuppressionServiceTest.java`.
@@ -156,6 +196,56 @@ Validation: focused `DifferentiationPlatformServiceTest` passed with 5 tests, fu
 
 Residual risk: list/evaluate query semantics still need endpoint-by-endpoint review before changing tenant-level plus workspace-level visibility; tenant lifecycle policy and config version-history scoping remain separate follow-ups.
 
+## 2026-05-20 Foundation Core Platform Workspace Guards
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/CorePlatformService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/CorePlatformServiceTest.java`.
+
+Outcome: core-platform team/department creation now rejects workspace/context mismatches; memberships prove workspace-to-organization, workspace-to-business-unit, team, and department ownership; role bindings prove workspace context, team ownership, user membership, and known resource workspace ownership; access grants prove grantee membership; permission groups reject cross-tenant request IDs.
+
+Validation: focused `CorePlatformServiceTest` passed with 28 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 138 foundation-service tests plus upstream shared modules, Codex validation passed, monitor check passed, lease validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: role-binding/access-grant list and access-policy preview read paths remain tenant-wide and need a separately leased controller/service slice; nullable permission-list JSON defaults remain a small follow-up.
+
+## 2026-05-20 Foundation Core Platform Read Scope
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/CorePlatformService.java`, `services/foundation-service/src/main/java/com/legent/foundation/controller/CorePlatformController.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/CorePlatformServiceTest.java`, and `services/foundation-service/src/test/java/com/legent/foundation/controller/CorePlatformControllerTest.java`.
+
+Outcome: core-platform role-binding/access-grant lists and access-policy preview now use authenticated roles to preserve tenant-wide reads only for tenant-wide principals while requiring workspace context and exact-workspace predicates for workspace-scoped callers.
+
+Validation: focused `CorePlatformServiceTest,CorePlatformControllerTest` passed with 45 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 150 foundation-service tests plus upstream shared modules, Codex validation passed, monitor check passed, lease validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: workspace reads intentionally exclude `workspace_id` null tenant/global rows until inherited visibility semantics are decided; access-policy preview filters returned rows but does not prove principal membership because the endpoint lacks typed principal context.
+
+## 2026-05-20 Foundation Differentiation Evaluate Scope
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/DifferentiationPlatformService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/DifferentiationPlatformServiceTest.java`, six read-only differentiation scouts, and `services/foundation-service/src/main/resources/db/migration/V13__phase4_differentiation_platform.sql`.
+
+Outcome: decision-policy evaluation, omnichannel simulation, and SLO evaluation now use exact nullable workspace matching, so missing workspace context can no longer wildcard into arbitrary workspace rows or create run/incident records under a workspace the caller did not prove.
+
+Validation: focused `DifferentiationPlatformServiceTest` passed with 9 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 154 foundation-service tests plus upstream shared modules, Codex validation passed, monitor check passed, lease validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: service-level null workspace still matches null-workspace tenant/global rows; inherited fallback semantics and list/inventory visibility remain separate product/security decisions.
+
+## 2026-05-20 Foundation Compliance Privacy Request Workspace Scope
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/ComplianceEvidenceService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/ComplianceEvidenceServiceTest.java`, and six read-only compliance privacy-request scouts.
+
+Outcome: privacy-request status updates now require current workspace context and mutate by tenant+workspace+ID before audit evidence is written, with denial tests proving missing workspace and scoped-row-missing paths do not create audit records.
+
+Validation: focused `ComplianceEvidenceServiceTest` passed with 5 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 157 foundation-service tests plus upstream shared modules, Codex validation passed, monitor check passed, lease validation passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: nullable or tenant-global privacy request mutation remains blocked until a specific admin policy is designed; list/export nullable workspace behavior was not changed in this slice.
+
+## 2026-05-20 Foundation Permission List JSON Defaulting
+
+Source: `services/foundation-service/src/main/java/com/legent/foundation/service/CorePlatformService.java`, `services/foundation-service/src/test/java/com/legent/foundation/service/CorePlatformServiceTest.java`, and six read-only permission-list scouts.
+
+Outcome: role definition, permission group, and delegated access grant creation now serialize omitted permission lists as JSON arrays `[]` while preserving non-empty arrays and object-shaped metadata defaults.
+
+Validation: focused `CorePlatformServiceTest` passed with 41 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 161 foundation-service tests plus upstream shared modules, V6 migration diff check passed, Codex validation passed, monitor check passed, lease validation passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: existing rows with malformed permission JSON shapes are not backfilled; strict clients that depended on `{}` for omitted permissions need compatibility review.
+
 ## 2026-05-20 Public Contact Admin Platform-Admin Only
 
 Source: `services/foundation-service/src/main/java/com/legent/foundation/controller/AdminContactRequestController.java`, `services/foundation-service/src/test/java/com/legent/foundation/controller/AdminContactRequestControllerSecurityTest.java`.
@@ -186,6 +276,16 @@ Validation: focused `DataExtensionServiceTest,SegmentServiceTest` passed with 31
 
 Residual risk: this was a no-schema backend hardening slice. First-class provenance/classification/audit tables, import source metadata, indexed relationship execution, frontend relationship designer controls, and target migration proof remain follow-up work.
 
+## 2026-05-20 Audience Contact Data Designer Governance Metadata
+
+Source: `services/audience-service/src/main/java/com/legent/audience/domain/DataExtension.java`, `DataExtensionField.java`, `DataExtensionGovernanceAudit.java`, `DataExtensionDto.java`, `DataExtensionService.java`, `DataExtensionController.java`, `DataExtensionGovernanceAuditRepository.java`, `services/audience-service/src/main/resources/db/migration/V18__data_extension_governance_metadata.sql`, `DataExtensionServiceTest.java`, `DataExtensionGovernanceMigrationTest.java`, and `AudienceControllerRbacTest.java`.
+
+Outcome: data extensions now carry first-class source/provenance metadata, data classification, governance review fields, field-level classification, and a tenant/workspace-scoped governance audit trail for create, governance update, sendable config, retention, relationships, and soft delete changes.
+
+Validation: focused `DataExtensionServiceTest,DataExtensionGovernanceMigrationTest,AudienceControllerRbacTest` passed with 32 tests, full `.\mvnw.cmd -pl services/audience-service -am test` passed with 131 audience-service tests plus upstream shared modules, frontend lint passed, Codex validation passed, lease validation passed, and `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local schema/API evidence only. Target Flyway migration proof against representative legacy rows, import-source population depth, subscriber/contact provenance, frontend governance drawer controls, indexed relationship execution, and Contact Builder parity claims remain follow-up work.
+
 ## 2026-05-20 Email Governance Policy Objects
 
 Source: `services/content-service/src/main/java/com/legent/content/domain/SendGovernancePolicy.java`, `services/content-service/src/main/java/com/legent/content/controller/SendGovernancePolicyController.java`, `services/content-service/src/main/java/com/legent/content/service/SendGovernancePolicyService.java`, `services/campaign-service/src/main/java/com/legent/campaign/service/CampaignLaunchReadinessGate.java`, `services/campaign-service/src/main/java/com/legent/campaign/client/ContentServiceClient.java`, `services/content-service/src/main/resources/db/migration/V10__send_governance_policies.sql`, and `services/campaign-service/src/main/resources/db/migration/V15__campaign_send_governance_policy.sql`.
@@ -200,6 +300,7 @@ No product fix entries exist in the fresh memory baseline.
 
 Current non-product success:
 - 2026-05-20: `.codex` autonomous organization was rebuilt and hardened as a project operating system. Evidence: changed files under `.codex/`, root operating docs, `docs/operations/`, `docs/audits/`, `docs/product/`, and `scripts/ops/`. Validation included Codex system validation, route map, env example, production overlay, repo artifact hygiene, egress evidence template, release evidence validator self-test, local release gate, Compose config with `.env.example`, Kustomize render, JSON parsing, PowerShell parser checks, and `git diff --check`.
+- 2026-05-20: Codex state/dashboard convergence fixed stale team-state queue mirrors, dashboard Markdown code-span rendering for work item IDs, and validation coverage for ready/backlog/active mirror drift. Validation: monitor regenerate, Codex system validation, cleanup dry run, and scoped `.codex` `git diff --check` passed. Residual risk: manual queue edits must use Codex state utilities or keep team-state mirrors synchronized.
 - 2026-05-20: Production egress evidence validation now rejects placeholder evidence. Source problem: the checked-in egress evidence template passed validation with `example-*` fields and RFC documentation CIDR values. Changed files: `validate-production-egress-evidence.ps1`, `test-release-evidence-validators.ps1`, `ga-evidence-matrix.md`, release command docs, validation gates, and dated report errata. Validation: release evidence self-test passed; direct template validation failed as expected; local release gate, Codex validation, and `git diff --check` passed. Residual risk: real production egress evidence and generated policy inclusion proof remain separate requirements.
 - 2026-05-20: Strict production egress validation now proves reviewed policy render inclusion. Source problem: reviewed egress evidence could be validated without proving the generated reviewed external egress NetworkPolicy rendered into the production manifest, and stale generated policy artifacts were not hash-tied to the evidence. Changed files: `write-production-egress-policy.ps1`, `validate-production-egress-policy-render.ps1`, `validate-production-egress-evidence.ps1`, `release-gate.ps1`, and `test-release-evidence-validators.ps1`. Validation: release evidence self-test, production overlay validation, production Kustomize render, local release gate, Codex validation, repo artifact hygiene, and `git diff --check`. Residual risk: target-environment egress, image, GA, load, restore, CI/security, TLS/admission, and monitoring evidence still block production promotion.
 

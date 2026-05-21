@@ -1,0 +1,43 @@
+{
+    "id":  "foundation-config-version-history-scope",
+    "createdAt":  "2026-05-20T21:01:07.0619702Z",
+    "objective":  "Scope config version history and rollback by workspace/environment",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/domain/ConfigVersionHistory.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigVersionHistoryRepository.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigVersioningService.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/ConfigService.java",
+                         "services/foundation-service/src/main/resources/db/migration/V17__config_version_history_scope.sql",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigVersioningServiceTest.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/ConfigServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "DATA_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ConfigVersioningServiceTest,ConfigServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/foundation-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/foundation-service .codex\\checkpoints\\20260520T210107Z-foundation-config-version-history-scope.json .codex\\memory\\active-work-items.md .codex\\memory\\blocked-items.md .codex\\threads\\thread-registry.json"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-priority safe local work item after dashboard refresh."
+}

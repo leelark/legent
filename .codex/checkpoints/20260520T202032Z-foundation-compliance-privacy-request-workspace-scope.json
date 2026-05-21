@@ -1,0 +1,54 @@
+{
+    "id":  "foundation-compliance-privacy-request-workspace-scope",
+    "createdAt":  "2026-05-20T20:20:32.5277523Z",
+    "objective":  "Scope compliance privacy-request status updates by workspace",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/ComplianceEvidenceService.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/ComplianceEvidenceServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "DATA_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ComplianceEvidenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/foundation-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/foundation-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote next safe foundation item: nullable permission-list JSON defaulting or select the next highest-value local backlog item after pending scan.",
+    "completedAt":  "2026-05-20T20:30:33.5743602Z",
+    "outcome":  "Privacy-request status updates now require current workspace context and use tenant+workspace+ID scoped mutation before audit evidence is created, with focused no-audit denial tests.",
+    "validationRun":  [
+                          "PASS: .\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=ComplianceEvidenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (5 tests; rerun after removing Java-time test fixture value)",
+                          "PASS: .\\mvnw.cmd -pl services/foundation-service -am test (157 foundation-service tests plus shared upstream tests)",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-worktree-leases.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1 -CheckOnly",
+                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "PASS: git diff --check -- services/foundation-service .codex (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "Privacy request status updates now require current workspace context; nullable/tenant-global privacy request mutation needs an explicit admin policy before support is added.",
+                          "List/export nullable workspace behavior was out of scope and should be reviewed separately if service-level non-HTTP callers are added.",
+                          "This is local validation only; production release still requires target-environment evidence gates."
+                      ]
+}

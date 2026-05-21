@@ -1,5 +1,7 @@
 package com.legent.foundation.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.foundation.domain.ConfigVersionHistory;
 import java.util.List;
 import java.util.Optional;
 
@@ -18,11 +20,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.AdditionalAnswers.returnsFirstArg;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -42,13 +44,14 @@ class ConfigServiceTest {
         @Mock
         private EventPublisher eventPublisher;
 
-        @InjectMocks
         private ConfigService configService;
 
         private static final String TENANT_ID = "test-tenant-001";
 
         @BeforeEach
         void setUp() {
+                configService = new ConfigService(configRepository, configVersionHistoryRepository, configMapper,
+                                cacheService, eventPublisher, new ObjectMapper());
                 TenantContext.setTenantId(TENANT_ID);
         }
 
@@ -151,7 +154,7 @@ class ConfigServiceTest {
                 when(configMapper.toEntity(request)).thenReturn(entity);
                 when(configRepository.save(entity)).thenReturn(entity);
                 when(configMapper.toResponse(entity)).thenReturn(expected);
-                when(configVersionHistoryRepository.findMaxVersionByTenantIdAndConfigKey(TENANT_ID, "new.key"))
+                when(configVersionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(TENANT_ID, null, null, "new.key"))
                                 .thenReturn(0);
 
                 ConfigDto.Response result = configService.createConfig(TENANT_ID, request);
@@ -159,6 +162,146 @@ class ConfigServiceTest {
                 assertThat(result.getConfigKey()).isEqualTo("new.key");
                 verify(eventPublisher).publish(anyString(), any());
                 verify(cacheService, atLeastOnce()).deleteByPattern(anyString());
+        }
+
+        @Test
+        @DisplayName("createConfig fails before side effects when scoped history cannot be recorded")
+        void createConfig_failsWhenHistoryCannotBeRecorded() {
+                ConfigDto.CreateRequest request = ConfigDto.CreateRequest.builder()
+                                .configKey("new.key")
+                                .configValue("new.value")
+                                .category("SYSTEM")
+                                .build();
+                SystemConfig entity = new SystemConfig();
+                entity.setConfigKey("new.key");
+                entity.setConfigValue("new.value");
+
+                when(configRepository.existsByScope(TENANT_ID, null, null, "new.key"))
+                                .thenReturn(false);
+                when(configMapper.toEntity(request)).thenReturn(entity);
+                when(configRepository.save(entity)).thenReturn(entity);
+                when(configVersionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(
+                                TENANT_ID, null, null, "new.key"))
+                                .thenThrow(new IllegalStateException("duplicate scoped version"));
+
+                assertThatThrownBy(() -> configService.createConfig(TENANT_ID, request))
+                                .isInstanceOf(IllegalStateException.class)
+                                .hasMessageContaining("duplicate scoped version");
+
+                verify(eventPublisher, never()).publish(anyString(), any());
+                verify(cacheService, never()).deleteByPattern(anyString());
+                verify(configMapper, never()).toResponse(any(SystemConfig.class));
+        }
+
+        @Test
+        @DisplayName("createConfig records tenant-scope history with exact scope")
+        void createConfig_recordsTenantScopeVersion() {
+                ConfigDto.CreateRequest request = ConfigDto.CreateRequest.builder()
+                                .configKey("scoped.key")
+                                .configValue("tenant-value")
+                                .category("SYSTEM")
+                                .build();
+                SystemConfig entity = new SystemConfig();
+                entity.setConfigKey("scoped.key");
+                when(configRepository.existsByScope(TENANT_ID, null, null, "scoped.key")).thenReturn(false);
+                when(configMapper.toEntity(request)).thenReturn(entity);
+                when(configRepository.save(entity)).then(returnsFirstArg());
+                when(configMapper.toResponse(any(SystemConfig.class))).thenReturn(ConfigDto.Response.builder().build());
+                when(configVersionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(TENANT_ID, null, null, "scoped.key"))
+                                .thenReturn(4);
+
+                configService.createConfig(TENANT_ID, request);
+
+                verify(configVersionHistoryRepository)
+                                .findMaxVersionByExactScopeAndConfigKey(TENANT_ID, null, null, "scoped.key");
+                ConfigVersionHistory history = savedHistory();
+                assertThat(history.getVersion()).isEqualTo(5);
+                assertThat(history.getTenantId()).isEqualTo(TENANT_ID);
+                assertThat(history.getWorkspaceId()).isNull();
+                assertThat(history.getEnvironmentId()).isNull();
+                assertThat(entity.getConfigVersion()).isEqualTo(5);
+        }
+
+        @Test
+        @DisplayName("upsertConfig records workspace-scope history independently from tenant scope")
+        void upsertConfig_recordsWorkspaceScopeVersion() {
+                TenantContext.setWorkspaceId("workspace-1");
+                ConfigDto.CreateRequest request = ConfigDto.CreateRequest.builder()
+                                .configKey("scoped.key")
+                                .configValue("workspace-value")
+                                .scopeType(ConfigService.SCOPE_WORKSPACE)
+                                .workspaceId("workspace-1")
+                                .category("SYSTEM")
+                                .build();
+                when(configRepository.findByScope(TENANT_ID, "workspace-1", null, "scoped.key"))
+                                .thenReturn(Optional.empty());
+                when(configRepository.save(any(SystemConfig.class))).then(returnsFirstArg());
+                when(configMapper.toResponse(any(SystemConfig.class))).thenReturn(ConfigDto.Response.builder().build());
+                when(configVersionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(
+                                TENANT_ID, "workspace-1", null, "scoped.key")).thenReturn(null);
+
+                configService.upsertConfig(TENANT_ID, "workspace-1", null, request);
+
+                verify(configVersionHistoryRepository).findMaxVersionByExactScopeAndConfigKey(
+                                TENANT_ID, "workspace-1", null, "scoped.key");
+                ConfigVersionHistory history = savedHistory();
+                assertThat(history.getVersion()).isEqualTo(1);
+                assertThat(history.getTenantId()).isEqualTo(TENANT_ID);
+                assertThat(history.getWorkspaceId()).isEqualTo("workspace-1");
+                assertThat(history.getEnvironmentId()).isNull();
+                assertThat(history.getChangeType()).isEqualTo(ConfigVersionHistory.ChangeType.CREATE.name());
+        }
+
+        @Test
+        @DisplayName("updateConfig records environment-scope history from the existing config scope")
+        void updateConfig_recordsEnvironmentScopeVersion() {
+                TenantContext.setWorkspaceId("workspace-1");
+                TenantContext.setEnvironmentId("prod");
+                ConfigDto.UpdateRequest request = ConfigDto.UpdateRequest.builder()
+                                .configValue("new-value")
+                                .build();
+                SystemConfig existing = environmentConfig("scoped.key", "old-value");
+                when(configRepository.findByIdAndTenantIdAndDeletedAtIsNull("config-1", TENANT_ID))
+                                .thenReturn(Optional.of(existing));
+                when(configRepository.save(existing)).thenReturn(existing);
+                when(configMapper.toResponse(existing)).thenReturn(ConfigDto.Response.builder().build());
+                when(configVersionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(
+                                TENANT_ID, "workspace-1", "prod", "scoped.key")).thenReturn(2);
+
+                configService.updateConfig("config-1", request);
+
+                verify(configVersionHistoryRepository).findMaxVersionByExactScopeAndConfigKey(
+                                TENANT_ID, "workspace-1", "prod", "scoped.key");
+                ConfigVersionHistory history = savedHistory();
+                assertThat(history.getVersion()).isEqualTo(3);
+                assertThat(history.getTenantId()).isEqualTo(TENANT_ID);
+                assertThat(history.getWorkspaceId()).isEqualTo("workspace-1");
+                assertThat(history.getEnvironmentId()).isEqualTo("prod");
+                assertThat(history.getChangeType()).isEqualTo(ConfigVersionHistory.ChangeType.UPDATE.name());
+        }
+
+        @Test
+        @DisplayName("deleteConfig records environment-scope history without sharing tenant/key numbering")
+        void deleteConfig_recordsEnvironmentScopeVersion() {
+                TenantContext.setWorkspaceId("workspace-1");
+                TenantContext.setEnvironmentId("prod");
+                SystemConfig existing = environmentConfig("scoped.key", "old-value");
+                when(configRepository.findByIdAndTenantIdAndDeletedAtIsNull("config-1", TENANT_ID))
+                                .thenReturn(Optional.of(existing));
+                when(configRepository.save(existing)).thenReturn(existing);
+                when(configVersionHistoryRepository.findMaxVersionByExactScopeAndConfigKey(
+                                TENANT_ID, "workspace-1", "prod", "scoped.key")).thenReturn(7);
+
+                configService.deleteConfig("config-1");
+
+                verify(configVersionHistoryRepository).findMaxVersionByExactScopeAndConfigKey(
+                                TENANT_ID, "workspace-1", "prod", "scoped.key");
+                ConfigVersionHistory history = savedHistory();
+                assertThat(history.getVersion()).isEqualTo(8);
+                assertThat(history.getTenantId()).isEqualTo(TENANT_ID);
+                assertThat(history.getWorkspaceId()).isEqualTo("workspace-1");
+                assertThat(history.getEnvironmentId()).isEqualTo("prod");
+                assertThat(history.getChangeType()).isEqualTo(ConfigVersionHistory.ChangeType.DELETE.name());
         }
 
         @Test
@@ -281,4 +424,23 @@ class ConfigServiceTest {
 
                 verify(configRepository, never()).save(any());
         }
+
+        private ConfigVersionHistory savedHistory() {
+                var captor = org.mockito.ArgumentCaptor.forClass(ConfigVersionHistory.class);
+                verify(configVersionHistoryRepository).save(captor.capture());
+                return captor.getValue();
+        }
+
+        private SystemConfig environmentConfig(String key, String value) {
+                SystemConfig config = new SystemConfig();
+                config.setTenantId(TENANT_ID);
+                config.setWorkspaceId("workspace-1");
+                config.setEnvironmentId("prod");
+                config.setConfigKey(key);
+                config.setConfigValue(value);
+                config.setValueType(SystemConfig.ValueType.STRING);
+                config.setCategory("SYSTEM");
+                return config;
+        }
+
 }

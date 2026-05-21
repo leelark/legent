@@ -7,7 +7,7 @@ import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.ClickHouseWriter;
-import com.legent.tracking.service.AggregationService;
+import com.legent.tracking.service.TrackingEventFinalizationService;
 import com.legent.tracking.service.TrackingEventIdempotencyService;
 import com.legent.tracking.domain.RawEvent;
 import lombok.RequiredArgsConstructor;
@@ -16,9 +16,11 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -26,15 +28,14 @@ import java.util.Objects;
 public class TrackingEventConsumer {
 
     private final ClickHouseWriter clickHouseWriter;
-    private final AggregationService aggregationService;
+    private final TrackingEventFinalizationService finalizationService;
     private final TrackingEventIdempotencyService idempotencyService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = AppConstants.TOPIC_TRACKING_INGESTED, groupId = "tracking-clickhouse-group")
-    public void handleIngestedEvent(EventEnvelope<String> event) {
-        handleIngestedEvents(List.of(event));
-    }
-
+    @KafkaListener(
+            topics = AppConstants.TOPIC_TRACKING_INGESTED,
+            groupId = "tracking-clickhouse-group",
+            containerFactory = "trackingIngestedKafkaListenerContainerFactory")
     void handleIngestedEvents(List<EventEnvelope<String>> events) {
         if (events == null || events.isEmpty()) {
             log.info("Received empty tracking event batch");
@@ -42,7 +43,11 @@ public class TrackingEventConsumer {
         }
 
         log.info("Received batch of {} tracking events", events.size());
-        List<ClaimedTrackingEvent> claimedEvents = new ArrayList<>();
+        List<ClaimedTrackingEvent> rawWriteEvents = new ArrayList<>();
+        List<ClaimedTrackingEvent> finalizationEvents = new ArrayList<>();
+        List<ClaimedTrackingEvent> inProgressEvents = new ArrayList<>();
+        Set<BatchLookupKey> seenEventIds = new HashSet<>();
+        Set<BatchLookupKey> seenIdempotencyKeys = new HashSet<>();
 
         try {
             for (EventEnvelope<String> event : events) {
@@ -67,43 +72,171 @@ public class TrackingEventConsumer {
                 }
                 String eventId = firstNonBlank(contract.eventId(), payload.getId(), idempotencyKey);
 
-                if (!idempotencyService.claimIfNew(
+                BatchLookupKey eventBatchKey = new BatchLookupKey(
+                        contract.tenantId(),
+                        contract.workspaceId(),
+                        eventType,
+                        eventId);
+                BatchLookupKey idempotencyBatchKey = idempotencyKey == null
+                        ? null
+                        : new BatchLookupKey(contract.tenantId(), contract.workspaceId(), eventType, idempotencyKey);
+                if (seenEventIds.contains(eventBatchKey)
+                        || (idempotencyBatchKey != null && seenIdempotencyKeys.contains(idempotencyBatchKey))) {
+                    log.debug("Skipping duplicate tracking event in same batch tenant={}, workspace={}, type={}, eventId={}, idemKey={}",
+                            contract.tenantId(), contract.workspaceId(), eventType, eventId, idempotencyKey);
+                    continue;
+                }
+                seenEventIds.add(eventBatchKey);
+                if (idempotencyBatchKey != null) {
+                    seenIdempotencyKeys.add(idempotencyBatchKey);
+                }
+
+                ClaimedTrackingEvent claimedEvent = new ClaimedTrackingEvent(
+                        payload,
                         contract.tenantId(),
                         contract.workspaceId(),
                         eventType,
                         eventId,
-                        idempotencyKey)) {
-                    continue;
+                        idempotencyKey);
+                var claimStatus = idempotencyService.claimForProcessing(
+                        contract.tenantId(),
+                        contract.workspaceId(),
+                        eventType,
+                        eventId,
+                        idempotencyKey);
+                if (claimStatus == null) {
+                    throw new IllegalStateException("Tracking idempotency claim status is required for eventId=" + eventId);
                 }
-                claimedEvents.add(new ClaimedTrackingEvent(payload, contract.tenantId(), contract.workspaceId(), eventType, eventId, idempotencyKey));
+                switch (claimStatus) {
+                    case CLAIMED -> {
+                        rawWriteEvents.add(claimedEvent);
+                        finalizationEvents.add(claimedEvent);
+                    }
+                    case RAW_WRITTEN -> finalizationEvents.add(claimedEvent);
+                    case IN_PROGRESS -> inProgressEvents.add(claimedEvent);
+                    case PROCESSED -> {
+                        // Already handled.
+                    }
+                    default -> throw new IllegalStateException(
+                            "Unsupported tracking idempotency claim status " + claimStatus + " for eventId=" + eventId);
+                }
             }
         } catch (Exception e) {
-            releaseClaims(claimedEvents, e);
+            releaseClaims(rawWriteEvents, e);
             log.error("Failed to process tracking event batch", e);
             throw new IllegalStateException("Failed to process tracking event", e);
         }
 
-        if (!claimedEvents.isEmpty()) {
+        if (!rawWriteEvents.isEmpty()) {
+            List<TrackingDto.RawEventPayload> batch = rawWriteEvents.stream()
+                    .map(ClaimedTrackingEvent::payload)
+                    .toList();
             try {
-                List<TrackingDto.RawEventPayload> batch = claimedEvents.stream()
-                        .map(ClaimedTrackingEvent::payload)
-                        .toList();
                 clickHouseWriter.writeBatch(batch);
-                for (ClaimedTrackingEvent claimed : claimedEvents) {
-                    aggregationService.aggregateEvent(toRawEvent(claimed.payload()));
-                    idempotencyService.markProcessed(
+            } catch (Exception e) {
+                releaseClaims(rawWriteEvents, e);
+                log.error("Failed to write tracking event batch to ClickHouse", e);
+                throw new IllegalStateException("Failed to write tracking event batch to ClickHouse", e);
+            }
+
+            RuntimeException markRawWrittenFailure = null;
+            Set<ClaimedTrackingEvent> markedRawWrittenEvents = new HashSet<>();
+            for (ClaimedTrackingEvent claimed : rawWriteEvents) {
+                try {
+                    idempotencyService.markRawWritten(
                             claimed.tenantId(),
                             claimed.workspaceId(),
                             claimed.eventType(),
                             claimed.eventId(),
                             claimed.idempotencyKey());
+                    markedRawWrittenEvents.add(claimed);
+                } catch (Exception e) {
+                    if (markRawWrittenFailure == null) {
+                        markRawWrittenFailure = new IllegalStateException(
+                                "Failed to mark tracking event batch raw-written after ClickHouse write", e);
+                    } else {
+                        markRawWrittenFailure.addSuppressed(e);
+                    }
+                    log.error("Failed to mark tracking event raw-written after ClickHouse write eventId={}",
+                            claimed.eventId(), e);
                 }
-            } catch (Exception e) {
-                releaseClaims(claimedEvents, e);
-                log.error("Failed to write tracking event side effects", e);
-                throw new IllegalStateException("Failed to process tracking event side effects", e);
             }
+
+            RuntimeException finalizationFailure = finalizeRawWrittenEvents(
+                    finalizationEvents,
+                    new HashSet<>(rawWriteEvents),
+                    markedRawWrittenEvents);
+            RuntimeException inProgressFailure = inProgressRetryFailure(inProgressEvents);
+            if (markRawWrittenFailure != null) {
+                if (finalizationFailure != null) {
+                    markRawWrittenFailure.addSuppressed(finalizationFailure);
+                }
+                if (inProgressFailure != null) {
+                    markRawWrittenFailure.addSuppressed(inProgressFailure);
+                }
+                throw markRawWrittenFailure;
+            }
+            if (finalizationFailure != null) {
+                if (inProgressFailure != null) {
+                    finalizationFailure.addSuppressed(inProgressFailure);
+                }
+                throw finalizationFailure;
+            }
+            if (inProgressFailure != null) {
+                throw inProgressFailure;
+            }
+            return;
         }
+
+        RuntimeException finalizationFailure = finalizeRawWrittenEvents(finalizationEvents, Set.of(), Set.of());
+        RuntimeException inProgressFailure = inProgressRetryFailure(inProgressEvents);
+        if (finalizationFailure != null) {
+            if (inProgressFailure != null) {
+                finalizationFailure.addSuppressed(inProgressFailure);
+            }
+            throw finalizationFailure;
+        }
+        if (inProgressFailure != null) {
+            throw inProgressFailure;
+        }
+    }
+
+    private RuntimeException finalizeRawWrittenEvents(List<ClaimedTrackingEvent> finalizationEvents,
+                                                      Set<ClaimedTrackingEvent> rawWriteEvents,
+                                                      Set<ClaimedTrackingEvent> markedRawWrittenEvents) {
+        if (finalizationEvents.isEmpty()) {
+            return null;
+        }
+
+        try {
+            for (ClaimedTrackingEvent claimed : finalizationEvents) {
+                if (rawWriteEvents.contains(claimed) && !markedRawWrittenEvents.contains(claimed)) {
+                    continue;
+                }
+                finalizationService.finalizeEvent(
+                        toRawEvent(claimed.payload()),
+                        claimed.tenantId(),
+                        claimed.workspaceId(),
+                        claimed.eventType(),
+                        claimed.eventId(),
+                        claimed.idempotencyKey());
+            }
+            return null;
+        } catch (Exception e) {
+            log.error("Failed to finalize raw-written tracking event batch", e);
+            return new IllegalStateException("Failed to finalize raw-written tracking event batch", e);
+        }
+    }
+
+    private RuntimeException inProgressRetryFailure(List<ClaimedTrackingEvent> inProgressEvents) {
+        if (inProgressEvents.isEmpty()) {
+            return null;
+        }
+        ClaimedTrackingEvent first = inProgressEvents.get(0);
+        log.warn("Retrying tracking event batch with {} in-progress idempotency claim(s); first eventId={}",
+                inProgressEvents.size(), first.eventId());
+        return new IllegalStateException(
+                "Tracking event batch contains in-progress idempotency claim(s); retrying to avoid acknowledging ambiguous post-write state");
     }
 
     private TrackingEnvelopeContract requireEnvelopeContract(EventEnvelope<String> event) {
@@ -229,6 +362,13 @@ public class TrackingEventConsumer {
             String eventType,
             String eventId,
             String idempotencyKey) {
+    }
+
+    private record BatchLookupKey(
+            String tenantId,
+            String workspaceId,
+            String eventType,
+            String lookupValue) {
     }
 
     private record TrackingEnvelopeContract(

@@ -29,7 +29,10 @@ public class ConfigVersionController {
     @PreAuthorize("@rbacEvaluator.hasPermission('config:read', principal.roles)")
     public ApiResponse<List<ConfigVersionHistory>> getConfigVersionHistory(@PathVariable String configKey) {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(configVersioningService.getConfigVersionHistory(tenantId, configKey));
+        String workspaceId = TenantContext.getWorkspaceId();
+        String environmentId = TenantContext.getEnvironmentId();
+        return ApiResponse.ok(configVersioningService.getConfigVersionHistory(
+                tenantId, workspaceId, environmentId, configKey));
     }
 
     @GetMapping("/{configKey}/versions/{version}")
@@ -38,7 +41,10 @@ public class ConfigVersionController {
             @PathVariable String configKey,
             @PathVariable int version) {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(configVersioningService.getConfigVersion(tenantId, configKey, version));
+        String workspaceId = TenantContext.getWorkspaceId();
+        String environmentId = TenantContext.getEnvironmentId();
+        return ApiResponse.ok(configVersioningService.getConfigVersion(
+                tenantId, workspaceId, environmentId, configKey, version));
     }
 
     @GetMapping("/versions")
@@ -47,8 +53,10 @@ public class ConfigVersionController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.getTenantId();
+        String workspaceId = TenantContext.getWorkspaceId();
+        String environmentId = TenantContext.getEnvironmentId();
         Page<ConfigVersionHistory> result = configVersioningService.getTenantVersionHistory(
-                tenantId, PageRequest.of(page, Math.min(size, 100)));
+                tenantId, workspaceId, environmentId, PageRequest.of(page, Math.min(size, 100)));
         return PagedResponse.of(
                 result.getContent(),
                 result.getNumber(),
@@ -64,7 +72,10 @@ public class ConfigVersionController {
             @PathVariable String configKey,
             @PathVariable int version) {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(configVersioningService.rollbackConfig(tenantId, configKey, version));
+        String workspaceId = TenantContext.getWorkspaceId();
+        String environmentId = TenantContext.getEnvironmentId();
+        return ApiResponse.ok(configVersioningService.rollbackConfig(
+                tenantId, workspaceId, environmentId, configKey, version));
     }
 
     @GetMapping("/{configKey}/compare")
@@ -74,6 +85,9 @@ public class ConfigVersionController {
             @RequestParam int v1,
             @RequestParam int v2) {
         String tenantId = TenantContext.getTenantId();
-        return ApiResponse.ok(configVersioningService.compareVersions(tenantId, configKey, v1, v2));
+        String workspaceId = TenantContext.getWorkspaceId();
+        String environmentId = TenantContext.getEnvironmentId();
+        return ApiResponse.ok(configVersioningService.compareVersions(
+                tenantId, workspaceId, environmentId, configKey, v1, v2));
     }
 }

@@ -3,18 +3,22 @@ package com.legent.audience.service;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.audience.domain.DataExtension;
 import com.legent.audience.domain.DataExtensionField;
+import com.legent.audience.domain.DataExtensionGovernanceAudit;
 import com.legent.audience.domain.DataExtensionRecord;
 import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.repository.DataExtensionFieldRepository;
+import com.legent.audience.repository.DataExtensionGovernanceAuditRepository;
 import com.legent.audience.repository.DataExtensionRecordRepository;
 import com.legent.audience.repository.DataExtensionRepository;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
 import com.legent.security.TenantContext;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
@@ -37,6 +41,7 @@ class DataExtensionServiceTest {
     @Mock private DataExtensionRepository deRepository;
     @Mock private DataExtensionFieldRepository fieldRepository;
     @Mock private DataExtensionRecordRepository recordRepository;
+    @Mock private DataExtensionGovernanceAuditRepository governanceAuditRepository;
 
     private DataExtensionService service;
 
@@ -44,7 +49,8 @@ class DataExtensionServiceTest {
     void setUp() {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
-        service = new DataExtensionService(deRepository, fieldRepository, recordRepository, new ObjectMapper());
+        TenantContext.setUserId("user-1");
+        service = new DataExtensionService(deRepository, fieldRepository, recordRepository, governanceAuditRepository, new ObjectMapper());
     }
 
     @AfterEach
@@ -251,6 +257,10 @@ class DataExtensionServiceTest {
         assertThat(response.getRelationships()).hasSize(1);
         assertThat(source.getRelationshipJson()).contains("customer_profile");
         verify(deRepository).findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-target");
+        ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
+        verify(governanceAuditRepository).save(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().getAction()).isEqualTo("RELATIONSHIPS_UPDATED");
+        assertThat(auditCaptor.getValue().getMetadata()).containsEntry("relationshipCount", 1);
     }
 
     @Test
@@ -445,6 +455,29 @@ class DataExtensionServiceTest {
     }
 
     @Test
+    void updateSendableConfigWritesAuditEntry() {
+        DataExtension de = dataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+        when(deRepository.save(de)).thenReturn(de);
+
+        DataExtensionDto.Response response = service.updateSendableConfig("de-1",
+                DataExtensionDto.SendableConfigRequest.builder()
+                        .sendable(true)
+                        .sendableField("email")
+                        .primaryKeyField("subscriberKey")
+                        .build());
+
+        assertThat(response.isSendable()).isTrue();
+        assertThat(response.getSendableField()).isEqualTo("email");
+        ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
+        verify(governanceAuditRepository).save(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().getAction()).isEqualTo("SENDABLE_UPDATED");
+        assertThat(auditCaptor.getValue().getMetadata()).containsEntry("sendableField", "email");
+    }
+
+    @Test
     void updateRetentionPolicyNoneClearsRetentionFields() {
         DataExtension de = dataExtension();
         de.setRetentionDays(30);
@@ -462,6 +495,124 @@ class DataExtensionServiceTest {
 
         assertThat(response.getRetentionAction()).isEqualTo("NONE");
         assertThat(response.getRetentionDays()).isNull();
+        ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
+        verify(governanceAuditRepository).save(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().getAction()).isEqualTo("RETENTION_UPDATED");
+        assertThat(auditCaptor.getValue().getMetadata()).containsEntry("retentionAction", "NONE");
+    }
+
+    @Test
+    @DisplayName("create stores governance metadata field classification and audit entry")
+    void createStoresGovernanceMetadataFieldClassificationAndAuditEntry() {
+        when(deRepository.existsByTenantWorkspaceAndName("tenant-1", "workspace-1", "Customers"))
+                .thenReturn(false);
+        when(deRepository.save(any(DataExtension.class))).thenAnswer(invocation -> {
+            DataExtension saved = invocation.getArgument(0);
+            saved.setId("de-1");
+            return saved;
+        });
+
+        DataExtensionDto.Response response = service.create(DataExtensionDto.CreateRequest.builder()
+                .name("Customers")
+                .governance(DataExtensionDto.GovernanceMetadata.builder()
+                        .sourceType("IMPORT")
+                        .sourceSystem("crm")
+                        .sourceReference("import-job-1")
+                        .dataClassification("CONFIDENTIAL")
+                        .governanceNotes("Reviewed source")
+                        .build())
+                .fields(List.of(DataExtensionDto.FieldDefinition.builder()
+                        .fieldName("email")
+                        .fieldType("EMAIL")
+                        .dataClassification("RESTRICTED")
+                        .required(true)
+                        .build()))
+                .build());
+
+        assertThat(response.getGovernance().getSourceType()).isEqualTo("IMPORT");
+        assertThat(response.getGovernance().getDataClassification()).isEqualTo("CONFIDENTIAL");
+        ArgumentCaptor<DataExtensionField> fieldCaptor = ArgumentCaptor.forClass(DataExtensionField.class);
+        verify(fieldRepository).save(fieldCaptor.capture());
+        assertThat(fieldCaptor.getValue().getDataClassification()).isEqualTo("RESTRICTED");
+        ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
+        verify(governanceAuditRepository).save(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().getTenantId()).isEqualTo("tenant-1");
+        assertThat(auditCaptor.getValue().getWorkspaceId()).isEqualTo("workspace-1");
+        assertThat(auditCaptor.getValue().getAction()).isEqualTo("CREATED");
+        assertThat(auditCaptor.getValue().getMetadata()).containsEntry("dataClassification", "CONFIDENTIAL");
+    }
+
+    @Test
+    void updateGovernanceRejectsUnsupportedClassification() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(dataExtension()));
+
+        assertThatThrownBy(() -> service.updateGovernance("de-1",
+                DataExtensionDto.GovernanceMetadata.builder()
+                        .dataClassification("SECRET")
+                        .build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Unsupported dataClassification");
+    }
+
+    @Test
+    void updateGovernanceRejectsUnsupportedSourceType() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(dataExtension()));
+
+        assertThatThrownBy(() -> service.updateGovernance("de-1",
+                DataExtensionDto.GovernanceMetadata.builder()
+                        .sourceType("SPREADSHEET")
+                        .build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Unsupported sourceType");
+    }
+
+    @Test
+    void updateGovernanceWritesScopedAuditEntry() {
+        DataExtension de = dataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+        when(deRepository.save(de)).thenReturn(de);
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        DataExtensionDto.Response response = service.updateGovernance("de-1",
+                DataExtensionDto.GovernanceMetadata.builder()
+                        .sourceType("API")
+                        .sourceSystem("profile-api")
+                        .dataClassification("RESTRICTED")
+                        .build());
+
+        assertThat(response.getGovernance().getSourceType()).isEqualTo("API");
+        assertThat(response.getGovernance().getReviewedBy()).isEqualTo("user-1");
+        assertThat(response.getGovernance().getReviewedAt()).isNotNull();
+        ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
+        verify(governanceAuditRepository).save(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().getAction()).isEqualTo("GOVERNANCE_UPDATED");
+        assertThat(auditCaptor.getValue().getCreatedBy()).isEqualTo("user-1");
+        assertThat(auditCaptor.getValue().getMetadata()).containsEntry("sourceType", "API");
+    }
+
+    @Test
+    void listGovernanceAuditUsesTenantWorkspaceScopedRepository() {
+        DataExtension de = dataExtension();
+        DataExtensionGovernanceAudit audit = new DataExtensionGovernanceAudit();
+        audit.setId("audit-1");
+        audit.setTenantId("tenant-1");
+        audit.setWorkspaceId("workspace-1");
+        audit.setDataExtensionId("de-1");
+        audit.setAction("RELATIONSHIPS_UPDATED");
+        audit.setSummary("Relationship metadata updated");
+        audit.setMetadata(Map.of("relationshipCount", 1));
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+        when(governanceAuditRepository.findTop20ByTenantIdAndWorkspaceIdAndDataExtensionIdOrderByCreatedAtDesc(
+                "tenant-1", "workspace-1", "de-1")).thenReturn(List.of(audit));
+
+        List<DataExtensionDto.GovernanceAuditResponse> response = service.listGovernanceAudit("de-1");
+
+        assertThat(response).hasSize(1);
+        assertThat(response.get(0).getAction()).isEqualTo("RELATIONSHIPS_UPDATED");
     }
 
     @Test
@@ -474,6 +625,9 @@ class DataExtensionServiceTest {
 
         assertThat(de.getDeletedAt()).isNotNull();
         verify(deRepository).save(de);
+        ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
+        verify(governanceAuditRepository).save(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().getAction()).isEqualTo("DELETED");
     }
 
     private DataExtension dataExtension() {

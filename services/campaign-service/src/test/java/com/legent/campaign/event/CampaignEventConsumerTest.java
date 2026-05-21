@@ -15,6 +15,7 @@ import com.legent.campaign.service.SendExecutionService;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.security.TenantContext;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -443,6 +444,12 @@ class CampaignEventConsumerTest {
                         "campaignId", "campaign-1",
                         "jobId", "job-1",
                         "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-send-1",
+                        "confirmLaunch", "true",
+                        "subscriberId", "subscriber-1",
+                        "handoffBoundary", "CAMPAIGN_ORCHESTRATION",
+                        "requiresCampaignPreflight", "true",
+                        "sendLifecycleOwner", "campaign-service",
                         "scheduledAt", "2026-05-14T00:00:00Z"))
                 .build();
         when(idempotencyService.registerIfNew(
@@ -459,6 +466,12 @@ class CampaignEventConsumerTest {
         verify(orchestrationService).triggerFromAutomation(eq("campaign-1"), requestCaptor.capture());
         assertEquals("AUTOMATION", requestCaptor.getValue().getTriggerSource());
         assertEquals("idem-send-1", requestCaptor.getValue().getIdempotencyKey());
+        assertEquals(Instant.parse("2026-05-14T00:00:00Z"), requestCaptor.getValue().getScheduledAt());
+        assertEquals("send-event-1", requestCaptor.getValue().getMetadata().get("sourceEventId"));
+        assertEquals("subscriber-1", requestCaptor.getValue().getMetadata().get("subscriberId"));
+        assertEquals("CAMPAIGN_ORCHESTRATION", requestCaptor.getValue().getMetadata().get("handoffBoundary"));
+        assertEquals("true", requestCaptor.getValue().getMetadata().get("requiresCampaignPreflight"));
+        assertEquals("campaign-service", requestCaptor.getValue().getMetadata().get("sendLifecycleOwner"));
         verify(idempotencyService).markProcessed(
                 "tenant-1",
                 "workspace-1",
@@ -482,7 +495,7 @@ class CampaignEventConsumerTest {
                 .workspaceId("workspace-1")
                 .idempotencyKey("idem-send-2")
                 .payload("""
-                        {"campaignId":"campaign-2","workspaceId":"workspace-1","triggerSource":"WORKFLOW","instanceId":"instance-1"}
+                        {"campaignId":"campaign-2","workspaceId":"workspace-1","idempotencyKey":"idem-send-2","confirmLaunch":true,"triggerSource":"WORKFLOW","instanceId":"instance-1"}
                         """)
                 .build();
         when(idempotencyService.registerIfNew(
@@ -509,6 +522,84 @@ class CampaignEventConsumerTest {
     }
 
     @Test
+    void handleAutomationSendRequestThrowsWhenConfirmLaunchMissingAndDoesNotLaunch() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("workflow-send-missing-confirmation")
+                .eventType(AppConstants.TOPIC_SEND_REQUESTED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-workflow-send-missing-confirmation")
+                .payload(Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-workflow-send-missing-confirmation",
+                        "triggerSource", "WORKFLOW",
+                        "instanceId", "instance-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAutomationSendRequest(event));
+
+        assertEquals("Failed handling TOPIC_SEND_REQUESTED", thrown.getMessage());
+        assertEquals(
+                "confirmLaunch=true is required for " + AppConstants.TOPIC_SEND_REQUESTED + " event workflow-send-missing-confirmation",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
+    void handleAutomationSendRequestThrowsWhenIdempotencyKeyMismatchesAndDoesNotLaunch() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("workflow-send-idempotency-mismatch")
+                .eventType(AppConstants.TOPIC_SEND_REQUESTED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("envelope-idem")
+                .payload(Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "payload-idem",
+                        "confirmLaunch", "true",
+                        "triggerSource", "WORKFLOW",
+                        "instanceId", "instance-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAutomationSendRequest(event));
+
+        assertEquals("Failed handling TOPIC_SEND_REQUESTED", thrown.getMessage());
+        assertEquals(
+                "idempotencyKey mismatch between envelope and payload for " + AppConstants.TOPIC_SEND_REQUESTED + " event workflow-send-idempotency-mismatch",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
+    void handleAutomationSendRequestThrowsWhenSubscriberTraceLacksCampaignHandoffMarkers() {
+        EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
+                .eventId("workflow-send-contact-looking")
+                .eventType(AppConstants.TOPIC_SEND_REQUESTED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-workflow-send-contact-looking")
+                .payload(Map.of(
+                        "campaignId", "campaign-1",
+                        "workspaceId", "workspace-1",
+                        "idempotencyKey", "idem-workflow-send-contact-looking",
+                        "confirmLaunch", "true",
+                        "subscriberId", "subscriber-1",
+                        "triggerSource", "WORKFLOW",
+                        "instanceId", "instance-1"))
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAutomationSendRequest(event));
+
+        assertEquals("Failed handling TOPIC_SEND_REQUESTED", thrown.getMessage());
+        assertEquals(
+                "subscriberId on " + AppConstants.TOPIC_SEND_REQUESTED + " requires campaign orchestration handoff markers for event workflow-send-contact-looking",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
     void handleAutomationSendRequestThrowsWhenWorkflowSendWorkspaceMissingAndDoesNotLaunch() {
         EventEnvelope<Map<String, String>> event = EventEnvelope.<Map<String, String>>builder()
                 .eventId("workflow-send-missing-workspace")
@@ -517,6 +608,8 @@ class CampaignEventConsumerTest {
                 .idempotencyKey("idem-workflow-send-missing-workspace")
                 .payload(Map.of(
                         "campaignId", "campaign-1",
+                        "idempotencyKey", "idem-workflow-send-missing-workspace",
+                        "confirmLaunch", "true",
                         "triggerSource", "WORKFLOW",
                         "instanceId", "instance-1"))
                 .build();

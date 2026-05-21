@@ -53,14 +53,14 @@ if ($next.Count -eq 0) {
     $lines.Add("No unblocked READY work. Run pending-scan, research-pass, and refine-backlog.")
 } else {
     foreach ($item in $next) {
-        $lines.Add("- `$($item.id)` score=$($item.priorityScore), owner=$($item.owner): $($item.nextAction)")
+        $lines.Add(('- `{0}` score={1}, owner={2}: {3}' -f $item.id, $item.priorityScore, $item.owner, $item.nextAction))
     }
 }
 $lines.Add("")
 $lines.Add("## Blocked")
 $lines.Add("")
 foreach ($item in @($queue.blockedWork | Select-Object -First 10)) {
-    $lines.Add("- `$($item.id)`: $($item.nextAction)")
+    $lines.Add(('- `{0}`: {1}' -f $item.id, $item.nextAction))
 }
 
 if ($CheckOnly) {

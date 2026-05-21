@@ -131,8 +131,8 @@ public class CorePlatformController {
 
     @GetMapping("/role-bindings")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> listRoleBindings() {
-        return ApiResponse.ok(corePlatformService.listRoleBindings());
+    public ApiResponse<List<Map<String, Object>>> listRoleBindings(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(corePlatformService.listRoleBindings(rolesOf(principal)));
     }
 
     @PostMapping("/access-grants")
@@ -143,8 +143,8 @@ public class CorePlatformController {
 
     @GetMapping("/access-grants")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> listAccessGrants() {
-        return ApiResponse.ok(corePlatformService.listAccessGrants());
+    public ApiResponse<List<Map<String, Object>>> listAccessGrants(@AuthenticationPrincipal UserPrincipal principal) {
+        return ApiResponse.ok(corePlatformService.listAccessGrants(rolesOf(principal)));
     }
 
     @PostMapping("/access-grants/{id}/decision")
@@ -157,8 +157,10 @@ public class CorePlatformController {
 
     @GetMapping("/access-policy/preview")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
-    public ApiResponse<Map<String, Object>> previewAccessPolicy(@RequestParam String principalId) {
-        return ApiResponse.ok(corePlatformService.previewAccessPolicy(principalId));
+    public ApiResponse<Map<String, Object>> previewAccessPolicy(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestParam String principalId) {
+        return ApiResponse.ok(corePlatformService.previewAccessPolicy(principalId, rolesOf(principal)));
     }
 
     @PostMapping("/identity-providers")

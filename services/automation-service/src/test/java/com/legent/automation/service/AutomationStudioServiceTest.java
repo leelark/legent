@@ -361,6 +361,57 @@ class AutomationStudioServiceTest {
     }
 
     @Test
+    void createSendEmailActivityVerifiesGovernedCampaignHandoff() {
+        when(activityRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull("tenant-1", "workspace-1", "Campaign Send"))
+                .thenReturn(false);
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> {
+            AutomationActivity activity = invocation.getArgument(0);
+            activity.setId("activity-1");
+            return activity;
+        });
+
+        AutomationStudioDto.ActivityResponse response = service.createActivity(AutomationStudioDto.ActivityRequest.builder()
+                .name("Campaign Send")
+                .activityType(AutomationStudioDto.ActivityType.SEND_EMAIL)
+                .status(AutomationStudioDto.ActivityStatus.ACTIVE)
+                .inputConfig(Map.of(
+                        "campaignId", "campaign-1",
+                        "scheduledAt", "2026-05-21T00:00:00Z"))
+                .outputConfig(Map.of())
+                .build());
+
+        assertThat(response.getActivityType()).isEqualTo(AutomationStudioDto.ActivityType.SEND_EMAIL);
+        assertThat(response.getVerification()).containsEntry("valid", true);
+        assertThat(response.getVerification().get("normalizedConfig").toString())
+                .contains("liveExecutionSupported=true")
+                .contains("handoffBoundary=CAMPAIGN_ORCHESTRATION")
+                .contains("requiresCampaignPreflight=true")
+                .contains("requiresSideEffectIdempotency=true");
+    }
+
+    @Test
+    void createSendEmailActivityRejectsUnsafeOverridesBeforePersistence() {
+        when(activityRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull("tenant-1", "workspace-1", "Unsafe Send"))
+                .thenReturn(false);
+
+        assertThatThrownBy(() -> service.createActivity(AutomationStudioDto.ActivityRequest.builder()
+                .name("Unsafe Send")
+                .activityType(AutomationStudioDto.ActivityType.SEND_EMAIL)
+                .status(AutomationStudioDto.ActivityStatus.ACTIVE)
+                .inputConfig(Map.of(
+                        "campaignId", "campaign-1",
+                        "recipientEmail", "user@example.com",
+                        "skip_suppression", true,
+                        "sender-email", "sender@example.com"))
+                .outputConfig(Map.of())
+                .build()))
+                .hasMessageContaining("existing governed campaign")
+                .hasMessageContaining("safety controls");
+
+        verify(activityRepository, never()).save(any(AutomationActivity.class));
+    }
+
+    @Test
     void sqlActivityDryRunCallsAudienceExecutorAndRecordsRows() {
         AutomationActivity activity = new AutomationActivity();
         activity.setId("activity-1");
@@ -729,6 +780,99 @@ class AutomationStudioServiceTest {
     }
 
     @Test
+    void sendEmailActivityDryRunDoesNotPublishCampaignRequest() {
+        AutomationActivity activity = sendEmailActivity();
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder().dryRun(true).triggerSource("TEST").build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.VERIFIED);
+        assertThat(response.getResult())
+                .containsEntry("campaignId", "campaign-1")
+                .containsEntry("handoffBoundary", "CAMPAIGN_ORCHESTRATION")
+                .containsEntry("requiresCampaignPreflight", true);
+        assertThat(response.getResult()).doesNotContainKey("publishedTopic");
+        verify(workflowEventPublisher, never()).publishAction(any(), any(), any(), any());
+        verify(idempotencyService, never()).claimIfNew(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void sendEmailActivityLiveRunPublishesCampaignSendRequested() {
+        TenantContext.setEnvironmentId("prod");
+        TenantContext.setUserId("user-1");
+        AutomationActivity activity = sendEmailActivity();
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("send-run-1")))
+                .thenReturn(true);
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("send-run-1")
+                        .triggerSource("TEST")
+                        .overrides(Map.of("triggerReference", "journey-node-1"))
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
+        assertThat(response.getResult()).containsEntry("publishedTopic", AppConstants.TOPIC_SEND_REQUESTED);
+        ArgumentCaptor<Map<String, Object>> payloadCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(workflowEventPublisher).publishAction(
+                eq(AppConstants.TOPIC_SEND_REQUESTED),
+                eq("tenant-1"),
+                eq("campaign-1:activity-1"),
+                payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue())
+                .containsEntry("tenantId", "tenant-1")
+                .containsEntry("workspaceId", "workspace-1")
+                .containsEntry("environmentId", "prod")
+                .containsEntry("actorId", "user-1")
+                .containsEntry("campaignId", "campaign-1")
+                .containsEntry("triggerSource", "TEST")
+                .containsEntry("triggerReference", "journey-node-1")
+                .containsEntry("idempotencyKey", "send-run-1")
+                .containsEntry("confirmLaunch", true)
+                .containsEntry("activityId", "activity-1")
+                .containsEntry("activityType", "SEND_EMAIL")
+                .containsEntry("handoffBoundary", "CAMPAIGN_ORCHESTRATION")
+                .containsEntry("requiresCampaignPreflight", true)
+                .containsEntry("sendLifecycleOwner", "campaign-service");
+        assertThat(payloadCaptor.getValue().get("activityRunId")).isNotNull();
+        assertThat(payloadCaptor.getValue().get("traceId")).isNotNull();
+        verify(idempotencyService).markProcessed("tenant-1", "workspace-1", "automation.activity.run", null, "send-run-1");
+    }
+
+    @Test
+    void duplicateLiveSendEmailRunSkipsCampaignPublish() {
+        AutomationActivity activity = sendEmailActivity();
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("send-run-1")))
+                .thenReturn(false);
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("send-run-1")
+                        .triggerSource("TEST")
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
+        assertThat(response.getResult()).containsEntry("duplicateSkipped", true);
+        verify(workflowEventPublisher, never()).publishAction(any(), any(), any(), any());
+    }
+
+    @Test
     void createNotificationActivityRejectsNonTerminalStatus() {
         when(activityRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull("tenant-1", "workspace-1", "Notify"))
                 .thenReturn(false);
@@ -839,5 +983,18 @@ class AutomationStudioServiceTest {
         assertThat(pageCaptor.getValue().getPageSize()).isEqualTo(200);
         assertThat(runs).hasSize(1);
         assertThat(runs.get(0).getTraceId()).isEqualTo("trace-1");
+    }
+
+    private AutomationActivity sendEmailActivity() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("Campaign Send");
+        activity.setActivityType(AutomationStudioDto.ActivityType.SEND_EMAIL);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"campaignId\":\"campaign-1\",\"scheduledAt\":\"2026-05-21T00:00:00Z\"}");
+        activity.setOutputConfig("{}");
+        return activity;
     }
 }

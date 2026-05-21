@@ -7,22 +7,22 @@ import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.dto.CampaignDto;
 import com.legent.common.constant.AppConstants;
-import java.util.List;
-
-import java.util.Map;
-
 import com.legent.campaign.service.BatchingService;
 import com.legent.campaign.service.CampaignEventIdempotencyService;
-import com.legent.campaign.service.CampaignStateMachineService;
-import com.legent.campaign.service.OrchestrationService;
 import com.legent.campaign.service.CampaignMetricsService;
 import com.legent.campaign.service.CampaignSendSafetyService;
+import com.legent.campaign.service.CampaignStateMachineService;
+import com.legent.campaign.service.OrchestrationService;
 import com.legent.campaign.service.SendExecutionService;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.security.TenantContext;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -30,8 +30,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
-
-import java.util.Collections;
 
 
 @Slf4j
@@ -154,7 +152,10 @@ public class CampaignEventConsumer {
             Map<String, Object> payload = payloadAsMap(event.getPayload());
             String campaignId = requirePayloadString(payload, "campaignId", AppConstants.TOPIC_SEND_REQUESTED, event);
             String workspaceId = requireWorkspaceId(event, payload, AppConstants.TOPIC_SEND_REQUESTED);
-            registration = registerEvent(event, AppConstants.TOPIC_SEND_REQUESTED, workspaceId);
+            requireConfirmedLaunch(payload, AppConstants.TOPIC_SEND_REQUESTED, event);
+            String idempotencyKey = requireSendRequestIdempotencyKey(payload, AppConstants.TOPIC_SEND_REQUESTED, event);
+            requireCampaignHandoffBoundary(payload, AppConstants.TOPIC_SEND_REQUESTED, event);
+            registration = registerEvent(event, AppConstants.TOPIC_SEND_REQUESTED, workspaceId, event.getEventId(), idempotencyKey);
             if (!registration.claimed()) {
                 return;
             }
@@ -163,7 +164,9 @@ public class CampaignEventConsumer {
             CampaignDto.TriggerLaunchRequest request = CampaignDto.TriggerLaunchRequest.builder()
                     .triggerSource(stringValue(payload.getOrDefault("triggerSource", "AUTOMATION")))
                     .triggerReference(stringValue(payload.getOrDefault("triggerReference", payload.get("instanceId"))))
-                    .idempotencyKey(stringValue(payload.getOrDefault("idempotencyKey", event.getIdempotencyKey())))
+                    .idempotencyKey(idempotencyKey)
+                    .scheduledAt(instantValue(payload.get("scheduledAt"), AppConstants.TOPIC_SEND_REQUESTED, event))
+                    .metadata(sendRequestMetadata(payload, event))
                     .build();
             orchestrationService.triggerFromAutomation(campaignId, request);
             sideEffectsComplete = true;
@@ -496,6 +499,88 @@ public class CampaignEventConsumer {
             throw new IllegalArgumentException(fieldName + " is required for " + topic + " event " + eventId(event));
         }
         return value;
+    }
+
+    private void requireConfirmedLaunch(Map<String, ?> payload, String topic, EventEnvelope<?> event) {
+        Object value = payload == null ? null : payload.get("confirmLaunch");
+        boolean confirmed = value instanceof Boolean booleanValue
+                ? booleanValue
+                : "true".equalsIgnoreCase(stringValue(value));
+        if (!confirmed) {
+            throw new IllegalArgumentException("confirmLaunch=true is required for " + topic + " event " + eventId(event));
+        }
+    }
+
+    private String requireSendRequestIdempotencyKey(Map<String, ?> payload, String topic, EventEnvelope<?> event) {
+        String payloadKey = payload == null ? null : stringValue(payload.get("idempotencyKey"));
+        String envelopeKey = stringValue(event.getIdempotencyKey());
+        if (payloadKey != null && envelopeKey != null && !payloadKey.equals(envelopeKey)) {
+            throw new IllegalArgumentException("idempotencyKey mismatch between envelope and payload for " + topic + " event " + eventId(event));
+        }
+        String idempotencyKey = payloadKey != null ? payloadKey : envelopeKey;
+        if (idempotencyKey == null) {
+            throw new IllegalArgumentException("idempotencyKey is required for " + topic + " event " + eventId(event));
+        }
+        return idempotencyKey;
+    }
+
+    private void requireCampaignHandoffBoundary(Map<String, ?> payload, String topic, EventEnvelope<?> event) {
+        if (payload == null || stringValue(payload.get("subscriberId")) == null) {
+            return;
+        }
+        String handoffBoundary = stringValue(payload.get("handoffBoundary"));
+        String sendLifecycleOwner = stringValue(payload.get("sendLifecycleOwner"));
+        if (!"CAMPAIGN_ORCHESTRATION".equals(handoffBoundary)
+                || !isTrue(payload.get("requiresCampaignPreflight"))
+                || !"campaign-service".equals(sendLifecycleOwner)) {
+            throw new IllegalArgumentException(
+                    "subscriberId on " + topic + " requires campaign orchestration handoff markers for event " + eventId(event));
+        }
+    }
+
+    private boolean isTrue(Object value) {
+        if (value instanceof Boolean booleanValue) {
+            return booleanValue;
+        }
+        return "true".equalsIgnoreCase(stringValue(value));
+    }
+
+    private Instant instantValue(Object value, String topic, EventEnvelope<?> event) {
+        String raw = stringValue(value);
+        if (raw == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(raw);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("scheduledAt must be an ISO-8601 instant for " + topic + " event " + eventId(event));
+        }
+    }
+
+    private Map<String, Object> sendRequestMetadata(Map<String, Object> payload, EventEnvelope<?> event) {
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        for (String key : List.of(
+                "workflowId",
+                "workflowVersion",
+                "workflowInstanceId",
+                "instanceId",
+                "nodeId",
+                "subscriberId",
+                "activityId",
+                "activityRunId",
+                "activityType",
+                "traceId",
+                "handoffBoundary",
+                "requiresCampaignPreflight",
+                "sendLifecycleOwner")) {
+            Object value = payload.get(key);
+            if (value != null) {
+                metadata.put(key, value);
+            }
+        }
+        metadata.put("sourceEventId", event.getEventId());
+        metadata.put("source", event.getSource());
+        return metadata;
     }
 
     private void applyTenantContext(EventEnvelope<?> event, String workspaceId) {

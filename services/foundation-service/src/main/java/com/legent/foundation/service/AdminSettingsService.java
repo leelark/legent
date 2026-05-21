@@ -230,18 +230,24 @@ public class AdminSettingsService {
     @Transactional(readOnly = true)
     public List<ConfigVersionHistory> history(String key) {
         String tenantId = TenantContext.getTenantId();
+        String workspaceId = TenantContext.getWorkspaceId();
+        String environmentId = TenantContext.getEnvironmentId();
         if (normalize(key) == null) {
             return configVersioningService
-                    .getTenantVersionHistory(tenantId, org.springframework.data.domain.PageRequest.of(0, 200))
+                    .getTenantVersionHistory(
+                            tenantId, workspaceId, environmentId, org.springframework.data.domain.PageRequest.of(0, 200))
                     .getContent();
         }
-        return configVersioningService.getConfigVersionHistory(tenantId, key);
+        return configVersioningService.getConfigVersionHistory(tenantId, workspaceId, environmentId, key);
     }
 
     @Transactional
     public AdminSettingsDto.Entry rollback(String key, int version) {
         String tenantId = TenantContext.getTenantId();
-        ConfigDto.Response rolled = configVersioningService.rollbackConfig(tenantId, key, version);
+        String workspaceId = TenantContext.getWorkspaceId();
+        String environmentId = TenantContext.getEnvironmentId();
+        ConfigDto.Response rolled = configVersioningService.rollbackConfig(
+                tenantId, workspaceId, environmentId, key, version);
         AdminSettingsDto.Entry entry = toEntry(rolled);
         recordConfigSync("CONFIG_ROLLED_BACK", entry, List.of(entry.getModule(), "system"));
         return entry;

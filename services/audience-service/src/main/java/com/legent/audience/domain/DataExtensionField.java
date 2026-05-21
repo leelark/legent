@@ -32,6 +32,9 @@ public class DataExtensionField extends BaseEntity {
     @Column(name = "is_primary_key", nullable = false)
     private boolean primaryKey = false;
 
+    @Column(name = "data_classification", nullable = false, length = 32)
+    private String dataClassification = "INTERNAL";
+
     @Column(name = "default_value")
     private String defaultValue;
 

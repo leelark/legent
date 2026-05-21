@@ -124,7 +124,7 @@ public class DifferentiationPlatformService {
         List<Map<String, Object>> rows = repository.queryForList("""
                 SELECT * FROM realtime_decision_policies
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')
                   AND policy_key = :policyKey
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL
@@ -193,7 +193,7 @@ public class DifferentiationPlatformService {
         List<Map<String, Object>> flows = repository.queryForList("""
                 SELECT * FROM omnichannel_orchestration_flows
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')
                   AND flow_key = :flowKey
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL
@@ -316,7 +316,7 @@ public class DifferentiationPlatformService {
         List<Map<String, Object>> policies = repository.queryForList("""
                 SELECT * FROM slo_operations_policies
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '')
                   AND service_name = :serviceName
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL

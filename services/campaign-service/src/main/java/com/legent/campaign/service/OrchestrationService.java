@@ -132,10 +132,6 @@ public class OrchestrationService {
 
     @Transactional
     public SendJobDto.Response triggerFromAutomation(String campaignId, CampaignDto.TriggerLaunchRequest request) {
-        if (TenantContext.getWorkspaceId() == null || TenantContext.getWorkspaceId().isBlank()) {
-            campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(TenantContext.requireTenantId(), campaignId)
-                    .ifPresent(campaign -> TenantContext.setWorkspaceId(campaign.getWorkspaceId()));
-        }
         SendJobDto.TriggerRequest triggerRequest = new SendJobDto.TriggerRequest();
         triggerRequest.setScheduledAt(request != null ? request.getScheduledAt() : null);
         triggerRequest.setTriggerSource(request != null && request.getTriggerSource() != null

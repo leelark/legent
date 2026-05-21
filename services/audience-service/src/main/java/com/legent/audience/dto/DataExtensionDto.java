@@ -22,6 +22,7 @@ public class DataExtensionDto {
         private boolean sendable;
         private String sendableField;
         private String primaryKeyField;
+        @Valid private GovernanceMetadata governance;
         @NotNull @Size(min = 1, max = 200) private List<@Valid FieldDefinition> fields;
     }
 
@@ -29,6 +30,7 @@ public class DataExtensionDto {
     public static class FieldDefinition {
         @NotBlank @Size(max = 128) private String fieldName;
         private String fieldType;
+        @Pattern(regexp = "^(PUBLIC|INTERNAL|CONFIDENTIAL|RESTRICTED)$") private String dataClassification;
         private boolean required;
         private boolean primaryKey;
         private String defaultValue;
@@ -53,6 +55,17 @@ public class DataExtensionDto {
     public static class RetentionPolicyRequest {
         @Min(1) @Max(3650) private Integer retentionDays;
         @Pattern(regexp = "^(NONE|DELETE_RECORDS|ARCHIVE_RECORDS)$") private String retentionAction;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class GovernanceMetadata {
+        @Pattern(regexp = "^(MANUAL|IMPORT|QUERY|API|AUTOMATION|INTEGRATION)$") private String sourceType;
+        @Size(max = 128) private String sourceSystem;
+        @Size(max = 255) private String sourceReference;
+        @Pattern(regexp = "^(PUBLIC|INTERNAL|CONFIDENTIAL|RESTRICTED)$") private String dataClassification;
+        @Size(max = 1000) private String governanceNotes;
+        private String reviewedBy;
+        private Instant reviewedAt;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
@@ -146,6 +159,7 @@ public class DataExtensionDto {
         private boolean sendable;
         private String sendableField;
         private String primaryKeyField;
+        private GovernanceMetadata governance;
         private Integer retentionDays;
         private String retentionAction;
         private List<RelationshipDefinition> relationships;
@@ -153,6 +167,16 @@ public class DataExtensionDto {
         private List<FieldDefinition> fields;
         private Instant createdAt;
         private Instant updatedAt;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class GovernanceAuditResponse {
+        private String id;
+        private String action;
+        private String summary;
+        private Map<String, Object> metadata;
+        private Instant createdAt;
+        private String createdBy;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
