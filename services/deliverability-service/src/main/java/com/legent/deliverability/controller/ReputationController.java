@@ -7,10 +7,12 @@ import com.legent.deliverability.repository.ReputationScoreRepository;
 import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
 
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 
 @RestController
@@ -22,12 +24,14 @@ public class ReputationController {
     private final ReputationScoreRepository repo;
 
     @GetMapping("/{domain}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
     public ResponseEntity<Map<String, Object>> getScoreByDomain(@PathVariable String domain) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
+        String normalizedDomain = normalizeDomain(domain);
 
         SenderDomain senderDomain = senderDomainRepository
-                .findByTenantIdAndWorkspaceIdAndDomainName(tenantId, workspaceId, domain.trim().toLowerCase())
+                .findByTenantIdAndWorkspaceIdAndDomainName(tenantId, workspaceId, normalizedDomain)
                 .orElse(null);
         if (senderDomain != null) {
             return domainReputationRepository
@@ -40,14 +44,17 @@ public class ReputationController {
                         payload.put("source", "DOMAIN_REPUTATION");
                         return ResponseEntity.ok(payload);
                     })
-                    .orElseGet(() -> legacyScoreResponse(domain));
+                    .orElseGet(() -> legacyScoreResponse(tenantId, workspaceId, normalizedDomain));
         }
 
-        return legacyScoreResponse(domain);
+        return legacyScoreResponse(tenantId, workspaceId, normalizedDomain);
     }
 
-    private ResponseEntity<Map<String, Object>> legacyScoreResponse(String domain) {
-        ReputationScore score = repo.findByDomain(domain);
+    private ResponseEntity<Map<String, Object>> legacyScoreResponse(String tenantId, String workspaceId, String domain) {
+        ReputationScore score = repo.findTopByTenantIdAndWorkspaceIdAndDomainOrderByLastUpdatedDesc(
+                tenantId,
+                workspaceId,
+                domain);
         if (score == null) {
             return ResponseEntity.notFound().build();
         }
@@ -57,5 +64,9 @@ public class ReputationController {
         payload.put("lastUpdated", score.getLastUpdated());
         payload.put("source", "LEGACY_REPUTATION_SCORE");
         return ResponseEntity.ok(payload);
+    }
+
+    private String normalizeDomain(String domain) {
+        return domain.trim().toLowerCase(Locale.ROOT);
     }
 }

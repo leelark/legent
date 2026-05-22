@@ -16,10 +16,13 @@ const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' |
   COMPLETED: 'success',
   COMPLETED_WITH_ERRORS: 'warning',
   FAILED: 'danger',
+  VALIDATING: 'info',
   PROCESSING: 'info',
   PENDING: 'default',
   CANCELLED: 'default',
 };
+
+const activeStatuses = new Set(['PENDING', 'VALIDATING', 'PROCESSING']);
 
 export default function ImportDetailsPage() {
   const params = useParams();
@@ -27,7 +30,7 @@ export default function ImportDetailsPage() {
   const [job, setJob] = useState<ImportJob | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const isRunning = useMemo(() => job?.status === 'PENDING' || job?.status === 'PROCESSING', [job?.status]);
+  const isRunning = useMemo(() => activeStatuses.has(job?.status || ''), [job?.status]);
 
   const fetchJob = useCallback(async () => {
     if (!id) return;

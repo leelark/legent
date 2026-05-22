@@ -61,6 +61,14 @@ function Get-KustomizationImages([string]$Path) {
 }
 
 $manifest = Get-Content -Path $ManifestPath -Raw | ConvertFrom-Json
+$schemaVersionProperty = $manifest.PSObject.Properties["schemaVersion"]
+if ($null -eq $schemaVersionProperty -or $null -eq $schemaVersionProperty.Value) {
+    Fail "Image evidence schemaVersion is missing."
+}
+if ([string]$schemaVersionProperty.Value -ne "1") {
+    Fail "Unsupported image evidence schemaVersion: $($schemaVersionProperty.Value)"
+}
+
 $images = @($manifest.images)
 if ($images.Count -eq 0) { Fail "Image evidence manifest has no images." }
 $manifestByImage = @{}

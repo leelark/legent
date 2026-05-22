@@ -1,6 +1,7 @@
 param(
     [string]$OverlayPath = "infrastructure/kubernetes/overlays/production",
-    [switch]$RequireImageDigests
+    [switch]$RequireImageDigests,
+    [string]$PrometheusAlertsPath = "infrastructure/kubernetes/observability/prometheus-alerts.yml"
 )
 
 Set-StrictMode -Version Latest
@@ -14,6 +15,7 @@ function Fail($Message) {
 $kustomization = Join-Path $OverlayPath "kustomization.yml"
 $networkPolicy = Join-Path $OverlayPath "network-policy.yml"
 $externalSecrets = Join-Path $OverlayPath "external-secrets.yml"
+$prometheusAlerts = $PrometheusAlertsPath
 
 if (-not (Test-Path $kustomization)) { Fail "Missing production kustomization: $kustomization" }
 if (-not (Test-Path $networkPolicy)) { Fail "Missing production network policy: $networkPolicy" }
@@ -23,6 +25,60 @@ $k = Get-Content -Path $kustomization -Raw
 $np = Get-Content -Path $networkPolicy -Raw
 $es = Get-Content -Path $externalSecrets -Raw
 $errors = New-Object System.Collections.Generic.List[string]
+
+function ConvertTo-MarkdownAnchor([string]$Heading) {
+    $anchor = $Heading.Trim().ToLowerInvariant()
+    $anchor = $anchor -replace '`([^`]+)`', '$1'
+    $anchor = $anchor -replace '\[([^\]]+)\]\([^)]+\)', '$1'
+    $anchor = $anchor -replace '[^a-z0-9\s-]', ''
+    $anchor = $anchor -replace '\s+', '-'
+    $anchor = $anchor -replace '-+', '-'
+    return $anchor.Trim('-')
+}
+
+function Get-MarkdownAnchors([string]$Path) {
+    $anchors = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($line in (Get-Content -Path $Path)) {
+        if ($line -match '^\s{0,3}#{1,6}\s+(.+?)\s*#*\s*$') {
+            $anchor = ConvertTo-MarkdownAnchor $Matches[1]
+            if ($anchor) { [void]$anchors.Add($anchor) }
+        }
+        if ($line -match '<a\s+[^>]*(?:id|name)=["'']([^"'']+)["'']') {
+            [void]$anchors.Add($Matches[1])
+        }
+    }
+    return $anchors
+}
+
+function Test-RunbookTarget([string]$RunbookUrl) {
+    if ($RunbookUrl -match '^[a-z][a-z0-9+.-]*://') { return }
+    $parts = $RunbookUrl -split '#', 2
+    $runbookPath = $parts[0]
+    if ([string]::IsNullOrWhiteSpace($runbookPath)) {
+        $errors.Add("Alert runbook_url missing local path: $RunbookUrl")
+        return
+    }
+    if ([System.IO.Path]::IsPathRooted($runbookPath)) {
+        $errors.Add("Alert runbook_url must be repository-relative: $RunbookUrl")
+        return
+    }
+    $resolvedRunbookPath = [System.IO.Path]::GetFullPath((Join-Path (Get-Location) $runbookPath))
+    $repoRoot = [System.IO.Path]::GetFullPath((Get-Location).Path).TrimEnd([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar) + [System.IO.Path]::DirectorySeparatorChar
+    if (-not $resolvedRunbookPath.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $errors.Add("Alert runbook_url escapes repository root: $RunbookUrl")
+        return
+    }
+    if (-not (Test-Path $resolvedRunbookPath)) {
+        $errors.Add("Alert runbook_url target is missing: $RunbookUrl")
+        return
+    }
+    if ($parts.Count -eq 2 -and -not [string]::IsNullOrWhiteSpace($parts[1])) {
+        $anchors = Get-MarkdownAnchors $resolvedRunbookPath
+        if (-not $anchors.Contains($parts[1])) {
+            $errors.Add("Alert runbook_url anchor is missing: $RunbookUrl")
+        }
+    }
+}
 
 foreach ($required in @(
     "external-secrets.yml",
@@ -75,6 +131,21 @@ if ($es -match "replace_with|changeme|minioadmin|password") {
 }
 if ($k -match "postgres\.yml|redis\.yml|kafka\.yml|minio\.yml|opensearch\.yml|clickhouse\.yml|mailhog\.yml") {
     $errors.Add("Production overlay appears to include local stateful resources directly")
+}
+if (Test-Path $prometheusAlerts) {
+    $alertRules = Get-Content -Path $prometheusAlerts -Raw
+    foreach ($match in [regex]::Matches($alertRules, '(?ms)^\s*-\s*alert:\s*(?<name>[^\r\n]+)(?<body>.*?)(?=^\s*-\s*alert:|\z)')) {
+        $alertName = $match.Groups["name"].Value.Trim().Trim('"', "'")
+        $body = $match.Groups["body"].Value
+        $runbookMatch = [regex]::Match($body, 'runbook_url:\s*["'']([^"'']+)["'']')
+        if (-not $runbookMatch.Success) {
+            $errors.Add("Alert $alertName is missing runbook_url")
+            continue
+        }
+        Test-RunbookTarget $runbookMatch.Groups[1].Value
+    }
+} else {
+    $errors.Add("Missing production alert rules: $prometheusAlerts")
 }
 
 if ($errors.Count -gt 0) {

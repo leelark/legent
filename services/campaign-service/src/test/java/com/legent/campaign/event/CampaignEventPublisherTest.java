@@ -4,6 +4,7 @@ import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.security.TenantContext;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.AfterEach;
@@ -89,6 +90,31 @@ class CampaignEventPublisherTest {
         assertEquals("send:campaign-1:job-1", payload.get("idempotencyKey"));
         assertEquals("true", payload.get("confirmLaunch"));
         assertFalse(payload.containsKey("scheduledAt"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishAudienceResolutionRequestedUsesWorkspaceEnvelopeAndPayload() {
+        when(eventPublisher.publish(
+                eq(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED),
+                org.mockito.ArgumentMatchers.<EventEnvelope<Map<String, Object>>>any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        publisher.publishAudienceResolutionRequested(
+                "tenant-1",
+                "campaign-1",
+                "job-1",
+                List.of(Map.of("type", "LIST", "id", "list-1", "action", "INCLUDE")));
+
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = ArgumentCaptor.forClass(EventEnvelope.class);
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED), envelopeCaptor.capture());
+        EventEnvelope<Map<String, Object>> envelope = envelopeCaptor.getValue();
+        Map<String, Object> payload = envelope.getPayload();
+        assertEquals("workspace-1", envelope.getWorkspaceId());
+        assertEquals("WORKSPACE", envelope.getOwnershipScope());
+        assertEquals("workspace-1", payload.get("workspaceId"));
+        assertEquals("campaign-1", payload.get("campaignId"));
+        assertEquals("job-1", payload.get("jobId"));
     }
 
     @Test

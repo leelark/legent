@@ -1,0 +1,30 @@
+{
+    "id":  "release-ga-image-schema-version-validation",
+    "createdAt":  "2026-05-22T00:48:34.5633574Z",
+    "objective":  "Enforce GA and image evidence schema versions",
+    "status":  "DONE",
+    "owner":  "RELEASE_MANAGER",
+    "filesInScope":  [
+                         "scripts/ops/validate-ga-evidence.ps1",
+                         "scripts/ops/validate-image-evidence.ps1",
+                         "scripts/ops/test-release-evidence-validators.ps1",
+                         "docs/operations/ga-evidence-matrix.md",
+                         ".codex"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 120",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- scripts/ops/validate-ga-evidence.ps1 scripts/ops/validate-image-evidence.ps1 scripts/ops/test-release-evidence-validators.ps1 docs/operations/ga-evidence-matrix.md .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

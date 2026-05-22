@@ -1,0 +1,41 @@
+{
+    "id":  "frontend-data-extension-governance-drawer",
+    "createdAt":  "2026-05-21T22:53:15.9194996Z",
+    "objective":  "Add data-extension governance controls to frontend",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/audience/data-extensions/page.tsx",
+                         "frontend/src/app/(workspace)/audience/types.ts",
+                         "frontend/tests/e2e/audience-data-extensions.spec.ts",
+                         "frontend/tests/e2e/support/workspace-mock.ts",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-21.jsonl",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "AUDIENCE_SERVICE_OWNER",
+                   "UX_STRATEGIST",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "cd frontend; node_modules\\.bin\\playwright.cmd test tests/e2e/audience-data-extensions.spec.ts --project=chromium --reporter=line",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- frontend/src/app/(workspace)/audience frontend/tests/e2e .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

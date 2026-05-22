@@ -8,6 +8,7 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -20,6 +21,23 @@ import java.util.stream.Stream;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DomainControllerRbacTest {
+
+    @Test
+    void authenticatedDeliverabilityControllerEndpointsDeclareRbac() {
+        List<String> missing = Stream.of(
+                        DomainController.class,
+                        SuppressionController.class,
+                        DmarcController.class,
+                        ReputationController.class)
+                .flatMap(controller -> Stream.of(controller.getDeclaredMethods())
+                        .filter(DomainControllerRbacTest::isMappedEndpoint)
+                        .filter(method -> !isInternalSuppressionEndpoint(controller, method))
+                        .filter(method -> preAuthorize(method) == null)
+                        .map(method -> controller.getSimpleName() + "#" + method.getName()))
+                .toList();
+
+        assertThat(missing).isEmpty();
+    }
 
     @Test
     void unsafeDomainEndpointsDeclareRbac() {
@@ -49,6 +67,43 @@ class DomainControllerRbacTest {
     }
 
     @Test
+    void suppressionReadEndpointsUseDeliverabilityReadPermission() {
+        assertThat(expression(SuppressionController.class, "listSuppressions")).contains("deliverability:read");
+        assertThat(expression(SuppressionController.class, "suppressionHistory")).contains("deliverability:read");
+        assertThat(preAuthorizeGrants(SuppressionController.class, "listSuppressions", Set.of("VIEWER"))).isTrue();
+        assertThat(preAuthorizeGrants(SuppressionController.class, "suppressionHistory", Set.of("ANALYST"))).isTrue();
+        assertThat(preAuthorizeGrants(SuppressionController.class, "listSuppressions", Set.of("CAMPAIGN_MANAGER"))).isFalse();
+    }
+
+    @Test
+    void internalSuppressionEndpointsKeepServiceCredentialGuard() throws NoSuchMethodException {
+        assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod("listSuppressionsInternal", String.class)))
+                .isNull();
+        assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod(
+                "checkSuppressionsInternal",
+                String.class,
+                SuppressionController.SuppressionCheckRequest.class)))
+                .isNull();
+    }
+
+    @Test
+    void dmarcReportsReadAndIngestUseSeparatePermissions() {
+        assertThat(expression(DmarcController.class, "getReports")).contains("deliverability:read");
+        assertThat(expression(DmarcController.class, "ingest")).contains("deliverability:write");
+        assertThat(preAuthorizeGrants(DmarcController.class, "getReports", Set.of("VIEWER"))).isTrue();
+        assertThat(preAuthorizeGrants(DmarcController.class, "ingest", Set.of("VIEWER"))).isFalse();
+        assertThat(preAuthorizeGrants(DmarcController.class, "ingest", Set.of("ANALYST"))).isFalse();
+        assertThat(preAuthorizeGrants(DmarcController.class, "ingest", Set.of("DELIVERY_OPERATOR"))).isTrue();
+    }
+
+    @Test
+    void reputationReadEndpointUsesDeliverabilityReadPermission() {
+        assertThat(expression(ReputationController.class, "getScoreByDomain")).contains("deliverability:read");
+        assertThat(preAuthorizeGrants(ReputationController.class, "getScoreByDomain", Set.of("VIEWER"))).isTrue();
+        assertThat(preAuthorizeGrants(ReputationController.class, "getScoreByDomain", Set.of("CAMPAIGN_MANAGER"))).isFalse();
+    }
+
+    @Test
     void domainWriteEndpointsDenyReadOnlyRoles() {
         assertThat(preAuthorizeGrants("registerDomain", Set.of("VIEWER"))).isFalse();
         assertThat(preAuthorizeGrants("regenerateChallenge", Set.of("VIEWER"))).isFalse();
@@ -71,6 +126,16 @@ class DomainControllerRbacTest {
                 || AnnotatedElementUtils.hasAnnotation(method, PutMapping.class)
                 || AnnotatedElementUtils.hasAnnotation(method, DeleteMapping.class)
                 || AnnotatedElementUtils.hasAnnotation(method, PatchMapping.class);
+    }
+
+    private static boolean isMappedEndpoint(Method method) {
+        return AnnotatedElementUtils.hasAnnotation(method, GetMapping.class)
+                || isUnsafeMapping(method);
+    }
+
+    private static boolean isInternalSuppressionEndpoint(Class<?> controller, Method method) {
+        return controller.equals(SuppressionController.class)
+                && Set.of("listSuppressionsInternal", "checkSuppressionsInternal").contains(method.getName());
     }
 
     private static String expression(String methodName) {

@@ -39,4 +39,20 @@ class SmtpProviderWorkspaceMigrationTest {
             assertTrue(sql.contains("fk_provider_failover_failover_workspace"));
         }
     }
+
+    @Test
+    void legacyMappingGuard_failsWhenWorkspaceDefaultProviderOwnershipRemains() throws IOException {
+        try (var stream = getClass().getResourceAsStream("/db/migration/V17__delivery_legacy_workspace_mapping_guard.sql")) {
+            assertTrue(stream != null, "V17 migration must be on the test classpath");
+            String sql = new String(stream.readAllBytes(), StandardCharsets.UTF_8);
+
+            assertTrue(sql.contains("workspace-default"));
+            assertTrue(sql.contains("RAISE EXCEPTION"));
+            assertTrue(sql.contains("smtp_providers"));
+            assertTrue(sql.contains("routing_rules"));
+            assertTrue(sql.contains("ip_pools"));
+            assertTrue(sql.contains("provider_scores"));
+            assertTrue(sql.contains("map them to explicit tenant workspaces"));
+        }
+    }
 }

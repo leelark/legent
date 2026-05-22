@@ -40,6 +40,7 @@ public class TemplateController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateDto.Response> getTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -95,6 +96,7 @@ public class TemplateController {
     }
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public PagedResponse<TemplateDto.Response> listTemplates(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -111,6 +113,7 @@ public class TemplateController {
     }
 
     @GetMapping("/search")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<TemplateDto.Response>> searchTemplates(@RequestParam String q) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -128,6 +131,7 @@ public class TemplateController {
     }
 
     @GetMapping("/{id}/export/html")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateWorkflowDto.ExportHtmlResponse> exportTemplate(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();

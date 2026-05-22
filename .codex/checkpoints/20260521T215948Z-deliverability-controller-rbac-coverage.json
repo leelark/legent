@@ -1,0 +1,40 @@
+{
+    "id":  "deliverability-controller-rbac-coverage",
+    "createdAt":  "2026-05-21T21:59:48.2605938Z",
+    "objective":  "Add RBAC coverage to deliverability controllers",
+    "status":  "DONE",
+    "owner":  "DELIVERABILITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/controller/DmarcController.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/controller/ReputationController.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/controller/DomainControllerRbacTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "API_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=DomainControllerRbacTest",
+                           "SuppressionControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/deliverability-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

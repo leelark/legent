@@ -6,6 +6,7 @@ import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.expression.BeanResolver;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -33,6 +34,12 @@ class ContentControllerRbacTest {
             TemplateWorkflowController.class
     );
 
+    private static final Set<String> READ_AUTHORIZATION_EXCEPTIONS = Set.of(
+            methodId(ContentController.class, "getRenderedContentSnapshot"),
+            methodId(EmailStudioController.class, "getPublicLandingPage"),
+            methodId(SendGovernancePolicyController.class, "getInternal")
+    );
+
     @Test
     void unsafeContentControllerEndpointsDeclareRbac() {
         List<String> missing = CONTROLLERS.stream()
@@ -43,6 +50,30 @@ class ContentControllerRbacTest {
                 .toList();
 
         assertThat(missing).isEmpty();
+    }
+
+    @Test
+    void protectedContentReadEndpointsDeclareReadRbac() {
+        List<String> missing = CONTROLLERS.stream()
+                .flatMap(controller -> Stream.of(controller.getDeclaredMethods())
+                        .filter(ContentControllerRbacTest::isReadMapping)
+                        .filter(method -> !isReadAuthorizationException(controller, method))
+                        .filter(method -> !hasReadRbac(method))
+                        .map(method -> methodId(controller, method.getName())))
+                .toList();
+
+        assertThat(missing).isEmpty();
+    }
+
+    @Test
+    void publicAndInternalContentReadExceptionsStayExplicit() {
+        assertThat(READ_AUTHORIZATION_EXCEPTIONS).containsExactlyInAnyOrder(
+                methodId(ContentController.class, "getRenderedContentSnapshot"),
+                methodId(EmailStudioController.class, "getPublicLandingPage"),
+                methodId(SendGovernancePolicyController.class, "getInternal"));
+        assertThat(expression(ContentController.class, "getRenderedContentSnapshot")).isEqualTo("permitAll()");
+        assertThat(expression(SendGovernancePolicyController.class, "getInternal")).isEqualTo("permitAll()");
+        assertThat(preAuthorize(method(EmailStudioController.class, "getPublicLandingPage"))).isNull();
     }
 
     @Test
@@ -116,18 +147,42 @@ class ContentControllerRbacTest {
                 || AnnotatedElementUtils.hasAnnotation(method, PatchMapping.class);
     }
 
+    private static boolean isReadMapping(Method method) {
+        return AnnotatedElementUtils.hasAnnotation(method, GetMapping.class);
+    }
+
+    private static boolean isReadAuthorizationException(Class<?> controller, Method method) {
+        return READ_AUTHORIZATION_EXCEPTIONS.contains(methodId(controller, method.getName()));
+    }
+
+    private static boolean hasReadRbac(Method method) {
+        PreAuthorize annotation = preAuthorize(method);
+        if (annotation == null) {
+            return false;
+        }
+        return annotation.value().contains("content:read") || annotation.value().contains("template:*");
+    }
+
     private static String expression(Class<?> controller, String methodName) {
+        PreAuthorize annotation = preAuthorize(method(controller, methodName));
+        assertThat(annotation)
+                .as("%s#%s @PreAuthorize", controller.getSimpleName(), methodName)
+                .isNotNull();
+        return annotation.value();
+    }
+
+    private static Method method(Class<?> controller, String methodName) {
         List<Method> matches = Stream.of(controller.getDeclaredMethods())
                 .filter(method -> method.getName().equals(methodName))
                 .toList();
         assertThat(matches)
                 .as("%s#%s method lookup", controller.getSimpleName(), methodName)
                 .hasSize(1);
-        PreAuthorize annotation = preAuthorize(matches.get(0));
-        assertThat(annotation)
-                .as("%s#%s @PreAuthorize", controller.getSimpleName(), methodName)
-                .isNotNull();
-        return annotation.value();
+        return matches.get(0);
+    }
+
+    private static String methodId(Class<?> controller, String methodName) {
+        return controller.getSimpleName() + "#" + methodName;
     }
 
     private static PreAuthorize preAuthorize(Method method) {

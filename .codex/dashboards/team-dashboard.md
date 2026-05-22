@@ -1,18 +1,18 @@
 ﻿# Autonomous Team Dashboard
 
-Generated: 2026-05-20T22:59:48.8101696Z
+Generated: 2026-05-22T03:52:20.5576616Z
 
 ## Summary
 
 - Registered module teams: 15
-- Registered threads: 14
+- Registered threads: 15
 - Active threads: 0
 - Active leases: 0
 - Active worktrees: 0
 - Ready work: 0
 - Backlog work: 0
 - Blocked work: 6
-- Done work: 58
+- Done work: 87
 
 ## Threads
 
@@ -31,7 +31,8 @@ Generated: 2026-05-20T22:59:48.8101696Z
 | frontend-20260520T113115Z | MODULE | frontend | ARCHIVED | 2026-05-20T13:14:17.9511942Z | True | Safe-stopped by user request after completing template-studio-mode-contract; frontend heartbeat automation deleted. |
 | audience-service-20260520T121322Z | MODULE | audience-service | PAUSED | 2026-05-20T13:16:16.7756807Z | True | Safe stop requested by user after completing predictive-segments-governance and contact-data-designer-preview-governance. Resume from checkpoint 20260520T125000Z-contact-data-designer-preview-governance for additive Contact Builder provenance/classification/audit tables, controller API validation, frontend relationship-designer controls, or internal endpoint security-chain tests. |
 | overall-20260520T133124Z | OVERALL | overall | PAUSED | 2026-05-20T17:13:37.3491151Z | True | Safe-stopped by user request after completing email-governance-policy-objects. Resume from .codex/checkpoints/20260520T164135Z-email-governance-policy-objects.json and .codex/threads/overall-20260520T133124Z-handoff.md. |
-| overall-20260520T181712Z | OVERALL | overall | PAUSED | 2026-05-20T22:57:19.4891311Z | False | Safe-stopped by user request. tracking-ingestion-batch-consumer-readiness is locally validated but BLOCKED on Docker/PostgreSQL and ClickHouse dedupe/reconciliation evidence; no active agents or leases. |
+| overall-20260520T181712Z | OVERALL | overall | PAUSED | 2026-05-20T22:57:19.4891311Z | True | Safe-stopped by user request. tracking-ingestion-batch-consumer-readiness is locally validated but BLOCKED on Docker/PostgreSQL and ClickHouse dedupe/reconciliation evidence; no active agents or leases. |
+| overall-20260521T210913Z | OVERALL | overall | PAUSED | 2026-05-22T03:51:12.9629255Z | False | Safe-stopped per user request after completing latest-audit-safe-local-followups-20260522; resume only on new user direction. |
 
 ## Next Work
 

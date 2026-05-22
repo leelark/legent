@@ -5,6 +5,7 @@ import com.legent.deliverability.repository.DmarcReportRepository;
 import com.legent.deliverability.service.DmarcReportService;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,6 +18,7 @@ public class DmarcController {
     private final DmarcReportService service;
 
     @GetMapping("/reports")
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
     public List<DmarcReport> getReports(@RequestParam String domain) {
         return repo.findByTenantIdAndWorkspaceIdAndDomain(
                 TenantContext.requireTenantId(),
@@ -26,6 +28,7 @@ public class DmarcController {
     }
 
     @PostMapping("/ingest")
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:write', principal.roles)")
     public DmarcReport ingest(@RequestParam String domain, @RequestParam String type, @RequestBody String xml, @RequestParam(required = false) String summary) {
         return service.ingestReport(
                 TenantContext.requireTenantId(),

@@ -1,0 +1,42 @@
+{
+    "id":  "campaign-send-checkpoint-workspace-scope",
+    "createdAt":  "2026-05-21T23:55:54.0838185Z",
+    "objective":  "Scope send-job checkpoints and resume recovery by workspace",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobCheckpointRepository.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/domain/SendJobCheckpoint.java",
+                         "services/campaign-service/src/main/resources/db/migration/V16__send_job_checkpoint_workspace_scope.sql",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "DATABASE_ENGINEER",
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SendJobCheckpointingServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobCheckpointRepository.java services/campaign-service/src/main/java/com/legent/campaign/domain/SendJobCheckpoint.java services/campaign-service/src/main/resources/db/migration/V16__send_job_checkpoint_workspace_scope.sql services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select and lease the next highest-value safe local work item."
+}

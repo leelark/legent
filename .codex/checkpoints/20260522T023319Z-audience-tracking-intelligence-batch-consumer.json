@@ -1,0 +1,56 @@
+{
+    "id":  "audience-tracking-intelligence-batch-consumer",
+    "createdAt":  "2026-05-22T02:33:19.9580811Z",
+    "objective":  "Batch tracking intelligence Kafka consumption in audience service",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/event/AudienceIntelligenceConsumer.java",
+                         "services/audience-service/src/main/java/com/legent/audience/config",
+                         "services/audience-service/src/test/java/com/legent/audience/event/AudienceIntelligenceConsumerTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-22.jsonl",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "KAFKA_CONTRACTS_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=AudienceIntelligenceConsumerTest",
+                           "SubscriberIntelligenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/audience-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/audience-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue backlog scan for next highest-value safe work.",
+    "outcome":  "Audience tracking intelligence consumption now uses an audience-scoped batch Kafka listener with bounded poll records, batch ack, invalid/unsupported event skip, in-batch duplicate skip, and retry on service failures.",
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=AudienceIntelligenceConsumerTest,AudienceKafkaConsumerConfigTest,SubscriberIntelligenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/audience-service -am test",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                          "git diff --check -- services/audience-service .codex"
+                      ],
+    "residualRisks":  [
+                          "Target Kafka lag, audience database contention, idempotency conflict rate, and subscriber intelligence throughput evidence remain required before scale claims.",
+                          "This local slice does not change signed tracking ingress, tracking-service ClickHouse ingestion, topic contracts, or production release evidence."
+                      ]
+}

@@ -10,6 +10,7 @@ import com.legent.content.domain.EmailTemplate;
 import com.legent.content.domain.TemplateApproval;
 import com.legent.content.domain.TemplateVersion;
 import com.legent.content.dto.TemplateVersionDto;
+import com.legent.content.dto.TemplateWorkflowDto;
 import com.legent.content.event.ContentEventPublisher;
 import com.legent.content.repository.EmailTemplateRepository;
 import com.legent.content.repository.TemplateApprovalRepository;
@@ -34,6 +35,7 @@ public class TemplateWorkflowService {
     private final TemplateVersionService versionService;
     private final EmailRenderService renderService;
     private final ContentEventPublisher eventPublisher;
+    private final AiContentAssistanceMetadataSupport aiMetadataSupport;
 
     @org.springframework.beans.factory.annotation.Value("${legent.content.approval-required-by-default:true}")
     private boolean approvalRequiredByDefault = true;
@@ -252,6 +254,7 @@ public class TemplateWorkflowService {
                     tenantId, templateId, version.getVersionNumber(), userId, bypassReason);
         }
 
+        aiMetadataSupport.requireResolvedForOperation(template, "publish");
         renderService.requirePublishable(tenantId, workspaceId, templateId, version.getVersionNumber());
 
         // Publish the version
@@ -285,8 +288,16 @@ public class TemplateWorkflowService {
     @Transactional
     public EmailTemplate saveDraft(String tenantId, String workspaceId, String templateId, String subject,
                                     String htmlContent, String textContent) {
+        return saveDraft(tenantId, workspaceId, templateId, subject, htmlContent, textContent, null);
+    }
+
+    @Transactional
+    public EmailTemplate saveDraft(String tenantId, String workspaceId, String templateId, String subject,
+                                    String htmlContent, String textContent,
+                                    TemplateWorkflowDto.AiDraftApplication aiAssistance) {
         EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateId));
+        String userId = resolveActor(TenantContext.getUserId(), template.getCreatedBy(), "system");
 
         // Only allow draft updates for certain statuses
         if (template.getStatus() == EmailTemplate.TemplateStatus.PUBLISHED) {
@@ -302,6 +313,7 @@ public class TemplateWorkflowService {
             if (textContent != null) template.setTextContent(textContent);
             template.setStatus(EmailTemplate.TemplateStatus.DRAFT);
         }
+        template.setMetadata(aiMetadataSupport.applyApprovedDraftEvidence(template.getMetadata(), aiAssistance, userId));
 
         templateRepository.save(template);
 

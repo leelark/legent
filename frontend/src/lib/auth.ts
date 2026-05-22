@@ -1,20 +1,17 @@
-// SECURITY: JWT and tenantId are now stored in HTTP-only, Secure, SameSite=Strict cookies
-// These cookies are set by the backend (AuthController) and cannot be accessed by JavaScript
-// This prevents XSS attacks from stealing authentication tokens
-
-// Only non-sensitive data is stored in localStorage
+// SECURITY: Session credentials are stored in HTTP-only, Secure, SameSite cookies
+// set by the backend. JavaScript keeps only non-sensitive UI/session metadata
+// and tenant/workspace/environment routing context needed for request headers.
 export const USER_STORAGE_KEY = 'legent_user_id';
 export const ROLES_STORAGE_KEY = 'legent_roles';
 export const THEME_STORAGE_KEY = 'legent_theme';
-// AUDIT-021: Removed TOKEN_STORAGE_KEY - tokens are in HTTP-only cookies only
 export const TENANT_STORAGE_KEY = 'legent_tenant_id';
 export const WORKSPACE_STORAGE_KEY = 'legent_workspace_id';
 export const ENVIRONMENT_STORAGE_KEY = 'legent_environment_id';
 const LEGACY_TENANT_STORAGE_KEY = 'legent_tenant_id_legacy';
 
 /**
- * Stub for backward compatibility. Tenant ID is now stored in HTTP-only cookies.
- * @returns null - tenant must be retrieved from cookie via API call
+ * Returns the locally cached tenant routing context used by the API client.
+ * Authentication remains cookie-backed; this value is only used as request context.
  */
 export function getStoredTenantId(): string | null {
   if (typeof window === 'undefined') {
@@ -26,8 +23,8 @@ export function getStoredTenantId(): string | null {
 
 /**
  * AUDIT-020: Centralized auth state management.
- * Clears all stored authentication data from localStorage.
- * Note: HTTP-only cookies must be cleared by the backend /logout endpoint.
+ * Clears locally cached UI/session metadata and routing context.
+ * Note: HTTP-only session cookies must be cleared by the backend /logout endpoint.
  */
 export function clearStoredAuth(): void {
   if (typeof window === 'undefined') {
@@ -40,7 +37,7 @@ export function clearStoredAuth(): void {
   localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
   localStorage.removeItem(LEGACY_TENANT_STORAGE_KEY);
   // AUDIT-020: Sync with Zustand store to ensure state consistency
-  // Note: HTTP-only cookies cannot be cleared from JavaScript
+  // HTTP-only cookies cannot be cleared from JavaScript.
   // Call /api/v1/auth/logout endpoint to clear cookies
 }
 

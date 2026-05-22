@@ -41,6 +41,7 @@ public class EmailController {
     }
 
     @GetMapping("/recent")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<EmailDto.Response>> getRecentEmails(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -51,6 +52,7 @@ public class EmailController {
     }
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public PagedResponse<EmailDto.Response> listEmails(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {

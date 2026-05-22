@@ -210,7 +210,8 @@ public class AuthController {
             Authentication authentication) {
         UserPrincipal principal = requirePrincipal(authentication);
         requireTenant(principal, tenantId);
-        return ApiResponse.ok(authService.listInvitations(tenantId).stream()
+        String workspaceId = requireWorkspace(principal);
+        return ApiResponse.ok(authService.listInvitations(tenantId, workspaceId).stream()
                 .map(this::mapInvitation)
                 .toList());
     }
@@ -275,7 +276,7 @@ public class AuthController {
 
     @PostMapping("/forgot-password")
     public ApiResponse<Map<String, String>> forgotPassword(@Valid @RequestBody ExperienceDto.ForgotPasswordRequest request) {
-        identityExperienceService.requestPasswordReset(request.getEmail());
+        identityExperienceService.requestPasswordReset(request);
         return ApiResponse.ok(Map.of(
                 "status", "accepted",
                 "message", "If account exists, reset instructions were sent."
@@ -383,6 +384,14 @@ public class AuthController {
                 || !tenantId.equals(principal.getTenantId())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tenant context mismatch");
         }
+    }
+
+    private String requireWorkspace(UserPrincipal principal) {
+        String workspaceId = principal.getWorkspaceId();
+        if (workspaceId == null || workspaceId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Workspace context is required");
+        }
+        return workspaceId;
     }
 
     private AuthBridgeDto.InvitationResponse mapInvitation(AuthInvitation invitation) {

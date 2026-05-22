@@ -1,7 +1,9 @@
 param(
     [string]$RouteMapPath = "config/gateway/route-map.json",
     [string]$NginxPath = "config/nginx/nginx.conf",
-    [string]$IngressPath = "infrastructure/kubernetes/ingress/ingress.yml"
+    [string]$IngressPath = "infrastructure/kubernetes/ingress/ingress.yml",
+    [string]$SourceRoot = "services",
+    [string]$AppConstantsPath = "shared/legent-common/src/main/java/com/legent/common/constant/AppConstants.java"
 )
 
 Set-StrictMode -Version Latest
@@ -59,6 +61,277 @@ function Get-YamlDocumentByMetadataName([string]$Yaml, [string]$Name) {
     return $null
 }
 
+function Normalize-RoutePath([string]$Path) {
+    if ([string]::IsNullOrWhiteSpace($Path) -or $Path.Trim() -eq "/") {
+        return ""
+    }
+    $normalized = $Path.Trim().Replace("\", "/")
+    if (-not $normalized.StartsWith("/")) {
+        $normalized = "/$normalized"
+    }
+    while ($normalized.Contains("//")) {
+        $normalized = $normalized.Replace("//", "/")
+    }
+    if ($normalized.Length -gt 1) {
+        $normalized = $normalized.TrimEnd("/")
+    }
+    return $normalized
+}
+
+function Read-YamlScalar([string]$Value) {
+    if ($null -eq $Value) {
+        return ""
+    }
+    $trimmed = $Value.Trim()
+    $commentIndex = $trimmed.IndexOf(" #", [System.StringComparison]::Ordinal)
+    if ($commentIndex -ge 0) {
+        $trimmed = $trimmed.Substring(0, $commentIndex).Trim()
+    }
+    if ($trimmed.Length -ge 2) {
+        $first = $trimmed[0]
+        $last = $trimmed[$trimmed.Length - 1]
+        if (($first -eq '"' -and $last -eq '"') -or ($first -eq "'" -and $last -eq "'")) {
+            return $trimmed.Substring(1, $trimmed.Length - 2)
+        }
+    }
+    return $trimmed
+}
+
+function Get-IndentLength([string]$Line) {
+    return ([regex]::Match($Line, "^\s*")).Length
+}
+
+function Get-IngressPathBackends([string]$Yaml) {
+    $records = New-Object System.Collections.Generic.List[object]
+    $lines = $Yaml -split "`r?`n"
+    $pendingPath = $null
+    $pendingPathIndent = -1
+    $insideBackend = $false
+    $insideService = $false
+    $order = 0
+
+    foreach ($line in $lines) {
+        if ($line -match '^(?<indent>\s*)-\s+path:\s+(?<path>.+?)\s*$') {
+            $pendingPath = Read-YamlScalar $Matches["path"]
+            $pendingPathIndent = ([string]$Matches["indent"]).Length
+            $insideBackend = $false
+            $insideService = $false
+            continue
+        }
+
+        if (-not $pendingPath) {
+            continue
+        }
+
+        $trimmed = $line.Trim()
+        if (-not $trimmed -or $trimmed.StartsWith("#")) {
+            continue
+        }
+
+        $indent = Get-IndentLength $line
+        if ($indent -le $pendingPathIndent) {
+            $pendingPath = $null
+            $pendingPathIndent = -1
+            $insideBackend = $false
+            $insideService = $false
+            continue
+        }
+
+        if ($line -match '^\s*backend:\s*$') {
+            $insideBackend = $true
+            continue
+        }
+        if ($insideBackend -and $line -match '^\s*service:\s*$') {
+            $insideService = $true
+            continue
+        }
+        if ($insideBackend -and $insideService -and $line -match '^\s*name:\s+(?<name>.+?)\s*$') {
+            $records.Add([pscustomobject]@{
+                Order = $order
+                Path = $pendingPath
+                ServiceName = Read-YamlScalar $Matches["name"]
+            })
+            $order++
+            $pendingPath = $null
+            $pendingPathIndent = -1
+            $insideBackend = $false
+            $insideService = $false
+        }
+    }
+
+    return $records.ToArray()
+}
+
+function Test-IngressPathCoversRoutePrefix([string]$IngressPath, [string]$RoutePrefix) {
+    if ([string]::IsNullOrWhiteSpace($IngressPath) -or [string]::IsNullOrWhiteSpace($RoutePrefix)) {
+        return $false
+    }
+    $normalizedPrefix = Normalize-RoutePath $RoutePrefix
+    $pattern = "^$IngressPath$"
+    try {
+        return ([regex]::IsMatch($normalizedPrefix, $pattern) -and [regex]::IsMatch("$normalizedPrefix/__route_probe__", $pattern))
+    } catch {
+        Fail "Invalid Kubernetes ingress path regex [$IngressPath]: $($_.Exception.Message)"
+    }
+}
+
+function Find-IngressRouteMatch($IngressPathBackends, [string]$RoutePrefix) {
+    foreach ($backend in @($IngressPathBackends | Sort-Object Order)) {
+        if (Test-IngressPathCoversRoutePrefix $backend.Path $RoutePrefix) {
+            return $backend
+        }
+    }
+    return $null
+}
+
+function Join-RoutePath([string]$BasePath, [string]$ChildPath) {
+    $base = Normalize-RoutePath $BasePath
+    $child = Normalize-RoutePath $ChildPath
+    if (-not $base) { return $child }
+    if (-not $child) { return $base }
+    return Normalize-RoutePath "$($base.TrimEnd('/'))/$($child.TrimStart('/'))"
+}
+
+function Get-AppConstantsApiBasePath([string]$Path) {
+    if (-not (Test-Path $Path)) {
+        Fail "Missing AppConstants source: $Path"
+    }
+    $content = Get-Content -Path $Path -Raw
+    $match = [regex]::Match($content, 'API_BASE_PATH\s*=\s*"(?<path>[^"]+)"')
+    if (-not $match.Success) {
+        Fail "Could not discover API_BASE_PATH in $Path"
+    }
+    return Normalize-RoutePath $match.Groups["path"].Value
+}
+
+function Get-MappingPathsFromExpression([string]$Expression) {
+    if ([string]::IsNullOrWhiteSpace($Expression)) {
+        return @("")
+    }
+
+    $expanded = $Expression -replace "AppConstants\.API_BASE_PATH", "`"$script:ApiBasePath`""
+    $pathValues = New-Object System.Collections.Generic.List[string]
+    foreach ($match in [regex]::Matches($expanded, '"(?<value>[^"]*)"')) {
+        $value = [string]$match.Groups["value"].Value
+        if ($value.StartsWith("/") -or $value -eq "") {
+            $pathValues.Add($value)
+        }
+    }
+
+    if ($pathValues.Count -eq 0) {
+        return @("")
+    }
+    if ($expanded -match "\+") {
+        return @(Normalize-RoutePath ($pathValues -join ""))
+    }
+    return @($pathValues | ForEach-Object { Normalize-RoutePath $_ } | Sort-Object -Unique)
+}
+
+function Convert-RouteTemplateToRegex([string]$Template) {
+    $placeholder = "LEGENT_PATH_VARIABLE"
+    $withPlaceholders = [regex]::Replace($Template, "\{[^}/]+\}", $placeholder)
+    return "^$(([regex]::Escape($withPlaceholders)).Replace($placeholder, '[^/]+'))$"
+}
+
+function Get-InternalPrefixDenyPath([string]$Path) {
+    $marker = "/internal/"
+    $index = $Path.IndexOf($marker, [System.StringComparison]::OrdinalIgnoreCase)
+    if ($index -lt 0) {
+        return $null
+    }
+    return $Path.Substring(0, $index + $marker.Length)
+}
+
+function Test-ExactInternalDeny([string]$Config, [string]$Path) {
+    $escapedPath = [regex]::Escape($Path)
+    $uriToken = [regex]::Escape('$uri')
+    $locationPattern = "location\s+=\s+$escapedPath\s*\{[\s\S]*?return\s+404\s*;"
+    $uriPattern = "if\s*\(\s*$uriToken\s+=\s+$escapedPath\s*\)\s*\{[\s\S]*?return\s+404\s*;"
+    return ($Config -match $locationPattern -or $Config -match $uriPattern)
+}
+
+function Test-PrefixInternalDeny([string]$Config, [string]$Path) {
+    $prefix = Get-InternalPrefixDenyPath $Path
+    if (-not $prefix) {
+        return $false
+    }
+    $prefixPattern = "location\s+\^~\s+$([regex]::Escape($prefix))\s*\{[\s\S]*?return\s+404\s*;"
+    return ($Config -match $prefixPattern)
+}
+
+function Test-StaticInternalDeny([string]$Config, [string]$Path) {
+    return ((Test-ExactInternalDeny $Config $Path) -or (Test-PrefixInternalDeny $Config $Path))
+}
+
+function Test-RegexInternalDeny([string]$Config, [string]$RouteRegex) {
+    $escapedRegex = [regex]::Escape($RouteRegex)
+    $uriToken = [regex]::Escape('$uri')
+    $uriPattern = "if\s*\(\s*$uriToken\s+~\s+$escapedRegex\s*\)\s*\{[\s\S]*?return\s+404\s*;"
+    $locationPattern = "location\s+~\*?\s+$escapedRegex\s*\{[\s\S]*?return\s+404\s*;"
+    return ($Config -match $uriPattern -or $Config -match $locationPattern)
+}
+
+function Get-InternalControllerRoutes([string]$RootPath) {
+    if (-not (Test-Path $RootPath)) {
+        return @()
+    }
+
+    $routes = New-Object System.Collections.Generic.List[object]
+    $singleline = [System.Text.RegularExpressions.RegexOptions]::Singleline
+    $classPattern = '@RequestMapping\s*(?:\((?<expr>[^)]*)\))?[\s\S]{0,800}?\b(?:class|record)\s+\w+'
+    $methodPattern = '@(?:GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)\s*(?:\((?<expr>[^)]*)\))?'
+
+    foreach ($file in Get-ChildItem -Path $RootPath -Recurse -Filter *.java) {
+        if ($file.FullName -notmatch "\\src\\main\\java\\") {
+            continue
+        }
+        $content = Get-Content -Path $file.FullName -Raw
+        if ($content -notmatch "@RestController" -and $content -notmatch "@Controller") {
+            continue
+        }
+
+        $classBasePaths = @("")
+        $classMatch = [regex]::Match($content, $classPattern, $singleline)
+        $methodContent = $content
+        if ($classMatch.Success) {
+            $classBasePaths = @(Get-MappingPathsFromExpression $classMatch.Groups["expr"].Value)
+            $methodContent = $content.Substring($classMatch.Index + $classMatch.Length)
+        }
+
+        foreach ($methodMatch in [regex]::Matches($methodContent, $methodPattern, $singleline)) {
+            $methodPaths = @(Get-MappingPathsFromExpression $methodMatch.Groups["expr"].Value)
+            foreach ($basePath in $classBasePaths) {
+                foreach ($methodPath in $methodPaths) {
+                    $template = Join-RoutePath $basePath $methodPath
+                    if ($template -notmatch "/internal($|/)") {
+                        continue
+                    }
+                    $source = $file.FullName
+                    try {
+                        $source = Resolve-Path -Path $file.FullName -Relative
+                    } catch {
+                        $source = $file.FullName
+                    }
+                    $routes.Add([pscustomobject]@{
+                        Template = $template
+                        RouteRegex = Convert-RouteTemplateToRegex $template
+                        IsTemplated = ($template -match "\{[^}/]+\}")
+                        Source = $source
+                    })
+                }
+            }
+        }
+    }
+
+    return @($routes | Sort-Object Template, Source | Group-Object Template | ForEach-Object { $_.Group[0] })
+}
+
+$script:ApiBasePath = Get-AppConstantsApiBasePath $AppConstantsPath
+$sourceInternalRoutes = @(Get-InternalControllerRoutes $SourceRoot)
+if ($sourceInternalRoutes.Count -eq 0) {
+    $errors.Add("Source scan found no Spring controller internal routes under $SourceRoot; route validation cannot prove public-edge denial coverage.")
+}
+
 foreach ($route in $routes) {
     if (-not $route.prefix -or -not $route.service -or -not $route.nginxUpstream) {
         $errors.Add("Route entry missing prefix/service/nginxUpstream: $($route | ConvertTo-Json -Compress)")
@@ -95,43 +368,30 @@ if ($trackingLocationBody -and $trackingLocationBody -notmatch "limit_req\s+zone
     $errors.Add("Nginx /api/v1/tracking must use tracking_limit burst=50 nodelay")
 }
 
-$requiredNginxExactInternalDenyPaths = @(
-    "/api/v1/imports/internal/start",
-    "/api/v1/data-extensions/query-activities/internal",
-    "/api/v1/deliverability/suppressions/internal"
-)
-foreach ($path in $requiredNginxExactInternalDenyPaths) {
-    $denyPattern = "location\s+=\s+$([regex]::Escape($path))\s*\{[\s\S]*?return\s+404\s*;"
-    if ($nginx -notmatch $denyPattern) {
-        $errors.Add("Nginx public-edge deny for internal route $path -> 404 is missing")
-    }
-}
-foreach ($path in @(
-    "/api/v1/deliverability/suppressions/internal/"
-)) {
-    $denyPattern = "location\s+\^~\s+$([regex]::Escape($path))\s*\{[\s\S]*?return\s+404\s*;"
-    if ($nginx -notmatch $denyPattern) {
-        $errors.Add("Nginx public-edge deny for internal route prefix $path -> 404 is missing")
-    }
-}
-$uriToken = [regex]::Escape('$uri')
-$contentSnapshotDenyPattern = "if\s*\(\s*$uriToken\s+=\s+$([regex]::Escape('/api/v1/content/rendered-content/internal'))\s*\)\s*\{[\s\S]*?return\s+404\s*;"
-if ($nginx -notmatch $contentSnapshotDenyPattern) {
-    $errors.Add("Nginx public-edge deny for internal route /api/v1/content/rendered-content/internal -> 404 is missing")
-}
-foreach ($pathRegex in @(
-    "^/api/v1/content/[^/]+/render/internal$",
-    "^/api/v1/content/rendered-content/[^/]+/internal$",
-    "^/api/v1/content/send-governance-policies/[^/]+/internal$"
-)) {
-    $denyPattern = "if\s*\(\s*$uriToken\s+~\s+$([regex]::Escape($pathRegex))\s*\)\s*\{[\s\S]*?return\s+404\s*;"
-    if ($nginx -notmatch $denyPattern) {
-        $errors.Add("Nginx public-edge deny for internal route pattern $pathRegex -> 404 is missing")
+foreach ($internalRoute in $sourceInternalRoutes) {
+    if ($internalRoute.IsTemplated) {
+        if (-not (Test-RegexInternalDeny $nginx $internalRoute.RouteRegex)) {
+            $errors.Add("Nginx public-edge deny for source-discovered internal route pattern $($internalRoute.RouteRegex) from $($internalRoute.Source) -> 404 is missing")
+        }
+    } elseif (-not (Test-StaticInternalDeny $nginx $internalRoute.Template)) {
+        $errors.Add("Nginx public-edge deny for source-discovered internal route $($internalRoute.Template) from $($internalRoute.Source) -> 404 is missing")
     }
 }
 
 if (Test-Path $IngressPath) {
     $ingress = Get-Content -Path $IngressPath -Raw
+    $ingressPathBackends = @(Get-IngressPathBackends $ingress)
+    if ($ingressPathBackends.Count -eq 0) {
+        $errors.Add("Kubernetes ingress path/backend scan found no routable paths.")
+    }
+    foreach ($route in $routes) {
+        $matchingIngress = Find-IngressRouteMatch $ingressPathBackends $route.prefix
+        if (-not $matchingIngress) {
+            $errors.Add("Kubernetes ingress path missing for route-map prefix $($route.prefix) -> $($route.service)")
+        } elseif ([string]$matchingIngress.ServiceName -ne [string]$route.service) {
+            $errors.Add("Kubernetes ingress first matching path [$($matchingIngress.Path)] for route-map prefix $($route.prefix) routes to $($matchingIngress.ServiceName), expected $($route.service)")
+        }
+    }
     if ($ingress -match '/api/v1/track(?!ing)(\s|/|\(|\?|$)') {
         $errors.Add("Ingress must not route /api/v1/track")
     }
@@ -160,33 +420,13 @@ if (Test-Path $IngressPath) {
             $errors.Add("Kubernetes tracking analytics ingress must route analytics API and websocket paths")
         }
     }
-    foreach ($path in @(
-        "/api/v1/imports/internal/start",
-        "/api/v1/data-extensions/query-activities/internal",
-        "/api/v1/content/rendered-content/internal",
-        "/api/v1/deliverability/suppressions/internal"
-    )) {
-        $denyPattern = "location\s+=\s+$([regex]::Escape($path))\s*\{[\s\S]*?return\s+404\s*;"
-        if ($ingress -notmatch $denyPattern) {
-            $errors.Add("Ingress public-edge deny for internal route $path -> 404 is missing")
-        }
-    }
-    foreach ($path in @(
-        "/api/v1/deliverability/suppressions/internal/"
-    )) {
-        $denyPattern = "location\s+\^~\s+$([regex]::Escape($path))\s*\{[\s\S]*?return\s+404\s*;"
-        if ($ingress -notmatch $denyPattern) {
-            $errors.Add("Ingress public-edge deny for internal route prefix $path -> 404 is missing")
-        }
-    }
-    foreach ($pathRegex in @(
-        "^/api/v1/content/[^/]+/render/internal$",
-        "^/api/v1/content/rendered-content/[^/]+/internal$",
-        "^/api/v1/content/send-governance-policies/[^/]+/internal$"
-    )) {
-        $denyPattern = "location\s+~\s+$([regex]::Escape($pathRegex))\s*\{[\s\S]*?return\s+404\s*;"
-        if ($ingress -notmatch $denyPattern) {
-            $errors.Add("Ingress public-edge deny for internal route pattern $pathRegex -> 404 is missing")
+    foreach ($internalRoute in $sourceInternalRoutes) {
+        if ($internalRoute.IsTemplated) {
+            if (-not (Test-RegexInternalDeny $ingress $internalRoute.RouteRegex)) {
+                $errors.Add("Ingress public-edge deny for source-discovered internal route pattern $($internalRoute.RouteRegex) from $($internalRoute.Source) -> 404 is missing")
+            }
+        } elseif (-not (Test-StaticInternalDeny $ingress $internalRoute.Template)) {
+            $errors.Add("Ingress public-edge deny for source-discovered internal route $($internalRoute.Template) from $($internalRoute.Source) -> 404 is missing")
         }
     }
     foreach ($service in ($routes.service | Sort-Object -Unique)) {
@@ -201,4 +441,4 @@ if ($errors.Count -gt 0) {
     exit 1
 }
 
-Write-Host "Route map validation passed for $($routes.Count) routes."
+Write-Host "Route map validation passed for $($routes.Count) routes and $($sourceInternalRoutes.Count) source-discovered internal routes."

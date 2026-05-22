@@ -99,6 +99,7 @@ class SendExecutionServiceTest {
         ReflectionTestUtils.setField(service, "contentReferenceEnabled", true);
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
         ReflectionTestUtils.setField(service, "recipientPageSize", 1000);
+        ReflectionTestUtils.setField(service, "retrySchedulerPageSize", 100);
     }
 
     @AfterEach
@@ -590,9 +591,16 @@ class SendExecutionServiceTest {
         batch.setUpdatedAt(Instant.now().minus(Duration.ofMinutes(30)));
         batch.setPayload("[{\"email\":\"one@example.com\",\"subscriberId\":\"sub-1\"}]");
 
-        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
-                eq(SendBatch.BatchStatus.PROCESSING), any())).thenReturn(List.of(batch));
-        when(batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL)).thenReturn(List.of(batch));
+        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PROCESSING), any(), any())).thenReturn(List.of(batch));
+        when(batchRepository.claimStaleProcessingBatchAsPartial(
+                eq("tenant-1"), eq("workspace-1"), eq("batch-1"), eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PARTIAL), any(), anyString(), any())).thenReturn(1);
+        when(batchRepository.findByStatusAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PARTIAL), any())).thenReturn(List.of(batch));
+        when(batchRepository.claimPartialBatchForRetry(
+                eq("tenant-1"), eq("workspace-1"), eq("batch-1"), eq(SendBatch.BatchStatus.PARTIAL),
+                eq(SendBatch.BatchStatus.PENDING), eq(0), eq(1), any())).thenReturn(1);
         when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(eventPublisher.publish(eq(AppConstants.TOPIC_BATCH_CREATED), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
@@ -620,9 +628,13 @@ class SendExecutionServiceTest {
         batch.setRetryCount(2);
         batch.setPayload("[{\"email\":\"one@example.com\",\"subscriberId\":\"sub-1\"}]");
 
-        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
-                eq(SendBatch.BatchStatus.PROCESSING), any())).thenReturn(List.of());
-        when(batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL)).thenReturn(List.of(batch));
+        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PROCESSING), any(), any())).thenReturn(List.of());
+        when(batchRepository.findByStatusAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PARTIAL), any())).thenReturn(List.of(batch));
+        when(batchRepository.claimPartialBatchForRetry(
+                eq("tenant-1"), eq("workspace-1"), eq("batch-1"), eq(SendBatch.BatchStatus.PARTIAL),
+                eq(SendBatch.BatchStatus.PENDING), eq(2), eq(3), any())).thenReturn(1);
         when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(eventPublisher.publish(eq(AppConstants.TOPIC_BATCH_CREATED), any()))
                 .thenReturn(CompletableFuture.failedFuture(new RuntimeException("kafka unavailable")));
@@ -634,6 +646,27 @@ class SendExecutionServiceTest {
         assertEquals("Failed to publish campaign batch retry requeue event", batch.getLastError());
         verify(eventPublisher).publish(eq(AppConstants.TOPIC_BATCH_CREATED), any());
         verify(batchRepository, times(2)).save(batch);
+    }
+
+    @Test
+    void retryPartialBatchesSkipsWhenAtomicRetryClaimLosesRace() {
+        SendBatch batch = batch();
+        batch.setStatus(SendBatch.BatchStatus.PARTIAL);
+        batch.setRetryCount(1);
+        batch.setPayload("[{\"email\":\"one@example.com\",\"subscriberId\":\"sub-1\"}]");
+
+        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PROCESSING), any(), any())).thenReturn(List.of());
+        when(batchRepository.findByStatusAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PARTIAL), any())).thenReturn(List.of(batch));
+        when(batchRepository.claimPartialBatchForRetry(
+                eq("tenant-1"), eq("workspace-1"), eq("batch-1"), eq(SendBatch.BatchStatus.PARTIAL),
+                eq(SendBatch.BatchStatus.PENDING), eq(1), eq(2), any())).thenReturn(0);
+
+        service.retryPartialBatches();
+
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_BATCH_CREATED), any());
+        verify(batchRepository, never()).save(batch);
     }
 
     @Test
@@ -651,9 +684,13 @@ class SendExecutionServiceTest {
         job.setCampaignId("campaign-1");
         job.setStatus(SendJob.JobStatus.SENDING);
 
-        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
-                eq(SendBatch.BatchStatus.PROCESSING), any())).thenReturn(List.of());
-        when(batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL)).thenReturn(List.of(batch));
+        when(batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PROCESSING), any(), any())).thenReturn(List.of());
+        when(batchRepository.findByStatusAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                eq(SendBatch.BatchStatus.PARTIAL), any())).thenReturn(List.of(batch));
+        when(batchRepository.claimPartialBatchAsFailed(
+                eq("tenant-1"), eq("workspace-1"), eq("batch-1"), eq(SendBatch.BatchStatus.PARTIAL),
+                eq(SendBatch.BatchStatus.FAILED), eq(5), eq(6), anyString(), any())).thenReturn(1);
         when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(batchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1"))
                 .thenReturn(1L);

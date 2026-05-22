@@ -1,0 +1,42 @@
+{
+    "id":  "tracking-outbox-inline-publish-decoupling",
+    "createdAt":  "2026-05-21T22:44:00.8748212Z",
+    "objective":  "Decouple tracking ingestion from inline outbox publish",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingOutboxService.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingOutboxServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "KAFKA_CONTRACTS_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "SRE_MONITORING_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingOutboxServiceTest",
+                           "TrackingIngestionServiceTest",
+                           "TrackingEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/tracking-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/tracking-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

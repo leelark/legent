@@ -1,0 +1,43 @@
+{
+    "id":  "campaign-schedulers-bounded-claims",
+    "createdAt":  "2026-05-21T21:47:36.1516342Z",
+    "objective":  "Bound campaign scheduler claims for due jobs and partial retries",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/SchedulingService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobRepository.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/SchedulingServiceTest.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "DATABASE_ENGINEER",
+                   "KAFKA_CONTRACTS_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SchedulingServiceTest",
+                           "SendExecutionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/campaign-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

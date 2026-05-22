@@ -1,0 +1,28 @@
+{
+    "id":  "deliverability-internal-suppression-security-chain-coverage",
+    "createdAt":  "2026-05-22T00:35:05.4315326Z",
+    "objective":  "Add security-chain coverage for deliverability internal suppression routes",
+    "status":  "DONE",
+    "owner":  "DELIVERABILITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/config/SecurityConfigTest.java",
+                         ".codex"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=SecurityConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/deliverability-service/src/test/java/com/legent/deliverability/config/SecurityConfigTest.java .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

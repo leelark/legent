@@ -5,18 +5,21 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, String> {
     Optional<User> findByTenantIdAndEmailIgnoreCase(String tenantId, String email);
     
-    java.util.List<User> findByTenantId(String tenantId);
+    List<User> findByTenantId(String tenantId);
     
     Optional<User> findByTenantIdAndId(String tenantId, String id);
     
     boolean existsByTenantIdAndEmailIgnoreCase(String tenantId, String email);
 
     Optional<User> findFirstByEmailIgnoreCase(String email);
+
+    List<User> findAllByEmailIgnoreCase(String email);
 
     Optional<User> findByTenantIdAndIdentityProviderIdAndExternalId(String tenantId, String identityProviderId, String externalId);
 }

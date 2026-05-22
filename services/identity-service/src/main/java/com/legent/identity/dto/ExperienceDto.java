@@ -16,6 +16,12 @@ public class ExperienceDto {
         @NotBlank
         @Email
         private String email;
+
+        @Size(max = 64)
+        private String tenantId;
+
+        @Size(max = 64)
+        private String workspaceId;
     }
 
     @Getter

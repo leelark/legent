@@ -10,6 +10,8 @@ import { useRouter } from 'next/navigation';
 import type { ImportJob } from '../../types';
 
 const STEPS = ['Upload', 'Map Fields', 'Validate', 'Import'];
+const activeStatuses = new Set(['PENDING', 'VALIDATING', 'PROCESSING']);
+const terminalStatuses = new Set(['COMPLETED', 'COMPLETED_WITH_ERRORS', 'FAILED', 'CANCELLED']);
 const TARGET_FIELDS = [
   { key: 'email', label: 'Email' },
   { key: 'subscriberKey', label: 'Subscriber Key' },
@@ -44,6 +46,68 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
   );
 }
 
+function isActiveStatus(status?: string) {
+  return !status || activeStatuses.has(status);
+}
+
+function isTerminalStatus(status?: string) {
+  return Boolean(status && terminalStatuses.has(status));
+}
+
+function ImportResult({ jobStatus }: { jobStatus: ImportJob }) {
+  if (jobStatus.status === 'COMPLETED') {
+    return (
+      <>
+        <CheckCircle size={48} weight="duotone" className="text-emerald-500 mb-4" />
+        <p className="text-lg font-semibold text-content-primary">Import Completed</p>
+        <p className="text-sm text-content-secondary mt-1">Successfully imported {jobStatus.successRows || 0} rows.</p>
+      </>
+    );
+  }
+  if (jobStatus.status === 'COMPLETED_WITH_ERRORS') {
+    return (
+      <>
+        <WarningCircle size={48} weight="duotone" className="text-amber-500 mb-4" />
+        <p className="text-lg font-semibold text-content-primary">Import Completed with Errors</p>
+        <p className="text-sm text-content-secondary mt-1">
+          {jobStatus.successRows || 0} successful, {jobStatus.errorRows || 0} failed.
+        </p>
+      </>
+    );
+  }
+  if (jobStatus.status === 'FAILED') {
+    return (
+      <>
+        <WarningCircle size={48} weight="duotone" className="text-red-500 mb-4" />
+        <p className="text-lg font-semibold text-content-primary">Import Failed</p>
+        <p className="text-sm text-content-secondary mt-1">
+          {jobStatus.errorRows || 0} failed rows. No further polling will run.
+        </p>
+      </>
+    );
+  }
+  if (jobStatus.status === 'CANCELLED') {
+    return (
+      <>
+        <WarningCircle size={48} weight="duotone" className="text-content-muted mb-4" />
+        <p className="text-lg font-semibold text-content-primary">Import Cancelled</p>
+        <p className="text-sm text-content-secondary mt-1">
+          Processed {jobStatus.processedRows || 0} of {jobStatus.totalRows || 0} rows before cancellation.
+        </p>
+      </>
+    );
+  }
+  return (
+    <>
+      <WarningCircle size={48} weight="duotone" className="text-red-500 mb-4" />
+      <p className="text-lg font-semibold text-content-primary">Import Finished with Issues</p>
+      <p className="text-sm text-content-secondary mt-1">
+        {jobStatus.successRows || 0} successful, {jobStatus.errorRows || 0} failed. Status: {jobStatus.status}
+      </p>
+    </>
+  );
+}
+
 export default function ImportWizardPage() {
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
@@ -58,7 +122,7 @@ export default function ImportWizardPage() {
   // Poll job status
   useEffect(() => {
     let interval: NodeJS.Timeout;
-    if (currentStep === 3 && jobId && (!jobStatus || (jobStatus.status !== 'COMPLETED' && jobStatus.status !== 'COMPLETED_WITH_ERRORS' && jobStatus.status !== 'FAILED'))) {
+    if (currentStep === 3 && jobId && !isTerminalStatus(jobStatus?.status)) {
       interval = setInterval(async () => {
         try {
           const res = await get<ImportJob>(`/imports/${jobId}`);
@@ -230,7 +294,7 @@ export default function ImportWizardPage() {
             <CardHeader title="Importing" subtitle="Processing your data" />
             <div className="flex flex-col items-center py-8">
               
-              {!jobStatus || jobStatus.status === 'PROCESSING' || jobStatus.status === 'PENDING' ? (
+              {isActiveStatus(jobStatus?.status) ? (
                 <>
                   <div className="h-2 w-full max-w-md rounded-full bg-surface-secondary overflow-hidden mb-4 relative">
                     <div 
@@ -239,23 +303,13 @@ export default function ImportWizardPage() {
                     />
                   </div>
                   <p className="text-sm text-content-secondary">
-                    {jobStatus ? `Processed ${jobStatus.processedRows} of ${jobStatus.totalRows} rows...` : 'Starting import...'}
+                    {jobStatus ? `${jobStatus.status}: processed ${jobStatus.processedRows || 0} of ${jobStatus.totalRows || 0} rows...` : 'Starting import...'}
                   </p>
                 </>
-              ) : jobStatus.status === 'COMPLETED' ? (
-                 <>
-                   <CheckCircle size={48} weight="duotone" className="text-emerald-500 mb-4" />
-                   <p className="text-lg font-semibold text-content-primary">Import Completed</p>
-                   <p className="text-sm text-content-secondary mt-1">Successfully imported {jobStatus.successRows} rows.</p>
-                 </>
+              ) : jobStatus ? (
+                <ImportResult jobStatus={jobStatus} />
               ) : (
-                 <>
-                   <WarningCircle size={48} weight="duotone" className="text-red-500 mb-4" />
-                   <p className="text-lg font-semibold text-content-primary">Import Finished with Issues</p>
-                   <p className="text-sm text-content-secondary mt-1">
-                     {jobStatus.successRows} successful, {jobStatus.errorRows} failed. Status: {jobStatus.status}
-                   </p>
-                 </>
+                null
               )}
             </div>
           </div>

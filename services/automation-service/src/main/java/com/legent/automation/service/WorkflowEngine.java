@@ -176,16 +176,28 @@ public class WorkflowEngine {
 
     @Async("workflowExecutor")
     @Transactional
-    public void resumeInstance(String instanceId, String nextNodeId, String wakeId) {
+    public void resumeInstance(
+            String instanceId,
+            String nextNodeId,
+            String wakeId,
+            String expectedTenantId,
+            String expectedWorkspaceId) {
         try {
-            resumeInstanceInternal(instanceId, nextNodeId, wakeId);
+            resumeInstanceInternal(instanceId, nextNodeId, wakeId, expectedTenantId, expectedWorkspaceId);
         } finally {
             TenantContext.clear();
         }
     }
 
-    private void resumeInstanceInternal(String instanceId, String nextNodeId, String wakeId) {
-        WorkflowInstance instance = instanceRepository.findById(instanceId)
+    private void resumeInstanceInternal(
+            String instanceId,
+            String nextNodeId,
+            String wakeId,
+            String expectedTenantId,
+            String expectedWorkspaceId) {
+        String tenantId = requireScope(expectedTenantId, "tenant");
+        String workspaceId = requireScope(expectedWorkspaceId, "workspace");
+        WorkflowInstance instance = instanceRepository.findByIdAndTenantIdAndWorkspaceId(instanceId, tenantId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Instance missing"));
 
         // Set context from the instance
@@ -351,5 +363,12 @@ public class WorkflowEngine {
         hist.setDetails("{}");
         hist.setErrorMessage(errorMsg);
         historyRepository.save(hist);
+    }
+
+    private String requireScope(String value, String scopeName) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(scopeName + " scope is required to resume workflow instance");
+        }
+        return value.trim();
     }
 }

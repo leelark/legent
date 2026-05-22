@@ -3,9 +3,12 @@ package com.legent.content.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.constant.AppConstants;
+import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
+import com.legent.content.domain.EmailTemplate;
 import com.legent.content.domain.TemplateTestSendRecord;
 import com.legent.content.dto.EmailStudioDto;
+import com.legent.content.repository.EmailTemplateRepository;
 import com.legent.content.repository.TemplateTestSendRecordRepository;
 import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
@@ -23,15 +26,21 @@ import java.util.Map;
 public class TemplateTestSendService {
 
     private final TemplateTestSendRecordRepository recordRepository;
+    private final EmailTemplateRepository templateRepository;
     private final EmailRenderService renderService;
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final AiContentAssistanceMetadataSupport aiMetadataSupport;
 
     public TemplateTestSendRecord send(String tenantId, String templateId, EmailStudioDto.TestSendRequest request) {
         return send(tenantId, TenantContext.requireWorkspaceId(), templateId, request);
     }
 
     public TemplateTestSendRecord send(String tenantId, String workspaceId, String templateId, EmailStudioDto.TestSendRequest request) {
+        EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
+                .orElseThrow(() -> new NotFoundException("Template", templateId));
+        aiMetadataSupport.requireResolvedForOperation(template, "test-send");
+
         EmailStudioDto.RenderRequest renderRequest = new EmailStudioDto.RenderRequest();
         renderRequest.setVariables(request.getVariables());
         renderRequest.setBrandKitId(request.getBrandKitId());

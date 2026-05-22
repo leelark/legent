@@ -37,6 +37,9 @@ public class TrackingOutboxService {
     @Value("${legent.tracking.outbox.max-attempts:8}")
     private int maxAttempts;
 
+    @Value("${legent.tracking.outbox.publish-after-commit:false}")
+    private boolean publishAfterCommit;
+
     @Transactional
     public void enqueue(TrackingDto.RawEventPayload payload) {
         TrackingOutboxEvent event = new TrackingOutboxEvent();
@@ -49,6 +52,9 @@ public class TrackingOutboxService {
         event.setPayloadJson(writePayload(payload));
         outboxRepository.save(event);
 
+        if (!publishAfterCommit) {
+            return;
+        }
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

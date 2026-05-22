@@ -45,9 +45,18 @@ export default function SubscribersPage() {
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const { data, loading, refetch } = useApi<PagedResponse<Subscriber>>(
-    `/subscribers?page=${page}&size=20${debouncedSearch ? `&search=${debouncedSearch}` : ''}${statusFilter ? `&status=${statusFilter}` : ''}`
-  );
+  const queryParams = new URLSearchParams({
+    page: String(page),
+    size: '20',
+  });
+  if (debouncedSearch.trim()) {
+    queryParams.set('search', debouncedSearch.trim());
+  }
+  if (statusFilter) {
+    queryParams.set('status', statusFilter);
+  }
+
+  const { data, loading, refetch } = useApi<PagedResponse<Subscriber>>(`/subscribers?${queryParams.toString()}`);
   const rows = data?.content ?? data?.data ?? [];
   const totalElements = data?.totalElements ?? 0;
   const isFirstPage = data?.first ?? true;
@@ -123,7 +132,10 @@ export default function SubscribersPage() {
     if (selected.length === 0) return;
     if (confirm(`Delete ${selected.length} subscribers?`)) {
       try {
-        await Promise.all(selected.map(id => del(`/subscribers/${id}`)));
+        await post('/subscribers/bulk-actions', {
+          action: 'DELETE',
+          subscriberIds: selected,
+        });
         setSelected([]);
         refetch();
       } catch {

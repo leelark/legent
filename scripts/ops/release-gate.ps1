@@ -11,7 +11,8 @@ param(
     [switch]$RequireImageDigests,
     [switch]$RequireImageEvidence,
     [string]$ImageEvidenceManifest,
-    [string]$ImageEvidenceRoot
+    [string]$ImageEvidenceRoot,
+    [string]$ComposeEnvFile = ".env.example"
 )
 
 Set-StrictMode -Version Latest
@@ -33,6 +34,15 @@ function Run-Step($Name, [scriptblock]$Step) {
 
 if (-not $LocalOnly -and -not ($RequireExternalEgressEvidence -and $RequireGaEvidence -and $RequireImageEvidence -and $RequireImageDigests)) {
     Fail "release-gate requires strict evidence flags for promotion. Use -LocalOnly only for non-promotional local validation."
+}
+
+$skipFlags = @()
+if ($SkipBackend) { $skipFlags += "-SkipBackend" }
+if ($SkipFrontend) { $skipFlags += "-SkipFrontend" }
+if ($SkipCompose) { $skipFlags += "-SkipCompose" }
+if ($SkipKustomize) { $skipFlags += "-SkipKustomize" }
+if (-not $LocalOnly -and @($skipFlags).Count -gt 0) {
+    Fail "Strict release promotion cannot use local gate skip flags: $($skipFlags -join ', '). Use -LocalOnly for non-promotional local validation."
 }
 
 if ($RequireExternalEgressEvidence) {
@@ -57,7 +67,8 @@ Run-Step "repo artifact hygiene" { & scripts/ops/validate-repo-artifact-hygiene.
 Run-Step "production overlay" { & scripts/ops/validate-production-overlay.ps1 -RequireImageDigests:$RequireImageDigests }
 
 if (-not $SkipCompose) {
-    Run-Step "docker compose config" { docker compose config --quiet }
+    if (-not (Test-Path $ComposeEnvFile)) { Fail "Compose env file is required for reproducible local validation: $ComposeEnvFile" }
+    Run-Step "docker compose config" { docker compose --env-file $ComposeEnvFile config --quiet }
 }
 if (-not $SkipKustomize) {
     Run-Step "production kustomize render" { kubectl kustomize infrastructure/kubernetes/overlays/production | Out-Null }

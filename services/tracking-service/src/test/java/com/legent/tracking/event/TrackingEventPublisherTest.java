@@ -46,4 +46,30 @@ class TrackingEventPublisherTest {
 
         assertThat(thrown.getCause()).isSameAs(failure);
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void publishIngestedEventOrThrow_WhenPublisherReturnsNoFuture_FailsClosed() {
+        EventPublisher eventPublisher = mock(EventPublisher.class);
+        TrackingEventPublisher publisher = new TrackingEventPublisher(
+                eventPublisher,
+                new ObjectMapper().findAndRegisterModules());
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_TRACKING_INGESTED), eq("message-1"), any(EventEnvelope.class)))
+                .thenReturn(null);
+
+        TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
+                .id("event-1")
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .messageId("message-1")
+                .eventType("OPEN")
+                .timestamp(Instant.now())
+                .build();
+
+        IllegalStateException thrown = assertThrows(
+                IllegalStateException.class,
+                () -> publisher.publishIngestedEventOrThrow(payload));
+
+        assertThat(thrown).hasMessageContaining("no send future");
+    }
 }

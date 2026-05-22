@@ -76,22 +76,39 @@ public class AwsSesProviderAdapter extends ApiProviderAdapterSupport implements 
         }
     }
 
-    private Region resolveRegion(SmtpProvider config) {
+    Region resolveRegion(SmtpProvider config) {
         try {
             String host = config.getHost();
             if (host != null && !host.isBlank()) {
                 URI uri = host.startsWith("http://") || host.startsWith("https://") ? URI.create(host) : URI.create("https://" + host);
                 String hostname = uri.getHost();
-                if (hostname != null && hostname.startsWith("email.") && hostname.contains(".amazonaws.com")) {
-                    String region = hostname.substring("email.".length(), hostname.indexOf(".amazonaws.com"));
+                String region = regionFromSesHostname(hostname);
+                if (region != null) {
                     if (!region.isBlank()) {
                         return Region.of(region);
                     }
                 }
+                throw new ProviderDispatchException("AWS SES provider host must be a supported SES endpoint hostname", true);
             }
         } catch (Exception ignored) {
-            // fallback below
+            if (ignored instanceof ProviderDispatchException dispatchException) {
+                throw dispatchException;
+            }
+            throw new ProviderDispatchException("AWS SES provider host is not a valid endpoint URI", true, ignored);
         }
         return Region.US_EAST_1;
+    }
+
+    private String regionFromSesHostname(String hostname) {
+        if (hostname == null || !hostname.endsWith(".amazonaws.com")) {
+            return null;
+        }
+        for (String prefix : new String[] {"email.", "email-smtp.", "ses."}) {
+            if (hostname.startsWith(prefix)) {
+                String region = hostname.substring(prefix.length(), hostname.length() - ".amazonaws.com".length());
+                return region.isBlank() ? null : region;
+            }
+        }
+        return null;
     }
 }

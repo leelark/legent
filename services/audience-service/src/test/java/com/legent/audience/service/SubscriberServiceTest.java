@@ -97,6 +97,80 @@ class SubscriberServiceTest {
 
         assertThat(result.getSubscriberKey()).isEqualTo("sub-001");
         verify(subscriberRepository, never()).findById(any());
+        verify(subscriberRepository, never()).findByTenantIdAndWorkspaceIdAndId(anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("getById uses tenant and workspace scoped repository lookup on cache miss")
+    void getById_cacheMissUsesScopedLookup() {
+        Subscriber entity = new Subscriber();
+        entity.setTenantId(TENANT_ID);
+        entity.setWorkspaceId(WORKSPACE_ID);
+        entity.setSubscriberKey("sub-001");
+        SubscriberDto.Response expected = SubscriberDto.Response.builder()
+                .id("id-1").subscriberKey("sub-001").build();
+
+        when(cacheService.get(anyString(), eq(SubscriberDto.Response.class)))
+                .thenReturn(Optional.empty());
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "id-1"))
+                .thenReturn(Optional.of(entity));
+        when(subscriberMapper.toResponse(entity)).thenReturn(expected);
+
+        SubscriberDto.Response result = subscriberService.getById("id-1");
+
+        assertThat(result.getSubscriberKey()).isEqualTo("sub-001");
+        verify(subscriberRepository).findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "id-1");
+        verify(subscriberRepository, never()).findById(any());
+        verify(cacheService).set(anyString(), eq(expected), any());
+    }
+
+    @Test
+    @DisplayName("update uses scoped lookup and publishes after save")
+    void update_successUsesScopedLookup() {
+        Subscriber entity = new Subscriber();
+        entity.setTenantId(TENANT_ID);
+        entity.setWorkspaceId(WORKSPACE_ID);
+        entity.setSubscriberKey("sub-001");
+        entity.setEmail("old@example.com");
+        SubscriberDto.UpdateRequest request = SubscriberDto.UpdateRequest.builder()
+                .firstName("Updated")
+                .build();
+        SubscriberDto.Response expected = SubscriberDto.Response.builder()
+                .id("id-1").subscriberKey("sub-001").firstName("Updated").build();
+
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "id-1"))
+                .thenReturn(Optional.of(entity));
+        when(subscriberRepository.save(entity)).thenReturn(entity);
+        when(subscriberMapper.toResponse(entity)).thenReturn(expected);
+
+        SubscriberDto.Response result = subscriberService.update("id-1", request);
+
+        assertThat(result.getSubscriberKey()).isEqualTo("sub-001");
+        verify(subscriberMapper).updateEntity(request, entity);
+        verify(subscriberRepository).findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "id-1");
+        verify(subscriberRepository, never()).findById(any());
+        verify(cacheService).delete(anyString());
+        verify(eventPublisher).publishUpdated(entity);
+    }
+
+    @Test
+    @DisplayName("update denies subscriber IDs outside current tenant or workspace")
+    void update_scopedLookupMissDoesNotMutate() {
+        SubscriberDto.UpdateRequest request = SubscriberDto.UpdateRequest.builder()
+                .firstName("Blocked")
+                .build();
+
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "other-workspace-id"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> subscriberService.update("other-workspace-id", request))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(subscriberRepository).findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "other-workspace-id");
+        verify(subscriberRepository, never()).findById(any());
+        verify(subscriberRepository, never()).save(any());
+        verify(cacheService, never()).delete(anyString());
+        verify(eventPublisher, never()).publishUpdated(any());
     }
 
     @Test
@@ -107,12 +181,15 @@ class SubscriberServiceTest {
         entity.setWorkspaceId(WORKSPACE_ID);
         entity.setSubscriberKey("sub-001");
 
-        when(subscriberRepository.findById("id-1")).thenReturn(Optional.of(entity));
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "id-1"))
+                .thenReturn(Optional.of(entity));
         when(subscriberRepository.save(entity)).thenReturn(entity);
 
         subscriberService.delete("id-1");
 
         assertThat(entity.isDeleted()).isTrue();
+        verify(subscriberRepository).findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "id-1");
+        verify(subscriberRepository, never()).findById(any());
         verify(eventPublisher).publishDeleted(entity);
     }
 
@@ -121,9 +198,30 @@ class SubscriberServiceTest {
     void getById_notFound() {
         when(cacheService.get(anyString(), eq(SubscriberDto.Response.class)))
                 .thenReturn(Optional.empty());
-        when(subscriberRepository.findById("missing")).thenReturn(Optional.empty());
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "missing"))
+                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> subscriberService.getById("missing"))
                 .isInstanceOf(NotFoundException.class);
+
+        verify(subscriberRepository).findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "missing");
+        verify(subscriberRepository, never()).findById(any());
+        verify(cacheService, never()).set(anyString(), any(), any());
+    }
+
+    @Test
+    @DisplayName("delete denies subscriber IDs outside current tenant or workspace")
+    void delete_scopedLookupMissDoesNotMutate() {
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "other-workspace-id"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> subscriberService.delete("other-workspace-id"))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(subscriberRepository).findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "other-workspace-id");
+        verify(subscriberRepository, never()).findById(any());
+        verify(subscriberRepository, never()).save(any());
+        verify(cacheService, never()).delete(anyString());
+        verify(eventPublisher, never()).publishDeleted(any());
     }
 }

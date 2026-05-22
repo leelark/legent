@@ -73,8 +73,7 @@ public class SubscriberService {
 
         return cacheService.get(cacheKey, SubscriberDto.Response.class)
                 .orElseGet(() -> {
-                    Subscriber sub = subscriberRepository.findById(id)
-                            .filter(s -> s.getTenantId().equals(tenantId) && workspaceId.equals(s.getWorkspaceId()) && !s.isDeleted())
+                    Subscriber sub = subscriberRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, id)
                             .orElseThrow(() -> new NotFoundException("Subscriber", id));
                     SubscriberDto.Response resp = subscriberMapper.toResponse(sub);
                     cacheService.set(cacheKey, resp, CACHE_TTL);
@@ -151,8 +150,7 @@ public class SubscriberService {
     public SubscriberDto.Response update(String id, SubscriberDto.UpdateRequest request) {
         String tenantId = AudienceScope.tenantId();
         String workspaceId = AudienceScope.workspaceId();
-        Subscriber existing = subscriberRepository.findById(id)
-                .filter(s -> s.getTenantId().equals(tenantId) && workspaceId.equals(s.getWorkspaceId()) && !s.isDeleted())
+        Subscriber existing = subscriberRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, id)
                 .orElseThrow(() -> new NotFoundException("Subscriber", id));
 
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
@@ -184,8 +182,7 @@ public class SubscriberService {
     public void delete(String id) {
         String tenantId = AudienceScope.tenantId();
         String workspaceId = AudienceScope.workspaceId();
-        Subscriber existing = subscriberRepository.findById(id)
-                .filter(s -> s.getTenantId().equals(tenantId) && workspaceId.equals(s.getWorkspaceId()) && !s.isDeleted())
+        Subscriber existing = subscriberRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, id)
                 .orElseThrow(() -> new NotFoundException("Subscriber", id));
 
         existing.softDelete();

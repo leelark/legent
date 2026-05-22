@@ -1,0 +1,39 @@
+{
+    "id":  "audience-import-error-cap",
+    "createdAt":  "2026-05-22T00:12:00.7844414Z",
+    "objective":  "Bound audience import row-error retention",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=ImportProcessingServiceTest",
+                           "ImportServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/audience-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select and lease the next highest-value safe local work item."
+}

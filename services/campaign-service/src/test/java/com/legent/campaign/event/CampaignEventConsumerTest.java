@@ -1,6 +1,8 @@
 package com.legent.campaign.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.campaign.domain.SendBatch;
+import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.dto.CampaignDto;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
@@ -19,6 +21,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,6 +33,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -668,6 +672,144 @@ class CampaignEventConsumerTest {
         verifyNoConsumerSideEffects();
     }
 
+    @Test
+    void handleEmailSentUsesAtomicCountersBeforeReconciliation() {
+        EventEnvelope<Map<String, Object>> event = deliveryFeedbackEvent(
+                AppConstants.TOPIC_EMAIL_SENT,
+                "feedback-sent",
+                "idem-feedback-sent",
+                Map.of("messageId", (Object) "message-1"));
+        SendJob initialJob = sendJob("job-1", SendJob.JobStatus.SENDING, 0L, 0L);
+        SendJob reloadedJob = sendJob("job-1", SendJob.JobStatus.SENDING, 1L, 0L);
+        when(idempotencyService.registerIfNew(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_EMAIL_SENT,
+                "feedback-sent",
+                "idem-feedback-sent")).thenReturn(true);
+        when(sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "job-1"))
+                .thenReturn(Optional.of(initialJob), Optional.of(reloadedJob));
+        when(sendJobRepository.incrementSentFeedbackCounter(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), any(Instant.class))).thenReturn(1);
+        when(sendBatchRepository.applyDeliveryFeedbackCounters(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("batch-1"),
+                eq(false),
+                eq(null),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.COMPLETED),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(SendBatch.BatchStatus.PARTIAL),
+                any(Instant.class))).thenReturn(1);
+        when(sendBatchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1"))
+                .thenReturn(1L);
+        when(sendBatchRepository.countByTenantWorkspaceAndJobAndStatuses(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), anyList()))
+                .thenReturn(0L);
+
+        consumer.handleEmailSent(event);
+
+        verify(sendJobRepository).incrementSentFeedbackCounter(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), any(Instant.class));
+        verify(sendBatchRepository).applyDeliveryFeedbackCounters(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("batch-1"),
+                eq(false),
+                eq(null),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.COMPLETED),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(SendBatch.BatchStatus.PARTIAL),
+                any(Instant.class));
+        verify(sendBatchRepository, never()).save(any(SendBatch.class));
+        verify(sendSafetyService).recordDeliveryFeedback(
+                "tenant-1", "workspace-1", "message-1", false, null);
+        verify(stateMachine).transitionJob(
+                reloadedJob, SendJob.JobStatus.COMPLETED, "All batches processed");
+        verify(sendJobRepository).save(reloadedJob);
+        verify(idempotencyService).markProcessed(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_EMAIL_SENT,
+                "feedback-sent",
+                "idem-feedback-sent");
+    }
+
+    @Test
+    void handleEmailFailedUsesAtomicCountersAndRecordsReason() {
+        EventEnvelope<Map<String, Object>> event = deliveryFeedbackEvent(
+                AppConstants.TOPIC_EMAIL_FAILED,
+                "feedback-failed",
+                "idem-feedback-failed",
+                Map.of("messageId", (Object) "message-2", "reason", "hard bounce"));
+        SendJob initialJob = sendJob("job-1", SendJob.JobStatus.SENDING, 0L, 0L);
+        SendJob reloadedJob = sendJob("job-1", SendJob.JobStatus.SENDING, 0L, 1L);
+        when(idempotencyService.registerIfNew(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_EMAIL_FAILED,
+                "feedback-failed",
+                "idem-feedback-failed")).thenReturn(true);
+        when(sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "job-1"))
+                .thenReturn(Optional.of(initialJob), Optional.of(reloadedJob));
+        when(sendJobRepository.incrementFailedFeedbackCounter(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("hard bounce"),
+                any(Instant.class))).thenReturn(1);
+        when(sendBatchRepository.applyDeliveryFeedbackCounters(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("batch-1"),
+                eq(true),
+                eq("hard bounce"),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.COMPLETED),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(SendBatch.BatchStatus.PARTIAL),
+                any(Instant.class))).thenReturn(1);
+        when(sendBatchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1"))
+                .thenReturn(1L);
+        when(sendBatchRepository.countByTenantWorkspaceAndJobAndStatuses(
+                eq("tenant-1"), eq("workspace-1"), eq("job-1"), anyList()))
+                .thenReturn(0L);
+
+        consumer.handleEmailFailed(event);
+
+        verify(sendJobRepository).incrementFailedFeedbackCounter(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("hard bounce"),
+                any(Instant.class));
+        verify(sendBatchRepository).applyDeliveryFeedbackCounters(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("batch-1"),
+                eq(true),
+                eq("hard bounce"),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.COMPLETED),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(SendBatch.BatchStatus.PARTIAL),
+                any(Instant.class));
+        verify(sendBatchRepository, never()).save(any(SendBatch.class));
+        verify(sendSafetyService).recordDeliveryFeedback(
+                "tenant-1", "workspace-1", "message-2", true, "hard bounce");
+        verify(stateMachine).transitionJob(
+                reloadedJob, SendJob.JobStatus.FAILED, "Delivery reported failed recipients");
+        verify(sendJobRepository).save(reloadedJob);
+    }
+
     private EventEnvelope<Map<String, Object>> audienceResolvedEvent() {
         return audienceResolvedEvent("event-1", null);
     }
@@ -695,6 +837,39 @@ class CampaignEventConsumerTest {
                 .idempotencyKey("idem-1")
                 .payload(payload)
                 .build();
+    }
+
+    private EventEnvelope<Map<String, Object>> deliveryFeedbackEvent(
+            String eventType,
+            String eventId,
+            String idempotencyKey,
+            Map<String, Object> overrides) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workspaceId", "workspace-1");
+        payload.put("campaignId", "campaign-1");
+        payload.put("jobId", "job-1");
+        payload.put("batchId", "batch-1");
+        payload.putAll(overrides);
+        return EventEnvelope.<Map<String, Object>>builder()
+                .eventId(eventId)
+                .eventType(eventType)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey(idempotencyKey)
+                .payload(payload)
+                .build();
+    }
+
+    private SendJob sendJob(String jobId, SendJob.JobStatus status, Long totalSent, Long totalFailed) {
+        SendJob job = new SendJob();
+        job.setId(jobId);
+        job.setTenantId("tenant-1");
+        job.setWorkspaceId("workspace-1");
+        job.setCampaignId("campaign-1");
+        job.setStatus(status);
+        job.setTotalSent(totalSent);
+        job.setTotalFailed(totalFailed);
+        return job;
     }
 
     private void verifyNoConsumerSideEffects() {

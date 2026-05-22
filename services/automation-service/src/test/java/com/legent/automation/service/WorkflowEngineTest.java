@@ -39,6 +39,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -267,7 +268,8 @@ class WorkflowEngineTest {
         WorkflowDefinition def = new WorkflowDefinition();
         def.setDefinition(objectMapper.writeValueAsString(graph));
 
-        when(instanceRepository.findById("instance-1")).thenAnswer(invocation -> Optional.of(waitingInstance()));
+        when(instanceRepository.findByIdAndTenantIdAndWorkspaceId("instance-1", "tenant-1", "workspace-1"))
+                .thenAnswer(invocation -> Optional.of(waitingInstance()));
         when(cacheService.setIfAbsent(eq("wf:lock:instance-1"), eq("1"), eq(Duration.ofMinutes(5))))
                 .thenAnswer(invocation -> lockHeld.compareAndSet(false, true));
         when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
@@ -284,10 +286,12 @@ class WorkflowEngineTest {
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
-            Future<?> firstResume = executor.submit(() -> workflowEngine.resumeInstance("instance-1", "node-1", null));
+            Future<?> firstResume = executor.submit(() ->
+                    workflowEngine.resumeInstance("instance-1", "node-1", null, "tenant-1", "workspace-1"));
             assertTrue(firstExecutionStarted.await(5, TimeUnit.SECONDS));
 
-            Future<?> concurrentResume = executor.submit(() -> workflowEngine.resumeInstance("instance-1", "node-1", null));
+            Future<?> concurrentResume = executor.submit(() ->
+                    workflowEngine.resumeInstance("instance-1", "node-1", null, "tenant-1", "workspace-1"));
             concurrentResume.get(5, TimeUnit.SECONDS);
 
             releaseFirstExecution.countDown();
@@ -302,6 +306,44 @@ class WorkflowEngineTest {
         verify(sendEmailHandler, times(1)).execute(any(), any());
         verify(definitionRepository, times(1))
                 .findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1");
+    }
+
+    @Test
+    void resumeInstance_whenWorkspaceDoesNotMatch_failsClosedBeforeLockOrExecution() {
+        when(instanceRepository.findByIdAndTenantIdAndWorkspaceId("instance-1", "tenant-1", "workspace-2"))
+                .thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class,
+                () -> workflowEngine.resumeInstance("instance-1", "node-1", null, "tenant-1", "workspace-2"));
+
+        verify(cacheService, never()).setIfAbsent(any(), any(), any());
+        verify(sendEmailHandler, never()).execute(any(), any());
+        verify(instanceRepository, never()).save(any());
+    }
+
+    @Test
+    void resumeInstance_whenScopeMissing_failsBeforeRepositoryLookup() {
+        assertThrows(IllegalArgumentException.class,
+                () -> workflowEngine.resumeInstance("instance-1", "node-1", null, "tenant-1", " "));
+
+        verify(instanceRepository, never()).findByIdAndTenantIdAndWorkspaceId(any(), any(), any());
+        verify(cacheService, never()).setIfAbsent(any(), any(), any());
+        verify(sendEmailHandler, never()).execute(any(), any());
+    }
+
+    @Test
+    void resumeInstance_whenWakeAlreadyProcessed_skipsBeforeLockOrSave() {
+        WorkflowInstance instance = waitingInstance();
+        when(instanceRepository.findByIdAndTenantIdAndWorkspaceId("instance-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(instance));
+        when(idempotencyService.registerIfNew("tenant-1", "workspace-1", "workflow.delay.wake", "wake-1", "wake-1"))
+                .thenReturn(false);
+
+        workflowEngine.resumeInstance("instance-1", "node-1", "wake-1", "tenant-1", "workspace-1");
+
+        verify(cacheService, never()).setIfAbsent(any(), any(), any());
+        verify(definitionRepository, never()).findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId(any(), any(), any(), any());
+        verify(instanceRepository, never()).save(any());
     }
 
     private final AtomicBoolean lockHeld = new AtomicBoolean(false);

@@ -6,8 +6,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface ReputationScoreRepository extends JpaRepository<ReputationScore, Long> {
-    ReputationScore findTopByDomainOrderByLastUpdatedDesc(String domain);
-
-    // AUDIT-017: Add proper query method for single domain lookup
-    ReputationScore findByDomain(String domain);
+    ReputationScore findTopByTenantIdAndWorkspaceIdAndDomainOrderByLastUpdatedDesc(
+            String tenantId,
+            String workspaceId,
+            String domain);
 }

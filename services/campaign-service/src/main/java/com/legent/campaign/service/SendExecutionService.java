@@ -85,6 +85,9 @@ public class SendExecutionService {
     @Value("${legent.campaign.send.recipient-page-size:1000}")
     private int recipientPageSize;
 
+    @Value("${legent.campaign.send.retry-scheduler-page-size:500}")
+    private int retrySchedulerPageSize;
+
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
         try {
@@ -720,23 +723,57 @@ public class SendExecutionService {
     @org.springframework.scheduling.annotation.Scheduled(fixedDelay = 300000)
     @Transactional
     public void retryPartialBatches() {
-        List<SendBatch> staleProcessingBatches = batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(
+        int pageSize = Math.max(1, retrySchedulerPageSize);
+        Instant now = Instant.now();
+        Instant staleBefore = now.minus(processingLeaseTimeout);
+        List<SendBatch> staleProcessingBatches = batchRepository.findByStatusAndUpdatedAtBeforeAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
                 SendBatch.BatchStatus.PROCESSING,
-                Instant.now().minus(processingLeaseTimeout));
+                staleBefore,
+                PageRequest.of(0, pageSize));
         staleProcessingBatches.forEach(batch -> {
+            int recovered = batchRepository.claimStaleProcessingBatchAsPartial(
+                    batch.getTenantId(),
+                    batch.getWorkspaceId(),
+                    batch.getId(),
+                    SendBatch.BatchStatus.PROCESSING,
+                    SendBatch.BatchStatus.PARTIAL,
+                    staleBefore,
+                    "Recovered stale campaign batch processing lease",
+                    now);
+            if (recovered == 0) {
+                log.debug("Skipping stale PROCESSING batch {} because another scheduler claimed or changed it", batch.getId());
+                return;
+            }
             batch.setStatus(SendBatch.BatchStatus.PARTIAL);
             batch.setLastError("Recovered stale campaign batch processing lease");
             batchRepository.save(batch);
         });
 
-        List<SendBatch> partialBatches = batchRepository.findByStatus(SendBatch.BatchStatus.PARTIAL);
+        List<SendBatch> partialBatches = batchRepository.findByStatusAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+                SendBatch.BatchStatus.PARTIAL,
+                PageRequest.of(0, pageSize));
         log.info("Found {} stale PROCESSING and {} PARTIAL batches to retry",
                 staleProcessingBatches.size(), partialBatches.size());
 
         for (SendBatch batch : partialBatches) {
             try {
-                int nextRetryCount = batch.getRetryCount() != null ? batch.getRetryCount() + 1 : 1;
+                int currentRetryCount = batch.getRetryCount() != null ? batch.getRetryCount() : 0;
+                int nextRetryCount = currentRetryCount + 1;
                 if (nextRetryCount > maxBatchRetries) {
+                    int claimedFailed = batchRepository.claimPartialBatchAsFailed(
+                            batch.getTenantId(),
+                            batch.getWorkspaceId(),
+                            batch.getId(),
+                            SendBatch.BatchStatus.PARTIAL,
+                            SendBatch.BatchStatus.FAILED,
+                            currentRetryCount,
+                            nextRetryCount,
+                            "Max campaign batch retries exceeded",
+                            Instant.now());
+                    if (claimedFailed == 0) {
+                        log.debug("Skipping exhausted PARTIAL batch {} because another scheduler claimed or changed it", batch.getId());
+                        continue;
+                    }
                     batch.setStatus(SendBatch.BatchStatus.FAILED);
                     batch.setLastError("Max campaign batch retries exceeded");
                     batch.setRetryCount(nextRetryCount);
@@ -756,6 +793,19 @@ public class SendExecutionService {
                 // Reset status to PENDING so it can be picked up again
                 SendBatch.BatchStatus previousStatus = batch.getStatus();
                 Integer previousRetryCount = batch.getRetryCount();
+                int claimed = batchRepository.claimPartialBatchForRetry(
+                        batch.getTenantId(),
+                        batch.getWorkspaceId(),
+                        batch.getId(),
+                        SendBatch.BatchStatus.PARTIAL,
+                        SendBatch.BatchStatus.PENDING,
+                        currentRetryCount,
+                        nextRetryCount,
+                        Instant.now());
+                if (claimed == 0) {
+                    log.debug("Skipping PARTIAL batch {} because another scheduler claimed or changed it", batch.getId());
+                    continue;
+                }
                 batch.setStatus(SendBatch.BatchStatus.PENDING);
                 batch.setRetryCount(nextRetryCount);
                 batchRepository.save(batch);

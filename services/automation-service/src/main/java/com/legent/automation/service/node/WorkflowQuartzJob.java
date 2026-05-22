@@ -22,10 +22,12 @@ public class WorkflowQuartzJob extends QuartzJobBean {
         String instanceId = context.getJobDetail().getJobDataMap().getString("instanceId");
         String nextNodeId = context.getJobDetail().getJobDataMap().getString("nextNodeId");
         String wakeId = context.getJobDetail().getJobDataMap().getString("wakeId");
+        String tenantId = context.getJobDetail().getJobDataMap().getString("tenantId");
+        String workspaceId = context.getJobDetail().getJobDataMap().getString("workspaceId");
         
         WorkflowEngine engine = applicationContext.getBean(WorkflowEngine.class);
         
         // Resume engine execution asynchronously
-        engine.resumeInstance(instanceId, nextNodeId, wakeId);
+        engine.resumeInstance(instanceId, nextNodeId, wakeId, tenantId, workspaceId);
     }
 }

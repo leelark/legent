@@ -13,6 +13,12 @@ public class ReputationScore {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "tenant_id", length = 64)
+    private String tenantId;
+
+    @Column(name = "workspace_id", length = 64)
+    private String workspaceId;
+
     @Column(nullable = false)
     private String domain;
 
@@ -21,4 +27,7 @@ public class ReputationScore {
 
     @Column(name = "last_updated")
     private java.time.Instant lastUpdated;
+
+    @Column(name = "source", nullable = false, length = 32)
+    private String source = "LEGACY";
 }

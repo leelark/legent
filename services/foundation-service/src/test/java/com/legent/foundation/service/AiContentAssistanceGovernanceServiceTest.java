@@ -157,6 +157,45 @@ class AiContentAssistanceGovernanceServiceTest {
     }
 
     @Test
+    void evaluate_approvesApplyToDraftOnlyAfterHumanReview() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(policyRow("ACTIVE", false)));
+        when(repository.insert(eq("ai_content_assistance_audits"), ArgumentMatchers.<Map<String, Object>>any(), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+
+        AiContentAssistanceEvaluateRequest request = evaluateRequest();
+        request.setRequestedAction("apply_to_draft");
+        request.setHumanReviewApproved(true);
+        request.setPromptHash("a".repeat(64));
+        request.setOutputHash("b".repeat(64));
+        request.setEvidenceRefs(List.of("foundation-audit://audit-1"));
+
+        Map<String, Object> result = service.evaluate(request);
+
+        assertThat(result.get("decision")).isEqualTo("APPROVED_DRAFT_ONLY");
+        assertThat(result.get("requestedAction")).isEqualTo("APPLY_TO_DRAFT");
+        assertThat(result.get("providerInvoked")).isEqualTo(false);
+        assertThat(result.get("modelInvocation")).isEqualTo("NOT_PERFORMED");
+    }
+
+    @Test
+    void evaluate_deniesApplyToDraftWithoutHumanReview() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(policyRow("ACTIVE", false)));
+        when(repository.insert(eq("ai_content_assistance_audits"), ArgumentMatchers.<Map<String, Object>>any(), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+
+        AiContentAssistanceEvaluateRequest request = evaluateRequest();
+        request.setRequestedAction("APPLY_TO_DRAFT");
+        request.setHumanReviewApproved(false);
+
+        Map<String, Object> result = service.evaluate(request);
+
+        assertThat(result.get("decision")).isEqualTo("DENIED");
+        assertThat((List<?>) result.get("blockedReasons")).anySatisfy(reason ->
+                assertThat(String.valueOf(reason)).contains("requires human review"));
+        assertThat(result.get("providerInvoked")).isEqualTo(false);
+    }
+
+    @Test
     void evaluate_storesPolicyVersionActorDataClassesPromptTemplateAndHashesOnly() {
         when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of(policyRow("ACTIVE", false)));
         when(repository.insert(eq("ai_content_assistance_audits"), ArgumentMatchers.<Map<String, Object>>any(), anyList()))

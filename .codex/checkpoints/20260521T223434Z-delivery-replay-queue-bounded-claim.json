@@ -1,0 +1,42 @@
+{
+    "id":  "delivery-replay-queue-bounded-claim",
+    "createdAt":  "2026-05-21T22:34:34.8856544Z",
+    "objective":  "Bound and atomically claim delivery replay queue work",
+    "status":  "DONE",
+    "owner":  "DELIVERY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOperationsService.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryReplayQueueRepository.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryOperationsServiceWorkspaceScopeTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "DATABASE_ENGINEER",
+                   "CAMPAIGN_SERVICE_OWNER",
+                   "KAFKA_CONTRACTS_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service -am \"-Dtest=DeliveryOperationsServiceWorkspaceScopeTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/delivery-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/delivery-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

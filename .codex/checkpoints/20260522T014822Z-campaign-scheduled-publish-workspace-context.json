@@ -1,0 +1,56 @@
+{
+    "id":  "campaign-scheduled-publish-workspace-context",
+    "createdAt":  "2026-05-22T01:48:22.6208918Z",
+    "objective":  "Set workspace context before scheduled campaign audience publish",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/SchedulingService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventPublisher.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/SchedulingServiceTest.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventPublisherTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-22.jsonl",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "KAFKA_CONTRACTS_OWNER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SchedulingServiceTest",
+                           "CampaignEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/campaign-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Start content-read-rbac-coverage.",
+    "completedAt":  "2026-05-22T01:56:13.0923112Z",
+    "outcome":  "Scheduled campaign audience-resolution publishing now uses trusted tenant/workspace context from the claimed job row.",
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SchedulingServiceTest,CampaignEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/campaign-service -am test",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "git diff --check -- services/campaign-service .codex"
+                      ],
+    "residualRisks":  [
+                          "Target multi-replica scheduler behavior and queue-lag evidence remain required before throughput claims.",
+                          "Provider capacity and strict production release evidence remain separate blockers."
+                      ]
+}

@@ -4,6 +4,7 @@ import java.util.List;
 import java.time.Instant;
 
 import com.legent.campaign.domain.SendBatch;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -53,7 +54,122 @@ public interface SendBatchRepository extends JpaRepository<SendBatch, String> {
 
     List<SendBatch> findByStatus(SendBatch.BatchStatus status);
 
+    List<SendBatch> findByStatusAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(SendBatch.BatchStatus status, Pageable pageable);
+
     List<SendBatch> findByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(SendBatch.BatchStatus status, Instant updatedBefore);
+
+    List<SendBatch> findByStatusAndUpdatedAtBeforeAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(
+            SendBatch.BatchStatus status,
+            Instant updatedBefore,
+            Pageable pageable
+    );
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE SendBatch b
+            SET b.status = :partialStatus,
+                b.lastError = :lastError,
+                b.updatedAt = :claimedAt
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.id = :batchId
+              AND b.status = :processingStatus
+              AND b.updatedAt < :updatedBefore
+              AND b.deletedAt IS NULL
+            """)
+    int claimStaleProcessingBatchAsPartial(@Param("tenantId") String tenantId,
+                                           @Param("workspaceId") String workspaceId,
+                                           @Param("batchId") String batchId,
+                                           @Param("processingStatus") SendBatch.BatchStatus processingStatus,
+                                           @Param("partialStatus") SendBatch.BatchStatus partialStatus,
+                                           @Param("updatedBefore") Instant updatedBefore,
+                                           @Param("lastError") String lastError,
+                                           @Param("claimedAt") Instant claimedAt);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE SendBatch b
+            SET b.status = :pendingStatus,
+                b.retryCount = :nextRetryCount,
+                b.updatedAt = :claimedAt
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.id = :batchId
+              AND b.status = :partialStatus
+              AND COALESCE(b.retryCount, 0) = :currentRetryCount
+              AND b.deletedAt IS NULL
+            """)
+    int claimPartialBatchForRetry(@Param("tenantId") String tenantId,
+                                  @Param("workspaceId") String workspaceId,
+                                  @Param("batchId") String batchId,
+                                  @Param("partialStatus") SendBatch.BatchStatus partialStatus,
+                                  @Param("pendingStatus") SendBatch.BatchStatus pendingStatus,
+                                  @Param("currentRetryCount") int currentRetryCount,
+                                  @Param("nextRetryCount") int nextRetryCount,
+                                  @Param("claimedAt") Instant claimedAt);
+
+    @Modifying(flushAutomatically = true)
+    @Query("""
+            UPDATE SendBatch b
+            SET b.status = :failedStatus,
+                b.retryCount = :nextRetryCount,
+                b.lastError = :lastError,
+                b.updatedAt = :claimedAt
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.id = :batchId
+              AND b.status = :partialStatus
+              AND COALESCE(b.retryCount, 0) = :currentRetryCount
+              AND b.deletedAt IS NULL
+            """)
+    int claimPartialBatchAsFailed(@Param("tenantId") String tenantId,
+                                  @Param("workspaceId") String workspaceId,
+                                  @Param("batchId") String batchId,
+                                  @Param("partialStatus") SendBatch.BatchStatus partialStatus,
+                                  @Param("failedStatus") SendBatch.BatchStatus failedStatus,
+                                  @Param("currentRetryCount") int currentRetryCount,
+                                  @Param("nextRetryCount") int nextRetryCount,
+                                  @Param("lastError") String lastError,
+                                  @Param("claimedAt") Instant claimedAt);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            UPDATE SendBatch b
+            SET b.processedCount = COALESCE(b.processedCount, 0) + 1,
+                b.successCount = COALESCE(b.successCount, 0) + CASE WHEN :failed = false THEN 1 ELSE 0 END,
+                b.failureCount = COALESCE(b.failureCount, 0) + CASE WHEN :failed = true THEN 1 ELSE 0 END,
+                b.lastError = CASE WHEN :failed = true AND :lastError IS NOT NULL THEN :lastError ELSE b.lastError END,
+                b.status = CASE
+                    WHEN COALESCE(b.processedCount, 0) + 1 >= COALESCE(b.batchSize, 0) THEN
+                        CASE
+                            WHEN COALESCE(b.failureCount, 0) + CASE WHEN :failed = true THEN 1 ELSE 0 END > 0 THEN
+                                CASE
+                                    WHEN COALESCE(b.successCount, 0) + CASE WHEN :failed = false THEN 1 ELSE 0 END > 0
+                                        THEN :partialStatus
+                                    ELSE :failedStatus
+                                END
+                            ELSE :completedStatus
+                        END
+                    WHEN b.status = :pendingStatus THEN :processingStatus
+                    ELSE b.status
+                END,
+                b.updatedAt = :updatedAt
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.id = :batchId
+              AND b.deletedAt IS NULL
+            """)
+    int applyDeliveryFeedbackCounters(@Param("tenantId") String tenantId,
+                                      @Param("workspaceId") String workspaceId,
+                                      @Param("batchId") String batchId,
+                                      @Param("failed") boolean failed,
+                                      @Param("lastError") String lastError,
+                                      @Param("pendingStatus") SendBatch.BatchStatus pendingStatus,
+                                      @Param("processingStatus") SendBatch.BatchStatus processingStatus,
+                                      @Param("completedStatus") SendBatch.BatchStatus completedStatus,
+                                      @Param("failedStatus") SendBatch.BatchStatus failedStatus,
+                                      @Param("partialStatus") SendBatch.BatchStatus partialStatus,
+                                      @Param("updatedAt") Instant updatedAt);
 
     List<SendBatch> findByJobIdAndStatus(String jobId, SendBatch.BatchStatus status);
 

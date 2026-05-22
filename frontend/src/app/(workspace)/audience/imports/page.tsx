@@ -15,7 +15,9 @@ const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'info' |
   COMPLETED: 'success',
   COMPLETED_WITH_ERRORS: 'warning',
   FAILED: 'danger',
-  RUNNING: 'info',
+  CANCELLED: 'default',
+  VALIDATING: 'info',
+  PROCESSING: 'info',
   PENDING: 'default',
 };
 

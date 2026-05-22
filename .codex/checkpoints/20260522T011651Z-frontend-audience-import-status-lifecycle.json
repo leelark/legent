@@ -1,0 +1,28 @@
+{
+    "id":  "frontend-audience-import-status-lifecycle",
+    "createdAt":  "2026-05-22T01:16:51.0164705Z",
+    "objective":  "Harden audience import status lifecycle UI and E2E coverage",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/audience/imports/page.tsx",
+                         "frontend/src/app/(workspace)/audience/imports/new/page.tsx",
+                         "frontend/src/app/(workspace)/audience/imports/[id]/page.tsx",
+                         "frontend/tests/e2e/audience-imports.spec.ts",
+                         ".codex"
+                     ],
+    "agents":  [
+                   "QA_ENGINEER",
+                   "AUDIENCE_SERVICE_OWNER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-imports.spec.ts --project=chromium --reporter=line",
+                           "git diff --check -- frontend/src/app/(workspace)/audience/imports frontend/tests/e2e/audience-imports.spec.ts .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

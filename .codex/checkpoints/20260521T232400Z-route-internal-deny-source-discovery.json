@@ -1,0 +1,38 @@
+{
+    "id":  "route-internal-deny-source-discovery",
+    "createdAt":  "2026-05-21T23:24:00.1656496Z",
+    "objective":  "Discover internal routes from source in route validation",
+    "status":  "DONE",
+    "owner":  "API_ARCHITECT",
+    "filesInScope":  [
+                         "scripts/ops/validate-route-map.ps1",
+                         "config/nginx/nginx.conf",
+                         "infrastructure/kubernetes/ingress/ingress.yml",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "DEVOPS_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- scripts/ops/validate-route-map.ps1 config/nginx/nginx.conf infrastructure/kubernetes/ingress/ingress.yml .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item in the overall loop."
+}

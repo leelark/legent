@@ -2,6 +2,7 @@ package com.legent.identity.controller;
 
 import com.legent.identity.domain.AuthInvitation;
 import com.legent.identity.dto.AuthBridgeDto;
+import com.legent.identity.dto.ExperienceDto;
 import com.legent.identity.service.AuthService;
 import com.legent.identity.service.IdentityExperienceService;
 import com.legent.identity.service.RefreshTokenService;
@@ -222,17 +223,38 @@ class AuthControllerTest {
         invitation.setRoleKeys(List.of("VIEWER"));
         invitation.setInvitedByUserId("user-1");
         invitation.setStatus("PENDING");
-        when(authService.listInvitations("tenant-1")).thenReturn(List.of(invitation));
+        when(authService.listInvitations("tenant-1", "workspace-1")).thenReturn(List.of(invitation));
 
         var response = authController.listInvitations(
                 "tenant-1",
-                authentication("user-1", "tenant-1", Set.of("ADMIN")));
+                authentication("user-1", "tenant-1", "workspace-1", Set.of("ADMIN")));
 
         AuthBridgeDto.InvitationResponse data = response.getData().getFirst();
         assertEquals("invitation-1", data.getId());
         assertEquals("invitee@example.com", data.getEmail());
         assertEquals(List.of("VIEWER"), data.getRoleKeys());
         assertFalse(hasTokenGetter(data));
+        verify(authService).listInvitations("tenant-1", "workspace-1");
+    }
+
+    @Test
+    void listInvitations_whenPrincipalHasNoWorkspace_rejectsBeforeServiceCall() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authController.listInvitations(
+                        "tenant-1",
+                        authentication("user-1", "tenant-1", Set.of("ADMIN"))));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verifyNoInteractions(authService);
     }
 
     @Test
@@ -245,6 +267,26 @@ class AuthControllerTest {
                         AuthBridgeDto.DelegationRequest.class,
                         jakarta.servlet.http.HttpServletResponse.class),
                 "isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)");
+    }
+
+    @Test
+    void forgotPassword_passesOptionalTenantAndWorkspaceScopeToExperienceService() {
+        IdentityExperienceService identityExperienceService = mock(IdentityExperienceService.class);
+        AuthController authController = new AuthController(
+                mock(AuthService.class),
+                identityExperienceService,
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        ExperienceDto.ForgotPasswordRequest request = new ExperienceDto.ForgotPasswordRequest();
+        request.setEmail("user@example.com");
+        request.setTenantId("tenant-1");
+        request.setWorkspaceId("workspace-1");
+
+        var response = authController.forgotPassword(request);
+
+        assertEquals("accepted", response.getData().get("status"));
+        verify(identityExperienceService).requestPasswordReset(request);
     }
 
     @Test
@@ -298,8 +340,12 @@ class AuthControllerTest {
     }
 
     private Authentication authentication(String userId, String tenantId, Set<String> roles) {
+        return authentication(userId, tenantId, null, roles);
+    }
+
+    private Authentication authentication(String userId, String tenantId, String workspaceId, Set<String> roles) {
         return new UsernamePasswordAuthenticationToken(
-                new UserPrincipal(userId, tenantId, roles),
+                new UserPrincipal(userId, tenantId, workspaceId, null, roles),
                 "token");
     }
 }

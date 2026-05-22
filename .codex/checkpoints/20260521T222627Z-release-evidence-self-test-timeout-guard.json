@@ -1,0 +1,38 @@
+{
+    "id":  "release-evidence-self-test-timeout-guard",
+    "createdAt":  "2026-05-21T22:26:27.1232506Z",
+    "objective":  "Add timeout guard to release evidence validator self-test",
+    "status":  "DONE",
+    "owner":  "RELEASE_MANAGER",
+    "filesInScope":  [
+                         "scripts/ops/test-release-evidence-validators.ps1",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "SECURITY_ENGINEER",
+                   "SRE_MONITORING_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- scripts/ops .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

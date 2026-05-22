@@ -38,14 +38,16 @@ public class SendJobCheckpointingService {
     public SendJobCheckpoint createCheckpoint(String jobId, SendJobCheckpoint.CheckpointType type,
                                                String lastProcessedId, long processedCount) {
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
-        SendJob job = jobRepository.findById(jobId)
-                .orElseThrow(() -> new NotFoundException("SendJob", jobId));
+        SendJob job = requireScopedJob(tenantId, workspaceId, jobId);
 
-        int sequenceNumber = (int) checkpointRepository.countByJobId(jobId) + 1;
+        int sequenceNumber = (int) checkpointRepository.countByTenantIdAndWorkspaceIdAndJobId(
+                tenantId, workspaceId, jobId) + 1;
 
         SendJobCheckpoint checkpoint = new SendJobCheckpoint();
         checkpoint.setTenantId(tenantId);
+        checkpoint.setWorkspaceId(workspaceId);
         checkpoint.setJobId(jobId);
         checkpoint.setCheckpointType(type);
         checkpoint.setSequenceNumber(sequenceNumber);
@@ -76,7 +78,11 @@ public class SendJobCheckpointingService {
      */
     @Transactional(readOnly = true)
     public Optional<SendJobCheckpoint> getLatestCheckpoint(String jobId) {
-        return checkpointRepository.findLatestCheckpoint(jobId);
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        requireScopedJob(tenantId, workspaceId, jobId);
+        return checkpointRepository.findFirstByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNullOrderBySequenceNumberDesc(
+                tenantId, workspaceId, jobId);
     }
 
     /**
@@ -84,7 +90,11 @@ public class SendJobCheckpointingService {
      */
     @Transactional(readOnly = true)
     public List<SendJobCheckpoint> getJobCheckpoints(String jobId) {
-        return checkpointRepository.findByJobIdOrderBySequenceNumberDesc(jobId);
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        requireScopedJob(tenantId, workspaceId, jobId);
+        return checkpointRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNullOrderBySequenceNumberDesc(
+                tenantId, workspaceId, jobId);
     }
 
     /**
@@ -94,25 +104,30 @@ public class SendJobCheckpointingService {
     public SendJob resumeJob(String jobId) {
         String userId = TenantContext.getUserId();
         String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
 
-        SendJob originalJob = jobRepository.findById(jobId)
-                .orElseThrow(() -> new NotFoundException("SendJob", jobId));
+        SendJob originalJob = requireScopedJob(tenantId, workspaceId, jobId);
 
         if (!originalJob.isCanResume()) {
             throw new IllegalStateException("Job cannot be resumed");
         }
 
         // Get the latest checkpoint
-        SendJobCheckpoint checkpoint = checkpointRepository.findLatestCheckpoint(jobId)
+        SendJobCheckpoint checkpoint = checkpointRepository
+                .findFirstByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNullOrderBySequenceNumberDesc(
+                        tenantId, workspaceId, jobId)
                 .orElseThrow(() -> new NotFoundException("No checkpoint found for job"));
 
         // Create a new job that continues from checkpoint
         SendJob resumedJob = new SendJob();
         resumedJob.setTenantId(tenantId);
+        resumedJob.setWorkspaceId(workspaceId);
+        resumedJob.setTeamId(originalJob.getTeamId());
+        resumedJob.setOwnershipScope(originalJob.getOwnershipScope());
         resumedJob.setCampaignId(originalJob.getCampaignId());
         resumedJob.setStatus(SendJob.JobStatus.PENDING);
         resumedJob.setResumedFromJobId(jobId);
-        resumedJob.setTotalTarget(originalJob.getTotalTarget() - checkpoint.getProcessedCount());
+        resumedJob.setTotalTarget(Math.max(0, originalJob.getTotalTarget() - checkpoint.getProcessedCount()));
         resumedJob.setCanResume(true);
         resumedJob.setCheckpointInterval(originalJob.getCheckpointInterval());
         resumedJob.setCreatedBy(userId);
@@ -134,7 +149,15 @@ public class SendJobCheckpointingService {
      */
     @Transactional
     public void markFailedBatchesForRetry(String jobId) {
-        List<SendBatch> failedBatches = batchRepository.findByJobIdAndStatus(jobId, SendBatch.BatchStatus.FAILED);
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        requireScopedJob(tenantId, workspaceId, jobId);
+
+        List<SendBatch> failedBatches = batchRepository
+                .findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(tenantId, workspaceId, jobId)
+                .stream()
+                .filter(batch -> batch.getStatus() == SendBatch.BatchStatus.FAILED)
+                .toList();
 
         for (SendBatch batch : failedBatches) {
             batch.setStatus(SendBatch.BatchStatus.PENDING);
@@ -151,8 +174,9 @@ public class SendJobCheckpointingService {
      */
     @Transactional(readOnly = true)
     public double calculateProgress(String jobId) {
-        SendJob job = jobRepository.findById(jobId)
-                .orElseThrow(() -> new NotFoundException("SendJob", jobId));
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        SendJob job = requireScopedJob(tenantId, workspaceId, jobId);
 
         if (job.getTotalTarget() == 0) {
             return 100.0;
@@ -167,18 +191,26 @@ public class SendJobCheckpointingService {
      */
     @Transactional
     public void autoCheckpoint(String jobId, String lastProcessedId, long processedCount) {
-        SendJob job = jobRepository.findById(jobId)
-                .orElseThrow(() -> new NotFoundException("SendJob", jobId));
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        SendJob job = requireScopedJob(tenantId, workspaceId, jobId);
 
         int interval = job.getCheckpointInterval() != null ? job.getCheckpointInterval() : 1000;
 
         // Only create checkpoint if we've processed enough since last checkpoint
-        long lastCheckpointCount = checkpointRepository.findLatestCheckpoint(jobId)
+        long lastCheckpointCount = checkpointRepository
+                .findFirstByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNullOrderBySequenceNumberDesc(
+                        tenantId, workspaceId, jobId)
                 .map(SendJobCheckpoint::getProcessedCount)
                 .orElse(0L);
 
         if (processedCount - lastCheckpointCount >= interval) {
             createCheckpoint(jobId, SendJobCheckpoint.CheckpointType.BATCH, lastProcessedId, processedCount);
         }
+    }
+
+    private SendJob requireScopedJob(String tenantId, String workspaceId, String jobId) {
+        return jobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(tenantId, workspaceId, jobId)
+                .orElseThrow(() -> new NotFoundException("SendJob", jobId));
     }
 }

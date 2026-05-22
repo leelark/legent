@@ -15,14 +15,31 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface SendJobCheckpointRepository extends JpaRepository<SendJobCheckpoint, String> {
 
-    List<SendJobCheckpoint> findByJobIdOrderBySequenceNumberDesc(String jobId);
+    List<SendJobCheckpoint> findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNullOrderBySequenceNumberDesc(
+            String tenantId,
+            String workspaceId,
+            String jobId);
 
-    @Query("SELECT c FROM SendJobCheckpoint c WHERE c.jobId = :jobId ORDER BY c.sequenceNumber DESC LIMIT 1")
-    Optional<SendJobCheckpoint> findLatestCheckpoint(@Param("jobId") String jobId);
+    Optional<SendJobCheckpoint> findFirstByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNullOrderBySequenceNumberDesc(
+            String tenantId,
+            String workspaceId,
+            String jobId);
 
-    List<SendJobCheckpoint> findByJobIdAndCheckpointTypeOrderBySequenceNumberDesc(
-            String jobId, SendJobCheckpoint.CheckpointType checkpointType);
+    List<SendJobCheckpoint> findByTenantIdAndWorkspaceIdAndJobIdAndCheckpointTypeAndDeletedAtIsNullOrderBySequenceNumberDesc(
+            String tenantId,
+            String workspaceId,
+            String jobId,
+            SendJobCheckpoint.CheckpointType checkpointType);
 
-    @Query("SELECT COUNT(c) FROM SendJobCheckpoint c WHERE c.jobId = :jobId")
-    long countByJobId(@Param("jobId") String jobId);
+    @Query("""
+            SELECT COUNT(c)
+            FROM SendJobCheckpoint c
+            WHERE c.tenantId = :tenantId
+              AND c.workspaceId = :workspaceId
+              AND c.jobId = :jobId
+              AND c.deletedAt IS NULL
+            """)
+    long countByTenantIdAndWorkspaceIdAndJobId(@Param("tenantId") String tenantId,
+                                               @Param("workspaceId") String workspaceId,
+                                               @Param("jobId") String jobId);
 }

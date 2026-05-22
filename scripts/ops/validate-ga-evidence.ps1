@@ -36,6 +36,14 @@ function Resolve-EvidencePath([string]$Root, [string]$Value, [string]$Field) {
 }
 
 $manifest = Get-Content -Path $ManifestPath -Raw | ConvertFrom-Json
+$schemaVersionProperty = $manifest.PSObject.Properties["schemaVersion"]
+if ($null -eq $schemaVersionProperty -or $null -eq $schemaVersionProperty.Value) {
+    Fail "GA evidence schemaVersion is missing."
+}
+if ([string]$schemaVersionProperty.Value -ne "1") {
+    Fail "Unsupported GA evidence schemaVersion: $($schemaVersionProperty.Value)"
+}
+
 $required = @(
     "syntheticSmoke",
     "liveLoad",

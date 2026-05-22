@@ -81,7 +81,7 @@ public class ImportProcessingService {
 
             long successCount = 0;
             long errorCount = 0;
-            List<Map<String, Object>> errors = new ArrayList<>();
+            List<Map<String, Object>> errors = new ArrayList<>(AppConstants.IMPORT_MAX_ERRORS);
             int chunkSize = AppConstants.IMPORT_CHUNK_SIZE;
             int currentRow = 0;
             List<Map<String, String>> currentChunk = new ArrayList<>();
@@ -104,10 +104,11 @@ public class ImportProcessingService {
                     currentChunk.add(record.toMap());
 
                     if (currentChunk.size() >= chunkSize) {
-                        ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job);
+                        ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job,
+                                remainingErrorSampleCapacity(errors));
                         successCount += result.successCount;
                         errorCount += result.errorCount;
-                        errors.addAll(result.errors);
+                        appendErrorSamples(errors, result.errors);
                         
                         updateJobProgress(jobId, currentRow, successCount, errorCount);
                         currentChunk.clear();
@@ -120,16 +121,17 @@ public class ImportProcessingService {
                 }
 
                 if (!currentChunk.isEmpty()) {
-                    ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job);
+                    ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job,
+                            remainingErrorSampleCapacity(errors));
                     successCount += result.successCount;
                     errorCount += result.errorCount;
-                    errors.addAll(result.errors);
+                    appendErrorSamples(errors, result.errors);
                 }
             }
 
             final long finalSuccess = successCount;
             final long finalError = errorCount;
-            final List<Map<String, Object>> finalErrors = errors.stream().limit(AppConstants.IMPORT_MAX_ERRORS).toList();
+            final List<Map<String, Object>> finalErrors = List.copyOf(errors);
             final int finalTotal = currentRow;
 
             transactionTemplate.execute(new TransactionCallbackWithoutResult() {
@@ -191,18 +193,33 @@ public class ImportProcessingService {
         long successCount = 0;
         long errorCount = 0;
         List<Map<String, Object>> errors = new ArrayList<>();
+
+        private final int maxErrorSamples;
+
+        ChunkResult(int maxErrorSamples) {
+            this.maxErrorSamples = Math.max(0, maxErrorSamples);
+        }
+
+        void addError(Exception e) {
+            errorCount++;
+            if (errors.size() < maxErrorSamples) {
+                errors.add(Map.of("message", e.getMessage()));
+            }
+        }
     }
 
-    private ChunkResult processChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk, ImportJob job) {
+    private ChunkResult processChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk, ImportJob job,
+                                     int remainingErrorSamples) {
         String targetType = job.getTargetType() == null ? "SUBSCRIBER" : job.getTargetType().trim().toUpperCase(Locale.ROOT);
         if ("DATA_EXTENSION".equals(targetType)) {
-            return processDataExtensionChunk(chunk, job.getTargetId(), job.getFieldMapping());
+            return processDataExtensionChunk(chunk, job.getTargetId(), job.getFieldMapping(), remainingErrorSamples);
         }
-        return processSubscriberChunk(tenantId, workspaceId, chunk, job.getFieldMapping());
+        return processSubscriberChunk(tenantId, workspaceId, chunk, job.getFieldMapping(), remainingErrorSamples);
     }
 
-    private ChunkResult processSubscriberChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk, Map<String, String> mapping) {
-        ChunkResult result = new ChunkResult();
+    private ChunkResult processSubscriberChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk,
+                                               Map<String, String> mapping, int remainingErrorSamples) {
+        ChunkResult result = new ChunkResult(remainingErrorSamples);
         List<Subscriber> toSave = new ArrayList<>();
 
         for (Map<String, String> row : chunk) {
@@ -236,8 +253,7 @@ public class ImportProcessingService {
                 toSave.add(sub);
                 result.successCount++;
             } catch (Exception e) {
-                result.errorCount++;
-                result.errors.add(Map.of("message", e.getMessage()));
+                result.addError(e);
             }
         }
 
@@ -252,8 +268,9 @@ public class ImportProcessingService {
         return result;
     }
 
-    private ChunkResult processDataExtensionChunk(List<Map<String, String>> chunk, String targetId, Map<String, String> mapping) {
-        ChunkResult result = new ChunkResult();
+    private ChunkResult processDataExtensionChunk(List<Map<String, String>> chunk, String targetId,
+                                                  Map<String, String> mapping, int remainingErrorSamples) {
+        ChunkResult result = new ChunkResult(remainingErrorSamples);
         for (Map<String, String> row : chunk) {
             try {
                 Map<String, Object> mapped = new LinkedHashMap<>();
@@ -269,11 +286,22 @@ public class ImportProcessingService {
                         .build());
                 result.successCount++;
             } catch (Exception e) {
-                result.errorCount++;
-                result.errors.add(Map.of("message", e.getMessage()));
+                result.addError(e);
             }
         }
         return result;
+    }
+
+    private int remainingErrorSampleCapacity(List<Map<String, Object>> errors) {
+        return Math.max(0, AppConstants.IMPORT_MAX_ERRORS - errors.size());
+    }
+
+    private void appendErrorSamples(List<Map<String, Object>> errors, List<Map<String, Object>> samples) {
+        int remaining = remainingErrorSampleCapacity(errors);
+        if (remaining <= 0 || samples.isEmpty()) {
+            return;
+        }
+        errors.addAll(samples.size() <= remaining ? samples : samples.subList(0, remaining));
     }
 
     private void applyMappedFields(Subscriber sub, Map<String, String> row, Map<String, String> fieldMapping) {

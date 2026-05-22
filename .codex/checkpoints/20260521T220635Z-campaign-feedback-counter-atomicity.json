@@ -1,0 +1,42 @@
+{
+    "id":  "campaign-feedback-counter-atomicity",
+    "createdAt":  "2026-05-21T22:06:35.4375940Z",
+    "objective":  "Make campaign delivery feedback counters atomic",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobRepository.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**",
+                         "services/campaign-service/src/test/java/com/legent/campaign/repository/CampaignFeedbackCounterRepositoryTest.java"
+                     ],
+    "agents":  [
+                   "DATABASE_ENGINEER",
+                   "KAFKA_CONTRACTS_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignEventConsumerTest,CampaignFeedbackCounterRepositoryTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "git diff --check -- services/campaign-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item."
+}

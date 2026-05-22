@@ -1,0 +1,53 @@
+{
+    "id":  "workspace-context-fail-closed-e2e",
+    "createdAt":  "2026-05-22T02:13:21.8617473Z",
+    "objective":  "Add fail-closed E2E coverage for missing workspace context",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/layout.tsx",
+                         "frontend/tests/e2e/context-bootstrap.spec.ts",
+                         "frontend/tests/e2e/support/workspace-mock.ts",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-22.jsonl",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/context-bootstrap.spec.ts --project=chromium --reporter=line",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- frontend .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue backlog scan for next highest-value safe work.",
+    "outcome":  "Workspace context fail-closed E2E coverage now proves missing workspace sessions clear local routing context and redirect to login.",
+    "validationRun":  [
+                          "cd frontend; npm run lint",
+                          "cd frontend; npm run build:ci",
+                          "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/context-bootstrap.spec.ts --project=chromium --reporter=line",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "git diff --check -- frontend .codex"
+                      ],
+    "residualRisks":  [
+                          "Target session behavior remains release evidence; credential-gated login smoke skipped because local E2E admin credentials are not configured."
+                      ]
+}

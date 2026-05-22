@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.Optional;
 
 public interface AuthInvitationRepository extends JpaRepository<AuthInvitation, String> {
-    List<AuthInvitation> findByTenantIdOrderByCreatedAtDesc(String tenantId);
+    List<AuthInvitation> findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(String tenantId, String workspaceId);
     Optional<AuthInvitation> findByToken(String token);
 }

@@ -104,15 +104,38 @@ class TrackingOutboxServiceTest {
         verify(eventPublisher, never()).publishIngestedEventOrThrow(any(TrackingDto.RawEventPayload.class));
     }
 
+    @Test
+    void enqueue_DoesNotPublishInlineByDefault() throws Exception {
+        TrackingDto.RawEventPayload payload = payload("outbox-default");
+
+        service.enqueue(payload);
+
+        verify(outboxRepository).save(any(TrackingOutboxEvent.class));
+        verify(outboxRepository, never()).claimReadyForPublish(
+                any(),
+                anyCollection(),
+                any(Instant.class),
+                any(),
+                any(Instant.class));
+        verify(eventPublisher, never()).publishIngestedEventOrThrow(any(TrackingDto.RawEventPayload.class));
+    }
+
+    @Test
+    void enqueue_CanPublishInlineWhenCompatibilityFlagEnabled() throws Exception {
+        TrackingDto.RawEventPayload payload = payload("outbox-inline");
+        TrackingOutboxEvent event = event("outbox-inline");
+        ReflectionTestUtils.setField(service, "publishAfterCommit", true);
+        whenClaimSucceeds("outbox-inline");
+        when(outboxRepository.findById("outbox-inline")).thenReturn(Optional.of(event));
+
+        service.enqueue(payload);
+
+        verifyClaimAttempted("outbox-inline");
+        verify(eventPublisher).publishIngestedEventOrThrow(any(TrackingDto.RawEventPayload.class));
+    }
+
     private TrackingOutboxEvent event(String id) throws Exception {
-        TrackingDto.RawEventPayload payload = TrackingDto.RawEventPayload.builder()
-                .id(id)
-                .tenantId("tenant-1")
-                .workspaceId("workspace-1")
-                .eventType("OPEN")
-                .messageId("message-1")
-                .timestamp(Instant.now())
-                .build();
+        TrackingDto.RawEventPayload payload = payload(id);
         TrackingOutboxEvent event = new TrackingOutboxEvent();
         event.setId(id);
         event.setTenantId(payload.getTenantId());
@@ -124,6 +147,17 @@ class TrackingOutboxServiceTest {
         event.setAttempts(1);
         event.setNextAttemptAt(Instant.now().plusSeconds(300));
         return event;
+    }
+
+    private TrackingDto.RawEventPayload payload(String id) {
+        return TrackingDto.RawEventPayload.builder()
+                .id(id)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .eventType("OPEN")
+                .messageId("message-1")
+                .timestamp(Instant.now())
+                .build();
     }
 
     private void whenClaimSucceeds(String outboxId) {

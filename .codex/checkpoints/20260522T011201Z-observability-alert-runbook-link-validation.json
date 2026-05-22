@@ -1,0 +1,28 @@
+{
+    "id":  "observability-alert-runbook-link-validation",
+    "createdAt":  "2026-05-22T01:12:01.0329479Z",
+    "objective":  "Validate production alert runbook links locally",
+    "status":  "DONE",
+    "owner":  "SRE_MONITORING_ENGINEER",
+    "filesInScope":  [
+                         "docs/operations/production-hardening-runbook.md",
+                         "scripts/ops/validate-production-overlay.ps1",
+                         "infrastructure/kubernetes/observability/prometheus-alerts.yml",
+                         ".codex"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "RELEASE_MANAGER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "git diff --check -- docs/operations/production-hardening-runbook.md scripts/ops/validate-production-overlay.ps1 infrastructure/kubernetes/observability/prometheus-alerts.yml .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Start frontend-audience-import-status-lifecycle."
+}

@@ -1,0 +1,64 @@
+﻿{
+    "id":  "ai-content-assistance-draft-application-contract",
+    "createdAt":  "2026-05-22T02:52:01.3098825Z",
+    "objective":  "Apply reviewed AI content assistance evidence to drafts only",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/AiContentAssistanceGovernanceServiceTest.java",
+                         "services/content-service/src/main/java/com/legent/content/dto/TemplateWorkflowDto.java",
+                         "services/content-service/src/main/java/com/legent/content/controller/TemplateWorkflowController.java",
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateWorkflowService.java",
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateTestSendService.java",
+                         "services/content-service/src/main/java/com/legent/content/service/AiContentAssistanceMetadataSupport.java",
+                         "services/content-service/src/test/java/com/legent/content/service/TemplateWorkflowServiceTest.java",
+                         "services/content-service/src/test/java/com/legent/content/service/TemplateTestSendServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-22.jsonl",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "FOUNDATION_SERVICE_OWNER",
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "PRODUCT_MANAGER_AGENT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AiContentAssistanceGovernanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=TemplateWorkflowServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=TemplateTestSendServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/foundation-service",
+                           "services/content-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/content-service services/foundation-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Complete work item, release leases, validate Codex state, then select the next safe local work item.",
+    "completedAt":  "2026-05-22T03:05:54.5134222Z",
+    "outcome":  "Content-service now applies already approved, human-reviewed AI content assistance evidence to drafts only, stores hash/reference metadata without raw prompt/output text, and blocks unresolved AI assistance metadata before publish or test-send side effects.",
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AiContentAssistanceGovernanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=TemplateWorkflowServiceTest,TemplateTestSendServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "git diff --check -- services/content-service services/foundation-service .codex"
+                      ],
+    "residualRisks":  [
+                          "This is a local draft-application evidence contract only; no model/provider invocation, cross-service foundation audit verification, generated-draft UX, usage metering, AI parity claim, or production release evidence is included.",
+                          "Future AI content assistance work must keep raw prompt/output storage, credential access, provider calls, and audit verification behind separately reviewed contracts and tests."
+                      ]
+}

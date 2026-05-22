@@ -264,8 +264,14 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public List<AuthInvitation> listInvitations(String tenantId) {
-        return authInvitationRepository.findByTenantIdOrderByCreatedAtDesc(tenantId);
+    public List<AuthInvitation> listInvitations(String tenantId, String workspaceId) {
+        String normalizedWorkspace = blankToNull(workspaceId);
+        if (normalizedWorkspace == null) {
+            throw new IllegalArgumentException("Workspace context is required for invitation listing");
+        }
+        return authInvitationRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                tenantId,
+                normalizeWorkspaceId(normalizedWorkspace));
     }
 
     @Transactional

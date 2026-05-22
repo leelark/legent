@@ -16,6 +16,27 @@ public class TemplateWorkflowDto {
         private String subject;
         private String htmlContent;
         private String textContent;
+        private AiDraftApplication aiAssistance;
+    }
+
+    @Data
+    public static class AiDraftApplication {
+        @Size(max = 128)
+        private String auditId;
+        @Size(max = 128)
+        private String policyKey;
+        @Size(max = 64)
+        private String policyVersion;
+        @Size(max = 64)
+        private String decision;
+        @Size(max = 64)
+        private String requestedAction = "APPLY_TO_DRAFT";
+        @Size(max = 64)
+        private String promptHash;
+        @Size(max = 64)
+        private String outputHash;
+        private Boolean humanReviewed;
+        private List<String> evidenceRefs;
     }
 
     @Data

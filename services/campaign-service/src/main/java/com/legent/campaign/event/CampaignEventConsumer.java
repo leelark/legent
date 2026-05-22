@@ -280,36 +280,42 @@ public class CampaignEventConsumer {
 
             String batchId = stringValue(payload.get("batchId"));
             if (batchId != null) {
-                sendBatchRepository.findByTenantWorkspaceAndId(event.getTenantId(), workspaceId, batchId).ifPresent(batch -> {
-                    batch.setProcessedCount((batch.getProcessedCount() == null ? 0 : batch.getProcessedCount()) + 1);
-                    if (failed) {
-                        batch.setFailureCount((batch.getFailureCount() == null ? 0 : batch.getFailureCount()) + 1);
-                        batch.setLastError(stringValue(payload.get("reason")));
-                    } else {
-                        batch.setSuccessCount((batch.getSuccessCount() == null ? 0 : batch.getSuccessCount()) + 1);
-                    }
-                    if (batch.getProcessedCount() >= batch.getBatchSize()) {
-                        if (batch.getFailureCount() != null && batch.getFailureCount() > 0) {
-                            batch.setStatus(batch.getSuccessCount() != null && batch.getSuccessCount() > 0
-                                    ? SendBatch.BatchStatus.PARTIAL : SendBatch.BatchStatus.FAILED);
-                        } else {
-                            batch.setStatus(SendBatch.BatchStatus.COMPLETED);
-                        }
-                    } else if (batch.getStatus() == SendBatch.BatchStatus.PENDING) {
-                        batch.setStatus(SendBatch.BatchStatus.PROCESSING);
-                    }
-                    sendBatchRepository.save(batch);
-                });
+                sendBatchRepository.applyDeliveryFeedbackCounters(
+                        event.getTenantId(),
+                        workspaceId,
+                        batchId,
+                        failed,
+                        stringValue(payload.get("reason")),
+                        SendBatch.BatchStatus.PENDING,
+                        SendBatch.BatchStatus.PROCESSING,
+                        SendBatch.BatchStatus.COMPLETED,
+                        SendBatch.BatchStatus.FAILED,
+                        SendBatch.BatchStatus.PARTIAL,
+                        Instant.now());
             }
 
+            int jobRowsUpdated;
+            String reason = stringValue(payload.get("reason"));
             if (failed) {
-                job.setTotalFailed((job.getTotalFailed() == null ? 0L : job.getTotalFailed()) + 1);
-                String reason = stringValue(payload.get("reason"));
-                if (reason != null) {
-                    job.setErrorMessage(reason);
-                }
+                jobRowsUpdated = sendJobRepository.incrementFailedFeedbackCounter(
+                        event.getTenantId(),
+                        workspaceId,
+                        job.getId(),
+                        reason,
+                        Instant.now());
             } else {
-                job.setTotalSent((job.getTotalSent() == null ? 0L : job.getTotalSent()) + 1);
+                jobRowsUpdated = sendJobRepository.incrementSentFeedbackCounter(
+                        event.getTenantId(),
+                        workspaceId,
+                        job.getId(),
+                        Instant.now());
+            }
+            if (jobRowsUpdated == 0) {
+                log.warn("Send job disappeared before delivery feedback counters were updated. eventId={}, jobId={}",
+                        event.getEventId(), job.getId());
+                sideEffectsComplete = true;
+                completeEvent(registration);
+                return;
             }
             String messageId = stringValue(payload.get("messageId"));
             if (messageId != null) {
@@ -318,11 +324,13 @@ public class CampaignEventConsumer {
                         workspaceId,
                         messageId,
                         failed,
-                        stringValue(payload.get("reason")));
+                        reason);
             }
-            sendJobRepository.save(job);
 
-            reconcileJobAndCampaignState(job);
+            sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                    event.getTenantId(),
+                    workspaceId,
+                    job.getId()).ifPresent(this::reconcileJobAndCampaignState);
             sideEffectsComplete = true;
             completeEvent(registration);
         } catch (Exception e) {

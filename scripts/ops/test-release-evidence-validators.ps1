@@ -1,7 +1,10 @@
-param()
+param(
+    [ValidateRange(1, 3600)][int]$ChildProcessTimeoutSeconds = 60
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$script:ChildProcessTimeoutSeconds = $ChildProcessTimeoutSeconds
 
 function Fail($Message) {
     Write-Error $Message
@@ -12,19 +15,56 @@ function Write-JsonFile($Path, $Value) {
     $Value | ConvertTo-Json -Depth 8 | Set-Content -Path $Path -Encoding UTF8
 }
 
-function Invoke-EgressValidator([string]$EvidencePath, [string]$Name) {
+function Get-FileExcerpt([string]$Path) {
+    if (-not (Test-Path $Path)) { return "" }
+    $content = Get-Content -Path $Path -Raw -ErrorAction SilentlyContinue
+    if (-not $content) { return "" }
+    $trimmed = $content.Trim()
+    if ($trimmed.Length -le 2000) { return $trimmed }
+    return $trimmed.Substring(0, 2000) + "... [truncated]"
+}
+
+function Stop-ProcessTree([int]$ProcessId) {
+    $children = @(Get-CimInstance Win32_Process -Filter "ParentProcessId = $ProcessId" -ErrorAction SilentlyContinue)
+    foreach ($child in $children) {
+        Stop-ProcessTree -ProcessId ([int]$child.ProcessId)
+    }
+    Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
+}
+
+function Invoke-ValidatorProcess([string]$Name, [string[]]$Arguments) {
     $outPath = Join-Path $tempRoot "$Name.out"
     $errPath = Join-Path $tempRoot "$Name.err"
-    return Start-Process -FilePath "powershell" -ArgumentList @(
+    $proc = Start-Process -FilePath "powershell" `
+        -ArgumentList $Arguments `
+        -PassThru `
+        -WindowStyle Hidden `
+        -RedirectStandardOutput $outPath `
+        -RedirectStandardError $errPath
+
+    $completed = $proc.WaitForExit($script:ChildProcessTimeoutSeconds * 1000)
+    if (-not $completed) {
+        Stop-ProcessTree -ProcessId $proc.Id
+        $proc.WaitForExit(5000) | Out-Null
+        $stdout = Get-FileExcerpt $outPath
+        $stderr = Get-FileExcerpt $errPath
+        Fail "Validator fixture '$Name' exceeded ${script:ChildProcessTimeoutSeconds}s. stdout=[$stdout] stderr=[$stderr]"
+    }
+    $proc.Refresh()
+    $proc | Add-Member -NotePropertyName StdoutPath -NotePropertyValue $outPath -Force
+    $proc | Add-Member -NotePropertyName StderrPath -NotePropertyValue $errPath -Force
+    return $proc
+}
+
+function Invoke-EgressValidator([string]$EvidencePath, [string]$Name) {
+    return Invoke-ValidatorProcess $Name @(
         "-ExecutionPolicy", "Bypass",
         "-File", "scripts/ops/validate-production-egress-evidence.ps1",
         "-EvidencePath", $EvidencePath
-    ) -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
+    )
 }
 
 function Invoke-EgressRenderValidator([string]$EvidencePath, [string]$Name, [string]$GeneratedPolicyPath = $null, [switch]$UseExistingGeneratedPolicy) {
-    $outPath = Join-Path $tempRoot "$Name.out"
-    $errPath = Join-Path $tempRoot "$Name.err"
     $arguments = @(
         "-ExecutionPolicy", "Bypass",
         "-File", "scripts/ops/validate-production-egress-policy-render.ps1",
@@ -36,12 +76,10 @@ function Invoke-EgressRenderValidator([string]$EvidencePath, [string]$Name, [str
     if ($UseExistingGeneratedPolicy) {
         $arguments += "-UseExistingGeneratedPolicy"
     }
-    return Start-Process -FilePath "powershell" -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
+    return Invoke-ValidatorProcess $Name $arguments
 }
 
 function Invoke-GaValidator([string]$EvidenceDir, [string]$Name, [string]$ManifestPath = $null) {
-    $outPath = Join-Path $tempRoot "$Name.out"
-    $errPath = Join-Path $tempRoot "$Name.err"
     $arguments = @(
         "-ExecutionPolicy", "Bypass",
         "-File", "scripts/ops/validate-ga-evidence.ps1",
@@ -50,20 +88,35 @@ function Invoke-GaValidator([string]$EvidenceDir, [string]$Name, [string]$Manife
     if ($ManifestPath) {
         $arguments += @("-ManifestPath", $ManifestPath)
     }
-    return Start-Process -FilePath "powershell" -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
+    return Invoke-ValidatorProcess $Name $arguments
 }
 
 function Invoke-ImageValidator([string]$ManifestPath, [string]$Name, [string]$EvidenceRoot, [string]$KustomizationPath) {
-    $outPath = Join-Path $tempRoot "$Name.out"
-    $errPath = Join-Path $tempRoot "$Name.err"
-    return Start-Process -FilePath "powershell" -ArgumentList @(
+    return Invoke-ValidatorProcess $Name @(
         "-ExecutionPolicy", "Bypass",
         "-File", "scripts/ops/validate-image-evidence.ps1",
         "-ManifestPath", $ManifestPath,
         "-EvidenceRoot", $EvidenceRoot,
         "-RequireDigests",
         "-KustomizationPath", $KustomizationPath
-    ) -Wait -PassThru -WindowStyle Hidden -RedirectStandardOutput $outPath -RedirectStandardError $errPath
+    )
+}
+
+function Invoke-ReleaseGate([string]$Name, [string[]]$Arguments) {
+    return Invoke-ValidatorProcess $Name (@(
+        "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/ops/release-gate.ps1"
+    ) + $Arguments)
+}
+
+function Assert-ReleaseGateFails([string]$Name, [string[]]$Arguments, [string]$ExpectedMessage, [string]$FailureMessage) {
+    $proc = Invoke-ReleaseGate $Name $Arguments
+    if ($proc.ExitCode -eq 0) { Fail $FailureMessage }
+    $combinedOutput = (Get-FileExcerpt $proc.StdoutPath) + "`n" + (Get-FileExcerpt $proc.StderrPath)
+    if ($combinedOutput -notmatch [regex]::Escape($ExpectedMessage)) {
+        Fail "$FailureMessage Expected message was not found. stdout/stderr=[$combinedOutput]"
+    }
+    $global:LASTEXITCODE = 0
 }
 
 function Assert-EgressFails([string]$Name, $Evidence, [string]$FailureMessage) {
@@ -129,6 +182,7 @@ function New-EgressEvidence([string]$ReviewedBy, [string]$ReviewedAt, [string]$P
 
 function New-GaManifest([hashtable]$Overrides = @{}) {
     $manifest = [ordered]@{
+        schemaVersion = 1
         syntheticSmoke = "synthetic-smoke.txt"
         liveLoad = "live-load.txt"
         restoreDrill = "restore-drill.txt"
@@ -190,6 +244,11 @@ foreach ($script in $requiredScripts) {
     }
 }
 
+$releaseGateSource = Get-Content -Path "scripts/ops/release-gate.ps1" -Raw
+if ($releaseGateSource -notmatch 'docker\s+compose\s+--env-file\s+\$ComposeEnvFile\s+config\s+--quiet') {
+    Fail "release-gate.ps1 must run docker compose config with the reviewed ComposeEnvFile instead of ambient environment discovery."
+}
+
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("legent-evidence-test-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 try {
@@ -228,6 +287,36 @@ images:
     } | ConvertTo-Json -Depth 6 | Set-Content -Path $validImageManifest -Encoding UTF8
     & scripts/ops/validate-image-evidence.ps1 -ManifestPath $validImageManifest -EvidenceRoot $tempRoot -RequireDigests -KustomizationPath $validKustomization
     if (-not $?) { Fail "Valid image evidence should pass validation." }
+
+    Assert-ReleaseGateFails "strict-release-gate-skip-flags" `
+        @(
+            "-RequireExternalEgressEvidence",
+            "-RequireGaEvidence",
+            "-RequireImageEvidence",
+            "-RequireImageDigests",
+            "-SkipBackend",
+            "-SkipFrontend",
+            "-SkipCompose",
+            "-SkipKustomize"
+        ) `
+        "Strict release promotion cannot use local gate skip flags" `
+        "Strict release promotion should reject local gate skip flags before evidence validation."
+
+    $missingImageSchemaManifest = New-ImageManifest "legent/frontend" $digest
+    $missingImageSchemaManifest.Remove("schemaVersion")
+    Assert-ImageFails "missing-image-schema-version" `
+        $missingImageSchemaManifest `
+        $tempRoot `
+        $validKustomization `
+        "Image evidence missing schemaVersion should fail validation."
+
+    $unsupportedImageSchemaManifest = New-ImageManifest "legent/frontend" $digest
+    $unsupportedImageSchemaManifest["schemaVersion"] = 2
+    Assert-ImageFails "unsupported-image-schema-version" `
+        $unsupportedImageSchemaManifest `
+        $tempRoot `
+        $validKustomization `
+        "Unsupported image evidence schemaVersion should fail validation."
 
     $secondDigest = "sha256:" + ("c" * 64)
     $multiImageKustomization = Join-Path $tempRoot "multi-image-kustomization.yml"
@@ -285,13 +374,23 @@ images:
     $gaRoot = Join-Path $tempRoot "ga-evidence"
     New-Item -ItemType Directory -Force -Path $gaRoot | Out-Null
     $validGaManifest = New-GaManifest
-    foreach ($artifact in @($validGaManifest.Values)) {
+    foreach ($artifact in @($validGaManifest.GetEnumerator() | Where-Object { $_.Key -ne "schemaVersion" } | ForEach-Object { $_.Value })) {
         Set-Content -Path (Join-Path $gaRoot ([string]$artifact)) -Value "reviewed evidence" -Encoding UTF8
     }
     Assert-GaPasses "valid-ga-evidence" `
         $gaRoot `
         $validGaManifest `
         "Valid GA evidence fixture should pass validation."
+
+    Assert-GaFails "missing-ga-schema-version" `
+        $gaRoot `
+        (New-GaManifest @{ schemaVersion = $null }) `
+        "GA evidence missing schemaVersion should fail validation."
+
+    Assert-GaFails "unsupported-ga-schema-version" `
+        $gaRoot `
+        (New-GaManifest @{ schemaVersion = 2 }) `
+        "Unsupported GA evidence schemaVersion should fail validation."
 
     Assert-GaFails "placeholder-ga-evidence-field" `
         $gaRoot `

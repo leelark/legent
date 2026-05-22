@@ -40,7 +40,8 @@ public class TemplateWorkflowController {
                 templateId,
                 safeRequest.getSubject(),
                 safeRequest.getHtmlContent(),
-                safeRequest.getTextContent()
+                safeRequest.getTextContent(),
+                safeRequest.getAiAssistance()
         );
         return ApiResponse.ok(Map.of(
                 "templateId", template.getId(),
@@ -61,6 +62,7 @@ public class TemplateWorkflowController {
     }
 
     @GetMapping("/{templateId}/approvals")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> approvalHistory(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -69,6 +71,7 @@ public class TemplateWorkflowController {
     }
 
     @GetMapping("/approvals/pending")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> pendingApprovals() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();

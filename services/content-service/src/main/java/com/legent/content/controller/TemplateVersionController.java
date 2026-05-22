@@ -49,6 +49,7 @@ public class TemplateVersionController {
     }
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<TemplateVersionDto.Response>> listVersions(@PathVariable String templateId) {
         TenantContext.requireWorkspaceId();
         List<TemplateVersion> versions = versionService.listVersions(templateId);
@@ -56,6 +57,7 @@ public class TemplateVersionController {
     }
 
     @GetMapping("/latest")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateVersionDto.Response> getLatestVersion(@PathVariable String templateId) {
         TenantContext.requireWorkspaceId();
         TemplateVersion version = versionService.getLatestPublishedVersion(templateId);
@@ -63,6 +65,7 @@ public class TemplateVersionController {
     }
 
     @GetMapping("/compare")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<TemplateVersionDto.CompareResponse> compareVersions(
             @PathVariable String templateId,
             @RequestParam("left") Integer leftVersion,

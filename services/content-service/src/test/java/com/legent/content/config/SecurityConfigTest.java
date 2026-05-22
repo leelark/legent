@@ -22,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -63,6 +64,14 @@ class SecurityConfigTest {
         mockMvc.perform(get("/api/v1/landing-pages")
                         .accept(MediaType.APPLICATION_JSON))
                 .andExpect(result -> assertNotEquals(200, result.getResponse().getStatus()));
+    }
+
+    @Test
+    void internalSendGovernanceLookupReachesControllerWithoutJwt() throws Exception {
+        mockMvc.perform(get("/api/v1/content/send-governance-policies/policy-1/internal")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"policyId\":\"policy-1\"}"));
     }
 
     @Test
@@ -139,6 +148,11 @@ class SecurityConfigTest {
         @GetMapping("/api/v1/landing-pages")
         Map<String, String> privateLandingPages() {
             return Map.of("scope", "workspace");
+        }
+
+        @GetMapping("/api/v1/content/send-governance-policies/{policyId}/internal")
+        Map<String, String> internalSendGovernancePolicy(@PathVariable String policyId) {
+            return Map.of("policyId", policyId);
         }
 
         @PostMapping("/api/v1/rbac/content-write")

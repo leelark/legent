@@ -60,6 +60,7 @@ public class EmailStudioController {
     }
 
     @GetMapping("/content/snippets")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public PagedResponse<EmailStudioDto.SnippetResponse> listSnippets(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -97,6 +98,7 @@ public class EmailStudioController {
     }
 
     @GetMapping("/personalization-tokens")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public PagedResponse<EmailStudioDto.TokenResponse> listTokens(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
@@ -135,6 +137,7 @@ public class EmailStudioController {
     }
 
     @GetMapping("/templates/{templateId}/dynamic-content")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<EmailStudioDto.DynamicRuleResponse>> listDynamicRules(@PathVariable String templateId) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -178,6 +181,7 @@ public class EmailStudioController {
     }
 
     @GetMapping("/brand-kits")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public PagedResponse<EmailStudioDto.BrandKitResponse> listBrandKits(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -216,6 +220,7 @@ public class EmailStudioController {
     }
 
     @GetMapping("/landing-pages")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public PagedResponse<EmailStudioDto.LandingPageResponse> listLandingPages(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {

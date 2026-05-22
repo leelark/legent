@@ -26,6 +26,9 @@ public class SendJobCheckpoint extends TenantAwareEntity {
     @Column(name = "job_id", nullable = false, length = 36)
     private String jobId;
 
+    @Column(name = "workspace_id", nullable = false, length = 64)
+    private String workspaceId;
+
     @Column(name = "checkpoint_type", nullable = false, length = 20)
     @Enumerated(EnumType.STRING)
     private CheckpointType checkpointType;

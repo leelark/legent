@@ -54,12 +54,26 @@ public class IdentityExperienceService {
     private String frontendBaseUrl;
 
     @Transactional
+    public void requestPasswordReset(ExperienceDto.ForgotPasswordRequest request) {
+        if (request == null) {
+            return;
+        }
+        requestPasswordReset(request.getEmail(), request.getTenantId(), request.getWorkspaceId());
+    }
+
+    @Transactional
     public void requestPasswordReset(String email) {
+        requestPasswordReset(email, null, null);
+    }
+
+    @Transactional
+    public void requestPasswordReset(String email, String tenantId, String workspaceId) {
         if (email == null || email.isBlank()) {
             return;
         }
 
-        Optional<User> userOpt = userRepository.findFirstByEmailIgnoreCase(email.trim().toLowerCase(Locale.ROOT));
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        Optional<User> userOpt = resolvePasswordResetUser(normalizedEmail, blankToNull(tenantId));
         if (userOpt.isEmpty()) {
             return;
         }
@@ -69,7 +83,10 @@ public class IdentityExperienceService {
             return;
         }
 
-        String workspaceId = resolveWorkspaceId(user.getId(), user.getTenantId());
+        Optional<String> resolvedWorkspaceId = resolveWorkspaceId(user.getId(), user.getTenantId(), blankToNull(workspaceId));
+        if (resolvedWorkspaceId.isEmpty()) {
+            return;
+        }
         String rawToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
         String tokenHash = hashToken(rawToken);
         String resetUrl = frontendBaseUrl.replaceAll("/$", "") + "/reset-password?token=" + rawToken;
@@ -85,7 +102,7 @@ public class IdentityExperienceService {
 
         identityEventPublisher.publishPasswordResetEmail(
                 user.getTenantId(),
-                workspaceId,
+                resolvedWorkspaceId.get(),
                 user.getId(),
                 user.getEmail(),
                 resetUrl,
@@ -218,15 +235,33 @@ public class IdentityExperienceService {
         return preference;
     }
 
-    private String resolveWorkspaceId(String userId, String tenantId) {
+    private Optional<User> resolvePasswordResetUser(String normalizedEmail, String tenantId) {
+        if (tenantId != null) {
+            return userRepository.findByTenantIdAndEmailIgnoreCase(tenantId, normalizedEmail);
+        }
+        List<User> activeMatches = userRepository.findAllByEmailIgnoreCase(normalizedEmail).stream()
+                .filter(User::isActive)
+                .toList();
+        if (activeMatches.size() != 1) {
+            return Optional.empty();
+        }
+        return Optional.of(activeMatches.getFirst());
+    }
+
+    private Optional<String> resolveWorkspaceId(String userId, String tenantId, String requestedWorkspaceId) {
         List<AccountMembership> memberships = accountMembershipRepository.findAllByUserIdAndTenantId(userId, tenantId);
-        return memberships.stream()
+        List<String> activeWorkspaces = memberships.stream()
                 .filter(m -> "ACTIVE".equalsIgnoreCase(m.getStatus()))
                 .sorted(Comparator.comparing(AccountMembership::isDefaultMembership).reversed())
                 .map(AccountMembership::getWorkspaceId)
                 .filter(value -> value != null && !value.isBlank())
-                .findFirst()
-                .orElse("workspace-default");
+                .toList();
+        if (requestedWorkspaceId != null) {
+            return activeWorkspaces.stream()
+                    .filter(requestedWorkspaceId::equals)
+                    .findFirst();
+        }
+        return activeWorkspaces.stream().findFirst();
     }
 
     private Map<String, Object> onboardingResponse(OnboardingState state) {

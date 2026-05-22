@@ -1,0 +1,29 @@
+{
+    "id":  "audience-subscriber-by-id-scoped-lookups",
+    "createdAt":  "2026-05-22T01:04:07.9128049Z",
+    "objective":  "Scope subscriber by-ID lookups by tenant and workspace",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/repository/SubscriberRepository.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SubscriberServiceTest.java",
+                         ".codex"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=SubscriberServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/audience-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java services/audience-service/src/main/java/com/legent/audience/repository/SubscriberRepository.java services/audience-service/src/test/java/com/legent/audience/service/SubscriberServiceTest.java .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Start observability-alert-runbook-link-validation."
+}

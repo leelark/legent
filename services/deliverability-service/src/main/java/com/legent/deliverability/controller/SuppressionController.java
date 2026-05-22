@@ -18,6 +18,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -44,6 +45,7 @@ public class SuppressionController {
     }
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
     public ApiResponse<List<SuppressionList>> listSuppressions() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -84,6 +86,7 @@ public class SuppressionController {
     }
 
     @GetMapping("/history")
+    @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
     public ApiResponse<Map<String, Object>> suppressionHistory() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();

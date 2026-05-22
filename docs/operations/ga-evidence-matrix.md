@@ -15,6 +15,8 @@ Public multi-tenant GA requires target-environment evidence, not local assumptio
 | Restricted admission | Admission/security policy proof |
 | Production egress | Reviewed managed-service/provider CIDR evidence for the current NetworkPolicy generator. FQDN policy evidence requires an approved CNI-specific generator. |
 
+The GA evidence manifest and registry image evidence manifest must declare `schemaVersion: 1`. Missing or unsupported schema versions fail validation so old manifests cannot satisfy a newer evidence contract by accident.
+
 Production egress evidence must come from the target environment review. Template files, `example-*` values, and documentation CIDRs such as `192.0.2.0/24`, `198.51.100.0/24`, and `203.0.113.0/24` are intentionally rejected by the validator. Strict egress validation also proves the reviewed external egress NetworkPolicy renders through the production Kustomize overlay.
 
 Tracking ingress rate policy is protective configuration, not throughput proof. Current local Nginx posture gives signed open/click/conversion ingestion at `/api/v1/tracking` an elevated `tracking_limit` of `200r/s` with `burst=50 nodelay`; Kubernetes production ingress uses the community ingress-nginx `limit-rps: "200"` annotation for `/api/v1/tracking`. Analytics API and websocket routes remain on the normal `limit-rps: "100"` posture. Ingress-nginx limits are enforced per controller replica, so GA still requires target-environment behavior evidence before any sustained tracking throughput or campaign-volume claim.

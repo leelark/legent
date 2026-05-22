@@ -1,7 +1,7 @@
-﻿{
+{
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
-    "lastUpdated":  "2026-05-20T22:57:19.4891311Z",
+    "lastUpdated":  "2026-05-22",
     "selectionPolicy":  "Sort READY work by priorityScore descending, then no blockers, smallest safe scope, validation availability, and lease compatibility.",
     "readyWork":  [
 
@@ -4164,6 +4164,2040 @@
                          "residualRisks":  [
                                                "V17 leaves legacy pre-scope config_version_history rows nullable because historical workspace/environment ownership cannot be safely inferred; target database preflight should check duplicate tenant/key/version rows before applying the unique exact-scope index.",
                                                "Concurrent same-scope writes now have database uniqueness protection, but there is no retry loop for duplicate-version races; callers will fail and retry at a higher layer if a race occurs."
+                                           ]
+                     },
+                     {
+                         "id":  "content-send-governance-internal-security-chain",
+                         "title":  "Allow content send-governance internal lookup through service security chain",
+                         "status":  "DONE",
+                         "priorityScore":  50,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "CONTENT_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "CAMPAIGN_SERVICE_OWNER",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "API_ARCHITECT"
+                                           ],
+                         "scope":  "Align content-service SecurityConfig with the existing internal send-governance policy lookup so service-to-service campaign preflight can call it with the internal token while public edge denies remain enforced.",
+                         "nonGoals":  "Do not expose the route publicly, weaken the internal-token check, alter send-governance policy semantics, or change campaign launch behavior.",
+                         "sourceFiles":  [
+                                             "services/content-service/src/main/java/com/legent/content/config/SecurityConfig.java",
+                                             "services/content-service/src/main/java/com/legent/content/controller/SendGovernancePolicyController.java",
+                                             "services/content-service/src/test/java/com/legent/content/config/SecurityConfigTest.java",
+                                             "services/content-service/src/test/java/com/legent/content/controller/SendGovernancePolicyControllerTest.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/client/ContentServiceClient.java",
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "scripts/ops/validate-route-map.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "GET /api/v1/content/send-governance-policies/{id}/internal passes the content-service filter chain without a JWT so the controller-level internal-token guard can authorize service-to-service calls.",
+                                                    "Missing or invalid internal tokens still fail closed.",
+                                                    "Public Nginx and Kubernetes ingress deny rules for the internal route remain validated.",
+                                                    "Focused tests cover service security-chain allowlisting and controller token enforcement."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=SecurityConfigTest,SendGovernancePolicyControllerTest,ContentControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/content-service .codex config infrastructure scripts"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item from discovery candidates.",
+                         "lastUpdated":  "2026-05-21T21:42:49.5933017Z",
+                         "startedAt":  "2026-05-21T21:37:39.4064339Z",
+                         "completedAt":  "2026-05-21T21:42:49.5933017Z",
+                         "outcome":  "Content-service send-governance internal lookup now passes the service security chain without JWT so campaign preflight can reach the controller-level internal-token guard; invalid tokens still fail closed before service access.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/content-service -am \"-Dtest=SecurityConfigTest,SendGovernancePolicyControllerTest,ContentControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (12 tests)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- services/content-service .codex config infrastructure scripts (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Local service-chain tests do not replace target service-to-service availability or public-edge behavior evidence.",
+                                               "Future internal routes must keep both public-edge deny validation and service-local security-chain coverage."
+                                           ]
+                     },
+                     {
+                         "id":  "campaign-schedulers-bounded-claims",
+                         "title":  "Bound campaign scheduler claims for due jobs and partial retries",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Bound scheduled send-job and partial-batch retry scans and add atomic claim methods so multi-replica schedulers do not duplicate audience-resolution or batch-retry events.",
+                         "nonGoals":  "Do not change campaign approval policy, audience eligibility, delivery handoff, provider controls, Kafka topic names, or production throughput claims.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SchedulingService.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobRepository.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/service/SchedulingServiceTest.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scheduled job processing fetches a bounded page of due PENDING jobs.",
+                                                    "Each due job is atomically claimed from PENDING to RESOLVING before audience-resolution publication.",
+                                                    "Partial batch retry and stale PROCESSING recovery scans are bounded.",
+                                                    "Partial batch retry/terminal failure transitions use compare-and-claim updates so another scheduler cannot publish duplicate retry events.",
+                                                    "Focused tests cover bounded pageable queries, claim-skip behavior, retry publish rollback, and exhausted retry handling."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SchedulingServiceTest,SendExecutionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/campaign-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T21:57:20.1469459Z",
+                         "startedAt":  "2026-05-21T21:47:36.2187283Z",
+                         "completedAt":  "2026-05-21T21:57:20.1469459Z",
+                         "outcome":  "Campaign scheduled send-job and partial-batch retry schedulers now use bounded pages plus compare-and-claim updates before publication or retry side effects.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SchedulingServiceTest,SendExecutionServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (24 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/campaign-service -am test (95 tests)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- services/campaign-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Local tests do not replace target multi-replica scheduler and queue-lag evidence.",
+                                               "Campaign feedback counter atomicity remains a separate discovered candidate."
+                                           ]
+                     },
+                     {
+                         "id":  "deliverability-controller-rbac-coverage",
+                         "title":  "Add RBAC coverage to deliverability controllers",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "API_ARCHITECT"
+                                           ],
+                         "scope":  "Add method-level deliverability read/write authorization to authenticated deliverability controllers while preserving internal suppression service endpoints.",
+                         "nonGoals":  "Do not change suppression, warmup, DMARC parsing, reputation scoring, public edge routing, or service-to-service internal endpoint behavior.",
+                         "sourceFiles":  [
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/DmarcController.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/ReputationController.java",
+                                             "services/deliverability-service/src/test/java/com/legent/deliverability/controller/DomainControllerRbacTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Suppression list/history endpoints require deliverability read permission.",
+                                                    "DMARC report reads require deliverability read permission and DMARC ingest requires deliverability write permission.",
+                                                    "Reputation score reads require deliverability read permission.",
+                                                    "Internal suppression service endpoints remain guarded by their existing internal credential check and are not changed to principal-based RBAC.",
+                                                    "Focused RBAC tests cover allowed read roles, denied read/write roles, write-role access, and missing annotation regression coverage."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=DomainControllerRbacTest,SuppressionControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/deliverability-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T22:04:29.8019690Z",
+                         "startedAt":  "2026-05-21T21:59:48.3869594Z",
+                         "completedAt":  "2026-05-21T22:04:29.8019690Z",
+                         "outcome":  "Deliverability suppression, DMARC, and reputation controller endpoints now declare deliverability read/write RBAC while internal suppression service endpoints keep the existing internal credential guard.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=DomainControllerRbacTest,SuppressionControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (17 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/deliverability-service -am test (50 deliverability-service tests plus upstream shared modules)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- services/deliverability-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Local method-security tests do not replace target auth filter-chain and release evidence.",
+                                               "Future deliverability endpoints must remain covered by controller RBAC reflection tests or a documented internal service guard."
+                                           ]
+                     },
+                     {
+                         "id":  "campaign-feedback-counter-atomicity",
+                         "title":  "Make campaign delivery feedback counters atomic",
+                         "status":  "DONE",
+                         "priorityScore":  52,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Replace in-memory send-job and send-batch delivery feedback counter increments with tenant/workspace-scoped atomic repository updates, while preserving idempotency and campaign reconciliation behavior.",
+                         "nonGoals":  "Do not change Kafka topic names, delivery feedback contracts, campaign eligibility, scheduler claim logic, or production throughput claims.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobRepository.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/repository/CampaignFeedbackCounterRepositoryTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Delivery sent/failed feedback increments send-job counters through atomic tenant/workspace/id repository updates.",
+                                                    "Batch processed/success/failure counters and terminal status use one scoped atomic update per feedback event.",
+                                                    "Missing or unknown jobs still avoid side effects beyond idempotency completion as before.",
+                                                    "Message feedback safety ledger recording and job/campaign reconciliation behavior are preserved.",
+                                                    "Focused tests prove repository atomic update methods are used and entity save-based counter increments are not used for feedback counters."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignEventConsumerTest,CampaignFeedbackCounterRepositoryTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check -- services/campaign-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T22:23:20.2952090Z",
+                         "startedAt":  "2026-05-21T22:06:35.4987601Z",
+                         "completedAt":  "2026-05-21T22:23:20.2952090Z",
+                         "outcome":  "Campaign delivery feedback now increments send-job and send-batch counters through scoped atomic repository updates before reloading job state for reconciliation.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignEventConsumerTest,CampaignFeedbackCounterRepositoryTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (25 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/campaign-service -am test (99 campaign-service tests plus upstream shared modules)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- services/campaign-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Local tests do not replace target Kafka replay, DB contention, and queue-lag evidence.",
+                                               "Campaign scheduler and delivery feedback correctness are local fixes only, not production throughput proof."
+                                           ]
+                     },
+                     {
+                         "id":  "release-evidence-self-test-timeout-guard",
+                         "title":  "Add timeout guard to release evidence validator self-test",
+                         "status":  "DONE",
+                         "priorityScore":  51,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  3,
+                                         "userImpact":  2,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "RELEASE_MANAGER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "SECURITY_ENGINEER",
+                                               "SRE_MONITORING_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Prevent the release evidence validator self-test from hanging indefinitely and leaving child validator processes when a fixture command stalls.",
+                         "nonGoals":  "Do not weaken evidence validation, strict release gates, image evidence checks, GA evidence checks, or production promotion requirements.",
+                         "sourceFiles":  [
+                                             "scripts/ops/test-release-evidence-validators.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Each self-test child validation command has a bounded timeout and fails with a clear diagnostic when exceeded.",
+                                                    "Timed-out child validator processes are terminated before the self-test exits.",
+                                                    "Existing positive and negative release evidence validator fixtures still pass.",
+                                                    "Local release gate behavior remains unchanged except for safer self-test execution."
+                                                ],
+                         "validationProfile":  "ops-validation",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- scripts/ops .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "release-history.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T22:31:56.1416918Z",
+                         "startedAt":  "2026-05-21T22:26:27.1774522Z",
+                         "completedAt":  "2026-05-21T22:31:56.1416918Z",
+                         "outcome":  "Release evidence validator self-test now bounds child validator processes with a per-command timeout and process-tree cleanup.",
+                         "validationRun":  [
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize (production overlay placeholder warning only)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- scripts/ops .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Local self-test safety does not replace real target release evidence.",
+                                               "Strict production promotion remains blocked without external evidence artifacts."
+                                           ]
+                     },
+                     {
+                         "id":  "delivery-replay-queue-bounded-claim",
+                         "title":  "Bound and atomically claim delivery replay queue work",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "CAMPAIGN_SERVICE_OWNER",
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Make delivery replay processing fetch a bounded due page, atomically claim rows before replay side effects, and preserve source content references in replay payloads.",
+                         "nonGoals":  "Do not change provider selection, warmup, rate control, inbox safety, message-log schema, Kafka topics, or production throughput claims.",
+                         "sourceFiles":  [
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOperationsService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryReplayQueueRepository.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryOperationsServiceWorkspaceScopeTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Replay processing fetches at most the safe max due PENDING rows with a pageable tenant/workspace/status query.",
+                                                    "Each replay row is atomically claimed from PENDING to PROCESSING before orchestration side effects.",
+                                                    "Rows already claimed or changed by another worker are skipped without replay side effects.",
+                                                    "Completed and failed replay rows are updated through scoped repository methods after processing.",
+                                                    "Replay payloads carry the source message contentReference so content-reference delivery contracts remain satisfied.",
+                                                    "Focused tests cover bounded query use, claim-skip behavior, successful replay completion, and failed replay retry accounting."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am \"-Dtest=DeliveryOperationsServiceWorkspaceScopeTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/delivery-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T22:42:21.9904931Z",
+                         "startedAt":  "2026-05-21T22:34:34.9442207Z",
+                         "completedAt":  "2026-05-21T22:42:21.9904931Z",
+                         "outcome":  "Delivery replay processing now fetches a bounded due page, atomically claims rows before replay side effects, preserves source content references, and fails missing-reference replays before dispatch.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/delivery-service -am \"-Dtest=DeliveryOperationsServiceWorkspaceScopeTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (8 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/delivery-service -am test (90 delivery-service tests plus upstream shared modules)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- services/delivery-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Local tests do not replace target multi-worker replay, DB contention, provider capacity, or queue-lag evidence.",
+                                               "Replay hardening is a local reliability fix only, not production throughput proof."
+                                           ]
+                     },
+                     {
+                         "id":  "tracking-outbox-inline-publish-decoupling",
+                         "title":  "Decouple tracking ingestion from inline outbox publish",
+                         "status":  "DONE",
+                         "priorityScore":  51,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "TRACKING_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "SRE_MONITORING_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Stop public tracking ingestion from synchronously publishing just-created outbox events by default, while preserving durable outbox polling, claim, retry, and failure behavior.",
+                         "nonGoals":  "Do not change tracking event signatures, public tracking routes, Kafka topic names, raw event persistence, ClickHouse writes, or production throughput claims.",
+                         "sourceFiles":  [
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingOutboxService.java",
+                                             "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingOutboxServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "TrackingOutboxService.enqueue persists the outbox row without attempting publishPending by default.",
+                                                    "The existing scheduled outbox poller remains responsible for publishing ready events.",
+                                                    "A configuration flag can explicitly restore immediate post-commit publish behavior for local rollback if needed.",
+                                                    "Focused tests cover default no-inline-publish behavior and existing publishPending success, retry, and claim-skip behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingOutboxServiceTest,TrackingIngestionServiceTest,TrackingEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/tracking-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/tracking-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T22:50:03.9693371Z",
+                         "startedAt":  "2026-05-21T22:44:00.9262418Z",
+                         "completedAt":  "2026-05-21T22:50:03.9693371Z",
+                         "outcome":  "Tracking ingestion now writes durable outbox rows without inline post-commit publish by default, while preserving the poller, claim, retry, and optional compatibility behavior.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=TrackingOutboxServiceTest,TrackingIngestionServiceTest,TrackingEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test (14 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/tracking-service -am test (72 tests, 7 expected Testcontainers skips)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- services/tracking-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Local tests do not replace target tracking ingress latency, outbox depth and age, Kafka lag, or ClickHouse evidence.",
+                                               "This is a local decoupling fix only, not production throughput proof."
+                                           ]
+                     },
+                     {
+                         "id":  "frontend-data-extension-governance-drawer",
+                         "title":  "Add data-extension governance controls to frontend",
+                         "status":  "DONE",
+                         "priorityScore":  47,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  3,
+                                         "userImpact":  4,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "AUDIENCE_SERVICE_OWNER",
+                                               "UX_STRATEGIST",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Expose existing data-extension governance metadata and audit controls on the Audience Data Extensions screen, including create/update payloads and focused browser validation.",
+                         "nonGoals":  "Do not change backend schemas, relationship execution, import provenance population, or Contact Builder parity claims.",
+                         "sourceFiles":  [
+                                             "frontend/src/app/(workspace)/audience/data-extensions/page.tsx",
+                                             "frontend/src/app/(workspace)/audience/types.ts",
+                                             "frontend/tests/e2e/audience-data-extensions.spec.ts",
+                                             "frontend/tests/e2e/support/workspace-mock.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Data-extension list rows show governance classification and source metadata when present.",
+                                                    "Create payloads can include governance source type, source system, source reference, data classification, and notes.",
+                                                    "Existing governance can be updated through the UI using PUT /data-extensions/{id}/governance.",
+                                                    "Recent governance audit entries can be viewed for a selected data extension.",
+                                                    "Focused Playwright coverage verifies create/update/audit behavior with mocked workspace APIs."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci",
+                                                    "cd frontend; node_modules\\.bin\\playwright.cmd test tests/e2e/audience-data-extensions.spec.ts --project=chromium --reporter=line",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- frontend/src/app/(workspace)/audience frontend/tests/e2e .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T23:06:58.5502418Z",
+                         "startedAt":  "2026-05-21T22:53:15.9736912Z",
+                         "completedAt":  "2026-05-21T23:06:58.5502418Z",
+                         "outcome":  "Data-extension governance controls now expose source metadata, classification, notes, audit viewing, and governance updates in the frontend with focused Playwright coverage.",
+                         "validationRun":  [
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: cd frontend; npm run build:ci",
+                                               "PASS: cd frontend; node_modules\\.bin\\playwright.cmd test tests/e2e/audience-data-extensions.spec.ts --project=chromium --reporter=line (1 test)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- frontend/src/app/(workspace)/audience .codex plus trailing whitespace scan for new Playwright spec (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "This is local frontend workflow evidence only, not target migration proof.",
+                                               "Import and contact provenance population plus indexed relationship execution remain separate follow-up work."
+                                           ]
+                     },
+                     {
+                         "id":  "frontend-context-storage-comment",
+                         "title":  "Clarify frontend context storage comments",
+                         "status":  "DONE",
+                         "priorityScore":  40,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Clarify frontend auth/context comments so they distinguish HTTP-only session credentials from localStorage-backed non-sensitive tenant/workspace/environment header context.",
+                         "nonGoals":  "Do not change authentication behavior, browser storage keys, request headers, or logout/session flows.",
+                         "sourceFiles":  [
+                                             "frontend/src/lib/auth.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Top-level auth comments state that session credentials stay in HTTP-only cookies.",
+                                                    "Tenant/workspace/environment IDs are described as non-sensitive routing context cached for request headers.",
+                                                    "getStoredTenantId documentation matches its actual localStorage-backed behavior.",
+                                                    "No runtime behavior changes are introduced."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- frontend/src/lib/auth.ts .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T23:10:49.5549771Z",
+                         "startedAt":  "2026-05-21T23:08:41.5712963Z",
+                         "completedAt":  "2026-05-21T23:10:49.5549771Z",
+                         "outcome":  "Frontend auth comments now distinguish cookie-backed session credentials from local tenant, workspace, and environment routing context.",
+                         "validationRun":  [
+                                               "PASS: cd frontend; npm run lint",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- frontend/src/lib/auth.ts .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "This is a comment-only cleanup with no runtime behavior change.",
+                                               "Future auth and context bootstrap work must keep the cookie-backed session versus local routing-context boundary clear."
+                                           ]
+                     },
+                     {
+                         "id":  "audience-internal-security-chain-coverage",
+                         "title":  "Add audience internal route security-chain coverage",
+                         "status":  "DONE",
+                         "priorityScore":  44,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  5,
+                                         "userImpact":  1,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add focused audience-service security-chain tests proving intended internal routes pass the Spring chain to controller-level internal guards while normal audience routes still require authentication.",
+                         "nonGoals":  "Do not change route ownership, public edge rules, controller behavior, or internal guard semantics.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/config/SecurityConfig.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/config/SecurityConfigTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "POST /api/v1/data-extensions/query-activities/internal reaches a test controller without JWT so the controller guard remains the enforcement point.",
+                                                    "POST /api/v1/imports/internal/start reaches a test controller without JWT so the controller guard remains the enforcement point.",
+                                                    "A normal audience route still requires authentication through the Spring security chain.",
+                                                    "Focused audience security tests and Codex validation pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -Dtest=SecurityConfigTest test",
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/audience-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T23:17:23.5224886Z",
+                         "startedAt":  "2026-05-21T23:12:52.1906866Z",
+                         "completedAt":  "2026-05-21T23:17:23.5224886Z",
+                         "outcome":  "Audience internal query-activity and import-start routes now have focused security-chain tests covering intended internal access and normal authenticated-route denial.",
+                         "validationRun":  [
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -Dtest=SecurityConfigTest test (5 tests)",
+                                               "PASS: .\\mvnw.cmd -pl services/audience-service -am test (136 audience-service tests plus upstream shared modules)",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "PASS: git diff --check -- services/audience-service .codex (CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "This is local security-chain regression coverage only; it does not change runtime route behavior.",
+                                               "Future audience internal routes still need matching service-chain tests and edge-route validation."
+                                           ]
+                     },
+                     {
+                         "id":  "route-internal-deny-source-discovery",
+                         "title":  "Discover internal routes from source in route validation",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  2,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "API_ARCHITECT",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "DEVOPS_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Make route validation discover service-internal controller routes from source and verify public-edge 404 coverage in Nginx and Kubernetes ingress.",
+                         "nonGoals":  "Do not widen public routing or change service controller behavior.",
+                         "sourceFiles":  [
+                                             "scripts/ops/validate-route-map.ps1",
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "services/*/src/main/java/**/*Controller.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Validator discovers current service-internal controller routes from source.",
+                                                    "Validator fails when a discovered internal route lacks an Nginx or ingress public-edge 404 deny.",
+                                                    "Existing route-map, Nginx, and ingress validation still passes."
+                                                ],
+                         "validationProfile":  "route-runtime",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- scripts/ops/validate-route-map.ps1 config/nginx/nginx.conf infrastructure/kubernetes/ingress/ingress.yml .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue the overall loop and select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T23:35:44.6340137Z",
+                         "startedAt":  "2026-05-21T23:24:00.2232493Z",
+                         "completedAt":  "2026-05-21T23:35:44.6340137Z",
+                         "outcome":  "Route validation now discovers service-internal controller mappings from source and enforces public-edge 404 coverage across Nginx and Kubernetes ingress.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1,negative temporary-config check for removed public-edge deny,negative temporary-source check for uncovered internal controller route,powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1,git diff --check -- scripts/ops/validate-route-map.ps1"
+                                           ],
+                         "residualRisks":  [
+                                               "Target ingress-controller snippet behavior still requires environment evidence before promotion."
+                                           ]
+                     },
+                     {
+                         "id":  "deliverability-legacy-reputation-scope",
+                         "title":  "Scope legacy reputation scores by tenant and workspace",
+                         "status":  "DONE",
+                         "priorityScore":  61,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  6
+                                     },
+                         "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "DATABASE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Bind legacy reputation_scores reads and writes to TenantContext tenant/workspace and remove domain-only fallback from the reputation API.",
+                         "nonGoals":  "Do not change domain_reputations ownership, sender-domain verification, provider capacity, or production reputation claims.",
+                         "sourceFiles":  [
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/ReputationController.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/domain/ReputationScore.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/repository/ReputationScoreRepository.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationService.java",
+                                             "services/deliverability-service/src/main/resources/db/migration/V11__reputation_score_workspace_scope.sql",
+                                             "services/deliverability-service/src/test/java/com/legent/deliverability/**"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Legacy reputation API fallback queries only the current tenant/workspace.",
+                                                    "Legacy reputation updates persist tenant/workspace scope from TenantContext.",
+                                                    "Database migration removes the old domain-only uniqueness bottleneck and indexes scoped latest lookups.",
+                                                    "Focused tests cover same-domain cross-workspace isolation and latest scoped score selection."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=ReputationControllerTest,ReputationScoreRepositoryTest,ReputationServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/deliverability-service/src/main/java/com/legent/deliverability/controller/ReputationController.java services/deliverability-service/src/main/java/com/legent/deliverability/domain/ReputationScore.java services/deliverability-service/src/main/java/com/legent/deliverability/repository/ReputationScoreRepository.java services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationService.java services/deliverability-service/src/main/resources/db/migration/V11__reputation_score_workspace_scope.sql services/deliverability-service/src/test/java/com/legent/deliverability .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Continue the overall loop and select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-21T23:52:47.3099100Z",
+                         "startedAt":  "2026-05-21T23:43:42.8308344Z",
+                         "completedAt":  "2026-05-21T23:52:47.3099100Z",
+                         "outcome":  "Legacy reputation score reads and writes now use tenant and workspace scoped latest-row access.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/deliverability-service -am -Dtest=ReputationControllerTest,ReputationScoreRepositoryTest,ReputationServiceTest,DomainControllerRbacTest -Dsurefire.failIfNoSpecifiedTests=false test,.\\mvnw.cmd -pl services/deliverability-service -am test,powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1,rg -n ddl-auto|SPRING_JPA_HIBERNATE_DDL_AUTO services shared config -g *.yml -g *.yaml -g *.properties,git diff --check -- services/deliverability-service/src/main/java/com/legent/deliverability/controller/ReputationController.java services/deliverability-service/src/main/java/com/legent/deliverability/domain/ReputationScore.java services/deliverability-service/src/main/java/com/legent/deliverability/repository/ReputationScoreRepository.java services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationService.java services/deliverability-service/src/main/resources/db/migration/V11__reputation_score_workspace_scope.sql services/deliverability-service/src/test/java/com/legent/deliverability/controller/ReputationControllerTest.java services/deliverability-service/src/test/java/com/legent/deliverability/repository/ReputationScoreRepositoryTest.java services/deliverability-service/src/test/java/com/legent/deliverability/service/ReputationServiceTest.java"
+                                           ],
+                         "residualRisks":  [
+                                               "Target Flyway migration and legacy row ownership review remain required before promotion."
+                                           ]
+                     },
+                     {
+                         "id":  "campaign-send-checkpoint-workspace-scope",
+                         "title":  "Scope send-job checkpoints and resume recovery by workspace",
+                         "status":  "DONE",
+                         "priorityScore":  59,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATABASE_ENGINEER",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Bind send-job checkpoint creation, lookup, resume, retry, progress, and auto-checkpoint paths to current tenant/workspace context.",
+                         "nonGoals":  "Do not refactor campaign launch, batching, scheduler, feedback counters, or delivery handoff behavior.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobCheckpointRepository.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/domain/SendJobCheckpoint.java",
+                                             "services/campaign-service/src/main/resources/db/migration/V16__send_job_checkpoint_workspace_scope.sql",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Checkpoint operations load jobs by tenant/workspace scoped ID.",
+                                                    "Checkpoint rows persist workspace ownership and latest/list/count queries are scoped.",
+                                                    "Resume creates a workspace-owned replacement job and cannot use another workspace checkpoint.",
+                                                    "Failed-batch retry and progress paths fail closed to current workspace.",
+                                                    "Focused tests cover scoped create/resume/retry/progress behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SendJobCheckpointingServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobCheckpointRepository.java services/campaign-service/src/main/java/com/legent/campaign/domain/SendJobCheckpoint.java services/campaign-service/src/main/resources/db/migration/V16__send_job_checkpoint_workspace_scope.sql services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Select and lease the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T00:04:49.6148578Z",
+                         "startedAt":  "2026-05-21T23:55:54.1434670Z",
+                         "completedAt":  "2026-05-22T00:04:49.6148578Z",
+                         "outcome":  "Campaign checkpoint and recovery paths are workspace scoped, with scoped checkpoint persistence, resume ownership, and focused tests.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SendJobCheckpointingServiceTest,SendExecutionServiceTest,CampaignEventConsumerTest,SchedulingServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/campaign-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "rg -n \"ddl-auto|SPRING_JPA_HIBERNATE_DDL_AUTO\" services shared config -g \"*.yml\" -g \"*.yaml\" -g \"*.properties\"",
+                                               "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java services/campaign-service/src/main/java/com/legent/campaign/repository/SendJobCheckpointRepository.java services/campaign-service/src/main/java/com/legent/campaign/domain/SendJobCheckpoint.java services/campaign-service/src/main/resources/db/migration/V16__send_job_checkpoint_workspace_scope.sql services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target Flyway migration application and legacy checkpoint/resume row ownership review remain required before promotion."
+                                           ]
+                     },
+                     {
+                         "id":  "audience-import-error-cap",
+                         "title":  "Bound audience import row-error retention",
+                         "status":  "DONE",
+                         "priorityScore":  49,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Cap retained row-error detail samples during audience import processing while preserving total error counts and import progress semantics.",
+                         "nonGoals":  "Do not change import storage, file parsing, subscriber upsert semantics, data-extension record validation, or external runtime claims.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Import processing never retains or persists more than AppConstants.IMPORT_MAX_ERRORS row-error detail samples.",
+                                                    "ImportJob.errorRows still counts every failed row, not just retained samples.",
+                                                    "Subscriber and data-extension import behavior, progress updates, cancellation checks, and tenant/workspace context are preserved.",
+                                                    "Focused tests cover more than AppConstants.IMPORT_MAX_ERRORS invalid rows across multiple chunks and assert full error count plus capped stored details."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=ImportProcessingServiceTest,ImportServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select and lease the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T00:21:55.2253318Z",
+                         "startedAt":  "2026-05-22T00:12:01.0066133Z",
+                         "completedAt":  "2026-05-22T00:21:55.2253318Z",
+                         "outcome":  "Audience import processing now caps retained row-error samples while preserving full failure counts.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=ImportProcessingServiceTest,ImportServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/audience-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target import-load evidence remains required before high-volume import readiness claims."
+                                           ]
+                     },
+                     {
+                         "id":  "identity-invitation-list-workspace-scope",
+                         "title":  "Scope identity invitation listing by workspace",
+                         "status":  "DONE",
+                         "priorityScore":  56,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "IDENTITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Bind identity invitation listing to the trusted current tenant and workspace context.",
+                         "nonGoals":  "Do not change invitation creation, acceptance, refresh-cookie behavior, login, signup, or role-assignment policy.",
+                         "sourceFiles":  [
+                                             "services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/service/AuthService.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/repository/AuthInvitationRepository.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/service/AuthServiceTest.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/controller/AuthControllerTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Invitation listing uses tenant and workspace scoped repository access.",
+                                                    "Missing workspace context fails closed before repository access.",
+                                                    "Same-tenant invitations from other workspaces are excluded from list responses.",
+                                                    "Invitation list responses continue to omit invitation exchange values."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/identity-service -am \"-Dtest=AuthServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/identity-service -am \"-Dtest=AuthControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/identity-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java services/identity-service/src/main/java/com/legent/identity/service/AuthService.java services/identity-service/src/main/java/com/legent/identity/repository/AuthInvitationRepository.java services/identity-service/src/test/java/com/legent/identity/service/AuthServiceTest.java services/identity-service/src/test/java/com/legent/identity/controller/AuthControllerTest.java .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T00:33:23.4459481Z",
+                         "startedAt":  "2026-05-22T00:26:59.5936767Z",
+                         "completedAt":  "2026-05-22T00:33:23.4459481Z",
+                         "outcome":  "Identity invitation listing now uses trusted workspace scope and fails closed when workspace context is absent.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/identity-service -am \"-Dtest=AuthServiceTest,AuthControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/identity-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java services/identity-service/src/main/java/com/legent/identity/service/AuthService.java services/identity-service/src/main/java/com/legent/identity/repository/AuthInvitationRepository.java services/identity-service/src/test/java/com/legent/identity/service/AuthServiceTest.java services/identity-service/src/test/java/com/legent/identity/controller/AuthControllerTest.java .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Tenant-global invitation administration, if needed later, requires a separately designed privileged path."
+                                           ]
+                     },
+                     {
+                         "id":  "deliverability-internal-suppression-security-chain-coverage",
+                         "title":  "Add security-chain coverage for deliverability internal suppression routes",
+                         "status":  "DONE",
+                         "priorityScore":  42,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "DELIVERABILITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add test-only Spring security-chain coverage for deliverability internal suppression endpoints.",
+                         "nonGoals":  "Do not change deliverability route behavior, public-edge routing, internal credential validation, or production release claims.",
+                         "sourceFiles":  [
+                                             "services/deliverability-service/src/test/java/com/legent/deliverability/config/SecurityConfigTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Internal suppression routes can reach controller-level guards without JWT authentication.",
+                                                    "Normal deliverability routes still require authentication.",
+                                                    "A representative deliverability RBAC route remains method-secured.",
+                                                    "No production behavior, route-map, Nginx, or ingress changes are made."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=SecurityConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/deliverability-service/src/test/java/com/legent/deliverability/config/SecurityConfigTest.java .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T00:40:30.5849261Z",
+                         "startedAt":  "2026-05-22T00:35:05.5041426Z",
+                         "completedAt":  "2026-05-22T00:40:30.5849261Z",
+                         "outcome":  "Deliverability internal suppression routes now have security-chain coverage for intended service-route pass-through and normal route authorization.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=SecurityConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- services/deliverability-service/src/test/java/com/legent/deliverability/config/SecurityConfigTest.java .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target service and public-edge behavior still require normal release evidence before promotion."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-delay-resume-workspace-scope",
+                         "title":  "Scope delayed automation resumes by tenant and workspace",
+                         "status":  "DONE",
+                         "priorityScore":  56,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Require Quartz delayed workflow resumes to use the tenant and workspace scope stored with the scheduled wake job.",
+                         "nonGoals":  "Do not change workflow graph semantics, trigger scheduling, node handler behavior, schema, or production runtime claims.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/node/WorkflowQuartzJob.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/WorkflowEngineTest.java",
+                                             "services/automation-service/src/test/java/com/legent/automation/service/node/WorkflowQuartzJobTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "WorkflowQuartzJob passes tenantId and workspaceId from Quartz job data into WorkflowEngine.",
+                                                    "WorkflowEngine.resumeInstance requires nonblank expected tenant and workspace before lookup.",
+                                                    "Resume lookup uses findByIdAndTenantIdAndWorkspaceId and fails closed before lock, node execution, or save on missing/mismatched scope.",
+                                                    "Existing duplicate wake and concurrent resume behavior remains covered.",
+                                                    "Focused tests cover successful scoped resume, cross-workspace denial, missing scope denial, and Quartz job propagation."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=WorkflowEngineTest,WorkflowQuartzJobTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/automation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java services/automation-service/src/main/java/com/legent/automation/service/node/WorkflowQuartzJob.java services/automation-service/src/test/java/com/legent/automation/service/WorkflowEngineTest.java services/automation-service/src/test/java/com/legent/automation/service/node/WorkflowQuartzJobTest.java .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T00:46:58.5118150Z",
+                         "startedAt":  "2026-05-22T00:42:30.6602561Z",
+                         "completedAt":  "2026-05-22T00:46:58.5118150Z",
+                         "outcome":  "Delayed automation resumes now require scheduled tenant and workspace scope before instance lookup.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=WorkflowEngineTest,WorkflowQuartzJobTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/automation-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java services/automation-service/src/main/java/com/legent/automation/service/node/WorkflowQuartzJob.java services/automation-service/src/test/java/com/legent/automation/service/WorkflowEngineTest.java services/automation-service/src/test/java/com/legent/automation/service/node/WorkflowQuartzJobTest.java .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target scheduler runtime evidence remains required before promotion."
+                                           ]
+                     },
+                     {
+                         "id":  "release-ga-image-schema-version-validation",
+                         "title":  "Enforce GA and image evidence schema versions",
+                         "status":  "DONE",
+                         "priorityScore":  43,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  3,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "RELEASE_MANAGER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Require GA and image release evidence manifests to declare supported schemaVersion 1 and cover invalid schema fixtures in local validator tests.",
+                         "nonGoals":  "Do not create or claim production evidence, deploy, push, or change release gate strictness beyond local evidence validator input validation.",
+                         "sourceFiles":  [
+                                             "scripts/ops/validate-ga-evidence.ps1",
+                                             "scripts/ops/validate-image-evidence.ps1",
+                                             "scripts/ops/test-release-evidence-validators.ps1",
+                                             "docs/operations/ga-evidence-matrix.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "GA evidence validation fails when schemaVersion is missing or unsupported.",
+                                                    "Image evidence validation fails when schemaVersion is missing or unsupported.",
+                                                    "Release validator self-tests cover GA and image missing/unsupported schema fixtures while preserving valid schemaVersion 1 fixtures.",
+                                                    "GA evidence matrix documents the GA and image schemaVersion 1 requirement.",
+                                                    "No production evidence or promotion claim is made."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 120",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- scripts/ops/validate-ga-evidence.ps1 scripts/ops/validate-image-evidence.ps1 scripts/ops/test-release-evidence-validators.ps1 docs/operations/ga-evidence-matrix.md .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "release-history.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T01:00:55.9365180Z",
+                         "startedAt":  "2026-05-22T00:48:34.6170103Z",
+                         "completedAt":  "2026-05-22T01:00:55.9365180Z",
+                         "outcome":  "GA and image evidence validators now require manifest schemaVersion 1 and self-tests cover missing and unsupported versions.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 120",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- scripts/ops/validate-ga-evidence.ps1 scripts/ops/validate-image-evidence.ps1 scripts/ops/test-release-evidence-validators.ps1 docs/operations/ga-evidence-matrix.md .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Strict production promotion remains blocked pending real target artifacts.",
+                                               "Future evidence contract changes must keep version checks and negative fixtures aligned."
+                                           ]
+                     },
+                     {
+                         "id":  "audience-subscriber-by-id-scoped-lookups",
+                         "title":  "Scope subscriber by-ID lookups by tenant and workspace",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Replace raw subscriber by-ID lookup paths with tenant/workspace scoped repository access for get, update, and delete.",
+                         "nonGoals":  "Do not change import processing, subscriber merge semantics, cache key format, or public API shape.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/repository/SubscriberRepository.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/service/SubscriberServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "getById, update, and delete use tenant/workspace/id scoped repository lookup instead of raw findById.",
+                                                    "Cross-tenant or cross-workspace known IDs return NotFoundException without save, event publication, or cache mutation.",
+                                                    "Cached getById behavior remains tenant/workspace scoped.",
+                                                    "Focused tests cover scoped lookup and cross-workspace denial for get, update, and delete."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=SubscriberServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java services/audience-service/src/main/java/com/legent/audience/repository/SubscriberRepository.java services/audience-service/src/test/java/com/legent/audience/service/SubscriberServiceTest.java .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Start observability-alert-runbook-link-validation.",
+                         "lastUpdated":  "2026-05-22T01:11:30.9668814Z",
+                         "startedAt":  "2026-05-22T01:04:07.9900945Z",
+                         "completedAt":  "2026-05-22T01:11:30.9668814Z",
+                         "outcome":  "Subscriber by-ID get, update, and delete now use tenant and workspace scoped lookup before mutation, cache, or event side effects.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=SubscriberServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/audience-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java services/audience-service/src/main/java/com/legent/audience/repository/SubscriberRepository.java services/audience-service/src/test/java/com/legent/audience/service/SubscriberServiceTest.java .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Cached subscriber reads still depend on the existing tenant-aware cache key boundary.",
+                                               "Target runtime and release evidence remain separate requirements."
+                                           ]
+                     },
+                     {
+                         "id":  "observability-alert-runbook-link-validation",
+                         "title":  "Validate production alert runbook links locally",
+                         "status":  "DONE",
+                         "priorityScore":  40,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "SRE_MONITORING_ENGINEER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "RELEASE_MANAGER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add the missing production hardening runbook and validate local alert runbook_url file and anchor targets in production overlay validation.",
+                         "nonGoals":  "Do not change alert thresholds, alert names, deployment behavior, or production readiness claims.",
+                         "sourceFiles":  [
+                                             "docs/operations/production-hardening-runbook.md",
+                                             "scripts/ops/validate-production-overlay.ps1",
+                                             "infrastructure/kubernetes/observability/prometheus-alerts.yml"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Production hardening runbook exists with pod restart, executor saturation, and tracing triage anchors.",
+                                                    "Production overlay validation fails on missing local runbook_url files or anchors.",
+                                                    "Existing alert names and thresholds remain unchanged.",
+                                                    "No production evidence or promotion claim is made."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "git diff --check -- docs/operations/production-hardening-runbook.md scripts/ops/validate-production-overlay.ps1 infrastructure/kubernetes/observability/prometheus-alerts.yml .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Start frontend-audience-import-status-lifecycle.",
+                         "lastUpdated":  "2026-05-22T01:16:13.3766758Z",
+                         "startedAt":  "2026-05-22T01:12:01.1052299Z",
+                         "completedAt":  "2026-05-22T01:16:13.3766758Z",
+                         "outcome":  "Production alert runbook links now resolve to local runbook files and anchors through production overlay validation.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                               "temporary negative runbook link fixtures for missing local file and missing anchor",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- docs/operations/production-hardening-runbook.md scripts/ops/validate-production-overlay.ps1 infrastructure/kubernetes/observability/prometheus-alerts.yml .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target alert firing, routing, dashboard, and on-call handoff evidence remain required before GA claims.",
+                                               "The local validator covers repository-relative runbook references, not external monitoring runtime behavior."
+                                           ]
+                     },
+                     {
+                         "id":  "frontend-audience-import-status-lifecycle",
+                         "title":  "Harden audience import status lifecycle UI and E2E coverage",
+                         "status":  "DONE",
+                         "priorityScore":  39,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  2
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "QA_ENGINEER",
+                                               "AUDIENCE_SERVICE_OWNER"
+                                           ],
+                         "scope":  "Align audience import list, wizard, and detail status handling with backend import lifecycle states.",
+                         "nonGoals":  "Do not change backend import worker behavior, storage limits, parser logic, or target throughput claims.",
+                         "sourceFiles":  [
+                                             "frontend/src/app/(workspace)/audience/imports/page.tsx",
+                                             "frontend/src/app/(workspace)/audience/imports/new/page.tsx",
+                                             "frontend/src/app/(workspace)/audience/imports/[id]/page.tsx",
+                                             "frontend/tests/e2e/audience-imports.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "VALIDATING and PROCESSING render as active progress and continue polling.",
+                                                    "COMPLETED, COMPLETED_WITH_ERRORS, FAILED, and CANCELLED stop polling with distinct states.",
+                                                    "Imports list shows correct badges for backend status values.",
+                                                    "E2E coverage exercises upload mapping, progress, completion with errors, cancelled/failed terminal handling, and detail polling."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-imports.spec.ts --project=chromium --reporter=line",
+                                                    "git diff --check -- frontend/src/app/(workspace)/audience/imports frontend/tests/e2e/audience-imports.spec.ts .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T01:26:41.3256541Z",
+                         "startedAt":  "2026-05-22T01:16:51.0712252Z",
+                         "completedAt":  "2026-05-22T01:26:41.3256541Z",
+                         "outcome":  "Audience import UI now treats validating and processing as active, and renders completed, error, failed, and cancelled as terminal states with targeted Playwright coverage.",
+                         "validationRun":  [
+                                               "cd frontend; npm run lint",
+                                               "cd frontend; npm run build:ci",
+                                               "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-imports.spec.ts --project=chromium --reporter=line",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- frontend/src/app/(workspace)/audience/imports frontend/tests/e2e/audience-imports.spec.ts .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "This is mocked local UI validation only; target import throughput and backend worker evidence remain separate.",
+                                               "Future backend import statuses must be reflected in frontend classification and Playwright coverage."
+                                           ]
+                     },
+                     {
+                         "id":  "release-gate-strict-skip-guard",
+                         "title":  "Reject local gate skip flags during strict release promotion",
+                         "status":  "DONE",
+                         "priorityScore":  53,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  3,
+                                         "userImpact":  3,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "RELEASE_MANAGER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Make release-gate fail when strict non-local mode is invoked with SkipBackend, SkipFrontend, SkipCompose, or SkipKustomize, and add a self-test negative fixture.",
+                         "nonGoals":  "Do not remove local-only skip support, do not fabricate production evidence, and do not run strict production promotion without evidence.",
+                         "sourceFiles":  [
+                                             "scripts/ops/release-gate.ps1",
+                                             "scripts/ops/test-release-evidence-validators.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Local-only release-gate invocations can still skip expensive local gates for non-promotional validation.",
+                                                    "Strict non-local release-gate invocation fails before evidence validation when any local gate skip flag is present.",
+                                                    "Release evidence self-test includes a negative fixture for strict mode with skip flags.",
+                                                    "No production readiness claim is made from local-only validation."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 120",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- scripts/ops/release-gate.ps1 scripts/ops/test-release-evidence-validators.ps1 .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "release-history.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Start campaign-scheduled-publish-workspace-context.",
+                         "lastUpdated":  "2026-05-22T01:47:06.0473987Z",
+                         "startedAt":  "2026-05-22T01:38:57.5531476Z",
+                         "completedAt":  "2026-05-22T01:47:06.0473987Z",
+                         "outcome":  "Strict release-gate mode rejects local gate skip flags while local-only validation still supports them.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 120,powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize,powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1,powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1,git diff --check -- scripts/ops/release-gate.ps1 scripts/ops/test-release-evidence-validators.ps1 .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Local validator hardening does not provide production promotion evidence.,Strict release remains blocked until real target evidence exists and full unskipped gates pass."
+                                           ]
+                     },
+                     {
+                         "id":  "campaign-scheduled-publish-workspace-context",
+                         "title":  "Set workspace context before scheduled campaign audience publish",
+                         "status":  "DONE",
+                         "priorityScore":  56,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Ensure scheduled campaign job processing publishes audience-resolution requests with trusted tenant/workspace context from the claimed send job row.",
+                         "nonGoals":  "Do not change campaign eligibility-marker compatibility policy, provider capacity claims, or target throughput evidence.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SchedulingService.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventPublisher.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/service/SchedulingServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scheduled due-job processing sets tenant/workspace context from the claimed send job before invoking the event publisher.",
+                                                    "Context is cleared after each scheduled publish attempt to avoid leaking scope between jobs.",
+                                                    "Focused tests prove scheduled publishing provides workspace context to the real publisher path or equivalent context assertion.",
+                                                    "Existing bounded scheduler claim behavior remains unchanged."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=SchedulingServiceTest,CampaignEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/campaign-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Start content-read-rbac-coverage.",
+                         "lastUpdated":  "2026-05-22T01:56:26.9588955Z",
+                         "startedAt":  "2026-05-22T01:48:22.6956838Z",
+                         "completedAt":  "2026-05-22T01:56:26.9588955Z",
+                         "outcome":  "Scheduled campaign audience-resolution publishing now uses trusted tenant and workspace context from the claimed job row.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/campaign-service -am -Dtest=SchedulingServiceTest,CampaignEventPublisherTest -Dsurefire.failIfNoSpecifiedTests=false test,.\\mvnw.cmd -pl services/campaign-service -am test,powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1,powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1,git diff --check -- services/campaign-service .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target multi-replica scheduler behavior and queue-lag evidence remain required before throughput claims.,Provider capacity and strict production release evidence remain separate blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "content-read-rbac-coverage",
+                         "title":  "Require RBAC on protected content read endpoints",
+                         "status":  "DONE",
+                         "priorityScore":  49,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "CONTENT_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add method-level read authorization coverage for protected content workspace GET endpoints while preserving public landing-page and internal-token exceptions.",
+                         "nonGoals":  "Do not change public landing-page access, internal service-token routes, sanitizer behavior, or content data models.",
+                         "sourceFiles":  [
+                                             "services/content-service/src/main/java/com/legent/content/controller/EmailStudioController.java",
+                                             "services/content-service/src/main/java/com/legent/content/config/SecurityConfig.java",
+                                             "services/content-service/src/test/java/com/legent/content/controller/ContentControllerRbacTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Protected Email Studio GET endpoints declare content read authorization or are explicitly allowlisted as public/internal.",
+                                                    "RBAC reflection coverage fails when authenticated content GET endpoints lack a method-level read/write guard.",
+                                                    "Public landing-page and internal-token routes remain documented exceptions.",
+                                                    "Focused content RBAC tests and full content-service gate pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=ContentControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/content-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/content-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Continue backlog scan for next highest-value safe work.",
+                         "lastUpdated":  "2026-05-22T02:08:45.3593888Z",
+                         "startedAt":  "2026-05-22T01:57:35.6627016Z",
+                         "completedAt":  "2026-05-22T02:08:45.3593888Z",
+                         "outcome":  "Protected content read endpoints now require method-level content read or template wildcard authorization, and reflection coverage guards future protected GET mappings.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=ContentControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/content-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- services/content-service .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target auth and edge behavior remain release evidence; future content GET exceptions must stay explicit and tested."
+                                           ]
+                     },
+                     {
+                         "id":  "workspace-context-fail-closed-e2e",
+                         "title":  "Add fail-closed E2E coverage for missing workspace context",
+                         "status":  "DONE",
+                         "priorityScore":  49,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add Playwright coverage proving authenticated workspace routes fail closed and clear local routing context when the session lacks workspace context.",
+                         "nonGoals":  "Do not change auth cookie behavior, browser credential storage, public routes, or backend session contracts unless the current implementation fails the test.",
+                         "sourceFiles":  [
+                                             "frontend/src/app/(workspace)/layout.tsx",
+                                             "frontend/tests/e2e/context-bootstrap.spec.ts",
+                                             "frontend/tests/e2e/support/workspace-mock.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "A workspace-route E2E test covers a successful session user whose session omits workspace context.",
+                                                    "The route fails closed by clearing user, role, tenant, workspace, and environment local context and showing the workspace-required state or redirect behavior.",
+                                                    "Existing happy-path workspace bootstrap coverage remains intact.",
+                                                    "Frontend lint, build, targeted Playwright, artifact hygiene, Codex validation, and scoped diff check pass."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/context-bootstrap.spec.ts --project=chromium --reporter=line",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- frontend .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Continue backlog scan for next highest-value safe work.",
+                         "lastUpdated":  "2026-05-22T02:18:57.5865760Z",
+                         "startedAt":  "2026-05-22T02:13:21.9360521Z",
+                         "completedAt":  "2026-05-22T02:18:57.5865760Z",
+                         "outcome":  "Workspace context fail-closed E2E coverage now proves a missing workspace session clears local routing context and redirects to login.",
+                         "validationRun":  [
+                                               "cd frontend; npm run lint",
+                                               "cd frontend; npm run build:ci",
+                                               "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/context-bootstrap.spec.ts --project=chromium --reporter=line",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- frontend .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target session behavior remains release evidence; credential-gated login smoke skipped because local E2E admin credentials are not configured."
+                                           ]
+                     },
+                     {
+                         "id":  "route-map-ingress-prefix-coverage",
+                         "title":  "Validate route-map prefixes against Kubernetes ingress backends",
+                         "status":  "DONE",
+                         "priorityScore":  47,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "API_ARCHITECT",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "RELEASE_MANAGER"
+                                           ],
+                         "scope":  "Extend route validation so each route-map prefix is covered by a Kubernetes ingress path that routes to the same owning service.",
+                         "nonGoals":  "Do not change route ownership, public edge policy, service ports, or ingress routing unless validation proves existing drift.",
+                         "sourceFiles":  [
+                                             "scripts/ops/validate-route-map.ps1",
+                                             "config/gateway/route-map.json",
+                                             "infrastructure/kubernetes/ingress/ingress.yml"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Route validator parses Kubernetes ingress paths and backend service names.",
+                                                    "Every route-map prefix must match an ingress path whose backend service equals the route owner service.",
+                                                    "Validator fails on a temporary ingress fixture where a route-map prefix is removed from the expected service path.",
+                                                    "Existing route-map validation, production overlay/Kustomize validation, artifact hygiene, Codex validation, and scoped diff check pass."
+                                                ],
+                         "validationProfile":  "route-runtime",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "kubectl kustomize infrastructure\\kubernetes\\overlays\\production",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- scripts/ops/validate-route-map.ps1 .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Continue backlog scan for next highest-value safe work.",
+                         "lastUpdated":  "2026-05-22T02:29:03.0894749Z",
+                         "startedAt":  "2026-05-22T02:22:45.2414352Z",
+                         "completedAt":  "2026-05-22T02:29:03.0894749Z",
+                         "outcome":  "Route validation now proves every route-map prefix is first-matched by Kubernetes ingress to the expected backend service.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                               "temporary ingress missing-prefix negative fixture failed as expected for /api/v1/templates",
+                                               "kubectl kustomize infrastructure\\kubernetes\\overlays\\production",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- scripts/ops/validate-route-map.ps1 .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target ingress-controller behavior remains external release evidence; this is local route ownership validation only."
+                                           ]
+                     },
+                     {
+                         "id":  "audience-tracking-intelligence-batch-consumer",
+                         "title":  "Batch tracking intelligence Kafka consumption in audience service",
+                         "status":  "DONE",
+                         "priorityScore":  50,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "KAFKA_CONTRACTS_OWNER",
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add an audience-service-specific batch Kafka listener for tracking.ingested intelligence events while preserving per-event envelope validation, idempotency, tenant/workspace scoping, retry semantics, and existing single-event processing behavior.",
+                         "nonGoals":  "Do not change signed tracking ingress, tracking-service ClickHouse ingestion, topic names, deserialization trust, model/provider integrations, or throughput claims.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/event/AudienceIntelligenceConsumer.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/config",
+                                             "services/audience-service/src/test/java/com/legent/audience/event/AudienceIntelligenceConsumerTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Audience tracking intelligence consumption can receive batches from Kafka for tracking.ingested without losing per-event validation or idempotency.",
+                                                    "Invalid, duplicate, or unsupported events in a batch are skipped consistently with current single-event behavior while valid events continue processing.",
+                                                    "Kafka listener configuration is audience-service-scoped and does not widen trusted packages or alter unrelated consumers.",
+                                                    "Focused consumer tests cover mixed valid/invalid/duplicate batch behavior and existing full audience-service tests pass."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=AudienceIntelligenceConsumerTest,SubscriberIntelligenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/audience-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Continue backlog scan for next highest-value safe work.",
+                         "lastUpdated":  "2026-05-22T02:47:54.1877593Z",
+                         "startedAt":  "2026-05-22T02:33:20.0355972Z",
+                         "completedAt":  "2026-05-22T02:47:54.1877593Z",
+                         "outcome":  "Audience tracking intelligence consumption now uses an audience-scoped batch Kafka listener with bounded polling and duplicate skip behavior.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=AudienceIntelligenceConsumerTest,AudienceKafkaConsumerConfigTest,SubscriberIntelligenceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/audience-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                                               "git diff --check -- services/audience-service .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Target Kafka lag, database contention, idempotency conflict rate, and subscriber intelligence throughput evidence remain required before scale claims.",
+                                               "This local slice does not change signed tracking ingress, tracking-service ClickHouse ingestion, topic contracts, or production release evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "ai-content-assistance-draft-application-contract",
+                         "title":  "Apply reviewed AI content assistance evidence to drafts only",
+                         "status":  "DONE",
+                         "priorityScore":  52,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "CONTENT_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "FOUNDATION_SERVICE_OWNER",
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT",
+                                               "PRODUCT_MANAGER_AGENT"
+                                           ],
+                         "scope":  "Add a local content-service contract for applying already approved and human-reviewed AI content assistance evidence to template drafts, storing hash/reference metadata only, and blocking unresolved AI assistance evidence from publish and test-send paths.",
+                         "nonGoals":  "Do not call model providers, add provider clients, read credential files, store raw prompts or outputs, change publish approval policy, add cross-service foundation verification calls, or make parity/production claims.",
+                         "sourceFiles":  [
+                                             "services/foundation-service/src/test/java/com/legent/foundation/service/AiContentAssistanceGovernanceServiceTest.java",
+                                             "services/content-service/src/main/java/com/legent/content/dto/TemplateWorkflowDto.java",
+                                             "services/content-service/src/main/java/com/legent/content/controller/TemplateWorkflowController.java",
+                                             "services/content-service/src/main/java/com/legent/content/service/TemplateWorkflowService.java",
+                                             "services/content-service/src/main/java/com/legent/content/service/TemplateTestSendService.java",
+                                             "services/content-service/src/main/java/com/legent/content/service/AiContentAssistanceMetadataSupport.java",
+                                             "services/content-service/src/test/java/com/legent/content/service/TemplateWorkflowServiceTest.java",
+                                             "services/content-service/src/test/java/com/legent/content/service/TemplateTestSendServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Foundation governance tests explicitly cover APPLY_TO_DRAFT approval and review-required denial without invoking a provider.",
+                                                    "Content draft save accepts only already approved, human-reviewed AI assistance evidence and stores hash/reference metadata without raw prompt or output text.",
+                                                    "Denied, review-required, missing, or malformed AI assistance evidence is rejected or blocks publish/test-send paths fail-closed.",
+                                                    "Focused foundation/content tests and full relevant service gates pass with repo hygiene, Codex validation, and scoped diff checks."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AiContentAssistanceGovernanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=TemplateWorkflowServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=TemplateTestSendServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check -- services/content-service services/foundation-service .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next highest-value safe local work item.",
+                         "lastUpdated":  "2026-05-22T03:06:10.5070469Z",
+                         "startedAt":  "2026-05-22T02:52:01.3609555Z",
+                         "completedAt":  "2026-05-22T03:06:10.5070469Z",
+                         "outcome":  "Content-service now applies already approved, human-reviewed AI content assistance evidence to template drafts only, stores hash/reference metadata without raw prompt/output text, and blocks unresolved AI assistance metadata before publish or test-send side effects.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AiContentAssistanceGovernanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=TemplateWorkflowServiceTest,TemplateTestSendServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/foundation-service,services/content-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check -- services/content-service services/foundation-service .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Local-only AI draft evidence contract; no model/provider calls, cross-service audit verification, generated-draft UX, usage metering, parity claim, or production release evidence.",
+                                               "Target release still blocked by external evidence and full release gates."
+                                           ]
+                     },
+                     {
+                         "id":  "latest-audit-safe-local-followups-20260522",
+                         "title":  "Complete latest audit safe local follow-ups",
+                         "status":  "DONE",
+                         "priorityScore":  69,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  4,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "PROGRAM_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "SRE_MONITORING_ENGINEER",
+                                               "DEVOPS_ENGINEER",
+                                               "RELEASE_MANAGER",
+                                               "DELIVERY_SERVICE_OWNER",
+                                               "IDENTITY_SERVICE_OWNER",
+                                               "TRACKING_SERVICE_OWNER",
+                                               "FRONTEND_OWNER",
+                                               "QA_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Finish all unblocked safe local work found by the latest read-only audit scouts: alert runbook coverage, release-gate Compose env isolation, delivery legacy workspace mapping guard, identity forgot-password tenant/workspace fail-closed behavior, tracking stale publisher helper cleanup, SES adapter region coverage, subscriber query/bulk frontend contract, and landing-page public route E2E coverage.",
+                         "nonGoals":  "Do not deploy, commit, push, read secrets, fabricate production evidence, make AI/parity/throughput/release claims, or decide policy/external evidence blockers.",
+                         "sourceFiles":  [
+                                             "infrastructure/kubernetes/observability/prometheus-alerts.yml",
+                                             "docs/operations/production-hardening-runbook.md",
+                                             "scripts/ops/validate-production-overlay.ps1",
+                                             "scripts/ops/release-gate.ps1",
+                                             "scripts/ops/test-release-evidence-validators.ps1",
+                                             "services/delivery-service/src/main/resources/db/migration/V17__delivery_legacy_workspace_mapping_guard.sql",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/repository/SmtpProviderWorkspaceMigrationTest.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/adapter/impl/AwsSesProviderAdapter.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/adapter/impl/AwsSesProviderAdapterTest.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/dto/ExperienceDto.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/service/IdentityExperienceService.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/repository/UserRepository.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/service/IdentityExperienceServiceTest.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/controller/AuthControllerTest.java",
+                                             "services/tracking-service/src/main/java/com/legent/tracking/event/TrackingEventPublisher.java",
+                                             "services/tracking-service/src/test/java/com/legent/tracking/event/TrackingEventPublisherTest.java",
+                                             "frontend/src/app/(workspace)/audience/subscribers/page.tsx",
+                                             "frontend/tests/e2e/audience-subscribers.spec.ts",
+                                             "frontend/tests/e2e/landing-pages.spec.ts",
+                                             ".codex"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Every production alert has a repository-local runbook_url and production overlay validation fails when any alert lacks one.",
+                                                    "Release gate Compose validation uses .env.example explicitly and self-tests cover the command contract without reading real .env secrets.",
+                                                    "Delivery legacy workspace-default rows are guarded by a forward migration/test so unresolved ambiguous mappings cannot be mistaken for production-safe ownership.",
+                                                    "Forgot-password remains enumeration-safe but only sends reset events when tenant resolution is explicit/unambiguous and workspace membership is real.",
+                                                    "TrackingEventPublisher exposes only the durable outbox-compatible throwing publish path needed by current tracking flow.",
+                                                    "AWS SES adapter region parsing has focused regression coverage and fails or defaults only by explicit reviewed behavior.",
+                                                    "Subscriber UI URL-encodes query params and uses backend bulk action for bulk deletes with E2E coverage.",
+                                                    "Landing page studio/public route workflow has E2E coverage around sanitized preview/public rendering."
+                                                ],
+                         "validationProfile":  "backend-frontend-focused",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "docker compose --env-file .env.example config --quiet",
+                                                    ".\\mvnw.cmd -pl services/delivery-service,services/identity-service,services/tracking-service -am test",
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-subscribers.spec.ts tests/e2e/landing-pages.spec.ts tests/e2e/sanitize-html.spec.ts --project=chromium --reporter=line",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "security-findings.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "active-work-items.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Safe-stop overall thread and close matching automation.",
+                         "lastUpdated":  "2026-05-22T03:49:27.9681366Z",
+                         "startedAt":  "2026-05-22T03:18:51.2727834Z",
+                         "completedAt":  "2026-05-22T03:49:27.9681366Z",
+                         "outcome":  "Completed all unblocked latest-audit safe local follow-ups and validated release/SRE, backend, frontend, and Codex gates locally.",
+                         "validationRun":  [
+                                               "validate-production-overlay.ps1 passed",
+                                               "test-release-evidence-validators.ps1 passed",
+                                               "docker compose --env-file .env.example config --quiet passed",
+                                               "release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipKustomize passed",
+                                               "focused delivery tests passed",
+                                               "focused identity tests passed",
+                                               "focused tracking tests passed",
+                                               "full delivery+identity+tracking backend gate passed",
+                                               "frontend lint passed",
+                                               "frontend build:ci passed",
+                                               "subscriber and landing-page Playwright passed",
+                                               "sanitize-html Playwright passed",
+                                               "repo artifact hygiene passed",
+                                               "Codex validation passed",
+                                               "git diff --check passed with CRLF warnings only"
+                                           ],
+                         "residualRisks":  [
+                                               "Production promotion evidence remains external and blocked.",
+                                               "Delivery legacy workspace-default rows require target data review before promotion.",
+                                               "High-volume/provider/monitoring evidence remains external."
                                            ]
                      }
                  ],

@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -404,6 +405,38 @@ class AuthServiceTest {
         assertNotNull(invitationCaptor.getValue().getExpiresAt());
         assertTrue(!invitationCaptor.getValue().getExpiresAt().isAfter(upperBound));
         assertTrue(invitationCaptor.getValue().getExpiresAt().isBefore(request.getExpiresAt()));
+    }
+
+    @Test
+    void listInvitations_whenWorkspaceProvided_returnsOnlyScopedInvitations() {
+        AuthInvitationRepository invitationRepository = mock(AuthInvitationRepository.class);
+        AuthService service = authServiceWithIdentityBridgeRepositories(null, null, null, invitationRepository);
+        AuthInvitation workspaceInvitation = new AuthInvitation();
+        workspaceInvitation.setId("invitation-workspace-1");
+        workspaceInvitation.setTenantId("tenant-1");
+        workspaceInvitation.setWorkspaceId("workspace-1");
+        AuthInvitation otherWorkspaceInvitation = new AuthInvitation();
+        otherWorkspaceInvitation.setId("invitation-workspace-2");
+        otherWorkspaceInvitation.setTenantId("tenant-1");
+        otherWorkspaceInvitation.setWorkspaceId("workspace-2");
+        when(invitationRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc("tenant-1", "workspace-1"))
+                .thenReturn(List.of(workspaceInvitation));
+
+        List<AuthInvitation> invitations = service.listInvitations("tenant-1", "workspace-1");
+
+        assertEquals(List.of(workspaceInvitation), invitations);
+        assertFalse(invitations.contains(otherWorkspaceInvitation));
+        verify(invitationRepository).findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc("tenant-1", "workspace-1");
+    }
+
+    @Test
+    void listInvitations_whenWorkspaceMissing_throwsBeforeRepositoryAccess() {
+        AuthInvitationRepository invitationRepository = mock(AuthInvitationRepository.class);
+        AuthService service = authServiceWithIdentityBridgeRepositories(null, null, null, invitationRepository);
+
+        assertThrows(IllegalArgumentException.class, () -> service.listInvitations("tenant-1", " "));
+
+        verifyNoInteractions(invitationRepository);
     }
 
     @Test

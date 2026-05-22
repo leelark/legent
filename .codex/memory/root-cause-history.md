@@ -2,6 +2,76 @@
 
 Fresh baseline date: 2026-05-20.
 
+## 2026-05-22 Route Map Ingress Prefix Coverage
+
+Root cause: `validate-route-map.ps1` checked local Nginx prefix-to-upstream ownership, but Kubernetes ingress validation only warned when a route-map service name was absent from ingress text. Regex-grouped ingress paths could therefore lose or misroute one prefix while validation still passed if the service name appeared elsewhere.
+
+Fix: added Kubernetes ingress path/backend extraction and first-match coverage checks for every route-map prefix. The validator now proves each prefix is covered by an ingress path that routes to the expected service and catches missing or misordered specific routes before broad aliases.
+
+Validation: route-map validation passed; a temporary missing-prefix ingress fixture failed on `/api/v1/templates`; production Kustomize render, production overlay validation, repository artifact hygiene, Codex validation, and scoped diff checks passed.
+
+Avoidance: route-map, Nginx, and ingress changes must keep prefix/backend ownership proof in the route validator rather than relying on broad service-name presence.
+
+## 2026-05-22 Workspace Context Fail-Closed E2E
+
+Root cause: `WorkspaceLayout` had fail-closed logic for sessions that lack workspace context, but `context-bootstrap.spec.ts` only covered the credential-gated happy path. Without a mocked missing-context browser test, future layout or bootstrap changes could render workspace routes with stale local context after a session response omitted workspace ownership.
+
+Fix: added a deterministic Playwright test that seeds stale local context, mocks a successful session without `workspaceId`, returns no account contexts, visits `/app/email`, and asserts redirect to login plus local user/role/tenant/workspace/environment cleanup.
+
+Validation: frontend lint, frontend production build, targeted Chromium `context-bootstrap.spec.ts`, repository artifact hygiene, Codex validation, and scoped diff check passed.
+
+Avoidance: auth/session hydration and workspace layout changes must keep both happy-path and missing-workspace browser cases in E2E coverage.
+
+## 2026-05-22 Campaign Scheduled Publish Workspace Context
+
+Root cause: the scheduled campaign worker loaded and claimed due send jobs with tenant/workspace row ownership, but invoked `CampaignEventPublisher.publishAudienceResolutionRequested` from a scheduler thread without setting `TenantContext`. The publisher builds workspace-scoped Kafka envelopes from thread-local context, so scheduled sends could fail at publish time or lose workspace envelope ownership.
+
+Fix: require tenant/workspace values from the claimed job row, use them for claim and campaign lookup, wrap the audience-resolution publish call in a temporary tenant/workspace context, and restore the previous thread context in a `finally` block. Publisher tests now prove audience-resolution envelopes and payloads carry workspace ownership.
+
+Validation: focused `SchedulingServiceTest,CampaignEventPublisherTest` passed with 7 tests; full campaign-service gate passed with 107 campaign-service tests plus upstream modules; repo artifact hygiene, Codex validation, and scoped diff checks passed.
+
+Avoidance: scheduled or recovery workers that publish through context-dependent producers must install trusted scope from the claimed row before publication and clear or restore context afterward.
+
+## 2026-05-22 Release Gate Strict Skip Guard
+
+Root cause: `release-gate.ps1` required strict evidence flags for non-local promotion mode, but it still honored local gate skip flags after that check. A strict invocation could therefore skip backend, frontend, Compose, or Kustomize validation while emitting strict-mode completion text.
+
+Fix: added an early strict-mode skip-flag guard that rejects `-SkipBackend`, `-SkipFrontend`, `-SkipCompose`, and `-SkipKustomize` unless `-LocalOnly` is present; added a release evidence self-test fixture that proves strict mode fails before evidence validation when skip flags are supplied.
+
+Validation: release evidence validator self-test passed with the new negative fixture; local-only release gate with all skip flags still passed; repo artifact hygiene and scoped diff checks passed.
+
+Avoidance: release gates must keep non-promotional local convenience flags separate from strict promotion semantics and include negative fixtures for unsafe flag combinations.
+
+## 2026-05-21 Deliverability Controller RBAC Coverage
+
+Root cause: deliverability domain management and insights controllers had explicit method-level permissions, but suppression list/history, DMARC reports/ingest, and reputation reads only required authentication plus tenant/workspace context. That left role-level authorization inconsistent across deliverability operator surfaces.
+
+Fix: added `deliverability:read` checks to suppression list/history, DMARC reports, and reputation score reads; added `deliverability:write` to DMARC ingest; preserved the existing internal suppression service guard; and expanded reflection tests to fail if authenticated deliverability controller endpoints lack RBAC.
+
+Validation: focused `DomainControllerRbacTest,SuppressionControllerTest` passed with 17 tests; full deliverability-service gate passed with 50 tests; artifact hygiene, Codex validation, and scoped diff check passed.
+
+Avoidance: every authenticated deliverability controller endpoint should declare method-level read/write permission unless it is an explicitly documented internal service endpoint with its own credential guard.
+
+## 2026-05-21 Campaign Scheduler Bounded Claims
+
+Root cause: scheduled campaign jobs and partial batch retries were selected with unbounded global status scans, then transitioned by mutating loaded entities. In a multi-replica scheduler, two nodes could load the same eligible rows and publish duplicate audience-resolution or batch-retry work before either transition became visible.
+
+Fix: added bounded pageable due-job, stale-processing, and partial-batch queries; added tenant/workspace/id/status compare-and-claim update methods for due jobs, stale processing recovery, partial retry requeue, and exhausted partial failure; updated scheduler services to skip rows when claims lose a race; and added focused claim-skip tests.
+
+Validation: focused `SchedulingServiceTest,SendExecutionServiceTest` passed with 24 tests; full campaign-service test gate passed with 95 tests; Codex validation and scoped diff check passed.
+
+Avoidance: scheduled workers that publish downstream events must claim bounded work by exact tenant/workspace/id/status before publication and test claim-loss behavior.
+
+## 2026-05-21 Content Send Governance Internal Security Chain
+
+Root cause: the email governance policy object slice added an internal `GET /api/v1/content/send-governance-policies/{id}/internal` controller endpoint and campaign-service client, but content-service `SecurityConfig` only allowlisted the existing render and rendered-content internal routes. Public edge denies existed, and the controller checked `X-Internal-Token`, but unauthenticated service-to-service calls could still be stopped by the service filter chain before reaching that guard.
+
+Fix: added the send-governance internal GET route to the content-service security allowlist; added a security-chain test proving the route reaches a controller without JWT; added a controller test proving invalid internal tokens fail closed before service access.
+
+Validation: focused `SecurityConfigTest`, `SendGovernancePolicyControllerTest`, and `ContentControllerRbacTest` passed with 12 tests; route-map validation, Codex validation, and scoped diff check passed.
+
+Avoidance: every new service-internal route needs both public-edge deny validation and service-local security-chain coverage for the intended internal authentication guard.
+
 ## 2026-05-20 Foundation Config Version History Scope
 
 Root cause: `system_configs` became tenant/workspace/environment scoped in later migrations, but `config_version_history` and versioning service APIs remained tenant/key/version only. History reads, compare, rollback, and version allocation could therefore cross workspace/environment boundaries.
@@ -244,6 +314,132 @@ Product root-cause entries:
   - Fix: added a permission-list-specific `toJsonArray` helper and routed only role-definition, permission-group, and access-grant permission fields through it, preserving generic object defaulting for metadata.
   - Validation: focused `CorePlatformServiceTest` passed with 41 tests, full `.\mvnw.cmd -pl services/foundation-service -am test` passed with 161 foundation-service tests plus upstream modules, V6 migration diff check passed, Codex validation/monitor/lease checks passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
   - Prevention: JSON helpers must match the target column shape; do not reuse object-defaulting helpers for array-shaped fields without focused null-shape tests.
+- 2026-05-21: Campaign feedback counters used read-modify-save mutation.
+  - Symptom: sent/failed delivery feedback updated send-job and send-batch counters by mutating loaded entities, so concurrent feedback events could overwrite each other's increments.
+  - Source evidence: `CampaignEventConsumer.java`, `SendJobRepository.java`, `SendBatchRepository.java`, `CampaignEventConsumerTest.java`, and `CampaignFeedbackCounterRepositoryTest.java`.
+  - Causal chain: idempotency protected duplicate event IDs, but counter mutation still depended on stale entity state instead of database-side scoped increments.
+  - Fix: added tenant/workspace/id-scoped repository update queries for send-job sent/failed counters and send-batch processed/success/failure/status counters, then reloaded the job before campaign reconciliation.
+  - Validation: focused campaign event/repository tests passed with 25 tests, full campaign-service reactor tests passed with 99 campaign-service tests plus upstream shared modules, Codex validation passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: high-volume feedback counters should use scoped atomic repository updates plus focused execution tests for generated update queries; local tests do not replace target replay and contention evidence.
+- 2026-05-21: Release evidence self-test child validators could hang indefinitely.
+  - Symptom: negative-fixture validator runs used `Start-Process -Wait`, so a stalled child command could block the whole self-test and leave child processes behind.
+  - Source evidence: `scripts/ops/test-release-evidence-validators.ps1` and release/devops scout validation that timed out while running the self-test.
+  - Causal chain: positive fixtures ran inline, but negative fixtures needed subprocess isolation for expected failures; those subprocesses had no per-command timeout or process-tree cleanup.
+  - Fix: added a shared validator-process helper with a configurable per-child timeout, captured output excerpts, process-tree termination, and consistent use by egress, render, GA, and image validator fixture calls.
+  - Validation: release evidence validator self-test passed, local-only release gate passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: CI-facing validator harnesses should bound child commands and terminate descendants on timeout; strict promotion evidence requirements must remain separate from local self-test safety.
+- 2026-05-21: Delivery replay queue processing used unbounded read and entity-save claims.
+  - Symptom: replay processing loaded all due PENDING rows, stopped only after an in-memory counter, saved `PROCESSING` without a status predicate, and did not include source `contentReference` in replay payloads.
+  - Source evidence: `DeliveryOperationsService.java`, `DeliveryReplayQueueRepository.java`, and `DeliveryOperationsServiceWorkspaceScopeTest.java`.
+  - Causal chain: replay was implemented as a manual operations helper, while high-volume send paths later required durable content references and compare-and-claim processing.
+  - Fix: added pageable due-row lookup, tenant/workspace/id/status-scoped claim/complete/fail update queries, claim-skip behavior, source content-reference propagation, and fail-closed replay rows when the source content reference is missing.
+  - Validation: focused delivery operations tests passed with 8 tests, full delivery-service reactor tests passed with 90 delivery-service tests plus upstream shared modules, Codex validation passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: replay and retry operations must use bounded pages, scoped compare-and-claim updates, and the same content-reference contract as live delivery handoff.
+- 2026-05-21: Tracking outbox enqueue still published just-created rows inline.
+  - Symptom: public tracking ingestion persisted an outbox row and then synchronously attempted to publish the same row after commit or inline when transaction synchronization was inactive.
+  - Source evidence: `TrackingOutboxService.java`, `TrackingOutboxServiceTest.java`, tracking outbox/ingestion/publisher focused tests, and full tracking-service reactor validation.
+  - Causal chain: the outbox poller existed, but enqueue still carried a compatibility-style immediate publish path, so Kafka health could affect request completion instead of being isolated to the durable poller/claim/retry workflow.
+  - Fix: defaulted enqueue to persistence-only behavior, kept the poller as the publisher, preserved claim/retry/failure handling, and added a guarded compatibility flag for immediate publish rollback.
+  - Validation: focused tracking outbox/ingestion/publisher tests passed with 14 tests, full tracking-service reactor tests passed with 72 tests and 7 expected Testcontainers skips, Codex validation passed, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: public ingestion paths should acknowledge durable persistence and leave external broker publication to bounded outbox workers unless a documented compatibility flag is intentionally enabled.
+- 2026-05-21: Legacy reputation fallback used domain-only access after workspace columns existed.
+  - Symptom: reputation reads could fall back from scoped `domain_reputations` to `reputation_scores` by domain alone, and legacy reputation updates wrote rows without tenant/workspace ownership.
+  - Source evidence: `ReputationController.java`, `ReputationScore.java`, `ReputationScoreRepository.java`, `ReputationService.java`, `V7__workspace_scope_and_event_idempotency.sql`, and reputation focused tests.
+  - Causal chain: V7 added tenant/workspace/source columns to the legacy table for transition compatibility, but the JPA entity, repository, controller fallback, and update service kept the pre-scope domain-only contract and the V1 global domain uniqueness constraint.
+  - Fix: added tenant/workspace fields to the entity, replaced domain-only repository methods with scoped latest-row lookup, normalized domains at read/write boundaries, wrote legacy rows with `TenantContext` ownership, and added V11 to remove the old global same-domain uniqueness constraint and index scoped latest lookup.
+  - Validation: focused reputation/RBAC tests passed with 19 tests, full deliverability-service reactor tests passed with 59 deliverability-service tests plus upstream shared modules, repo artifact hygiene passed, JPA config scan passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: compatibility tables that receive tenant/workspace columns must update entity/repository/service contracts in the same slice, and target Flyway migration evidence must review legacy rows before promotion.
+- 2026-05-21: Campaign checkpoint and resume paths stayed tenant-only after send jobs became workspace-owned.
+  - Symptom: send-job checkpoints could be created/read/resumed through tenant/job-only access, and resumed jobs did not carry workspace ownership from the original job.
+  - Source evidence: `SendJobCheckpointingService.java`, `SendJobCheckpointRepository.java`, `SendJobCheckpoint.java`, `V2__campaign_approval_and_checkpoint.sql`, `V11__campaign_workspace_lifecycle_and_idempotency.sql`, and checkpoint focused tests.
+  - Causal chain: V11 added workspace ownership to send jobs and batches, but checkpoint/resume/recovery compatibility tables and the checkpoint service kept older tenant-only repository methods.
+  - Fix: added checkpoint workspace ownership, scoped repository methods/counts by tenant+workspace+job, required current workspace context for checkpoint/resume/progress/retry paths, copied workspace/team ownership into resumed jobs, and added V16 to backfill and index checkpoint/resume/recovery workspace columns.
+  - Validation: focused campaign checkpoint/send-execution/consumer/scheduler tests passed with 54 tests, full campaign-service reactor tests passed with 106 campaign-service tests plus upstream shared modules, repo artifact hygiene passed, JPA config scan passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: when primary lifecycle entities gain workspace ownership, compatibility/recovery tables and resume services must be scoped in the same ownership model before release.
+- 2026-05-22: Audience import processing retained unbounded row-error details until completion.
+  - Symptom: high-error CSV imports could append every row-error detail from each chunk into one in-memory list before final truncation.
+  - Source evidence: `ImportProcessingService.java`, `AppConstants.IMPORT_CHUNK_SIZE`, `AppConstants.IMPORT_MAX_ERRORS`, and `ImportProcessingServiceTest.java`.
+  - Causal chain: chunk processing tracked full `errorCount`, but used the same unbounded list for detailed error samples and only applied the configured maximum when writing the completed import job.
+  - Fix: pass remaining error-sample capacity into chunk processors, count every failed row, add detail samples only up to `AppConstants.IMPORT_MAX_ERRORS`, and persist the already-bounded list.
+  - Validation: focused import tests passed with 9 tests, full audience-service reactor tests passed with 138 audience-service tests plus upstream shared modules, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: high-volume import paths must separate aggregate counters from retained detail samples during chunk processing, not only at final persistence.
+- 2026-05-22: Identity invitation listing used tenant-only scope.
+  - Symptom: an authenticated user with invitation administration permission could list invitation metadata for all workspaces in the same tenant.
+  - Source evidence: `AuthController.java`, `AuthService.java`, `AuthInvitationRepository.java`, and identity service/controller focused tests.
+  - Causal chain: invitation creation and acceptance carried workspace ownership, but the list API kept an older tenant-only repository lookup and did not require the authenticated principal to carry workspace context.
+  - Fix: replace the tenant-only repository lookup with tenant+workspace access, require workspace context in `AuthService.listInvitations`, and have `AuthController.listInvitations` pass the authenticated principal workspace while failing closed when it is absent.
+  - Validation: focused identity service/controller tests passed with 32 tests, full identity-service reactor tests passed with 51 identity-service tests plus upstream shared modules, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: list/admin endpoints for workspace-owned identity resources must take workspace identity from trusted auth context and must reject missing workspace context before repository access.
+- 2026-05-22: Deliverability internal suppression route security-chain coverage was missing.
+  - Symptom: deliverability internal suppression list/check endpoints had controller and RBAC reflection tests, but no Spring security-chain test proving the intended anonymous route pass-through plus normal workspace route protection.
+  - Source evidence: `SecurityConfig.java`, `SuppressionController.java`, `SuppressionControllerTest.java`, `DomainControllerRbacTest.java`, and new `SecurityConfigTest.java`.
+  - Causal chain: the controller owns the internal credential guard, while `SecurityConfig` must allow those internal paths to reach it; without a filter-chain regression test, future matcher changes could silently block service-to-service access or over-broaden public access.
+  - Fix: add a minimal Spring security test app covering anonymous access to the two internal suppression routes, authentication requirement for a normal deliverability route, and method-security deny/allow behavior for representative `deliverability:read` access.
+  - Validation: focused security-chain tests passed with 5 tests, full deliverability-service reactor tests passed with 64 deliverability-service tests plus upstream shared modules, route-map validation passed, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: every service-internal endpoint should have both public-edge route validation and service-local security-chain tests for the intended guard model.
+- 2026-05-22: Delayed automation resumes ignored scheduled workspace scope.
+  - Symptom: a delayed workflow wake job stored tenant/workspace data but resumed the engine using only instance ID, next node ID, and wake ID.
+  - Source evidence: `DelayNodeHandler.java`, `WorkflowQuartzJob.java`, `WorkflowEngine.java`, `WorkflowInstanceRepository.java`, `WorkflowEngineTest.java`, and `WorkflowQuartzJobTest.java`.
+  - Causal chain: the delay scheduler already preserved scope in Quartz job data, but the Quartz job did not propagate it and the engine loaded the workflow instance by raw ID before setting `TenantContext` from the loaded row.
+  - Fix: pass tenant/workspace from `WorkflowQuartzJob` into `WorkflowEngine.resumeInstance`, require both values before repository access, and load the instance with `findByIdAndTenantIdAndWorkspaceId` before idempotency, lock acquisition, execution, or save.
+  - Validation: focused workflow engine/Quartz tests passed with 9 tests, full automation-service reactor tests passed with 82 automation-service tests plus upstream shared modules, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: scheduled and recovery callbacks must carry trusted scope into service entry points and must not derive tenant/workspace only after a raw ID lookup.
+- 2026-05-22: GA and image release evidence validators accepted unversioned manifests.
+  - Symptom: GA/image evidence templates emitted `schemaVersion = 1`, but validators parsed manifests without rejecting missing or unsupported schema versions.
+  - Source evidence: `scripts/ops/write-ga-evidence-manifest-template.ps1`, `scripts/ops/write-image-supply-chain-checklist.ps1`, `scripts/ops/validate-ga-evidence.ps1`, `scripts/ops/validate-image-evidence.ps1`, and `scripts/ops/test-release-evidence-validators.ps1`.
+  - Causal chain: egress evidence had an explicit version contract, while GA/image validation focused on path and image artifact completeness, so older or malformed evidence contracts could pass local validation by accident.
+  - Fix: require `schemaVersion` 1 in GA and image validators, add missing/unsupported version fixtures to the release evidence self-test, and document the manifest contract in the GA evidence matrix.
+  - Validation: release evidence validator self-test passed with the 120s child-process timeout, local-only release gate passed, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: every release evidence manifest family needs an explicit version check plus negative fixtures before strict release gates can rely on it.
+- 2026-05-22: Subscriber by-ID service operations loaded rows before scope was proven.
+  - Symptom: subscriber get, update, and delete accepted an ID, loaded the row by raw ID, and only then filtered tenant/workspace/deleted status in memory.
+  - Source evidence: `SubscriberService.java`, `SubscriberRepository.java`, and `SubscriberServiceTest.java`.
+  - Causal chain: later merge/bulk helper paths adopted the scoped repository method, but original CRUD paths kept older raw ID lookups, creating avoidable cross-workspace row fetches and mutation paths dependent on in-memory filters.
+  - Fix: replace raw `findById` calls with `findByTenantIdAndWorkspaceIdAndId` for get/update/delete and add tests for cache hit preservation, scoped cache miss, scoped update, and denied update/delete misses.
+  - Validation: focused `SubscriberServiceTest` passed with 9 tests, full audience-service reactor tests passed with 142 audience-service tests plus upstream shared modules, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: workspace-owned entities should use scoped repository methods at lookup time rather than raw ID load plus post-filtering.
+- 2026-05-22: Alert runbook links could point at missing local targets.
+  - Symptom: production Prometheus alert annotations referenced a local production hardening runbook and anchors that were not present in the repository.
+  - Source evidence: `infrastructure/kubernetes/observability/prometheus-alerts.yml`, `scripts/ops/validate-production-overlay.ps1`, and `docs/operations/production-hardening-runbook.md`.
+  - Causal chain: production overlay validation checked core Kustomize, NetworkPolicy, and image posture, but did not validate observability annotations that operators rely on during incidents.
+  - Fix: add the production hardening runbook and make production overlay validation check repository-relative local `runbook_url` files and Markdown anchors, with a parameterized alert file path for negative fixtures.
+  - Validation: production overlay validation passed, negative missing-runbook and missing-anchor fixtures failed as expected, local-only release gate passed, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: alert-rule changes should validate local runbook links and anchors in the same local release gate path.
+- 2026-05-22: Audience import frontend status handling drifted from backend lifecycle values.
+  - Symptom: import list badges did not classify `VALIDATING` or `PROCESSING`, details polling stopped for `VALIDATING`, and the wizard kept polling `CANCELLED` while rendering terminal failures generically.
+  - Source evidence: `frontend/src/app/(workspace)/audience/imports/page.tsx`, `frontend/src/app/(workspace)/audience/imports/new/page.tsx`, `frontend/src/app/(workspace)/audience/imports/[id]/page.tsx`, and backend `ImportJob` status values.
+  - Causal chain: frontend import UI carried older status assumptions while backend exposed a broader import lifecycle, and there was no workflow-specific Playwright coverage for upload, polling, or terminal states.
+  - Fix: classify active and terminal states consistently across list, wizard, and details; make `VALIDATING` poll as active; stop polling `CANCELLED`; render distinct terminal states; add targeted Playwright lifecycle coverage.
+  - Validation: frontend lint passed, frontend production build passed, targeted Chromium Playwright import lifecycle spec passed with 6 tests, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: visible workflow state machines should share backend lifecycle terms in tests, especially when polling and terminal actions differ by status.
+- 2026-05-22: Content GET RBAC coverage was limited to unsafe mappings.
+  - Symptom: authenticated users could reach protected content read endpoints without method-level read permission checks.
+  - Source evidence: `EmailStudioController.java`, `TemplateController.java`, `ContentBlockController.java`, `TemplateVersionController.java`, `TemplateWorkflowController.java`, `EmailController.java`, `SecurityConfig.java`, and `ContentControllerRbacTest.java`.
+  - Causal chain: the content RBAC reflection test checked POST/PUT/PATCH/DELETE mappings only, while the security chain authenticated unmatched routes and left read authorization to controller annotations. Older GET handlers were never brought under the content read permission pattern.
+  - Fix: add `content:read` or `template:*` authorization to protected GET handlers and expand reflection coverage to all protected GET mappings, with explicit exceptions for public landing-page and guarded internal reads.
+  - Validation: focused `ContentControllerRbacTest` passed with 7 tests, full content-service reactor tests passed with 54 content-service tests plus upstream shared modules, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: future content read routes must either declare read RBAC or be deliberately added to the public/internal exception list with matching security-chain evidence.
+- 2026-05-22: Audience tracking intelligence consumed high-volume tracking events one record at a time.
+  - Symptom: audience-service listened to `tracking.ingested` with the shared record-ack Kafka listener while tracking-service already used a batch listener for the same high-volume topic.
+  - Source evidence: `AudienceIntelligenceConsumer.java`, shared `KafkaConsumerConfig.java`, tracking `TrackingKafkaConsumerConfig.java`, and focused audience consumer/config tests.
+  - Causal chain: subscriber intelligence started as per-event enrichment and reused the shared Kafka factory, so it inherited record ack and no bounded batch settings even as tracking ingestion became batch-oriented.
+  - Fix: add an audience-scoped batch listener factory, move tracking consumption to `consumeTrackingBatch`, preserve single-event processing for tests and retry semantics, skip invalid/unsupported and in-batch duplicate events before side effects, and rethrow service failures for Kafka retry/DLQ handling.
+  - Validation: focused `AudienceIntelligenceConsumerTest,AudienceKafkaConsumerConfigTest,SubscriberIntelligenceServiceTest` passed with 14 tests, full audience-service reactor tests passed with 148 audience-service tests plus upstream shared modules, repo artifact hygiene passed, Codex validation passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: high-volume topic consumers should use explicit module-owned listener factories and tests for ack mode, poll bounds, duplicate handling, invalid-event behavior, and retry behavior.
+- 2026-05-22: AI content assistance governance stopped at foundation policy/audit and was not yet enforced in content draft/test-send workflow.
+  - Symptom: foundation-service could evaluate draft-only AI assistance policy, but content-service had no contract for applying reviewed AI draft evidence or blocking unresolved AI assistance metadata before publish/test-send side effects.
+  - Source evidence: `AiContentAssistanceGovernanceServiceTest.java`, `TemplateWorkflowService.java`, `TemplateTestSendService.java`, `TemplateWorkflowDto.java`, and new content workflow/test-send tests.
+  - Causal chain: the first governance slice deliberately avoided content workflow integration and provider calls, leaving the draft application boundary as a follow-up to avoid storing raw prompts/outputs or implying model-backed generation readiness.
+  - Fix: add an `AiDraftApplication` DTO, apply only approved `APPLY_TO_DRAFT` evidence with human review and SHA-256 hashes, store hash/reference metadata only, and require resolved AI metadata before publish/test-send rendering or Kafka publication.
+  - Validation: focused foundation governance tests passed with 10 tests, focused content workflow/test-send tests passed with 5 tests, full foundation+content reactor tests passed with 59 target-service tests plus upstream shared modules, repo artifact hygiene passed, and scoped `git diff --check` passed with CRLF warnings only.
+  - Prevention: AI-generated content paths must keep provider invocation, raw content storage, policy/audit verification, draft application, publish, and send/test-send side effects as separately reviewed contracts with fail-closed tests.
+- 2026-05-22: Latest audit found cross-module local gaps after prior fixes.
+  - Symptom: local validation and route coverage still missed some operational contracts: alert runbook completeness, Compose env determinism, unresolved delivery `workspace-default` rows, forgot-password ambiguous tenant/workspace resolution, stale non-throwing tracking publishers, SES endpoint parsing, subscriber bulk-action/query encoding, and landing-page public sanitizer route coverage.
+  - Source evidence: read-only latest audit scouts, `prometheus-alerts.yml`, `release-gate.ps1`, delivery V16 workspace migration, `IdentityExperienceService.java`, `TrackingEventPublisher.java`, `AwsSesProviderAdapter.java`, subscriber page source, and landing-page studio/public routes.
+  - Causal chain: earlier hardening slices fixed primary service behavior, but compatibility helpers, release script defaults, legacy migration follow-up guards, and frontend contract tests lagged behind the stricter workspace/release/sanitization model.
+  - Fix: add missing runbook URLs and validation, require `.env.example` through `ComposeEnvFile`, add delivery V17 fail-fast legacy guard, scope forgot-password reset side effects to explicit/unambiguous tenant plus active workspace membership, keep only the throwing tracking publisher path, harden SES region resolution, switch subscriber bulk delete to backend bulk action with encoded queries, and add focused landing-page E2E coverage.
+  - Validation: focused delivery, identity, and tracking tests passed; full delivery+identity+tracking backend gate passed; frontend lint/build and focused Playwright passed; release/SRE validators, local-only release gate, artifact hygiene, Codex validation, and `git diff --check` passed.
+  - Prevention: latest-audit follow-ups should be promoted as one checkpointed closure only when their validation spans each touched boundary; production claims still require target evidence and blocked items stay blocked.
 
 Root-cause entries must include:
 - symptom,

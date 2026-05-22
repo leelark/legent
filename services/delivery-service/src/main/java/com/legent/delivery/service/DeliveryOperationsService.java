@@ -107,20 +107,27 @@ public class DeliveryOperationsService {
     @Transactional
     public int processReplayQueue(String tenantId, String workspaceId, int maxItems) {
         int safeMax = Math.max(1, Math.min(maxItems, 500));
+        Instant now = Instant.now();
         List<DeliveryReplayQueue> queued = replayQueueRepository
                 .findByTenantIdAndWorkspaceIdAndStatusAndScheduledAtLessThanEqualOrderByPriorityAscScheduledAtAsc(
                         tenantId,
                         workspaceId,
                         DeliveryReplayQueue.ReplayStatus.PENDING.name(),
-                        Instant.now()
+                        now,
+                        PageRequest.of(0, safeMax)
                 );
         int processed = 0;
         for (DeliveryReplayQueue replay : queued) {
-            if (processed >= safeMax) {
-                break;
+            int claimed = replayQueueRepository.claimForProcessing(
+                    tenantId,
+                    workspaceId,
+                    replay.getId(),
+                    DeliveryReplayQueue.ReplayStatus.PENDING.name(),
+                    DeliveryReplayQueue.ReplayStatus.PROCESSING.name());
+            if (claimed == 0) {
+                log.debug("Skipping replay {} because another worker claimed or changed it", replay.getId());
+                continue;
             }
-            replay.setStatus(DeliveryReplayQueue.ReplayStatus.PROCESSING.name());
-            replayQueueRepository.save(replay);
             try {
                 Optional<MessageLog> source = messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId(
                         replay.getTenantId(),
@@ -143,18 +150,33 @@ public class DeliveryOperationsService {
                 payload.put("fromEmail", sourceLog.getFromEmail());
                 payload.put("fromName", sourceLog.getFromName());
                 payload.put("replyToEmail", sourceLog.getReplyToEmail());
+                String contentReference = sourceLog.getContentReference();
+                if (contentReference == null || contentReference.isBlank()) {
+                    throw new IllegalStateException("Source message contentReference is required for replay");
+                }
+                payload.put("contentReference", contentReference);
 
                 orchestrationService.processSendRequest(payload, replay.getTenantId(), payload.get("messageId").toString());
-                replay.setStatus(DeliveryReplayQueue.ReplayStatus.COMPLETED.name());
-                replay.setProcessedAt(Instant.now());
-                replay.setErrorMessage(null);
+                int completed = replayQueueRepository.markCompleted(
+                        replay.getTenantId(),
+                        replay.getWorkspaceId(),
+                        replay.getId(),
+                        DeliveryReplayQueue.ReplayStatus.PROCESSING.name(),
+                        DeliveryReplayQueue.ReplayStatus.COMPLETED.name(),
+                        Instant.now());
+                if (completed == 0) {
+                    log.warn("Replay {} completed side effects but terminal status update was skipped", replay.getId());
+                }
             } catch (Exception ex) {
-                replay.setStatus(DeliveryReplayQueue.ReplayStatus.FAILED.name());
-                replay.setRetryCount((replay.getRetryCount() == null ? 0 : replay.getRetryCount()) + 1);
-                replay.setErrorMessage(ex.getMessage());
+                replayQueueRepository.markFailed(
+                        replay.getTenantId(),
+                        replay.getWorkspaceId(),
+                        replay.getId(),
+                        DeliveryReplayQueue.ReplayStatus.PROCESSING.name(),
+                        DeliveryReplayQueue.ReplayStatus.FAILED.name(),
+                        ex.getMessage());
                 log.warn("Replay failed for {}: {}", replay.getId(), ex.getMessage());
             }
-            replayQueueRepository.save(replay);
             processed++;
         }
         return processed;

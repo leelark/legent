@@ -1,0 +1,53 @@
+{
+    "id":  "content-send-governance-internal-security-chain",
+    "createdAt":  "2026-05-21T21:37:39.3255880Z",
+    "objective":  "Allow content send-governance internal lookup through service security chain",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/content-service/src/main/java/com/legent/content/config/SecurityConfig.java",
+                         "services/content-service/src/test/java/com/legent/content/config/SecurityConfigTest.java",
+                         "services/content-service/src/test/java/com/legent/content/controller/SendGovernancePolicyControllerTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/checkpoints/**",
+                         ".codex/audit/**",
+                         ".codex/dashboards/**"
+                     ],
+    "agents":  [
+                   "CAMPAIGN_SERVICE_OWNER",
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT",
+                   "API_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/content-service -am \"-Dtest=SecurityConfigTest",
+                           "SendGovernancePolicyControllerTest",
+                           "ContentControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/content-service .codex config infrastructure scripts"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Select the next highest-value safe local work item.",
+    "completedAt":  "2026-05-21T21:43:45.8907575Z",
+    "outcome":  "Service security chain now allows the internal send-governance lookup to reach the controller guard; invalid service credentials are denied before service access.",
+    "validationRun":  [
+                          "PASS: focused content security/controller/RBAC tests (12 tests)",
+                          "PASS: route-map validation",
+                          "PASS: Codex system validation",
+                          "PASS: scoped diff check (CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "Target service-to-service availability and public edge behavior remain release evidence.",
+                          "New internal routes need both edge deny validation and service-local security-chain coverage."
+                      ]
+}

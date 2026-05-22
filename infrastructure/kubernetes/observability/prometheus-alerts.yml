@@ -9,6 +9,7 @@ groups:
         annotations:
           summary: "High 5xx rate for {{ $labels.application }}"
           description: "{{ $labels.application }} has served more than 2% 5xx responses for 10 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#service-errors"
       - alert: LegentServiceP95LatencyHigh
         expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application)) > 1.5
         for: 10m
@@ -17,6 +18,7 @@ groups:
         annotations:
           summary: "High p95 latency for {{ $labels.application }}"
           description: "{{ $labels.application }} p95 latency is above 1.5 seconds."
+          runbook_url: "docs/operations/production-hardening-runbook.md#service-latency"
       - alert: LegentKafkaConsumerLagHigh
         expr: kafka_consumer_fetch_manager_records_lag_max > 10000
         for: 15m
@@ -25,6 +27,7 @@ groups:
         annotations:
           summary: "Kafka consumer lag high"
           description: "Consumer lag is above 10000 records."
+          runbook_url: "docs/operations/production-hardening-runbook.md#kafka-consumer-lag"
       - alert: LegentPodRestarting
         expr: increase(kube_pod_container_status_restarts_total{namespace="legent"}[15m]) > 2
         for: 5m

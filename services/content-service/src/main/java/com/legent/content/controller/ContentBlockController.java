@@ -36,6 +36,7 @@ public class ContentBlockController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<ContentBlockDto.Response> getBlock(@PathVariable @org.springframework.lang.NonNull String id) {
 
         final String tenantId = TenantContext.requireTenantId();
@@ -65,6 +66,7 @@ public class ContentBlockController {
     }
 
     @GetMapping
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public PagedResponse<ContentBlockDto.Response> listBlocks(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
@@ -81,6 +83,7 @@ public class ContentBlockController {
     }
 
     @GetMapping("/global")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<ContentBlockDto.Response>> listGlobalBlocks() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
@@ -101,6 +104,7 @@ public class ContentBlockController {
     }
 
     @GetMapping("/{id}/versions")
+    @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
     public ApiResponse<List<EmailStudioDto.ContentBlockVersionResponse>> listVersions(@PathVariable String id) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();

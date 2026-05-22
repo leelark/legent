@@ -1,0 +1,52 @@
+{
+    "id":  "release-gate-strict-skip-guard",
+    "createdAt":  "2026-05-22T01:38:57.4697462Z",
+    "objective":  "Reject local gate skip flags during strict release promotion",
+    "status":  "DONE",
+    "owner":  "RELEASE_MANAGER",
+    "filesInScope":  [
+                         "scripts/ops/release-gate.ps1",
+                         "scripts/ops/test-release-evidence-validators.ps1",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-22.jsonl",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 120",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- scripts/ops/release-gate.ps1 scripts/ops/test-release-evidence-validators.ps1 .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Start campaign-scheduled-publish-workspace-context.",
+    "completedAt":  "2026-05-22T01:46:51.3487579Z",
+    "outcome":  "Strict release-gate mode now rejects local gate skip flags while local-only validation still supports them.",
+    "validationRun":  [
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 120",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "git diff --check -- scripts/ops/release-gate.ps1 scripts/ops/test-release-evidence-validators.ps1 .codex"
+                      ],
+    "residualRisks":  [
+                          "Local validator hardening does not provide production promotion evidence.",
+                          "Strict release remains blocked until real target evidence exists and full unskipped gates pass."
+                      ]
+}
