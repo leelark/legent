@@ -125,3 +125,13 @@ Rationale: local code, docs, and validators can complete the planning/configurat
 Impact: free/local path is validation-only. Paid production path requires dated provider/runtime/registry/monitoring evidence before strict release or throughput claims.
 
 Decision update rule: add only durable decisions with source, rationale, impact, and validation or follow-up.
+
+## 2026-05-23 100 Percent Readiness Backlog Boundary
+
+Source: .codex/backlog/queue.json, .codex/reports/100-percent-readiness-backlog-2026-05-23.md, six read-only scout outputs, and local validation/memory audit from 2026-05-23.
+
+Decision: queue.json is the source of truth for actionable 100 percent readiness work. Current-state memory files should contain live risks, blockers, summaries, and next actions only; completed work details belong in queue doneWork, checkpoints, audit events, handoffs, and reports.
+
+Rationale: verbose completed narratives made active memory stale and hid local READY/BACKLOG work behind external blockers. Compact memory keeps the autonomous loop selectable while preserving detailed history in durable artifacts.
+
+Impact: active memory now lists 15 READY, 20 BACKLOG, and 16 BLOCKED queue items, and stale DONE/IN_PROGRESS drift is removed from the queue. Production, high-volume, provider, AI, and parity claims remain evidence-bound.

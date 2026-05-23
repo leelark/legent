@@ -1,17 +1,17 @@
 ﻿# Autonomous Team Dashboard
 
-Generated: 2026-05-23T12:41:55.7874016Z
+Generated: 2026-05-23T13:58:16.2492960Z
 
 ## Summary
 
 - Registered module teams: 15
 - Registered threads: 18
 - Active threads: 1
-- Active leases: 1
+- Active leases: 0
 - Active worktrees: 0
-- Ready work: 0
-- Backlog work: 0
-- Blocked work: 5
+- Ready work: 15
+- Backlog work: 20
+- Blocked work: 16
 - Done work: 172
 
 ## Threads
@@ -35,16 +35,25 @@ Generated: 2026-05-23T12:41:55.7874016Z
 | overall-20260521T210913Z | OVERALL | overall | PAUSED | 2026-05-22T03:51:12.9629255Z | True | Safe-stopped per user request after completing latest-audit-safe-local-followups-20260522; resume only on new user direction. |
 | overall-20260522T121051Z | OVERALL | overall | PAUSED | 2026-05-22T21:45:41.5721230Z | True | Safe-stopped after completing all unblocked local work from the latest audit. Resume only on new user direction or after blocked evidence and policy decisions are available. |
 | overall-20260523T094000Z | OVERALL | overall | PAUSED | 2026-05-23T10:40:31.5242917Z | True | Safe-stopped after completing all unblocked local work; resume from .codex/threads/overall-20260523T094000Z-handoff.md or after blocked evidence/policy decisions are available. |
-| overall-20260523T104219Z | OVERALL | overall | ACTIVE | 2026-05-23T12:41:41.6595236Z | False | Start overall autonomous loop. |
+| overall-20260523T104219Z | OVERALL | overall | ACTIVE | 2026-05-23T12:41:41.6595236Z | True | Start overall autonomous loop. |
 
 ## Next Work
 
-No unblocked READY work. Run pending-scan, research-pass, and refine-backlog.
+- `delivery-policy-runtime-snapshot-contract` score=63, owner=DELIVERY_SERVICE_OWNER: Implement the delivery runtime policy snapshot contract as the next highest local parity/safety slice.
+- `ai-provider-contract-metering` score=59, owner=FOUNDATION_SERVICE_OWNER: Implement the provider-contract and metering layer before any model-backed AI work.
+- `automation-activity-lock-concurrency-policy` score=58, owner=AUTOMATION_SERVICE_OWNER: Implement activity lock/concurrency controls.
+- `delivery-feedback-outbox-retention-cleanup` score=56, owner=DELIVERY_SERVICE_OWNER: Add retention controls for the delivery feedback outbox.
+- `contact-provenance-import-population` score=55, owner=AUDIENCE_SERVICE_OWNER: Wire import/contact paths into existing provenance metadata.
 
 ## Blocked
 
+- `delivery-policy-provider-egress-proof`: External provider/domain evidence missing
+- `ga-smoke-restore-monitoring-admission-evidence`: External GA evidence not present
 - `production-evidence-pack`: Collect external evidence, then run strict release gate.
 - `live-high-volume-proof`: Run a target-like load harness with provider-approved capacity before making throughput claims.
-- `external-provider-capacity`: Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims.
-- `automation-script-activity-security-sandbox`: Blocked until sandbox/signing model and runtime isolation evidence exist.
-- `tracking-ingestion-batch-consumer-readiness`: Collect Docker/PostgreSQL and ClickHouse runtime evidence, prove raw_events dedupe or reconciliation for ambiguous/partial batch writes, then re-run tracking validation before marking DONE.
+- `production-image-digest-provenance-evidence`: External image evidence not present
+- `production-egress-policy-evidence`: External reviewed egress evidence not present
+- `automation-target-runtime-replay-evidence`: Target replay evidence missing
+- `tracking-ingestion-batch-consumer-readiness`: Collect Docker/PostgreSQL and live ClickHouse evidence for idempotency, ambiguous/partial batch writes, physical raw-event duplicate behavior, and downstream reconciliation before marking DONE or making BI/throughput claims.
+- `delivery-policy-legal-evidence-pack`: Human compliance review evidence missing
+- `contact-sendable-key-migration-proof`: Target Flyway/data migration evidence missing

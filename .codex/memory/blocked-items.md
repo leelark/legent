@@ -1,19 +1,32 @@
 # Blocked Items
 
 Fresh baseline date: 2026-05-20.
+Last compacted: 2026-05-23.
 
-| ID | Owner | Status | Blocker | Next Action |
-|---|---|---|---|---|
-| production-evidence-pack | RELEASE_MANAGER | BLOCKED | Target-environment evidence is not present in this checkout for image provenance, reviewed egress targets, restore proof, monitoring coverage, TLS/admission controls, and CI/security scan artifacts. Local validator negative fixtures now cover GA/image evidence path, artifact, image-topology, and digest failures. | Collect real target evidence and run `scripts/ops/release-gate.ps1` with strict evidence flags; strict egress mode now also proves reviewed policy render inclusion when evidence is supplied. |
-| live-high-volume-proof | PERFORMANCE_ENGINEER | BLOCKED | Local docs and validators cannot prove provider-approved warmed sending capacity for 10 lakh messages in 10 hours. | Run bounded staging/load evidence with warmed domains, provider limits, shard-aware queues, suppression checks, and observability. |
-| external-provider-capacity | DELIVERABILITY_ENGINEER | BLOCKED | Provider API/SMTP limits, sender reputation, and domain warmup status are external to the repository. | Verify provider contracts, warmup state, DNS authentication, FBL handling, and rate-control policy before production send claims. |
-| automation-script-activity-security-sandbox | SECURITY_ENGINEER | BLOCKED | Script activity execution needs approved sandbox/signing design, no-ambient-secret runtime, egress/file limits, timeout/resource caps, audit, and operations signoff before local implementation is safe. | Keep inline/unsigned scripts rejected; design and approve the sandbox/security model before promoting implementation work. |
-| foundation-tenant-lifecycle-policy | FOUNDATION_SERVICE_OWNER | BLOCKED_POLICY | `TenantService.getTenant` is self-scoped locally, but tenant list, get-by-slug, update, delete, suspend, restore, archive, and hard delete still need an explicit platform-admin versus tenant self-management policy before safe implementation. | Decide whether global lifecycle stays platform-admin-only and whether self-tenant management gets a separate narrow profile/settings surface; then add controller/service RBAC and tenant-context tests. |
-| foundation-public-contact-tenant-inbox | FOUNDATION_SERVICE_OWNER | BLOCKED_SCHEMA_PRODUCT | `public_contact_requests` is a global public PII table with no tenant/workspace ownership; tenant inbox behavior would expose global submissions without a mapping rule and migration. | Decide product mapping, retention/privacy lifecycle, ownership columns, and migration before adding tenant/workspace contact inbox features. |
-| tracking-ingestion-batch-consumer-readiness | TRACKING_SERVICE_OWNER | BLOCKED_EVIDENCE | Local batch-consumer hardening is implemented and validated. Campaign-day rollup refresh and campaign reconciliation raw counts now dedupe duplicated raw rows by tenant/workspace/event type/event ID before counting. Docker/Testcontainers PostgreSQL/Flyway proof, live ClickHouse behavior, raw table physical dedupe, and arbitrary raw-event export or BI query semantics remain unavailable. | Collect Docker/PostgreSQL and live ClickHouse runtime evidence, prove raw-events write/retry behavior and downstream reconciliation for ambiguous/partial batch writes, then re-run tracking validation before marking DONE. |
+Only live blockers are listed here. Completed local fixes and stale historical notes were removed from current-state memory; detailed history remains in queue doneWork, checkpoints, audit events, and reports.
 
-2026-05-20 audit note: local code gaps were converted to READY/BACKLOG items in `.codex/backlog/queue.json`; external proof requirements remain blocked.
+| ID | Owner | Score | Next action |
+|---|---|---:|---|
+| `delivery-policy-provider-egress-proof` | DELIVERABILITY_ENGINEER | 68 | External provider/domain evidence missing |
+| `ga-smoke-restore-monitoring-admission-evidence` | RELEASE_MANAGER | 67 | External GA evidence not present |
+| `production-evidence-pack` | RELEASE_MANAGER | 64 | Collect external evidence, then run strict release gate. |
+| `live-high-volume-proof` | PERFORMANCE_ENGINEER | 62 | Run a target-like load harness with provider-approved capacity before making throughput claims. |
+| `production-image-digest-provenance-evidence` | RELEASE_MANAGER | 62 | External image evidence not present |
+| `production-egress-policy-evidence` | DEVOPS_ENGINEER | 61 | External reviewed egress evidence not present |
+| `automation-target-runtime-replay-evidence` | AUTOMATION_SERVICE_OWNER | 56 | Target replay evidence missing |
+| `tracking-ingestion-batch-consumer-readiness` | TRACKING_SERVICE_OWNER | 55 | Collect Docker/PostgreSQL and live ClickHouse evidence for idempotency, ambiguous/partial batch writes, physical raw-event duplicate behavior, and downstream reconciliation before marking DONE or making BI/throughput claims. |
+| `delivery-policy-legal-evidence-pack` | COMPLIANCE_OWNER | 55 | Human compliance review evidence missing |
+| `contact-sendable-key-migration-proof` | DATA_ARCHITECT | 55 | Target Flyway/data migration evidence missing |
+| `foundation-tenant-lifecycle-policy` | FOUNDATION_SERVICE_OWNER | 55 | Tenant lifecycle policy not decided |
+| `foundation-public-contact-tenant-inbox` | FOUNDATION_SERVICE_OWNER | 55 | Public contact ownership schema not decided |
+| `qa-auth-target-login-smoke` | QA_ENGINEER | 54 | Target credentials not available in repository |
+| `external-provider-capacity` | DELIVERABILITY_ENGINEER | 52 | Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims. |
+| `automation-script-activity-security-sandbox` | SECURITY_ENGINEER | 52 | Blocked until sandbox/signing model and runtime isolation evidence exist. |
+| `campaign-content-reference-target-proof` | CAMPAIGN_SERVICE_OWNER | 51 | Target load evidence missing |
 
-2026-05-20 state note: `foundation-config-version-history-scope` is no longer listed as blocked and is now DONE locally. Tenant lifecycle and public-contact inbox entries are retained as policy/schema memory blockers even though they are not currently promoted queue items.
+## Blocking Rules
 
-2026-05-23 readiness note: `deployment-manager-readiness-options-20260523` added a local Deployment Manager settings surface and `docs/operations/deployment-manager-provider-options.md` with free and paid paths. This closes the local configuration/guide slice only; `production-evidence-pack`, `live-high-volume-proof`, and `external-provider-capacity` stay blocked until dated target evidence is collected.
+- Production readiness requires strict release evidence, not local-only gates.
+- 10 lakh / 10h send readiness requires warmed senders, provider-approved capacity, load evidence, queue metrics, retry/DLQ proof, and tracking isolation.
+- Provider capacity, sender reputation, DNS/FBL, production egress, image provenance, restore, monitoring, and target runtime proof remain external evidence.
+- Policy/schema items require human product/security/data decisions before implementation.

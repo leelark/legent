@@ -1,31 +1,30 @@
 {
-    "id":  "campaign-batch-requeue-paging",
-    "createdAt":  "2026-05-22T21:14:23.2597871Z",
-    "objective":  "Bound campaign batch requeue and retry scans",
-    "status":  "IN_PROGRESS",
-    "owner":  "CAMPAIGN_SERVICE_OWNER",
-    "filesInScope":  [
-                         "services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java",
-                         "services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java",
-                         "services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java",
-                         "services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java",
-                         "services/campaign-service/src/test/java/com/legent/campaign/service/BatchingServiceTest.java",
-                         "services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java",
-                         "services/campaign-service/src/test/java/com/legent/campaign/service/OrchestrationServiceTest.java"
-                     ],
-    "agents":  [
-                   "PERFORMANCE_ENGINEER",
-                   "TEST_ARCHITECT"
-               ],
-    "validationPlan":  [
-                           ".\\mvnw.cmd -pl services/campaign-service -Dtest=BatchingServiceTest",
-                           "SendJobCheckpointingServiceTest",
-                           "OrchestrationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
-                           "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java services/campaign-service/src/test/java/com/legent/campaign/service/BatchingServiceTest.java services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java services/campaign-service/src/test/java/com/legent/campaign/service/OrchestrationServiceTest.java"
-                       ],
-    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
-    "blockers":  [
-
-                 ],
-    "nextAction":  "Implement bounded campaign batch requeue scans and focused campaign tests."
+  "id": "campaign-batch-requeue-paging",
+  "createdAt": "2026-05-22T21:14:23.2597871Z",
+  "objective": "Bound campaign batch requeue and retry scans",
+  "status": "DONE",
+  "owner": "CAMPAIGN_SERVICE_OWNER",
+  "filesInScope": [
+    "services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java",
+    "services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java",
+    "services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java",
+    "services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java",
+    "services/campaign-service/src/test/java/com/legent/campaign/service/BatchingServiceTest.java",
+    "services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java",
+    "services/campaign-service/src/test/java/com/legent/campaign/service/OrchestrationServiceTest.java"
+  ],
+  "agents": [
+    "PERFORMANCE_ENGINEER",
+    "TEST_ARCHITECT"
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/campaign-service -Dtest=BatchingServiceTest",
+    "SendJobCheckpointingServiceTest",
+    "OrchestrationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+    "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java services/campaign-service/src/main/java/com/legent/campaign/service/SendJobCheckpointingService.java services/campaign-service/src/main/java/com/legent/campaign/service/OrchestrationService.java services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java services/campaign-service/src/test/java/com/legent/campaign/service/BatchingServiceTest.java services/campaign-service/src/test/java/com/legent/campaign/service/SendJobCheckpointingServiceTest.java services/campaign-service/src/test/java/com/legent/campaign/service/OrchestrationServiceTest.java"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Implement bounded campaign batch requeue scans and focused campaign tests.",
+  "lastUpdated": "2026-05-23T13:53:26.769Z"
 }

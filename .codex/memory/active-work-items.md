@@ -1,89 +1,21 @@
 # Active Work Items
 
 Fresh baseline date: 2026-05-20.
+Last compacted: 2026-05-23.
 
 ## Live State
 
-Current overall coordination work:
-
-Overall thread `overall-20260523T104219Z` resumed the ONE_OVERALL_TEAM loop after the latest user instruction. It reconciled stale parity documentation/accounting and seeded `.codex/backlog/queue.json` with newly discovered local candidates from read-only scouts. Completed 2026-05-23 slices now include frontend public reset-password credential boundary, frontend environment-aware header context switching, campaign eligibility-marker fail-closed send handoff, delivery bounded expired-reservation cleanup under capacity pressure, tracking ClickHouse campaign-day rollup query dedupe, identity SCIM list bounding, delivery and campaign Kafka tenant fail-closed guards, identity reset-link production safety, audience segment recompute bounded membership, tracking analytics event-count window bounds, delivery feedback outbox backpressure control, Kafka high-volume topic config coverage, frontend auth context allowlisting, and tracking reconciliation raw-count dedupe.
-
-Active overall work:
-
-| Work Item | Owner | Scope |
-|---|---|---|
-| _None_ | _N/A_ | `deployment-manager-readiness-options-20260523` is locally complete and validating/closeout is recorded in queue history; remaining 100% production, parity, AI, and high-volume claims require external evidence or additional scoped implementation. |
-
-Active implementation workers:
-
-| Agent | Lane | Scope |
-|---|---|---|
-| _None_ | _N/A_ | Latest worker pool completed; all source leases were released. |
-
-Active read-only scouts:
-
-| Agent | Lane | Scope |
-|---|---|---|
-| _None_ | _N/A_ | Read-only scout wave completed; no unblocked scout candidates remain. |
-
-Active module threads:
-
-| Thread | Owner | Scope |
-|---|---|---|
-| `overall-20260523T094000Z` | PROGRAM_MANAGER_AGENT | Safe-stopped after completing all unblocked local work; resume from `.codex/threads/overall-20260523T094000Z-handoff.md`. |
-
-Scout candidates not yet queued:
-
-| Work Item | Owner | Module |
-|---|---|---|
-| `tracking-outbox-runtime-evidence` | TRACKING_SERVICE_OWNER | Runtime Kafka/PostgreSQL evidence for scoped outbox publish and blocked tracking readiness remains external/local-runtime dependent. |
-| `segment-builder-v2` | PRODUCT_MANAGER_AGENT | Split into docs/backlog descriptions; implementation remains future work requiring scoped design. |
-
-Safe-stopped module threads:
-
-| Thread | Owner | Last Work | Resume From |
-|---|---|---|---|
-| `frontend-20260520T113115Z` | FRONTEND_OWNER | Completed `campaign-budget-frequency-mode-contract`, `automation-mode-contract`, and `template-studio-mode-contract`; source validation passed and thread was safe-stopped at user request. | Resume only if a new frontend module request arrives; start by reading `.codex/checkpoints/20260520T124500Z-template-studio-mode-contract.json` and this handoff before selecting any new frontend work. |
-| `audience-service-20260520T121322Z` | AUDIENCE_SERVICE_OWNER | Completed `predictive-segments-governance` and the no-schema backend slice `contact-data-designer-preview-governance`; source validation passed and thread was safe-stopped at user request. | Resume `contact-data-designer-governance` from additive provenance/classification/audit tables, controller/API validation, frontend relationship-designer controls, or the smaller internal endpoint security-chain test slice. |
-| `foundation-service-20260520T100717Z` | FOUNDATION_SERVICE_OWNER | Completed admin settings context mismatch, config by-ID scope, differentiation upsert exact-match, public contact admin restriction, config create/upsert mismatch, tenant get self-scope, and the overall-thread foundation scoped hardening follow-ups. | Resume only for a new foundation-specific request; remaining policy/schema blockers are tenant lifecycle policy and tenant-scoped public contact inbox. |
-| `overall-20260520T133124Z` | PROGRAM_MANAGER_AGENT | Completed the ONE_OVERALL_TEAM run through `email-governance-policy-objects`; all leases released and user requested safe stop. | Resume from `.codex/checkpoints/20260520T164135Z-email-governance-policy-objects.json` and `.codex/threads/overall-20260520T133124Z-handoff.md`. Highest related candidates: `automation-send-activity-handoff` or delivery/message policy snapshot work. |
-| `overall-20260520T181712Z` | PROGRAM_MANAGER_AGENT | Completed local tracking ingestion batch-consumer hardening and safe-stopped with the work item blocked on Docker/PostgreSQL and ClickHouse runtime evidence. | Resume from `.codex/checkpoints/20260520T214747Z-tracking-ingestion-batch-consumer-readiness.json` and `.codex/threads/overall-20260520T181712Z-handoff.md`; do not mark DONE until ClickHouse dedupe/reconciliation evidence is collected. |
-| `overall-20260521T210913Z` | PROGRAM_MANAGER_AGENT | Completed `audience-tracking-intelligence-batch-consumer`, `ai-content-assistance-draft-application-contract`, and `latest-audit-safe-local-followups-20260522`; all local validation gates for the latest audit item passed and the work item is `DONE`. | Safe-stopped per user request. Resume only on new user direction; blocked production/high-volume/release evidence items still require external target evidence. |
-| `frontend-20260520T100638Z` | FRONTEND_OWNER | Completed `mode-aware-workflow-contract`: typed BASIC/ADVANCED mode metadata, render-time Settings navigation filtering, Admin role-gate separation, and campaign Experiment Engine render/payload gating. | Archived before `frontend-20260520T113115Z`; budget/frequency follow-up completed in `.codex/checkpoints/20260520T113830Z-campaign-budget-frequency-mode-contract.json`. |
-| `overall-24x7` | PROGRAM_MANAGER_AGENT | Completed `frequency-optimization-deterministic-policy-contract`; later stale after safe stop. | Archived and superseded by `multi-module-coordinator-20260520T113233Z`. |
-
-Coordinator cleanup:
-
-The duplicate module scouts started by `overall-24x7` for deliverability, content, audience, automation, tracking, and `frontend-20260520T100626Z` were closed or paused after detecting active frontend/foundation module threads. This prevents duplicate module work and shared path overlap.
-
-Source of truth:
-- Live thread/team state: `.codex/threads/thread-registry.json`
-- Live assignments: `.codex/state/team-state.json`
-- Work queue and history: `.codex/backlog/queue.json`
-- Detailed activity trail: `.codex/audit/events/YYYY-MM-DD.jsonl`
-- Session checkpoints: `.codex/checkpoints/*.json`
-- Narrative evidence: `.codex/reports/`
+- Active implementation work: none.
+- Active subagents: none.
+- Active leases/worktrees: none.
+- Queue state: READY 15, BACKLOG 20, BLOCKED 16, DONE 172.
+- Current source of truth: .codex/backlog/queue.json.
+- Current readiness report: .codex/reports/100-percent-readiness-backlog-2026-05-23.md.
 
 ## Next Action
 
-No unblocked local queue items remain after completing `deliverability-safety-validation-map`. Remaining 100% production readiness still depends on external release, provider, runtime, and policy evidence; do not claim production readiness from local gates alone.
+Select the highest-score READY item with compatible ownership and validation, or collect external evidence for BLOCKED release, provider, high-volume, tracking runtime, and policy items.
 
-Foundation module status:
-- `foundation-service-20260520T100717Z` completed `admin-settings-context-mismatch-fail-closed`; focused and full foundation tests passed.
-- `foundation-service-20260520T100717Z` completed `config-by-id-tenant-scope`; focused `ConfigServiceTest`, full foundation-service tests, and touched-file diff check passed.
-- `foundation-service-20260520T100717Z` completed `differentiation-upsert-workspace-exact-match`; focused `DifferentiationPlatformServiceTest`, full foundation-service tests, and touched-file diff check passed.
-- `foundation-service-20260520T100717Z` completed `public-contact-admin-platform-admin-only`; focused contact tests, full foundation-service tests, and touched-file diff check passed.
-- `foundation-service-20260520T100717Z` completed `config-create-upsert-context-mismatch-fail-closed`; focused `ConfigServiceTest`, full foundation-service tests, and touched-file diff check passed.
-- `foundation-service-20260520T100717Z` completed `tenant-get-self-scope`; focused `TenantServiceTest`, full foundation-service tests, and touched-file diff check passed.
-- Safe stop requested by user after foundation reassessment completed. Resume from `.codex/checkpoints/20260520T131300Z-foundation-service-safe-stop.json` and `.codex/threads/foundation-service-20260520T100717Z-handoff.md`.
-- Remaining foundation blockers: tenant lifecycle list/get-by-slug/mutation controls need a platform-admin versus self-tenant policy decision; tenant/workspace public contact inbox needs product/schema design. Config version-history scoping is fixed locally.
-- Compliance privacy-request workspace scoping, nullable permission-list JSON defaulting, differentiation evaluate exact workspace matching, core-platform workspace consistency/access-grant guards, permission-group tenant mismatch guard, and role/access read scoping are fixed locally.
+## History Location
 
-Audience module status:
-- `audience-service-20260520T121322Z` completed `predictive-segments-governance`; focused predictive tests, full audience-service tests, Codex validation, repo artifact hygiene, and scoped diff check passed.
-- `audience-service-20260520T121322Z` completed `contact-data-designer-preview-governance`; focused data-extension/segment tests, full audience-service tests, Codex validation, repo artifact hygiene, and scoped diff check passed.
-- Safe stop requested by user after completion. Resume from `.codex/checkpoints/20260520T125000Z-contact-data-designer-preview-governance.json` and `.codex/threads/audience-service-20260520T121322Z-handoff.md`.
-
-## Memory Budget Rule
-
-Keep this file short. Do not paste completed-work history or command logs here. Store durable completions in `.codex/backlog/queue.json`, reports, and the owning memory file.
+Completed module/thread narratives were removed from this active memory file. Use .codex/backlog/queue.json doneWork, .codex/checkpoints, .codex/threads/*-handoff.md, and .codex/audit/events/ for detailed history.

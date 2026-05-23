@@ -1,47 +1,46 @@
 {
-    "id":  "automation-activity-security-design",
-    "createdAt":  "2026-05-20T14:30:29.5845557Z",
-    "objective":  "Define Automation Studio activity security contract",
-    "status":  "COMPLETED",
-    "owner":  "SECURITY_ENGINEER",
-    "filesInScope":  [
-                         "docs/product/automation-studio-activity-orchestration-plan.md",
-                         "docs/product/automation-studio-activity-security-contract.md",
-                         ".codex/backlog/queue.json",
-                         ".codex/state/team-state.json",
-                         ".codex/memory/active-work-items.md",
-                         ".codex/memory/security-findings.md",
-                         ".codex/memory/technical-debt.md",
-                         ".codex/memory/enhancement-log.md",
-                         ".codex/checkpoints/**",
-                         ".codex/audit/**",
-                         ".codex/dashboards/**"
-                     ],
-    "agents":  [
-                   "AUTOMATION_SERVICE_OWNER",
-                   "PLATFORM_SERVICE_OWNER",
-                   "TEST_ARCHITECT"
-               ],
-    "validationPlan":  [
-                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
-                           "git diff --check"
-                       ],
-    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
-    "blockers":  [
-
-                 ],
-    "nextAction":  "Promote automation-activity-dependency-run-contract.",
-    "completedAt":  "2026-05-20T14:33:37.8966540Z",
-    "outcome":  "Completed Automation Studio activity security contract covering sensitive-data redaction, scoped artifact ownership, public-edge route controls, webhook guardrails, blocked script execution, governed send handoff, dependency/run-history requirements, and focused test matrix.",
-    "validationRun":  [
-                          "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                          "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
-                          "PASS: git diff --check (CRLF warnings only)"
-                      ],
-    "residualRisks":  [
-                          "Implementation is not yet added; sanitizer and redaction tests are required in follow-up slices.",
-                          "File/import work still needs scoped artifact IDs before file-transfer parity claims.",
-                          "Workflow fan-out still needs outbox or after-commit hardening before broader side-effect expansion."
-                      ]
+  "id": "automation-activity-security-design",
+  "createdAt": "2026-05-20T14:30:29.5845557Z",
+  "objective": "Define Automation Studio activity security contract",
+  "status": "DONE",
+  "owner": "SECURITY_ENGINEER",
+  "filesInScope": [
+    "docs/product/automation-studio-activity-orchestration-plan.md",
+    "docs/product/automation-studio-activity-security-contract.md",
+    ".codex/backlog/queue.json",
+    ".codex/state/team-state.json",
+    ".codex/memory/active-work-items.md",
+    ".codex/memory/security-findings.md",
+    ".codex/memory/technical-debt.md",
+    ".codex/memory/enhancement-log.md",
+    ".codex/checkpoints/**",
+    ".codex/audit/**",
+    ".codex/dashboards/**"
+  ],
+  "agents": [
+    "AUTOMATION_SERVICE_OWNER",
+    "PLATFORM_SERVICE_OWNER",
+    "TEST_ARCHITECT"
+  ],
+  "validationPlan": [
+    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+    "git diff --check"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Promote automation-activity-dependency-run-contract.",
+  "completedAt": "2026-05-20T14:33:37.8966540Z",
+  "outcome": "Completed Automation Studio activity security contract covering sensitive-data redaction, scoped artifact ownership, public-edge route controls, webhook guardrails, blocked script execution, governed send handoff, dependency/run-history requirements, and focused test matrix.",
+  "validationRun": [
+    "PASS: powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+    "PASS: powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+    "PASS: git diff --check (CRLF warnings only)"
+  ],
+  "residualRisks": [
+    "Implementation is not yet added; sanitizer and redaction tests are required in follow-up slices.",
+    "File/import work still needs scoped artifact IDs before file-transfer parity claims.",
+    "Workflow fan-out still needs outbox or after-commit hardening before broader side-effect expansion."
+  ],
+  "lastUpdated": "2026-05-23T13:53:26.692Z"
 }

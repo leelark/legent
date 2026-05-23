@@ -1,30 +1,29 @@
 {
-    "id":  "foundation-performance-ledger-workspace-fail-closed",
-    "createdAt":  "2026-05-22T21:14:25.4058860Z",
-    "objective":  "Fail closed performance ledger workspace reads",
-    "status":  "IN_PROGRESS",
-    "owner":  "FOUNDATION_SERVICE_OWNER",
-    "filesInScope":  [
-                         "services/foundation-service/src/main/java/com/legent/foundation/service/performance/PerformanceLedgerSupport.java",
-                         "services/foundation-service/src/test/java/com/legent/foundation/service/OptimizationPerformanceServiceTest.java",
-                         "services/foundation-service/src/test/java/com/legent/foundation/service/ExtensionGovernancePerformanceServiceTest.java",
-                         "services/foundation-service/src/test/java/com/legent/foundation/service/PersonalizationPerformanceServiceTest.java",
-                         "services/foundation-service/src/test/java/com/legent/foundation/service/WorkflowBenchmarkPerformanceServiceTest.java"
-                     ],
-    "agents":  [
-                   "SECURITY_ENGINEER",
-                   "TEST_ARCHITECT"
-               ],
-    "validationPlan":  [
-                           ".\\mvnw.cmd -pl services/foundation-service -Dtest=OptimizationPerformanceServiceTest",
-                           "ExtensionGovernancePerformanceServiceTest",
-                           "PersonalizationPerformanceServiceTest",
-                           "WorkflowBenchmarkPerformanceServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
-                           "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/performance/PerformanceLedgerSupport.java services/foundation-service/src/test/java/com/legent/foundation/service/OptimizationPerformanceServiceTest.java services/foundation-service/src/test/java/com/legent/foundation/service/ExtensionGovernancePerformanceServiceTest.java services/foundation-service/src/test/java/com/legent/foundation/service/PersonalizationPerformanceServiceTest.java services/foundation-service/src/test/java/com/legent/foundation/service/WorkflowBenchmarkPerformanceServiceTest.java"
-                       ],
-    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
-    "blockers":  [
-
-                 ],
-    "nextAction":  "Implement performance ledger workspace fail-closed guards and focused tests."
+  "id": "foundation-performance-ledger-workspace-fail-closed",
+  "createdAt": "2026-05-22T21:14:25.4058860Z",
+  "objective": "Fail closed performance ledger workspace reads",
+  "status": "DONE",
+  "owner": "FOUNDATION_SERVICE_OWNER",
+  "filesInScope": [
+    "services/foundation-service/src/main/java/com/legent/foundation/service/performance/PerformanceLedgerSupport.java",
+    "services/foundation-service/src/test/java/com/legent/foundation/service/OptimizationPerformanceServiceTest.java",
+    "services/foundation-service/src/test/java/com/legent/foundation/service/ExtensionGovernancePerformanceServiceTest.java",
+    "services/foundation-service/src/test/java/com/legent/foundation/service/PersonalizationPerformanceServiceTest.java",
+    "services/foundation-service/src/test/java/com/legent/foundation/service/WorkflowBenchmarkPerformanceServiceTest.java"
+  ],
+  "agents": [
+    "SECURITY_ENGINEER",
+    "TEST_ARCHITECT"
+  ],
+  "validationPlan": [
+    ".\\mvnw.cmd -pl services/foundation-service -Dtest=OptimizationPerformanceServiceTest",
+    "ExtensionGovernancePerformanceServiceTest",
+    "PersonalizationPerformanceServiceTest",
+    "WorkflowBenchmarkPerformanceServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+    "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/performance/PerformanceLedgerSupport.java services/foundation-service/src/test/java/com/legent/foundation/service/OptimizationPerformanceServiceTest.java services/foundation-service/src/test/java/com/legent/foundation/service/ExtensionGovernancePerformanceServiceTest.java services/foundation-service/src/test/java/com/legent/foundation/service/PersonalizationPerformanceServiceTest.java services/foundation-service/src/test/java/com/legent/foundation/service/WorkflowBenchmarkPerformanceServiceTest.java"
+  ],
+  "rollbackNotes": "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+  "blockers": [],
+  "nextAction": "Implement performance ledger workspace fail-closed guards and focused tests.",
+  "lastUpdated": "2026-05-23T13:53:26.772Z"
 }
