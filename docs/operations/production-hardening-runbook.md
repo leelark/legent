@@ -2,6 +2,18 @@
 
 Public multi-tenant operation requires target-environment evidence before production promotion. Use this runbook for local alert-response references and keep incident evidence in dated reports or external incident systems.
 
+## Local Monitoring Handoff Validation
+
+Local validation checks that each Prometheus alert has a severity, team owner, Alertmanager team route, runbook anchor, and Grafana dashboard panel reference. This is manifest hygiene only; it does not prove that target alerts fired, Alertmanager delivered notifications, Grafana loaded live data, or production monitoring handoff is complete.
+
+Run:
+- `powershell -ExecutionPolicy Bypass -File scripts\ops\validate-production-overlay.ps1`
+
+Expected local artifacts:
+- Alert rules: `infrastructure/kubernetes/observability/prometheus-alerts.yml`
+- Alert routing: `infrastructure/kubernetes/observability/alertmanager.yml`
+- Dashboard: `infrastructure/kubernetes/observability/grafana-legent-overview.json`
+
 ## Service Errors
 
 Alert: `LegentServiceHighErrorRate`
@@ -88,3 +100,26 @@ Recovery:
 - Restart or roll back the collector only after capturing the failing configuration and pod events.
 - If trace loss spans an incident window, mark the evidence gap in the incident report and rely on logs/metrics for reconstruction.
 - Do not claim monitoring handoff evidence until trace export and alert routing are verified in the target environment.
+
+## Outbox Backlog
+
+Alerts: `LegentOutboxReadyDepthHigh`, `LegentOutboxReadyDepthCritical`, `LegentOutboxOldestReadyAgeHigh`, `LegentOutboxOldestReadyAgeCritical`
+
+Metrics:
+- `legent_outbox_ready_depth{queue="tracking"}` and `legent_outbox_ready_depth{queue="delivery_feedback"}` report ready events waiting for Kafka publication.
+- `legent_outbox_oldest_ready_age_seconds{queue="tracking"}` and `legent_outbox_oldest_ready_age_seconds{queue="delivery_feedback"}` report the age of the oldest ready event.
+- These metrics intentionally expose only the low-cardinality `queue` label. Do not add tenant, workspace, email, subscriber, message, campaign, or domain labels.
+
+Triage:
+- Identify whether the `queue` label is `tracking` or `delivery_feedback`, then compare ready depth with oldest-ready age to distinguish a short spike from a stuck publisher.
+- Check service pod health, scheduler execution, publish error logs, Kafka broker availability, producer errors, and Kafka topic authorization.
+- Compare backlog growth with Kafka consumer lag, database latency, executor saturation, ClickHouse pressure for tracking, and delivery provider feedback volume.
+- Sample database rows by status and next-attempt time using tenant-safe operational access. Do not export recipient emails, payload JSON, or customer data into incident notes.
+- If events remain in `PUBLISHING` past the publishing lease, verify whether workers are crashing mid-publish before considering a controlled retry reset.
+
+Recovery:
+- Restore Kafka connectivity, topic permissions, or the affected service deployment before manually changing outbox rows.
+- Scale the affected service only after confirming the bottleneck is publisher capacity and downstream Kafka/database dependencies can absorb the drain rate.
+- For poison payloads or schema failures, fix the publisher or event contract first; do not drop, bulk-publish, or mark events published without product-owner and incident-commander approval.
+- Keep suppression, signed tracking, idempotency, and retry behavior intact while draining backlog.
+- Close the incident only after ready depth returns near baseline, oldest-ready age stays below the warning threshold for one full alert window, and failed/exhausted events have an owner.

@@ -37,6 +37,10 @@ public class EmailContentValidationService {
             "dir", "height", "id", "lang", "role", "rowspan", "style", "target", "title", "valign", "width");
     private static final Set<String> URL_ATTRIBUTES = Set.of("href", "src");
     private static final Set<String> BLOCKED_ATTRIBUTES = Set.of("srcset");
+    private static final List<String> REQUIRED_BLANK_TARGET_REL_TOKENS = List.of("noopener", "noreferrer");
+    private static final Set<String> SAFE_REL_TOKENS = Set.of(
+            "alternate", "author", "bookmark", "external", "help", "license", "next", "nofollow", "noopener",
+            "noreferrer", "prev", "search", "sponsored", "tag", "ugc");
     private static final Pattern LINK_PATTERN = Pattern.compile("(?is)<a\\b[^>]*>");
     private static final Pattern IMG_PATTERN = Pattern.compile("(?is)<img\\b[^>]*>");
     private static final Pattern ALT_PATTERN = Pattern.compile("(?is)\\balt\\s*=");
@@ -243,6 +247,14 @@ public class EmailContentValidationService {
     private void sanitizeAttributes(Element element) {
         for (Attribute attribute : new ArrayList<>(element.attributes().asList())) {
             String key = attribute.getKey().toLowerCase(Locale.ROOT);
+            if ("rel".equals(key)) {
+                if (opensNewBrowsingContext(element)) {
+                    element.attr(attribute.getKey(), buildSafeBlankTargetRel(attribute.getValue()));
+                } else {
+                    element.removeAttr(attribute.getKey());
+                }
+                continue;
+            }
             if (key.startsWith("on") || BLOCKED_ATTRIBUTES.contains(key) || !isAllowedAttribute(element, key)) {
                 element.removeAttr(attribute.getKey());
                 continue;
@@ -259,6 +271,9 @@ public class EmailContentValidationService {
                     element.attr(attribute.getKey(), safeStyle);
                 }
             }
+        }
+        if (opensNewBrowsingContext(element)) {
+            element.attr("rel", buildSafeBlankTargetRel(element.attr("rel")));
         }
     }
 
@@ -281,6 +296,25 @@ public class EmailContentValidationService {
             safeRules.add(rule);
         }
         return String.join("; ", safeRules);
+    }
+
+    private boolean opensNewBrowsingContext(Element element) {
+        return "a".equals(element.normalName())
+                && "_blank".equals(element.attr("target").trim().toLowerCase(Locale.ROOT));
+    }
+
+    private String buildSafeBlankTargetRel(String rel) {
+        Set<String> tokens = new LinkedHashSet<>();
+        if (rel != null) {
+            for (String rawToken : rel.split("\\s+")) {
+                String token = rawToken.trim().toLowerCase(Locale.ROOT);
+                if (SAFE_REL_TOKENS.contains(token)) {
+                    tokens.add(token);
+                }
+            }
+        }
+        tokens.addAll(REQUIRED_BLANK_TARGET_REL_TOKENS);
+        return String.join(" ", tokens);
     }
 
     private boolean containsUnsafeCss(String css) {

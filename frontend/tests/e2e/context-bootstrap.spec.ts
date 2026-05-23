@@ -1,5 +1,4 @@
-import { expect, test } from '@playwright/test';
-import type { Route } from '@playwright/test';
+import { expect, test, type Page, type Route } from '@playwright/test';
 
 function ok(data: unknown) {
   return {
@@ -15,6 +14,14 @@ async function fulfill(route: Route, data: unknown) {
     contentType: 'application/json',
     body: JSON.stringify(data),
   });
+}
+
+async function readStoredContext(page: Page) {
+  return page.evaluate(() => ({
+    tenantId: localStorage.getItem('legent_tenant_id'),
+    workspaceId: localStorage.getItem('legent_workspace_id'),
+    environmentId: localStorage.getItem('legent_environment_id'),
+  }));
 }
 
 test('login bootstraps workspace context and opens app route', async ({ page }) => {
@@ -36,6 +43,148 @@ test('login bootstraps workspace context and opens app route', async ({ page }) 
   await expect(page.getByRole('heading', { name: 'Email Studio', level: 1 })).toBeVisible({ timeout: 45000 });
   await expect(page.getByRole('navigation')).toBeVisible();
   await expect(page.getByText('Workspace required')).toHaveCount(0);
+});
+
+test('workspace bootstrap switches to exact preferred environment context', async ({ page }) => {
+  const contextSwitches: unknown[] = [];
+
+  await page.addInitScript(() => {
+    localStorage.setItem('legent_user_id', 'context-user');
+    localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
+    localStorage.setItem('legent_tenant_id', 'tenant-1');
+    localStorage.setItem('legent_workspace_id', 'workspace-1');
+    localStorage.setItem('legent_environment_id', 'local');
+  });
+
+  await page.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace('/api/v1', '');
+
+    if (path === '/auth/session') {
+      return fulfill(route, ok({
+        status: 'success',
+        userId: 'context-user',
+        tenantId: 'tenant-1',
+        workspaceId: 'workspace-1',
+        environmentId: 'production',
+        roles: ['ADMIN'],
+      }));
+    }
+
+    if (path === '/auth/contexts') {
+      return fulfill(route, ok([
+        { tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: true },
+        { tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'production' },
+        { tenantId: 'tenant-2', workspaceId: 'workspace-2', environmentId: 'production' },
+      ]));
+    }
+
+    if (path === '/auth/context/switch') {
+      contextSwitches.push(request.postDataJSON());
+      return fulfill(route, ok({ status: 'success' }));
+    }
+
+    if (path === '/users/preferences') {
+      return fulfill(route, ok({
+        tenantId: 'tenant-1',
+        userId: 'context-user',
+        theme: 'light',
+        uiMode: 'ADVANCED',
+        density: 'comfortable',
+        sidebarCollapsed: false,
+        metadata: {},
+      }));
+    }
+
+    return fulfill(route, ok([]));
+  });
+
+  await page.goto('/app/email');
+
+  await expect(page.getByRole('heading', { name: 'Email Studio', level: 1 })).toBeVisible({ timeout: 15000 });
+  await expect.poll(async () => contextSwitches.length).toBe(1);
+  expect(contextSwitches[0]).toEqual({
+    tenantId: 'tenant-1',
+    workspaceId: 'workspace-1',
+    environmentId: 'production',
+  });
+  await expect.poll(async () => readStoredContext(page)).toEqual({
+    tenantId: 'tenant-1',
+    workspaceId: 'workspace-1',
+    environmentId: 'production',
+  });
+});
+
+test('workspace bootstrap falls back within tenant and workspace when preferred environment is unavailable', async ({ page }) => {
+  const contextSwitches: unknown[] = [];
+
+  await page.addInitScript(() => {
+    localStorage.setItem('legent_user_id', 'context-user');
+    localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
+    localStorage.setItem('legent_tenant_id', 'tenant-1');
+    localStorage.setItem('legent_workspace_id', 'workspace-1');
+    localStorage.setItem('legent_environment_id', 'stale-env');
+  });
+
+  await page.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace('/api/v1', '');
+
+    if (path === '/auth/session') {
+      return fulfill(route, ok({
+        status: 'success',
+        userId: 'context-user',
+        tenantId: 'tenant-1',
+        workspaceId: 'workspace-1',
+        environmentId: 'production',
+        roles: ['ADMIN'],
+      }));
+    }
+
+    if (path === '/auth/contexts') {
+      return fulfill(route, ok([
+        { tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local' },
+        { tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'staging' },
+        { tenantId: 'tenant-1', workspaceId: 'workspace-2', environmentId: 'production', default: true },
+      ]));
+    }
+
+    if (path === '/auth/context/switch') {
+      contextSwitches.push(request.postDataJSON());
+      return fulfill(route, ok({ status: 'success' }));
+    }
+
+    if (path === '/users/preferences') {
+      return fulfill(route, ok({
+        tenantId: 'tenant-1',
+        userId: 'context-user',
+        theme: 'light',
+        uiMode: 'ADVANCED',
+        density: 'comfortable',
+        sidebarCollapsed: false,
+        metadata: {},
+      }));
+    }
+
+    return fulfill(route, ok([]));
+  });
+
+  await page.goto('/app/email');
+
+  await expect(page.getByRole('heading', { name: 'Email Studio', level: 1 })).toBeVisible({ timeout: 15000 });
+  await expect.poll(async () => contextSwitches.length).toBe(1);
+  expect(contextSwitches[0]).toEqual({
+    tenantId: 'tenant-1',
+    workspaceId: 'workspace-1',
+    environmentId: 'local',
+  });
+  await expect.poll(async () => readStoredContext(page)).toEqual({
+    tenantId: 'tenant-1',
+    workspaceId: 'workspace-1',
+    environmentId: 'local',
+  });
 });
 
 test('workspace route fails closed when session lacks workspace context', async ({ page }) => {

@@ -77,8 +77,8 @@ public class PublicContentService {
 
     @Transactional(readOnly = true)
     public List<PublicContentDto.Response> listAdminContent() {
-        String tenantId = normalize(TenantContext.getTenantId());
-        String workspaceId = normalize(TenantContext.getWorkspaceId());
+        String tenantId = requireAdminTenantId();
+        String workspaceId = requireAdminWorkspaceId();
         List<PublicContent> records = publicContentRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(tenantId, workspaceId);
         List<PublicContentDto.Response> response = new ArrayList<>();
         for (PublicContent record : records) {
@@ -89,8 +89,8 @@ public class PublicContentService {
 
     @Transactional
     public PublicContentDto.Response upsert(PublicContentDto.UpsertRequest request, String id) {
-        String tenantId = normalize(TenantContext.getTenantId());
-        String workspaceId = normalize(TenantContext.getWorkspaceId());
+        String tenantId = requireAdminTenantId();
+        String workspaceId = requireAdminWorkspaceId();
         String type = normalizeUpper(request.getContentType());
         String pageKey = normalize(request.getPageKey());
         String slug = normalize(request.getSlug());
@@ -126,8 +126,8 @@ public class PublicContentService {
 
     @Transactional
     public PublicContentDto.Response publish(String id, boolean published) {
-        String tenantId = normalize(TenantContext.getTenantId());
-        String workspaceId = normalize(TenantContext.getWorkspaceId());
+        String tenantId = requireAdminTenantId();
+        String workspaceId = requireAdminWorkspaceId();
         PublicContent record = publicContentRepository.findByIdAndTenantIdAndWorkspaceId(id, tenantId, workspaceId)
                 .orElseThrow(() -> new IllegalArgumentException("Public content not found"));
         record.setStatus(published ? "PUBLISHED" : "DRAFT");
@@ -202,5 +202,13 @@ public class PublicContentService {
     private String normalizeUpper(String value) {
         String normalized = normalize(value);
         return normalized == null ? null : normalized.toUpperCase(Locale.ROOT);
+    }
+
+    private String requireAdminTenantId() {
+        return normalize(TenantContext.requireTenantId());
+    }
+
+    private String requireAdminWorkspaceId() {
+        return normalize(TenantContext.requireWorkspaceId());
     }
 }

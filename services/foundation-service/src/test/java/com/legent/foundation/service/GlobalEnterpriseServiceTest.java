@@ -8,6 +8,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -21,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings("unchecked")
@@ -43,6 +45,63 @@ class GlobalEnterpriseServiceTest {
     @AfterEach
     void tearDown() {
         TenantContext.clear();
+    }
+
+    @Test
+    void listOperatingModels_failsClosedWhenWorkspaceContextMissing() {
+        TenantContext.setWorkspaceId(null);
+
+        assertThatThrownBy(() -> service.listOperatingModels(null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void upsertOperatingModel_rejectsRequestWorkspaceMismatchBeforeRepositoryAccess() {
+        GlobalEnterpriseDto.OperatingModelRequest request = operatingModelRequest();
+        request.setWorkspaceId("workspace-2");
+
+        assertThatThrownBy(() -> service.upsertOperatingModel(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId does not match the current workspace");
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void upsertOperatingModel_usesExactWorkspacePredicate() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
+                .thenReturn(List.<Map<String, Object>>of());
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList()))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+
+        Map<String, Object> saved = service.upsertOperatingModel(operatingModelRequest());
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertThat(sqlCaptor.getValue())
+                .contains("workspace_id = :workspaceId")
+                .doesNotContain("COALESCE(workspace_id")
+                .doesNotContain(":workspaceId IS NULL");
+        assertThat(paramsCaptor.getValue()).containsEntry("workspaceId", "workspace-1");
+        assertThat(saved).containsEntry("workspace_id", "workspace-1");
+    }
+
+    @Test
+    void listFailoverDrills_usesExactWorkspacePredicate() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any()))
+                .thenReturn(List.<Map<String, Object>>of());
+
+        service.listFailoverDrills(null, 100);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertThat(sqlCaptor.getValue())
+                .contains("workspace_id = :workspaceId")
+                .doesNotContain(":workspaceId IS NULL");
+        assertThat(paramsCaptor.getValue()).containsEntry("workspaceId", "workspace-1");
     }
 
     @Test
@@ -150,18 +209,32 @@ class GlobalEnterpriseServiceTest {
     }
 
     @Test
+    void upsertConnectorTemplate_remainsTenantLevelWithoutWorkspaceContext() {
+        TenantContext.setWorkspaceId(null);
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.<Map<String, Object>>of());
+        when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
+
+        GlobalEnterpriseDto.ConnectorTemplateRequest request = connectorTemplateRequest();
+
+        Map<String, Object> saved = service.upsertConnectorTemplate(request);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(repository).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertThat(sqlCaptor.getValue())
+                .contains("WHERE tenant_id = :tenantId")
+                .doesNotContain("workspace_id")
+                .doesNotContain(":workspaceId");
+        assertThat(paramsCaptor.getValue()).containsEntry("tenantId", "tenant-1");
+        assertThat(saved).containsEntry("workspace_id", null);
+    }
+
+    @Test
     void upsertConnectorTemplate_allowsMarketplaceTemplateTableAndConnectorKey() {
         when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.<Map<String, Object>>of());
         when(repository.insert(anyString(), ArgumentMatchers.<Map<String, Object>>any(), anyList())).thenAnswer(invocation -> invocation.getArgument(1));
 
-        GlobalEnterpriseDto.ConnectorTemplateRequest request = new GlobalEnterpriseDto.ConnectorTemplateRequest();
-        request.setConnectorKey("salesforce-crm");
-        request.setCategory("CRM");
-        request.setDisplayName("Salesforce CRM");
-        request.setVendor("Salesforce");
-        request.setAuthModes(List.of("OAUTH2"));
-        request.setSupportedEvents(List.of("contact.updated"));
-        request.setCapabilities(Map.of("objects", List.of("Contact")));
+        GlobalEnterpriseDto.ConnectorTemplateRequest request = connectorTemplateRequest();
 
         Map<String, Object> saved = service.upsertConnectorTemplate(request);
 
@@ -287,6 +360,28 @@ class GlobalEnterpriseServiceTest {
 
         assertThat(rollback.get("status")).isEqualTo("COMPLETED");
         assertThat((String) rollback.get("rollback_snapshot")).contains("Old subject");
+    }
+
+    private GlobalEnterpriseDto.OperatingModelRequest operatingModelRequest() {
+        GlobalEnterpriseDto.OperatingModelRequest request = new GlobalEnterpriseDto.OperatingModelRequest();
+        request.setModelKey("global-email");
+        request.setName("Global email operating model");
+        request.setTopologyMode("ACTIVE_WARM");
+        request.setPrimaryRegion("us-east-1");
+        request.setStandbyRegions(List.of("eu-west-1"));
+        return request;
+    }
+
+    private GlobalEnterpriseDto.ConnectorTemplateRequest connectorTemplateRequest() {
+        GlobalEnterpriseDto.ConnectorTemplateRequest request = new GlobalEnterpriseDto.ConnectorTemplateRequest();
+        request.setConnectorKey("salesforce-crm");
+        request.setCategory("CRM");
+        request.setDisplayName("Salesforce CRM");
+        request.setVendor("Salesforce");
+        request.setAuthModes(List.of("OAUTH2"));
+        request.setSupportedEvents(List.of("contact.updated"));
+        request.setCapabilities(Map.of("objects", List.of("Contact")));
+        return request;
     }
 
     private GlobalEnterpriseDto.ConnectorInstanceRequest connectorInstanceRequest() {

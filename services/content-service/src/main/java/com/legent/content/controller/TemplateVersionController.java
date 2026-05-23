@@ -50,9 +50,11 @@ public class TemplateVersionController {
 
     @GetMapping
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
-    public ApiResponse<List<TemplateVersionDto.Response>> listVersions(@PathVariable String templateId) {
+    public ApiResponse<List<TemplateVersionDto.Response>> listVersions(
+            @PathVariable String templateId,
+            @RequestParam(required = false) Integer limit) {
         TenantContext.requireWorkspaceId();
-        List<TemplateVersion> versions = versionService.listVersions(templateId);
+        List<TemplateVersion> versions = versionService.listVersions(templateId, limit);
         return ApiResponse.ok(versions.stream().map(this::mapToResponse).toList());
     }
 

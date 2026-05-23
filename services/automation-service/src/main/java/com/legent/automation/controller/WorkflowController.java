@@ -146,8 +146,10 @@ public class WorkflowController {
 
     @GetMapping("/{id}/runs")
     @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
-    public ApiResponse<List<WorkflowInstance>> listWorkflowRuns(@PathVariable String id) {
-        return ApiResponse.ok(workflowStudioService.listRuns(id));
+    public ApiResponse<List<WorkflowInstance>> listWorkflowRuns(@PathVariable String id,
+                                                                @RequestParam(required = false) Integer page,
+                                                                @RequestParam(required = false) Integer limit) {
+        return ApiResponse.ok(workflowStudioService.listRuns(id, page, limit));
     }
 
     @GetMapping("/runs/{runId}")
@@ -158,14 +160,16 @@ public class WorkflowController {
 
     @GetMapping("/runs/{runId}/steps")
     @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
-    public ApiResponse<List<InstanceHistory>> getRunSteps(@PathVariable String runId) {
-        return ApiResponse.ok(workflowStudioService.getRunSteps(runId));
+    public ApiResponse<List<InstanceHistory>> getRunSteps(@PathVariable String runId,
+                                                          @RequestParam(required = false) Integer limit) {
+        return ApiResponse.ok(workflowStudioService.getRunSteps(runId, limit));
     }
 
     @GetMapping("/runs/{runId}/trace")
     @PreAuthorize("@rbacEvaluator.hasPermission('workflow:read', principal.roles)")
-    public ApiResponse<Map<String, Object>> getRunTrace(@PathVariable String runId) {
-        return ApiResponse.ok(workflowStudioService.getRunTrace(runId));
+    public ApiResponse<Map<String, Object>> getRunTrace(@PathVariable String runId,
+                                                        @RequestParam(required = false) Integer limit) {
+        return ApiResponse.ok(workflowStudioService.getRunTrace(runId, limit));
     }
 
     @PostMapping("/{id}/simulate")

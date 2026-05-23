@@ -1,0 +1,25 @@
+{
+    "id":  "foundation-compliance-evidence-workspace-fail-closed",
+    "createdAt":  "2026-05-22T20:30:56.8658008Z",
+    "objective":  "Require trusted workspace context for compliance evidence create/list/export/consent/audit paths before repository access.",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/ComplianceEvidenceService.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/ComplianceController.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/ComplianceEvidenceServiceTest.java"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -Dtest=ComplianceEvidenceServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check for leased foundation compliance files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Pool item complete; continue coordinated backlog scan.",
+    "completedAt":  "2026-05-22T20:54:24.3575814Z"
+}

@@ -10,6 +10,7 @@ import com.legent.content.repository.EmailTemplateRepository;
 import com.legent.content.repository.TemplateVersionRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,9 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class TemplateVersionService {
+
+    private static final int DEFAULT_VERSION_READ_LIMIT = 50;
+    private static final int MAX_VERSION_READ_LIMIT = 200;
 
     private final EmailTemplateRepository templateRepository;
     private final TemplateVersionRepository versionRepository;
@@ -56,6 +60,11 @@ public class TemplateVersionService {
     public TemplateVersion publishVersion(String templateId, Integer versionNumber) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
+        return publishVersion(tenantId, workspaceId, templateId, versionNumber);
+    }
+
+    @Transactional
+    public TemplateVersion publishVersion(String tenantId, String workspaceId, String templateId, Integer versionNumber) {
         EmailTemplate template = templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
 
@@ -68,14 +77,11 @@ public class TemplateVersionService {
     }
 
     private TemplateVersion publishTemplateVersion(EmailTemplate template, TemplateVersion version, String tenantId, String workspaceId) {
-        List<TemplateVersion> allVersions = versionRepository.findByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(template.getId(), tenantId, workspaceId);
-        for (TemplateVersion current : allVersions) {
-            boolean shouldBePublished = Objects.equals(current.getVersionNumber(), version.getVersionNumber());
-            if (!Objects.equals(current.getIsPublished(), shouldBePublished)) {
-                current.setIsPublished(shouldBePublished);
-                versionRepository.save(current);
-            }
-        }
+        versionRepository.clearPublishedVersionsExcept(
+                template.getId(),
+                tenantId,
+                workspaceId,
+                version.getVersionNumber());
 
         template.setSubject(version.getSubject());
         template.setHtmlContent(version.getHtmlContent());
@@ -85,6 +91,7 @@ public class TemplateVersionService {
 
         eventPublisher.publishTemplatePublished(
                 template.getTenantId(),
+                workspaceId,
                 template.getId(),
                 template.getName(),
                 String.valueOf(version.getVersionNumber())
@@ -110,11 +117,20 @@ public class TemplateVersionService {
 
     @Transactional(readOnly = true)
     public List<TemplateVersion> listVersions(String templateId) {
+        return listVersions(templateId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateVersion> listVersions(String templateId, Integer limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
         templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template not found"));
-        return versionRepository.findByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(templateId, tenantId, workspaceId);
+        return versionRepository.findByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(
+                templateId,
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, boundedVersionReadLimit(limit)));
     }
 
     @Transactional
@@ -174,6 +190,13 @@ public class TemplateVersionService {
         return versionRepository.findFirstByTemplate_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(templateId, tenantId, workspaceId)
                 .map(TemplateVersion::getVersionNumber)
                 .orElse(0) + 1;
+    }
+
+    private int boundedVersionReadLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_VERSION_READ_LIMIT;
+        }
+        return Math.min(limit, MAX_VERSION_READ_LIMIT);
     }
 
     private Integer lengthOf(String value) {

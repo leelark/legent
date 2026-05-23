@@ -18,6 +18,7 @@ import com.legent.campaign.repository.SendBatchRecipientRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -29,6 +30,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class BatchingService {
+
+    private static final int BATCH_REQUEUE_PAGE_SIZE = 500;
 
     private final SendBatchRepository batchRepository;
     private final SendBatchRecipientRepository batchRecipientRepository;
@@ -120,20 +123,34 @@ public class BatchingService {
     }
 
     private void requeueExistingBatches(String tenantId, SendJob job) {
-        List<String> batchIds = batchRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
-                        tenantId,
-                        job.getWorkspaceId(),
-                        job.getId()).stream()
-                .filter(batch -> batch.getStatus() == SendBatch.BatchStatus.PENDING
-                        || batch.getStatus() == SendBatch.BatchStatus.PARTIAL)
-                .map(SendBatch::getId)
-                .toList();
-        if (batchIds.isEmpty()) {
+        List<SendBatch.BatchStatus> requeueStatuses = List.of(
+                SendBatch.BatchStatus.PENDING,
+                SendBatch.BatchStatus.PARTIAL);
+        int requeued = 0;
+        String afterBatchId = null;
+        while (true) {
+            List<String> batchIds = batchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                    tenantId,
+                    job.getWorkspaceId(),
+                    job.getId(),
+                    requeueStatuses,
+                    afterBatchId,
+                    PageRequest.of(0, BATCH_REQUEUE_PAGE_SIZE));
+            if (batchIds.isEmpty()) {
+                break;
+            }
+            requeued += batchIds.size();
+            publishBatchEventsAfterCommit(tenantId, job.getId(), batchIds);
+            afterBatchId = batchIds.get(batchIds.size() - 1);
+            if (batchIds.size() < BATCH_REQUEUE_PAGE_SIZE) {
+                break;
+            }
+        }
+        if (requeued == 0) {
             log.warn("No unfinished batches found to requeue for job {} in state {}", job.getId(), job.getStatus());
             return;
         }
-        log.info("Requeueing {} unfinished batches for already batched job {}", batchIds.size(), job.getId());
-        publishBatchEventsAfterCommit(tenantId, job.getId(), batchIds);
+        log.info("Requeueing {} unfinished batches for already batched job {}", requeued, job.getId());
     }
 
     private String extractDomain(String email) {

@@ -1,0 +1,29 @@
+{
+    "id":  "foundation-admin-settings-list-query-bound",
+    "createdAt":  "2026-05-22T18:12:30.9093134Z",
+    "objective":  "Bound admin settings list query",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/AdminSettingsController.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/AdminConfigController.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service \"-Dtest=AdminSettingsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/foundation-service -am test",
+                           "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/AdminSettingsService.java services/foundation-service/src/main/java/com/legent/foundation/controller/AdminSettingsController.java services/foundation-service/src/main/java/com/legent/foundation/controller/AdminConfigController.java services/foundation-service/src/main/java/com/legent/foundation/repository/ConfigRepository.java services/foundation-service/src/test/java/com/legent/foundation/service/AdminSettingsServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated backend validation; continue backlog scan."
+}

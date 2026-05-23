@@ -25,6 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -125,17 +126,15 @@ class BatchingServiceTest {
         job.setStatus(SendJob.JobStatus.SENDING);
         job.setWorkspaceId("workspace-test");
 
-        SendBatch pending = new SendBatch();
-        pending.setId("batch-1");
-        pending.setStatus(SendBatch.BatchStatus.PENDING);
-        SendBatch completed = new SendBatch();
-        completed.setId("batch-2");
-        completed.setStatus(SendBatch.BatchStatus.COMPLETED);
-
         when(jobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-test", "job-1"))
                 .thenReturn(Optional.of(job));
-        when(batchRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
-                "tenant-1", "workspace-test", "job-1")).thenReturn(List.of(pending, completed));
+        when(batchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq("tenant-1"),
+                eq("workspace-test"),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.PENDING, SendBatch.BatchStatus.PARTIAL)),
+                isNull(),
+                any(Pageable.class))).thenReturn(List.of("batch-1"));
 
         batchingService.processResolvedAudienceChunk(
                 "tenant-1",
@@ -144,8 +143,17 @@ class BatchingServiceTest {
                 List.of(Map.of("email", "one@example.com")),
                 true);
 
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(batchRepository).findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq("tenant-1"),
+                eq("workspace-test"),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.PENDING, SendBatch.BatchStatus.PARTIAL)),
+                isNull(),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(500);
         verify(eventPublisher).publishBatchCreated("tenant-1", "job-1", "batch-1");
-        verify(eventPublisher, never()).publishBatchCreated("tenant-1", "job-1", "batch-2");
+        verify(batchRepository, never()).findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(anyString(), anyString(), anyString());
         verify(batchRepository, never()).save(any());
     }
 

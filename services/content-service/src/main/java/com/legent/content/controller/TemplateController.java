@@ -102,11 +102,13 @@ public class TemplateController {
             @RequestParam(defaultValue = "20") int size) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        Page<EmailTemplate> templates = templateService.listTemplates(tenantId, workspaceId, PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
+        int boundedPage = boundedPage(page);
+        int boundedSize = boundedSize(size);
+        Page<EmailTemplate> templates = templateService.listTemplates(tenantId, workspaceId, PageRequest.of(boundedPage, boundedSize));
         return PagedResponse.of(
                 templates.getContent().stream().map(this::mapToResponse).toList(),
-                page,
-                size,
+                boundedPage,
+                boundedSize,
                 templates.getTotalElements(),
                 templates.getTotalPages()
         );
@@ -183,6 +185,17 @@ public class TemplateController {
                 "status", "queued",
                 "message", "Test email queued for delivery"
         ));
+    }
+
+    private int boundedPage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int boundedSize(int size) {
+        if (size < 1) {
+            return AppConstants.DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(size, AppConstants.MAX_PAGE_SIZE);
     }
 
     private TemplateDto.Response mapToResponse(EmailTemplate template) {

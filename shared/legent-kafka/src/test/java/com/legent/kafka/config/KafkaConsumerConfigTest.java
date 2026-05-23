@@ -16,6 +16,7 @@ import java.util.Map;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 
 class KafkaConsumerConfigTest {
@@ -25,7 +26,7 @@ class KafkaConsumerConfigTest {
         KafkaConsumerConfig config = new KafkaConsumerConfig();
         ReflectionTestUtils.setField(config, "bootstrapServers", "localhost:9092");
         ReflectionTestUtils.setField(config, "groupId", "test-group");
-        ReflectionTestUtils.setField(config, "trustedPackages", "java.lang,java.util,com.legent.kafka.model");
+        ReflectionTestUtils.setField(config, "trustedPackages", KafkaConsumerConfig.TRUSTED_PACKAGES_ALLOWLIST);
         ReflectionTestUtils.setField(config, "valueDefaultType", "com.legent.kafka.model.EventEnvelope");
         ReflectionTestUtils.setField(config, "useTypeInfoHeaders", false);
 
@@ -34,7 +35,7 @@ class KafkaConsumerConfigTest {
         Map<String, Object> props = factory.getConfigurationProperties();
 
         assertEquals("localhost:9092", props.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-        assertEquals("java.lang,java.util,com.legent.kafka.model", props.get(JsonDeserializer.TRUSTED_PACKAGES));
+        assertEquals(KafkaConsumerConfig.TRUSTED_PACKAGES_ALLOWLIST, props.get(JsonDeserializer.TRUSTED_PACKAGES));
         assertEquals("com.legent.kafka.model.EventEnvelope", props.get(JsonDeserializer.VALUE_DEFAULT_TYPE));
         assertEquals(false, props.get(JsonDeserializer.USE_TYPE_INFO_HEADERS));
         assertFalse(String.valueOf(props.get(JsonDeserializer.TRUSTED_PACKAGES)).contains("*"));
@@ -45,7 +46,7 @@ class KafkaConsumerConfigTest {
         KafkaConsumerConfig config = new KafkaConsumerConfig();
         ReflectionTestUtils.setField(config, "bootstrapServers", "localhost:9092");
         ReflectionTestUtils.setField(config, "groupId", "test-group");
-        ReflectionTestUtils.setField(config, "trustedPackages", "java.lang,java.util,com.legent.kafka.model");
+        ReflectionTestUtils.setField(config, "trustedPackages", KafkaConsumerConfig.TRUSTED_PACKAGES_ALLOWLIST);
         ReflectionTestUtils.setField(config, "valueDefaultType", "com.legent.kafka.model.EventEnvelope");
         ReflectionTestUtils.setField(config, "useTypeInfoHeaders", false);
         @SuppressWarnings("unchecked")
@@ -55,6 +56,24 @@ class KafkaConsumerConfigTest {
 
         assertNotNull(errorHandler);
         assertNotNull(config.kafkaListenerContainerFactory(errorHandler));
+    }
+
+    @Test
+    void consumerFactory_rejectsWildcardOrBroadenedTrustedPackages() {
+        for (String trustedPackages : new String[]{
+                "*",
+                "java.lang,java.util,com.legent.kafka.model,com.legent",
+                "java.lang,java.util,com.legent.kafka.*"
+        }) {
+            KafkaConsumerConfig config = new KafkaConsumerConfig();
+            ReflectionTestUtils.setField(config, "bootstrapServers", "localhost:9092");
+            ReflectionTestUtils.setField(config, "groupId", "test-group");
+            ReflectionTestUtils.setField(config, "trustedPackages", trustedPackages);
+            ReflectionTestUtils.setField(config, "valueDefaultType", "com.legent.kafka.model.EventEnvelope");
+            ReflectionTestUtils.setField(config, "useTypeInfoHeaders", false);
+
+            assertThrows(IllegalStateException.class, config::consumerFactory);
+        }
     }
 
     @Test

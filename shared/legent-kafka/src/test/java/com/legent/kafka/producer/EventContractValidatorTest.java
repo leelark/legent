@@ -273,6 +273,48 @@ class EventContractValidatorTest {
     }
 
     @Test
+    void validate_allowsContentPublishedWithWorkspaceMetadata() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_CONTENT_PUBLISHED,
+                Map.of(
+                        "workspaceId", "workspace-1",
+                        "templateId", "template-1",
+                        "templateName", "Template",
+                        "versionNumber", "2")
+        );
+
+        assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_CONTENT_PUBLISHED, envelope));
+    }
+
+    @Test
+    void validate_rejectsContentPublishedWithoutEnvelopeWorkspaceMetadata() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_CONTENT_PUBLISHED,
+                Map.of(
+                        "workspaceId", "workspace-1",
+                        "templateId", "template-1",
+                        "versionNumber", "2")
+        );
+        envelope.setWorkspaceId(null);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_CONTENT_PUBLISHED, envelope));
+    }
+
+    @Test
+    void validate_rejectsContentPublishedWithoutTemplateVersionMetadata() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_CONTENT_PUBLISHED,
+                Map.of(
+                        "workspaceId", "workspace-1",
+                        "templateId", "template-1")
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_CONTENT_PUBLISHED, envelope));
+    }
+
+    @Test
     void validate_rejectsMissingRequiredPayloadKey() {
         EventEnvelope<Map<String, Object>> envelope = envelope(
                 AppConstants.TOPIC_EMAIL_BOUNCED,

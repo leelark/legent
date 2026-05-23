@@ -8,15 +8,47 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class OperationsAssistanceService extends PerformanceLedgerSupport {
 
     private static final List<String> OPERATION_TYPES = List.of("BUILD", "QA", "LAUNCH", "MONITOR", "INCIDENT");
+    private static final Set<String> ALLOWED_TELEMETRY_FIELDS = Set.of(
+            "riskScore",
+            "successRatePercent",
+            "saturationPercent",
+            "p95LatencyMs",
+            "errors",
+            "blockers"
+    );
+    private static final List<String> SENSITIVE_TELEMETRY_KEY_TOKENS = List.of(
+            "secret",
+            "token",
+            "password",
+            "credential",
+            "privatekey",
+            "apikey",
+            "authorization",
+            "bearer",
+            "cookie",
+            "session",
+            "jwt",
+            "oauth",
+            "clientsecret",
+            "accesskey",
+            "recipientemail",
+            "subscriberemail",
+            "customeremail",
+            "emailaddress",
+            "phone",
+            "ssn"
+    );
 
     public OperationsAssistanceService(CorePlatformRepository repository, ObjectMapper objectMapper) {
         super(repository, objectMapper);
@@ -28,14 +60,15 @@ public class OperationsAssistanceService extends PerformanceLedgerSupport {
         if (!OPERATION_TYPES.contains(operationType)) {
             throw new IllegalArgumentException("operationType must be one of " + OPERATION_TYPES);
         }
-        Map<String, Object> telemetry = safeMap(request.getTelemetry());
+        String workspaceId = requireWorkspace(request.getWorkspaceId());
+        Map<String, Object> telemetry = minimizedTelemetry(request.getTelemetry());
         String severity = severity(operationType, telemetry);
         int risk = opsRisk(operationType, telemetry, severity);
         List<Map<String, Object>> checklist = opsChecklist(operationType, severity);
         List<Map<String, Object>> actions = opsActions(operationType, telemetry, severity);
         boolean approvalRequired = risk >= 50 || "P1".equals(severity) || "LAUNCH".equals(operationType);
 
-        Map<String, Object> values = baseValues(workspace(request.getWorkspaceId()));
+        Map<String, Object> values = baseValues(workspaceId);
         values.put("operation_type", operationType);
         values.put("artifact_type", blankToNull(request.getArtifactType()));
         values.put("artifact_id", blankToNull(request.getArtifactId()));
@@ -66,7 +99,83 @@ public class OperationsAssistanceService extends PerformanceLedgerSupport {
 
     @Transactional(readOnly = true)
     public List<Map<String, Object>> listReviews(String workspaceId, int limit) {
-        return listLatest("operations_assistance_reviews", workspace(workspaceId), clamp(limit, 1, 500));
+        return listLatest("operations_assistance_reviews", requireWorkspace(workspaceId), clamp(limit, 1, 500));
+    }
+
+    private String requireWorkspace(String workspaceId) {
+        tenant();
+        String resolved = workspace(workspaceId);
+        if (resolved == null) {
+            throw new IllegalArgumentException("workspaceId is required for operations assistance.");
+        }
+        return resolved;
+    }
+
+    private Map<String, Object> minimizedTelemetry(Map<String, Object> telemetry) {
+        Map<String, Object> source = safeMap(telemetry);
+        rejectSensitiveTelemetryKeys(source, "telemetry");
+        if (source.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> minimized = new LinkedHashMap<>();
+        source.forEach((key, value) -> {
+            Object safeValue = operationalTelemetryValue(value);
+            if (ALLOWED_TELEMETRY_FIELDS.contains(key) && safeValue != null) {
+                minimized.put(key, safeValue);
+            }
+        });
+        return minimized;
+    }
+
+    private void rejectSensitiveTelemetryKeys(Object value, String path) {
+        if (value instanceof Map<?, ?> map) {
+            map.forEach((key, item) -> {
+                String keyText = String.valueOf(key);
+                String childPath = path + "." + keyText;
+                if (sensitiveTelemetryKey(keyText)) {
+                    throw new IllegalArgumentException("operations assistance telemetry contains sensitive key: " + childPath);
+                }
+                rejectSensitiveTelemetryKeys(item, childPath);
+            });
+            return;
+        }
+        if (value instanceof Collection<?> collection) {
+            int index = 0;
+            for (Object item : collection) {
+                rejectSensitiveTelemetryKeys(item, path + "[" + index + "]");
+                index++;
+            }
+        }
+    }
+
+    private boolean sensitiveTelemetryKey(String key) {
+        String normalized = key == null ? "" : key.replaceAll("[^A-Za-z0-9]", "").toLowerCase(Locale.ROOT);
+        return SENSITIVE_TELEMETRY_KEY_TOKENS.stream().anyMatch(normalized::contains);
+    }
+
+    private Object operationalTelemetryValue(Object value) {
+        if (value instanceof Double number && !Double.isFinite(number)) {
+            return null;
+        }
+        if (value instanceof Float number && !Float.isFinite(number)) {
+            return null;
+        }
+        if (value instanceof Number) {
+            return value;
+        }
+        if (value instanceof CharSequence text) {
+            String trimmed = text.toString().trim();
+            if (trimmed.isBlank()) {
+                return null;
+            }
+            try {
+                double parsed = Double.parseDouble(trimmed);
+                return Double.isFinite(parsed) ? trimmed : null;
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 
     private String severity(String operationType, Map<String, Object> telemetry) {

@@ -60,14 +60,16 @@ public class SendGovernancePolicyController {
     public PagedResponse<EmailStudioDto.SendGovernancePolicyResponse> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
+        int boundedPage = boundedPage(page);
+        int boundedSize = boundedSize(size);
         Page<SendGovernancePolicy> policies = service.list(
                 TenantContext.requireTenantId(),
                 TenantContext.requireWorkspaceId(),
-                PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
+                PageRequest.of(boundedPage, boundedSize));
         return PagedResponse.of(
                 policies.getContent().stream().map(this::map).toList(),
-                page,
-                size,
+                boundedPage,
+                boundedSize,
                 policies.getTotalElements(),
                 policies.getTotalPages());
     }
@@ -140,5 +142,16 @@ public class SendGovernancePolicyController {
         if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
+    }
+
+    private int boundedPage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int boundedSize(int size) {
+        if (size < 1) {
+            return AppConstants.DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(size, AppConstants.MAX_PAGE_SIZE);
     }
 }

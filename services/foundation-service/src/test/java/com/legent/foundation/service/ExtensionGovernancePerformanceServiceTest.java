@@ -17,8 +17,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,5 +64,28 @@ class ExtensionGovernancePerformanceServiceTest {
         assertThat(((List<?>) result.get("forbiddenTokens")).stream().map(String::valueOf).toList())
                 .contains("child_process", "eval(");
         assertThat((List<?>) result.get("findings")).hasSizeGreaterThanOrEqualTo(2);
+    }
+
+    @Test
+    void validatePackage_requiresWorkspaceContextBeforeLookup() {
+        TenantContext.setWorkspaceId(null);
+
+        assertThatThrownBy(() -> service.validatePackage("pkg-1", new ExtensionValidationRequest()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId is required");
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void listPackages_usesExactWorkspaceScope() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+
+        service.listPackages(null);
+
+        verify(repository).queryForList(
+                ArgumentMatchers.argThat(sql -> sql.contains("workspace_id = :workspaceId")
+                        && !sql.contains(":workspaceId IS NULL")),
+                ArgumentMatchers.<Map<String, Object>>argThat(params -> "workspace-1".equals(params.get("workspaceId")))
+        );
     }
 }

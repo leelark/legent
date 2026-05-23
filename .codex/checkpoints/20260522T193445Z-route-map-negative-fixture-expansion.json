@@ -1,0 +1,26 @@
+{
+    "id":  "route-map-negative-fixture-expansion",
+    "createdAt":  "2026-05-22T19:34:45.5863919Z",
+    "objective":  "Expand route-map validator negative fixtures",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         "scripts/ops/test-route-map-validator.ps1",
+                         "scripts/ops/validate-route-map.ps1"
+                     ],
+    "agents":  [
+                   "API_ARCHITECT",
+                   "SECURITY_ENGINEER",
+                   "RELEASE_MANAGER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-route-map-validator.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                           "git diff --check -- scripts/ops/test-route-map-validator.ps1 scripts/ops/validate-route-map.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated pool validation; continue pending scan."
+}

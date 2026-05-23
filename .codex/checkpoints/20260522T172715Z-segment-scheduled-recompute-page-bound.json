@@ -1,0 +1,26 @@
+{
+    "id":  "segment-scheduled-recompute-page-bound",
+    "createdAt":  "2026-05-22T17:27:15.1910134Z",
+    "objective":  "Bound scheduled segment recompute scans",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/repository/SegmentRepository.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service \"-Dtest=SegmentEvaluationServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/audience-service -am test",
+                           "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java services/audience-service/src/main/java/com/legent/audience/repository/SegmentRepository.java services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed after focused worker tests, integrated audience content backend gate, and scoped diff check."
+}

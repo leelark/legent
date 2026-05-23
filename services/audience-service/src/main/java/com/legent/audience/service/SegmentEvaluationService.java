@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,6 +54,7 @@ public class SegmentEvaluationService {
     private final org.springframework.beans.factory.ObjectProvider<SegmentEvaluationService> selfProvider;
 
     private static final Duration COUNT_CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_SEGMENT_COUNT_TTL_SECONDS);
+    static final int SCHEDULED_RECOMPUTE_PAGE_SIZE = 100;
 
     /**
      * Real-time count preview — runs the query without materializing results.
@@ -171,20 +174,41 @@ public class SegmentEvaluationService {
     @Scheduled(cron = "${legent.audience.segment.recompute-cron:0 */15 * * * *}")
     @Transactional(readOnly = true)
     public void scheduledRecompute() {
-        List<Segment> segments = segmentRepository.findScheduledSegments();
-        log.info("Scheduled segment recomputation: {} segments", segments.size());
+        String lastSegmentId = null;
+        int scheduledCount = 0;
 
-        for (Segment seg : segments) {
-            try {
-                TenantContext.setTenantId(seg.getTenantId());
-                String segmentId = java.util.Objects.requireNonNull(seg.getId(), "Segment ID cannot be null");
-                selfProvider.getObject().recompute(segmentId, seg.getTenantId(), seg.getWorkspaceId());
-            } catch (Exception e) {
-                log.error("Failed to recompute segment {}: {}", seg.getId(), e.getMessage());
-            } finally {
-                TenantContext.clear();
+        while (true) {
+            List<Segment> segments = segmentRepository.findScheduledSegmentsAfterId(
+                    lastSegmentId,
+                    PageRequest.of(0, SCHEDULED_RECOMPUTE_PAGE_SIZE));
+            if (segments.isEmpty()) {
+                break;
+            }
+
+            for (Segment seg : segments) {
+                String segmentId = null;
+                try {
+                    TenantContext.setTenantId(seg.getTenantId());
+                    TenantContext.setWorkspaceId(seg.getWorkspaceId());
+                    segmentId = Objects.requireNonNull(seg.getId(), "Segment ID cannot be null");
+                    lastSegmentId = segmentId;
+                    scheduledCount++;
+                    selfProvider.getObject().recompute(segmentId, seg.getTenantId(), seg.getWorkspaceId());
+                } catch (Exception e) {
+                    log.error("Failed to recompute segment {}: {}",
+                            segmentId != null ? segmentId : seg.getId(),
+                            e.getMessage());
+                } finally {
+                    TenantContext.clear();
+                }
+            }
+
+            if (segments.size() < SCHEDULED_RECOMPUTE_PAGE_SIZE) {
+                break;
             }
         }
+
+        log.info("Scheduled segment recomputation: {} segments", scheduledCount);
     }
 
     // ── Query Generation Engine ──

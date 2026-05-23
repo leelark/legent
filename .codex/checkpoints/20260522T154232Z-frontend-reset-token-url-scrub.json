@@ -1,0 +1,34 @@
+{
+    "id":  "frontend-reset-token-url-scrub",
+    "createdAt":  "2026-05-22T15:42:32.5579956Z",
+    "objective":  "Scrub reset credential from browser URL after capture",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/components/marketing/PublicAuthViews.tsx",
+                         "frontend/tests/e2e/marketing.spec.ts"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/marketing.spec.ts --project=chromium --reporter=line",
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed locally; preserve focused marketing Playwright coverage for future public reset-screen changes.",
+    "completedAt":  "2026-05-22T16:01:19.4892523Z",
+    "validationRun":  [
+                          "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/marketing.spec.ts --project=chromium --reporter=line passed 6/6",
+                          "cd frontend; npm run lint passed",
+                          "cd frontend; npm run build:ci passed",
+                          "git diff --check passed with CRLF warnings only",
+                          "Codex validation passed",
+                          "Repository artifact hygiene passed"
+                      ]
+}

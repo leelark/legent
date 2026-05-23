@@ -2,6 +2,7 @@ package com.legent.delivery.repository;
 
 import com.legent.delivery.domain.SendRateState;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -14,7 +15,8 @@ import java.util.Optional;
 
 public interface SendRateStateRepository extends JpaRepository<SendRateState, String> {
     Optional<SendRateState> findByTenantIdAndWorkspaceIdAndRateLimitKey(String tenantId, String workspaceId, String rateLimitKey);
-    List<SendRateState> findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(String tenantId, String workspaceId);
+    List<SendRateState> findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+            String tenantId, String workspaceId, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

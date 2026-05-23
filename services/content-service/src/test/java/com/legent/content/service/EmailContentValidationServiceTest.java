@@ -1,7 +1,13 @@
 package com.legent.content.service;
 
 import com.legent.content.dto.EmailStudioDto;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Element;
 import org.junit.jupiter.api.Test;
+
+import java.util.Arrays;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -49,6 +55,44 @@ class EmailContentValidationServiceTest {
         assertTrue(sanitized.contains("<a>x</a>"));
         assertFalse(sanitized.toLowerCase().contains("javascript:"));
         assertFalse(sanitized.contains("href="));
+    }
+
+    @Test
+    void addsSafeRelTokensToBlankTargetAnchors() {
+        String sanitized = service.sanitize("<a href=\"https://example.com\" target=\"_blank\">Open</a>");
+
+        assertEquals("_blank", anchorAttribute(sanitized, "target"));
+        assertRelContains(sanitized, "noopener", "noreferrer");
+    }
+
+    @Test
+    void preservesExistingSafeRelTokensWhenHardeningBlankTargetAnchors() {
+        String sanitized = service.sanitize(
+                "<a href=\"https://example.com\" target=\" _BLANK \" rel=\"nofollow sponsored noopener\">Open</a>");
+
+        assertRelContains(sanitized, "nofollow", "sponsored", "noopener", "noreferrer");
+    }
+
+    @Test
+    void removesUnsafeRelTokensWhenHardeningBlankTargetAnchors() {
+        String sanitized = service.sanitize(
+                "<a href=\"https://example.com\" target=\"_blank\" rel=\"opener nofollow custom\">Open</a>");
+
+        Set<String> relTokens = anchorRelTokens(sanitized);
+        assertTrue(relTokens.contains("nofollow"));
+        assertTrue(relTokens.contains("noopener"));
+        assertTrue(relTokens.contains("noreferrer"));
+        assertFalse(relTokens.contains("opener"));
+        assertFalse(relTokens.contains("custom"));
+    }
+
+    @Test
+    void doesNotAddRelToNonBlankAnchors() {
+        String sanitized = service.sanitize(
+                "<a href=\"https://example.com\" target=\"_self\" rel=\"nofollow\">Open</a>");
+
+        assertEquals("_self", anchorAttribute(sanitized, "target"));
+        assertFalse(firstAnchor(sanitized).hasAttr("rel"));
     }
 
     @Test
@@ -191,5 +235,29 @@ class EmailContentValidationServiceTest {
         assertFalse(sanitized.contains("<input"));
         assertFalse(sanitized.contains("<form"));
         assertFalse(sanitized.contains("<script"));
+    }
+
+    private static void assertRelContains(String html, String... expectedTokens) {
+        Set<String> relTokens = anchorRelTokens(html);
+        for (String expectedToken : expectedTokens) {
+            assertTrue(relTokens.contains(expectedToken));
+        }
+    }
+
+    private static Set<String> anchorRelTokens(String html) {
+        return Arrays.stream(anchorAttribute(html, "rel").split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .collect(Collectors.toSet());
+    }
+
+    private static String anchorAttribute(String html, String attributeName) {
+        Element anchor = firstAnchor(html);
+        return anchor.hasAttr(attributeName) ? anchor.attr(attributeName) : "";
+    }
+
+    private static Element firstAnchor(String html) {
+        Element anchor = Jsoup.parseBodyFragment(html).selectFirst("a");
+        assertTrue(anchor != null);
+        return anchor;
     }
 }

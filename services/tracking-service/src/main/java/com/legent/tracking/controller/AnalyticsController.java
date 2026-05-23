@@ -1,5 +1,6 @@
 package com.legent.tracking.controller;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -11,6 +12,7 @@ import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.repository.CampaignSummaryRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,16 +23,21 @@ import org.springframework.web.bind.annotation.*;
 public class AnalyticsController {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    static final int DEFAULT_CAMPAIGN_SUMMARY_LIMIT = 100;
+    static final int MAX_CAMPAIGN_SUMMARY_LIMIT = 500;
 
     private final CampaignSummaryRepository campaignSummaryRepository;
     private final com.legent.tracking.service.AnalyticsService analyticsService;
 
     @GetMapping("/campaigns")
     @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
-    public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries() {
+    public ApiResponse<List<CampaignSummary>> getAllCampaignSummaries(@RequestParam(required = false) Integer limit) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(campaignSummaryRepository.findAllByTenantIdAndWorkspaceId(tenantId, workspaceId));
+        return ApiResponse.ok(campaignSummaryRepository.findAllByTenantIdAndWorkspaceId(
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, campaignSummaryLimit(limit))));
     }
 
     @GetMapping("/campaigns/{id}")
@@ -53,10 +60,13 @@ public class AnalyticsController {
 
     @GetMapping("/events/timeline")
     @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> getEventTimeline(@RequestParam String eventType) {
+    public ApiResponse<List<Map<String, Object>>> getEventTimeline(@RequestParam String eventType,
+                                                                   @RequestParam(required = false) Instant startAt,
+                                                                   @RequestParam(required = false) Instant endAt,
+                                                                   @RequestParam(required = false) Integer buckets) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(analyticsService.getEventTimeline(tenantId, workspaceId, eventType));
+        return ApiResponse.ok(analyticsService.getEventTimeline(tenantId, workspaceId, eventType, startAt, endAt, buckets));
     }
 
     @GetMapping("/campaigns/{id}/experiments/{experimentId}")
@@ -103,13 +113,16 @@ public class AnalyticsController {
     @GetMapping("/rollups")
     @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
     public ApiResponse<TrackingDto.RollupResponse> getRollups(@RequestParam(required = false) String campaignId,
-                                                              @RequestParam(defaultValue = "hour") String grain) {
+                                                              @RequestParam(defaultValue = "hour") String grain,
+                                                              @RequestParam(required = false) Instant startAt,
+                                                              @RequestParam(required = false) Instant endAt,
+                                                              @RequestParam(required = false) Integer buckets) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
         return ApiResponse.ok(TrackingDto.RollupResponse.builder()
                 .campaignId(campaignId)
                 .grain("day".equalsIgnoreCase(grain) ? "day" : "hour")
-                .rows(analyticsService.getRollups(tenantId, workspaceId, campaignId, grain))
+                .rows(analyticsService.getRollups(tenantId, workspaceId, campaignId, grain, startAt, endAt, buckets))
                 .build());
     }
 
@@ -153,5 +166,12 @@ public class AnalyticsController {
         } catch (Exception ignored) {
             return "[]";
         }
+    }
+
+    private int campaignSummaryLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return DEFAULT_CAMPAIGN_SUMMARY_LIMIT;
+        }
+        return Math.min(limit, MAX_CAMPAIGN_SUMMARY_LIMIT);
     }
 }

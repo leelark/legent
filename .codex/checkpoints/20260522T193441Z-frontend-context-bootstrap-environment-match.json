@@ -1,0 +1,24 @@
+{
+    "id":  "frontend-context-bootstrap-environment-match",
+    "createdAt":  "2026-05-22T19:34:41.1607769Z",
+    "objective":  "Honor preferred environment during frontend context bootstrap",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/lib/context-bootstrap.ts",
+                         "frontend/tests/e2e/context-bootstrap.spec.ts"
+                     ],
+    "agents":  [
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "cd frontend; node_modules\\.bin\\playwright.cmd test tests/e2e/context-bootstrap.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated pool validation; continue pending scan."
+}

@@ -9,8 +9,10 @@ import com.legent.delivery.repository.DeliveryFeedbackOutboxEventRepository;
 import com.legent.kafka.model.EventEnvelope;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +43,18 @@ public class DeliveryFeedbackOutboxService {
 
     @Value("${legent.delivery.feedback-outbox.max-attempts:8}")
     private int maxAttempts;
+
+    @PostConstruct
+    void registerBacklogMetrics() {
+        Gauge.builder("legent.outbox.ready.depth", this, DeliveryFeedbackOutboxService::readyDepth)
+                .description("Ready outbox events waiting to be published")
+                .tag("queue", "delivery_feedback")
+                .register(meterRegistry);
+        Gauge.builder("legent.outbox.oldest.ready.age.seconds", this, DeliveryFeedbackOutboxService::oldestReadyAgeSeconds)
+                .description("Age in seconds of the oldest ready outbox event")
+                .tag("queue", "delivery_feedback")
+                .register(meterRegistry);
+    }
 
     @Transactional
     public void enqueueEmailSent(String tenantId, String workspaceId, String messageId, String campaignId, String jobId, String batchId, String subscriberId, Map<String, String> metadata) {
@@ -83,11 +97,11 @@ public class DeliveryFeedbackOutboxService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    publishPending(event.getId());
+                    publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId());
                 }
             });
         } else {
-            publishPending(event.getId());
+            publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId());
         }
     }
 
@@ -96,13 +110,18 @@ public class DeliveryFeedbackOutboxService {
         List<DeliveryFeedbackOutboxEvent> ready = outboxRepository.findTop100ByStatusInAndNextAttemptAtLessThanEqualAndDeletedAtIsNullOrderByCreatedAtAsc(
                 List.of(DeliveryFeedbackOutboxEvent.STATUS_PENDING, DeliveryFeedbackOutboxEvent.STATUS_PUBLISHING),
                 Instant.now());
-        ready.forEach(event -> publishPending(event.getId()));
+        ready.forEach(event -> publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId()));
     }
 
-    public void publishPending(String outboxId) {
+    public void publishPending(String outboxId, String tenantId, String workspaceId) {
+        if (isBlank(outboxId) || isBlank(tenantId) || isBlank(workspaceId)) {
+            return;
+        }
         Instant now = Instant.now();
         int claimed = outboxRepository.claimReadyForPublish(
                 outboxId,
+                tenantId,
+                workspaceId,
                 List.of(DeliveryFeedbackOutboxEvent.STATUS_PENDING, DeliveryFeedbackOutboxEvent.STATUS_PUBLISHING),
                 now,
                 DeliveryFeedbackOutboxEvent.STATUS_PUBLISHING,
@@ -111,7 +130,7 @@ public class DeliveryFeedbackOutboxService {
             return;
         }
 
-        DeliveryFeedbackOutboxEvent event = outboxRepository.findById(outboxId).orElse(null);
+        DeliveryFeedbackOutboxEvent event = outboxRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(outboxId, tenantId, workspaceId).orElse(null);
         if (event == null) {
             return;
         }
@@ -230,10 +249,29 @@ public class DeliveryFeedbackOutboxService {
         return Duration.ofSeconds(seconds);
     }
 
+    private double readyDepth() {
+        return outboxRepository.countByStatusInAndNextAttemptAtLessThanEqualAndDeletedAtIsNull(readyStatuses(), Instant.now());
+    }
+
+    private double oldestReadyAgeSeconds() {
+        Instant now = Instant.now();
+        return outboxRepository.findOldestReadyCreatedAt(readyStatuses(), now)
+                .map(oldest -> Math.max(0, Duration.between(oldest, now).toSeconds()))
+                .orElse(0L);
+    }
+
+    private List<String> readyStatuses() {
+        return List.of(DeliveryFeedbackOutboxEvent.STATUS_PENDING, DeliveryFeedbackOutboxEvent.STATUS_PUBLISHING);
+    }
+
     private String trimError(Exception ex) {
         Throwable cause = ex instanceof CompletionException && ex.getCause() != null ? ex.getCause() : ex;
         String message = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
         return message.length() <= 1000 ? message : message.substring(0, 1000);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private void recordPublishDuration(long startedNanos, DeliveryFeedbackOutboxEvent event, String outcome) {

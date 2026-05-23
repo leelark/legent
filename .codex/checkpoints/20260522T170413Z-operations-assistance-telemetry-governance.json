@@ -1,0 +1,28 @@
+{
+    "id":  "operations-assistance-telemetry-governance",
+    "createdAt":  "2026-05-22T17:04:13.2007891Z",
+    "objective":  "Minimize operations assistance telemetry persistence",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/performance/OperationsAssistanceService.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/dto/performance/OperationsAssistRequest.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/OperationsAssistancePerformanceServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service \"-Dtest=OperationsAssistancePerformanceServiceTest",
+                           "OptimizationPerformanceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/foundation-service -am test",
+                           "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/service/performance/OperationsAssistanceService.java services/foundation-service/src/main/java/com/legent/foundation/dto/performance/OperationsAssistRequest.java services/foundation-service/src/test/java/com/legent/foundation/service/OperationsAssistancePerformanceServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue with the next exact-leased safe local work item after memory and dashboard refresh.",
+    "completedAt":  "2026-05-22T17:22:50.5057418Z"
+}

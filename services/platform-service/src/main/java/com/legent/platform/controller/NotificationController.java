@@ -7,6 +7,7 @@ import com.legent.platform.domain.Notification;
 import com.legent.platform.service.NotificationEngine;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +21,7 @@ public class NotificationController {
     private final NotificationEngine notificationEngine;
 
     @GetMapping
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<Notification>> getUnreadNotifications() {
         // SECURITY: Get userId from authenticated security context, not from request
         String tenantId = TenantContext.requireTenantId();
@@ -29,6 +31,7 @@ public class NotificationController {
     }
 
     @PostMapping("/{id}/read")
+    @PreAuthorize("isAuthenticated()")
     public ApiResponse<Void> markAsRead(
             @PathVariable String id) {
         // SECURITY: Get userId from authenticated security context

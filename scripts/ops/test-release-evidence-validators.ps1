@@ -5,6 +5,10 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 $script:ChildProcessTimeoutSeconds = $ChildProcessTimeoutSeconds
+$script:PowerShellExecutable = (Get-Process -Id $PID).Path
+if ([string]::IsNullOrWhiteSpace($script:PowerShellExecutable)) {
+    $script:PowerShellExecutable = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }
+}
 
 function Fail($Message) {
     Write-Error $Message
@@ -32,28 +36,60 @@ function Stop-ProcessTree([int]$ProcessId) {
     Stop-Process -Id $ProcessId -Force -ErrorAction SilentlyContinue
 }
 
+function ConvertTo-ProcessArgumentString([string[]]$Arguments) {
+    $escaped = foreach ($argument in $Arguments) {
+        if ($null -eq $argument) { continue }
+
+        $text = [string]$argument
+        if ($text.Length -eq 0) {
+            '""'
+        } elseif ($text -match '[\s"]') {
+            '"' + ($text -replace '"', '\"') + '"'
+        } else {
+            $text
+        }
+    }
+
+    return ($escaped -join " ")
+}
+
 function Invoke-ValidatorProcess([string]$Name, [string[]]$Arguments) {
     $outPath = Join-Path $tempRoot "$Name.out"
     $errPath = Join-Path $tempRoot "$Name.err"
-    $proc = Start-Process -FilePath "powershell" `
-        -ArgumentList $Arguments `
-        -PassThru `
-        -WindowStyle Hidden `
-        -RedirectStandardOutput $outPath `
-        -RedirectStandardError $errPath
+    $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+    $startInfo.FileName = $script:PowerShellExecutable
+    $startInfo.Arguments = ConvertTo-ProcessArgumentString $Arguments
+    $startInfo.UseShellExecute = $false
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+    $startInfo.CreateNoWindow = $true
+
+    $proc = [System.Diagnostics.Process]::new()
+    $proc.StartInfo = $startInfo
+    [void]$proc.Start()
+    $stdoutTask = $proc.StandardOutput.ReadToEndAsync()
+    $stderrTask = $proc.StandardError.ReadToEndAsync()
 
     $completed = $proc.WaitForExit($script:ChildProcessTimeoutSeconds * 1000)
     if (-not $completed) {
         Stop-ProcessTree -ProcessId $proc.Id
         $proc.WaitForExit(5000) | Out-Null
+        Set-Content -Path $outPath -Value $stdoutTask.Result -Encoding UTF8
+        Set-Content -Path $errPath -Value $stderrTask.Result -Encoding UTF8
         $stdout = Get-FileExcerpt $outPath
         $stderr = Get-FileExcerpt $errPath
         Fail "Validator fixture '$Name' exceeded ${script:ChildProcessTimeoutSeconds}s. stdout=[$stdout] stderr=[$stderr]"
     }
-    $proc.Refresh()
-    $proc | Add-Member -NotePropertyName StdoutPath -NotePropertyValue $outPath -Force
-    $proc | Add-Member -NotePropertyName StderrPath -NotePropertyValue $errPath -Force
-    return $proc
+
+    $proc.WaitForExit()
+    Set-Content -Path $outPath -Value $stdoutTask.Result -Encoding UTF8
+    Set-Content -Path $errPath -Value $stderrTask.Result -Encoding UTF8
+    return [pscustomobject]@{
+        ExitCode = $proc.ExitCode
+        StdoutPath = $outPath
+        StderrPath = $errPath
+        Id = $proc.Id
+    }
 }
 
 function Invoke-EgressValidator([string]$EvidencePath, [string]$Name) {
@@ -109,8 +145,26 @@ function Invoke-ReleaseGate([string]$Name, [string[]]$Arguments) {
     ) + $Arguments)
 }
 
+function Invoke-ProductionOverlayValidator([string]$OverlayPath, [string]$Name) {
+    return Invoke-ValidatorProcess $Name @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/ops/validate-production-overlay.ps1",
+        "-OverlayPath", $OverlayPath
+    )
+}
+
 function Assert-ReleaseGateFails([string]$Name, [string[]]$Arguments, [string]$ExpectedMessage, [string]$FailureMessage) {
     $proc = Invoke-ReleaseGate $Name $Arguments
+    if ($proc.ExitCode -eq 0) { Fail $FailureMessage }
+    $combinedOutput = (Get-FileExcerpt $proc.StdoutPath) + "`n" + (Get-FileExcerpt $proc.StderrPath)
+    if ($combinedOutput -notmatch [regex]::Escape($ExpectedMessage)) {
+        Fail "$FailureMessage Expected message was not found. stdout/stderr=[$combinedOutput]"
+    }
+    $global:LASTEXITCODE = 0
+}
+
+function Assert-ProductionOverlayFails([string]$Name, [string]$OverlayPath, [string]$ExpectedMessage, [string]$FailureMessage) {
+    $proc = Invoke-ProductionOverlayValidator $OverlayPath $Name
     if ($proc.ExitCode -eq 0) { Fail $FailureMessage }
     $combinedOutput = (Get-FileExcerpt $proc.StdoutPath) + "`n" + (Get-FileExcerpt $proc.StderrPath)
     if ($combinedOutput -notmatch [regex]::Escape($ExpectedMessage)) {
@@ -220,8 +274,18 @@ function New-ImageManifest([string]$Image, [string]$Digest, [string]$SignatureEv
     return @{ schemaVersion = 1; images = $images }
 }
 
+function Copy-ProductionOverlayFixture([string]$Name) {
+    $fixtureRoot = Join-Path $tempRoot $Name
+    $destinationParent = Join-Path $fixtureRoot "infrastructure"
+    New-Item -ItemType Directory -Force -Path $destinationParent | Out-Null
+    Copy-Item -LiteralPath "infrastructure/kubernetes" -Destination $destinationParent -Recurse -Force
+    return Join-Path $destinationParent "kubernetes/overlays/production"
+}
+
 $requiredScripts = @(
     "scripts/ops/validate-route-map.ps1",
+    "scripts/ops/validate-compose-safety.ps1",
+    "scripts/ops/validate-compose-health.ps1",
     "scripts/ops/validate-production-overlay.ps1",
     "scripts/ops/validate-repo-artifact-hygiene.ps1",
     "scripts/ops/write-image-supply-chain-checklist.ps1",
@@ -248,10 +312,56 @@ $releaseGateSource = Get-Content -Path "scripts/ops/release-gate.ps1" -Raw
 if ($releaseGateSource -notmatch 'docker\s+compose\s+--env-file\s+\$ComposeEnvFile\s+config\s+--quiet') {
     Fail "release-gate.ps1 must run docker compose config with the reviewed ComposeEnvFile instead of ambient environment discovery."
 }
+if ($releaseGateSource -notmatch 'validate-compose-safety\.ps1\s+-ComposeEnvFile\s+\$ComposeEnvFile') {
+    Fail "release-gate.ps1 must run compose safety validation with the reviewed ComposeEnvFile."
+}
+if ($releaseGateSource -match 'if\s*\(\$LocalOnly\)\s*\{[\s\S]*validate-compose-safety\.ps1') {
+    Fail "release-gate.ps1 must not limit compose safety validation to LocalOnly mode."
+}
+
+$ciSecurityWorkflowPath = ".github/workflows/ci-security.yml"
+if (-not (Test-Path $ciSecurityWorkflowPath)) {
+    Fail "Missing CI security workflow: $ciSecurityWorkflowPath"
+}
+$ciSecurityWorkflowSource = Get-Content -Path $ciSecurityWorkflowPath -Raw
+if ($ciSecurityWorkflowSource -match 'docker\s+compose\s+config\s+--quiet') {
+    Fail "ci-security.yml must not run ambient docker compose config --quiet; use docker compose --env-file .env.example config --quiet."
+}
+if ($ciSecurityWorkflowSource -notmatch 'docker\s+compose\s+--env-file\s+\.env\.example\s+config\s+--quiet') {
+    Fail "ci-security.yml must run Docker Compose config smoke with explicit .env.example."
+}
+if ($ciSecurityWorkflowSource -notmatch 'validate-compose-health\.ps1\s+-SelfTest') {
+    Fail "ci-security.yml must run the Compose health validator self-test."
+}
+if ($ciSecurityWorkflowSource -match 'validate-compose-health\.ps1(?!\s+-SelfTest)') {
+    Fail "ci-security.yml must not run live Compose health checks; only validate-compose-health.ps1 -SelfTest is allowed in CI."
+}
 
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("legent-evidence-test-" + [System.Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force -Path $tempRoot | Out-Null
 try {
+    $composeSafetySelfTest = Invoke-ValidatorProcess "compose-safety-self-test" @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/ops/validate-compose-safety.ps1",
+        "-SelfTest"
+    )
+    if ($composeSafetySelfTest.ExitCode -ne 0) {
+        $combinedOutput = (Get-FileExcerpt $composeSafetySelfTest.StdoutPath) + "`n" + (Get-FileExcerpt $composeSafetySelfTest.StderrPath)
+        Fail "Compose safety validator self-test should pass. stdout/stderr=[$combinedOutput]"
+    }
+    $global:LASTEXITCODE = 0
+
+    $composeHealthSelfTest = Invoke-ValidatorProcess "compose-health-self-test" @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/ops/validate-compose-health.ps1",
+        "-SelfTest"
+    )
+    if ($composeHealthSelfTest.ExitCode -ne 0) {
+        $combinedOutput = (Get-FileExcerpt $composeHealthSelfTest.StdoutPath) + "`n" + (Get-FileExcerpt $composeHealthSelfTest.StderrPath)
+        Fail "Compose health validator self-test should pass. stdout/stderr=[$combinedOutput]"
+    }
+    $global:LASTEXITCODE = 0
+
     $checklist = Join-Path $tempRoot "checklist.md"
     $manifest = Join-Path $tempRoot "manifest.json"
     & scripts/ops/write-image-supply-chain-checklist.ps1 -OutputPath $checklist -ManifestOutputPath $manifest
@@ -301,6 +411,54 @@ images:
         ) `
         "Strict release promotion cannot use local gate skip flags" `
         "Strict release promotion should reject local gate skip flags before evidence validation."
+
+    $missingDeletionOverlay = Copy-ProductionOverlayFixture "missing-nonprod-deletion-overlay"
+@'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: legent-mailhog
+  namespace: legent
+$patch: delete
+'@ | Set-Content -Path (Join-Path $missingDeletionOverlay "delete-nonprod-stateful.yml") -Encoding UTF8
+    Assert-ProductionOverlayFails "rendered-nonprod-stateful-resource" `
+        $missingDeletionOverlay `
+        "nonproduction base resource" `
+        "Production overlay validation should fail when rendered nonprod stateful resources remain."
+
+    $unsafeDeploymentOverlay = Copy-ProductionOverlayFixture "unsafe-deployment-overlay"
+@'
+- op: add
+  path: /spec/template/spec/securityContext
+  value:
+    runAsNonRoot: false
+    seccompProfile:
+      type: RuntimeDefault
+- op: add
+  path: /spec/template/spec/containers/0/securityContext
+  value:
+    allowPrivilegeEscalation: true
+    capabilities:
+      drop:
+        - ALL
+'@ | Set-Content -Path (Join-Path $unsafeDeploymentOverlay "deployment-security-patch.yml") -Encoding UTF8
+    Assert-ProductionOverlayFails "rendered-unsafe-deployment-security" `
+        $unsafeDeploymentOverlay `
+        "missing safety fragment" `
+        "Production overlay validation should fail when rendered deployments are unsafe."
+
+    $unsafeSidecarOverlay = Copy-ProductionOverlayFixture "unsafe-sidecar-overlay"
+@'
+- op: add
+  path: /spec/template/spec/containers/-
+  value:
+    name: unsafe-sidecar
+    image: busybox:1.36
+'@ | Add-Content -Path (Join-Path $unsafeSidecarOverlay "deployment-security-patch.yml") -Encoding UTF8
+    Assert-ProductionOverlayFails "rendered-unsafe-sidecar-security" `
+        $unsafeSidecarOverlay `
+        "containers/unsafe-sidecar missing safety fragment" `
+        "Production overlay validation should fail when any rendered container lacks required security and resources."
 
     $missingImageSchemaManifest = New-ImageManifest "legent/frontend" $digest
     $missingImageSchemaManifest.Remove("schemaVersion")

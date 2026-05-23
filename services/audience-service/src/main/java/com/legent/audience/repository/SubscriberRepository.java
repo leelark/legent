@@ -20,7 +20,7 @@ public interface SubscriberRepository extends JpaRepository<Subscriber, String> 
 
     Optional<Subscriber> findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(String tenantId, String workspaceId, String email);
 
-    boolean existsByTenantIdAndSubscriberKeyAndDeletedAtIsNull(String tenantId, String subscriberKey);
+    boolean existsByTenantIdAndWorkspaceIdAndSubscriberKeyAndDeletedAtIsNull(String tenantId, String workspaceId, String subscriberKey);
 
     @Query("SELECT s FROM Subscriber s WHERE s.tenantId = :tid AND s.deletedAt IS NULL")
     Page<Subscriber> findAllByTenant(@Param("tid") String tenantId, Pageable pageable);

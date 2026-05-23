@@ -8,6 +8,8 @@ import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -49,6 +51,16 @@ class PlatformAdminControllerRbacTest {
         assertThat(methodPreAuthorizeGrants(SearchController.class, "search", Set.of("search:read"))).isTrue();
         assertThat(methodPreAuthorizeGrants(SearchController.class, "search", Set.of("CAMPAIGN_MANAGER"))).isFalse();
         assertThat(methodPreAuthorizeGrants(SearchController.class, "adminSearch", Set.of("search:read"))).isFalse();
+    }
+
+    @Test
+    void notificationEndpointsRequireOnlyAuthenticationGuard() {
+        assertThat(requestMappingValues(NotificationController.class))
+                .containsExactly("/api/v1/platform/notifications");
+        assertThat(getMappingValues(NotificationController.class, "getUnreadNotifications")).isEmpty();
+        assertThat(postMappingValues(NotificationController.class, "markAsRead")).containsExactly("/{id}/read");
+        assertThat(methodExpression(NotificationController.class, "getUnreadNotifications")).isEqualTo("isAuthenticated()");
+        assertThat(methodExpression(NotificationController.class, "markAsRead")).isEqualTo("isAuthenticated()");
     }
 
     @Test
@@ -98,10 +110,26 @@ class PlatformAdminControllerRbacTest {
                 .orElseThrow(() -> new AssertionError("Missing method: " + controller.getSimpleName() + "." + methodName));
     }
 
+    private static String[] requestMappingValues(Class<?> controller) {
+        RequestMapping annotation = AnnotatedElementUtils.findMergedAnnotation(controller, RequestMapping.class);
+        assertThat(annotation)
+                .as("%s @RequestMapping", controller.getSimpleName())
+                .isNotNull();
+        return annotation.value();
+    }
+
     private static String[] getMappingValues(Class<?> controller, String methodName) {
         GetMapping annotation = AnnotatedElementUtils.findMergedAnnotation(method(controller, methodName), GetMapping.class);
         assertThat(annotation)
                 .as("%s.%s @GetMapping", controller.getSimpleName(), methodName)
+                .isNotNull();
+        return annotation.value();
+    }
+
+    private static String[] postMappingValues(Class<?> controller, String methodName) {
+        PostMapping annotation = AnnotatedElementUtils.findMergedAnnotation(method(controller, methodName), PostMapping.class);
+        assertThat(annotation)
+                .as("%s.%s @PostMapping", controller.getSimpleName(), methodName)
                 .isNotNull();
         return annotation.value();
     }

@@ -17,6 +17,35 @@ function Read-Json($Path) {
     }
 }
 
+function Assert-AuditEventTypes {
+    $auditDir = ".codex/audit/events"
+    if (-not (Test-Path $auditDir)) { Fail "Missing required audit event directory: $auditDir" }
+
+    $auditFiles = @(Get-ChildItem -Path $auditDir -Filter "*.jsonl" -File -ErrorAction SilentlyContinue)
+    foreach ($auditFile in $auditFiles) {
+        $lineNumber = 0
+        foreach ($line in Get-Content -LiteralPath $auditFile.FullName) {
+            $lineNumber++
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+
+            try {
+                $event = $line | ConvertFrom-Json
+            } catch {
+                Fail "Invalid audit JSON in $($auditFile.FullName):$($lineNumber): $($_.Exception.Message)"
+            }
+
+            if ($event.PSObject.Properties.Name -notcontains "eventType") {
+                Fail "Audit event missing eventType in $($auditFile.FullName):$($lineNumber)."
+            }
+
+            $eventType = [string]$event.eventType
+            if ([string]::IsNullOrWhiteSpace($eventType) -or $eventType -cnotmatch "^[A-Z][A-Z0-9_]*$") {
+                Fail "Audit event type must be uppercase snake-case in $($auditFile.FullName):$($lineNumber): $eventType"
+            }
+        }
+    }
+}
+
 $requiredFiles = @(
     "AGENTS.md",
     "ARCHITECTURE.md",
@@ -83,6 +112,8 @@ if ($LASTEXITCODE -eq 0 -and $memoryHits) {
     Fail "Fresh memory validation failed: stale memory markers found."
 }
 $global:LASTEXITCODE = 0
+
+Assert-AuditEventTypes
 
 $state = Read-Json ".codex/state/team-state.json"
 if ([int]$state.maxParallelAgents -gt 6) { Fail "maxParallelAgents must not exceed 6." }

@@ -2,6 +2,8 @@
 
 Date: 2026-05-20.
 
+Local reconciliation: 2026-05-22. No new Salesforce or competitor source refresh was performed.
+
 Parent backlog item: `automation-studio-activity-orchestration`.
 
 Security contract: `docs/product/automation-studio-activity-security-contract.md`.
@@ -12,7 +14,7 @@ Automation Studio currently exposes activity types `SQL_QUERY`, `FILE_DROP`, `IM
 
 Existing SQL and import side effects call audience-service internal endpoints with tenant/workspace headers and an internal token. Activity configs, verification output, and run result JSON are persisted and returned to clients, so new activity families must treat those fields as non-secret, redacted control data only.
 
-Workflow graph orchestration is a separate runtime with node/edge semantics, instance history, idempotent trigger consumption, and limited runtime-supported node types. Automation Studio activities do not yet have dependency/order fields, activity locks, bounded run-history pagination, notification policy, or failure-policy semantics.
+Workflow graph orchestration is a separate runtime with node/edge semantics, instance history, idempotent trigger consumption, and limited runtime-supported node types. Local Automation Studio contracts now cover validation-only dependency/order metadata, bounded run listing/detail shape, failure policy fields, run trace fields, capability UI, notification handoff, guarded webhook handoff, artifact-ID import handoff, and governed send handoff. Activity locks, live file movement/extracts, script execution, target replay evidence, provider egress evidence, and production operational evidence remain future or blocked work.
 
 ## Non-Goals
 
@@ -43,9 +45,22 @@ Workflow graph orchestration is a separate runtime with node/edge semantics, ins
 | 6 | `automation-send-activity-handoff` | DONE_LOCAL | CAMPAIGN_SERVICE_OWNER | Adds governed `SEND_EMAIL` activity and workflow-node handoff to `send.requested` with explicit launch confirmation, tenant/workspace context, deterministic idempotency, unsafe override rejection, and campaign-service send lifecycle ownership. | Focused automation, campaign, and shared Kafka tests; broader delivery/deliverability gate remains required before release claims. |
 | 7 | `automation-script-activity-security-sandbox` | BLOCKED | SECURITY_ENGINEER | Keep scripts blocked until signed artifact execution, sandboxing, egress/file limits, runtime caps, audit, and approval model are designed. | Security design decision plus sandbox validation. |
 
+## Remaining Backlog Split
+
+These are docs/backlog descriptions only. They keep completed local contracts separate from future Automation Studio parity and target-evidence work.
+
+| Work Item | Status | Scope | Depends On / Evidence |
+|---|---|---|---|
+| `automation-script-activity-security-sandbox` | BLOCKED | Design signed script artifacts, sandbox execution, no-ambient-secret runtime, egress/file limits, CPU/memory/time caps, audit, approval, and rollback behavior. Inline or unsigned scripts remain rejected. | Security architecture approval, sandbox validation, operational monitoring. |
+| `automation-live-file-movement-storage-adapter` | FUTURE | Promote file-drop/import/extract from validation-only artifact records to tenant/workspace-scoped object movement with ownership, hash, size, content-type, retention, and cleanup semantics. | Storage adapter evidence, target object-store proof, route/security coverage. |
+| `automation-target-runtime-replay-evidence` | FUTURE_EVIDENCE | Prove live automation side effects are idempotent under Kafka replay, outbox retry, partial failure, and process restart. | Target Kafka/PostgreSQL evidence, replay drills, duplicate-effect assertions. |
+| `automation-activity-lock-concurrency-policy` | FUTURE | Add explicit activity/automation lock semantics, operator override policy, retry-after behavior, and audit so concurrent runs cannot duplicate side effects. | Automation-service tests, UI state coverage, operator runbook. |
+| `automation-delivery-policy-snapshot-handoff` | FUTURE_CONTRACT | Align governed send activity handoff with immutable delivery-owned policy snapshots so retries and feedback reconcile to the exact policy used at execution time. | `delivery-policy-runtime-snapshot-contract`, campaign/delivery/content contract tests. |
+| `automation-provider-egress-release-proof` | BLOCKED_EXTERNAL | Collect provider egress, warmup, capacity, suppression, feedback-loop, and monitoring evidence before claiming production Automation Studio send parity. | External provider and target-environment evidence. |
+
 ## Release Notes
 
-This parent item is complete when the child slices above exist in backlog state and Salesforce parity docs record the split. Implementation starts with the READY security and contract slices; executable activity families stay backlog or blocked until their dependencies are satisfied.
+The local orchestration-contract portion of this parent is complete for the `DONE_LOCAL` child slices above and Salesforce parity docs now record the split. Salesforce Automation Studio parity is not complete until blocked script sandboxing, live file movement, replay evidence, delivery-policy snapshots, provider egress, and production operational evidence are separately delivered.
 
 2026-05-20 local update: `automation-file-trigger-extract-family` now has a local artifact ownership foundation. Automation artifacts are service-minted and tenant/workspace scoped; import activities require `artifactId` instead of raw object keys; file-drop and extract activities can record validation-only dry-run history without moving files; live import requires explicit confirmation and an idempotency key; audience internal imports now reject raw URLs, traversal, and unscoped object keys.
 

@@ -17,8 +17,10 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -76,5 +78,18 @@ class PersonalizationPerformanceServiceTest {
 
         assertThat(fail.get("sloPass")).isEqualTo(false);
         assertThat(fail.get("latencyMs")).isEqualTo(1200);
+    }
+
+    @Test
+    void evaluate_requiresWorkspaceContextEvenWhenRequestCarriesWorkspace() {
+        TenantContext.setWorkspaceId(null);
+
+        PersonalizationEvaluateRequest request = new PersonalizationEvaluateRequest();
+        request.setWorkspaceId("workspace-1");
+
+        assertThatThrownBy(() -> service.evaluate(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId is required");
+        verifyNoInteractions(repository);
     }
 }

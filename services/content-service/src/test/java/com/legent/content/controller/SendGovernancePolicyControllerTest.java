@@ -1,13 +1,18 @@
 package com.legent.content.controller;
 
+import com.legent.common.constant.AppConstants;
 import com.legent.content.domain.SendGovernancePolicy;
 import com.legent.content.service.SendGovernancePolicyService;
 import com.legent.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -23,6 +28,43 @@ class SendGovernancePolicyControllerTest {
     @AfterEach
     void tearDown() {
         TenantContext.clear();
+    }
+
+    @Test
+    void listClampsInvalidPageAndSizeBeforeServiceCall() {
+        SendGovernancePolicyService service = mock(SendGovernancePolicyService.class);
+        SendGovernancePolicyController controller = new SendGovernancePolicyController(service);
+        PageRequest expectedPage = PageRequest.of(0, AppConstants.DEFAULT_PAGE_SIZE);
+        when(service.list("tenant-1", "workspace-1", expectedPage))
+                .thenReturn(new PageImpl<>(List.of(), expectedPage, 42));
+
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
+
+        var response = controller.list(-5, 0);
+
+        assertThat(response.getPagination().getPage()).isZero();
+        assertThat(response.getPagination().getSize()).isEqualTo(AppConstants.DEFAULT_PAGE_SIZE);
+        assertThat(response.getPagination().getTotalElements()).isEqualTo(42);
+        verify(service).list("tenant-1", "workspace-1", expectedPage);
+    }
+
+    @Test
+    void listClampsExcessiveSizeBeforeServiceCall() {
+        SendGovernancePolicyService service = mock(SendGovernancePolicyService.class);
+        SendGovernancePolicyController controller = new SendGovernancePolicyController(service);
+        PageRequest expectedPage = PageRequest.of(2, AppConstants.MAX_PAGE_SIZE);
+        when(service.list("tenant-1", "workspace-1", expectedPage))
+                .thenReturn(new PageImpl<>(List.of(), expectedPage, 0));
+
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
+
+        var response = controller.list(2, AppConstants.MAX_PAGE_SIZE + 500);
+
+        assertThat(response.getPagination().getPage()).isEqualTo(2);
+        assertThat(response.getPagination().getSize()).isEqualTo(AppConstants.MAX_PAGE_SIZE);
+        verify(service).list("tenant-1", "workspace-1", expectedPage);
     }
 
     @Test

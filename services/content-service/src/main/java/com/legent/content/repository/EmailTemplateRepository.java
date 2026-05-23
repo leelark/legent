@@ -33,5 +33,6 @@ public interface EmailTemplateRepository extends JpaRepository<EmailTemplate, St
     List<EmailTemplate> searchByName(
             @Param("tenantId") String tenantId,
             @Param("workspaceId") String workspaceId,
-            @Param("query") String query);
+            @Param("query") String query,
+            Pageable pageable);
 }

@@ -15,6 +15,7 @@ import com.legent.platform.domain.WebhookConfig;
 import com.legent.platform.repository.WebhookConfigRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
@@ -32,6 +33,7 @@ import com.legent.security.TenantContext;
 @PreAuthorize("hasAnyRole('ADMIN', 'PLATFORM_ADMIN', 'ORG_ADMIN')")
 public class WebhookController {
 
+    private static final int LIST_PAGE_SIZE = 100;
     private static final int MAX_EVENTS_SUBSCRIBED = 50;
     private static final int MAX_EVENT_NAME_LENGTH = 128;
     private static final int MIN_SECRET_KEY_LENGTH = 32;
@@ -95,7 +97,8 @@ public class WebhookController {
     public ApiResponse<List<WebhookConfig>> listWebhooks() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(webhookRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue(tenantId, workspaceId));
+        return ApiResponse.ok(webhookRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                tenantId, workspaceId, PageRequest.of(0, LIST_PAGE_SIZE)).getContent());
     }
 
     @PostMapping

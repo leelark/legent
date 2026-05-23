@@ -1,0 +1,25 @@
+﻿{
+    "id":  "compose-health-env-isolation",
+    "createdAt":  "2026-05-22T15:23:58.7051092Z",
+    "objective":  "Make Compose health validation env-file deterministic",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         "scripts/ops/validate-compose-health.ps1"
+                     ],
+    "agents":  [
+                   "RELEASE_MANAGER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1 -AllowNotRunning -ComposeEnvFile .env.example",
+                           "docker compose --env-file .env.example config --quiet",
+                           "git diff --check -- scripts/ops/validate-compose-health.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed and validated locally; continue with memory/dashboard refresh and next safe local selection.",
+    "completedAt":  "2026-05-22T15:37:46.0315333Z"
+}

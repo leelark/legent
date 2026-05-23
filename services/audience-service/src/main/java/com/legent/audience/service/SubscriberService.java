@@ -124,7 +124,7 @@ public class SubscriberService {
                 ? generateDeterministicSubscriberKey(normalizedEmail, workspaceId)
                 : request.getSubscriberKey().trim();
 
-        if (subscriberRepository.existsByTenantIdAndSubscriberKeyAndDeletedAtIsNull(tenantId, resolvedKey)) {
+        if (subscriberRepository.existsByTenantIdAndWorkspaceIdAndSubscriberKeyAndDeletedAtIsNull(tenantId, workspaceId, resolvedKey)) {
             throw new ConflictException("Subscriber", "subscriberKey", resolvedKey);
         }
 

@@ -9,12 +9,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -48,14 +51,25 @@ class WebhookControllerTest {
         config.setEventsSubscribed("[\"email.sent\"]");
         config.setSecretKey("secret-value");
         config.setIsActive(true);
-        when(repository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("tenant-1", "workspace-1"))
-                .thenReturn(List.of(config));
+        when(repository.findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                any(Pageable.class)))
+                .thenReturn(new SliceImpl<>(List.of(config)));
 
         String json = objectMapper.writeValueAsString(controller.listWebhooks().getData());
 
         assertThat(json).doesNotContain("secretKey");
         assertThat(json).doesNotContain("secret-value");
         assertThat(json).contains("\"secretConfigured\":true");
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(repository).findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(100);
     }
 
     @Test

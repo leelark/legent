@@ -1,0 +1,31 @@
+{
+    "id":  "content-template-search-and-page-guards",
+    "createdAt":  "2026-05-22T17:50:22.3166895Z",
+    "objective":  "Guard content template list and search pagination",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/content-service/src/main/java/com/legent/content/controller/TemplateController.java",
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateService.java",
+                         "services/content-service/src/main/java/com/legent/content/repository/EmailTemplateRepository.java",
+                         "services/content-service/src/test/java/com/legent/content/service/TemplateServiceTest.java",
+                         "services/content-service/src/test/java/com/legent/content/controller/TemplateControllerTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/content-service \"-Dtest=TemplateServiceTest",
+                           "TemplateControllerTest",
+                           "ContentControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/content-service -am test",
+                           "git diff --check -- services/content-service/src/main/java/com/legent/content/controller/TemplateController.java services/content-service/src/main/java/com/legent/content/service/TemplateService.java services/content-service/src/main/java/com/legent/content/repository/EmailTemplateRepository.java services/content-service/src/test/java/com/legent/content/service/TemplateServiceTest.java services/content-service/src/test/java/com/legent/content/controller/TemplateControllerTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed after focused worker tests, integrated foundation content platform backend gate, and scoped diff check."
+}

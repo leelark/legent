@@ -1,0 +1,28 @@
+{
+    "id":  "deliverability-reputation-read-bounds",
+    "createdAt":  "2026-05-22T20:30:59.9891811Z",
+    "objective":  "Bound predictive deliverability and insights reputation reads with scoped pageable/default/max limits.",
+    "status":  "DONE",
+    "owner":  "DELIVERABILITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/service/PredictiveDeliverabilityService.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/controller/DeliverabilityInsightsController.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/repository/DomainReputationRepository.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/service/PredictiveDeliverabilityServiceTest.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/controller/DeliverabilityInsightsControllerTest.java"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/deliverability-service -Dtest=PredictiveDeliverabilityServiceTest",
+                           "DeliverabilityInsightsControllerTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check for leased deliverability files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Pool item complete; continue coordinated backlog scan.",
+    "completedAt":  "2026-05-22T20:54:26.3265050Z"
+}

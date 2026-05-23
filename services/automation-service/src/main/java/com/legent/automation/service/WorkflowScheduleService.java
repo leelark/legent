@@ -10,6 +10,7 @@ import com.legent.security.TenantContext;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.quartz.*;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,8 @@ import java.util.TimeZone;
 @RequiredArgsConstructor
 public class WorkflowScheduleService {
 
+    private static final int DEFAULT_SCHEDULE_LIST_LIMIT = 50;
+
     private final WorkflowScheduleRepository workflowScheduleRepository;
     private final WorkflowRepository workflowRepository;
     private final Scheduler scheduler;
@@ -30,7 +33,10 @@ public class WorkflowScheduleService {
 
     public List<WorkflowSchedule> listSchedules(String workflowId) {
         return workflowScheduleRepository.findByTenantIdAndWorkspaceIdAndWorkflowIdAndDeletedAtIsNullOrderByCreatedAtDesc(
-                requireTenant(), requireWorkspace(), workflowId);
+                requireTenant(),
+                requireWorkspace(),
+                workflowId,
+                PageRequest.of(0, DEFAULT_SCHEDULE_LIST_LIMIT));
     }
 
     @Transactional

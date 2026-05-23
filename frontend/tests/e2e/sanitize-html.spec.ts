@@ -1,9 +1,22 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import {
   sanitizeEmailHtml,
   sanitizeLandingPageHtml,
   sanitizeRichContentHtml,
 } from '../../src/lib/sanitize-html';
+
+const getAnchorAttribute = (page: Page, html: string, attributeName: string) =>
+  page.evaluate(({ html, attributeName }) => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    return doc.querySelector('a')?.getAttribute(attributeName) ?? null;
+  }, { html, attributeName });
+
+const expectRelTokens = async (page: Page, html: string, expectedTokens: string[]) => {
+  const rel = await getAnchorAttribute(page, html, 'rel');
+
+  expect(rel).not.toBeNull();
+  expect(rel?.split(/\s+/).filter(Boolean)).toEqual(expect.arrayContaining(expectedTokens));
+};
 
 test.describe('HTML sanitization regressions', () => {
   test('removes encoded javascript URLs from rich content', () => {
@@ -12,6 +25,36 @@ test.describe('HTML sanitization regressions', () => {
     expect(sanitized).toContain('<a>Open</a>');
     expect(sanitized).not.toContain('javascript:');
     expect(sanitized).not.toContain('href=');
+  });
+
+  test('adds noopener and noreferrer to blank-target email anchors', async ({ page }) => {
+    const sanitized = sanitizeEmailHtml('<a href="https://example.com" target="_blank">Open</a>');
+
+    expect(await getAnchorAttribute(page, sanitized, 'target')).toBe('_blank');
+    await expectRelTokens(page, sanitized, ['noopener', 'noreferrer']);
+  });
+
+  test('preserves existing rel tokens when hardening blank-target email anchors', async ({ page }) => {
+    const sanitized = sanitizeEmailHtml(
+      '<a href="https://example.com" target=" _BLANK " rel="nofollow sponsored noopener">Open</a>'
+    );
+
+    expect(await getAnchorAttribute(page, sanitized, 'target')).toBe('_BLANK');
+    await expectRelTokens(page, sanitized, ['nofollow', 'sponsored', 'noopener', 'noreferrer']);
+  });
+
+  test('does not add rel to non-blank email anchors', async ({ page }) => {
+    const sanitized = sanitizeEmailHtml('<a href="https://example.com" target="_self">Open</a>');
+
+    expect(await getAnchorAttribute(page, sanitized, 'target')).toBe('_self');
+    expect(await getAnchorAttribute(page, sanitized, 'rel')).toBeNull();
+  });
+
+  test('adds noopener and noreferrer to blank-target landing page anchors', async ({ page }) => {
+    const sanitized = sanitizeLandingPageHtml('<a href="https://example.com" target="_blank">Open</a>');
+
+    expect(await getAnchorAttribute(page, sanitized, 'target')).toBe('_blank');
+    await expectRelTokens(page, sanitized, ['noopener', 'noreferrer']);
   });
 
   test('removes srcset attributes from email HTML', () => {

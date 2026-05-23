@@ -18,6 +18,7 @@ import com.legent.content.repository.TemplateVersionRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class TemplateWorkflowService {
+
+    private static final int DEFAULT_APPROVAL_READ_LIMIT = 50;
+    private static final int MAX_APPROVAL_READ_LIMIT = 200;
 
     private final EmailTemplateRepository templateRepository;
     private final TemplateApprovalRepository approvalRepository;
@@ -104,7 +108,7 @@ public class TemplateWorkflowService {
         log.info("Template submitted for approval: tenant={}, template={}, version={}",
                 tenantId, templateId, nextVersion);
 
-        eventPublisher.publishTemplateSubmittedForApproval(tenantId, templateId, template.getName(), nextVersion);
+        eventPublisher.publishTemplateSubmittedForApproval(tenantId, workspaceId, templateId, template.getName(), nextVersion);
 
         return approvalRepository.findById(approval.getId()).orElse(approval);
     }
@@ -149,7 +153,7 @@ public class TemplateWorkflowService {
         log.info("Template approved: tenant={}, template={}, version={}, approver={}",
                 tenantId, template.getId(), approval.getVersionNumber(), userId);
 
-        eventPublisher.publishTemplateApproved(tenantId, template.getId(), template.getName(),
+        eventPublisher.publishTemplateApproved(tenantId, workspaceId, template.getId(), template.getName(),
                 approval.getVersionNumber(), userId);
 
         return approvalRepository.findById(approval.getId()).orElse(approval);
@@ -193,7 +197,7 @@ public class TemplateWorkflowService {
         log.info("Template rejected: tenant={}, template={}, version={}, reason={}",
                 tenantId, template.getId(), approval.getVersionNumber(), reason);
 
-        eventPublisher.publishTemplateRejected(tenantId, template.getId(), template.getName(),
+        eventPublisher.publishTemplateRejected(tenantId, workspaceId, template.getId(), template.getName(),
                 approval.getVersionNumber(), reason, userId);
 
         return approvalRepository.findById(approval.getId()).orElse(approval);
@@ -258,7 +262,7 @@ public class TemplateWorkflowService {
         renderService.requirePublishable(tenantId, workspaceId, templateId, version.getVersionNumber());
 
         // Publish the version
-        versionService.publishVersion(templateId, version.getVersionNumber());
+        versionService.publishVersion(tenantId, workspaceId, templateId, version.getVersionNumber());
 
         // Update template metadata
         template.setStatus(EmailTemplate.TemplateStatus.PUBLISHED);
@@ -332,7 +336,16 @@ public class TemplateWorkflowService {
 
     @Transactional(readOnly = true)
     public List<TemplateApproval> getPendingApprovals(String tenantId, String workspaceId) {
-        return approvalRepository.findByTenantIdAndWorkspaceIdAndStatus(tenantId, workspaceId, TemplateApproval.ApprovalStatus.PENDING);
+        return getPendingApprovals(tenantId, workspaceId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateApproval> getPendingApprovals(String tenantId, String workspaceId, Integer limit) {
+        return approvalRepository.findByTenantIdAndWorkspaceIdAndStatusOrderByRequestedAtDesc(
+                tenantId,
+                workspaceId,
+                TemplateApproval.ApprovalStatus.PENDING,
+                PageRequest.of(0, boundedApprovalReadLimit(limit)));
     }
 
     /**
@@ -345,9 +358,18 @@ public class TemplateWorkflowService {
 
     @Transactional(readOnly = true)
     public List<TemplateApproval> getTemplateApprovalHistory(String tenantId, String workspaceId, String templateId) {
+        return getTemplateApprovalHistory(tenantId, workspaceId, templateId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateApproval> getTemplateApprovalHistory(String tenantId, String workspaceId, String templateId, Integer limit) {
         templateRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(templateId, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("Template", templateId));
-        return approvalRepository.findByTenantIdAndWorkspaceIdAndTemplateIdOrderByRequestedAtDesc(tenantId, workspaceId, templateId);
+        return approvalRepository.findByTenantIdAndWorkspaceIdAndTemplateIdOrderByRequestedAtDesc(
+                tenantId,
+                workspaceId,
+                templateId,
+                PageRequest.of(0, boundedApprovalReadLimit(limit)));
     }
 
     /**
@@ -407,6 +429,13 @@ public class TemplateWorkflowService {
         if (!allowed) {
             throw new ValidationException("adminBypass", "Admin bypass requires content approval permission");
         }
+    }
+
+    private int boundedApprovalReadLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_APPROVAL_READ_LIMIT;
+        }
+        return Math.min(limit, MAX_APPROVAL_READ_LIMIT);
     }
 
     private String resolveActor(String... candidates) {

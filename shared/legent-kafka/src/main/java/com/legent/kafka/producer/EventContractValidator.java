@@ -62,6 +62,14 @@ public class EventContractValidator {
                             List.of("eventType"),
                             List.of("messageId", "workflowRunId", "subscriberId", "campaignId")),
                     List.of()),
+            AppConstants.TOPIC_CONTENT_PUBLISHED,
+            new EventContract(
+                    SCHEMA_V1,
+                    WorkspaceRequirement.ENVELOPE_ONLY,
+                    List.of(
+                            List.of("templateId"),
+                            List.of("versionNumber")),
+                    List.of()),
             AppConstants.TOPIC_WORKFLOW_TRIGGER,
             new EventContract(
                     SCHEMA_V1,

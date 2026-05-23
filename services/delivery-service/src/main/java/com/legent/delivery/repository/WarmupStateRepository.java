@@ -2,6 +2,7 @@ package com.legent.delivery.repository;
 
 import com.legent.delivery.domain.WarmupState;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
@@ -16,7 +17,8 @@ public interface WarmupStateRepository extends JpaRepository<WarmupState, String
     Optional<WarmupState> findByTenantIdAndWorkspaceIdAndSenderDomainAndProviderId(
             String tenantId, String workspaceId, String senderDomain, String providerId);
 
-    List<WarmupState> findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(String tenantId, String workspaceId);
+    List<WarmupState> findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+            String tenantId, String workspaceId, Pageable pageable);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

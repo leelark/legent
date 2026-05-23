@@ -100,6 +100,30 @@ class AutomationStudioServiceTest {
     }
 
     @Test
+    void listActivitiesUsesDefaultFirstPage() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("Daily SQL");
+        activity.setActivityType(AutomationStudioDto.ActivityType.SQL_QUERY);
+        activity.setInputConfig("{\"sql\":\"SELECT email FROM subscribers\"}");
+        activity.setOutputConfig("{}");
+        when(activityRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                eq("tenant-1"), eq("workspace-1"), any(Pageable.class)))
+                .thenReturn(List.of(activity));
+
+        List<AutomationStudioDto.ActivityResponse> activities = service.listActivities();
+
+        assertThat(activities).hasSize(1);
+        ArgumentCaptor<Pageable> pageCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(activityRepository).findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                eq("tenant-1"), eq("workspace-1"), pageCaptor.capture());
+        assertThat(pageCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageCaptor.getValue().getPageSize()).isEqualTo(50);
+    }
+
+    @Test
     void createSqlActivityPersistsVerificationWarnings() {
         when(activityRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull("tenant-1", "workspace-1", "Daily SQL"))
                 .thenReturn(false);
@@ -174,7 +198,7 @@ class AutomationStudioServiceTest {
     }
 
     @Test
-    void updateActivityRejectsDependencyCycle() {
+    void updateActivityRejectsIndirectDependencyCycleWithoutWorkspaceListScan() {
         AutomationActivity activity = new AutomationActivity();
         activity.setId("activity-1");
         activity.setTenantId("tenant-1");
@@ -190,14 +214,22 @@ class AutomationStudioServiceTest {
         dependency.setWorkspaceId("workspace-1");
         dependency.setName("Upstream SQL");
         dependency.setActivityType(AutomationStudioDto.ActivityType.SQL_QUERY);
-        dependency.setDependencyActivityIds("[\"activity-1\"]");
+        dependency.setDependencyActivityIds("[\"activity-3\"]");
+
+        AutomationActivity transitiveDependency = new AutomationActivity();
+        transitiveDependency.setId("activity-3");
+        transitiveDependency.setTenantId("tenant-1");
+        transitiveDependency.setWorkspaceId("workspace-1");
+        transitiveDependency.setName("Transitive SQL");
+        transitiveDependency.setActivityType(AutomationStudioDto.ActivityType.SQL_QUERY);
+        transitiveDependency.setDependencyActivityIds("[\"activity-1\"]");
 
         when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
                 .thenReturn(Optional.of(activity));
         when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-2", "tenant-1", "workspace-1"))
                 .thenReturn(Optional.of(dependency));
-        when(activityRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc("tenant-1", "workspace-1"))
-                .thenReturn(List.of(activity, dependency));
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-3", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(transitiveDependency));
 
         assertThatThrownBy(() -> service.updateActivity("activity-1", AutomationStudioDto.ActivityRequest.builder()
                 .name("Daily SQL")
@@ -209,6 +241,8 @@ class AutomationStudioServiceTest {
                 .hasMessageContaining("dependencies must not contain cycles");
 
         verify(activityRepository, never()).save(any(AutomationActivity.class));
+        verify(activityRepository, never()).findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                eq("tenant-1"), eq("workspace-1"), any(Pageable.class));
     }
 
     @Test

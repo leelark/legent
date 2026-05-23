@@ -1,0 +1,28 @@
+{
+    "id":  "devops-pwsh-child-process-portability",
+    "createdAt":  "2026-05-22T20:31:04.5666247Z",
+    "objective":  "Make release validator child PowerShell invocations portable and add Compose health self-test to CI.",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         "scripts/ops/release-gate.ps1",
+                         "scripts/ops/test-release-evidence-validators.ps1",
+                         ".github/workflows/ci-security.yml",
+                         "scripts/ops/validate-compose-health.ps1"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1 -SelfTest",
+                           "git diff --check for leased ops files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Pool item complete; continue coordinated backlog scan.",
+    "completedAt":  "2026-05-22T20:54:28.2933980Z"
+}

@@ -2,6 +2,8 @@
 
 Access date: 2026-05-20.
 
+Local queue reconciliation: 2026-05-22 (`parity-doc-state-reconcile-20260522`). No new Salesforce source refresh was performed for this reconciliation.
+
 Scope: current official Salesforce Help sources for Marketing Cloud Engagement parity. Facts below are summarized; URLs are the source of record.
 
 ## Source Register
@@ -43,7 +45,7 @@ Scope: current official Salesforce Help sources for Marketing Cloud Engagement p
 
 ## Inference For Legent
 
-Legent should treat Salesforce parity as operational depth, not a UI clone. The durable product gaps are send policy objects, contact-data governance, activated-journey/runtime accuracy, automation observability, AI trust controls, and admin auditability.
+Legent should treat Salesforce parity as operational depth, not a UI clone. As of the 2026-05-22 local queue reconciliation, `journey-runtime-node-contract` is done locally as a runtime capability/guardrail contract, and `flow-analytics-experimentation` is done locally as bounded journey analytics and observed path/goal reporting. These are local implementation states, not claims of Salesforce parity, production readiness, or high-throughput journey evidence.
 
 Summer 2026 Salesforce release material beyond 2026-05-20 was not used as current baseline scope.
 
@@ -53,6 +55,7 @@ Summer 2026 Salesforce release material beyond 2026-05-20 was not used as curren
 |---|---|---|---|
 | `email-governance-policy-objects` | Beginner safe defaults, Advanced sender controls, Admin policy/audit | High | BACKLOG |
 | `contact-data-designer-governance` | Beginner list/import presets, Advanced relationships/query preview, Admin retention/deletion | High | BACKLOG |
-| `journey-runtime-node-contract` | Beginner recipes, Advanced accurate node availability, Admin publish/simulation gates | High | READY |
+| `journey-runtime-node-contract` | Beginner recipes, Advanced accurate node availability, Admin publish/simulation gates | High | DONE_LOCAL as of 2026-05-22: runtime-supported node subset, capability reporting, publish/resume/rollback guardrails, and builder gating exist locally; advanced node handlers and production journey evidence remain unproven. |
+| `flow-analytics-experimentation` | Beginner outcome cards, Advanced step/path/goal drilldown, Admin evidence views | Medium | DONE_LOCAL as of 2026-05-22: bounded workflow step/path/goal analytics and separated experiment scopes exist locally; causal attribution, anomaly accuracy, reconciliation completeness, and production-volume evidence remain unproven. |
 | `automation-studio-activity-orchestration` | Beginner scheduled recipes, Advanced activity builder, Admin run policy | High | SPLIT_LOCAL: parent decomposed into security design, dependency/run contract, capability UI, file/extract, webhook/notification, send handoff, and script sandbox slices. |
 | `ai-governance-optimization-foundation` | Suggestions require uncertainty, opt-in, audit, and data-use controls; draft-only policy/audit scaffold is local, model-provider generation remains future work | High | PARTIAL_LOCAL |

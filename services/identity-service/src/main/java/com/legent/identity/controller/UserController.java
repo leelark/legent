@@ -26,8 +26,9 @@ public class UserController {
 
     @GetMapping
     @PreAuthorize("@rbacEvaluator.hasPermission('user:read', principal.roles)")
-    public ApiResponse<List<UserDto.Response>> listUsers() {
-        return ApiResponse.ok(userService.listUsers());
+    public ApiResponse<List<UserDto.Response>> listUsers(
+            @RequestParam(value = "limit", required = false) Integer limit) {
+        return ApiResponse.ok(userService.listUsers(limit));
     }
 
     @GetMapping("/{id}")

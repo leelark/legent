@@ -18,9 +18,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -131,6 +133,35 @@ class OptimizationPerformanceServiceTest {
 
         assertThat(saved.get("optimization_type")).isEqualTo("FREQUENCY");
         assertThat(saved.get("policy_key")).isEqualTo("frequency-commercial");
+    }
+
+    @Test
+    void upsertPolicy_requiresWorkspaceContextEvenWhenRequestCarriesWorkspace() {
+        TenantContext.setWorkspaceId(null);
+
+        OptimizationPolicyRequest request = new OptimizationPolicyRequest();
+        request.setWorkspaceId("workspace-1");
+        request.setPolicyKey("sto-commercial");
+        request.setName("Commercial STO readiness");
+        request.setOptimizationType("send_time");
+
+        assertThatThrownBy(() -> service.upsertPolicy(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId is required");
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void listPolicies_usesExactWorkspaceScope() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+
+        service.listPolicies(null);
+
+        verify(repository).queryForList(
+                ArgumentMatchers.argThat(sql -> sql.contains("workspace_id = :workspaceId")
+                        && !sql.contains(":workspaceId IS NULL")),
+                ArgumentMatchers.<Map<String, Object>>argThat(params -> "workspace-1".equals(params.get("workspaceId")))
+        );
     }
 
     @Test

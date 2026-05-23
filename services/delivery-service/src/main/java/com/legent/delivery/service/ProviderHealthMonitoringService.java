@@ -21,6 +21,7 @@ import com.legent.delivery.repository.SmtpProviderRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,6 +33,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class ProviderHealthMonitoringService {
+
+    static final int ACTIVE_PROVIDER_HEALTH_CHECK_PAGE_SIZE = 100;
+    static final int CONSECUTIVE_FAILURE_HISTORY_LIMIT = 25;
 
     private final ProviderHealthCheckRepository healthCheckRepository;
     private final ProviderHealthStatusRepository healthStatusRepository;
@@ -45,13 +49,31 @@ public class ProviderHealthMonitoringService {
     @Transactional
     public void performHealthChecks() {
         log.debug("Starting provider health checks");
-        List<SmtpProvider> activeProviders = providerRepository.findAllActiveProviders();
+        String lastProviderId = null;
+        int checkedProviders = 0;
 
-        for (SmtpProvider provider : activeProviders) {
-            if (provider.isHealthCheckEnabled()) {
-                checkProviderHealth(provider);
+        while (true) {
+            List<SmtpProvider> activeProviders = providerRepository.findActiveProvidersAfterId(
+                    lastProviderId,
+                    PageRequest.of(0, ACTIVE_PROVIDER_HEALTH_CHECK_PAGE_SIZE));
+            if (activeProviders.isEmpty()) {
+                break;
+            }
+
+            for (SmtpProvider provider : activeProviders) {
+                lastProviderId = provider.getId();
+                if (provider.isHealthCheckEnabled()) {
+                    checkProviderHealth(provider);
+                    checkedProviders++;
+                }
+            }
+
+            if (activeProviders.size() < ACTIVE_PROVIDER_HEALTH_CHECK_PAGE_SIZE) {
+                break;
             }
         }
+
+        log.debug("Completed provider health checks for {} providers", checkedProviders);
     }
 
     /**
@@ -102,10 +124,11 @@ public class ProviderHealthMonitoringService {
 
         // Count consecutive failures
         List<ProviderHealthCheck> recentChecks = healthCheckRepository
-                .findByTenantIdAndWorkspaceIdAndProviderIdOrderByCheckTimestampDesc(
+                .findByTenantIdAndWorkspaceIdAndProviderIdOrderByCheckTimestampDescIdDesc(
                         provider.getTenantId(),
                         workspaceId,
-                        provider.getId());
+                        provider.getId(),
+                        PageRequest.of(0, CONSECUTIVE_FAILURE_HISTORY_LIMIT));
         int consecutiveFailures = 0;
         for (ProviderHealthCheck recentCheck : recentChecks) {
             if (recentCheck.getStatus() != ProviderHealthCheck.HealthStatus.HEALTHY) {

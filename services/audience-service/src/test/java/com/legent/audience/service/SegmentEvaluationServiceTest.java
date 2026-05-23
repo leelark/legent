@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import com.legent.audience.domain.Segment;
 import com.legent.audience.dto.SegmentDto;
@@ -16,6 +17,9 @@ import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.*;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
@@ -33,6 +37,8 @@ class SegmentEvaluationServiceTest {
     @Mock private CacheService cacheService;
     @Mock private SegmentEventPublisher eventPublisher;
     @Mock private EntityManager entityManager;
+    @Mock private JdbcTemplate jdbcTemplate;
+    @Mock private ObjectProvider<SegmentEvaluationService> selfProvider;
     @InjectMocks private SegmentEvaluationService evaluationService;
 
     private static final String TENANT_ID = "tenant-001";
@@ -243,11 +249,56 @@ class SegmentEvaluationServiceTest {
         assertThat(TenantContext.getWorkspaceId()).isNull();
     }
 
+    @Test
+    @DisplayName("scheduledRecompute scans scheduled segments in bounded id pages")
+    void scheduledRecompute_scansScheduledSegmentsInBoundedIdPages() {
+        SegmentEvaluationService recomputeDelegate = mock(SegmentEvaluationService.class);
+        List<Segment> firstPage = IntStream.range(0, SegmentEvaluationService.SCHEDULED_RECOMPUTE_PAGE_SIZE)
+                .mapToObj(i -> scheduledSegment("seg-%03d".formatted(i), "tenant-a", "workspace-a"))
+                .toList();
+        List<Segment> secondPage = List.of(
+                scheduledSegment("seg-100", "tenant-b", "workspace-b"),
+                scheduledSegment("seg-101", "tenant-b", "workspace-b"));
+        PageRequest boundedRequest = PageRequest.of(0, SegmentEvaluationService.SCHEDULED_RECOMPUTE_PAGE_SIZE);
+
+        when(selfProvider.getObject()).thenReturn(recomputeDelegate);
+        when(segmentRepository.findScheduledSegmentsAfterId(isNull(), eq(boundedRequest)))
+                .thenReturn(firstPage);
+        when(segmentRepository.findScheduledSegmentsAfterId("seg-099", boundedRequest))
+                .thenReturn(secondPage);
+
+        evaluationService.scheduledRecompute();
+
+        verify(segmentRepository).findScheduledSegmentsAfterId(isNull(), eq(boundedRequest));
+        verify(segmentRepository).findScheduledSegmentsAfterId("seg-099", boundedRequest);
+        verify(segmentRepository, never()).findScheduledSegmentsAfterId("seg-101", boundedRequest);
+        for (Segment segment : firstPage) {
+            verify(recomputeDelegate).recompute(segment.getId(), segment.getTenantId(), segment.getWorkspaceId());
+        }
+        for (Segment segment : secondPage) {
+            verify(recomputeDelegate).recompute(segment.getId(), segment.getTenantId(), segment.getWorkspaceId());
+        }
+        verify(recomputeDelegate, times(SegmentEvaluationService.SCHEDULED_RECOMPUTE_PAGE_SIZE + secondPage.size()))
+                .recompute(anyString(), anyString(), anyString());
+        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getWorkspaceId()).isNull();
+    }
+
     private Segment segmentWithRules(Map<String, Object> rules) {
         Segment segment = new Segment();
         segment.setTenantId(TENANT_ID);
         segment.setWorkspaceId(WORKSPACE_ID);
         segment.setRules(rules);
+        return segment;
+    }
+
+    private Segment scheduledSegment(String id, String tenantId, String workspaceId) {
+        Segment segment = segmentWithRules(Map.of());
+        segment.setId(id);
+        segment.setTenantId(tenantId);
+        segment.setWorkspaceId(workspaceId);
+        segment.setScheduleEnabled(true);
+        segment.setStatus(Segment.SegmentStatus.ACTIVE);
         return segment;
     }
 

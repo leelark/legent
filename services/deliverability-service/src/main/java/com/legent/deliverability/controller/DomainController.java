@@ -5,6 +5,7 @@ import java.util.Locale;
 
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.exception.ConflictException;
+import com.legent.common.exception.NotFoundException;
 import com.legent.deliverability.domain.SenderDomain;
 import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.service.DomainVerificationService;
@@ -58,11 +59,8 @@ public class DomainController {
     public ApiResponse<SenderDomain> regenerateChallenge(@PathVariable String domainId) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        SenderDomain domain = domainRepository.findByTenantIdAndId(tenantId, domainId)
-                .orElseThrow(() -> new com.legent.common.exception.NotFoundException("Domain", domainId));
-        if (!tenantId.equals(domain.getTenantId()) || !workspaceId.equals(domain.getWorkspaceId())) {
-            throw new org.springframework.security.access.AccessDeniedException("You do not have permission to rotate this domain challenge");
-        }
+        domainRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, domainId)
+                .orElseThrow(() -> new NotFoundException("Domain", domainId));
         return ApiResponse.ok(domainVerificationService.regenerateChallenge(domainId));
     }
 
@@ -72,13 +70,8 @@ public class DomainController {
             @PathVariable String domainId) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        
-        SenderDomain domain = domainRepository.findByTenantIdAndId(tenantId, domainId)
-                .orElseThrow(() -> new com.legent.common.exception.NotFoundException("Domain", domainId));
-        
-        if (!tenantId.equals(domain.getTenantId()) || !workspaceId.equals(domain.getWorkspaceId())) {
-            throw new org.springframework.security.access.AccessDeniedException("You do not have permission to verify this domain");
-        }
+        domainRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, domainId)
+                .orElseThrow(() -> new NotFoundException("Domain", domainId));
 
         return ApiResponse.ok(domainVerificationService.verifyDomain(domainId));
     }

@@ -1,5 +1,6 @@
 package com.legent.deliverability.controller;
 
+import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.deliverability.domain.DomainReputation;
 import com.legent.deliverability.domain.SenderDomain;
@@ -11,6 +12,7 @@ import com.legent.deliverability.service.PredictiveDeliverabilityService;
 import com.legent.deliverability.service.SpamScoringEngine;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -26,6 +28,9 @@ import java.util.Map;
 @RequestMapping("/api/v1/deliverability")
 @RequiredArgsConstructor
 public class DeliverabilityInsightsController {
+
+    private static final int DEFAULT_REPUTATION_LIMIT = AppConstants.DEFAULT_PAGE_SIZE;
+    private static final int MAX_REPUTATION_LIMIT = AppConstants.MAX_PAGE_SIZE;
 
     private final SenderDomainRepository senderDomainRepository;
     private final DomainReputationRepository domainReputationRepository;
@@ -61,11 +66,12 @@ public class DeliverabilityInsightsController {
     }
 
     @GetMapping("/reputation/telemetry")
-    public ApiResponse<List<Map<String, Object>>> reputationTelemetry() {
+    public ApiResponse<List<Map<String, Object>>> reputationTelemetry(@RequestParam(name = "limit", required = false) Integer limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
         List<DomainReputation> reputations = domainReputationRepository
-                .findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(tenantId, workspaceId);
+                .findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(
+                        tenantId, workspaceId, PageRequest.of(0, boundedLimit(limit)));
 
         List<Map<String, Object>> result = reputations.stream().map(rep -> {
             Map<String, Object> row = new HashMap<>();
@@ -83,12 +89,14 @@ public class DeliverabilityInsightsController {
     @GetMapping("/inbox-risk")
     public ApiResponse<Map<String, Object>> inboxRisk(@RequestParam(required = false) String domain,
                                                       @RequestParam(required = false) String subject,
-                                                      @RequestParam(required = false) String htmlBody) {
+                                                      @RequestParam(required = false) String htmlBody,
+                                                      @RequestParam(name = "reputationLimit", required = false) Integer reputationLimit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
 
         List<DomainReputation> reputations = domainReputationRepository
-                .findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(tenantId, workspaceId);
+                .findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(
+                        tenantId, workspaceId, PageRequest.of(0, boundedLimit(reputationLimit)));
         List<SenderDomain> domains = senderDomainRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId);
         double averageScore = reputations.isEmpty()
                 ? 0
@@ -196,6 +204,13 @@ public class DeliverabilityInsightsController {
             actions.add("Throttle launch and send to engaged recipients first.");
         }
         return actions;
+    }
+
+    private int boundedLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return DEFAULT_REPUTATION_LIMIT;
+        }
+        return Math.min(limit, MAX_REPUTATION_LIMIT);
     }
 
 }

@@ -1,0 +1,41 @@
+{
+    "id":  "safe-local-pool-20260522o-closeout",
+    "createdAt":  "2026-05-22T20:15:49.6671487Z",
+    "objective":  "Close out six-lane safe-local pool: frontend auth cleanup, tracking analytics bounds, content version bounds, identity list bounds, foundation config context guard, and CI validator wiring.",
+    "status":  "DONE",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         "frontend/src/components/marketing/PublicAuthViews.tsx",
+                         "frontend/tests/e2e/auth.spec.ts",
+                         "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateVersionService.java",
+                         "services/identity-service/src/main/java/com/legent/identity/service/AuthService.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/ConfigVersionController.java",
+                         ".github/workflows/ci-security.yml",
+                         "scripts/ops/test-route-map-validator.ps1",
+                         "scripts/ops/validate-compose-safety.ps1"
+                     ],
+    "agents":  [
+                   "019e5141-c6bc-7070-a458-9c095b304815",
+                   "019e5141-dab7-7f23-bf10-75340ea276f2",
+                   "019e5141-eec3-7a90-a204-47f2222ceaef",
+                   "019e5142-02ff-7aa0-a758-18a28197d7f9",
+                   "019e5142-173d-7b71-b466-72ec68f70064",
+                   "019e5142-2c0f-7660-b2ba-87c374598179"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -T 1 -pl services/identity-service",
+                           "services/foundation-service",
+                           "services/tracking-service",
+                           "services/content-service -am test",
+                           "cd frontend; npm run lint; npm run build:ci; playwright auth spec",
+                           "route-map fixture/live validation and Compose safety validation",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Run next pending scan; only promote safe local work with exact leases."
+}

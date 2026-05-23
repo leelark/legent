@@ -31,6 +31,28 @@ class OutboundUrlGuardTest {
     }
 
     @Test
+    void requirePublicUriSyntax_allowsUnresolvedPublicHostnameWithoutDns() {
+        assertDoesNotThrow(() -> OutboundUrlGuard.requirePublicUriSyntax(
+                "https://example.invalid/webhook", "webhook", true));
+        assertDoesNotThrow(() -> OutboundUrlGuard.requirePublicUriSyntax(
+                "http://example.invalid/webhook", "webhook", false));
+    }
+
+    @Test
+    void requirePublicUriSyntax_rejectsPrivateLiteralIpAndBlockedHosts() {
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicUriSyntax("https://localhost/webhook", "webhook", true));
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicUriSyntax("https://10.0.0.5/webhook", "webhook", true));
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicUriSyntax("https://169.254.169.254/latest/meta-data", "webhook", true));
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicUriSyntax("https://[2001:db8::1]/webhook", "webhook", true));
+        assertThrows(IllegalArgumentException.class,
+                () -> OutboundUrlGuard.requirePublicUriSyntax("https://[::ffff:127.0.0.1]/webhook", "webhook", true));
+    }
+
+    @Test
     void requirePublicResolvedAddress_rejectsPrivateAndReservedRebindAddresses() throws Exception {
         assertDoesNotThrow(() -> OutboundUrlGuard.requirePublicResolvedAddress(
                 InetAddress.getByName("93.184.216.34"), "webhook"));

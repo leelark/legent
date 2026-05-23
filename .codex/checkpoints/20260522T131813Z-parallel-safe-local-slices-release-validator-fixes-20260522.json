@@ -1,0 +1,30 @@
+{
+    "id":  "parallel-safe-local-slices-release-validator-fixes-20260522",
+    "createdAt":  "2026-05-22T13:18:13.7707692Z",
+    "objective":  "Fix integration review findings for compose safety and production overlay validators.",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         "docker-compose.yml",
+                         "scripts/ops/validate-compose-safety.ps1",
+                         "scripts/ops/release-gate.ps1",
+                         "scripts/ops/validate-production-overlay.ps1",
+                         "scripts/ops/test-release-evidence-validators.ps1"
+                     ],
+    "agents":  [
+                   "RELEASE_MANAGER",
+                   "SRE_MONITORING_ENGINEER",
+                   "SECURITY_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "validate-compose-safety self-test and .env.example check",
+                           "validate-production-overlay",
+                           "test-release-evidence-validators",
+                           "local release-gate"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Release validator findings fixed and validated."
+}

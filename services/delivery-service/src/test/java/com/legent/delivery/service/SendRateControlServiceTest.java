@@ -43,6 +43,7 @@ class SendRateControlServiceTest {
     private static final String RECIPIENT_DOMAIN = "gmail.com";
 
     @Autowired private SendRateControlService service;
+    @Autowired private WarmupService warmupService;
     @Autowired private SendRateStateRepository sendRateStateRepository;
     @Autowired private WarmupStateRepository warmupStateRepository;
     @Autowired private DeliverySendReservationRepository reservationRepository;
@@ -217,6 +218,36 @@ class SendRateControlServiceTest {
                 .getStatus());
     }
 
+    @Test
+    void list_usesBoundedFirstPageAndPreservesScope() {
+        for (int index = 0; index < 4; index++) {
+            seedRateState(TENANT_ID, WORKSPACE_ID, "sender-" + index + ".example", "provider-" + index, RECIPIENT_DOMAIN);
+        }
+        seedRateState(TENANT_ID, "workspace-other", "other.example", PROVIDER_ID, RECIPIENT_DOMAIN);
+        seedRateState("tenant-other", WORKSPACE_ID, "other-tenant.example", PROVIDER_ID, RECIPIENT_DOMAIN);
+
+        List<SendRateState> states = service.list(TENANT_ID, WORKSPACE_ID, 2);
+
+        assertEquals(2, states.size());
+        assertTrue(states.stream().allMatch(state -> TENANT_ID.equals(state.getTenantId())));
+        assertTrue(states.stream().allMatch(state -> WORKSPACE_ID.equals(state.getWorkspaceId())));
+    }
+
+    @Test
+    void warmupList_usesBoundedFirstPageAndPreservesScope() {
+        for (int index = 0; index < 4; index++) {
+            seedWarmupState(TENANT_ID, WORKSPACE_ID, "sender-" + index + ".example", "provider-" + index, 20, 100, 0, 0);
+        }
+        seedWarmupState(TENANT_ID, "workspace-other", "other.example", PROVIDER_ID, 20, 100, 0, 0);
+        seedWarmupState("tenant-other", WORKSPACE_ID, "other-tenant.example", PROVIDER_ID, 20, 100, 0, 0);
+
+        List<WarmupState> states = warmupService.list(TENANT_ID, WORKSPACE_ID, 2);
+
+        assertEquals(2, states.size());
+        assertTrue(states.stream().allMatch(state -> TENANT_ID.equals(state.getTenantId())));
+        assertTrue(states.stream().allMatch(state -> WORKSPACE_ID.equals(state.getWorkspaceId())));
+    }
+
     private SendRateControlService.RateLimitDecision reserve(String reservationId) {
         return service.reserve(
                 TENANT_ID,
@@ -230,12 +261,23 @@ class SendRateControlServiceTest {
     }
 
     private void seedWarmup(int hourlyLimit, int dailyLimit, int sentThisHour, int sentToday) {
+        seedWarmupState(TENANT_ID, WORKSPACE_ID, SENDER_DOMAIN, PROVIDER_ID, hourlyLimit, dailyLimit, sentThisHour, sentToday);
+    }
+
+    private void seedWarmupState(String tenantId,
+                                 String workspaceId,
+                                 String senderDomain,
+                                 String providerId,
+                                 int hourlyLimit,
+                                 int dailyLimit,
+                                 int sentThisHour,
+                                 int sentToday) {
         Instant now = Instant.now();
         WarmupState state = new WarmupState();
-        state.setTenantId(TENANT_ID);
-        state.setWorkspaceId(WORKSPACE_ID);
-        state.setSenderDomain(SENDER_DOMAIN);
-        state.setProviderId(PROVIDER_ID);
+        state.setTenantId(tenantId);
+        state.setWorkspaceId(workspaceId);
+        state.setSenderDomain(senderDomain);
+        state.setProviderId(providerId);
         state.setStage("NEW");
         state.setHourlyLimit(hourlyLimit);
         state.setDailyLimit(dailyLimit);
@@ -250,14 +292,31 @@ class SendRateControlServiceTest {
     }
 
     private void seedRateState(int usedThisMinute) {
+        seedRateState(TENANT_ID, WORKSPACE_ID, SENDER_DOMAIN, PROVIDER_ID, RECIPIENT_DOMAIN, usedThisMinute);
+    }
+
+    private void seedRateState(String tenantId,
+                               String workspaceId,
+                               String senderDomain,
+                               String providerId,
+                               String recipientDomain) {
+        seedRateState(tenantId, workspaceId, senderDomain, providerId, recipientDomain, 0);
+    }
+
+    private void seedRateState(String tenantId,
+                               String workspaceId,
+                               String senderDomain,
+                               String providerId,
+                               String recipientDomain,
+                               int usedThisMinute) {
         Instant now = Instant.now();
         SendRateState state = new SendRateState();
-        state.setTenantId(TENANT_ID);
-        state.setWorkspaceId(WORKSPACE_ID);
-        state.setRateLimitKey(rateLimitKey());
-        state.setSenderDomain(SENDER_DOMAIN);
-        state.setProviderId(PROVIDER_ID);
-        state.setIspDomain(RECIPIENT_DOMAIN);
+        state.setTenantId(tenantId);
+        state.setWorkspaceId(workspaceId);
+        state.setRateLimitKey(service.rateLimitKey(tenantId, workspaceId, senderDomain, providerId, recipientDomain));
+        state.setSenderDomain(senderDomain);
+        state.setProviderId(providerId);
+        state.setIspDomain(recipientDomain);
         state.setMaxPerMinute(1);
         state.setUsedThisMinute(usedThisMinute);
         state.setWindowStartedAt(now.truncatedTo(ChronoUnit.MINUTES));

@@ -1,0 +1,24 @@
+{
+    "id":  "product-docs-parity-backlog-split",
+    "createdAt":  "2026-05-22T21:14:26.4177599Z",
+    "objective":  "Split stale product parity docs into narrow follow-ups",
+    "status":  "IN_PROGRESS",
+    "owner":  "PRODUCT_MANAGER_AGENT",
+    "filesInScope":  [
+                         "docs/product/salesforce-parity-matrix.md",
+                         "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                         "docs/product/automation-studio-activity-orchestration-plan.md"
+                     ],
+    "agents":  [
+                   "SALESFORCE_PARITY_RESEARCHER",
+                   "DOCUMENTATION_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "git diff --check -- docs/product/salesforce-parity-matrix.md docs/product/competitor-research/2026-05-20-competitor-capability-scan.md docs/product/automation-studio-activity-orchestration-plan.md"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Reconcile parity docs and split broad follow-ups into narrow local backlog descriptions."
+}

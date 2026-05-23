@@ -20,6 +20,9 @@ import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -38,6 +41,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class WebhookDispatcherService {
 
+    private static final int DISPATCH_CONFIG_PAGE_SIZE = 100;
+
     private final WebhookConfigRepository configRepository;
     private final WebhookLogRepository logRepository;
     private final WebhookRetryRepository retryRepository;
@@ -50,11 +55,6 @@ public class WebhookDispatcherService {
     public void dispatch(String tenantId, String eventType, Object payload) {
 
         String workspaceId = TenantContext.getWorkspaceId();
-        List<WebhookConfig> configs = findActiveConfigs(tenantId, workspaceId);
-        if (configs.isEmpty()) {
-            return;
-        }
-
         String normalizedEventType = normalize(eventType);
         if (normalizedEventType == null) {
             log.warn("Skipping webhook dispatch: event type is blank");
@@ -69,59 +69,76 @@ public class WebhookDispatcherService {
             throw new IllegalStateException("Failed to serialize webhook payload", e);
         }
 
-        // Collect all webhook dispatch Monos for concurrent execution
-        List<Mono<Boolean>> dispatchMonos = new java.util.ArrayList<>();
-        
+        Slice<WebhookConfig> page;
+        Pageable pageable = PageRequest.of(0, DISPATCH_CONFIG_PAGE_SIZE);
+        do {
+            page = findActiveConfigs(tenantId, workspaceId, pageable);
+            dispatchPage(tenantId, workspaceId, normalizedEventType, jsonPayload, page.getContent());
+            pageable = page.nextPageable();
+        } while (page.hasNext());
+    }
+
+    private void dispatchPage(
+            String tenantId,
+            String workspaceId,
+            String normalizedEventType,
+            String jsonPayload,
+            List<WebhookConfig> configs) {
+        List<Mono<Boolean>> dispatchMonos = new java.util.ArrayList<>(configs.size());
+
         for (WebhookConfig config : configs) {
-            
-            // Check if this webhook is listening to this specific event
             if (!isSubscribed(config, normalizedEventType)) {
                 continue;
             }
 
-            URI endpoint;
-            try {
-                endpoint = OutboundUrlGuard.requirePublicHttpsUri(config.getEndpointUrl(), "webhook endpoint");
-            } catch (IllegalArgumentException e) {
-                log.warn("Skipping webhook {} due to unsafe endpoint URL: {}", config.getId(), e.getMessage());
-                continue;
+            Mono<Boolean> dispatchMono = buildDispatchMono(tenantId, workspaceId, normalizedEventType, jsonPayload, config);
+            if (dispatchMono != null) {
+                dispatchMonos.add(dispatchMono);
             }
-
-            String signature = generateSignature(jsonPayload, config.getSecretKey());
-            
-            // AUDIT-014: Build reactive chain without blocking
-            Mono<Boolean> dispatchMono = webClient.post()
-                    .uri(endpoint)
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .header("X-Legent-Event", normalizedEventType)
-                    .header("X-Legent-Signature", signature)
-                    .bodyValue(jsonPayload)
-                    .exchangeToMono(response -> {
-                        return response.bodyToMono(String.class).defaultIfEmpty("").map(body -> {
-                            boolean isSuccess = response.statusCode().is2xxSuccessful();
-                            logDelivery(tenantId, workspaceId, config.getId(), normalizedEventType,
-                                    response.statusCode().value(), body, isSuccess);
-                            return isSuccess;
-                        });
-                    })
-                    .timeout(Duration.ofSeconds(5))
-                    .retryWhen(Retry.backoff(2, Duration.ofMillis(300)).filter(this::isTransientWebhookError))
-                    .onErrorResume(e -> {
-                        logDelivery(tenantId, workspaceId, config.getId(), normalizedEventType, 0,
-                                e.getMessage(), false);
-                        // AUDIT-015: Store failed webhook for retry
-                        storeFailedWebhookForRetry(tenantId, workspaceId, config.getId(), normalizedEventType,
-                                jsonPayload, e.getMessage());
-                        return Mono.just(false);
-                    });
-            
-            dispatchMonos.add(dispatchMono);
         }
-        
-        // AUDIT-014: Wait for all dispatches to complete without blocking individual threads
+
         if (!dispatchMonos.isEmpty()) {
             Mono.when(dispatchMonos).block();
         }
+    }
+
+    private Mono<Boolean> buildDispatchMono(
+            String tenantId, String workspaceId, String normalizedEventType, String jsonPayload, WebhookConfig config) {
+        URI endpoint;
+        try {
+            endpoint = OutboundUrlGuard.requirePublicHttpsUri(config.getEndpointUrl(), "webhook endpoint");
+        } catch (IllegalArgumentException e) {
+            log.warn("Skipping webhook {} due to unsafe endpoint URL: {}", config.getId(), e.getMessage());
+            return null;
+        }
+
+        String signature = generateSignature(jsonPayload, config.getSecretKey());
+
+        // AUDIT-014: Build reactive chain without blocking
+        return webClient.post()
+                .uri(endpoint)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-Legent-Event", normalizedEventType)
+                .header("X-Legent-Signature", signature)
+                .bodyValue(jsonPayload)
+                .exchangeToMono(response -> {
+                    return response.bodyToMono(String.class).defaultIfEmpty("").map(body -> {
+                        boolean isSuccess = response.statusCode().is2xxSuccessful();
+                        logDelivery(tenantId, workspaceId, config.getId(), normalizedEventType,
+                                response.statusCode().value(), body, isSuccess);
+                        return isSuccess;
+                    });
+                })
+                .timeout(Duration.ofSeconds(5))
+                .retryWhen(Retry.backoff(2, Duration.ofMillis(300)).filter(this::isTransientWebhookError))
+                .onErrorResume(e -> {
+                    logDelivery(tenantId, workspaceId, config.getId(), normalizedEventType, 0,
+                            e.getMessage(), false);
+                    // AUDIT-015: Store failed webhook for retry
+                    storeFailedWebhookForRetry(tenantId, workspaceId, config.getId(), normalizedEventType,
+                            jsonPayload, e.getMessage());
+                    return Mono.just(false);
+                });
     }
     
     /**
@@ -174,12 +191,12 @@ public class WebhookDispatcherService {
         }
     }
 
-    private List<WebhookConfig> findActiveConfigs(String tenantId, String workspaceId) {
+    private Slice<WebhookConfig> findActiveConfigs(String tenantId, String workspaceId, Pageable pageable) {
         if (workspaceId == null || workspaceId.isBlank()) {
             // Tenant-global platform events intentionally dispatch only tenant-global webhooks.
-            return configRepository.findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrue(tenantId);
+            return configRepository.findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrueOrderByIdAsc(tenantId, pageable);
         }
-        return configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue(tenantId, workspaceId);
+        return configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(tenantId, workspaceId, pageable);
     }
 
     private void logDelivery(

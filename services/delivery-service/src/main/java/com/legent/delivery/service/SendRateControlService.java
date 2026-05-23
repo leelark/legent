@@ -8,6 +8,7 @@ import com.legent.delivery.repository.DeliverySendReservationRepository;
 import com.legent.delivery.repository.SendRateStateRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,9 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class SendRateControlService {
+
+    private static final int DEFAULT_STATE_LIST_LIMIT = 50;
+    private static final int MAX_STATE_LIST_LIMIT = 200;
 
     private final SendRateStateRepository sendRateStateRepository;
     private final DeliverySendReservationRepository reservationRepository;
@@ -207,8 +211,17 @@ public class SendRateControlService {
         reservationRepository.save(reservation);
     }
 
+    @Transactional(readOnly = true)
     public List<SendRateState> list(String tenantId, String workspaceId) {
-        return sendRateStateRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(tenantId, workspaceId);
+        return list(tenantId, workspaceId, DEFAULT_STATE_LIST_LIMIT);
+    }
+
+    @Transactional(readOnly = true)
+    public List<SendRateState> list(String tenantId, String workspaceId, int limit) {
+        return sendRateStateRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, stateListLimit(limit)));
     }
 
     private SendRateState getOrCreateRateStateForUpdate(String tenantId,
@@ -432,6 +445,13 @@ public class SendRateControlService {
             return UUID.randomUUID().toString();
         }
         return reservationId.trim();
+    }
+
+    private int stateListLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_STATE_LIST_LIMIT;
+        }
+        return Math.min(limit, MAX_STATE_LIST_LIMIT);
     }
 
     public record RateLimitDecision(boolean allowed,

@@ -109,6 +109,73 @@ class TenantHandshakeInterceptorTest {
         verify(response).setStatusCode(HttpStatus.BAD_REQUEST);
     }
 
+    @Test
+    void beforeHandshakeRejectsAuthenticatedPrincipalWithoutWorkspaceEvenWhenHeaderIsPresent() {
+        authenticate("tenant-1");
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(AppConstants.HEADER_WORKSPACE_ID, "workspace-from-header");
+        ServerHttpResponse response = mock(ServerHttpResponse.class);
+
+        boolean allowed = interceptor.beforeHandshake(
+                requestWithHeaders(headers),
+                response,
+                mock(WebSocketHandler.class),
+                new HashMap<>());
+
+        assertThat(allowed).isFalse();
+        verify(response).setStatusCode(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void beforeHandshakeDoesNotAllowHeadersToOverrideAuthenticatedPrincipalScope() {
+        UserPrincipal principal = new UserPrincipal("user-1", "tenant-1", "workspace-1", "prod", Set.of("USER"));
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                principal,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))));
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(AppConstants.HEADER_TENANT_ID, "tenant-from-header");
+        headers.add(AppConstants.HEADER_WORKSPACE_ID, "workspace-from-header");
+        Map<String, Object> attributes = new HashMap<>();
+
+        boolean allowed = interceptor.beforeHandshake(
+                requestWithHeaders(headers),
+                mock(ServerHttpResponse.class),
+                mock(WebSocketHandler.class),
+                attributes);
+
+        assertThat(allowed).isTrue();
+        assertThat(attributes)
+                .containsEntry(AppConstants.HEADER_TENANT_ID, "tenant-1")
+                .containsEntry(AppConstants.HEADER_WORKSPACE_ID, "workspace-1");
+    }
+
+    @Test
+    void beforeHandshakeDoesNotAllowHeadersToOverrideTenantContextScope() {
+        UserPrincipal principal = new UserPrincipal("user-1", "tenant-from-principal", "workspace-from-principal", "prod", Set.of("USER"));
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                principal,
+                null,
+                List.of(new SimpleGrantedAuthority("ROLE_USER"))));
+        TenantContext.setTenantId("tenant-from-context");
+        TenantContext.setWorkspaceId("workspace-from-context");
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(AppConstants.HEADER_TENANT_ID, "tenant-from-header");
+        headers.add(AppConstants.HEADER_WORKSPACE_ID, "workspace-from-header");
+        Map<String, Object> attributes = new HashMap<>();
+
+        boolean allowed = interceptor.beforeHandshake(
+                requestWithHeaders(headers),
+                mock(ServerHttpResponse.class),
+                mock(WebSocketHandler.class),
+                attributes);
+
+        assertThat(allowed).isTrue();
+        assertThat(attributes)
+                .containsEntry(AppConstants.HEADER_TENANT_ID, "tenant-from-context")
+                .containsEntry(AppConstants.HEADER_WORKSPACE_ID, "workspace-from-context");
+    }
+
     private void authenticate(String tenantId) {
         UserPrincipal principal = new UserPrincipal("user-1", tenantId, Set.of("USER"));
         SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(

@@ -20,8 +20,12 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.util.backoff.ExponentialBackOff;
 import org.springframework.lang.NonNull;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Kafka consumer configuration with JSON deserialization,
@@ -32,6 +36,7 @@ import java.util.Map;
 public class KafkaConsumerConfig {
 
     static final int DEFAULT_DLQ_PARTITIONS = 6;
+    static final String TRUSTED_PACKAGES_ALLOWLIST = "java.lang,java.util,com.legent.kafka.model";
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
@@ -39,7 +44,7 @@ public class KafkaConsumerConfig {
     @Value("${spring.kafka.consumer.group-id:legent-default}")
     private String groupId;
 
-    @Value("${spring.kafka.consumer.properties.spring.json.trusted.packages:java.lang,java.util,com.legent.kafka.model}")
+    @Value("${spring.kafka.consumer.properties.spring.json.trusted.packages:" + TRUSTED_PACKAGES_ALLOWLIST + "}")
     private String trustedPackages;
 
     @Value("${spring.kafka.consumer.properties.spring.json.value.default.type:com.legent.kafka.model.EventEnvelope}")
@@ -62,7 +67,7 @@ public class KafkaConsumerConfig {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
         props.put(ErrorHandlingDeserializer.KEY_DESERIALIZER_CLASS, StringDeserializer.class.getName());
         props.put(ErrorHandlingDeserializer.VALUE_DESERIALIZER_CLASS, JsonDeserializer.class.getName());
-        props.put(JsonDeserializer.TRUSTED_PACKAGES, trustedPackages);
+        props.put(JsonDeserializer.TRUSTED_PACKAGES, validatedTrustedPackages());
         props.put(JsonDeserializer.VALUE_DEFAULT_TYPE, valueDefaultType);
         props.put(JsonDeserializer.USE_TYPE_INFO_HEADERS, useTypeInfoHeaders);
         
@@ -89,6 +94,22 @@ public class KafkaConsumerConfig {
 
     static TopicPartition dlqDestination(ConsumerRecord<?, ?> record) {
         return new TopicPartition(AppConstants.TOPIC_KAFKA_DLQ, record.partition());
+    }
+
+    private String validatedTrustedPackages() {
+        Set<String> configuredPackages = Arrays.stream(trustedPackages.split(","))
+                .map(String::trim)
+                .filter(packageName -> !packageName.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> allowedPackages = Arrays.stream(TRUSTED_PACKAGES_ALLOWLIST.split(","))
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (!allowedPackages.equals(configuredPackages)) {
+            throw new IllegalStateException(
+                    "Kafka consumer trusted packages must be exactly " + TRUSTED_PACKAGES_ALLOWLIST);
+        }
+
+        return TRUSTED_PACKAGES_ALLOWLIST;
     }
 
     @Bean

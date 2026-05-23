@@ -14,6 +14,7 @@ import com.legent.security.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -225,7 +226,11 @@ public class TemplateService {
     }
 
     public List<EmailTemplate> searchTemplates(String tenantId, String workspaceId, String query) {
-        return templateRepository.searchByName(tenantId, workspaceId, query);
+        return templateRepository.searchByName(
+                tenantId,
+                workspaceId,
+                query,
+                PageRequest.of(0, AppConstants.MAX_PAGE_SIZE));
     }
 
     @Transactional

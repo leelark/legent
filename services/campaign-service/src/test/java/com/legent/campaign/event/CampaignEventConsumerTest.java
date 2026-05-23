@@ -274,6 +274,11 @@ class CampaignEventConsumerTest {
                 AppConstants.TOPIC_SEND_PROCESSING,
                 "processing-event-1",
                 "idem-processing-1")).thenReturn(true);
+        doAnswer(invocation -> {
+            assertEquals("tenant-1", TenantContext.getTenantId());
+            assertEquals("workspace-1", TenantContext.getWorkspaceId());
+            return null;
+        }).when(executionService).executeBatch("tenant-1", "job-1", "batch-1", null);
 
         consumer.handleSendProcessing(event);
 
@@ -351,6 +356,8 @@ class CampaignEventConsumerTest {
                 "batch-event-1",
                 "idem-batch-1")).thenReturn(true);
         doAnswer(invocation -> {
+            assertEquals("tenant-1", TenantContext.getTenantId());
+            assertEquals("workspace-1", TenantContext.getWorkspaceId());
             assertEquals("environment-1", TenantContext.getEnvironmentId());
             assertEquals("correlation-1", TenantContext.getCorrelationId());
             return null;

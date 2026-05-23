@@ -15,7 +15,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,6 +51,23 @@ class ConfigVersionControllerTest {
 
         verify(configVersioningService).getConfigVersionHistory(
                 "tenant-1", "workspace-1", "local", "delivery.max-retries");
+    }
+
+    @Test
+    void historyReadEndpointsRequireTenantContextBeforeServiceLookup() {
+        TenantContext.clear();
+
+        assertThatThrownBy(() -> controller.getConfigVersionHistory("delivery.max-retries"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+        assertThatThrownBy(() -> controller.getConfigVersion("delivery.max-retries", 2))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+        assertThatThrownBy(() -> controller.getAllVersionHistory(0, 20))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+
+        verifyNoInteractions(configVersioningService);
     }
 
     @Test
@@ -92,6 +111,17 @@ class ConfigVersionControllerTest {
     }
 
     @Test
+    void rollbackConfigRequiresTenantContextBeforeServiceMutation() {
+        TenantContext.clear();
+
+        assertThatThrownBy(() -> controller.rollbackConfig("delivery.max-retries", 2))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+
+        verifyNoInteractions(configVersioningService);
+    }
+
+    @Test
     void compareVersions_passesCurrentWorkspaceEnvironment() {
         when(configVersioningService.compareVersions(
                 "tenant-1", "workspace-1", "local", "delivery.max-retries", 1, 2))
@@ -101,5 +131,16 @@ class ConfigVersionControllerTest {
 
         verify(configVersioningService).compareVersions(
                 "tenant-1", "workspace-1", "local", "delivery.max-retries", 1, 2);
+    }
+
+    @Test
+    void compareVersionsRequiresTenantContextBeforeServiceLookup() {
+        TenantContext.clear();
+
+        assertThatThrownBy(() -> controller.compareVersions("delivery.max-retries", 1, 2))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+
+        verifyNoInteractions(configVersioningService);
     }
 }

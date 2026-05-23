@@ -1,0 +1,40 @@
+{
+    "id":  "content-template-events-workspace-envelope",
+    "createdAt":  "2026-05-22T13:56:03.1913681Z",
+    "objective":  "Include workspace scope in content template workflow events",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/content-service/src/main/java/com/legent/content/event/ContentEventPublisher.java",
+                         "services/content-service/src/main/java/com/legent/content/event/ContentPublishedEvent.java",
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateWorkflowService.java",
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateVersionService.java",
+                         "services/content-service/src/test/java/com/legent/content/event/ContentEventPublisherTest.java",
+                         "services/content-service/src/test/java/com/legent/content/service/TemplateWorkflowServiceTest.java",
+                         "services/content-service/src/test/java/com/legent/content/service/TemplateVersionServiceTest.java",
+                         "shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventContractValidator.java",
+                         "shared/legent-kafka/src/test/java/com/legent/kafka/producer/EventContractValidatorTest.java"
+                     ],
+    "agents":  [
+                   "SYSTEM_DESIGNER",
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/content-service",
+                           "shared/legent-kafka -am \"-Dtest=ContentEventPublisherTest",
+                           "TemplateWorkflowServiceTest",
+                           "TemplateVersionServiceTest",
+                           "EventContractValidatorTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/content-service",
+                           "shared/legent-kafka -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/content-service shared/legent-kafka .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote the next safe local item after state, memory, and dashboard refresh.",
+    "completedAt":  "2026-05-22T14:14:20.5816619Z"
+}

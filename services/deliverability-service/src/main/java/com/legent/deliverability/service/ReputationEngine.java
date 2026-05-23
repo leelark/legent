@@ -5,6 +5,9 @@ import com.legent.deliverability.domain.DomainReputation;
 import com.legent.deliverability.repository.DomainReputationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -43,6 +46,8 @@ public class ReputationEngine {
     private static final int MAX_REPUTATION = 100;
     // Minimum reputation score
     private static final int MIN_REPUTATION = 0;
+    // Fixed upper bound for each scheduled recovery read.
+    private static final int RECOVERY_BATCH_SIZE = 100;
 
     /**
      * Records a negative signal (bounce or complaint) with time-windowed calculation.
@@ -141,10 +146,19 @@ public class ReputationEngine {
     @Transactional
     public void applyReputationRecovery() {
         log.debug("Running reputation recovery job");
-        List<DomainReputation> allReputations = reputationRepository.findAll();
         long now = System.currentTimeMillis();
 
-        for (DomainReputation reputation : allReputations) {
+        Pageable pageable = PageRequest.of(0, RECOVERY_BATCH_SIZE);
+        Slice<DomainReputation> reputationPage;
+        do {
+            reputationPage = reputationRepository.findAllByOrderByIdAsc(pageable);
+            applyRecoveryPage(reputationPage.getContent(), now);
+            pageable = reputationPage.nextPageable();
+        } while (reputationPage.hasNext());
+    }
+
+    private void applyRecoveryPage(List<DomainReputation> reputations, long now) {
+        for (DomainReputation reputation : reputations) {
             String tenantId = reputation.getTenantId();
             String workspaceId = reputation.getWorkspaceId();
             if (workspaceId == null || workspaceId.isBlank()) {

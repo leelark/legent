@@ -16,6 +16,7 @@ import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +27,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class SendJobCheckpointingService {
+
+    private static final int BATCH_RETRY_PAGE_SIZE = 500;
 
     private final SendJobRepository jobRepository;
     private final SendBatchRepository batchRepository;
@@ -153,20 +156,35 @@ public class SendJobCheckpointingService {
         String workspaceId = TenantContext.requireWorkspaceId();
         requireScopedJob(tenantId, workspaceId, jobId);
 
-        List<SendBatch> failedBatches = batchRepository
-                .findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(tenantId, workspaceId, jobId)
-                .stream()
-                .filter(batch -> batch.getStatus() == SendBatch.BatchStatus.FAILED)
-                .toList();
-
-        for (SendBatch batch : failedBatches) {
-            batch.setStatus(SendBatch.BatchStatus.PENDING);
-            batch.setRetryCount(batch.getRetryCount() + 1);
+        List<SendBatch.BatchStatus> retryableStatuses = List.of(SendBatch.BatchStatus.FAILED);
+        int retried = 0;
+        String afterBatchId = null;
+        while (true) {
+            List<String> batchIds = batchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                    tenantId,
+                    workspaceId,
+                    jobId,
+                    retryableStatuses,
+                    afterBatchId,
+                    PageRequest.of(0, BATCH_RETRY_PAGE_SIZE));
+            if (batchIds.isEmpty()) {
+                break;
+            }
+            retried += batchRepository.markScopedBatchIdsForRetry(
+                    tenantId,
+                    workspaceId,
+                    jobId,
+                    batchIds,
+                    retryableStatuses,
+                    SendBatch.BatchStatus.PENDING,
+                    Instant.now());
+            afterBatchId = batchIds.get(batchIds.size() - 1);
+            if (batchIds.size() < BATCH_RETRY_PAGE_SIZE) {
+                break;
+            }
         }
 
-        batchRepository.saveAll(failedBatches);
-
-        log.info("Marked {} failed batches for retry in job {}", failedBatches.size(), jobId);
+        log.info("Marked {} failed batches for retry in job {}", retried, jobId);
     }
 
     /**

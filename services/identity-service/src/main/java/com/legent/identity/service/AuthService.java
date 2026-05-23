@@ -1,5 +1,6 @@
 package com.legent.identity.service;
 
+import com.legent.common.constant.AppConstants;
 import com.legent.common.util.IdGenerator;
 import com.legent.identity.domain.*;
 import com.legent.identity.dto.AuthBridgeDto;
@@ -9,6 +10,10 @@ import com.legent.identity.repository.*;
 import com.legent.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +41,24 @@ public class AuthService {
     private static final String ROLE_USER = "USER";
     private static final Duration DEFAULT_INVITATION_TTL = Duration.ofDays(7);
     private static final Duration MAX_INVITATION_TTL = Duration.ofDays(7);
+    private static final Sort INVITATION_LIST_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
+    private static final ExampleMatcher INVITATION_SCOPE_MATCHER = ExampleMatcher.matchingAll()
+            .withIgnorePaths(
+                    "id",
+                    "email",
+                    "token",
+                    "roleKeys",
+                    "invitedByUserId",
+                    "status",
+                    "expiresAt",
+                    "acceptedAt",
+                    "metadata",
+                    "createdAt",
+                    "updatedAt",
+                    "createdBy",
+                    "deletedAt",
+                    "deleted",
+                    "version");
     private static final Set<String> ALL_ROLE_KEYS = Set.of(
             ROLE_ADMIN,
             ROLE_PLATFORM_ADMIN,
@@ -265,13 +288,22 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public List<AuthInvitation> listInvitations(String tenantId, String workspaceId) {
+        return listInvitations(tenantId, workspaceId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AuthInvitation> listInvitations(String tenantId, String workspaceId, Integer limit) {
         String normalizedWorkspace = blankToNull(workspaceId);
         if (normalizedWorkspace == null) {
             throw new IllegalArgumentException("Workspace context is required for invitation listing");
         }
-        return authInvitationRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
-                tenantId,
-                normalizeWorkspaceId(normalizedWorkspace));
+        AuthInvitation probe = new AuthInvitation();
+        probe.setTenantId(tenantId);
+        probe.setWorkspaceId(normalizeWorkspaceId(normalizedWorkspace));
+        return authInvitationRepository.findAll(
+                        Example.of(probe, INVITATION_SCOPE_MATCHER),
+                        PageRequest.of(0, boundedListLimit(limit), INVITATION_LIST_SORT))
+                .getContent();
     }
 
     @Transactional
@@ -772,6 +804,13 @@ public class AuthService {
             return now.plus(DEFAULT_INVITATION_TTL);
         }
         return requestedExpiresAt.isAfter(maxExpiresAt) ? maxExpiresAt : requestedExpiresAt;
+    }
+
+    private int boundedListLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return AppConstants.DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(limit, AppConstants.MAX_PAGE_SIZE);
     }
 
     private record MembershipRoles(Account account, AccountMembership membership, List<String> roles) {

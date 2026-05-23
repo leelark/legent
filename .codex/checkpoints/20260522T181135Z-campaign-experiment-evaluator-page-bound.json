@@ -1,0 +1,26 @@
+{
+    "id":  "campaign-experiment-evaluator-page-bound",
+    "createdAt":  "2026-05-22T18:11:35.1036198Z",
+    "objective":  "Page campaign experiment winner evaluation",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignEngineService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/CampaignExperimentRepository.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/CampaignEngineServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service \"-Dtest=CampaignEngineServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/service/CampaignEngineService.java services/campaign-service/src/main/java/com/legent/campaign/repository/CampaignExperimentRepository.java services/campaign-service/src/test/java/com/legent/campaign/service/CampaignEngineServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated backend validation; continue backlog scan."
+}

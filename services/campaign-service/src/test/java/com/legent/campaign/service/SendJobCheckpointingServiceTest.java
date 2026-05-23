@@ -8,6 +8,7 @@ import com.legent.campaign.repository.SendJobCheckpointRepository;
 import com.legent.campaign.repository.SendJobRepository;
 import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
@@ -17,10 +18,14 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -136,21 +141,46 @@ class SendJobCheckpointingServiceTest {
     @Test
     void markFailedBatchesForRetryOnlyUpdatesCurrentWorkspaceFailedBatches() {
         SendJob job = sendJob("job-1", "workspace-1");
-        SendBatch failed = batch("batch-1", "workspace-1", SendBatch.BatchStatus.FAILED, 1);
-        SendBatch completed = batch("batch-2", "workspace-1", SendBatch.BatchStatus.COMPLETED, 0);
         when(jobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "job-1"))
                 .thenReturn(Optional.of(job));
-        when(batchRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull("tenant-1", "workspace-1", "job-1"))
-                .thenReturn(List.of(failed, completed));
+        when(batchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.FAILED)),
+                isNull(),
+                any(Pageable.class))).thenReturn(List.of("batch-1"));
+        when(batchRepository.markScopedBatchIdsForRetry(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq(List.of("batch-1")),
+                eq(List.of(SendBatch.BatchStatus.FAILED)),
+                eq(SendBatch.BatchStatus.PENDING),
+                any(Instant.class))).thenReturn(1);
 
         service.markFailedBatchesForRetry("job-1");
 
-        ArgumentCaptor<List<SendBatch>> captor = ArgumentCaptor.forClass(List.class);
-        verify(batchRepository).saveAll(captor.capture());
-        assertThat(captor.getValue()).containsExactly(failed);
-        assertThat(failed.getStatus()).isEqualTo(SendBatch.BatchStatus.PENDING);
-        assertThat(failed.getRetryCount()).isEqualTo(2);
-        assertThat(completed.getStatus()).isEqualTo(SendBatch.BatchStatus.COMPLETED);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(batchRepository).findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.FAILED)),
+                isNull(),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(500);
+        verify(batchRepository).markScopedBatchIdsForRetry(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq(List.of("batch-1")),
+                eq(List.of(SendBatch.BatchStatus.FAILED)),
+                eq(SendBatch.BatchStatus.PENDING),
+                any(Instant.class));
+        verify(batchRepository, never()).findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
+                any(), any(), any());
+        verify(batchRepository, never()).saveAll(any());
     }
 
     @Test

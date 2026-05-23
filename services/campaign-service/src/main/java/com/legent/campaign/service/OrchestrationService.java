@@ -18,6 +18,7 @@ import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,6 +34,8 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrchestrationService {
+
+    private static final int BATCH_REQUEUE_PAGE_SIZE = 500;
 
     private final CampaignRepository campaignRepository;
     private final SendBatchRepository sendBatchRepository;
@@ -198,11 +201,11 @@ public class OrchestrationService {
         stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.SENDING, comments);
         campaignRepository.save(campaign);
 
-        List<SendBatch> pendingBatches = sendBatchRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
-                tenantId, workspaceId, pausedJob.getId()).stream()
-                .filter(b -> b.getStatus() == SendBatch.BatchStatus.PENDING || b.getStatus() == SendBatch.BatchStatus.PARTIAL)
-                .toList();
-        pendingBatches.forEach(batch -> eventPublisher.publishBatchCreated(tenantId, pausedJob.getId(), batch.getId()));
+        publishBatchCreatedForStatusPages(
+                tenantId,
+                workspaceId,
+                pausedJob.getId(),
+                List.of(SendBatch.BatchStatus.PENDING, SendBatch.BatchStatus.PARTIAL));
         return sendJobMapper.toJobResponse(pausedJob);
     }
 
@@ -231,19 +234,10 @@ public class OrchestrationService {
         stateMachine.transitionJob(job, SendJob.JobStatus.RETRYING, reason);
         sendJobRepository.save(job);
 
-        List<SendBatch> retryable = sendBatchRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
-                job.getTenantId(), job.getWorkspaceId(), job.getId()).stream()
-                .filter(b -> b.getStatus() == SendBatch.BatchStatus.FAILED || b.getStatus() == SendBatch.BatchStatus.PARTIAL)
-                .toList();
-        if (retryable.isEmpty()) {
+        int retryable = requeueRetryableBatchPages(job);
+        if (retryable == 0) {
             throw new ValidationException("sendBatch.status", "No retryable batches found");
         }
-        retryable.forEach(batch -> {
-            batch.setStatus(SendBatch.BatchStatus.PENDING);
-            batch.setRetryCount(batch.getRetryCount() == null ? 1 : batch.getRetryCount() + 1);
-            sendBatchRepository.save(batch);
-            eventPublisher.publishBatchCreated(job.getTenantId(), job.getId(), batch.getId());
-        });
         job.setStatus(SendJob.JobStatus.SENDING);
         sendJobRepository.save(job);
         return sendJobMapper.toJobResponse(job);
@@ -289,6 +283,74 @@ public class OrchestrationService {
                 .stream()
                 .findFirst()
                 .orElseThrow(() -> new ValidationException("sendJob.status", "No active send job found"));
+    }
+
+    private int requeueRetryableBatchPages(SendJob job) {
+        List<SendBatch.BatchStatus> retryableStatuses = List.of(
+                SendBatch.BatchStatus.FAILED,
+                SendBatch.BatchStatus.PARTIAL);
+        int retryable = 0;
+        String afterBatchId = null;
+        while (true) {
+            List<String> batchIds = sendBatchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                    job.getTenantId(),
+                    job.getWorkspaceId(),
+                    job.getId(),
+                    retryableStatuses,
+                    afterBatchId,
+                    PageRequest.of(0, BATCH_REQUEUE_PAGE_SIZE));
+            if (batchIds.isEmpty()) {
+                break;
+            }
+            for (String batchId : batchIds) {
+                int updated = sendBatchRepository.markScopedBatchIdForRetry(
+                        job.getTenantId(),
+                        job.getWorkspaceId(),
+                        job.getId(),
+                        batchId,
+                        retryableStatuses,
+                        SendBatch.BatchStatus.PENDING,
+                        Instant.now());
+                if (updated == 1) {
+                    eventPublisher.publishBatchCreated(job.getTenantId(), job.getId(), batchId);
+                    retryable++;
+                } else {
+                    log.debug("Skipping retry event for batch {} because it was not claimable for job {}", batchId, job.getId());
+                }
+            }
+            afterBatchId = batchIds.get(batchIds.size() - 1);
+            if (batchIds.size() < BATCH_REQUEUE_PAGE_SIZE) {
+                break;
+            }
+        }
+        return retryable;
+    }
+
+    private int publishBatchCreatedForStatusPages(String tenantId,
+                                                  String workspaceId,
+                                                  String jobId,
+                                                  List<SendBatch.BatchStatus> statuses) {
+        int published = 0;
+        String afterBatchId = null;
+        while (true) {
+            List<String> batchIds = sendBatchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                    tenantId,
+                    workspaceId,
+                    jobId,
+                    statuses,
+                    afterBatchId,
+                    PageRequest.of(0, BATCH_REQUEUE_PAGE_SIZE));
+            if (batchIds.isEmpty()) {
+                break;
+            }
+            batchIds.forEach(batchId -> eventPublisher.publishBatchCreated(tenantId, jobId, batchId));
+            published += batchIds.size();
+            afterBatchId = batchIds.get(batchIds.size() - 1);
+            if (batchIds.size() < BATCH_REQUEUE_PAGE_SIZE) {
+                break;
+            }
+        }
+        return published;
     }
 
     private List<Map<String, String>> toAudienceList(Campaign campaign) {

@@ -13,8 +13,12 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.SliceImpl;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
@@ -29,7 +33,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -66,7 +72,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenJsonArrayHasExactEvent_dispatches() {
         WebhookConfig config = config("hk1", "[\"email.bounced\",\"workflow.completed\"]");
-        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
+        stubWorkspaceSinglePage(config);
         mockPostChain();
 
         service.dispatch("t1", "email.bounced", Map.of("test", "data"));
@@ -77,7 +83,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenEventOnlyPartiallyMatches_doesNotDispatch() {
         WebhookConfig config = config("hk1", "[\"email.bounced\"]");
-        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
+        stubWorkspaceSinglePage(config);
 
         service.dispatch("t1", "email.bounce", Map.of("test", "data"));
 
@@ -87,7 +93,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenCommaSeparatedSubscriptionMatches_dispatches() {
         WebhookConfig config = config("hk1", "email.sent, email.failed");
-        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
+        stubWorkspaceSinglePage(config);
         mockPostChain();
 
         service.dispatch("t1", "EMAIL.SENT", Map.of("test", "data"));
@@ -98,7 +104,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenSubscriptionPayloadMalformed_doesNotDispatch() {
         WebhookConfig config = config("hk1", "[invalid-json");
-        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
+        stubWorkspaceSinglePage(config);
 
         service.dispatch("t1", "email.bounced", Map.of("test", "data"));
 
@@ -108,7 +114,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenDeliveryFails_persistsRetryBeforeReturning() {
         WebhookConfig config = config("hk1", "[\"email.bounced\"]");
-        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
+        stubWorkspaceSinglePage(config);
         mockPostChainWithError();
 
         assertDoesNotThrow(() -> service.dispatch("t1", "email.bounced", Map.of("test", "data")));
@@ -125,7 +131,7 @@ class WebhookDispatcherServiceTest {
     @Test
     void dispatch_whenRetryPersistenceFails_throws() {
         WebhookConfig config = config("hk1", "[\"email.bounced\"]");
-        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrue("t1", "w1")).thenReturn(List.of(config));
+        stubWorkspaceSinglePage(config);
         doThrow(new IllegalStateException("database unavailable")).when(retryRepository).save(any());
         mockPostChainWithError();
 
@@ -138,14 +144,81 @@ class WebhookDispatcherServiceTest {
         TenantContext.clear();
         WebhookConfig config = config("hk1", "[\"email.bounced\"]");
         config.setWorkspaceId(null);
-        when(configRepository.findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrue("t1")).thenReturn(List.of(config));
+        stubTenantGlobalSinglePage(config);
         mockPostChain();
 
         service.dispatch("t1", "email.bounced", Map.of("test", "data"));
 
-        verify(configRepository).findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrue("t1");
-        verify(configRepository, never()).findByTenantIdAndWorkspaceIdAndIsActiveTrue(anyString(), anyString());
+        verify(configRepository).findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrueOrderByIdAsc(
+                anyString(), any(Pageable.class));
+        verify(configRepository, never()).findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                anyString(), anyString(), any(Pageable.class));
         verify(webClient).post();
+    }
+
+    @Test
+    void dispatch_whenSubscribedWebhookIsOnLaterPage_dispatchesIt() {
+        WebhookConfig firstPageConfig = config("hk1", "[\"email.delivered\"]");
+        WebhookConfig secondPageConfig = config("hk2", "[\"email.bounced\"]");
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                anyString(), anyString(), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    Pageable pageable = invocation.getArgument(2);
+                    if (pageable.getPageNumber() == 0) {
+                        return new SliceImpl<>(List.of(firstPageConfig), pageable, true);
+                    }
+                    return new SliceImpl<>(List.of(secondPageConfig), pageable, false);
+                });
+        mockPostChain();
+
+        service.dispatch("t1", "email.bounced", Map.of("test", "data"));
+
+        verify(webClient).post();
+    }
+
+    @Test
+    void dispatch_queriesAndBuildsFanoutOneBoundedPageAtATime() {
+        WebhookConfig firstPageConfig = config("hk1", "[\"email.bounced\"]");
+        WebhookConfig secondPageConfig = config("hk2", "[\"email.bounced\"]");
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                anyString(), anyString(), any(Pageable.class)))
+                .thenAnswer(invocation -> {
+                    Pageable pageable = invocation.getArgument(2);
+                    if (pageable.getPageNumber() == 0) {
+                        return new SliceImpl<>(List.of(firstPageConfig), pageable, true);
+                    }
+                    return new SliceImpl<>(List.of(secondPageConfig), pageable, false);
+                });
+        mockPostChain();
+
+        service.dispatch("t1", "email.bounced", Map.of("test", "data"));
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(configRepository, times(2)).findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                anyString(), anyString(), pageableCaptor.capture());
+        assertThat(pageableCaptor.getAllValues())
+                .extracting(Pageable::getPageSize)
+                .containsExactly(100, 100);
+
+        var inOrder = inOrder(configRepository, webClient);
+        inOrder.verify(configRepository).findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                anyString(), anyString(), any(Pageable.class));
+        inOrder.verify(webClient).post();
+        inOrder.verify(configRepository).findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                anyString(), anyString(), any(Pageable.class));
+        inOrder.verify(webClient).post();
+    }
+
+    private void stubWorkspaceSinglePage(WebhookConfig config) {
+        when(configRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueOrderByIdAsc(
+                anyString(), anyString(), any(Pageable.class)))
+                .thenReturn(new SliceImpl<>(List.of(config), PageRequest.of(0, 100), false));
+    }
+
+    private void stubTenantGlobalSinglePage(WebhookConfig config) {
+        when(configRepository.findByTenantIdAndWorkspaceIdIsNullAndIsActiveTrueOrderByIdAsc(
+                anyString(), any(Pageable.class)))
+                .thenReturn(new SliceImpl<>(List.of(config), PageRequest.of(0, 100), false));
     }
 
     private void mockPostChain() {

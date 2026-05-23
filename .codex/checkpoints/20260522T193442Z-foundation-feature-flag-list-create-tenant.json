@@ -1,0 +1,26 @@
+{
+    "id":  "foundation-feature-flag-list-create-tenant",
+    "createdAt":  "2026-05-22T19:34:42.4797209Z",
+    "objective":  "Require tenant context for feature flag admin list and create",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/FeatureFlagController.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/controller/FeatureFlagControllerSecurityTest.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/FeatureFlagServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -Dtest=FeatureFlagServiceTest",
+                           "FeatureFlagControllerSecurityTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/controller/FeatureFlagController.java services/foundation-service/src/test/java/com/legent/foundation/controller/FeatureFlagControllerSecurityTest.java services/foundation-service/src/test/java/com/legent/foundation/service/FeatureFlagServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated pool validation; continue pending scan."
+}

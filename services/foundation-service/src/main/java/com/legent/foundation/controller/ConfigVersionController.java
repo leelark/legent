@@ -28,7 +28,7 @@ public class ConfigVersionController {
     @GetMapping("/{configKey}/versions")
     @PreAuthorize("@rbacEvaluator.hasPermission('config:read', principal.roles)")
     public ApiResponse<List<ConfigVersionHistory>> getConfigVersionHistory(@PathVariable String configKey) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = requireTenantId();
         String workspaceId = TenantContext.getWorkspaceId();
         String environmentId = TenantContext.getEnvironmentId();
         return ApiResponse.ok(configVersioningService.getConfigVersionHistory(
@@ -40,7 +40,7 @@ public class ConfigVersionController {
     public ApiResponse<ConfigVersionHistory> getConfigVersion(
             @PathVariable String configKey,
             @PathVariable int version) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = requireTenantId();
         String workspaceId = TenantContext.getWorkspaceId();
         String environmentId = TenantContext.getEnvironmentId();
         return ApiResponse.ok(configVersioningService.getConfigVersion(
@@ -52,7 +52,7 @@ public class ConfigVersionController {
     public PagedResponse<ConfigVersionHistory> getAllVersionHistory(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = requireTenantId();
         String workspaceId = TenantContext.getWorkspaceId();
         String environmentId = TenantContext.getEnvironmentId();
         Page<ConfigVersionHistory> result = configVersioningService.getTenantVersionHistory(
@@ -71,7 +71,7 @@ public class ConfigVersionController {
     public ApiResponse<ConfigDto.Response> rollbackConfig(
             @PathVariable String configKey,
             @PathVariable int version) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = requireTenantId();
         String workspaceId = TenantContext.getWorkspaceId();
         String environmentId = TenantContext.getEnvironmentId();
         return ApiResponse.ok(configVersioningService.rollbackConfig(
@@ -84,10 +84,14 @@ public class ConfigVersionController {
             @PathVariable String configKey,
             @RequestParam int v1,
             @RequestParam int v2) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = requireTenantId();
         String workspaceId = TenantContext.getWorkspaceId();
         String environmentId = TenantContext.getEnvironmentId();
         return ApiResponse.ok(configVersioningService.compareVersions(
                 tenantId, workspaceId, environmentId, configKey, v1, v2));
+    }
+
+    private String requireTenantId() {
+        return TenantContext.requireTenantId().trim();
     }
 }

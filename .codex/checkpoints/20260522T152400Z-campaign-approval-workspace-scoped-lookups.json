@@ -1,0 +1,27 @@
+﻿{
+    "id":  "campaign-approval-workspace-scoped-lookups",
+    "createdAt":  "2026-05-22T15:24:00.3299071Z",
+    "objective":  "Scope campaign approval lookups through campaign workspace",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignWorkflowService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/CampaignApprovalRepository.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/CampaignWorkflowServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignWorkflowServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "git diff --check -- services/campaign-service"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed and validated locally; continue with memory/dashboard refresh and next safe local selection.",
+    "completedAt":  "2026-05-22T15:37:46.0333821Z"
+}

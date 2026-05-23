@@ -2,10 +2,11 @@ package com.legent.deliverability.controller;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
+import com.legent.deliverability.domain.SuppressionList;
 import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.security.TenantContext;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -59,6 +61,69 @@ class SuppressionControllerTest {
     @Test
     void invalidInternalTokenFailsClosedBeforeRepositoryLookup() {
         assertThatThrownBy(() -> controller.checkSuppressionsInternal("wrong-token", new SuppressionController.SuppressionCheckRequest(List.of("a@example.com"))))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("403 FORBIDDEN");
+
+        verifyNoInteractions(suppressionRepository);
+    }
+
+    @Test
+    void publicListUsesTenantWorkspaceScopedDefaultFirstPage() {
+        SuppressionList suppression = suppression("suppression-1", "user@example.com");
+        when(suppressionRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                "tenant-1",
+                "workspace-1",
+                PageRequest.of(0, AppConstants.DEFAULT_PAGE_SIZE)))
+                .thenReturn(List.of(suppression));
+
+        ApiResponse<List<SuppressionList>> response = controller.listSuppressions(null);
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData()).containsExactly(suppression);
+        verify(suppressionRepository).findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                "tenant-1",
+                "workspace-1",
+                PageRequest.of(0, AppConstants.DEFAULT_PAGE_SIZE));
+    }
+
+    @Test
+    void publicListCapsRequestedLimitToMaxFirstPage() {
+        when(suppressionRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                "tenant-1",
+                "workspace-1",
+                PageRequest.of(0, AppConstants.MAX_PAGE_SIZE)))
+                .thenReturn(List.of());
+
+        controller.listSuppressions(AppConstants.MAX_PAGE_SIZE + 1);
+
+        verify(suppressionRepository).findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                "tenant-1",
+                "workspace-1",
+                PageRequest.of(0, AppConstants.MAX_PAGE_SIZE));
+    }
+
+    @Test
+    void internalListUsesTenantWorkspaceScopedBoundedFirstPage() {
+        SuppressionList suppression = suppression("suppression-1", "user@example.com");
+        when(suppressionRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                "tenant-1",
+                "workspace-1",
+                PageRequest.of(0, 5)))
+                .thenReturn(List.of(suppression));
+
+        ApiResponse<List<SuppressionList>> response = controller.listSuppressionsInternal(INTERNAL_TOKEN, 5);
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData()).containsExactly(suppression);
+        verify(suppressionRepository).findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                "tenant-1",
+                "workspace-1",
+                PageRequest.of(0, 5));
+    }
+
+    @Test
+    void internalListInvalidTokenFailsClosedBeforeRepositoryLookup() {
+        assertThatThrownBy(() -> controller.listSuppressionsInternal("wrong-token", 5))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
 
@@ -137,5 +202,56 @@ class SuppressionControllerTest {
         verify(suppressionRepository).findActiveEmailsByTenantIdAndWorkspaceIdAndNormalizedEmailIn(
                 eq("tenant-1"), eq("workspace-1"), captor.capture());
         assertThat(captor.getValue()).containsExactly("a@example.com", "b@example.com");
+    }
+
+    @Test
+    void suppressionHistoryUsesScopedCountQueriesWithoutLoadingRows() {
+        when(suppressionRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "COMPLAINT"))
+                .thenReturn(2L);
+        when(suppressionRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "HARD_BOUNCE"))
+                .thenReturn(3L);
+        when(suppressionRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "UNSUBSCRIBE"))
+                .thenReturn(4L);
+        when(suppressionRepository.countByTenantIdAndWorkspaceId("tenant-1", "workspace-1"))
+                .thenReturn(9L);
+
+        ApiResponse<Map<String, Object>> response = controller.suppressionHistory();
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData())
+                .containsEntry("total", 9L)
+                .containsEntry("complaints", 2L)
+                .containsEntry("hardBounces", 3L)
+                .containsEntry("unsubscribes", 4L)
+                .containsKey("generatedAt");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceId("tenant-1", "workspace-1");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "COMPLAINT");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "HARD_BOUNCE");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "UNSUBSCRIBE");
+        verify(suppressionRepository, never()).findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void suppressionHistoryMissingWorkspaceContextFailsClosedBeforeRepositoryLookup() {
+        TenantContext.setWorkspaceId(null);
+
+        assertThatThrownBy(controller::suppressionHistory)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+
+        verifyNoInteractions(suppressionRepository);
+    }
+
+    private static SuppressionList suppression(String id, String email) {
+        SuppressionList suppression = new SuppressionList();
+        suppression.setId(id);
+        suppression.setTenantId("tenant-1");
+        suppression.setWorkspaceId("workspace-1");
+        suppression.setEmail(email);
+        suppression.setReason("UNSUBSCRIBE");
+        return suppression;
     }
 }

@@ -2,6 +2,16 @@
 
 Fresh baseline date: 2026-05-20.
 
+## 2026-05-22 Account Recovery, Requeue, Workspace Guards, Parity Docs, And Codex Hygiene
+
+Source: `frontend/src/components/marketing/PublicAuthViews.tsx`, `frontend/src/lib/auth-api.ts`, `frontend/tests/e2e/marketing.spec.ts`, campaign batch retry/checkpoint/orchestration services and tests, `GlobalEnterpriseService.java`, `PerformanceLedgerSupport.java`, product parity docs, Codex audit/checkpoint validation utilities, and 2026-05-22 checkpoints.
+
+Outcome: the latest safe local pool completed six exact-leased slices. Public account recovery now sends optional trimmed tenant/workspace hints without browser storage. Campaign batch retry/requeue paths now page and claim work before retry publication. Foundation global-enterprise and performance-ledger workspace-owned reads now fail closed on missing workspace context and use exact workspace predicates. Product parity docs now separate completed local contracts from future work without new market claims. Codex audit/checkpoint hygiene now enforces uppercase audit event types and marks completed 2026-05-22 checkpoints done while preserving history.
+
+Validation: full foundation plus campaign reactor tests passed, frontend lint/build and marketing Playwright passed, Codex lifecycle and system validation passed before queue completion, monitor check and cleanup dry-run passed, and scoped diff checks passed. Final closeout validation is recorded in the active-work handoff and audit trail.
+
+Residual risk: production release evidence, high-volume proof, provider capacity, legacy campaign eligibility-marker policy, automation script sandbox evidence, and tracking runtime evidence remain blocked by external evidence or human decisions.
+
 ## 2026-05-22 Route Map Ingress Prefix Coverage
 
 Source: `scripts/ops/validate-route-map.ps1`, `config/gateway/route-map.json`, and `infrastructure/kubernetes/ingress/ingress.yml`.
@@ -415,3 +425,342 @@ Future entries must include:
 - validation commands,
 - residual risk,
 - release note impact.
+## 2026-05-22 Campaign Send Execution Campaign Workspace Scope
+
+Source: `services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java` and `services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java`.
+
+Outcome: campaign send execution now resolves the campaign by tenant, batch workspace, and campaign ID after the send batch is claimed under tenant/workspace scope. If a legacy or malformed batch points at a campaign outside the batch workspace, the batch fails closed before content rendering or `email.send.requested` publication.
+
+Validation: refreshed local shared artifacts with `./mvnw.cmd -pl shared/legent-common,shared/legent-kafka -am -DskipTests install`; focused single regression passed; full `SendExecutionServiceTest` passed with 23 tests; full `./mvnw.cmd -pl services/campaign-service -DforkCount=0 test` passed with 108 tests; repo artifact hygiene passed; Codex validation passed; scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local campaign-service validation only. It does not close the blocked legacy eligibility-marker compatibility decision, provider capacity evidence, target scheduler/load proof, or strict production release evidence.
+
+## 2026-05-22 Parallel Safe Local Slices Integration
+
+Source: parallel subagent slices across tracking, delivery, content/identity security tests, frontend signup/sanitization, audience subscriber-key scoping, foundation public contact hardening, route/compose/release validators, and product parity docs.
+
+Outcome: integrated the disjoint local slices, fixed review findings, and added extra guard coverage: delivery no longer performs DNS-resolving click-destination validation during send-time rewriting; tracking enforces full public URL validation at click redirect; subscriber key uniqueness is workspace-scoped and Flyway-owned; compose safety now runs through release-gate; rendered production overlay validation checks per-container posture.
+
+Validation: focused common/delivery/tracking/audience tests passed, campaign send execution tests passed earlier, content/identity/foundation focused tests passed, frontend lint and targeted auth/sanitize Playwright passed, route-map live plus fixture harness passed, compose safety self-test/config passed, production overlay validation passed, release evidence self-test passed, local-only release gate passed, repo artifact hygiene passed, and `git diff --check` passed with CRLF warnings only.
+
+Residual risk: local evidence only. Strict production release, provider capacity, target migration/Flyway, ClickHouse runtime, live monitoring, and high-volume send evidence remain external blockers.
+
+## 2026-05-22 Backend Workspace-Scope Safety Batch
+
+Source: disjoint automation, deliverability, and content/shared Kafka worker scopes in `WorkflowScheduleTriggerJob`, sender-domain verification/challenge paths, content template workflow publication, and `EventContractValidator`.
+
+Outcome: schedule trigger jobs now fail closed on malformed or stale tenant/workspace/schedule data before publishing workflow triggers; sender-domain challenge and verification ID lookups are tenant+workspace scoped before DNS/save/history side effects; content template workflow and published events carry workspace scope and shared contract validation.
+
+Validation: focused automation, deliverability, and content/shared Kafka gates passed; integrated `.\mvnw.cmd -T 1 -pl services/automation-service,services/deliverability-service,services/content-service,shared/legent-kafka -am test` passed.
+
+Residual risk: local test evidence only. Production scheduler runtime, live DNS/provider behavior, downstream Kafka consumers, strict release evidence, and high-volume evidence remain external blockers.
+
+## 2026-05-22 Parallel Safety and Fanout Batch
+
+Source: parallel workers for platform webhook fanout, shared runtime/Kafka guards, tracking outbox scope, delivery feedback outbox scope, and frontend core API preflight.
+
+Outcome: platform webhook dispatch now pages active configs and dispatches one bounded page at a time; prod/production profiles reject unsafe `ddl-auto` and Kafka trusted packages cannot be widened; tracking and delivery outbox publish claim/reload paths are tenant+workspace scoped; frontend `/api/v1/core` calls now require workspace context unless explicitly optional.
+
+Validation: focused backend gate passed for selected shared/platform/tracking/delivery tests; full `.\mvnw.cmd -T 1 -pl shared/legent-common,shared/legent-kafka,services/platform-service,services/tracking-service,services/delivery-service -am test` passed; frontend API-client and admin Playwright specs passed with project-local `playwright.cmd`; frontend lint and `npm run build:ci` passed; repo artifact hygiene and `git diff --check` passed with CRLF warnings only.
+
+Residual risk: local evidence only. Production startup, live Kafka/PostgreSQL, webhook fanout load, provider/runtime replay, and strict release evidence remain separate blockers.
+
+## 2026-05-22 Parallel Implementation Hardening Batch
+
+Source: six exact-leased workers for identity invitation creation, Compose health validation, campaign dead-letter listing, campaign approval mutation, automation run/history reads, and frontend platform API preflight.
+
+Outcome: identity invitation creation now requires principal workspace context and rejects workspace mismatches before service side effects; Compose health validation accepts explicit env-file/compose-file inputs and has self-test fixtures; campaign dead-letter listing is bounded by default/max limits; campaign approval approve/reject/cancel resolves approvals through the owning campaign workspace before mutation; automation workflow run and history reads are bounded; frontend platform notifications and webhooks now require workspace context before dispatch.
+
+Validation: combined backend gate passed with `.\mvnw.cmd -T 1 -pl services/identity-service,services/campaign-service,services/automation-service -am test`; frontend API-client Playwright spec passed with 10 tests; frontend lint and `npm run build:ci` passed; Compose health self-test, `-AllowNotRunning -ComposeEnvFile .env.example`, and `docker compose --env-file .env.example config --quiet` passed; Codex validation and repo artifact hygiene passed; `git diff --check` passed with CRLF warnings only.
+
+Residual risk: local evidence only. Docker running-container health, target campaign DLQ/load behavior, workflow history production volume, and strict production release evidence remain separate blockers.
+
+## 2026-05-22 Frontend Reset URL Scrub
+
+Source: `frontend/src/components/marketing/PublicAuthViews.tsx` and `frontend/tests/e2e/marketing.spec.ts`.
+
+Outcome: the public reset screen now captures the reset credential once into component state, removes query parameters from the browser URL, preserves the missing-credential state, and submits the captured value without writing it to browser storage.
+
+Validation: targeted Chromium marketing Playwright passed with 6 tests, frontend lint passed, frontend production build passed, Codex validation passed, repo artifact hygiene passed, and `git diff --check` passed with CRLF warnings only.
+
+Residual risk: local browser/test evidence only; backend reset semantics and production runtime behavior remain separate validation surfaces.
+
+## 2026-05-22 Outbox Backlog Observability
+
+Source: tracking/delivery outbox services and repositories, focused outbox tests, Prometheus alerts, Grafana overview, and the production hardening runbook.
+
+Outcome: tracking and delivery feedback outboxes now expose low-cardinality ready-depth and oldest-ready-age gauges with queue-only labels, Prometheus warning/critical alerts, Grafana overview panels, and runbook triage guidance.
+
+Validation: focused tracking/delivery outbox tests passed, full delivery+tracking backend module gate passed with expected Testcontainers skips, production overlay validation passed with the existing external secret placeholder warning, Grafana JSON parsed, Codex validation passed, repo artifact hygiene passed, and `git diff --check` passed with CRLF warnings only.
+
+Residual risk: alert thresholds are local defaults; live scrape behavior, alert routing, and backlog tuning require target environment evidence.
+
+## 2026-05-22 Foundation Public Content Admin Context
+
+Source: `PublicContentService.java` and `PublicContentServiceTest.java`.
+
+Outcome: admin public-content list, upsert, and publish now require tenant and workspace context before repository lookup or save. Public marketing read behavior was not changed.
+
+Validation: focused `PublicContentServiceTest` passed with 8 tests; integrated `.\mvnw.cmd -T 1 -pl services/foundation-service,services/content-service -am test` passed; scoped diff check passed with CRLF warnings only.
+
+Residual risk: local service/module evidence only; target runtime behavior remains normal release evidence.
+
+## 2026-05-22 Content Test-Send History Bound
+
+Source: `TemplateTestSendService.java`, `TemplateTestSendRecordRepository.java`, and `TemplateTestSendServiceTest.java`.
+
+Outcome: template test-send history now reads a bounded first page through the repository while preserving tenant/workspace/template/deleted-row filtering and the existing list response shape.
+
+Validation: focused `TemplateTestSendServiceTest` passed with 3 tests; integrated foundation+content backend gate passed; scoped diff check passed with CRLF warnings only.
+
+Residual risk: no target high-volume history evidence collected.
+
+## 2026-05-22 CI Compose Env-File Safety Gate
+
+Source: `.github/workflows/ci-security.yml` and `scripts/ops/test-release-evidence-validators.ps1`.
+
+Outcome: CI Compose config smoke now uses the reviewed env-file path explicitly, and release self-tests guard against returning to ambient Compose config discovery.
+
+Validation: release evidence validator self-test passed, Compose safety self-test passed, Compose safety validation with `.env.example` passed, `docker compose --env-file .env.example config --quiet` passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local CI/render validation only; no containers were started and no production evidence was collected.
+
+## 2026-05-22 Deliverability Suppression History Count Query
+
+Source: `SuppressionController.java`, `SuppressionListRepository.java`, and `SuppressionControllerTest.java`.
+
+Outcome: suppression history now computes the total with a tenant/workspace scoped count query instead of loading all suppression rows, while preserving complaint, hard-bounce, unsubscribe, and response-shape behavior.
+
+Validation: focused `SuppressionControllerTest` passed with 9 tests; full deliverability-service reactor gate passed with 70 deliverability-service tests plus upstream shared modules; scoped diff check passed with CRLF warnings only.
+
+Residual risk: target suppression-volume/runtime evidence remains separate from this local performance fix.
+
+## 2026-05-22 Frontend Template Preference Scope
+
+Source: `frontend/src/app/(workspace)/email/templates/page.tsx` and `frontend/tests/e2e/template-builder.spec.ts`.
+
+Outcome: template library favorites and recents now use browser-storage keys scoped to the active tenant and workspace, ignore legacy global keys, clear local preference state when workspace context is missing, preserve the recent cap of 20, and treat corrupt scoped JSON as an empty list.
+
+Validation: targeted Chromium template-builder Playwright passed with 5 tests; frontend lint passed; frontend production build passed; scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: local browser/test evidence only; no backend API or credential-storage behavior was changed.
+
+## 2026-05-22 Delivery Provider Capacity List Bound
+
+Source: `DeliveryOperationsController.java`, `ProviderCapacityService.java`, `ProviderCapacityProfileRepository.java`, and `ProviderCapacityServiceTest.java`.
+
+Outcome: delivery provider-capacity list reads now accept a bounded optional limit, clamp invalid limits to the default and excessive limits to the max, keep tenant/workspace repository filtering, and preserve the existing `ApiResponse<List<ProviderCapacityProfile>>` shape.
+
+Validation: focused provider-capacity/RBAC gate passed with 14 tests; full delivery-service reactor gate passed with 105 delivery-service tests plus upstream shared modules; scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: provider capacity, production send, and target load evidence remain external blockers.
+
+## 2026-05-22 Audience Import Scoped Job Claims
+
+Source: `ImportProcessingService.java`, `ImportService.java`, `ImportProcessingServiceTest.java`, and `ImportServiceTest.java`.
+
+Outcome: async audience import processing now receives trusted tenant/workspace scope from import start paths and uses scoped job lookups for the initial load, transactional reloads, progress updates, completion, failure, and cancellation checks before storage, save, event, or context side effects.
+
+Validation: focused import tests passed; integrated audience/deliverability/foundation backend gate passed; scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: target import-load and runtime storage evidence remain separate.
+
+## 2026-05-22 Deliverability Reputation Recovery Paging
+
+Source: `ReputationEngine.java`, `DomainReputationRepository.java`, and `ReputationEngineTest.java`.
+
+Outcome: scheduled reputation recovery now reads domain reputation rows in deterministic fixed-size pages instead of loading all rows, while preserving missing-workspace skips and cache-failure no-save behavior.
+
+Validation: focused reputation engine tests passed; integrated audience/deliverability/foundation backend gate passed; scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: target reputation-volume/runtime evidence remains separate.
+
+## 2026-05-22 Operations Assistance Telemetry Governance
+
+Source: `OperationsAssistanceService.java` and `OperationsAssistancePerformanceServiceTest.java`.
+
+Outcome: operations assistance now requires workspace context, rejects restricted telemetry-key shapes before repository access, and persists only allowlisted operational telemetry fields. No external provider calls were added.
+
+Validation: focused operations assistance and optimization tests passed; integrated audience/deliverability/foundation backend gate passed; scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: broader provider governance and product AI claims remain separate.
+
+## 2026-05-22 Observability Handoff Validation
+
+Source: `alertmanager.yml`, `prometheus-alerts.yml`, `grafana-legent-overview.json`, `validate-production-overlay.ps1`, and `production-hardening-runbook.md`.
+
+Outcome: local production overlay validation now checks alert team ownership, Alertmanager routes/receivers, runbook anchors, Grafana dashboard UID/panel references, and receiver handoff settings before local release handoff.
+
+Validation: production overlay validation passed, release evidence validator self-test passed, local-only release gate passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: target alert firing, live notification routing, Grafana live data, and monitoring handoff evidence remain external blockers.
+
+## 2026-05-22 Data-Extension Pagination Guards
+
+Source: `DataExtensionController.java` and `DataExtensionControllerTest.java`.
+
+Outcome: data-extension list and record reads now clamp negative pages to the first page, invalid sizes to the default, and excessive sizes to the shared maximum while preserving tenant/workspace service scoping and response contracts.
+
+Validation: focused controller tests passed in the worker, integrated audience+content backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local test evidence only; target persistence/load behavior remains separate.
+
+## 2026-05-22 Segment Scheduled Recompute Paging
+
+Source: `SegmentEvaluationService.java`, `SegmentRepository.java`, and `SegmentEvaluationServiceTest.java`.
+
+Outcome: scheduled segment recompute now scans candidate segments in deterministic bounded pages and delegates each row through the existing recompute behavior with workspace context installed.
+
+Validation: focused segment evaluation tests passed in the worker, integrated audience+content backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: live JPA behavior and high-volume materialization evidence remain separate.
+
+## 2026-05-22 Send Governance Pagination Guards
+
+Source: `SendGovernancePolicyController.java` and `SendGovernancePolicyControllerTest.java`.
+
+Outcome: send-governance policy list reads now clamp page and size params to safe defaults and maximums while preserving tenant/workspace scope, method security, internal lookup behavior, and response contracts.
+
+Validation: focused controller tests passed in the worker, integrated audience+content backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local test evidence only; target operator-volume behavior remains separate.
+
+## 2026-05-22 Tenant Bootstrap Active Paging
+
+Source: `TenantBootstrapInitializer.java`, `TenantRepository.java`, and `TenantBootstrapInitializerTest.java`.
+
+Outcome: startup bootstrap initialization now scans active non-deleted tenants in deterministic bounded pages instead of loading all tenants, while preserving bootstrap status skips and request payloads.
+
+Validation: focused tenant bootstrap tests passed in the worker, integrated foundation+content+platform backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local test evidence only; target startup/runtime paging evidence remains separate.
+
+## 2026-05-22 Platform Search Result Bound
+
+Source: `GlobalSearchService.java`, `SearchIndexDocRepository.java`, and `GlobalSearchServiceTest.java`.
+
+Outcome: platform global search now reads a bounded first page through tenant/workspace filters and returns the existing list shape to callers.
+
+Validation: focused global search tests passed in the worker, integrated foundation+content+platform backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local test evidence only; target search-volume behavior remains separate.
+
+## 2026-05-22 Unread Notification Bound
+
+Source: `NotificationEngine.java`, `NotificationRepository.java`, and `NotificationEngineTest.java`.
+
+Outcome: unread notification reads now use a bounded first page sorted by newest records while preserving tenant/workspace/user filters and create/mark-read behavior.
+
+Validation: focused notification tests passed in the worker, integrated foundation+content+platform backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local test evidence only; target notification-volume behavior remains separate.
+
+## 2026-05-22 Template List And Search Bounds
+
+Source: `TemplateController.java`, `TemplateService.java`, `EmailTemplateRepository.java`, `TemplateServiceTest.java`, and `TemplateControllerTest.java`.
+
+Outcome: template list reads now clamp page and size params, and template search now uses a bounded first page while preserving tenant/workspace scope, method security, and response contracts.
+
+Validation: focused content tests passed in the worker, integrated foundation+content+platform backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local test evidence only; target template-volume behavior remains separate.
+
+## 2026-05-22 Delivery Provider Health Bounds
+
+Source: `ProviderHealthMonitoringService.java`, `SmtpProviderRepository.java`, `ProviderHealthCheckRepository.java`, and `ProviderHealthMonitoringServiceTest.java`.
+
+Outcome: provider health monitoring now scans active providers in deterministic ID pages and reads recent health-check history with a bounded newest-first query while preserving workspace ownership and status updates.
+
+Validation: focused provider health tests passed, integrated delivery/campaign/deliverability/tracking/foundation backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: runtime provider evidence and multi-replica scheduler behavior remain separate.
+
+## 2026-05-22 Campaign Experiment Evaluation Bounds
+
+Source: `CampaignEngineService.java`, `CampaignExperimentRepository.java`, and `CampaignEngineServiceTest.java`.
+
+Outcome: scheduled campaign experiment winner evaluation now scans active experiments through bounded deterministic pages while preserving winner promotion behavior and campaign readiness checks.
+
+Validation: focused campaign engine tests passed in the worker, integrated delivery/campaign/deliverability/tracking/foundation backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: runtime scheduler and campaign-volume evidence remain separate.
+
+## 2026-05-22 Suppression List Bounds
+
+Source: `SuppressionController.java`, `SuppressionListRepository.java`, `SuppressionControllerTest.java`, and `DomainControllerRbacTest.java`.
+
+Outcome: suppression list reads now use bounded tenant/workspace scoped pages for public and internal list paths, and RBAC reflection coverage matches the bounded internal endpoint signature.
+
+Validation: focused suppression/RBAC tests passed, integrated delivery/campaign/deliverability/tracking/foundation backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: local test evidence only; target suppression-volume behavior remains separate.
+
+## 2026-05-22 Tracking Campaign Summary Bounds
+
+Source: `AnalyticsController.java`, `CampaignSummaryRepository.java`, and `AnalyticsControllerTest.java`.
+
+Outcome: tracking campaign summary list reads now use bounded tenant/workspace scoped first-page access while preserving the existing list response shape.
+
+Validation: focused analytics controller tests passed in the worker, integrated delivery/campaign/deliverability/tracking/foundation backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: target analytics-volume evidence remains separate.
+
+## 2026-05-22 Delivery Warmup And Rate-State Bounds
+
+Source: `DeliveryOperationsController.java`, `WarmupService.java`, `SendRateControlService.java`, warmup/rate repositories, and delivery tests.
+
+Outcome: delivery warmup and rate-state operator endpoints now accept safe limit params and read bounded tenant/workspace scoped first pages with default/max clamps.
+
+Validation: focused warmup/rate tests passed in the worker, integrated delivery/campaign/deliverability/tracking/foundation backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: provider/runtime queue evidence remains separate.
+
+## 2026-05-22 Foundation Admin Settings Bounded Query
+
+Source: `AdminSettingsService.java`, `ConfigRepository.java`, and `AdminSettingsServiceTest.java`.
+
+Outcome: admin settings listing now reads scoped visible settings through bounded pages instead of scanning all config rows in memory.
+
+Validation: focused admin settings tests passed in the worker, integrated delivery/campaign/deliverability/tracking/foundation backend reactor gate passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: focused service coverage validates repository invocation; target persistence-volume evidence remains separate.
+
+## 2026-05-22 Workspace, RBAC, Sanitizer, Automation, Webhook, And Compose Guardrails
+
+Source: `SendExecutionService.java`, `IngestionController.java`, `EmailContentValidationService.java`, automation workflow/schedule/activity services and repositories, `WebhookController.java`, `WebhookConfigRepository.java`, `validate-compose-safety.ps1`, and focused tests.
+
+Outcome: campaign batch execution now fails closed without workspace context; tracking conversion ingestion requires write permission; backend content sanitization adds safe rel values for blank-target anchors; automation workflow/schedule/activity lists use bounded first pages; webhook admin listing uses bounded scoped first-page access; Compose safety validation rejects high-risk runtime settings.
+
+Validation: six worker focused gates passed, integrated backend reactor gate passed for campaign/tracking/content/automation/platform plus shared modules, Compose safety self-test passed, release evidence validator self-test passed, repo artifact hygiene passed, Codex validation passed after metadata repair, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: no production/runtime evidence was collected; list-shaped APIs still do not expose pagination metadata; strict release and high-volume evidence remain blocked externally.
+
+## 2026-05-22 Frontend Context, DMARC, Feature Flags, Notifications, Approvals, And Route Fixtures
+
+Source: `context-bootstrap.ts`, `DmarcController.java`, `DmarcReportRepository.java`, `FeatureFlagController.java`, `NotificationController.java`, `TemplateWorkflowController.java`, `TemplateWorkflowService.java`, `TemplateApprovalRepository.java`, route-map validator scripts, and focused tests.
+
+Outcome: frontend context bootstrap now honors preferred environment selection; DMARC report history is bounded; feature flag admin list/create requires tenant context; platform notification read/mark-read declares explicit method authentication; template approval history is bounded; route-map negative fixtures now cover tracking route and ingress policy drift.
+
+Validation: worker focused gates passed, integrated backend reactor gate for deliverability/foundation/platform/content plus shared modules passed, frontend lint/build/context Playwright passed, route fixture/live validation passed, repo artifact hygiene passed, Codex validation passed, and scoped diff check passed with CRLF warnings only.
+
+Residual risk: credentialed E2E login remained skipped without configured test credentials; list-shaped APIs still lack pagination metadata; evidence remains local, not production promotion proof.
+
+## 2026-05-22 Auth Cleanup, Analytics Windows, Version Bounds, Identity Bounds, Config Context, And CI Validators
+
+Source: `PublicAuthViews.tsx`, `auth.spec.ts`, tracking analytics controller/service/tests, content template-version controller/service/repository/tests, identity user/invitation controllers/services/tests, foundation config-version controller/tests, CI workflow, route-map harness, and Compose safety validator.
+
+Outcome: login and signup now clear local auth/context state after workspace bootstrap failure; tracking analytics timeline and rollups apply bounded windows and bucket caps; content template version listing and publish cleanup are bounded; identity user and invitation list reads are bounded with workspace checks preserved; config version endpoints require tenant context before service access; CI now runs route-map fixture and Compose safety checks.
+
+Validation: worker focused gates passed; integrated backend reactor gate passed for identity, foundation, tracking, content, and shared modules; frontend lint/build/auth Playwright passed; route-map fixture/live validation and Compose safety validation passed; scoped diff check passed with CRLF warnings only.
+
+Residual risk: local evidence only; no GitHub Actions runner, live database integration, ClickHouse/runtime, or production evidence was collected.
+
+## 2026-05-22 Compliance, WebSocket, Reputation, Content Block, Frontend API, And DevOps Validator Hardening
+
+Source: `ComplianceEvidenceService.java`, `TenantHandshakeInterceptor.java`, `PredictiveDeliverabilityService.java`, `DeliverabilityInsightsController.java`, `ContentBlockService.java`, `api-client.ts`, release/Compose validator scripts, CI workflow, and focused tests.
+
+Outcome: compliance evidence now requires trusted workspace context and exact workspace predicates; tracking WebSocket handshakes no longer fall back to request headers for scope; deliverability reputation and insight reads use bounded windows; content block version lists and publish cleanup are bounded; frontend public API helpers reject external absolute targets before dispatch; release validation utilities reuse the active PowerShell executable and CI covers Compose health parser self-tests.
+
+Validation: focused worker gates passed; integrated backend reactor gate passed for foundation, tracking, deliverability, content, and shared modules; frontend lint/build/API-client Playwright passed; release evidence validators, local release gate, Compose health/safety validators, route-map validators, repo artifact hygiene, Codex validation, and scoped diff check passed.
+
+Residual risk: evidence is local only. Insight averages now use a bounded recent window, and production release, target runtime, load, provider, monitoring, and external evidence remain blocked until collected.

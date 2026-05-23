@@ -57,7 +57,7 @@ class SubscriberServiceTest {
         SubscriberDto.Response expected = SubscriberDto.Response.builder()
                 .subscriberKey("sub-001").email("test@example.com").build();
 
-        when(subscriberRepository.existsByTenantIdAndSubscriberKeyAndDeletedAtIsNull(TENANT_ID, "sub-001"))
+        when(subscriberRepository.existsByTenantIdAndWorkspaceIdAndSubscriberKeyAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "sub-001"))
                 .thenReturn(false);
         when(subscriberRepository.findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "test@example.com"))
                 .thenReturn(Optional.empty());
@@ -68,6 +68,7 @@ class SubscriberServiceTest {
         SubscriberDto.Response result = subscriberService.create(req);
 
         assertThat(result.getSubscriberKey()).isEqualTo("sub-001");
+        verify(subscriberRepository).existsByTenantIdAndWorkspaceIdAndSubscriberKeyAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "sub-001");
         verify(eventPublisher).publishCreated(entity);
     }
 
@@ -77,11 +78,14 @@ class SubscriberServiceTest {
         SubscriberDto.CreateRequest req = SubscriberDto.CreateRequest.builder()
                 .subscriberKey("existing").email("test@example.com").build();
 
-        when(subscriberRepository.existsByTenantIdAndSubscriberKeyAndDeletedAtIsNull(TENANT_ID, "existing"))
+        when(subscriberRepository.existsByTenantIdAndWorkspaceIdAndSubscriberKeyAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "existing"))
                 .thenReturn(true);
 
         assertThatThrownBy(() -> subscriberService.create(req))
                 .isInstanceOf(ConflictException.class);
+
+        verify(subscriberRepository).existsByTenantIdAndWorkspaceIdAndSubscriberKeyAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "existing");
+        verify(subscriberRepository, never()).findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(anyString(), anyString(), anyString());
     }
 
     @Test

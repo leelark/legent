@@ -21,10 +21,12 @@ import org.springframework.transaction.TransactionStatus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ImportProcessingServiceTest {
@@ -46,7 +48,8 @@ class ImportProcessingServiceTest {
                 Map.of("email", "Email"));
         int rowCount = AppConstants.IMPORT_CHUNK_SIZE + AppConstants.IMPORT_MAX_ERRORS + 1;
 
-        when(importJobRepository.findById("job-1")).thenReturn(Optional.of(job));
+        when(importJobRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "job-1"))
+                .thenReturn(Optional.of(job));
         when(importJobRepository.save(any(ImportJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(minioClient.getObject(any())).thenReturn(csvObject("imports/subscribers.csv", invalidEmailCsv(rowCount)));
         ImportProcessingService service = service(
@@ -57,7 +60,7 @@ class ImportProcessingServiceTest {
                 transactionManager,
                 minioClient);
 
-        service.processImport("job-1");
+        service.processImport("job-1", "tenant-1", "workspace-1");
 
         assertEquals(rowCount, job.getTotalRows());
         assertEquals(rowCount, job.getProcessedRows());
@@ -67,6 +70,7 @@ class ImportProcessingServiceTest {
         assertEquals(ImportJob.ImportStatus.COMPLETED_WITH_ERRORS, job.getStatus());
         verify(subscriberRepository, never()).saveAll(any());
         verify(eventPublisher).publishCompleted(job);
+        verify(importJobRepository, never()).findById(anyString());
     }
 
     @Test
@@ -82,7 +86,8 @@ class ImportProcessingServiceTest {
         job.setTargetId("de-1");
         int rowCount = AppConstants.IMPORT_MAX_ERRORS + 5;
 
-        when(importJobRepository.findById("job-2")).thenReturn(Optional.of(job));
+        when(importJobRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "job-2"))
+                .thenReturn(Optional.of(job));
         when(importJobRepository.save(any(ImportJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(minioClient.getObject(any())).thenReturn(csvObject("imports/data-extension.csv", scoreCsv(rowCount)));
         when(dataExtensionService.addRecord(eq("de-1"), any())).thenThrow(new IllegalArgumentException("invalid score"));
@@ -94,7 +99,7 @@ class ImportProcessingServiceTest {
                 transactionManager,
                 minioClient);
 
-        service.processImport("job-2");
+        service.processImport("job-2", "tenant-1", "workspace-1");
 
         assertEquals(rowCount, job.getTotalRows());
         assertEquals(rowCount, job.getErrorRows());
@@ -102,6 +107,37 @@ class ImportProcessingServiceTest {
         assertEquals(ImportJob.ImportStatus.COMPLETED_WITH_ERRORS, job.getStatus());
         verify(subscriberRepository, never()).saveAll(any());
         verify(eventPublisher).publishCompleted(job);
+        verify(importJobRepository, never()).findById(anyString());
+    }
+
+    @Test
+    void processImportReturnsBeforeSideEffectsWhenScopedJobIsMissing() {
+        ImportJobRepository importJobRepository = mock(ImportJobRepository.class);
+        SubscriberRepository subscriberRepository = mock(SubscriberRepository.class);
+        DataExtensionService dataExtensionService = mock(DataExtensionService.class);
+        ImportEventPublisher eventPublisher = mock(ImportEventPublisher.class);
+        MinioClient minioClient = mock(MinioClient.class);
+        PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
+        when(importJobRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "foreign-job"))
+                .thenReturn(Optional.empty());
+        ImportProcessingService service = service(
+                importJobRepository,
+                subscriberRepository,
+                dataExtensionService,
+                eventPublisher,
+                transactionManager,
+                minioClient);
+        com.legent.security.TenantContext.setTenantId("existing-tenant");
+        com.legent.security.TenantContext.setWorkspaceId("existing-workspace");
+
+        service.processImport("foreign-job", "tenant-1", "workspace-1");
+
+        assertEquals("existing-tenant", com.legent.security.TenantContext.getTenantId());
+        assertEquals("existing-workspace", com.legent.security.TenantContext.getWorkspaceId());
+        verify(importJobRepository).findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "foreign-job");
+        verify(importJobRepository, never()).findById(anyString());
+        verify(importJobRepository, never()).save(any());
+        verifyNoInteractions(subscriberRepository, dataExtensionService, eventPublisher, minioClient, transactionManager);
     }
 
     private ImportProcessingService service(ImportJobRepository importJobRepository,

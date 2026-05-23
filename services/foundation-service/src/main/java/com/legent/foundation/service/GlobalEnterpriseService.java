@@ -120,7 +120,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM global_failover_drills
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                 ORDER BY created_at DESC
                 LIMIT :limit
@@ -296,7 +296,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM governance_legal_holds
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND (:status IS NULL OR status = :status)
                   AND deleted_at IS NULL
                 ORDER BY created_at DESC
@@ -329,7 +329,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM governance_data_lineage_edges
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND (:resourceType IS NULL OR source_type = :resourceType OR target_type = :resourceType)
                   AND (:resourceId IS NULL OR source_id = :resourceId OR target_id = :resourceId)
                   AND deleted_at IS NULL
@@ -375,7 +375,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM governance_policy_simulation_runs
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                 ORDER BY simulated_at DESC
                 LIMIT :limit
@@ -405,7 +405,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM governance_evidence_packs
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                 ORDER BY generated_at DESC
                 LIMIT :limit
@@ -529,7 +529,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM marketplace_sync_jobs
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                 ORDER BY created_at DESC
                 LIMIT :limit
@@ -616,7 +616,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM autonomous_optimization_recommendations
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND (:status IS NULL OR status = :status)
                   AND deleted_at IS NULL
                 ORDER BY created_at DESC
@@ -666,7 +666,7 @@ public class GlobalEnterpriseService {
         return repository.queryForList("""
                 SELECT * FROM autonomous_optimization_rollbacks
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                 ORDER BY created_at DESC
                 LIMIT :limit
@@ -675,21 +675,19 @@ public class GlobalEnterpriseService {
 
     private Map<String, Object> upsertByKey(String table, String keyColumn, String keyValue, String workspaceId,
                                             Map<String, Object> values, List<String> jsonColumns) {
+        String scopedWorkspaceId = workspace(workspaceId);
         String safeTable = CorePlatformRepository.safeTable(table);
         String safeKeyColumn = CorePlatformRepository.safeKeyColumn(keyColumn);
         List<Map<String, Object>> existing = repository.queryForList(
-                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '') AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
-                map("tenantId", tenant(), "workspaceId", workspaceId, "keyValue", keyValue)
+                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
+                map("tenantId", tenant(), "workspaceId", scopedWorkspaceId, "keyValue", keyValue)
         );
         if (existing.isEmpty()) {
             return repository.insert(table, values, jsonColumns);
         }
         Map<String, Object> updates = new LinkedHashMap<>(values);
         updates.keySet().removeAll(List.of("id", "tenant_id", "workspace_id", "created_at", "created_by", "deleted_at", "version"));
-        if (workspaceId != null) {
-            return repository.updateByIdAndWorkspace(table, String.valueOf(existing.get(0).get("id")), tenant(), workspaceId, updates, jsonColumns);
-        }
-        return repository.updateById(table, String.valueOf(existing.get(0).get("id")), tenant(), updates, jsonColumns);
+        return repository.updateByIdAndWorkspace(table, String.valueOf(existing.get(0).get("id")), tenant(), scopedWorkspaceId, updates, jsonColumns);
     }
 
     private Map<String, Object> upsertByKeyNoWorkspace(String table, String keyColumn, String keyValue,
@@ -711,7 +709,7 @@ public class GlobalEnterpriseService {
     private List<Map<String, Object>> listScoped(String table, String workspaceId, String orderBy) {
         Map<String, Object> params = scopedParams(workspaceId);
         return repository.queryForList(
-                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + CorePlatformRepository.safeOrderBy(orderBy),
+                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL ORDER BY " + CorePlatformRepository.safeOrderBy(orderBy),
                 params
         );
     }
@@ -733,7 +731,7 @@ public class GlobalEnterpriseService {
         List<Map<String, Object>> rows = repository.queryForList("""
                 SELECT * FROM global_operating_models
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL
                 ORDER BY updated_at DESC
@@ -749,7 +747,7 @@ public class GlobalEnterpriseService {
         List<Map<String, Object>> rows = repository.queryForList("""
                 SELECT * FROM global_operating_models
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND model_key = :modelKey
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL
@@ -762,7 +760,7 @@ public class GlobalEnterpriseService {
         List<Map<String, Object>> rows = repository.queryForList("""
                 SELECT * FROM tenant_data_residency_policies
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND data_class = :dataClass
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL
@@ -805,7 +803,7 @@ public class GlobalEnterpriseService {
         List<Map<String, Object>> rows = repository.queryForList("""
                 SELECT * FROM autonomous_optimization_policies
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND policy_key = :policyKey
                   AND status = 'ACTIVE'
                   AND deleted_at IS NULL
@@ -1024,11 +1022,11 @@ public class GlobalEnterpriseService {
 
     private String workspace(String workspaceId) {
         String resolved = blankToNull(workspaceId);
-        String contextWorkspaceId = blankToNull(TenantContext.getWorkspaceId());
-        if (resolved != null && contextWorkspaceId != null && !contextWorkspaceId.equals(resolved)) {
+        String contextWorkspaceId = TenantContext.requireWorkspaceId().trim();
+        if (resolved != null && !contextWorkspaceId.equals(resolved)) {
             throw new IllegalArgumentException("workspaceId does not match the current workspace");
         }
-        return resolved == null ? contextWorkspaceId : resolved;
+        return contextWorkspaceId;
     }
 
     private String actor() {

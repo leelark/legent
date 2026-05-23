@@ -84,7 +84,7 @@ class ImportServiceTest {
                     .build());
 
             assertEquals("DATA_EXTENSION", response.getTargetType());
-            verify(processingService).processImport("import-1");
+            verify(processingService).processImport("import-1", "tenant-1", "workspace-1");
         } finally {
             TenantContext.clear();
         }
@@ -146,7 +146,7 @@ class ImportServiceTest {
                     .build());
 
             assertEquals("SUBSCRIBER", response.getTargetType());
-            verify(processingService).processImport("import-1");
+            verify(processingService).processImport("import-1", "tenant-1", "workspace-1");
         } finally {
             TenantContext.clear();
         }

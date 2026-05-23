@@ -36,9 +36,13 @@ class DeliveryOperationsControllerRbacTest {
     void deliveryReadEndpointsGrantViewerAndDeliveryOperatorRoles() {
         assertThat(preAuthorizeGrants("queueStats", Set.of("VIEWER"))).isTrue();
         assertThat(preAuthorizeGrants("messages", Set.of("VIEWER"))).isTrue();
+        assertThat(preAuthorizeGrants("rateLimits", Set.of("VIEWER"))).isTrue();
+        assertThat(preAuthorizeGrants("warmupStatus", Set.of("VIEWER"))).isTrue();
         assertThat(preAuthorizeGrants("deadLetters", Set.of("VIEWER"))).isTrue();
         assertThat(preAuthorizeGrants("queueStats", Set.of("DELIVERY_OPERATOR"))).isTrue();
         assertThat(expression("queueStats")).contains("delivery:read");
+        assertThat(expression("rateLimits")).contains("delivery:read");
+        assertThat(expression("warmupStatus")).contains("delivery:read");
         assertThat(expression("deadLetters")).contains("delivery:read");
     }
 

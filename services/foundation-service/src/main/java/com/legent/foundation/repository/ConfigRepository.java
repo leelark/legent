@@ -1,8 +1,8 @@
 package com.legent.foundation.repository;
 
-import java.util.Optional;
-
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import com.legent.foundation.domain.SystemConfig;
 import org.springframework.data.domain.Page;
@@ -65,6 +65,39 @@ public interface ConfigRepository extends JpaRepository<SystemConfig, String> {
 
     @Query("SELECT c FROM SystemConfig c WHERE c.category = :category AND c.deletedAt IS NULL AND (c.tenantId = :tenantId OR c.tenantId IS NULL)")
     List<SystemConfig> findByCategory(@Param("category") String category, @Param("tenantId") String tenantId);
+
+    @Query("""
+        SELECT c FROM SystemConfig c
+        WHERE c.deletedAt IS NULL
+          AND (c.tenantId IS NULL OR c.tenantId = :tenantId)
+          AND (:moduleKey IS NULL OR LOWER(c.moduleKey) = LOWER(:moduleKey))
+          AND (:category IS NULL OR LOWER(c.category) = LOWER(:category))
+          AND (:scopeType IS NULL OR c.scopeType = :scopeType)
+          AND (
+               c.scopeType IS NULL
+               OR c.scopeType IN :alwaysVisibleScopes
+               OR (
+                    c.scopeType = :workspaceScope
+                    AND ((:workspaceId IS NULL AND c.workspaceId IS NULL) OR c.workspaceId = :workspaceId)
+               )
+               OR (
+                    c.scopeType = :environmentScope
+                    AND ((:workspaceId IS NULL AND c.workspaceId IS NULL) OR c.workspaceId = :workspaceId)
+                    AND ((:environmentId IS NULL AND c.environmentId IS NULL) OR c.environmentId = :environmentId)
+               )
+          )
+        ORDER BY LOWER(COALESCE(c.moduleKey, '')), LOWER(COALESCE(c.configKey, '')), c.id
+    """)
+    Page<SystemConfig> findVisibleSettings(@Param("tenantId") String tenantId,
+                                           @Param("workspaceId") String workspaceId,
+                                           @Param("environmentId") String environmentId,
+                                           @Param("moduleKey") String moduleKey,
+                                           @Param("category") String category,
+                                           @Param("scopeType") SystemConfig.ScopeType scopeType,
+                                           @Param("alwaysVisibleScopes") Collection<SystemConfig.ScopeType> alwaysVisibleScopes,
+                                           @Param("workspaceScope") SystemConfig.ScopeType workspaceScope,
+                                           @Param("environmentScope") SystemConfig.ScopeType environmentScope,
+                                           Pageable pageable);
 
     Optional<SystemConfig> findByTenantIdAndConfigKeyAndDeletedAtIsNull(String tenantId, String configKey);
 

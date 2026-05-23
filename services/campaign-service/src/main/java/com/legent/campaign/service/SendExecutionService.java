@@ -25,7 +25,6 @@ import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.SendBatchRepository;
 import com.legent.campaign.repository.SendBatchRecipientRepository;
 import com.legent.campaign.repository.SendJobRepository;
-import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.kafka.model.EventEnvelope;
@@ -128,10 +127,15 @@ public class SendExecutionService {
                 return;
             }
             
-            // Fetch campaign to get template/content info
-            Campaign campaign = campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull(
-                    tenantId, batch.getCampaignId())
-                    .orElseThrow(() -> new NotFoundException("Campaign not found: " + batch.getCampaignId()));
+            // Fetch campaign to get template/content info from the claimed batch workspace.
+            Campaign campaign = campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                    tenantId, workspaceId, batch.getCampaignId())
+                    .orElse(null);
+            if (campaign == null) {
+                failBatch(tenantId, batch, "CAMPAIGN_WORKSPACE_SCOPE_MISMATCH",
+                        "Campaign must belong to the send batch workspace before send");
+                return;
+            }
             
             if (campaign.getContentId() == null || campaign.getContentId().isBlank()) {
                 failBatch(tenantId, batch, "CAMPAIGN_CONTENT_REQUIRED", "Campaign must reference a published approved template before send");
@@ -706,13 +710,8 @@ public class SendExecutionService {
         // BatchingService uses TransactionSynchronization.afterCommit() to ensure
         // batch is persisted before publishing batch.created event.
         // No polling needed - batch should exist when this method is called.
-        String workspaceId = com.legent.security.TenantContext.getWorkspaceId();
-        if (workspaceId != null && !workspaceId.isBlank()) {
-            return batchRepository.findByTenantWorkspaceAndId(tenantId, workspaceId, batchId)
-                    .orElseThrow(() -> new com.legent.common.exception.NotFoundException("SendBatch", batchId));
-        }
-        return batchRepository.findById(batchId)
-                .filter(batch -> tenantId.equals(batch.getTenantId()))
+        String workspaceId = requireWorkspaceId(com.legent.security.TenantContext.getWorkspaceId(), batchId);
+        return batchRepository.findByTenantWorkspaceAndId(tenantId, workspaceId, batchId)
                 .orElseThrow(() -> new com.legent.common.exception.NotFoundException("SendBatch", batchId));
     }
 

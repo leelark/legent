@@ -51,32 +51,32 @@ public abstract class PerformanceLedgerSupport {
                                               List<String> jsonColumns) {
         String safeTable = CorePlatformRepository.safeTable(table);
         String safeKeyColumn = CorePlatformRepository.safeKeyColumn(keyColumn);
+        String scopedWorkspaceId = workspace(workspaceId);
         List<Map<String, Object>> existing = repository.queryForList(
-                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND COALESCE(workspace_id, '') = COALESCE(:workspaceId, '') AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
-                map("tenantId", tenant(), "workspaceId", workspaceId, "keyValue", keyValue)
+                "SELECT id FROM " + safeTable + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND " + safeKeyColumn + " = :keyValue AND deleted_at IS NULL LIMIT 1",
+                map("tenantId", tenant(), "workspaceId", scopedWorkspaceId, "keyValue", keyValue)
         );
         if (existing.isEmpty()) {
             return repository.insert(table, values, jsonColumns);
         }
         Map<String, Object> updates = new LinkedHashMap<>(values);
         updates.keySet().removeAll(List.of("id", "tenant_id", "workspace_id", "created_at", "created_by", "deleted_at", "version"));
-        if (workspaceId != null) {
-            return repository.updateByIdAndWorkspace(table, String.valueOf(existing.get(0).get("id")), tenant(), workspaceId, updates, jsonColumns);
-        }
-        return repository.updateById(table, String.valueOf(existing.get(0).get("id")), tenant(), updates, jsonColumns);
+        return repository.updateByIdAndWorkspace(table, String.valueOf(existing.get(0).get("id")), tenant(), scopedWorkspaceId, updates, jsonColumns);
     }
 
     protected List<Map<String, Object>> listScoped(String table, String workspaceId, String orderBy) {
+        String scopedWorkspaceId = workspace(workspaceId);
         return repository.queryForList(
-                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY " + CorePlatformRepository.safeOrderBy(orderBy),
-                map("tenantId", tenant(), "workspaceId", workspaceId)
+                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL ORDER BY " + CorePlatformRepository.safeOrderBy(orderBy),
+                map("tenantId", tenant(), "workspaceId", scopedWorkspaceId)
         );
     }
 
     protected List<Map<String, Object>> listLatest(String table, String workspaceId, int limit) {
+        String scopedWorkspaceId = workspace(workspaceId);
         return repository.queryForList(
-                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT :limit",
-                map("tenantId", tenant(), "workspaceId", workspaceId, "limit", limit)
+                "SELECT * FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL ORDER BY created_at DESC LIMIT :limit",
+                map("tenantId", tenant(), "workspaceId", scopedWorkspaceId, "limit", limit)
         );
     }
 
@@ -84,7 +84,7 @@ public abstract class PerformanceLedgerSupport {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("id", IdGenerator.newId());
         values.put("tenant_id", tenant());
-        values.put("workspace_id", workspaceId);
+        values.put("workspace_id", workspace(workspaceId));
         values.put("created_at", Instant.now());
         values.put("updated_at", Instant.now());
         values.put("created_by", actor());
@@ -260,10 +260,13 @@ public abstract class PerformanceLedgerSupport {
     protected String workspace(String workspaceId) {
         String resolved = blankToNull(workspaceId);
         String contextWorkspaceId = blankToNull(TenantContext.getWorkspaceId());
+        if (contextWorkspaceId == null) {
+            throw new IllegalArgumentException("workspaceId is required for performance ledger operations.");
+        }
         if (resolved != null && contextWorkspaceId != null && !contextWorkspaceId.equals(resolved)) {
             throw new IllegalArgumentException("workspaceId does not match the current workspace");
         }
-        return resolved == null ? contextWorkspaceId : resolved;
+        return contextWorkspaceId;
     }
 
     protected String actor() {

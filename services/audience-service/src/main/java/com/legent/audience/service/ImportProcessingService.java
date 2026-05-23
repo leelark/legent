@@ -58,26 +58,24 @@ public class ImportProcessingService {
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$");
 
     @Async("importExecutor")
-    public void processImport(String jobId) {
-        ImportJob job = importJobRepository.findById(jobId).orElse(null);
-        if (job == null) return;
+    public void processImport(String jobId, String tenantId, String workspaceId) {
+        ImportJob job = findScopedJob(jobId, tenantId, workspaceId).orElse(null);
+        if (job == null) {
+            return;
+        }
 
-        String tenantId = job.getTenantId();
-        String workspaceId = job.getWorkspaceId();
         TenantContext.setTenantId(tenantId);
         TenantContext.setWorkspaceId(workspaceId);
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
 
         try {
-            transactionTemplate.execute(new TransactionCallbackWithoutResult() {
-                @Override
-                protected void doInTransactionWithoutResult(TransactionStatus status) {
-                    ImportJob j = importJobRepository.findById(jobId).get();
-                    j.setStatus(ImportJob.ImportStatus.PROCESSING);
-                    j.setStartedAt(Instant.now());
-                    importJobRepository.save(j);
-                }
-            });
+            ImportJob startedJob = markProcessing(jobId, tenantId, workspaceId, transactionTemplate);
+            if (startedJob == null) {
+                log.info("Import job disappeared before processing: id={}, tenant={}, workspace={}",
+                        jobId, tenantId, workspaceId);
+                return;
+            }
+            job = startedJob;
 
             long successCount = 0;
             long errorCount = 0;
@@ -104,16 +102,24 @@ public class ImportProcessingService {
                     currentChunk.add(record.toMap());
 
                     if (currentChunk.size() >= chunkSize) {
+                        if (isCancelledOrMissing(jobId, tenantId, workspaceId)) {
+                            log.info("Import cancelled or missing: id={}", jobId);
+                            return;
+                        }
                         ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job,
                                 remainingErrorSampleCapacity(errors));
                         successCount += result.successCount;
                         errorCount += result.errorCount;
                         appendErrorSamples(errors, result.errors);
                         
-                        updateJobProgress(jobId, currentRow, successCount, errorCount);
+                        if (!updateJobProgress(jobId, tenantId, workspaceId, currentRow, successCount, errorCount)) {
+                            log.info("Import job disappeared during progress update: id={}, tenant={}, workspace={}",
+                                    jobId, tenantId, workspaceId);
+                            return;
+                        }
                         currentChunk.clear();
 
-                        if (isCancelled(jobId)) {
+                        if (isCancelledOrMissing(jobId, tenantId, workspaceId)) {
                             log.info("Import cancelled: id={}", jobId);
                             return;
                         }
@@ -121,6 +127,10 @@ public class ImportProcessingService {
                 }
 
                 if (!currentChunk.isEmpty()) {
+                    if (isCancelledOrMissing(jobId, tenantId, workspaceId)) {
+                        log.info("Import cancelled or missing: id={}", jobId);
+                        return;
+                    }
                     ChunkResult result = processChunk(tenantId, workspaceId, currentChunk, job,
                             remainingErrorSampleCapacity(errors));
                     successCount += result.successCount;
@@ -134,10 +144,58 @@ public class ImportProcessingService {
             final List<Map<String, Object>> finalErrors = List.copyOf(errors);
             final int finalTotal = currentRow;
 
-            transactionTemplate.execute(new TransactionCallbackWithoutResult() {
-                @Override
-                protected void doInTransactionWithoutResult(TransactionStatus status) {
-                    ImportJob j = importJobRepository.findById(jobId).get();
+            completeJob(jobId, tenantId, workspaceId, finalSuccess, finalError, finalErrors, finalTotal,
+                    transactionTemplate);
+
+            log.info("Import completed: id={}, success={}, errors={}", jobId, successCount, errorCount);
+
+        } catch (Exception e) {
+            log.error("Import failed: id={}", jobId, e);
+            failJob(jobId, tenantId, workspaceId, e, transactionTemplate);
+        } finally {
+            TenantContext.clear();
+        }
+    }
+
+    private Optional<ImportJob> findScopedJob(String jobId, String tenantId, String workspaceId) {
+        if (isBlank(jobId) || isBlank(tenantId) || isBlank(workspaceId)) {
+            return Optional.empty();
+        }
+        return importJobRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, jobId);
+    }
+
+    private ImportJob markProcessing(String jobId, String tenantId, String workspaceId,
+                                     TransactionTemplate transactionTemplate) {
+        return transactionTemplate.execute(status -> findScopedJob(jobId, tenantId, workspaceId)
+                .map(j -> {
+                    j.setStatus(ImportJob.ImportStatus.PROCESSING);
+                    j.setStartedAt(Instant.now());
+                    return importJobRepository.save(j);
+                })
+                .orElse(null));
+    }
+
+    private boolean updateJobProgress(String jobId, String tenantId, String workspaceId,
+                                      int processed, long success, long error) {
+        Boolean updated = new TransactionTemplate(transactionManager).execute(status -> findScopedJob(jobId, tenantId, workspaceId)
+                .map(j -> {
+                    j.setProcessedRows(processed);
+                    j.setSuccessRows(success);
+                    j.setErrorRows(error);
+                    importJobRepository.save(j);
+                    return true;
+                })
+                .orElse(false));
+        return Boolean.TRUE.equals(updated);
+    }
+
+    private void completeJob(String jobId, String tenantId, String workspaceId,
+                             long finalSuccess, long finalError, List<Map<String, Object>> finalErrors,
+                             int finalTotal, TransactionTemplate transactionTemplate) {
+        transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+            @Override
+            protected void doInTransactionWithoutResult(TransactionStatus status) {
+                findScopedJob(jobId, tenantId, workspaceId).ifPresent(j -> {
                     j.setTotalRows(finalTotal);
                     j.setProcessedRows(finalTotal);
                     j.setSuccessRows(finalSuccess);
@@ -147,46 +205,34 @@ public class ImportProcessingService {
                     j.setErrors(finalErrors);
                     importJobRepository.save(j);
                     eventPublisher.publishCompleted(j);
-                }
-            });
-
-            log.info("Import completed: id={}, success={}, errors={}", jobId, successCount, errorCount);
-
-        } catch (Exception e) {
-            log.error("Import failed: id={}", jobId, e);
-            transactionTemplate.execute(new TransactionCallbackWithoutResult() {
-                @Override
-                protected void doInTransactionWithoutResult(TransactionStatus status) {
-                    ImportJob j = importJobRepository.findById(jobId).get();
-                    j.setStatus(ImportJob.ImportStatus.FAILED);
-                    j.setCompletedAt(Instant.now());
-                    importJobRepository.save(j);
-                    eventPublisher.publishFailed(j, e.getMessage());
-                }
-            });
-        } finally {
-            TenantContext.clear();
-        }
-    }
-
-    private void updateJobProgress(String jobId, int processed, long success, long error) {
-        new TransactionTemplate(transactionManager).execute(new TransactionCallbackWithoutResult() {
-            @Override
-            protected void doInTransactionWithoutResult(TransactionStatus status) {
-                importJobRepository.findById(jobId).ifPresent(j -> {
-                    j.setProcessedRows(processed);
-                    j.setSuccessRows(success);
-                    j.setErrorRows(error);
-                    importJobRepository.save(j);
                 });
             }
         });
     }
 
-    private boolean isCancelled(String jobId) {
-        return importJobRepository.findById(jobId)
+    private void failJob(String jobId, String tenantId, String workspaceId, Exception e,
+                         TransactionTemplate transactionTemplate) {
+        transactionTemplate.execute(new TransactionCallbackWithoutResult() {
+            @Override
+            protected void doInTransactionWithoutResult(TransactionStatus status) {
+                findScopedJob(jobId, tenantId, workspaceId).ifPresent(j -> {
+                    j.setStatus(ImportJob.ImportStatus.FAILED);
+                    j.setCompletedAt(Instant.now());
+                    importJobRepository.save(j);
+                    eventPublisher.publishFailed(j, e.getMessage());
+                });
+            }
+        });
+    }
+
+    private boolean isCancelledOrMissing(String jobId, String tenantId, String workspaceId) {
+        return findScopedJob(jobId, tenantId, workspaceId)
                 .map(j -> j.getStatus() == ImportJob.ImportStatus.CANCELLED)
                 .orElse(true);
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
     }
 
     private static class ChunkResult {

@@ -1,5 +1,6 @@
 package com.legent.delivery.service;
 
+import com.legent.common.security.OutboundUrlGuard;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -7,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -93,9 +95,10 @@ public class ContentProcessingService {
             String originalUrl = matcher.group(2);
             
             // Skip anchor links and tracking links already processed
-            if (originalUrl.startsWith("#") || originalUrl.contains("/api/v1/tracking/c")) {
+            if (originalUrl.startsWith("#") || originalUrl.contains("/api/v1/tracking/c") || !isHttpUrl(originalUrl)) {
                 sb.append(matcher.group(0));
             } else {
+                requireTrackableClickDestination(originalUrl);
                 // Generate HMAC signature to prevent URL tampering
                 String sig = trackingUrlSigner.generateClickSignature(t, c, s, m, w, originalUrl);
                 String trackedUrl = String.format("%s/api/v1/tracking/c?url=%s&t=%s&c=%s&s=%s&m=%s&sig=%s&w=%s%s",
@@ -108,6 +111,23 @@ public class ContentProcessingService {
         }
         sb.append(html.substring(lastEnd));
         return sb.toString();
+    }
+
+    private void requireTrackableClickDestination(String originalUrl) {
+        try {
+            OutboundUrlGuard.requirePublicUriSyntax(originalUrl, "tracking click destination", false);
+        } catch (IllegalArgumentException ex) {
+            log.warn("Rejecting content with unsafe click destination URL: {}", ex.getMessage());
+            throw ex;
+        }
+    }
+
+    private boolean isHttpUrl(String originalUrl) {
+        if (originalUrl == null) {
+            return false;
+        }
+        String normalized = originalUrl.trim().toLowerCase(Locale.ROOT);
+        return normalized.startsWith("http://") || normalized.startsWith("https://");
     }
 
     private String encode(String value) {

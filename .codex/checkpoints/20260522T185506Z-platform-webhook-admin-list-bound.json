@@ -1,0 +1,25 @@
+{
+    "id":  "platform-webhook-admin-list-bound",
+    "createdAt":  "2026-05-22T18:55:06.4838934Z",
+    "objective":  "Bound platform webhook admin listing",
+    "status":  "DONE",
+    "owner":  "PLATFORM_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/platform-service/src/main/java/com/legent/platform/controller/WebhookController.java",
+                         "services/platform-service/src/main/java/com/legent/platform/repository/WebhookConfigRepository.java",
+                         "services/platform-service/src/test/java/com/legent/platform/controller/WebhookControllerTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/platform-service -Dtest=WebhookControllerTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/platform-service/src/main/java/com/legent/platform/controller/WebhookController.java services/platform-service/src/main/java/com/legent/platform/repository/WebhookConfigRepository.java services/platform-service/src/test/java/com/legent/platform/controller/WebhookControllerTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by current pool validation; continue pending scan."
+}

@@ -18,11 +18,7 @@ import org.hibernate.type.SqlTypes;
  * subscriber_key is the primary business identifier for deduplication.
  */
 @Entity
-@Table(name = "subscribers", 
-       uniqueConstraints = {
-           @UniqueConstraint(name = "uk_subscriber_tenant_workspace_email", columnNames = {"tenant_id", "workspace_id", "email"}),
-           @UniqueConstraint(name = "uk_subscriber_tenant_key", columnNames = {"tenant_id", "subscriber_key"})
-       })
+@Table(name = "subscribers")
 @Getter
 @Setter
 @NoArgsConstructor

@@ -80,6 +80,26 @@ class PlatformControllerTenantContextTest {
     }
 
     @Test
+    void notificationMarkReadUsesAuthenticatedTenantWorkspaceAndUserContext() {
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
+        TenantContext.setUserId("user-1");
+
+        new NotificationController(notificationEngine).markAsRead("notification-1");
+
+        verify(notificationEngine).markAsRead("notification-1", "tenant-1", "workspace-1", "user-1");
+    }
+
+    @Test
+    void notificationMarkReadFailsClosedWithoutWorkspaceContext() {
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setUserId("user-1");
+
+        assertThrows(IllegalStateException.class,
+                () -> new NotificationController(notificationEngine).markAsRead("notification-1"));
+    }
+
+    @Test
     void searchUsesAuthenticatedTenantAndWorkspaceContext() {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");

@@ -25,6 +25,8 @@ public class RuntimeConfigurationGuard {
             "minio.secret-key"
     );
 
+    private static final Set<String> UNSAFE_PRODUCTION_DDL_AUTO_VALUES = Set.of("update", "create", "create-drop");
+
     private final Environment environment;
 
     @PostConstruct
@@ -49,12 +51,17 @@ public class RuntimeConfigurationGuard {
         if (allowMockProvider) {
             throw new IllegalStateException("Production configuration cannot enable legent.delivery.allow-mock-provider");
         }
+
+        String ddlAuto = environment.getProperty("spring.jpa.hibernate.ddl-auto");
+        if (ddlAuto != null && UNSAFE_PRODUCTION_DDL_AUTO_VALUES.contains(ddlAuto.trim().toLowerCase(Locale.ROOT))) {
+            throw new IllegalStateException("Production configuration cannot use unsafe spring.jpa.hibernate.ddl-auto=" + ddlAuto);
+        }
     }
 
     private boolean isProductionProfile() {
         return Arrays.stream(environment.getActiveProfiles())
                 .map(profile -> profile.toLowerCase(Locale.ROOT))
-                .anyMatch("prod"::equals);
+                .anyMatch(profile -> "prod".equals(profile) || "production".equals(profile));
     }
 
     private boolean isPlaceholderSecret(String value) {

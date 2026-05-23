@@ -1,0 +1,24 @@
+{
+    "id":  "tracking-websocket-handshake-no-header-scope-fallback",
+    "createdAt":  "2026-05-22T20:30:58.5321889Z",
+    "objective":  "Remove tenant/workspace header fallback from tracking WebSocket handshake scope resolution.",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/ws/TenantHandshakeInterceptor.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/ws/TenantHandshakeInterceptorTest.java"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -Dtest=TenantHandshakeInterceptorTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check for leased tracking websocket files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Pool item complete; continue coordinated backlog scan.",
+    "completedAt":  "2026-05-22T20:54:25.1402654Z"
+}

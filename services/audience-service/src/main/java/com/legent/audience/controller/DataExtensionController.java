@@ -3,6 +3,7 @@ package com.legent.audience.controller;
 import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.service.DataExtensionQueryActivityService;
 import com.legent.audience.service.DataExtensionService;
+import com.legent.common.constant.AppConstants;
 import com.legent.common.security.InternalApiTokenValidator;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
@@ -38,8 +39,10 @@ public class DataExtensionController {
     public PagedResponse<DataExtensionDto.Response> list(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        Page<DataExtensionDto.Response> result = deService.list(PageRequest.of(page, size));
-        return PagedResponse.of(result.getContent(), page, size, result.getTotalElements(), result.getTotalPages());
+        int boundedPage = boundedPage(page);
+        int boundedSize = boundedSize(size);
+        Page<DataExtensionDto.Response> result = deService.list(PageRequest.of(boundedPage, boundedSize));
+        return PagedResponse.of(result.getContent(), boundedPage, boundedSize, result.getTotalElements(), result.getTotalPages());
     }
 
     @GetMapping("/{id}")
@@ -116,8 +119,10 @@ public class DataExtensionController {
     public PagedResponse<DataExtensionDto.RecordResponse> listRecords(@PathVariable String deId,
                                                                       @RequestParam(defaultValue = "0") int page,
                                                                       @RequestParam(defaultValue = "20") int size) {
-        Page<DataExtensionDto.RecordResponse> result = deService.listRecords(deId, PageRequest.of(page, size));
-        return PagedResponse.of(result.getContent(), page, size, result.getTotalElements(), result.getTotalPages());
+        int boundedPage = boundedPage(page);
+        int boundedSize = boundedSize(size);
+        Page<DataExtensionDto.RecordResponse> result = deService.listRecords(deId, PageRequest.of(boundedPage, boundedSize));
+        return PagedResponse.of(result.getContent(), boundedPage, boundedSize, result.getTotalElements(), result.getTotalPages());
     }
 
     @PostMapping("/{deId}/query-preview")
@@ -145,5 +150,16 @@ public class DataExtensionController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
         return ApiResponse.ok(queryActivityService.execute(request));
+    }
+
+    private int boundedPage(int page) {
+        return Math.max(page, 0);
+    }
+
+    private int boundedSize(int size) {
+        if (size < 1) {
+            return AppConstants.DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(size, AppConstants.MAX_PAGE_SIZE);
     }
 }

@@ -1,18 +1,18 @@
 ﻿# Autonomous Team Dashboard
 
-Generated: 2026-05-22T03:52:20.5576616Z
+Generated: 2026-05-22T21:46:19.0312714Z
 
 ## Summary
 
 - Registered module teams: 15
-- Registered threads: 15
+- Registered threads: 16
 - Active threads: 0
 - Active leases: 0
 - Active worktrees: 0
 - Ready work: 0
 - Backlog work: 0
 - Blocked work: 6
-- Done work: 87
+- Done work: 158
 
 ## Threads
 
@@ -32,7 +32,8 @@ Generated: 2026-05-22T03:52:20.5576616Z
 | audience-service-20260520T121322Z | MODULE | audience-service | PAUSED | 2026-05-20T13:16:16.7756807Z | True | Safe stop requested by user after completing predictive-segments-governance and contact-data-designer-preview-governance. Resume from checkpoint 20260520T125000Z-contact-data-designer-preview-governance for additive Contact Builder provenance/classification/audit tables, controller API validation, frontend relationship-designer controls, or internal endpoint security-chain tests. |
 | overall-20260520T133124Z | OVERALL | overall | PAUSED | 2026-05-20T17:13:37.3491151Z | True | Safe-stopped by user request after completing email-governance-policy-objects. Resume from .codex/checkpoints/20260520T164135Z-email-governance-policy-objects.json and .codex/threads/overall-20260520T133124Z-handoff.md. |
 | overall-20260520T181712Z | OVERALL | overall | PAUSED | 2026-05-20T22:57:19.4891311Z | True | Safe-stopped by user request. tracking-ingestion-batch-consumer-readiness is locally validated but BLOCKED on Docker/PostgreSQL and ClickHouse dedupe/reconciliation evidence; no active agents or leases. |
-| overall-20260521T210913Z | OVERALL | overall | PAUSED | 2026-05-22T03:51:12.9629255Z | False | Safe-stopped per user request after completing latest-audit-safe-local-followups-20260522; resume only on new user direction. |
+| overall-20260521T210913Z | OVERALL | overall | PAUSED | 2026-05-22T03:51:12.9629255Z | True | Safe-stopped per user request after completing latest-audit-safe-local-followups-20260522; resume only on new user direction. |
+| overall-20260522T121051Z | OVERALL | overall | PAUSED | 2026-05-22T21:45:41.5721230Z | False | Safe-stopped after completing all unblocked local work from the latest audit. Resume only on new user direction or after blocked evidence and policy decisions are available. |
 
 ## Next Work
 

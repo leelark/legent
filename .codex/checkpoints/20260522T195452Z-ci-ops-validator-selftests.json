@@ -1,0 +1,28 @@
+{
+    "id":  "ci-ops-validator-selftests",
+    "createdAt":  "2026-05-22T19:54:52.9578237Z",
+    "objective":  "Wire route and Compose safety self-tests into CI",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         ".github/workflows/ci-security.yml",
+                         "scripts/ops/test-route-map-validator.ps1",
+                         "scripts/ops/validate-compose-safety.ps1"
+                     ],
+    "agents":  [
+                   "RELEASE_MANAGER",
+                   "SECURITY_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-route-map-validator.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-safety.ps1 -SelfTest",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-safety.ps1 -ComposeEnvFile .env.example",
+                           "git diff --check -- .github/workflows/ci-security.yml scripts/ops/test-route-map-validator.ps1 scripts/ops/validate-compose-safety.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed; keep strict release evidence blocked until external evidence exists.",
+    "completedAt":  "2026-05-22T20:12:57.8286187Z"
+}

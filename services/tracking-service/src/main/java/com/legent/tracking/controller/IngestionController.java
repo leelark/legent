@@ -1,6 +1,7 @@
 package com.legent.tracking.controller;
 
 import com.legent.common.dto.ApiResponse;
+import com.legent.common.security.OutboundUrlGuard;
 import com.legent.tracking.dto.TrackingDto;
 import com.legent.tracking.service.TrackingIngestionService;
 import com.legent.tracking.service.TrackingUrlVerifier;
@@ -13,6 +14,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 
@@ -99,14 +101,11 @@ public class IngestionController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        URI redirectUri;
         try {
-            java.net.URI uri = new java.net.URI(url);
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-            if (scheme == null || (!scheme.equals("http") && !scheme.equals("https")) || host == null) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
-            }
-        } catch (Exception e) {
+            redirectUri = OutboundUrlGuard.requirePublicUri(url, "tracking click destination", false);
+        } catch (IllegalArgumentException e) {
+            log.warn("Rejected unsafe tracking click destination: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
 
@@ -125,11 +124,12 @@ public class IngestionController {
                 getClientIp(request));
 
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(url))
+                .location(redirectUri)
                 .build();
     }
 
     @PostMapping("/events")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tracking:write', principal.roles) or @rbacEvaluator.hasPermission('analytics:write', principal.roles)")
     @ResponseStatus(HttpStatus.ACCEPTED)
     public ApiResponse<Void> trackConversion(
             @RequestHeader("X-Tenant-Id") @NotBlank String tenantId,

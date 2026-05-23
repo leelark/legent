@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.legent.campaign.domain.Campaign;
+import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.dto.CampaignDto;
 import com.legent.campaign.dto.CampaignEngineDto;
@@ -26,6 +27,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -269,5 +272,139 @@ class OrchestrationServiceTest {
                 audienceCaptor.capture());
         assertThat(audienceCaptor.getValue())
                 .containsExactly(Map.of("type", "LIST", "id", "list-1", "action", "INCLUDE"));
+    }
+
+    @Test
+    void resumeCampaignSendRequeuesPendingBatchesFromScopedStatusPage() {
+        SendJob pausedJob = new SendJob();
+        pausedJob.setId("job-1");
+        pausedJob.setTenantId(TENANT_ID);
+        pausedJob.setWorkspaceId(WORKSPACE_ID);
+        pausedJob.setCampaignId("camp-1");
+        pausedJob.setStatus(SendJob.JobStatus.PAUSED);
+
+        Campaign campaign = new Campaign();
+        campaign.setId("camp-1");
+        campaign.setTenantId(TENANT_ID);
+        campaign.setWorkspaceId(WORKSPACE_ID);
+        campaign.setStatus(Campaign.CampaignStatus.PAUSED);
+
+        SendJobDto.Response response = new SendJobDto.Response();
+        response.setId("job-1");
+        response.setStatus(SendJob.JobStatus.SENDING);
+
+        when(sendJobRepository.findByTenantIdAndWorkspaceIdAndCampaignIdAndStatusInAndDeletedAtIsNull(
+                TENANT_ID, WORKSPACE_ID, "camp-1", List.of(SendJob.JobStatus.PAUSED)))
+                .thenReturn(List.of(pausedJob));
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "camp-1"))
+                .thenReturn(Optional.of(campaign));
+        when(sendBatchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.PENDING, SendBatch.BatchStatus.PARTIAL)),
+                isNull(),
+                any(Pageable.class))).thenReturn(List.of("batch-1", "batch-2"));
+        when(sendJobMapper.toJobResponse(pausedJob)).thenReturn(response);
+
+        SendJobDto.Response result = orchestrationService.resumeCampaignSend("camp-1", "resume");
+
+        assertThat(result.getStatus()).isEqualTo(SendJob.JobStatus.SENDING);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(sendBatchRepository).findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.PENDING, SendBatch.BatchStatus.PARTIAL)),
+                isNull(),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(500);
+        verify(eventPublisher).publishBatchCreated(TENANT_ID, "job-1", "batch-1");
+        verify(eventPublisher).publishBatchCreated(TENANT_ID, "job-1", "batch-2");
+        verify(sendBatchRepository, never()).findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
+                anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void retryJobMarksRetryableBatchesFromScopedStatusPageAndPublishesEvents() {
+        SendJob job = new SendJob();
+        job.setId("job-1");
+        job.setTenantId(TENANT_ID);
+        job.setWorkspaceId(WORKSPACE_ID);
+        job.setCampaignId("camp-1");
+        job.setStatus(SendJob.JobStatus.FAILED);
+
+        SendJobDto.Response response = new SendJobDto.Response();
+        response.setId("job-1");
+        response.setStatus(SendJob.JobStatus.SENDING);
+
+        when(sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "job-1"))
+                .thenReturn(Optional.of(job));
+        when(sendBatchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.FAILED, SendBatch.BatchStatus.PARTIAL)),
+                isNull(),
+                any(Pageable.class))).thenReturn(List.of("batch-1"));
+        when(sendBatchRepository.markScopedBatchIdForRetry(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(List.of(SendBatch.BatchStatus.FAILED, SendBatch.BatchStatus.PARTIAL)),
+                eq(SendBatch.BatchStatus.PENDING),
+                any(Instant.class))).thenReturn(1);
+        when(sendJobMapper.toJobResponse(job)).thenReturn(response);
+
+        SendJobDto.Response result = orchestrationService.retryJob("job-1", "retry");
+
+        assertThat(result.getStatus()).isEqualTo(SendJob.JobStatus.SENDING);
+        assertThat(job.getStatus()).isEqualTo(SendJob.JobStatus.SENDING);
+        verify(sendBatchRepository).markScopedBatchIdForRetry(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(List.of(SendBatch.BatchStatus.FAILED, SendBatch.BatchStatus.PARTIAL)),
+                eq(SendBatch.BatchStatus.PENDING),
+                any(Instant.class));
+        verify(eventPublisher).publishBatchCreated(TENANT_ID, "job-1", "batch-1");
+        verify(sendBatchRepository, never()).findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNull(
+                anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void retryJobDoesNotPublishForUnclaimedBatchIds() {
+        SendJob job = new SendJob();
+        job.setId("job-1");
+        job.setTenantId(TENANT_ID);
+        job.setWorkspaceId(WORKSPACE_ID);
+        job.setCampaignId("camp-1");
+        job.setStatus(SendJob.JobStatus.FAILED);
+
+        when(sendJobRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "job-1"))
+                .thenReturn(Optional.of(job));
+        when(sendBatchRepository.findIdsByTenantWorkspaceJobAndStatusesAfterId(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq("job-1"),
+                eq(List.of(SendBatch.BatchStatus.FAILED, SendBatch.BatchStatus.PARTIAL)),
+                isNull(),
+                any(Pageable.class))).thenReturn(List.of("batch-1"));
+        when(sendBatchRepository.markScopedBatchIdForRetry(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(List.of(SendBatch.BatchStatus.FAILED, SendBatch.BatchStatus.PARTIAL)),
+                eq(SendBatch.BatchStatus.PENDING),
+                any(Instant.class))).thenReturn(0);
+
+        assertThatThrownBy(() -> orchestrationService.retryJob("job-1", "retry"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("No retryable batches found");
+
+        verify(eventPublisher, never()).publishBatchCreated(anyString(), anyString(), anyString());
     }
 }

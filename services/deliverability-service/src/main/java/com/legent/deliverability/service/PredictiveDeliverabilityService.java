@@ -7,6 +7,7 @@ import com.legent.deliverability.repository.SenderDomainRepository;
 import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PredictiveDeliverabilityService {
 
+    private static final PageRequest LATEST_REPUTATION_PAGE = PageRequest.of(0, 1);
+
     private final SenderDomainRepository senderDomainRepository;
     private final DomainReputationRepository domainReputationRepository;
     private final SuppressionListRepository suppressionListRepository;
@@ -34,8 +37,7 @@ public class PredictiveDeliverabilityService {
         String workspaceId = TenantContext.requireWorkspaceId();
         List<SenderDomain> domains = senderDomainRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId);
         SenderDomain domain = chooseDomain(domains, domainName);
-        List<DomainReputation> reputations = domainReputationRepository.findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(tenantId, workspaceId);
-        DomainReputation reputation = chooseReputation(reputations, domain);
+        DomainReputation reputation = chooseReputation(tenantId, workspaceId, domain);
         long complaints = suppressionListRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "COMPLAINT");
         long hardBounces = suppressionListRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "HARD_BOUNCE");
 
@@ -83,19 +85,23 @@ public class PredictiveDeliverabilityService {
                 .orElse(domains.get(0));
     }
 
-    private DomainReputation chooseReputation(List<DomainReputation> reputations, SenderDomain domain) {
+    private DomainReputation chooseReputation(String tenantId, String workspaceId, SenderDomain domain) {
+        if (domain != null && domain.getId() != null) {
+            return domainReputationRepository.findByTenantIdAndWorkspaceIdAndDomainId(tenantId, workspaceId, domain.getId())
+                    .orElseGet(() -> latestWorkspaceReputation(tenantId, workspaceId));
+        }
+        return latestWorkspaceReputation(tenantId, workspaceId);
+    }
+
+    private DomainReputation latestWorkspaceReputation(String tenantId, String workspaceId) {
+        List<DomainReputation> reputations = domainReputationRepository.findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(
+                tenantId, workspaceId, LATEST_REPUTATION_PAGE);
         if (reputations.isEmpty()) {
             return null;
         }
-        if (domain == null || domain.getId() == null) {
-            return reputations.stream()
-                    .max(Comparator.comparing(rep -> rep.getCalculatedAt() == null ? Instant.EPOCH : rep.getCalculatedAt()))
-                    .orElse(null);
-        }
         return reputations.stream()
-                .filter(rep -> domain.getId().equals(rep.getDomainId()))
-                .findFirst()
-                .orElse(reputations.get(0));
+                .max(Comparator.comparing(rep -> rep.getCalculatedAt() == null ? Instant.EPOCH : rep.getCalculatedAt()))
+                .orElse(null);
     }
 
     private int authenticationRisk(SenderDomain domain) {

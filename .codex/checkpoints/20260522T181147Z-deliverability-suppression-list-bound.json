@@ -1,0 +1,27 @@
+{
+    "id":  "deliverability-suppression-list-bound",
+    "createdAt":  "2026-05-22T18:11:47.6169030Z",
+    "objective":  "Bound deliverability suppression list reads",
+    "status":  "DONE",
+    "owner":  "DELIVERABILITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/repository/SuppressionListRepository.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/controller/SuppressionControllerTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/deliverability-service \"-Dtest=SuppressionControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                           "git diff --check -- services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java services/deliverability-service/src/main/java/com/legent/deliverability/repository/SuppressionListRepository.java services/deliverability-service/src/test/java/com/legent/deliverability/controller/SuppressionControllerTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated backend validation; continue backlog scan."
+}

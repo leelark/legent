@@ -1,0 +1,28 @@
+{
+    "id":  "platform-notification-method-auth",
+    "createdAt":  "2026-05-22T19:34:43.0973922Z",
+    "objective":  "Add explicit method authorization to platform notifications",
+    "status":  "DONE",
+    "owner":  "PLATFORM_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/platform-service/src/main/java/com/legent/platform/controller/NotificationController.java",
+                         "services/platform-service/src/test/java/com/legent/platform/controller/PlatformAdminControllerRbacTest.java",
+                         "services/platform-service/src/test/java/com/legent/platform/controller/PlatformControllerTenantContextTest.java",
+                         "services/platform-service/src/test/java/com/legent/platform/service/NotificationEngineTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/platform-service -Dtest=PlatformAdminControllerRbacTest",
+                           "PlatformControllerTenantContextTest",
+                           "NotificationEngineTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/platform-service/src/main/java/com/legent/platform/controller/NotificationController.java services/platform-service/src/test/java/com/legent/platform/controller/PlatformAdminControllerRbacTest.java services/platform-service/src/test/java/com/legent/platform/controller/PlatformControllerTenantContextTest.java services/platform-service/src/test/java/com/legent/platform/service/NotificationEngineTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated pool validation; continue pending scan."
+}

@@ -1,0 +1,31 @@
+{
+    "id":  "observability-alert-routing-handoff-gaps",
+    "createdAt":  "2026-05-22T17:04:14.3905512Z",
+    "objective":  "Harden local observability alert handoff validation",
+    "status":  "DONE",
+    "owner":  "SRE_MONITORING_ENGINEER",
+    "filesInScope":  [
+                         "infrastructure/kubernetes/observability/alertmanager.yml",
+                         "infrastructure/kubernetes/observability/prometheus-alerts.yml",
+                         "infrastructure/kubernetes/observability/grafana-legent-overview.json",
+                         "scripts/ops/validate-production-overlay.ps1",
+                         "docs/operations/production-hardening-runbook.md"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "RELEASE_MANAGER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "git diff --check -- infrastructure/kubernetes/observability scripts/ops/validate-production-overlay.ps1 docs/operations/production-hardening-runbook.md"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue with the next exact-leased safe local work item after memory and dashboard refresh.",
+    "completedAt":  "2026-05-22T17:22:51.9561901Z"
+}

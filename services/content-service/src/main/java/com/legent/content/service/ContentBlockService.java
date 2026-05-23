@@ -11,6 +11,7 @@ import com.legent.content.repository.ContentBlockVersionRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,9 @@ import java.util.Objects;
 @Service
 @RequiredArgsConstructor
 public class ContentBlockService {
+
+    private static final int DEFAULT_VERSION_READ_LIMIT = 50;
+    private static final int MAX_VERSION_READ_LIMIT = 200;
 
     private final ContentBlockRepository blockRepository;
     private final ContentBlockVersionRepository blockVersionRepository;
@@ -152,13 +156,22 @@ public class ContentBlockService {
 
     @Transactional(readOnly = true)
     public List<ContentBlockVersion> listVersions(String tenantId, String blockId) {
-        return listVersions(tenantId, TenantContext.requireWorkspaceId(), blockId);
+        return listVersions(tenantId, TenantContext.requireWorkspaceId(), blockId, null);
     }
 
     @Transactional(readOnly = true)
     public List<ContentBlockVersion> listVersions(String tenantId, String workspaceId, String blockId) {
+        return listVersions(tenantId, workspaceId, blockId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContentBlockVersion> listVersions(String tenantId, String workspaceId, String blockId, Integer limit) {
         getBlock(tenantId, workspaceId, blockId);
-        return blockVersionRepository.findByBlock_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(blockId, tenantId, workspaceId);
+        return blockVersionRepository.findByBlock_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(
+                blockId,
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, boundedVersionReadLimit(limit)));
     }
 
     @Transactional
@@ -171,13 +184,9 @@ public class ContentBlockService {
         ContentBlock block = getBlock(tenantId, workspaceId, blockId);
         ContentBlockVersion version = blockVersionRepository.findByBlock_IdAndVersionNumberAndTenantIdAndWorkspaceId(blockId, versionNumber, tenantId, workspaceId)
                 .orElseThrow(() -> new NotFoundException("ContentBlockVersion", blockId + " v" + versionNumber));
-        for (ContentBlockVersion current : blockVersionRepository.findByBlock_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(blockId, tenantId, workspaceId)) {
-            boolean published = Objects.equals(current.getVersionNumber(), versionNumber);
-            if (!Objects.equals(current.getIsPublished(), published)) {
-                current.setIsPublished(published);
-                blockVersionRepository.save(current);
-            }
-        }
+        version.setIsPublished(true);
+        blockVersionRepository.save(version);
+        blockVersionRepository.clearPublishedVersionsExcept(blockId, tenantId, workspaceId, versionNumber);
         block.setContent(version.getContent());
         block.setStyles(version.getStyles());
         block.setSettings(version.getSettings());
@@ -227,5 +236,12 @@ public class ContentBlockService {
         return blockVersionRepository.findFirstByBlock_IdAndTenantIdAndWorkspaceIdOrderByVersionNumberDesc(blockId, tenantId, workspaceId)
                 .map(ContentBlockVersion::getVersionNumber)
                 .orElse(0) + 1;
+    }
+
+    private int boundedVersionReadLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_VERSION_READ_LIMIT;
+        }
+        return Math.min(limit, MAX_VERSION_READ_LIMIT);
     }
 }

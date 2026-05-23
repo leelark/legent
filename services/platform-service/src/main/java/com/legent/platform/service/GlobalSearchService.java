@@ -1,18 +1,16 @@
 package com.legent.platform.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List;
-
-import java.util.Map;
-
-import java.time.Instant;
-
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.platform.domain.SearchIndexDoc;
 import com.legent.platform.repository.SearchIndexDocRepository;
 import com.legent.security.TenantContext;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 
@@ -20,6 +18,9 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class GlobalSearchService {
+
+    static final int DEFAULT_SEARCH_LIMIT = 50;
+    static final int MAX_SEARCH_LIMIT = 200;
 
     private final SearchIndexDocRepository searchRepository;
     private final ObjectMapper objectMapper;
@@ -52,10 +53,22 @@ public class GlobalSearchService {
     }
 
     public List<SearchIndexDoc> search(String tenantId, String workspaceId, String query) {
+        return search(tenantId, workspaceId, query, DEFAULT_SEARCH_LIMIT);
+    }
+
+    List<SearchIndexDoc> search(String tenantId, String workspaceId, String query, Integer limit) {
         // Simplified ILIKE search mapping over all entities.
         // In a true OpenSearch implementation, this constructs a boolean query targeting ngram analyzers.
         return searchRepository.findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
-                tenantId, workspaceId, query);
+                tenantId, workspaceId, query, PageRequest.of(0, boundedSearchLimit(limit)))
+                .getContent();
+    }
+
+    private int boundedSearchLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_SEARCH_LIMIT;
+        }
+        return Math.min(limit, MAX_SEARCH_LIMIT);
     }
 
     private String documentId(String tenantId, String workspaceId, String entityType, String entityId) {

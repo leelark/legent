@@ -26,8 +26,15 @@ public interface SegmentRepository extends JpaRepository<Segment, String> {
 
     boolean existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(String tenantId, String workspaceId, String name);
 
-    @Query("SELECT s FROM Segment s WHERE s.scheduleEnabled = true AND s.status IN ('ACTIVE','DRAFT') AND s.deletedAt IS NULL")
-    List<Segment> findScheduledSegments();
+    @Query("""
+            SELECT s FROM Segment s
+            WHERE s.scheduleEnabled = true
+              AND s.status IN ('ACTIVE','DRAFT')
+              AND s.deletedAt IS NULL
+              AND (:lastSegmentId IS NULL OR s.id > :lastSegmentId)
+            ORDER BY s.id ASC
+            """)
+    List<Segment> findScheduledSegmentsAfterId(@Param("lastSegmentId") String lastSegmentId, Pageable pageable);
 
     @Query("SELECT COUNT(s) FROM Segment s WHERE s.tenantId = :tid AND s.workspaceId = :wid AND s.deletedAt IS NULL")
     long countByTenantAndWorkspace(@Param("tid") String tenantId, @Param("wid") String workspaceId);

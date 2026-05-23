@@ -1,5 +1,6 @@
 package com.legent.identity.service;
 
+import com.legent.common.constant.AppConstants;
 import com.legent.identity.domain.Account;
 import com.legent.identity.domain.AccountMembership;
 import com.legent.identity.domain.AccountRoleBinding;
@@ -20,6 +21,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,6 +48,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@SuppressWarnings({"rawtypes", "unchecked"})
 class AuthServiceTest {
 
     @Mock
@@ -419,14 +424,35 @@ class AuthServiceTest {
         otherWorkspaceInvitation.setId("invitation-workspace-2");
         otherWorkspaceInvitation.setTenantId("tenant-1");
         otherWorkspaceInvitation.setWorkspaceId("workspace-2");
-        when(invitationRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc("tenant-1", "workspace-1"))
-                .thenReturn(List.of(workspaceInvitation));
+        when(invitationRepository.findAll(any(Example.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(workspaceInvitation)));
 
         List<AuthInvitation> invitations = service.listInvitations("tenant-1", "workspace-1");
 
         assertEquals(List.of(workspaceInvitation), invitations);
         assertFalse(invitations.contains(otherWorkspaceInvitation));
-        verify(invitationRepository).findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc("tenant-1", "workspace-1");
+        ArgumentCaptor<Example> exampleCaptor = ArgumentCaptor.forClass(Example.class);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(invitationRepository).findAll(exampleCaptor.capture(), pageableCaptor.capture());
+        AuthInvitation probe = (AuthInvitation) exampleCaptor.getValue().getProbe();
+        assertEquals("tenant-1", probe.getTenantId());
+        assertEquals("workspace-1", probe.getWorkspaceId());
+        assertEquals(AppConstants.DEFAULT_PAGE_SIZE, pageableCaptor.getValue().getPageSize());
+        assertTrue(pageableCaptor.getValue().getSort().getOrderFor("createdAt").isDescending());
+    }
+
+    @Test
+    void listInvitations_whenLimitExceedsMax_clampsRepositoryRead() {
+        AuthInvitationRepository invitationRepository = mock(AuthInvitationRepository.class);
+        AuthService service = authServiceWithIdentityBridgeRepositories(null, null, null, invitationRepository);
+        when(invitationRepository.findAll(any(Example.class), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        service.listInvitations("tenant-1", "workspace-1", AppConstants.MAX_PAGE_SIZE + 1_000);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(invitationRepository).findAll(any(Example.class), pageableCaptor.capture());
+        assertEquals(AppConstants.MAX_PAGE_SIZE, pageableCaptor.getValue().getPageSize());
     }
 
     @Test

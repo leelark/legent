@@ -56,6 +56,31 @@ const landingPageProfile: SanitizeOptions = {
   FORBID_ATTR: [...(emailProfile.FORBID_ATTR ?? []), 'action', 'formaction'],
 };
 
+const requiredBlankTargetRelTokens = ['noopener', 'noreferrer'];
+
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node.nodeName.toLowerCase() !== 'a') {
+    return;
+  }
+
+  const target = node.getAttribute('target');
+
+  if (target?.trim().toLowerCase() !== '_blank') {
+    return;
+  }
+
+  const relTokens = (node.getAttribute('rel') ?? '').split(/\s+/).filter(Boolean);
+  const normalizedRelTokens = new Set(relTokens.map((token) => token.toLowerCase()));
+
+  for (const token of requiredBlankTargetRelTokens) {
+    if (!normalizedRelTokens.has(token)) {
+      relTokens.push(token);
+    }
+  }
+
+  node.setAttribute('rel', relTokens.join(' '));
+});
+
 export const sanitizeRichContentHtml = (html?: string | null) =>
   DOMPurify.sanitize(html ?? '', baseProfile);
 

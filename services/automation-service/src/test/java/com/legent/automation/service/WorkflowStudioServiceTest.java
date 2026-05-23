@@ -78,6 +78,26 @@ class WorkflowStudioServiceTest {
     }
 
     @Test
+    void listWorkflowsUsesDefaultFirstPage() {
+        when(workflowRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                any(Pageable.class)))
+                .thenReturn(List.of(workflow("DRAFT", 1)));
+
+        List<Workflow> workflows = service.listWorkflows();
+
+        assertThat(workflows).hasSize(1);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(workflowRepository).findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(50);
+    }
+
+    @Test
     void saveDefinitionRejectsPublishedVersionOverwrite() {
         Workflow workflow = workflow("DRAFT", 1);
         WorkflowDefinition existing = definition(1, supportedGraph(), true);
@@ -225,6 +245,100 @@ class WorkflowStudioServiceTest {
                 org.mockito.ArgumentMatchers.eq(WORKFLOW_ID),
                 pageableCaptor.capture());
         assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(200);
+    }
+
+    @Test
+    void listRunsUsesDefaultPageRequest() {
+        when(workflowInstanceRepository.findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByCreatedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq(WORKFLOW_ID),
+                any(Pageable.class)))
+                .thenReturn(List.of(run("run-1", "COMPLETED", null)));
+
+        List<WorkflowInstance> runs = service.listRuns(WORKFLOW_ID);
+
+        assertThat(runs).hasSize(1);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(workflowInstanceRepository).findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByCreatedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq(WORKFLOW_ID),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(50);
+    }
+
+    @Test
+    void listRunsClampsNegativePageAndOversizedLimit() {
+        when(workflowInstanceRepository.findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByCreatedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq(WORKFLOW_ID),
+                any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.listRuns(WORKFLOW_ID, -4, 10_000);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(workflowInstanceRepository).findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByCreatedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq(WORKFLOW_ID),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(200);
+    }
+
+    @Test
+    void getRunStepsClampsHistoryLimitAndKeepsRunScoped() {
+        WorkflowInstance run = run("run-1", "COMPLETED", null);
+        when(workflowInstanceRepository.findByIdAndTenantIdAndWorkspaceId("run-1", TENANT_ID, WORKSPACE_ID))
+                .thenReturn(Optional.of(run));
+        when(instanceHistoryRepository.findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq("run-1"),
+                any(Pageable.class)))
+                .thenReturn(List.of(history("run-1", "entry", "SUCCESS", "2026-05-20T10:00:00Z")));
+
+        List<InstanceHistory> steps = service.getRunSteps("run-1", 5_000);
+
+        assertThat(steps).hasSize(1);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(instanceHistoryRepository).findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq("run-1"),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(500);
+    }
+
+    @Test
+    void getRunTraceUsesDefaultBoundedHistoryLimit() {
+        WorkflowInstance run = run("run-1", "COMPLETED", null);
+        when(workflowInstanceRepository.findByIdAndTenantIdAndWorkspaceId("run-1", TENANT_ID, WORKSPACE_ID))
+                .thenReturn(Optional.of(run));
+        when(instanceHistoryRepository.findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq("run-1"),
+                any(Pageable.class)))
+                .thenReturn(List.of());
+
+        Map<String, Object> trace = service.getRunTrace("run-1");
+
+        assertThat(trace)
+                .containsEntry("run", run)
+                .containsEntry("stepCount", 0);
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(instanceHistoryRepository).findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(
+                org.mockito.ArgumentMatchers.eq(TENANT_ID),
+                org.mockito.ArgumentMatchers.eq(WORKSPACE_ID),
+                org.mockito.ArgumentMatchers.eq("run-1"),
+                pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(100);
     }
 
     private Workflow workflow(String status, Integer activeVersion) {

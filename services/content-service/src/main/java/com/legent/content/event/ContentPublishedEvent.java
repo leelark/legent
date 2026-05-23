@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 public class ContentPublishedEvent {
 
     private String tenantId;
+    private String workspaceId;
     private String templateId;
     private String templateName;
     private String versionNumber;

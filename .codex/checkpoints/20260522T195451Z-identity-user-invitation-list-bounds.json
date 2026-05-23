@@ -1,0 +1,33 @@
+{
+    "id":  "identity-user-invitation-list-bounds",
+    "createdAt":  "2026-05-22T19:54:51.4416273Z",
+    "objective":  "Bound identity user and invitation admin lists",
+    "status":  "DONE",
+    "owner":  "IDENTITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/identity-service/src/main/java/com/legent/identity/service/UserService.java",
+                         "services/identity-service/src/main/java/com/legent/identity/controller/UserController.java",
+                         "services/identity-service/src/main/java/com/legent/identity/service/AuthService.java",
+                         "services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java",
+                         "services/identity-service/src/test/java/com/legent/identity/controller/UserControllerTest.java",
+                         "services/identity-service/src/test/java/com/legent/identity/controller/AuthControllerTest.java",
+                         "services/identity-service/src/test/java/com/legent/identity/service/AuthServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/identity-service -Dtest=UserControllerTest",
+                           "AuthControllerTest",
+                           "AuthServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/identity-service/src/main/java/com/legent/identity/service/UserService.java services/identity-service/src/main/java/com/legent/identity/controller/UserController.java services/identity-service/src/main/java/com/legent/identity/service/AuthService.java services/identity-service/src/main/java/com/legent/identity/controller/AuthController.java services/identity-service/src/test/java/com/legent/identity/controller/UserControllerTest.java services/identity-service/src/test/java/com/legent/identity/controller/AuthControllerTest.java services/identity-service/src/test/java/com/legent/identity/service/AuthServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed; continue safe local scan after pool closeout.",
+    "completedAt":  "2026-05-22T20:12:56.5911889Z"
+}

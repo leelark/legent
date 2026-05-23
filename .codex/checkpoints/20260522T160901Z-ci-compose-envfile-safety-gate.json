@@ -1,0 +1,33 @@
+{
+    "id":  "ci-compose-envfile-safety-gate",
+    "createdAt":  "2026-05-22T16:09:01.0764499Z",
+    "objective":  "Use explicit Compose env file in CI compose smoke gate",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         ".github/workflows/ci-security.yml",
+                         "scripts/ops/test-release-evidence-validators.ps1"
+                     ],
+    "agents":  [
+                   "RELEASE_MANAGER",
+                   "SECURITY_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                           "docker compose --env-file .env.example config --quiet",
+                           "git diff --check -- .github/workflows/ci-security.yml scripts/ops/test-release-evidence-validators.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed locally; preserve explicit reviewed env-file Compose smoke behavior.",
+    "completedAt":  "2026-05-22T16:28:15.2638178Z",
+    "validationRun":  [
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 passed",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-safety.ps1 -SelfTest passed",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-safety.ps1 -ComposeEnvFile .env.example passed",
+                          "docker compose --env-file .env.example config --quiet passed",
+                          "Scoped git diff --check passed with CRLF warnings only"
+                      ]
+}

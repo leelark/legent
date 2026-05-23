@@ -54,32 +54,25 @@ jobs:
 
   compose-smoke:
     runs-on: ubuntu-latest
-    env:
-      DB_USER: legent
-      DB_PASSWORD: ci-postgres-password
-      LEGENT_SECURITY_JWT_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:8080
-      FRONTEND_HOST_PORT: "3000"
-      REDIS_PASSWORD: ""
-      MINIO_ACCESS_KEY: ci-minio-access
-      MINIO_SECRET_KEY: ci-minio-secret
-      MAIL_USERNAME: ""
-      MAIL_PASSWORD: ""
-      CLICKHOUSE_PASSWORD: ci-clickhouse-password
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8080
-      API_GATEWAY_URL: http://gateway
-      TRACKING_BASE_URL: http://localhost:8080
-      LEGENT_TRACKING_SIGNING_KEY: 0123456789abcdef0123456789abcdef
-      LEGENT_DELIVERY_CREDENTIAL_KEY: 0123456789abcdef0123456789abcdef
-      LEGENT_DELIVERY_ENCRYPTION_SALT: bG9jYWwtZGV2ZWxvcG1lbnQtc2FsdC0xMjM0NTY=
-      LEGENT_INTERNAL_API_TOKEN: ci-internal-token-0123456789abcdef
     steps:
       - uses: actions/checkout@v4
       - name: Docker Compose config smoke
-        run: docker compose config --quiet
+        run: docker compose --env-file .env.example config --quiet
+      - name: Docker Compose safety validator self-test
+        shell: pwsh
+        run: ./scripts/ops/validate-compose-safety.ps1 -SelfTest
+      - name: Docker Compose health validator self-test
+        shell: pwsh
+        run: ./scripts/ops/validate-compose-health.ps1 -SelfTest
+      - name: Docker Compose safety validator
+        shell: pwsh
+        run: ./scripts/ops/validate-compose-safety.ps1 -ComposeEnvFile .env.example
       - name: Gateway route map validator
         shell: pwsh
         run: ./scripts/ops/validate-route-map.ps1
+      - name: Gateway route map fixture harness
+        shell: pwsh
+        run: ./scripts/ops/test-route-map-validator.ps1
       - name: Production Kustomize render
         run: kubectl kustomize infrastructure/kubernetes/overlays/production > /tmp/legent-production.yml
       - name: Production overlay validator

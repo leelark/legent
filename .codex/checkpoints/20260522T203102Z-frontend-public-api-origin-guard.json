@@ -1,0 +1,26 @@
+{
+    "id":  "frontend-public-api-origin-guard",
+    "createdAt":  "2026-05-22T20:31:02.9362687Z",
+    "objective":  "Apply frontend API origin guard to public helper calls without adding credentials or context headers.",
+    "status":  "DONE",
+    "owner":  "FRONTEND_PLATFORM_OWNER",
+    "filesInScope":  [
+                         "frontend/src/lib/api-client.ts",
+                         "frontend/tests/e2e/api-client-context.spec.ts"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "cd frontend; node_modules\\.bin\\playwright.cmd test tests/e2e/api-client-context.spec.ts --project=chromium --reporter=line",
+                           "git diff --check for leased frontend API files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Pool item complete; continue coordinated backlog scan.",
+    "completedAt":  "2026-05-22T20:54:27.5581600Z"
+}

@@ -1,5 +1,6 @@
 package com.legent.deliverability.service;
 
+import com.legent.common.exception.NotFoundException;
 import com.legent.deliverability.domain.SenderDomain;
 import com.legent.deliverability.domain.SenderDomainVerificationHistory;
 import com.legent.deliverability.repository.SenderDomainRepository;
@@ -19,8 +20,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,7 +60,7 @@ class DomainVerificationServiceTest {
                 "_dmarc.example.com", List.of("v=DMARC1; p=reject"),
                 "_legent-verification.example.com", List.of("legent-domain-verification=wrong-token")
         );
-        when(domainRepository.findByTenantIdAndId("tenant-1", "domain-1")).thenReturn(Optional.of(domain));
+        when(domainRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "domain-1")).thenReturn(Optional.of(domain));
         when(domainRepository.save(any(SenderDomain.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         SenderDomain result = service.verifyDomain("domain-1");
@@ -79,7 +83,7 @@ class DomainVerificationServiceTest {
                 "_dmarc.example.com", List.of("v=DMARC1; p=reject"),
                 "_legent-verification.example.com", List.of(domain.getVerificationRecordValue())
         );
-        when(domainRepository.findByTenantIdAndId("tenant-1", "domain-1")).thenReturn(Optional.of(domain));
+        when(domainRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "domain-1")).thenReturn(Optional.of(domain));
         when(domainRepository.save(any(SenderDomain.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         SenderDomain result = service.verifyDomain("domain-1");
@@ -95,7 +99,7 @@ class DomainVerificationServiceTest {
     void verifyDomain_failsClosedWhenMockDnsIsEnabled() {
         SenderDomain domain = issuedDomain();
         ReflectionTestUtils.setField(service, "mockDns", true);
-        when(domainRepository.findByTenantIdAndId("tenant-1", "domain-1")).thenReturn(Optional.of(domain));
+        when(domainRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "domain-1")).thenReturn(Optional.of(domain));
         when(domainRepository.save(any(SenderDomain.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         SenderDomain result = service.verifyDomain("domain-1");
@@ -103,6 +107,34 @@ class DomainVerificationServiceTest {
         assertThat(result.getStatus()).isEqualTo(SenderDomain.VerificationStatus.FAILED);
         assertThat(result.getIsActive()).isFalse();
         assertThat(result.getVerificationFailureReason()).contains("owned DNS token proof is required");
+    }
+
+    @Test
+    void verifyDomain_failsCrossWorkspaceLookupBeforeDnsSaveOrHistory() {
+        when(domainRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "domain-2"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.verifyDomain("domain-2"))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(domainRepository).findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "domain-2");
+        verify(domainRepository, never()).save(any(SenderDomain.class));
+        verifyNoInteractions(historyRepository);
+        assertThat(dnsTxtResolver.lookupCount).isZero();
+    }
+
+    @Test
+    void regenerateChallenge_failsCrossWorkspaceLookupBeforeSave() {
+        when(domainRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "domain-2"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.regenerateChallenge("domain-2"))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(domainRepository).findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "domain-2");
+        verify(domainRepository, never()).save(any(SenderDomain.class));
+        verifyNoInteractions(historyRepository);
+        assertThat(dnsTxtResolver.lookupCount).isZero();
     }
 
     private SenderDomain issuedDomain() {
@@ -117,9 +149,11 @@ class DomainVerificationServiceTest {
 
     private static class StubDnsTxtResolver implements DnsTxtResolver {
         private Map<String, List<String>> records = Map.of();
+        private int lookupCount;
 
         @Override
         public List<String> lookupTxt(String name) {
+            lookupCount++;
             return records.getOrDefault(name, List.of());
         }
     }

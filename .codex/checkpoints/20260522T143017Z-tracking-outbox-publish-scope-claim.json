@@ -1,0 +1,27 @@
+{
+    "id":  "tracking-outbox-publish-scope-claim",
+    "createdAt":  "2026-05-22T14:30:17.1187196Z",
+    "objective":  "Scope tracking outbox publish claim and reload",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingOutboxService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/repository/TrackingOutboxEventRepository.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingOutboxServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -Dtest=TrackingOutboxServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           ".\\mvnw.cmd -pl services/tracking-service -am test",
+                           "git diff --check -- services/tracking-service"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "DONE: tracking outbox publish claim/reload is tenant+workspace scoped.",
+    "completedAt":  "2026-05-22T15:07:16.3797195Z"
+}

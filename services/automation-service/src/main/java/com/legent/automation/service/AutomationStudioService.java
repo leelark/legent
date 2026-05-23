@@ -39,6 +39,7 @@ public class AutomationStudioService {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final TypeReference<List<String>> STRING_LIST_TYPE = new TypeReference<>() {};
+    private static final int DEFAULT_ACTIVITY_LIST_LIMIT = 50;
     private static final int DEFAULT_RUN_LIMIT = 50;
     private static final int MAX_RUN_LIMIT = 200;
     private static final String ACTIVITY_RUN_EVENT_TYPE = "automation.activity.run";
@@ -102,7 +103,10 @@ public class AutomationStudioService {
     @Transactional(readOnly = true)
     public List<AutomationStudioDto.ActivityResponse> listActivities() {
         return activityRepository
-                .findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(requireTenant(), requireWorkspace())
+                .findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                        requireTenant(),
+                        requireWorkspace(),
+                        PageRequest.of(0, DEFAULT_ACTIVITY_LIST_LIMIT))
                 .stream()
                 .map(this::toActivityResponse)
                 .toList();
@@ -323,31 +327,35 @@ public class AutomationStudioService {
             return;
         }
         String activityId = activity.getId();
+        Map<String, List<String>> graph = new LinkedHashMap<>();
         for (String dependencyId : dependencyIds) {
             if (activityId != null && activityId.equals(dependencyId)) {
                 throw new ValidationException("dependencyActivityIds", "Automation activity cannot depend on itself");
             }
-            activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(
+            AutomationActivity dependency = activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(
                             dependencyId,
                             activity.getTenantId(),
                             activity.getWorkspaceId())
                     .orElseThrow(() -> new ValidationException("dependencyActivityIds",
                             "Dependency activity must exist in the current workspace: " + dependencyId));
+            graph.put(dependencyId, readStringList(dependency.getDependencyActivityIds()));
         }
-        requireNoDependencyCycle(activity, dependencyIds);
+        requireNoDependencyCycle(activity, dependencyIds, graph);
     }
 
-    private void requireNoDependencyCycle(AutomationActivity activity, List<String> dependencyIds) {
+    private void requireNoDependencyCycle(AutomationActivity activity,
+                                          List<String> dependencyIds,
+                                          Map<String, List<String>> graph) {
         if (activity.getId() == null) {
             return;
         }
-        Map<String, List<String>> graph = new LinkedHashMap<>();
-        activityRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
-                        activity.getTenantId(),
-                        activity.getWorkspaceId())
-                .forEach(existing -> graph.put(existing.getId(), readStringList(existing.getDependencyActivityIds())));
         graph.put(activity.getId(), dependencyIds);
-        if (hasPathToActivity(activity.getId(), dependencyIds, graph, new HashSet<>())) {
+        if (hasPathToActivity(activity.getId(),
+                dependencyIds,
+                graph,
+                new HashSet<>(),
+                activity.getTenantId(),
+                activity.getWorkspaceId())) {
             throw new ValidationException("dependencyActivityIds", "Automation activity dependencies must not contain cycles");
         }
     }
@@ -355,14 +363,21 @@ public class AutomationStudioService {
     private boolean hasPathToActivity(String targetActivityId,
                                       List<String> dependencyIds,
                                       Map<String, List<String>> graph,
-                                      Set<String> visited) {
+                                      Set<String> visited,
+                                      String tenantId,
+                                      String workspaceId) {
         for (String dependencyId : dependencyIds) {
             if (targetActivityId.equals(dependencyId)) {
                 return true;
             }
-            if (visited.add(dependencyId)
-                    && hasPathToActivity(targetActivityId, graph.getOrDefault(dependencyId, List.of()), graph, visited)) {
-                return true;
+            if (visited.add(dependencyId)) {
+                List<String> nextDependencyIds = graph.computeIfAbsent(dependencyId, id -> activityRepository
+                        .findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull(id, tenantId, workspaceId)
+                        .map(existing -> readStringList(existing.getDependencyActivityIds()))
+                        .orElse(List.of()));
+                if (hasPathToActivity(targetActivityId, nextDependencyIds, graph, visited, tenantId, workspaceId)) {
+                    return true;
+                }
             }
         }
         return false;

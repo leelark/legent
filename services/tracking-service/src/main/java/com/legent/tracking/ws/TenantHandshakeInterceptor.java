@@ -14,7 +14,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,8 +37,8 @@ public class TenantHandshakeInterceptor implements HandshakeInterceptor {
             return false;
         }
 
-        String tenantId = firstPresent(TenantContext.getTenantId(), principalTenant(authentication), firstHeader(request, AppConstants.HEADER_TENANT_ID));
-        String workspaceId = firstPresent(TenantContext.getWorkspaceId(), principalWorkspace(authentication), firstHeader(request, AppConstants.HEADER_WORKSPACE_ID));
+        String tenantId = firstPresent(TenantContext.getTenantId(), principalTenant(authentication));
+        String workspaceId = firstPresent(TenantContext.getWorkspaceId(), principalWorkspace(authentication));
 
         if (tenantId == null || workspaceId == null) {
             response.setStatusCode(HttpStatus.BAD_REQUEST);
@@ -80,11 +79,6 @@ public class TenantHandshakeInterceptor implements HandshakeInterceptor {
             return blankToNull(userPrincipal.getWorkspaceId());
         }
         return null;
-    }
-
-    private String firstHeader(ServerHttpRequest request, String headerName) {
-        List<String> values = request.getHeaders().get(headerName);
-        return values == null || values.isEmpty() ? null : blankToNull(values.get(0));
     }
 
     private String firstPresent(String... values) {

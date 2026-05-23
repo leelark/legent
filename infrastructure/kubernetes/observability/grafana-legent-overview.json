@@ -1,5 +1,6 @@
 {
   "title": "Legent Email Studio Overview",
+  "uid": "legent-overview",
   "schemaVersion": 39,
   "version": 1,
   "refresh": "30s",
@@ -47,6 +48,62 @@
         }
       ],
       "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Executor saturation",
+      "targets": [
+        {
+          "expr": "max(legent_executor_saturation_ratio{namespace=\"legent\"}) by (application, executor)",
+          "legendFormat": "{{application}} {{executor}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "OpenTelemetry collector health",
+      "targets": [
+        {
+          "expr": "up{job=~\".*otel.*\"}",
+          "legendFormat": "{{job}}"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox ready depth",
+      "targets": [
+        {
+          "expr": "max(legent_outbox_ready_depth{queue=~\"tracking|delivery_feedback\"}) by (queue)",
+          "legendFormat": "{{queue}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox oldest ready age",
+      "targets": [
+        {
+          "expr": "max(legent_outbox_oldest_ready_age_seconds{queue=~\"tracking|delivery_feedback\"}) by (queue)",
+          "legendFormat": "{{queue}}"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
     }
   ]
 }

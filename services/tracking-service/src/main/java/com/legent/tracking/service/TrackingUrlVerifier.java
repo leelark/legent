@@ -29,6 +29,7 @@ public class TrackingUrlVerifier {
 
     // Cache key prefix must match TrackingUrlSigner in delivery-service
     private static final String SIGNING_KEY_PREFIX = "tracking:signing-key:";
+    private static final String PREVIOUS_KEY_VERSION = "prev";
 
     @PostConstruct
     void validateConfiguration() {
@@ -57,14 +58,7 @@ public class TrackingUrlVerifier {
         }
 
         try {
-            String signingKey = getSigningKey(tenantId);
-            if (signingKey == null) {
-                log.warn("No signing key found for tenant: {}", tenantId);
-                return false;
-            }
-
-            return TrackingSignatureSupport.verify(
-                    signature, signingKey, tenantId, campaignId, subscriberId, messageId, workspaceId, null);
+            return verifyWithAvailableKeys(signature, tenantId, campaignId, subscriberId, messageId, workspaceId, null);
         } catch (Exception e) {
             log.error("Failed to verify tracking URL signature", e);
             return false;
@@ -78,18 +72,39 @@ public class TrackingUrlVerifier {
         }
 
         try {
-            String signingKey = getSigningKey(tenantId);
-            if (signingKey == null) {
-                log.warn("No signing key found for tenant: {}", tenantId);
-                return false;
-            }
-
-            return TrackingSignatureSupport.verify(
-                    signature, signingKey, tenantId, campaignId, subscriberId, messageId, workspaceId, url);
+            return verifyWithAvailableKeys(signature, tenantId, campaignId, subscriberId, messageId, workspaceId, url);
         } catch (Exception e) {
             log.error("Failed to verify tracking click URL signature", e);
             return false;
         }
+    }
+
+    private boolean verifyWithAvailableKeys(String signature,
+                                            String tenantId,
+                                            String campaignId,
+                                            String subscriberId,
+                                            String messageId,
+                                            String workspaceId,
+                                            String url) {
+        String signingKey = getSigningKey(tenantId);
+        if (signingKey != null && verifyWithKey(signature, signingKey, tenantId, campaignId, subscriberId, messageId, workspaceId, url)) {
+            return true;
+        }
+
+        String previousKey = getPreviousSigningKey(tenantId);
+        return previousKey != null && verifyWithKey(signature, previousKey, tenantId, campaignId, subscriberId, messageId, workspaceId, url);
+    }
+
+    private boolean verifyWithKey(String signature,
+                                  String signingKey,
+                                  String tenantId,
+                                  String campaignId,
+                                  String subscriberId,
+                                  String messageId,
+                                  String workspaceId,
+                                  String url) {
+        return TrackingSignatureSupport.verify(
+                signature, signingKey, tenantId, campaignId, subscriberId, messageId, workspaceId, url);
     }
 
     /**
@@ -99,6 +114,15 @@ public class TrackingUrlVerifier {
         String cacheKey = SIGNING_KEY_PREFIX + currentKeyVersion + ":" + tenantId;
         Optional<String> cachedKey = cacheService.get(cacheKey, String.class);
         return cachedKey.orElseGet(() -> generateSigningKey(tenantId));
+    }
+
+    /**
+     * Retrieves the previous signing key while delivery-service keeps it in the overlap TTL.
+     */
+    private String getPreviousSigningKey(String tenantId) {
+        String cacheKey = SIGNING_KEY_PREFIX + PREVIOUS_KEY_VERSION + ":" + tenantId;
+        Optional<String> cachedKey = cacheService.get(cacheKey, String.class);
+        return cachedKey.filter(key -> !key.isBlank()).orElse(null);
     }
 
     private String generateSigningKey(String tenantId) {

@@ -77,7 +77,10 @@ class DomainControllerRbacTest {
 
     @Test
     void internalSuppressionEndpointsKeepServiceCredentialGuard() throws NoSuchMethodException {
-        assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod("listSuppressionsInternal", String.class)))
+        assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod(
+                "listSuppressionsInternal",
+                String.class,
+                Integer.class)))
                 .isNull();
         assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod(
                 "checkSuppressionsInternal",

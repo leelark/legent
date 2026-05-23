@@ -1,0 +1,27 @@
+{
+    "id":  "delivery-feedback-outbox-publish-scope-claim",
+    "createdAt":  "2026-05-22T14:30:18.4398739Z",
+    "objective":  "Scope delivery feedback outbox publish claim and reload",
+    "status":  "DONE",
+    "owner":  "DELIVERY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryFeedbackOutboxEventRepository.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service -Dtest=DeliveryFeedbackOutboxServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           ".\\mvnw.cmd -pl services/delivery-service -am test",
+                           "git diff --check -- services/delivery-service"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "DONE: delivery feedback outbox publish claim/reload is tenant+workspace scoped.",
+    "completedAt":  "2026-05-22T15:07:16.3797195Z"
+}

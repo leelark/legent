@@ -182,12 +182,8 @@ public class DomainVerificationService {
     private SenderDomain ownedDomain(String domainId) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        SenderDomain domain = domainRepository.findByTenantIdAndId(tenantId, domainId)
+        return domainRepository.findByTenantIdAndWorkspaceIdAndId(tenantId, workspaceId, domainId)
                 .orElseThrow(() -> new NotFoundException("Domain", domainId));
-        if (!workspaceId.equals(domain.getWorkspaceId())) {
-            throw new org.springframework.security.access.AccessDeniedException("Domain does not belong to active workspace");
-        }
-        return domain;
     }
 
     private void fail(SenderDomain domain, Instant now, String reason) {

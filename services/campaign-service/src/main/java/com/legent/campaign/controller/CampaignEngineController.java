@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -125,8 +126,10 @@ public class CampaignEngineController {
 
     @GetMapping("/send-jobs/{jobId}/dead-letters")
     @PreAuthorize("hasAnyRole('ADMIN', 'CAMPAIGN_MANAGER', 'ANALYST', 'VIEWER')")
-    public ApiResponse<List<CampaignEngineDto.DeadLetterResponse>> listDeadLetters(@PathVariable String jobId) {
-        return ApiResponse.ok(campaignEngineService.listDeadLetters(jobId));
+    public ApiResponse<List<CampaignEngineDto.DeadLetterResponse>> listDeadLetters(
+            @PathVariable String jobId,
+            @RequestParam(required = false) Integer limit) {
+        return ApiResponse.ok(campaignEngineService.listDeadLetters(jobId, limit));
     }
 
     @PostMapping("/send-jobs/{jobId}/dead-letters/{deadLetterId}/replay")

@@ -1,0 +1,27 @@
+{
+    "id":  "frontend-core-workspace-preflight-narrowing",
+    "createdAt":  "2026-05-22T14:30:19.6538539Z",
+    "objective":  "Narrow frontend core API workspace-optional preflight",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/lib/api-client.ts",
+                         "frontend/tests/e2e/api-client-context.spec.ts"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npx playwright test tests/e2e/api-client-context.spec.ts --project=chromium",
+                           "cd frontend; npx playwright test tests/e2e/admin.spec.ts --project=chromium",
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "DONE: frontend core API preflight requires workspace context unless explicitly optional.",
+    "completedAt":  "2026-05-22T15:07:16.3797195Z"
+}

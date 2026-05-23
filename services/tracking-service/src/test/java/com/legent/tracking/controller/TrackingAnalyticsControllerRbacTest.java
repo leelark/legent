@@ -65,6 +65,23 @@ class TrackingAnalyticsControllerRbacTest {
         assertThat(expression(BiAnalyticsController.class, "refreshRollups")).contains("tracking:write", "analytics:write");
     }
 
+    @Test
+    void conversionIngestionRequiresTrackingOrAnalyticsWrite() {
+        assertThat(preAuthorizeGrants(IngestionController.class, "trackConversion", Set.of("tracking:write"))).isTrue();
+        assertThat(preAuthorizeGrants(IngestionController.class, "trackConversion", Set.of("analytics:write"))).isTrue();
+        assertThat(preAuthorizeGrants(IngestionController.class, "trackConversion", Set.of("ADMIN"))).isTrue();
+        assertThat(preAuthorizeGrants(IngestionController.class, "trackConversion", Set.of("tracking:read"))).isFalse();
+        assertThat(preAuthorizeGrants(IngestionController.class, "trackConversion", Set.of("ANALYST"))).isFalse();
+        assertThat(preAuthorizeGrants(IngestionController.class, "trackConversion", Set.of("VIEWER"))).isFalse();
+        assertThat(expression(IngestionController.class, "trackConversion")).contains("tracking:write", "analytics:write");
+    }
+
+    @Test
+    void signedOpenAndClickEndpointsRemainPublicAtMethodLevel() {
+        assertThat(preAuthorize(IngestionController.class, "trackOpen")).isNull();
+        assertThat(preAuthorize(IngestionController.class, "trackClick")).isNull();
+    }
+
     private static Stream<Method> mappedMethods(Class<?> controller) {
         return Stream.of(controller.getDeclaredMethods())
                 .filter(TrackingAnalyticsControllerRbacTest::hasEndpointMapping);
@@ -79,17 +96,26 @@ class TrackingAnalyticsControllerRbacTest {
     }
 
     private static String expression(Class<?> controller, String methodName) {
+        Method method = method(controller, methodName);
+        PreAuthorize annotation = preAuthorize(method);
+        assertThat(annotation)
+                .as("%s#%s @PreAuthorize", controller.getSimpleName(), methodName)
+                .isNotNull();
+        return annotation.value();
+    }
+
+    private static Method method(Class<?> controller, String methodName) {
         List<Method> matches = Stream.of(controller.getDeclaredMethods())
                 .filter(method -> method.getName().equals(methodName))
                 .toList();
         assertThat(matches)
                 .as("%s#%s method lookup", controller.getSimpleName(), methodName)
                 .hasSize(1);
-        PreAuthorize annotation = preAuthorize(matches.get(0));
-        assertThat(annotation)
-                .as("%s#%s @PreAuthorize", controller.getSimpleName(), methodName)
-                .isNotNull();
-        return annotation.value();
+        return matches.get(0);
+    }
+
+    private static PreAuthorize preAuthorize(Class<?> controller, String methodName) {
+        return preAuthorize(method(controller, methodName));
     }
 
     private static PreAuthorize preAuthorize(Method method) {

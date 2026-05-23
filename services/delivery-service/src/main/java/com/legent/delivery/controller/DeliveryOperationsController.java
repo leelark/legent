@@ -140,15 +140,15 @@ public class DeliveryOperationsController {
 
     @GetMapping("/rate-limits")
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
-    public ApiResponse<List<SendRateState>> rateLimits() {
+    public ApiResponse<List<SendRateState>> rateLimits(@RequestParam(defaultValue = "50") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(sendRateControlService.list(tenantId, workspaceId));
+        return ApiResponse.ok(sendRateControlService.list(tenantId, workspaceId, limit));
     }
 
     @GetMapping("/warmup/status")
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
-    public ApiResponse<Map<String, Object>> warmupStatus() {
+    public ApiResponse<Map<String, Object>> warmupStatus(@RequestParam(defaultValue = "50") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
         long activeProviders = smtpProviderRepository.findByTenantIdAndWorkspaceIdAndIsActiveTrueAndDeletedAtIsNullOrderByPriorityAsc(
@@ -163,7 +163,7 @@ public class DeliveryOperationsController {
         warmup.put("healthyProviders", healthy);
         warmup.put("degradedProviders", degraded);
         warmup.put("unhealthyProviders", unhealthy);
-        List<WarmupState> warmupStates = warmupService.list(tenantId, workspaceId);
+        List<WarmupState> warmupStates = warmupService.list(tenantId, workspaceId, limit);
         warmup.put("states", warmupStates);
         warmup.put("rampStage", warmupStates.stream().findFirst().map(WarmupState::getStage).orElse("NOT_STARTED"));
         warmup.put("allowedVolume", warmupStates.stream().mapToInt(state -> state.getHourlyLimit() != null ? state.getHourlyLimit() : 0).sum());
@@ -201,10 +201,10 @@ public class DeliveryOperationsController {
 
     @GetMapping("/provider-capacity")
     @PreAuthorize("@rbacEvaluator.hasPermission('delivery:read', principal.roles)")
-    public ApiResponse<List<ProviderCapacityProfile>> providerCapacity() {
+    public ApiResponse<List<ProviderCapacityProfile>> providerCapacity(@RequestParam(defaultValue = "50") int limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(providerCapacityService.list(tenantId, workspaceId));
+        return ApiResponse.ok(providerCapacityService.list(tenantId, workspaceId, limit));
     }
 
     @PostMapping("/provider-capacity/evaluate")

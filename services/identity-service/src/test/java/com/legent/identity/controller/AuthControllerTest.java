@@ -24,12 +24,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -124,7 +128,8 @@ class AuthControllerTest {
                 AuthController.class.getMethod(
                         "listInvitations",
                         String.class,
-                        Authentication.class),
+                        Authentication.class,
+                        Integer.class),
                 "isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)");
     }
 
@@ -152,6 +157,119 @@ class AuthControllerTest {
     }
 
     @Test
+    void createInvitation_whenPrincipalHasNoWorkspace_rejectsBeforeServiceCall() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        AuthBridgeDto.InvitationRequest request = new AuthBridgeDto.InvitationRequest();
+        request.setEmail("invitee@example.com");
+        request.setWorkspaceId("workspace-1");
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authController.createInvitation(
+                        "tenant-1",
+                        authentication("user-1", "tenant-1", Set.of("ADMIN")),
+                        request));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void createInvitation_whenRequestWorkspaceDiffersFromPrincipal_rejectsBeforeServiceCall() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        AuthBridgeDto.InvitationRequest request = new AuthBridgeDto.InvitationRequest();
+        request.setEmail("invitee@example.com");
+        request.setWorkspaceId("workspace-2");
+
+        ResponseStatusException exception = assertThrows(
+                ResponseStatusException.class,
+                () -> authController.createInvitation(
+                        "tenant-1",
+                        authentication("user-1", "tenant-1", "workspace-1", Set.of("ADMIN")),
+                        request));
+
+        assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
+        verifyNoInteractions(authService);
+    }
+
+    @Test
+    void createInvitation_whenRequestWorkspaceBlank_normalizesToPrincipalWorkspaceBeforeServiceCall() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        AuthBridgeDto.InvitationRequest request = new AuthBridgeDto.InvitationRequest();
+        request.setEmail("invitee@example.com");
+        request.setWorkspaceId(" ");
+        AuthInvitation invitation = new AuthInvitation();
+        invitation.setId("invitation-1");
+        invitation.setTenantId("tenant-1");
+        invitation.setWorkspaceId("workspace-1");
+        invitation.setEmail("invitee@example.com");
+        invitation.setRoleKeys(List.of("VIEWER"));
+        invitation.setInvitedByUserId("user-1");
+        invitation.setStatus("PENDING");
+        when(authService.createInvitation(eq("tenant-1"), eq("user-1"), any(AuthBridgeDto.InvitationRequest.class)))
+                .thenReturn(invitation);
+
+        authController.createInvitation(
+                "tenant-1",
+                authentication("user-1", "tenant-1", "workspace-1", Set.of("ADMIN")),
+                request);
+
+        ArgumentCaptor<AuthBridgeDto.InvitationRequest> requestCaptor = forClass(AuthBridgeDto.InvitationRequest.class);
+        verify(authService).createInvitation(eq("tenant-1"), eq("user-1"), requestCaptor.capture());
+        assertEquals("workspace-1", requestCaptor.getValue().getWorkspaceId());
+    }
+
+    @Test
+    void createInvitation_whenRequestWorkspaceMatchesPrincipal_allowsServiceCall() {
+        AuthService authService = mock(AuthService.class);
+        AuthController authController = new AuthController(
+                authService,
+                mock(IdentityExperienceService.class),
+                mock(RefreshTokenService.class),
+                mock(JwtTokenProvider.class)
+        );
+        AuthBridgeDto.InvitationRequest request = new AuthBridgeDto.InvitationRequest();
+        request.setEmail("invitee@example.com");
+        request.setWorkspaceId("workspace-1");
+        AuthInvitation invitation = new AuthInvitation();
+        invitation.setId("invitation-1");
+        invitation.setTenantId("tenant-1");
+        invitation.setWorkspaceId("workspace-1");
+        invitation.setEmail("invitee@example.com");
+        invitation.setRoleKeys(List.of("VIEWER"));
+        invitation.setInvitedByUserId("user-1");
+        invitation.setStatus("PENDING");
+        when(authService.createInvitation(eq("tenant-1"), eq("user-1"), any(AuthBridgeDto.InvitationRequest.class)))
+                .thenReturn(invitation);
+
+        var response = authController.createInvitation(
+                "tenant-1",
+                authentication("user-1", "tenant-1", "workspace-1", Set.of("ADMIN")),
+                request);
+
+        assertEquals("workspace-1", response.getData().getWorkspaceId());
+        verify(authService).createInvitation("tenant-1", "user-1", request);
+    }
+
+    @Test
     void createInvitation_returnsTokenFreeResponse() {
         AuthService authService = mock(AuthService.class);
         AuthController authController = new AuthController(
@@ -175,7 +293,7 @@ class AuthControllerTest {
 
         var response = authController.createInvitation(
                 "tenant-1",
-                authentication("user-1", "tenant-1", Set.of("ADMIN")),
+                authentication("user-1", "tenant-1", "workspace-1", Set.of("ADMIN")),
                 request);
 
         AuthBridgeDto.InvitationResponse data = response.getData();
@@ -199,7 +317,8 @@ class AuthControllerTest {
                 ResponseStatusException.class,
                 () -> authController.listInvitations(
                         "tenant-1",
-                        authentication("user-1", "tenant-2", Set.of("ADMIN"))));
+                        authentication("user-1", "tenant-2", Set.of("ADMIN")),
+                        null));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
         verifyNoInteractions(authService);
@@ -223,18 +342,19 @@ class AuthControllerTest {
         invitation.setRoleKeys(List.of("VIEWER"));
         invitation.setInvitedByUserId("user-1");
         invitation.setStatus("PENDING");
-        when(authService.listInvitations("tenant-1", "workspace-1")).thenReturn(List.of(invitation));
+        when(authService.listInvitations("tenant-1", "workspace-1", 25)).thenReturn(List.of(invitation));
 
         var response = authController.listInvitations(
                 "tenant-1",
-                authentication("user-1", "tenant-1", "workspace-1", Set.of("ADMIN")));
+                authentication("user-1", "tenant-1", "workspace-1", Set.of("ADMIN")),
+                25);
 
         AuthBridgeDto.InvitationResponse data = response.getData().getFirst();
         assertEquals("invitation-1", data.getId());
         assertEquals("invitee@example.com", data.getEmail());
         assertEquals(List.of("VIEWER"), data.getRoleKeys());
         assertFalse(hasTokenGetter(data));
-        verify(authService).listInvitations("tenant-1", "workspace-1");
+        verify(authService).listInvitations("tenant-1", "workspace-1", 25);
     }
 
     @Test
@@ -251,7 +371,8 @@ class AuthControllerTest {
                 ResponseStatusException.class,
                 () -> authController.listInvitations(
                         "tenant-1",
-                        authentication("user-1", "tenant-1", Set.of("ADMIN"))));
+                        authentication("user-1", "tenant-1", Set.of("ADMIN")),
+                        null));
 
         assertEquals(HttpStatus.FORBIDDEN, exception.getStatusCode());
         verifyNoInteractions(authService);

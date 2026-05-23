@@ -11,14 +11,18 @@ import com.legent.delivery.repository.SmtpProviderRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -107,6 +111,57 @@ class ProviderCapacityServiceTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("providerId");
         verify(capacityProfileRepository, never()).save(any());
+    }
+
+    @Test
+    void list_usesPageRequestWithRequestedLimit() {
+        when(capacityProfileRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                any(), any(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.list("tenant-1", "workspace-a", 25);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(capacityProfileRepository).findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                eq("tenant-1"),
+                eq("workspace-a"),
+                pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isZero();
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(25);
+    }
+
+    @Test
+    void list_clampsInvalidLimitToDefault() {
+        when(capacityProfileRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                any(), any(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.list("tenant-1", "workspace-a", 0);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(capacityProfileRepository).findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                eq("tenant-1"),
+                eq("workspace-a"),
+                pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isZero();
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(50);
+    }
+
+    @Test
+    void list_clampsExcessiveLimitToMax() {
+        when(capacityProfileRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                any(), any(), any(Pageable.class)))
+                .thenReturn(List.of());
+
+        service.list("tenant-1", "workspace-a", 500);
+
+        ArgumentCaptor<Pageable> pageable = ArgumentCaptor.forClass(Pageable.class);
+        verify(capacityProfileRepository).findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                eq("tenant-1"),
+                eq("workspace-a"),
+                pageable.capture());
+        assertThat(pageable.getValue().getPageNumber()).isZero();
+        assertThat(pageable.getValue().getPageSize()).isEqualTo(200);
     }
 
     @Test

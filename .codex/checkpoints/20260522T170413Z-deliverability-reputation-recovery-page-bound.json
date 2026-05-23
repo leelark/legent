@@ -1,0 +1,27 @@
+{
+    "id":  "deliverability-reputation-recovery-page-bound",
+    "createdAt":  "2026-05-22T17:04:13.2396904Z",
+    "objective":  "Page scheduled reputation recovery reads",
+    "status":  "DONE",
+    "owner":  "DELIVERABILITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/repository/DomainReputationRepository.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/service/ReputationEngineTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/deliverability-service \"-Dtest=ReputationEngineTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                           "git diff --check -- services/deliverability-service/src/main/java/com/legent/deliverability/service/ReputationEngine.java services/deliverability-service/src/main/java/com/legent/deliverability/repository/DomainReputationRepository.java services/deliverability-service/src/test/java/com/legent/deliverability/service/ReputationEngineTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue with the next exact-leased safe local work item after memory and dashboard refresh.",
+    "completedAt":  "2026-05-22T17:22:47.7494541Z"
+}

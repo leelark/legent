@@ -17,6 +17,10 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$script:PowerShellExecutable = (Get-Process -Id $PID).Path
+if ([string]::IsNullOrWhiteSpace($script:PowerShellExecutable)) {
+    $script:PowerShellExecutable = if ($PSVersionTable.PSEdition -eq "Core") { "pwsh" } else { "powershell" }
+}
 
 function Fail($Message) {
     Write-Error $Message
@@ -28,7 +32,8 @@ function Run-Step($Name, [scriptblock]$Step) {
     $global:LASTEXITCODE = 0
     & $Step
     $stepSucceeded = $?
-    if (-not $stepSucceeded) { Fail "$Name failed." }
+    $stepExitCode = $global:LASTEXITCODE
+    if (-not $stepSucceeded -or $stepExitCode -ne 0) { Fail "$Name failed." }
     $global:LASTEXITCODE = 0
 }
 
@@ -47,27 +52,40 @@ if (-not $LocalOnly -and @($skipFlags).Count -gt 0) {
 
 if ($RequireExternalEgressEvidence) {
     if (-not $ExternalEgressEvidencePath) { Fail "External egress evidence path is required." }
-    Run-Step "external egress evidence and render proof" { & scripts/ops/validate-production-egress-policy-render.ps1 -EvidencePath $ExternalEgressEvidencePath }
+    Run-Step "external egress evidence and render proof" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-production-egress-policy-render.ps1 -EvidencePath $ExternalEgressEvidencePath }
 }
 
 if ($RequireGaEvidence) {
     if (-not $EvidenceDir) { Fail "GA evidence directory is required." }
-    Run-Step "GA evidence" { & scripts/ops/validate-ga-evidence.ps1 -EvidenceDir $EvidenceDir }
+    Run-Step "GA evidence" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-ga-evidence.ps1 -EvidenceDir $EvidenceDir }
 }
 
 if ($RequireImageEvidence) {
     if (-not $ImageEvidenceManifest) { Fail "Image evidence manifest is required." }
     if (-not $ImageEvidenceRoot) { $ImageEvidenceRoot = Split-Path -Parent $ImageEvidenceManifest }
-    Run-Step "image evidence" { & scripts/ops/validate-image-evidence.ps1 -ManifestPath $ImageEvidenceManifest -EvidenceRoot $ImageEvidenceRoot -RequireDigests:$RequireImageDigests -KustomizationPath "infrastructure/kubernetes/overlays/production/kustomization.yml" }
+    Run-Step "image evidence" {
+        if ($RequireImageDigests) {
+            & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-image-evidence.ps1 -ManifestPath $ImageEvidenceManifest -EvidenceRoot $ImageEvidenceRoot -RequireDigests -KustomizationPath "infrastructure/kubernetes/overlays/production/kustomization.yml"
+        } else {
+            & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-image-evidence.ps1 -ManifestPath $ImageEvidenceManifest -EvidenceRoot $ImageEvidenceRoot -KustomizationPath "infrastructure/kubernetes/overlays/production/kustomization.yml"
+        }
+    }
 }
 
-Run-Step "codex autonomous system" { & .codex/utilities/validate-codex-system.ps1 }
-Run-Step "route map" { & scripts/ops/validate-route-map.ps1 }
-Run-Step "repo artifact hygiene" { & scripts/ops/validate-repo-artifact-hygiene.ps1 }
-Run-Step "production overlay" { & scripts/ops/validate-production-overlay.ps1 -RequireImageDigests:$RequireImageDigests }
+Run-Step "codex autonomous system" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File .codex/utilities/validate-codex-system.ps1 }
+Run-Step "route map" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-route-map.ps1 }
+Run-Step "repo artifact hygiene" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-repo-artifact-hygiene.ps1 }
+Run-Step "production overlay" {
+    if ($RequireImageDigests) {
+        & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-production-overlay.ps1 -RequireImageDigests
+    } else {
+        & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-production-overlay.ps1
+    }
+}
 
 if (-not $SkipCompose) {
     if (-not (Test-Path $ComposeEnvFile)) { Fail "Compose env file is required for reproducible local validation: $ComposeEnvFile" }
+    Run-Step "docker compose safety" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-compose-safety.ps1 -ComposeEnvFile $ComposeEnvFile }
     Run-Step "docker compose config" { docker compose --env-file $ComposeEnvFile config --quiet }
 }
 if (-not $SkipKustomize) {

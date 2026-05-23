@@ -2,6 +2,7 @@ package com.legent.foundation.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.foundation.domain.ConfigVersionHistory;
+import com.legent.foundation.domain.SystemConfig;
 import com.legent.foundation.dto.AdminSettingsDto;
 import com.legent.foundation.dto.ConfigDto;
 import com.legent.foundation.repository.ConfigRepository;
@@ -20,6 +21,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -58,6 +60,147 @@ class AdminSettingsServiceTest {
     @AfterEach
     void tearDown() {
         TenantContext.clear();
+    }
+
+    @Test
+    void listSettings_usesScopedPageableRepositoryReadAndDoesNotFindAll() {
+        PageRequest page = PageRequest.of(0, 200);
+        SystemConfig setting = config(
+                "setting-1",
+                "delivery.max-retries",
+                "delivery",
+                "DELIVERY",
+                SystemConfig.ScopeType.WORKSPACE,
+                "tenant-1",
+                "workspace-1",
+                null
+        );
+        when(configRepository.findVisibleSettings(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("local"),
+                eq("delivery"),
+                eq("DELIVERY"),
+                eq(SystemConfig.ScopeType.WORKSPACE),
+                eq(List.of(SystemConfig.ScopeType.GLOBAL, SystemConfig.ScopeType.TENANT)),
+                eq(SystemConfig.ScopeType.WORKSPACE),
+                eq(SystemConfig.ScopeType.ENVIRONMENT),
+                eq(page)
+        )).thenReturn(new PageImpl<>(List.of(setting), page, 1));
+
+        List<AdminSettingsDto.Entry> result = service.listSettings(" delivery ", " DELIVERY ", " workspace ");
+
+        assertThat(result).singleElement().satisfies(entry -> {
+            assertThat(entry.getKey()).isEqualTo("delivery.max-retries");
+            assertThat(entry.getModule()).isEqualTo("delivery");
+            assertThat(entry.getCategory()).isEqualTo("DELIVERY");
+            assertThat(entry.getScope()).isEqualTo("WORKSPACE");
+            assertThat(entry.getTenantId()).isEqualTo("tenant-1");
+            assertThat(entry.getWorkspaceId()).isEqualTo("workspace-1");
+        });
+        verify(configRepository).findVisibleSettings(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("local"),
+                eq("delivery"),
+                eq("DELIVERY"),
+                eq(SystemConfig.ScopeType.WORKSPACE),
+                eq(List.of(SystemConfig.ScopeType.GLOBAL, SystemConfig.ScopeType.TENANT)),
+                eq(SystemConfig.ScopeType.WORKSPACE),
+                eq(SystemConfig.ScopeType.ENVIRONMENT),
+                eq(page)
+        );
+        verify(configRepository, never()).findAll();
+        verifyNoInteractions(configService, configVersioningService, adminOperationsService);
+    }
+
+    @Test
+    void listSettings_pagesVisibleContextRowsThroughResponseContract() {
+        PageRequest firstPage = PageRequest.of(0, 200);
+        PageRequest secondPage = PageRequest.of(1, 200);
+        SystemConfig global = config(
+                "setting-1",
+                "system.global",
+                "system",
+                "GENERAL",
+                SystemConfig.ScopeType.GLOBAL,
+                null,
+                null,
+                null
+        );
+        SystemConfig tenant = config(
+                "setting-2",
+                "system.tenant",
+                "system",
+                "GENERAL",
+                SystemConfig.ScopeType.TENANT,
+                "tenant-1",
+                null,
+                null
+        );
+        SystemConfig workspace = config(
+                "setting-3",
+                "system.workspace",
+                "system",
+                "GENERAL",
+                SystemConfig.ScopeType.WORKSPACE,
+                "tenant-1",
+                "workspace-1",
+                null
+        );
+        SystemConfig environment = config(
+                "setting-4",
+                "system.environment",
+                "system",
+                "GENERAL",
+                SystemConfig.ScopeType.ENVIRONMENT,
+                "tenant-1",
+                "workspace-1",
+                "local"
+        );
+        when(configRepository.findVisibleSettings(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("local"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(List.of(SystemConfig.ScopeType.GLOBAL, SystemConfig.ScopeType.TENANT)),
+                eq(SystemConfig.ScopeType.WORKSPACE),
+                eq(SystemConfig.ScopeType.ENVIRONMENT),
+                eq(firstPage)
+        )).thenReturn(new PageImpl<>(List.of(global, tenant), firstPage, 201));
+        when(configRepository.findVisibleSettings(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("local"),
+                eq(null),
+                eq(null),
+                eq(null),
+                eq(List.of(SystemConfig.ScopeType.GLOBAL, SystemConfig.ScopeType.TENANT)),
+                eq(SystemConfig.ScopeType.WORKSPACE),
+                eq(SystemConfig.ScopeType.ENVIRONMENT),
+                eq(secondPage)
+        )).thenReturn(new PageImpl<>(List.of(workspace, environment), secondPage, 201));
+
+        List<AdminSettingsDto.Entry> result = service.listSettings(null, null, null);
+
+        assertThat(result)
+                .extracting(AdminSettingsDto.Entry::getKey)
+                .containsExactly("system.global", "system.tenant", "system.workspace", "system.environment");
+        assertThat(result)
+                .extracting(AdminSettingsDto.Entry::getScope)
+                .containsExactly("GLOBAL", "TENANT", "WORKSPACE", "ENVIRONMENT");
+        verify(configRepository, never()).findAll();
+        verifyNoInteractions(configService, configVersioningService, adminOperationsService);
+    }
+
+    @Test
+    void listSettings_returnsEmptyForUnsupportedScopeFilterWithoutRepositoryScan() {
+        List<AdminSettingsDto.Entry> result = service.listSettings(null, null, "workspace-ish");
+
+        assertThat(result).isEmpty();
+        verifyNoInteractions(configRepository, configService, configVersioningService, adminOperationsService);
     }
 
     @Test
@@ -209,5 +352,27 @@ class AdminSettingsServiceTest {
                 eq("admin-settings"),
                 eq(List.of("delivery", "system")),
                 anyMap());
+    }
+
+    private SystemConfig config(String id,
+                                String key,
+                                String module,
+                                String category,
+                                SystemConfig.ScopeType scope,
+                                String tenantId,
+                                String workspaceId,
+                                String environmentId) {
+        SystemConfig config = new SystemConfig();
+        config.setId(id);
+        config.setConfigKey(key);
+        config.setConfigValue("value");
+        config.setModuleKey(module);
+        config.setCategory(category);
+        config.setScopeType(scope);
+        config.setValueType(SystemConfig.ValueType.STRING);
+        config.setTenantId(tenantId);
+        config.setWorkspaceId(workspaceId);
+        config.setEnvironmentId(environmentId);
+        return config;
     }
 }

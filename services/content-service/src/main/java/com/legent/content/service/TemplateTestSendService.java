@@ -14,6 +14,7 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,9 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class TemplateTestSendService {
+
+    private static final int DEFAULT_TEST_SEND_HISTORY_LIMIT = 50;
+    private static final int MAX_TEST_SEND_HISTORY_LIMIT = 200;
 
     private final TemplateTestSendRecordRepository recordRepository;
     private final EmailTemplateRepository templateRepository;
@@ -96,12 +100,28 @@ public class TemplateTestSendService {
 
     @Transactional(readOnly = true)
     public List<TemplateTestSendRecord> list(String tenantId, String templateId) {
-        return list(tenantId, TenantContext.requireWorkspaceId(), templateId);
+        return list(tenantId, TenantContext.requireWorkspaceId(), templateId, null);
     }
 
     @Transactional(readOnly = true)
     public List<TemplateTestSendRecord> list(String tenantId, String workspaceId, String templateId) {
-        return recordRepository.findByTenantIdAndWorkspaceIdAndTemplateIdAndDeletedAtIsNullOrderByCreatedAtDesc(tenantId, workspaceId, templateId);
+        return list(tenantId, workspaceId, templateId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TemplateTestSendRecord> list(String tenantId, String workspaceId, String templateId, Integer limit) {
+        return recordRepository.findByTenantIdAndWorkspaceIdAndTemplateIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                tenantId,
+                workspaceId,
+                templateId,
+                PageRequest.of(0, boundedTestSendHistoryLimit(limit)));
+    }
+
+    private int boundedTestSendHistoryLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_TEST_SEND_HISTORY_LIMIT;
+        }
+        return Math.min(limit, MAX_TEST_SEND_HISTORY_LIMIT);
     }
 
     private String writeJson(Map<String, Object> variables) {

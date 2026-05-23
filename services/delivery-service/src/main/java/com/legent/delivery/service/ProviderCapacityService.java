@@ -23,6 +23,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ProviderCapacityService {
 
+    private static final int DEFAULT_CAPACITY_LIST_LIMIT = 50;
+    private static final int MAX_CAPACITY_LIST_LIMIT = 200;
+
     private final ProviderCapacityProfileRepository capacityProfileRepository;
     private final ProviderHealthStatusRepository providerHealthStatusRepository;
     private final ProviderFailoverTestRepository failoverTestRepository;
@@ -62,8 +65,11 @@ public class ProviderCapacityService {
     }
 
     @Transactional(readOnly = true)
-    public List<ProviderCapacityProfile> list(String tenantId, String workspaceId) {
-        return capacityProfileRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(tenantId, workspaceId);
+    public List<ProviderCapacityProfile> list(String tenantId, String workspaceId, int limit) {
+        return capacityProfileRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, capacityListLimit(limit)));
     }
 
     @Transactional
@@ -288,6 +294,13 @@ public class ProviderCapacityService {
 
     private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    private int capacityListLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_CAPACITY_LIST_LIMIT;
+        }
+        return Math.min(limit, MAX_CAPACITY_LIST_LIMIT);
     }
 
     public record ProviderCapacityRequest(String providerId,

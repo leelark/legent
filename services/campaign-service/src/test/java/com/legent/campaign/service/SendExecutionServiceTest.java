@@ -80,6 +80,8 @@ class SendExecutionServiceTest {
     @BeforeEach
     void setUp() {
         TenantContext.clear();
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
         service = new SendExecutionService(
                 batchRepository,
                 batchRecipientRepository,
@@ -455,7 +457,7 @@ class SendExecutionServiceTest {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> execution = CompletableFuture.runAsync(
-                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()), executor);
+                () -> executeBatchWithWorkspaceContext(batch.getPayload()), executor);
 
         try {
             verify(eventPublisher, timeout(1000)).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
@@ -494,7 +496,7 @@ class SendExecutionServiceTest {
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> execution = CompletableFuture.runAsync(
-                () -> service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload()), executor);
+                () -> executeBatchWithWorkspaceContext(batch.getPayload()), executor);
 
         try {
             assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
@@ -517,10 +519,28 @@ class SendExecutionServiceTest {
     }
 
     @Test
+    void executeBatchFailsClosedBeforeBatchLookupWhenWorkspaceContextIsMissing() {
+        TenantContext.clear();
+
+        ValidationException thrown = assertThrows(ValidationException.class,
+                () -> service.executeBatch("tenant-1", "job-1", "batch-1", null));
+
+        assertEquals("Validation failed for field 'workspaceId': Send batch batch-1 is missing workspace context",
+                thrown.getMessage());
+        verify(batchRepository, never()).findById(anyString());
+        verify(batchRepository, never()).findByTenantWorkspaceAndId(anyString(), anyString(), anyString());
+        verify(batchRepository, never()).claimRetryableBatchForProcessing(
+                anyString(), anyString(), anyString(), anyString(), any(), any(), any(), anyInt(), any());
+        verify(contentServiceClient, never()).renderTemplate(anyString(), anyString(), anyString(), any());
+        verify(eventPublisher, never()).publish(anyString(), any());
+    }
+
+    @Test
     void executeBatchFailsClosedBeforeRenderWhenBatchWorkspaceIsMissing() {
         SendBatch batch = batch();
         batch.setWorkspaceId(null);
-        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+        when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
+                .thenReturn(Optional.of(batch));
 
         assertThrows(ValidationException.class,
                 () -> service.executeBatch("tenant-1", "job-1", "batch-1", null));
@@ -535,7 +555,8 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
                 Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
-        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+        when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
+                .thenReturn(Optional.of(batch));
         when(batchRepository.claimRetryableBatchForProcessing(
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -553,6 +574,40 @@ class SendExecutionServiceTest {
         verify(eventPublisher, never()).publish(anyString(), any());
         verify(contentServiceClient, never()).renderTemplate(anyString(), anyString(), anyString(), any());
         verify(batchRepository, never()).save(any(SendBatch.class));
+    }
+
+    @Test
+    void executeBatchFailsClosedBeforeRenderWhenCampaignIsOutsideBatchWorkspace() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+        when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
+                .thenReturn(Optional.of(batch));
+        when(batchRepository.claimRetryableBatchForProcessing(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(5),
+                any())).thenReturn(1);
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1")).thenReturn(Optional.empty());
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
+        assertEquals("Campaign must belong to the send batch workspace before send", batch.getLastError());
+        verify(campaignRepository).findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1");
+        verify(campaignRepository, never()).findByTenantIdAndIdAndDeletedAtIsNull(anyString(), anyString());
+        verify(contentServiceClient, never()).renderTemplate(anyString(), anyString(), anyString(), any());
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_FAILED), any());
     }
 
     @Test
@@ -756,7 +811,8 @@ class SendExecutionServiceTest {
         job.setCampaignId("campaign-1");
         job.setStatus(SendJob.JobStatus.SENDING);
 
-        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+        when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
+                .thenReturn(Optional.of(batch));
         when(batchRepository.claimRetryableBatchForProcessing(
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -768,7 +824,8 @@ class SendExecutionServiceTest {
                 eq(5),
                 any())).thenReturn(1);
         when(batchRepository.save(any(SendBatch.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "campaign-1"))
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1"))
                 .thenReturn(Optional.of(campaign));
         when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
@@ -819,7 +876,8 @@ class SendExecutionServiceTest {
                                     Campaign campaign,
                                     List<Map<String, String>> subscribers,
                                     int acquiredPermits) {
-        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+        when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
+                .thenReturn(Optional.of(batch));
         when(batchRepository.claimRetryableBatchForProcessing(
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -834,7 +892,8 @@ class SendExecutionServiceTest {
         lenient().when(batchRepository.countByTenantWorkspaceAndJob("tenant-1", "workspace-1", "job-1")).thenReturn(1L);
         lenient().when(batchRepository.countByTenantWorkspaceAndJobAndStatuses(anyString(), anyString(), anyString(), any()))
                 .thenReturn(1L);
-        when(campaignRepository.findByTenantIdAndIdAndDeletedAtIsNull("tenant-1", "campaign-1"))
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1"))
                 .thenReturn(Optional.of(campaign));
         when(sendSafetyService.buildPlan(campaign))
                 .thenReturn(new CampaignSendSafetyService.SendPlan(null, List.of(), null, null));
@@ -867,6 +926,16 @@ class SendExecutionServiceTest {
                         .build());
         lenient().when(eventPublisher.publish(anyString(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+    }
+
+    private void executeBatchWithWorkspaceContext(String payloadJson) {
+        TenantContext.setTenantId("tenant-1");
+        TenantContext.setWorkspaceId("workspace-1");
+        try {
+            service.executeBatch("tenant-1", "job-1", "batch-1", payloadJson);
+        } finally {
+            TenantContext.clear();
+        }
     }
 
     private SendBatch batch() {

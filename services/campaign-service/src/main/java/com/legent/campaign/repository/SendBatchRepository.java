@@ -20,6 +20,66 @@ public interface SendBatchRepository extends JpaRepository<SendBatch, String> {
 
     List<SendBatch> findByTenantIdAndStatusInAndDeletedAtIsNull(String tenantId, List<SendBatch.BatchStatus> statuses);
 
+    @Query("""
+            SELECT b.id
+            FROM SendBatch b
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.jobId = :jobId
+              AND b.status IN :statuses
+              AND (:afterBatchId IS NULL OR b.id > :afterBatchId)
+              AND b.deletedAt IS NULL
+            ORDER BY b.id ASC
+            """)
+    List<String> findIdsByTenantWorkspaceJobAndStatusesAfterId(@Param("tenantId") String tenantId,
+                                                               @Param("workspaceId") String workspaceId,
+                                                               @Param("jobId") String jobId,
+                                                               @Param("statuses") List<SendBatch.BatchStatus> statuses,
+                                                               @Param("afterBatchId") String afterBatchId,
+                                                               Pageable pageable);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            UPDATE SendBatch b
+            SET b.status = :pendingStatus,
+                b.retryCount = COALESCE(b.retryCount, 0) + 1,
+                b.updatedAt = :updatedAt
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.jobId = :jobId
+              AND b.id IN :batchIds
+              AND b.status IN :retryableStatuses
+              AND b.deletedAt IS NULL
+            """)
+    int markScopedBatchIdsForRetry(@Param("tenantId") String tenantId,
+                                   @Param("workspaceId") String workspaceId,
+                                   @Param("jobId") String jobId,
+                                   @Param("batchIds") List<String> batchIds,
+                                   @Param("retryableStatuses") List<SendBatch.BatchStatus> retryableStatuses,
+                                   @Param("pendingStatus") SendBatch.BatchStatus pendingStatus,
+                                   @Param("updatedAt") Instant updatedAt);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            UPDATE SendBatch b
+            SET b.status = :pendingStatus,
+                b.retryCount = COALESCE(b.retryCount, 0) + 1,
+                b.updatedAt = :updatedAt
+            WHERE b.tenantId = :tenantId
+              AND b.workspaceId = :workspaceId
+              AND b.jobId = :jobId
+              AND b.id = :batchId
+              AND b.status IN :retryableStatuses
+              AND b.deletedAt IS NULL
+            """)
+    int markScopedBatchIdForRetry(@Param("tenantId") String tenantId,
+                                  @Param("workspaceId") String workspaceId,
+                                  @Param("jobId") String jobId,
+                                  @Param("batchId") String batchId,
+                                  @Param("retryableStatuses") List<SendBatch.BatchStatus> retryableStatuses,
+                                  @Param("pendingStatus") SendBatch.BatchStatus pendingStatus,
+                                  @Param("updatedAt") Instant updatedAt);
+
     @Modifying
     @Query("UPDATE SendBatch b SET b.status = :status WHERE b.jobId = :jobId AND b.tenantId = :tenantId")
     void updateStatusByJobId(@Param("tenantId") String tenantId, @Param("jobId") String jobId, @Param("status") SendBatch.BatchStatus status);

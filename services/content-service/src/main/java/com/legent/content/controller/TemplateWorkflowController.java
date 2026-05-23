@@ -63,19 +63,22 @@ public class TemplateWorkflowController {
 
     @GetMapping("/{templateId}/approvals")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
-    public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> approvalHistory(@PathVariable String templateId) {
+    public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> approvalHistory(
+            @PathVariable String templateId,
+            @RequestParam(required = false) Integer limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        List<TemplateApproval> approvals = workflowService.getTemplateApprovalHistory(tenantId, workspaceId, templateId);
+        List<TemplateApproval> approvals = workflowService.getTemplateApprovalHistory(tenantId, workspaceId, templateId, limit);
         return ApiResponse.ok(approvals.stream().map(this::mapApproval).toList());
     }
 
     @GetMapping("/approvals/pending")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
-    public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> pendingApprovals() {
+    public ApiResponse<List<TemplateWorkflowDto.TemplateApprovalResponse>> pendingApprovals(
+            @RequestParam(required = false) Integer limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        List<TemplateApproval> approvals = workflowService.getPendingApprovals(tenantId, workspaceId);
+        List<TemplateApproval> approvals = workflowService.getPendingApprovals(tenantId, workspaceId, limit);
         return ApiResponse.ok(approvals.stream().map(this::mapApproval).toList());
     }
 

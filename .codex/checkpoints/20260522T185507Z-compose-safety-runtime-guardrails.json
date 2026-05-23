@@ -1,0 +1,25 @@
+{
+    "id":  "compose-safety-runtime-guardrails",
+    "createdAt":  "2026-05-22T18:55:07.5004942Z",
+    "objective":  "Expand local Compose safety guardrails",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         "scripts/ops/validate-compose-safety.ps1",
+                         "scripts/ops/test-release-evidence-validators.ps1"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "RELEASE_MANAGER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-safety.ps1 -SelfTest",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                           "git diff --check -- scripts/ops/validate-compose-safety.ps1 scripts/ops/test-release-evidence-validators.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by current pool validation; continue pending scan."
+}

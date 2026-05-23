@@ -8,6 +8,29 @@ type SeenRequests = {
   validatePayload?: Record<string, unknown>;
 };
 
+type WorkspaceContext = {
+  tenantId: string;
+  workspaceId: string;
+  environmentId: string;
+};
+
+const defaultWorkspaceContext = (): WorkspaceContext => ({
+  tenantId: 'tenant-1',
+  workspaceId: 'workspace-1',
+  environmentId: 'local',
+});
+
+const scopedPreferenceKey = (prefix: string, tenantId: string, workspaceId: string) =>
+  `${prefix}:${encodeURIComponent(tenantId)}:${encodeURIComponent(workspaceId)}`;
+
+const scopedFavoriteKey = (tenantId: string, workspaceId: string) =>
+  scopedPreferenceKey('template_favorites', tenantId, workspaceId);
+
+const scopedRecentKey = (tenantId: string, workspaceId: string) =>
+  scopedPreferenceKey('template_recent', tenantId, workspaceId);
+
+const templateFilterSelect = (page: Page) => page.locator('main select').nth(1);
+
 function ok(data: unknown) {
   return {
     success: true,
@@ -27,18 +50,19 @@ async function fulfill(route: Route, data: unknown) {
 async function mockTemplateStudioApis(
   page: Page,
   seen: SeenRequests,
-  options: { uiMode?: 'BASIC' | 'ADVANCED' } = {},
+  options: { uiMode?: 'BASIC' | 'ADVANCED'; context?: WorkspaceContext } = {},
 ) {
   const uiMode = options.uiMode ?? 'ADVANCED';
+  const context = options.context ?? defaultWorkspaceContext();
   seen.advancedRequests = [];
-  await page.addInitScript((mode) => {
+  await page.addInitScript(({ mode, context }) => {
     localStorage.setItem('legent_user_id', 'template-user');
     localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
-    localStorage.setItem('legent_tenant_id', 'tenant-1');
-    localStorage.setItem('legent_workspace_id', 'workspace-1');
-    localStorage.setItem('legent_environment_id', 'local');
+    localStorage.setItem('legent_tenant_id', context.tenantId);
+    localStorage.setItem('legent_workspace_id', context.workspaceId);
+    localStorage.setItem('legent_environment_id', context.environmentId);
     localStorage.setItem('legent_ui_mode', mode);
-  }, uiMode);
+  }, { mode: uiMode, context });
 
   const initialBlocks = [
     {
@@ -112,18 +136,21 @@ async function mockTemplateStudioApis(
       return fulfill(route, ok({
         status: 'success',
         userId: 'template-user',
-        tenantId: 'tenant-1',
-        workspaceId: 'workspace-1',
-        environmentId: 'local',
+        tenantId: context.tenantId,
+        workspaceId: context.workspaceId,
+        environmentId: context.environmentId,
         roles: ['ADMIN'],
       }));
     }
     if (path === '/auth/contexts') {
-      return fulfill(route, ok([{ tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: true }]));
+      return fulfill(route, ok([
+        { tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: context.workspaceId === 'workspace-1' },
+        { tenantId: 'tenant-1', workspaceId: 'workspace-2', environmentId: 'local', default: context.workspaceId === 'workspace-2' },
+      ]));
     }
     if (path === '/users/preferences') {
       return fulfill(route, ok({
-        tenantId: 'tenant-1',
+        tenantId: context.tenantId,
         userId: 'template-user',
         theme: 'light',
         uiMode,
@@ -326,6 +353,108 @@ test('template module exposes library controls and command-center QA flow', asyn
 
   await page.getByRole('tab', { name: 'Preview & QA' }).click();
   await expect(page.getByTestId('template-preview-frame')).toContainText('Rendered launch QA');
+});
+
+test('template library scopes favorites and recents by tenant and workspace', async ({ page }) => {
+  const seen: SeenRequests = {};
+  const context = defaultWorkspaceContext();
+  const workspaceOneFavoriteKey = scopedFavoriteKey(context.tenantId, 'workspace-1');
+  const workspaceOneRecentKey = scopedRecentKey(context.tenantId, 'workspace-1');
+  const workspaceTwoFavoriteKey = scopedFavoriteKey(context.tenantId, 'workspace-2');
+  const workspaceTwoRecentKey = scopedRecentKey(context.tenantId, 'workspace-2');
+  const cappedRecents = ['tpl-published', ...Array.from({ length: 19 }, (_, index) => `older-${index}`)];
+
+  await mockTemplateStudioApis(page, seen, { uiMode: 'ADVANCED', context });
+  await page.addInitScript(({ workspaceOneFavoriteKey, workspaceOneRecentKey, workspaceTwoFavoriteKey, workspaceTwoRecentKey, cappedRecents }) => {
+    localStorage.setItem('template_favorites', JSON.stringify(['tpl-published']));
+    localStorage.setItem('template_recent', JSON.stringify(['tpl-archived']));
+    localStorage.setItem(workspaceOneFavoriteKey, JSON.stringify(['tpl-1']));
+    localStorage.setItem(workspaceOneRecentKey, JSON.stringify(cappedRecents));
+    localStorage.setItem(workspaceTwoFavoriteKey, JSON.stringify(['tpl-archived']));
+    localStorage.setItem(workspaceTwoRecentKey, '{corrupt-json');
+  }, { workspaceOneFavoriteKey, workspaceOneRecentKey, workspaceTwoFavoriteKey, workspaceTwoRecentKey, cappedRecents });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await page.goto('/app/email/templates', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Template Studio' })).toBeVisible({ timeout: 45_000 });
+
+  const filterSelect = templateFilterSelect(page);
+  await filterSelect.selectOption('favorites');
+  await expect(page.getByText('Launch Template')).toBeVisible();
+  await expect(page.getByText('Promo Published')).toHaveCount(0);
+  await expect(page.getByText('Old Digest')).toHaveCount(0);
+
+  await filterSelect.selectOption('recent');
+  await expect(page.getByText('Promo Published')).toBeVisible();
+  await expect(page.getByText('Launch Template')).toHaveCount(0);
+  await expect(page.getByText('Old Digest')).toHaveCount(0);
+
+  await filterSelect.selectOption('all');
+  await page.getByRole('link', { name: /Launch Template/ }).first().click();
+  await expect(page.getByTestId('template-command-center')).toBeVisible();
+  const workspaceOneRecents = await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '[]') as string[], workspaceOneRecentKey);
+  expect(workspaceOneRecents).toHaveLength(20);
+  expect(workspaceOneRecents[0]).toBe('tpl-1');
+  expect(workspaceOneRecents[1]).toBe('tpl-published');
+  expect(await page.evaluate(() => localStorage.getItem('template_recent'))).toBe(JSON.stringify(['tpl-archived']));
+
+  context.workspaceId = 'workspace-2';
+  await page.evaluate((workspaceId) => {
+    localStorage.setItem('legent_workspace_id', workspaceId);
+  }, context.workspaceId);
+  await page.goto('/app/email/templates', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Template Studio' })).toBeVisible({ timeout: 45_000 });
+
+  const switchedFilterSelect = templateFilterSelect(page);
+  await switchedFilterSelect.selectOption('favorites');
+  await expect(page.getByText('Old Digest')).toBeVisible();
+  await expect(page.getByText('Launch Template')).toHaveCount(0);
+  await expect(page.getByText('Promo Published')).toHaveCount(0);
+
+  await switchedFilterSelect.selectOption('recent');
+  await expect(page.getByText('No templates found')).toBeVisible();
+  await expect(page.getByText('Old Digest')).toHaveCount(0);
+});
+
+test('template library does not read or write global preference keys without workspace context', async ({ page }) => {
+  const seen: SeenRequests = {};
+  await mockTemplateStudioApis(page, seen, { uiMode: 'ADVANCED' });
+  await page.addInitScript(() => {
+    localStorage.setItem('template_favorites', JSON.stringify(['tpl-published']));
+    localStorage.setItem('template_recent', JSON.stringify(['tpl-archived']));
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await page.goto('/app/email/templates', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Template Studio' })).toBeVisible({ timeout: 45_000 });
+
+  await templateFilterSelect(page).selectOption('favorites');
+  await expect(page.getByText('No templates found')).toBeVisible();
+
+  await templateFilterSelect(page).selectOption('all');
+  await page.evaluate(() => {
+    localStorage.removeItem('legent_workspace_id');
+  });
+  await page.getByRole('button', { name: 'Favorite template' }).first().click();
+  await page.getByRole('link', { name: /Launch Template/ }).first().click();
+
+  const storedPreferences = await page.evaluate(() => {
+    const scopedKeys = [];
+    for (let index = 0; index < localStorage.length; index += 1) {
+      const key = localStorage.key(index);
+      if (key?.startsWith('template_favorites:') || key?.startsWith('template_recent:')) {
+        scopedKeys.push(key);
+      }
+    }
+    return {
+      globalFavorites: localStorage.getItem('template_favorites'),
+      globalRecents: localStorage.getItem('template_recent'),
+      scopedKeys,
+    };
+  });
+  expect(storedPreferences.globalFavorites).toBe(JSON.stringify(['tpl-published']));
+  expect(storedPreferences.globalRecents).toBe(JSON.stringify(['tpl-archived']));
+  expect(storedPreferences.scopedKeys).toEqual([]);
 });
 
 test('basic template studio hides advanced controls and saves scrubbed builder payloads', async ({ page }) => {

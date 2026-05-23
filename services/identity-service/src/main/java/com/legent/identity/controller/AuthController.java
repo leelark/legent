@@ -200,6 +200,7 @@ public class AuthController {
             @Valid @RequestBody AuthBridgeDto.InvitationRequest request) {
         UserPrincipal principal = requirePrincipal(authentication);
         requireTenant(principal, tenantId);
+        requireInvitationWorkspace(principal, request);
         return ApiResponse.ok(mapInvitation(authService.createInvitation(tenantId, principal.getUserId(), request)));
     }
 
@@ -207,11 +208,12 @@ public class AuthController {
     @PreAuthorize("isAuthenticated() and @rbacEvaluator.hasPermission('user:write', principal.roles)")
     public ApiResponse<List<AuthBridgeDto.InvitationResponse>> listInvitations(
             @RequestHeader("X-Tenant-Id") String tenantId,
-            Authentication authentication) {
+            Authentication authentication,
+            @RequestParam(value = "limit", required = false) Integer limit) {
         UserPrincipal principal = requirePrincipal(authentication);
         requireTenant(principal, tenantId);
         String workspaceId = requireWorkspace(principal);
-        return ApiResponse.ok(authService.listInvitations(tenantId, workspaceId).stream()
+        return ApiResponse.ok(authService.listInvitations(tenantId, workspaceId, limit).stream()
                 .map(this::mapInvitation)
                 .toList());
     }
@@ -391,7 +393,21 @@ public class AuthController {
         if (workspaceId == null || workspaceId.isBlank()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Workspace context is required");
         }
-        return workspaceId;
+        return workspaceId.trim();
+    }
+
+    private void requireInvitationWorkspace(UserPrincipal principal, AuthBridgeDto.InvitationRequest request) {
+        String principalWorkspaceId = requireWorkspace(principal);
+        String requestWorkspaceId = request.getWorkspaceId();
+        if (requestWorkspaceId == null || requestWorkspaceId.isBlank()) {
+            request.setWorkspaceId(principalWorkspaceId);
+            return;
+        }
+        String normalizedRequestWorkspaceId = requestWorkspaceId.trim();
+        if (!principalWorkspaceId.equals(normalizedRequestWorkspaceId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Workspace context mismatch");
+        }
+        request.setWorkspaceId(normalizedRequestWorkspaceId);
     }
 
     private AuthBridgeDto.InvitationResponse mapInvitation(AuthInvitation invitation) {

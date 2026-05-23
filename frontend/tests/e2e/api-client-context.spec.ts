@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
-import type { AxiosAdapter, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
-import apiClient, { postPublic } from '../../src/lib/api-client';
+import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import apiClient, { getPublic, postPublic } from '../../src/lib/api-client';
 import {
   ENVIRONMENT_STORAGE_KEY,
   ROLES_STORAGE_KEY,
@@ -100,6 +100,25 @@ async function expectBlocked(url: string, errorCode: string) {
   expect(getErrorCode(thrown)).toBe(errorCode);
 }
 
+async function expectPublicBlocked(method: 'get' | 'post', url: string, config?: AxiosRequestConfig) {
+  const seen: InternalAxiosRequestConfig[] = [];
+  let thrown: unknown;
+  const requestConfig = { ...config, adapter: captureAdapter(seen) };
+
+  try {
+    if (method === 'get') {
+      await getPublic(url, requestConfig);
+    } else {
+      await postPublic(url, { workEmail: 'ada@example.com' }, requestConfig);
+    }
+  } catch (error) {
+    thrown = error;
+  }
+
+  expect(seen).toHaveLength(0);
+  expect(getErrorCode(thrown)).toBe('EXTERNAL_API_URL');
+}
+
 test.describe('api client context preflight', () => {
   let warn: typeof console.warn;
 
@@ -177,6 +196,38 @@ test.describe('api client context preflight', () => {
     expect(getHeader(seen[0], 'X-Request-Id')).toBeUndefined();
   });
 
+  test('public helpers reject external absolute URLs before dispatch', async () => {
+    installBrowserContext({
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+    });
+
+    await expectPublicBlocked('get', 'https://evil.example/api/v1/public/contact');
+    await expectPublicBlocked('post', '//evil.example/api/v1/public/contact');
+    await expectPublicBlocked('get', '/public/contact', {
+      baseURL: 'https://evil.example/api/v1',
+    });
+  });
+
+  test('getPublic sends internal paths without credentials or tenant headers', async () => {
+    installBrowserContext({
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+      [ENVIRONMENT_STORAGE_KEY]: 'production',
+    });
+    const seen: InternalAxiosRequestConfig[] = [];
+
+    const response = await getPublic('/public/contact', { adapter: captureAdapter(seen) });
+
+    expect(response).toEqual({ ok: true });
+    expect(seen).toHaveLength(1);
+    expect(seen[0].withCredentials).toBe(false);
+    expect(getHeader(seen[0], 'X-Tenant-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Environment-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Request-Id')).toBeUndefined();
+  });
+
   test('preserves workspace requirements for workspace-scoped endpoints', async () => {
     installBrowserContext({ [TENANT_STORAGE_KEY]: 'tenant-1' });
     const seen: InternalAxiosRequestConfig[] = [];
@@ -186,8 +237,52 @@ test.describe('api client context preflight', () => {
     expect(getHeader(seen[0], 'X-Tenant-Id')).toBe('tenant-1');
     expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
 
+    await expectBlocked('/core/workspaces/current', 'MISSING_WORKSPACE');
     await expectBlocked('/platform/search?q=campaign', 'MISSING_WORKSPACE');
     await expectBlocked('/subscribers', 'MISSING_WORKSPACE');
+  });
+
+  test('requires workspace before dispatch for platform notifications and webhooks', async () => {
+    installBrowserContext({ [TENANT_STORAGE_KEY]: 'tenant-1' });
+
+    await expectBlocked('/platform/notifications', 'MISSING_WORKSPACE');
+    await expectBlocked('/platform/notifications/notification-1/read', 'MISSING_WORKSPACE');
+    await expectBlocked('/platform/webhooks', 'MISSING_WORKSPACE');
+    await expectBlocked('/platform/webhooks/webhook-1', 'MISSING_WORKSPACE');
+  });
+
+  test('preserves intentionally workspace-optional tenant endpoints', async () => {
+    installBrowserContext({ [TENANT_STORAGE_KEY]: 'tenant-1' });
+    const seen: InternalAxiosRequestConfig[] = [];
+
+    for (const url of [
+      '/users/preferences',
+      '/admin/bootstrap',
+      '/admin/contact-requests',
+      '/federation/providers',
+    ]) {
+      await apiClient.get(url, { adapter: captureAdapter(seen) });
+    }
+
+    expect(seen).toHaveLength(4);
+    for (const config of seen) {
+      expect(getHeader(config, 'X-Tenant-Id')).toBe('tenant-1');
+      expect(getHeader(config, 'X-Workspace-Id')).toBeUndefined();
+    }
+  });
+
+  test('attaches tenant and workspace headers for core requests with full context', async () => {
+    installBrowserContext({
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+    });
+    const seen: InternalAxiosRequestConfig[] = [];
+
+    await apiClient.get('/core/workspaces/current', { adapter: captureAdapter(seen) });
+
+    expect(seen).toHaveLength(1);
+    expect(getHeader(seen[0], 'X-Tenant-Id')).toBe('tenant-1');
+    expect(getHeader(seen[0], 'X-Workspace-Id')).toBe('workspace-1');
   });
 
   test('requires workspace for foundation workspace-protected roots', async () => {

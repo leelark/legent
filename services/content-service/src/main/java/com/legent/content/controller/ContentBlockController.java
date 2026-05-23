@@ -105,10 +105,12 @@ public class ContentBlockController {
 
     @GetMapping("/{id}/versions")
     @PreAuthorize("@rbacEvaluator.hasPermission('content:read', principal.roles) or @rbacEvaluator.hasPermission('template:*', principal.roles)")
-    public ApiResponse<List<EmailStudioDto.ContentBlockVersionResponse>> listVersions(@PathVariable String id) {
+    public ApiResponse<List<EmailStudioDto.ContentBlockVersionResponse>> listVersions(
+            @PathVariable String id,
+            @RequestParam(required = false) Integer limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(blockService.listVersions(tenantId, workspaceId, id).stream().map(this::mapVersion).toList());
+        return ApiResponse.ok(blockService.listVersions(tenantId, workspaceId, id, limit).stream().map(this::mapVersion).toList());
     }
 
     @PostMapping("/{id}/versions/{versionNumber}/publish")

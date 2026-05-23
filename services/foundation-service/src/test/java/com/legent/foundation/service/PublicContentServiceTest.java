@@ -19,6 +19,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,21 +44,87 @@ class PublicContentServiceTest {
     }
 
     @Test
+    void listAdminContent_requiresTenantContextBeforeRepositoryAccess() {
+        TenantContext.clear();
+        TenantContext.setWorkspaceId("workspace-1");
+
+        assertThatThrownBy(() -> service.listAdminContent())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void listAdminContent_requiresWorkspaceContextBeforeRepositoryAccess() {
+        TenantContext.clear();
+        TenantContext.setTenantId("tenant-1");
+
+        assertThatThrownBy(() -> service.listAdminContent())
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void upsert_requiresTenantContextBeforeRepositoryLookupOrSave() {
+        TenantContext.clear();
+        TenantContext.setWorkspaceId("workspace-1");
+
+        assertThatThrownBy(() -> service.upsert(validRequest(), null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void upsert_requiresWorkspaceContextBeforeRepositoryLookupOrSave() {
+        TenantContext.clear();
+        TenantContext.setTenantId("tenant-1");
+
+        assertThatThrownBy(() -> service.upsert(validRequest(), null))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
     void upsertById_deniesCrossWorkspaceRecord() {
         when(repository.findByIdAndTenantIdAndWorkspaceId("content-1", "tenant-1", "workspace-1"))
                 .thenReturn(Optional.empty());
 
-        PublicContentDto.UpsertRequest request = new PublicContentDto.UpsertRequest();
-        request.setContentType("PAGE");
-        request.setPageKey("home");
-        request.setTitle("Home");
-        request.setPayload(Map.of("heroTitle", "Home"));
-
-        assertThatThrownBy(() -> service.upsert(request, "content-1"))
+        assertThatThrownBy(() -> service.upsert(validRequest(), "content-1"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Public content not found");
 
         verify(repository, never()).save(any(PublicContent.class));
+    }
+
+    @Test
+    void publish_requiresTenantContextBeforeRepositoryLookupOrSave() {
+        TenantContext.clear();
+        TenantContext.setWorkspaceId("workspace-1");
+
+        assertThatThrownBy(() -> service.publish("content-1", true))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Tenant context is not set");
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void publish_requiresWorkspaceContextBeforeRepositoryLookupOrSave() {
+        TenantContext.clear();
+        TenantContext.setTenantId("tenant-1");
+
+        assertThatThrownBy(() -> service.publish("content-1", true))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+
+        verifyNoInteractions(repository);
     }
 
     @Test
@@ -70,5 +137,14 @@ class PublicContentServiceTest {
                 .hasMessageContaining("Public content not found");
 
         verify(repository, never()).save(any(PublicContent.class));
+    }
+
+    private PublicContentDto.UpsertRequest validRequest() {
+        PublicContentDto.UpsertRequest request = new PublicContentDto.UpsertRequest();
+        request.setContentType("PAGE");
+        request.setPageKey("home");
+        request.setTitle("Home");
+        request.setPayload(Map.of("heroTitle", "Home"));
+        return request;
     }
 }

@@ -16,6 +16,7 @@ import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.security.TenantContext;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -33,6 +35,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class SuppressionController {
 
+    private static final int DEFAULT_SUPPRESSION_LIST_LIMIT = AppConstants.DEFAULT_PAGE_SIZE;
+    private static final int MAX_SUPPRESSION_LIST_LIMIT = AppConstants.MAX_PAGE_SIZE;
     private static final int MAX_BULK_CHECK_EMAILS = AppConstants.SEND_BATCH_SIZE;
 
     private final SuppressionListRepository suppressionRepository;
@@ -46,19 +50,26 @@ public class SuppressionController {
 
     @GetMapping
     @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
-    public ApiResponse<List<SuppressionList>> listSuppressions() {
+    public ApiResponse<List<SuppressionList>> listSuppressions(@RequestParam(required = false) Integer limit) {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(suppressionRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId));
+        return ApiResponse.ok(suppressionRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, boundedListLimit(limit))));
     }
 
     @GetMapping("/internal")
     public ApiResponse<List<SuppressionList>> listSuppressionsInternal(
-            @RequestHeader(name = "X-Internal-Token", required = false) String token) {
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestParam(required = false) Integer limit) {
         requireInternalToken(token);
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(suppressionRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId));
+        return ApiResponse.ok(suppressionRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, boundedListLimit(limit))));
     }
 
     @PostMapping("/internal/check")
@@ -93,7 +104,7 @@ public class SuppressionController {
         long complaints = suppressionRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "COMPLAINT");
         long hardBounces = suppressionRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "HARD_BOUNCE");
         long unsubscribes = suppressionRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "UNSUBSCRIBE");
-        long total = suppressionRepository.findByTenantIdAndWorkspaceId(tenantId, workspaceId).size();
+        long total = suppressionRepository.countByTenantIdAndWorkspaceId(tenantId, workspaceId);
 
         Map<String, Object> result = new HashMap<>();
         result.put("total", total);
@@ -108,6 +119,13 @@ public class SuppressionController {
         if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
         }
+    }
+
+    private static int boundedListLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return DEFAULT_SUPPRESSION_LIST_LIMIT;
+        }
+        return Math.min(limit, MAX_SUPPRESSION_LIST_LIMIT);
     }
 
     private static List<String> normalizeEmailCandidates(List<String> emails) {

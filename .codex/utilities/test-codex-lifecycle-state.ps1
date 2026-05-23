@@ -14,6 +14,29 @@ function Write-JsonFile($Object, [string]$Path, [int]$Depth = 20) {
     [System.IO.File]::WriteAllText((Resolve-Path -LiteralPath (Split-Path -Parent $Path)).Path + "\" + (Split-Path -Leaf $Path), $json + [Environment]::NewLine, $encoding)
 }
 
+function Assert-UppercaseAuditEventTypes([string[]]$Lines, [string]$Source) {
+    $lineNumber = 0
+    foreach ($line in @($Lines)) {
+        $lineNumber++
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+
+        try {
+            $event = $line | ConvertFrom-Json
+        } catch {
+            throw "Invalid audit JSON in ${Source}:$($lineNumber): $($_.Exception.Message)"
+        }
+
+        if ($event.PSObject.Properties.Name -notcontains "eventType") {
+            throw "Audit event missing eventType in ${Source}:$($lineNumber)."
+        }
+
+        $eventType = [string]$event.eventType
+        if ([string]::IsNullOrWhiteSpace($eventType) -or $eventType -cnotmatch "^[A-Z][A-Z0-9_]*$") {
+            throw "Audit event type must be uppercase snake-case in ${Source}:$($lineNumber): $eventType"
+        }
+    }
+}
+
 $sourceRoot = (Get-Location).Path
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("legent-codex-state-" + [System.Guid]::NewGuid().ToString("N"))
 
@@ -124,6 +147,20 @@ try {
 
         $auditLines = Get-ChildItem ".codex/audit/events" -Filter "*.jsonl" | Get-Content
         if (@($auditLines).Count -lt 3) { Fail "Smoke audit events were not written." }
+        try {
+            Assert-UppercaseAuditEventTypes -Lines @($auditLines) -Source "smoke audit events"
+        } catch {
+            Fail $_.Exception.Message
+        }
+
+        $mixedCaseAuditLine = '{"timestamp":"2026-05-20T00:00:00Z","eventType":"coordination","actor":"PROGRAM_MANAGER_AGENT","module":"overall","summary":"Mixed-case fixture."}'
+        $mixedCaseRejected = $false
+        try {
+            Assert-UppercaseAuditEventTypes -Lines @($mixedCaseAuditLine) -Source "mixed-case audit fixture"
+        } catch {
+            $mixedCaseRejected = $true
+        }
+        if (-not $mixedCaseRejected) { Fail "Mixed-case audit event type was not rejected." }
     } finally {
         Pop-Location
     }

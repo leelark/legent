@@ -118,7 +118,7 @@ function parseRequestUrl(url: string): URL | null {
   }
 }
 
-function assertCredentialedApiUrlAllowed(url: string | undefined): void {
+function assertApiUrlAllowed(url: string | undefined, details: string): void {
   const rawUrl = url?.trim();
   if (!rawUrl || !isAbsoluteRequestUrl(rawUrl)) {
     return;
@@ -139,8 +139,16 @@ function assertCredentialedApiUrlAllowed(url: string | undefined): void {
   throw createApiClientError(
     'EXTERNAL_API_URL',
     'External API URLs are not allowed',
-    'Credentialed API requests cannot target an external absolute URL.'
+    details
   );
+}
+
+function assertCredentialedApiUrlAllowed(url: string | undefined): void {
+  assertApiUrlAllowed(url, 'Credentialed API requests cannot target an external absolute URL.');
+}
+
+function assertPublicApiUrlAllowed(url: string | undefined): void {
+  assertApiUrlAllowed(url, 'Public API requests cannot target an external absolute URL.');
 }
 
 function resolveApiUrl(url: string | undefined) {
@@ -198,10 +206,7 @@ function isWorkspaceOptionalEndpoint(url: string | undefined): boolean {
     '/api/v1/users/preferences',
     '/api/v1/admin/bootstrap',
     '/api/v1/admin/contact-requests',
-    '/api/v1/core',
     '/api/v1/federation',
-    '/api/v1/platform/notifications',
-    '/api/v1/platform/webhooks',
   ].some((route) => matchesPath(path, route));
 }
 
@@ -366,11 +371,17 @@ export async function get<T = unknown>(url: string, config?: AxiosRequestConfig)
 }
 
 export async function getPublic<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T> {
+  assertPublicApiUrlAllowed(config?.baseURL);
+  assertPublicApiUrlAllowed(url);
+
   const response = await publicApiClient.get<unknown>(resolveApiUrl(url), config);
   return unwrapApiData<T>(response.data);
 }
 
 export async function postPublic<T = unknown>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T> {
+  assertPublicApiUrlAllowed(config?.baseURL);
+  assertPublicApiUrlAllowed(url);
+
   const response = await publicApiClient.post<unknown>(resolveApiUrl(url), data, config);
   return unwrapApiData<T>(response.data);
 }

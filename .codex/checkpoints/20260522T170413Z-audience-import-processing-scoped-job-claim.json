@@ -1,0 +1,30 @@
+{
+    "id":  "audience-import-processing-scoped-job-claim",
+    "createdAt":  "2026-05-22T17:04:13.1593590Z",
+    "objective":  "Scope async audience import processing job claims",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/ImportService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/repository/ImportJobRepository.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/ImportServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service \"-Dtest=ImportProcessingServiceTest",
+                           "ImportServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/audience-service -am test",
+                           "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java services/audience-service/src/main/java/com/legent/audience/service/ImportService.java services/audience-service/src/main/java/com/legent/audience/repository/ImportJobRepository.java services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java services/audience-service/src/test/java/com/legent/audience/service/ImportServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue with the next exact-leased safe local work item after memory and dashboard refresh.",
+    "completedAt":  "2026-05-22T17:22:45.1189989Z"
+}

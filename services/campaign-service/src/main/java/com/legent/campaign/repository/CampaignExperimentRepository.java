@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Optional;
 
 import com.legent.campaign.domain.CampaignExperiment;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -21,5 +23,12 @@ public interface CampaignExperimentRepository extends JpaRepository<CampaignExpe
             String campaignId,
             List<CampaignExperiment.ExperimentStatus> statuses);
 
-    List<CampaignExperiment> findByStatusAndDeletedAtIsNull(CampaignExperiment.ExperimentStatus status);
+    Slice<CampaignExperiment> findByStatusAndDeletedAtIsNullOrderByIdAsc(
+            CampaignExperiment.ExperimentStatus status,
+            Pageable pageable);
+
+    Slice<CampaignExperiment> findByStatusAndDeletedAtIsNullAndIdGreaterThanOrderByIdAsc(
+            CampaignExperiment.ExperimentStatus status,
+            String id,
+            Pageable pageable);
 }

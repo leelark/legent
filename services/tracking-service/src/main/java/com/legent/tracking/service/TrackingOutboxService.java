@@ -7,8 +7,10 @@ import com.legent.tracking.event.TrackingEventPublisher;
 import com.legent.tracking.repository.TrackingOutboxEventRepository;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -40,6 +42,18 @@ public class TrackingOutboxService {
     @Value("${legent.tracking.outbox.publish-after-commit:false}")
     private boolean publishAfterCommit;
 
+    @PostConstruct
+    void registerBacklogMetrics() {
+        Gauge.builder("legent.outbox.ready.depth", this, TrackingOutboxService::readyDepth)
+                .description("Ready outbox events waiting to be published")
+                .tag("queue", "tracking")
+                .register(meterRegistry);
+        Gauge.builder("legent.outbox.oldest.ready.age.seconds", this, TrackingOutboxService::oldestReadyAgeSeconds)
+                .description("Age in seconds of the oldest ready outbox event")
+                .tag("queue", "tracking")
+                .register(meterRegistry);
+    }
+
     @Transactional
     public void enqueue(TrackingDto.RawEventPayload payload) {
         TrackingOutboxEvent event = new TrackingOutboxEvent();
@@ -59,11 +73,11 @@ public class TrackingOutboxService {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    publishPending(event.getId());
+                    publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId());
                 }
             });
         } else {
-            publishPending(event.getId());
+            publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId());
         }
     }
 
@@ -72,13 +86,18 @@ public class TrackingOutboxService {
         List<TrackingOutboxEvent> ready = outboxRepository.findTop100ByStatusInAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
                 List.of(TrackingOutboxEvent.STATUS_PENDING, TrackingOutboxEvent.STATUS_PUBLISHING),
                 Instant.now());
-        ready.forEach(event -> publishPending(event.getId()));
+        ready.forEach(event -> publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId()));
     }
 
-    public void publishPending(String outboxId) {
+    public void publishPending(String outboxId, String tenantId, String workspaceId) {
+        if (isBlank(outboxId) || isBlank(tenantId) || isBlank(workspaceId)) {
+            return;
+        }
         Instant now = Instant.now();
         int claimed = outboxRepository.claimReadyForPublish(
                 outboxId,
+                tenantId,
+                workspaceId,
                 List.of(TrackingOutboxEvent.STATUS_PENDING, TrackingOutboxEvent.STATUS_PUBLISHING),
                 now,
                 TrackingOutboxEvent.STATUS_PUBLISHING,
@@ -87,7 +106,7 @@ public class TrackingOutboxService {
             return;
         }
 
-        TrackingOutboxEvent event = outboxRepository.findById(outboxId).orElse(null);
+        TrackingOutboxEvent event = outboxRepository.findByIdAndTenantIdAndWorkspaceId(outboxId, tenantId, workspaceId).orElse(null);
         if (event == null) {
             return;
         }
@@ -125,9 +144,28 @@ public class TrackingOutboxService {
         }
     }
 
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private Duration retryDelay(int attempts) {
         long seconds = Math.min(300, Math.max(1, 1L << Math.min(attempts, 8)));
         return Duration.ofSeconds(seconds);
+    }
+
+    private double readyDepth() {
+        return outboxRepository.countByStatusInAndNextAttemptAtLessThanEqual(readyStatuses(), Instant.now());
+    }
+
+    private double oldestReadyAgeSeconds() {
+        Instant now = Instant.now();
+        return outboxRepository.findOldestReadyCreatedAt(readyStatuses(), now)
+                .map(oldest -> Math.max(0, Duration.between(oldest, now).toSeconds()))
+                .orElse(0L);
+    }
+
+    private List<String> readyStatuses() {
+        return List.of(TrackingOutboxEvent.STATUS_PENDING, TrackingOutboxEvent.STATUS_PUBLISHING);
     }
 
     private String trimError(Exception ex) {

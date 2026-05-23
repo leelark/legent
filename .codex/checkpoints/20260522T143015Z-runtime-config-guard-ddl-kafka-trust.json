@@ -1,0 +1,31 @@
+{
+    "id":  "runtime-config-guard-ddl-kafka-trust",
+    "createdAt":  "2026-05-22T14:30:15.5525815Z",
+    "objective":  "Reject unsafe production DDL and broad Kafka trusted package overrides",
+    "status":  "DONE",
+    "owner":  "SHARED_PLATFORM_OWNER",
+    "filesInScope":  [
+                         "shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java",
+                         "shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java",
+                         "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaConsumerConfig.java",
+                         "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaConsumerConfigTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl shared/legent-common",
+                           "shared/legent-kafka -am \"-Dtest=RuntimeConfigurationGuardTest",
+                           "KafkaConsumerConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl shared/legent-common",
+                           "shared/legent-kafka -am test",
+                           "git diff --check -- shared/legent-common shared/legent-kafka"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "DONE: production DDL auto and Kafka trusted-package runtime guards are fail-closed.",
+    "completedAt":  "2026-05-22T15:07:16.3797195Z"
+}

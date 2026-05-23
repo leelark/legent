@@ -30,6 +30,9 @@ import com.legent.common.util.IdGenerator;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +41,10 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @RequiredArgsConstructor
 public class CampaignEngineService {
+
+    static final int DEFAULT_DEAD_LETTER_LIMIT = 100;
+    static final int MAX_DEAD_LETTER_LIMIT = 500;
+    static final int EXPERIMENT_WINNER_EVALUATION_PAGE_SIZE = 100;
 
     private final CampaignRepository campaignRepository;
     private final CampaignExperimentRepository experimentRepository;
@@ -346,11 +353,24 @@ public class CampaignEngineService {
 
     @Transactional(readOnly = true)
     public List<CampaignEngineDto.DeadLetterResponse> listDeadLetters(String jobId) {
+        return listDeadLetters(jobId, null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CampaignEngineDto.DeadLetterResponse> listDeadLetters(String jobId, Integer limit) {
         return deadLetterRepository.findByTenantIdAndWorkspaceIdAndJobIdAndDeletedAtIsNullOrderByCreatedAtDesc(
-                        TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), jobId)
+                        TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), jobId,
+                        PageRequest.of(0, boundedDeadLetterLimit(limit)))
                 .stream()
                 .map(this::toDeadLetterResponse)
                 .toList();
+    }
+
+    private int boundedDeadLetterLimit(Integer limit) {
+        if (limit == null || limit <= 0) {
+            return DEFAULT_DEAD_LETTER_LIMIT;
+        }
+        return Math.min(limit, MAX_DEAD_LETTER_LIMIT);
     }
 
     @Transactional
@@ -372,21 +392,40 @@ public class CampaignEngineService {
     @Scheduled(fixedDelayString = "${legent.campaign.experiments.evaluator-delay:900000}")
     @Transactional
     public void evaluateExperimentWinners() {
-        List<CampaignExperiment> active = experimentRepository.findByStatusAndDeletedAtIsNull(CampaignExperiment.ExperimentStatus.ACTIVE);
-        for (CampaignExperiment experiment : active) {
-            if (!experiment.isAutoPromotion()) {
-                continue;
+        Pageable pageRequest = PageRequest.of(0, EXPERIMENT_WINNER_EVALUATION_PAGE_SIZE);
+        String lastExperimentId = null;
+        Slice<CampaignExperiment> activePage;
+        do {
+            activePage = findNextExperimentEvaluationPage(lastExperimentId, pageRequest);
+            for (CampaignExperiment experiment : activePage.getContent()) {
+                lastExperimentId = experiment.getId();
+                evaluateExperimentWinner(experiment);
             }
-            metricsService.chooseWinner(experiment.getTenantId(), experiment.getWorkspaceId(), experiment.getCampaignId(), experiment)
-                    .ifPresent(winner -> {
-                        experiment.setWinnerVariantId(winner.getVariantId());
-                        experiment.setStatus(CampaignExperiment.ExperimentStatus.PROMOTED);
-                        experiment.setCompletedAt(Instant.now());
-                        experimentRepository.save(experiment);
-                        log.info("Auto-promoted campaign experiment winner campaign={} experiment={} variant={}",
-                                experiment.getCampaignId(), experiment.getId(), winner.getVariantId());
-                    });
+        } while (activePage.hasNext());
+    }
+
+    private Slice<CampaignExperiment> findNextExperimentEvaluationPage(String lastExperimentId, Pageable pageRequest) {
+        if (lastExperimentId == null) {
+            return experimentRepository.findByStatusAndDeletedAtIsNullOrderByIdAsc(
+                    CampaignExperiment.ExperimentStatus.ACTIVE, pageRequest);
         }
+        return experimentRepository.findByStatusAndDeletedAtIsNullAndIdGreaterThanOrderByIdAsc(
+                CampaignExperiment.ExperimentStatus.ACTIVE, lastExperimentId, pageRequest);
+    }
+
+    private void evaluateExperimentWinner(CampaignExperiment experiment) {
+        if (!experiment.isAutoPromotion()) {
+            return;
+        }
+        metricsService.chooseWinner(experiment.getTenantId(), experiment.getWorkspaceId(), experiment.getCampaignId(), experiment)
+                .ifPresent(winner -> {
+                    experiment.setWinnerVariantId(winner.getVariantId());
+                    experiment.setStatus(CampaignExperiment.ExperimentStatus.PROMOTED);
+                    experiment.setCompletedAt(Instant.now());
+                    experimentRepository.save(experiment);
+                    log.info("Auto-promoted campaign experiment winner campaign={} experiment={} variant={}",
+                            experiment.getCampaignId(), experiment.getId(), winner.getVariantId());
+                });
     }
 
     private void validateExperimentRequest(CampaignEngineDto.ExperimentRequest request) {

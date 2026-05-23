@@ -11,13 +11,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTenantStore } from '@/stores/tenantStore';
 import { ensureActiveContext } from '@/lib/context-bootstrap';
 import { ROUTES } from '@/lib/constants';
-import {
-  ENVIRONMENT_STORAGE_KEY,
-  ROLES_STORAGE_KEY,
-  TENANT_STORAGE_KEY,
-  USER_STORAGE_KEY,
-  WORKSPACE_STORAGE_KEY,
-} from '@/lib/auth';
 
 type PublicTheme = 'dark' | 'light';
 type Step = 1 | 2 | 3;
@@ -64,6 +57,11 @@ function readAuthErrorMessage(error: unknown, fallback: string): string {
   );
 }
 
+function clearClientAuthContext(logout: () => void): void {
+  logout();
+  useTenantStore.setState({ currentTenant: null, tenants: [] });
+}
+
 export function LoginView() {
   const router = useRouter();
   const { isAuthenticated, login, logout } = useAuth();
@@ -89,18 +87,15 @@ export function LoginView() {
             })
               .then((activeContext) => {
                 if (activeContext?.workspaceId) router.replace(ROUTES.EMAIL);
-                else logout();
+                else clearClientAuthContext(logout);
               })
-              .catch(() => logout());
+              .catch(() => clearClientAuthContext(logout));
           } else {
-            logout();
+            clearClientAuthContext(logout);
           }
         })
         .catch(() => {
-          logout();
-          localStorage.removeItem(TENANT_STORAGE_KEY);
-          localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-          localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
+          clearClientAuthContext(logout);
         });
     }
   }, [isAuthenticated, logout, router]);
@@ -124,22 +119,23 @@ export function LoginView() {
 
       const userId = data.userId || 'anonymous';
       const roles = data.roles ?? [];
-      if (data.tenantId || submittedTenantId) localStorage.setItem(TENANT_STORAGE_KEY, data.tenantId || submittedTenantId);
-      localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(roles));
-      localStorage.setItem(USER_STORAGE_KEY, userId);
-      setCurrentTenant({ id: data.tenantId || submittedTenantId, name: data.tenantId || submittedTenantId, slug: data.tenantId || submittedTenantId, status: 'ACTIVE', plan: 'STARTER' });
+      clearClientAuthContext(logout);
 
       const activeContext = await ensureActiveContext({
         preferredTenantId: data.tenantId || submittedTenantId,
         preferredWorkspaceId: data.workspaceId ?? null,
         preferredEnvironmentId: data.environmentId ?? null,
+      }).catch((contextError: unknown) => {
+        clearClientAuthContext(logout);
+        throw contextError;
       });
       if (!activeContext?.workspaceId) {
-        logout();
+        clearClientAuthContext(logout);
         throw new Error('Workspace context setup failed. Please sign in again.');
       }
       redirectingRef.current = true;
       login(userId, roles);
+      setCurrentTenant({ id: activeContext.tenantId, name: activeContext.tenantId, slug: activeContext.tenantId, status: 'ACTIVE', plan: 'STARTER' });
       router.replace(ROUTES.EMAIL);
     } catch (err: unknown) {
       redirectingRef.current = false;
@@ -168,7 +164,7 @@ export function LoginView() {
 
 export function SignupView() {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const setCurrentTenant = useTenantStore((state) => state.setCurrentTenant);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -181,11 +177,24 @@ export function SignupView() {
     setLoading(true);
     try {
       const data = await post<AuthAccessResponse>('/auth/signup', form);
-      localStorage.setItem(USER_STORAGE_KEY, data.userId);
-      localStorage.setItem(ROLES_STORAGE_KEY, JSON.stringify(data.roles || []));
-      login(data.userId, data.roles || []);
-      setCurrentTenant({ id: data.tenantId, name: data.tenantId, slug: data.tenantId, status: 'ACTIVE', plan: 'STARTER' });
-      await ensureActiveContext({ preferredTenantId: data.tenantId, preferredWorkspaceId: data.workspaceId ?? null, preferredEnvironmentId: data.environmentId ?? null });
+      if (data?.status !== 'success' || !data.userId || !data.tenantId) throw new Error('Signup failed.');
+
+      const activeContext = await ensureActiveContext({
+        preferredTenantId: data.tenantId,
+        preferredWorkspaceId: data.workspaceId ?? null,
+        preferredEnvironmentId: data.environmentId ?? null,
+      }).catch((contextError: unknown) => {
+        clearClientAuthContext(logout);
+        throw contextError;
+      });
+      if (!activeContext?.workspaceId) {
+        clearClientAuthContext(logout);
+        throw new Error('Workspace context setup failed. Please sign in again.');
+      }
+
+      const roles = data.roles ?? [];
+      login(data.userId, roles);
+      setCurrentTenant({ id: activeContext.tenantId, name: activeContext.tenantId, slug: activeContext.tenantId, status: 'ACTIVE', plan: 'STARTER' });
       router.push('/onboarding');
     } catch (err: unknown) {
       setError(readAuthErrorMessage(err, 'Unable to create account.'));
@@ -216,6 +225,8 @@ export function SignupView() {
 
 export function ForgotPasswordView() {
   const [email, setEmail] = useState('');
+  const [tenantId, setTenantId] = useState('');
+  const [workspaceId, setWorkspaceId] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,7 +236,12 @@ export function ForgotPasswordView() {
     setError(null);
     setLoading(true);
     try {
-      await authApi.forgotPassword(email.trim());
+      const formData = new FormData(event.currentTarget);
+      await authApi.forgotPassword({
+        email: String(formData.get('email') ?? email).trim(),
+        tenantId: String(formData.get('tenantId') ?? tenantId),
+        workspaceId: String(formData.get('workspaceId') ?? workspaceId),
+      });
       setSent(true);
     } catch (err: unknown) {
       setError(readAuthErrorMessage(err, 'Unable to submit request.'));
@@ -237,7 +253,9 @@ export function ForgotPasswordView() {
   return (
     <AuthShell title="Recover secure access" eyebrow="Password recovery" supporting="We will send reset instructions to the verified operator email.">
       <form className="grid gap-4" onSubmit={submit}>
-        <AuthField label="Email address" id="recoveryEmail" type="email" required value={email} onChange={setEmail} placeholder="you@company.com" />
+        <AuthField label="Email address" id="recoveryEmail" name="email" type="email" autoComplete="username" required value={email} onChange={setEmail} placeholder="you@company.com" />
+        <AuthField label="Organization/Tenant ID (Optional)" id="recoveryTenantId" name="tenantId" value={tenantId} onChange={setTenantId} placeholder="tenant-acme" />
+        <AuthField label="Workspace ID (Optional)" id="recoveryWorkspaceId" name="workspaceId" value={workspaceId} onChange={setWorkspaceId} placeholder="workspace-default" />
         <StatusMessage error={error} success={sent ? 'Request accepted. Check your inbox.' : null} />
         <AuthButton loading={loading}>{loading ? 'Sending...' : 'Send reset link'}</AuthButton>
       </form>
@@ -255,7 +273,11 @@ export function ResetPasswordView() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setToken(params.get('token') ?? '');
+    const resetToken = params.get('token') ?? '';
+    setToken(resetToken);
+    if (resetToken && window.location.search) {
+      window.history.replaceState(window.history.state, '', '/reset-password');
+    }
   }, []);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {

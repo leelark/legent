@@ -1,0 +1,43 @@
+{
+    "id":  "outbox-backlog-observability-alerts",
+    "createdAt":  "2026-05-22T15:42:33.2258848Z",
+    "objective":  "Add tracking and delivery outbox backlog observability",
+    "status":  "DONE",
+    "owner":  "SRE_MONITORING_ENGINEER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingOutboxService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/repository/TrackingOutboxEventRepository.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingOutboxServiceTest.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryFeedbackOutboxEventRepository.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java",
+                         "infrastructure/kubernetes/observability/prometheus-alerts.yml",
+                         "infrastructure/kubernetes/observability/grafana-legent-overview.json",
+                         "docs/operations/production-hardening-runbook.md"
+                     ],
+    "agents":  [
+                   "TRACKING_SERVICE_OWNER",
+                   "DELIVERY_SERVICE_OWNER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -T 1 -pl services/tracking-service,services/delivery-service -am \"-Dtest=TrackingOutboxServiceTest,DeliveryFeedbackOutboxServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                           "git diff --check -- services/tracking-service services/delivery-service infrastructure/kubernetes/observability docs/operations"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed locally; tune alert thresholds and prove live alert routing only with target environment evidence.",
+    "completedAt":  "2026-05-22T16:01:19.4892523Z",
+    "validationRun":  [
+                          ".\\mvnw.cmd -T 1 -pl services/tracking-service,services/delivery-service -am \"-Dtest=TrackingOutboxServiceTest,DeliveryFeedbackOutboxServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test passed",
+                          ".\\mvnw.cmd -T 1 -pl services/tracking-service,services/delivery-service -am test passed",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1 passed with existing external secret placeholder warning",
+                          "Grafana overview JSON parsed with ConvertFrom-Json",
+                          "git diff --check passed with CRLF warnings only",
+                          "Codex validation passed",
+                          "Repository artifact hygiene passed"
+                      ]
+}

@@ -1,5 +1,6 @@
 package com.legent.identity.service;
 
+import com.legent.common.constant.AppConstants;
 import com.legent.common.exception.ConflictException;
 import com.legent.common.exception.NotFoundException;
 import com.legent.identity.domain.User;
@@ -8,6 +9,10 @@ import com.legent.identity.repository.UserRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.ExampleMatcher;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,13 +26,45 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserService {
 
+    private static final ExampleMatcher USER_TENANT_MATCHER = ExampleMatcher.matchingAll()
+            .withIgnorePaths(
+                    "id",
+                    "email",
+                    "passwordHash",
+                    "firstName",
+                    "lastName",
+                    "role",
+                    "externalId",
+                    "identityProviderId",
+                    "active",
+                    "isActive",
+                    "lastLoginAt",
+                    "createdAt",
+                    "updatedAt",
+                    "createdBy",
+                    "deletedAt",
+                    "deleted",
+                    "version");
+    private static final Sort USER_LIST_SORT = Sort.by(Sort.Direction.ASC, "email");
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional(readOnly = true)
     public List<UserDto.Response> listUsers() {
+        return listUsers(null);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserDto.Response> listUsers(Integer limit) {
         String tenantId = TenantContext.requireTenantId();
-        return userRepository.findByTenantId(tenantId).stream()
+        User probe = new User();
+        probe.setTenantId(tenantId);
+        return userRepository.findAll(
+                        Example.of(probe, USER_TENANT_MATCHER),
+                        PageRequest.of(0, boundedListLimit(limit), USER_LIST_SORT))
+                .getContent()
+                .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
     }
@@ -110,5 +147,12 @@ public class UserService {
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();
+    }
+
+    private int boundedListLimit(Integer limit) {
+        if (limit == null || limit < 1) {
+            return AppConstants.DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(limit, AppConstants.MAX_PAGE_SIZE);
     }
 }

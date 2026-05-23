@@ -89,6 +89,26 @@ class FeatureFlagServiceTest {
         }
 
         @Test
+        @DisplayName("evaluate preserves global fallback when tenant context is missing")
+        void evaluate_missingTenantUsesGlobalFallback() {
+                TenantContext.clear();
+                FeatureFlag globalFlag = new FeatureFlag();
+                globalFlag.setTenantId(null);
+                globalFlag.setFlagKey("beta_feature");
+                globalFlag.setEnabled(true);
+
+                when(cacheService.get(anyString(), eq(FeatureFlagDto.EvaluationResult.class)))
+                                .thenReturn(Optional.empty());
+                when(featureFlagRepository.findByKeyWithFallback("beta_feature", null))
+                                .thenReturn(List.of(globalFlag));
+
+                FeatureFlagDto.EvaluationResult result = featureFlagService.evaluate("beta_feature");
+
+                assertThat(result.isEnabled()).isTrue();
+                assertThat(result.getResolvedScope()).isEqualTo("GLOBAL");
+        }
+
+        @Test
         @DisplayName("evaluate returns disabled when flag not defined")
         void evaluate_undefinedFlag() {
                 when(cacheService.get(anyString(), eq(FeatureFlagDto.EvaluationResult.class)))

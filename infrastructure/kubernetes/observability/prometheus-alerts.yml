@@ -6,28 +6,37 @@ groups:
         for: 10m
         labels:
           severity: warning
+          team: platform
         annotations:
           summary: "High 5xx rate for {{ $labels.application }}"
           description: "{{ $labels.application }} has served more than 2% 5xx responses for 10 minutes."
           runbook_url: "docs/operations/production-hardening-runbook.md#service-errors"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "HTTP 5xx rate"
       - alert: LegentServiceP95LatencyHigh
         expr: histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket[5m])) by (le, application)) > 1.5
         for: 10m
         labels:
           severity: warning
+          team: platform
         annotations:
           summary: "High p95 latency for {{ $labels.application }}"
           description: "{{ $labels.application }} p95 latency is above 1.5 seconds."
           runbook_url: "docs/operations/production-hardening-runbook.md#service-latency"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "HTTP p95 latency"
       - alert: LegentKafkaConsumerLagHigh
         expr: kafka_consumer_fetch_manager_records_lag_max > 10000
         for: 15m
         labels:
           severity: critical
+          team: sre
         annotations:
           summary: "Kafka consumer lag high"
           description: "Consumer lag is above 10000 records."
           runbook_url: "docs/operations/production-hardening-runbook.md#kafka-consumer-lag"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Kafka lag"
       - alert: LegentPodRestarting
         expr: increase(kube_pod_container_status_restarts_total{namespace="legent"}[15m]) > 2
         for: 5m
@@ -37,7 +46,9 @@ groups:
         annotations:
           summary: "Legent pod restart loop"
           description: "{{ $labels.pod }} restarted repeatedly."
-          runbook_url: "docs/operations/production-hardening-runbook.md"
+          runbook_url: "docs/operations/production-hardening-runbook.md#pod-restarts"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Pod restarts"
       - alert: LegentExecutorSaturationHigh
         expr: max(legent_executor_saturation_ratio{namespace="legent"}) by (application, executor) > 0.85
         for: 10m
@@ -48,6 +59,8 @@ groups:
           summary: "Executor saturation high for {{ $labels.application }} {{ $labels.executor }}"
           description: "Executor {{ $labels.executor }} has been above 85% saturation for 10 minutes."
           runbook_url: "docs/operations/production-hardening-runbook.md#executor-saturation"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Executor saturation"
       - alert: LegentExecutorSaturationCritical
         expr: max(legent_executor_saturation_ratio{namespace="legent"}) by (application, executor) > 0.95
         for: 5m
@@ -58,6 +71,8 @@ groups:
           summary: "Executor saturation critical for {{ $labels.application }} {{ $labels.executor }}"
           description: "Executor {{ $labels.executor }} is above 95% saturation."
           runbook_url: "docs/operations/production-hardening-runbook.md#executor-saturation"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Executor saturation"
       - alert: LegentOtlpCollectorDown
         expr: up{job=~".*otel.*"} == 0
         for: 5m
@@ -68,3 +83,53 @@ groups:
           summary: "OpenTelemetry collector is down"
           description: "Trace export is unavailable."
           runbook_url: "docs/operations/production-hardening-runbook.md#tracing"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "OpenTelemetry collector health"
+      - alert: LegentOutboxReadyDepthHigh
+        expr: max(legent_outbox_ready_depth{queue=~"tracking|delivery_feedback"}) by (queue) > 5000
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Outbox ready depth high for {{ $labels.queue }}"
+          description: "{{ $labels.queue }} outbox has more than 5000 ready events for 10 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#outbox-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Outbox ready depth"
+      - alert: LegentOutboxReadyDepthCritical
+        expr: max(legent_outbox_ready_depth{queue=~"tracking|delivery_feedback"}) by (queue) > 25000
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "Outbox ready depth critical for {{ $labels.queue }}"
+          description: "{{ $labels.queue }} outbox has more than 25000 ready events."
+          runbook_url: "docs/operations/production-hardening-runbook.md#outbox-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Outbox ready depth"
+      - alert: LegentOutboxOldestReadyAgeHigh
+        expr: max(legent_outbox_oldest_ready_age_seconds{queue=~"tracking|delivery_feedback"}) by (queue) > 600
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Oldest ready outbox event is aging for {{ $labels.queue }}"
+          description: "{{ $labels.queue }} outbox oldest ready event is older than 10 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#outbox-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Outbox oldest ready age"
+      - alert: LegentOutboxOldestReadyAgeCritical
+        expr: max(legent_outbox_oldest_ready_age_seconds{queue=~"tracking|delivery_feedback"}) by (queue) > 1800
+        for: 5m
+        labels:
+          severity: critical
+          team: sre
+        annotations:
+          summary: "Oldest ready outbox event is critical for {{ $labels.queue }}"
+          description: "{{ $labels.queue }} outbox oldest ready event is older than 30 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#outbox-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Outbox oldest ready age"

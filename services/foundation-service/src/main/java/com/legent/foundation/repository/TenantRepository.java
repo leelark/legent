@@ -5,6 +5,7 @@ import java.util.Optional;
 import com.legent.foundation.domain.Tenant;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
@@ -21,6 +22,8 @@ public interface TenantRepository extends JpaRepository<Tenant, String> {
 
     @Query("SELECT t FROM Tenant t WHERE t.deletedAt IS NULL")
     Page<Tenant> findAllActive(Pageable pageable);
+
+    Slice<Tenant> findByStatusAndDeletedAtIsNullOrderByIdAsc(Tenant.TenantStatus status, Pageable pageable);
 
     @Query("SELECT t FROM Tenant t WHERE t.id = :id AND t.deletedAt IS NULL")
     Optional<Tenant> findActiveById(String id);

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -19,6 +20,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -61,7 +64,8 @@ class PredictiveDeliverabilityServiceTest {
         reputation.setCalculatedAt(Instant.now());
 
         when(senderDomainRepository.findByTenantIdAndWorkspaceId("tenant-1", "workspace-1")).thenReturn(List.of(domain));
-        when(domainReputationRepository.findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc("tenant-1", "workspace-1")).thenReturn(List.of(reputation));
+        when(domainReputationRepository.findByTenantIdAndWorkspaceIdAndDomainId("tenant-1", "workspace-1", "domain-1"))
+                .thenReturn(java.util.Optional.of(reputation));
         when(suppressionListRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "COMPLAINT")).thenReturn(15L);
         when(suppressionListRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "HARD_BOUNCE")).thenReturn(60L);
 
@@ -71,5 +75,30 @@ class PredictiveDeliverabilityServiceTest {
         assertThat(prediction.get("warmupPhase")).isEqualTo("REMEDIATE_AND_RAMP");
         assertThat((Integer) prediction.get("recommendedDailyCap")).isLessThanOrEqualTo(1_000);
         assertThat((List<?>) prediction.get("remediationGuidance")).isNotEmpty();
+        verify(domainReputationRepository, never()).findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc("tenant-1", "workspace-1");
+    }
+
+    @Test
+    void predictRiskWithoutSenderDomainUsesBoundedLatestWorkspaceReputation() {
+        DomainReputation reputation = new DomainReputation();
+        reputation.setDomainId("domain-1");
+        reputation.setReputationScore(88);
+        reputation.setComplaintRate(BigDecimal.ZERO);
+        reputation.setHardBounceRate(BigDecimal.ZERO);
+        reputation.setCalculatedAt(Instant.now());
+
+        when(senderDomainRepository.findByTenantIdAndWorkspaceId("tenant-1", "workspace-1")).thenReturn(List.of());
+        when(domainReputationRepository.findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(
+                "tenant-1", "workspace-1", PageRequest.of(0, 1)))
+                .thenReturn(List.of(reputation));
+        when(suppressionListRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "COMPLAINT")).thenReturn(0L);
+        when(suppressionListRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "HARD_BOUNCE")).thenReturn(0L);
+
+        Map<String, Object> prediction = service.predictRisk(null, 1_000, null);
+
+        assertThat(prediction.get("reputationScore")).isEqualTo(88);
+        verify(domainReputationRepository).findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc(
+                "tenant-1", "workspace-1", PageRequest.of(0, 1));
+        verify(domainReputationRepository, never()).findByTenantIdAndWorkspaceIdOrderByCalculatedAtDesc("tenant-1", "workspace-1");
     }
 }

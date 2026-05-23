@@ -1,0 +1,27 @@
+{
+    "id":  "delivery-provider-health-monitoring-bounds",
+    "createdAt":  "2026-05-22T18:11:24.8440805Z",
+    "objective":  "Bound delivery provider health monitoring scans",
+    "status":  "DONE",
+    "owner":  "DELIVERY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/ProviderHealthMonitoringService.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/SmtpProviderRepository.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/ProviderHealthCheckRepository.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/ProviderHealthMonitoringServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service \"-Dtest=ProviderHealthMonitoringServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/delivery-service -am test",
+                           "git diff --check -- services/delivery-service/src/main/java/com/legent/delivery/service/ProviderHealthMonitoringService.java services/delivery-service/src/main/java/com/legent/delivery/repository/SmtpProviderRepository.java services/delivery-service/src/main/java/com/legent/delivery/repository/ProviderHealthCheckRepository.java services/delivery-service/src/test/java/com/legent/delivery/service/ProviderHealthMonitoringServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated backend validation; continue backlog scan."
+}

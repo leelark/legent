@@ -13,9 +13,21 @@ data:
       repeat_interval: 4h
       routes:
         - matchers:
-            - severity="critical"
-          receiver: platform-pager
-          repeat_interval: 30m
+            - team="sre"
+          receiver: sre-primary
+          routes:
+            - matchers:
+                - severity="critical"
+              receiver: sre-pager
+              repeat_interval: 30m
+        - matchers:
+            - team="platform"
+          receiver: platform-primary
+          routes:
+            - matchers:
+                - severity="critical"
+              receiver: platform-pager
+              repeat_interval: 30m
     receivers:
       - name: platform-primary
         webhook_configs:
@@ -24,4 +36,12 @@ data:
       - name: platform-pager
         webhook_configs:
           - url: ${ALERTMANAGER_PLATFORM_PAGER_URL}
+            send_resolved: true
+      - name: sre-primary
+        webhook_configs:
+          - url: ${ALERTMANAGER_SRE_WEBHOOK_URL}
+            send_resolved: true
+      - name: sre-pager
+        webhook_configs:
+          - url: ${ALERTMANAGER_SRE_PAGER_URL}
             send_resolved: true

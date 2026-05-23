@@ -1,0 +1,32 @@
+{
+    "id":  "deliverability-domain-workspace-lookup",
+    "createdAt":  "2026-05-22T13:56:04.0773704Z",
+    "objective":  "Scope deliverability sender-domain ID lookups by workspace",
+    "status":  "DONE",
+    "owner":  "DELIVERABILITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/repository/SenderDomainRepository.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/controller/DomainController.java",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/service/DomainVerificationService.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/service/DomainVerificationServiceTest.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/controller/DomainControllerTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/deliverability-service -am \"-Dtest=DomainVerificationServiceTest",
+                           "DomainControllerTest",
+                           "DomainControllerRbacTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/deliverability-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- services/deliverability-service .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Promote the next safe local item after state, memory, and dashboard refresh.",
+    "completedAt":  "2026-05-22T14:14:20.2427767Z"
+}

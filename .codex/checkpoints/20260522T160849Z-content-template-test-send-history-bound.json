@@ -1,0 +1,32 @@
+{
+    "id":  "content-template-test-send-history-bound",
+    "createdAt":  "2026-05-22T16:08:49.6343999Z",
+    "objective":  "Bound template test-send history reads",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateTestSendService.java",
+                         "services/content-service/src/main/java/com/legent/content/repository/TemplateTestSendRecordRepository.java",
+                         "services/content-service/src/test/java/com/legent/content/service/TemplateTestSendServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/content-service -Dtest=TemplateTestSendServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           ".\\mvnw.cmd -pl services/content-service -am test",
+                           "git diff --check -- services/content-service/src/main/java/com/legent/content/service/TemplateTestSendService.java services/content-service/src/main/java/com/legent/content/repository/TemplateTestSendRecordRepository.java services/content-service/src/test/java/com/legent/content/service/TemplateTestSendServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed locally; preserve bounded template test-send history reads.",
+    "completedAt":  "2026-05-22T16:28:15.2638178Z",
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/content-service \u0027-Dtest=TemplateTestSendServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test passed with 3 tests",
+                          "Integrated .\\mvnw.cmd -T 1 -pl services/foundation-service,services/content-service -am test passed",
+                          "Scoped git diff --check passed with CRLF warnings only"
+                      ]
+}

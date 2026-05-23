@@ -1,0 +1,27 @@
+{
+    "id":  "frontend-template-library-context-scoped-persistence",
+    "createdAt":  "2026-05-22T16:41:43.4033402Z",
+    "objective":  "Scope template library favorites and recents to active context",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/email/templates/page.tsx",
+                         "frontend/tests/e2e/template-builder.spec.ts"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/template-builder.spec.ts --project=chromium --reporter=line",
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "git diff --check -- \"frontend/src/app/(workspace)/email/templates/page.tsx\" frontend/tests/e2e/template-builder.spec.ts"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue with the next exact-leased safe local work item after memory and dashboard refresh.",
+    "completedAt":  "2026-05-22T16:58:12.7597873Z"
+}

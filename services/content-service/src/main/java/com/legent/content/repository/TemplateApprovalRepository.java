@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import com.legent.content.domain.TemplateApproval;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -15,7 +16,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface TemplateApprovalRepository extends JpaRepository<TemplateApproval, String> {
 
-    List<TemplateApproval> findByTenantIdAndWorkspaceIdAndTemplateIdOrderByRequestedAtDesc(String tenantId, String workspaceId, String templateId);
+    List<TemplateApproval> findByTenantIdAndWorkspaceIdAndTemplateIdOrderByRequestedAtDesc(
+            String tenantId,
+            String workspaceId,
+            String templateId,
+            Pageable pageable);
 
     @Query("SELECT a FROM TemplateApproval a WHERE a.tenantId = :tid AND a.workspaceId = :workspaceId AND a.templateId = :templateId AND a.status = 'PENDING'")
     Optional<TemplateApproval> findPendingApproval(
@@ -25,7 +30,11 @@ public interface TemplateApprovalRepository extends JpaRepository<TemplateApprov
 
     Optional<TemplateApproval> findByIdAndTenantIdAndWorkspaceId(String id, String tenantId, String workspaceId);
 
-    List<TemplateApproval> findByTenantIdAndWorkspaceIdAndStatus(String tenantId, String workspaceId, TemplateApproval.ApprovalStatus status);
+    List<TemplateApproval> findByTenantIdAndWorkspaceIdAndStatusOrderByRequestedAtDesc(
+            String tenantId,
+            String workspaceId,
+            TemplateApproval.ApprovalStatus status,
+            Pageable pageable);
 
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM TemplateApproval a " +
            "WHERE a.tenantId = :tid AND a.workspaceId = :workspaceId AND a.templateId = :templateId AND a.versionNumber = :version AND a.status = 'PENDING'")

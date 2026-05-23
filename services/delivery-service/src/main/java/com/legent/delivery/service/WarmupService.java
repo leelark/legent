@@ -4,6 +4,7 @@ import com.legent.common.util.IdGenerator;
 import com.legent.delivery.domain.WarmupState;
 import com.legent.delivery.repository.WarmupStateRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +16,9 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class WarmupService {
+
+    private static final int DEFAULT_STATE_LIST_LIMIT = 50;
+    private static final int MAX_STATE_LIST_LIMIT = 200;
 
     private final WarmupStateRepository warmupStateRepository;
 
@@ -127,8 +131,17 @@ public class WarmupService {
         warmupStateRepository.save(state);
     }
 
+    @Transactional(readOnly = true)
     public List<WarmupState> list(String tenantId, String workspaceId) {
-        return warmupStateRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(tenantId, workspaceId);
+        return list(tenantId, workspaceId, DEFAULT_STATE_LIST_LIMIT);
+    }
+
+    @Transactional(readOnly = true)
+    public List<WarmupState> list(String tenantId, String workspaceId, int limit) {
+        return warmupStateRepository.findByTenantIdAndWorkspaceIdOrderByUpdatedAtDesc(
+                tenantId,
+                workspaceId,
+                PageRequest.of(0, stateListLimit(limit)));
     }
 
     private WarmupState newState(String tenantId, String workspaceId, String senderDomain, String providerId) {
@@ -181,6 +194,13 @@ public class WarmupService {
         }
         String normalized = value.trim().toLowerCase();
         return normalized.isBlank() ? null : normalized;
+    }
+
+    private int stateListLimit(int limit) {
+        if (limit <= 0) {
+            return DEFAULT_STATE_LIST_LIMIT;
+        }
+        return Math.min(limit, MAX_STATE_LIST_LIMIT);
     }
 
     public record WarmupDecision(boolean allowed, WarmupState state, Instant retryAfter, String reason) {}

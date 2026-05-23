@@ -24,6 +24,16 @@ Impact: every future parity refresh should update `docs/product/competitor-resea
 
 Follow-up: keep source URLs current before product copy or roadmap claims.
 
+## 2026-05-22 Parity Doc Evidence Boundary
+
+Source: `docs/product/salesforce-parity-matrix.md`, `docs/product/competitor-research/2026-05-20-competitor-capability-scan.md`, and `docs/product/automation-studio-activity-orchestration-plan.md`.
+
+Decision: parity docs should keep completed local contracts separate from future feature work and external evidence-bound claims. Broad Segment Builder, automation, AI, Contact Builder, and delivery-policy residuals must be split into narrow backlog-ready follow-ups or blocked evidence items.
+
+Rationale: combining completed local work with broad competitor parity language makes the backlog harder to safely select and can imply capabilities that have not been locally implemented or externally re-researched.
+
+Impact: no new market claims were introduced in the latest doc split; future claims need a dated source refresh before product copy, roadmap commitments, or release readiness messaging.
+
 ## 2026-05-20 AI Claim Boundary
 
 Source: local audit of foundation intelligence controllers/services, source search for model-provider integrations, `docs/product/ai-governance-optimization-foundation.md`, and current official vendor AI trust/optimization documentation.

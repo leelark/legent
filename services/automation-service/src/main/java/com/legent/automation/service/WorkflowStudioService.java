@@ -39,6 +39,11 @@ public class WorkflowStudioService {
     private static final int JOURNEY_ANALYTICS_RUN_LIMIT = 200;
     private static final int JOURNEY_ANALYTICS_PATH_LIMIT = 10;
     private static final int JOURNEY_ANALYTICS_DIAGNOSTIC_LIMIT = 5;
+    private static final int DEFAULT_WORKFLOW_LIST_LIMIT = 50;
+    private static final int DEFAULT_RUN_PAGE_SIZE = 50;
+    private static final int MAX_RUN_PAGE_SIZE = 200;
+    private static final int DEFAULT_HISTORY_LIMIT = 100;
+    private static final int MAX_HISTORY_LIMIT = 500;
 
     private static final Map<String, Set<String>> ALLOWED_TRANSITIONS = Map.of(
             "DRAFT", Set.of("ACTIVE", "PAUSED", "ARCHIVED", "SCHEDULED"),
@@ -60,7 +65,10 @@ public class WorkflowStudioService {
     private final ObjectMapper objectMapper;
 
     public List<Workflow> listWorkflows() {
-        return workflowRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(requireTenant(), requireWorkspace());
+        return workflowRepository.findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                requireTenant(),
+                requireWorkspace(),
+                PageRequest.of(0, DEFAULT_WORKFLOW_LIST_LIMIT));
     }
 
     public Workflow getWorkflow(String workflowId) {
@@ -648,7 +656,15 @@ public class WorkflowStudioService {
     }
 
     public List<WorkflowInstance> listRuns(String workflowId) {
-        return workflowInstanceRepository.findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByCreatedAtDesc(requireTenant(), requireWorkspace(), workflowId);
+        return listRuns(workflowId, 0, DEFAULT_RUN_PAGE_SIZE);
+    }
+
+    public List<WorkflowInstance> listRuns(String workflowId, Integer page, Integer limit) {
+        return workflowInstanceRepository.findByTenantIdAndWorkspaceIdAndWorkflowIdOrderByCreatedAtDesc(
+                requireTenant(),
+                requireWorkspace(),
+                workflowId,
+                PageRequest.of(clampPage(page), clampLimit(limit, DEFAULT_RUN_PAGE_SIZE, MAX_RUN_PAGE_SIZE)));
     }
 
     public WorkflowInstance getRun(String runId) {
@@ -657,18 +673,45 @@ public class WorkflowStudioService {
     }
 
     public List<InstanceHistory> getRunSteps(String runId) {
+        return getRunSteps(runId, DEFAULT_HISTORY_LIMIT);
+    }
+
+    public List<InstanceHistory> getRunSteps(String runId, Integer limit) {
         getRun(runId);
-        return instanceHistoryRepository.findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(requireTenant(), requireWorkspace(), runId);
+        return instanceHistoryRepository.findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(
+                requireTenant(),
+                requireWorkspace(),
+                runId,
+                PageRequest.of(0, clampLimit(limit, DEFAULT_HISTORY_LIMIT, MAX_HISTORY_LIMIT)));
     }
 
     public Map<String, Object> getRunTrace(String runId) {
+        return getRunTrace(runId, DEFAULT_HISTORY_LIMIT);
+    }
+
+    public Map<String, Object> getRunTrace(String runId, Integer limit) {
         WorkflowInstance run = getRun(runId);
-        List<InstanceHistory> steps = getRunSteps(runId);
+        List<InstanceHistory> steps = instanceHistoryRepository.findByTenantIdAndWorkspaceIdAndInstanceIdOrderByExecutedAtDesc(
+                requireTenant(),
+                requireWorkspace(),
+                runId,
+                PageRequest.of(0, clampLimit(limit, DEFAULT_HISTORY_LIMIT, MAX_HISTORY_LIMIT)));
         return Map.of(
                 "run", run,
                 "steps", steps,
                 "stepCount", steps.size()
         );
+    }
+
+    private int clampPage(Integer page) {
+        return page == null || page < 0 ? 0 : page;
+    }
+
+    private int clampLimit(Integer limit, int defaultLimit, int maxLimit) {
+        if (limit == null || limit <= 0) {
+            return defaultLimit;
+        }
+        return Math.min(limit, maxLimit);
     }
 
     private Workflow findWorkflow(String workflowId) {

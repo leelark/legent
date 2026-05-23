@@ -60,7 +60,7 @@ public class ComplianceEvidenceService {
         return repository.queryForList("""
                 SELECT * FROM immutable_audit_evidence
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND (:resourceType IS NULL OR resource_type = :resourceType)
                   AND deleted_at IS NULL
                 ORDER BY evidence_time DESC
@@ -113,7 +113,7 @@ public class ComplianceEvidenceService {
         return repository.queryForList("""
                 SELECT * FROM retention_matrix
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                 ORDER BY data_domain, resource_type, policy_version DESC
                 """, params);
@@ -159,7 +159,7 @@ public class ComplianceEvidenceService {
         return repository.queryForList("""
                 SELECT * FROM consent_ledger
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND (:subjectId IS NULL OR subject_id = :subjectId)
                   AND deleted_at IS NULL
                 ORDER BY occurred_at DESC
@@ -217,7 +217,7 @@ public class ComplianceEvidenceService {
         return repository.queryForList("""
                 SELECT * FROM privacy_requests
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND (:status IS NULL OR status = :status)
                   AND deleted_at IS NULL
                 ORDER BY requested_at DESC
@@ -254,7 +254,7 @@ public class ComplianceEvidenceService {
         return repository.queryForList("""
                 SELECT * FROM compliance_export_jobs
                 WHERE tenant_id = :tenantId
-                  AND (:workspaceId IS NULL OR workspace_id = :workspaceId)
+                  AND workspace_id = :workspaceId
                   AND deleted_at IS NULL
                 ORDER BY requested_at DESC
                 LIMIT :limit
@@ -277,7 +277,7 @@ public class ComplianceEvidenceService {
         params.put("tenantId", tenantId);
         params.put("workspaceId", workspaceId);
         List<Map<String, Object>> rows = repository.queryForList(
-                "SELECT event_hash FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
+                "SELECT event_hash FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1",
                 params
         );
         return rows.isEmpty() ? null : String.valueOf(rows.get(0).get("event_hash"));
@@ -295,7 +295,7 @@ public class ComplianceEvidenceService {
         params.put("tenantId", TenantContext.requireTenantId());
         params.put("workspaceId", workspaceId);
         return repository.queryForList(
-                "SELECT COUNT(*) AS count FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND (:workspaceId IS NULL OR workspace_id = :workspaceId) AND deleted_at IS NULL",
+                "SELECT COUNT(*) AS count FROM " + CorePlatformRepository.safeTable(table) + " WHERE tenant_id = :tenantId AND workspace_id = :workspaceId AND deleted_at IS NULL",
                 params
         ).stream().findFirst().map(row -> ((Number) row.get("count")).longValue()).orElse(0L);
     }
@@ -377,11 +377,11 @@ public class ComplianceEvidenceService {
 
     private String workspace(String explicit) {
         String resolved = blankToNull(explicit);
-        String contextWorkspaceId = blankToNull(TenantContext.getWorkspaceId());
-        if (resolved != null && contextWorkspaceId != null && !contextWorkspaceId.equals(resolved)) {
+        String contextWorkspaceId = TenantContext.requireWorkspaceId();
+        if (resolved != null && !contextWorkspaceId.equals(resolved)) {
             throw new IllegalArgumentException("workspaceId does not match the current workspace");
         }
-        return resolved == null ? contextWorkspaceId : resolved;
+        return contextWorkspaceId;
     }
 
     private String blankToNull(String value) {

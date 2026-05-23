@@ -1,0 +1,24 @@
+{
+    "id":  "content-blank-target-rel-sanitizer",
+    "createdAt":  "2026-05-22T18:55:04.3983593Z",
+    "objective":  "Add safe rel attributes for blank-target content links",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/content-service/src/main/java/com/legent/content/service/EmailContentValidationService.java",
+                         "services/content-service/src/test/java/com/legent/content/service/EmailContentValidationServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/content-service -Dtest=EmailContentValidationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/content-service/src/main/java/com/legent/content/service/EmailContentValidationService.java services/content-service/src/test/java/com/legent/content/service/EmailContentValidationServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by current pool validation; continue pending scan."
+}

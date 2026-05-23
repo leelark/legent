@@ -1,0 +1,28 @@
+﻿{
+    "id":  "campaign-dead-letter-page-bound",
+    "createdAt":  "2026-05-22T15:23:59.6202615Z",
+    "objective":  "Bound campaign dead-letter listing",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/controller/CampaignEngineController.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignEngineService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/CampaignDeadLetterRepository.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/CampaignEngineServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -am \"-Dtest=CampaignEngineServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "git diff --check -- services/campaign-service"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed and validated locally; continue with memory/dashboard refresh and next safe local selection.",
+    "completedAt":  "2026-05-22T15:37:46.0333821Z"
+}

@@ -97,7 +97,7 @@ public class ImportService {
         eventPublisher.publishStarted(saved);
 
         // Kick off async processing
-        processingService.processImport(saved.getId());
+        processingService.processImport(saved.getId(), tenantId, workspaceId);
 
         return toStatusResponse(saved);
     }

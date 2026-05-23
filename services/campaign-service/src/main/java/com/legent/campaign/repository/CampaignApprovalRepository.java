@@ -20,6 +20,20 @@ public interface CampaignApprovalRepository extends JpaRepository<CampaignApprov
     @Query("SELECT a FROM CampaignApproval a WHERE a.tenantId = :tid AND a.campaignId = :campaignId AND a.status = 'PENDING'")
     Optional<CampaignApproval> findPendingApproval(@Param("tid") String tenantId, @Param("campaignId") String campaignId);
 
+    @Query("""
+            SELECT a FROM CampaignApproval a
+            JOIN Campaign c ON c.id = a.campaignId AND c.tenantId = a.tenantId
+            WHERE a.id = :approvalId
+              AND a.tenantId = :tenantId
+              AND c.workspaceId = :workspaceId
+              AND c.deletedAt IS NULL
+            """)
+    Optional<CampaignApproval> findByTenantIdAndOwningCampaignWorkspaceIdAndId(
+            @Param("tenantId") String tenantId,
+            @Param("workspaceId") String workspaceId,
+            @Param("approvalId") String approvalId
+    );
+
     List<CampaignApproval> findByTenantIdAndStatus(String tenantId, CampaignApproval.ApprovalStatus status);
 
     @Query("SELECT CASE WHEN COUNT(a) > 0 THEN true ELSE false END FROM CampaignApproval a " +

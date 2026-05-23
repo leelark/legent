@@ -2,6 +2,21 @@
 
 Fresh baseline date: 2026-05-20.
 
+## 2026-05-22 Safe Local Pool Q Closeout
+
+Root causes:
+- Public account recovery had backend-supported tenant/workspace hint fields available, but the public UI did not collect or submit them, making account recovery less precise for multi-tenant users.
+- Campaign retry/requeue paths scanned job batches too broadly and could publish retry events before proving the batch row was claimed by the current worker.
+- Foundation global-enterprise and performance-ledger helpers allowed nullable workspace predicates to behave like workspace wildcards on workspace-owned surfaces.
+- Product parity docs mixed completed local contracts with broad future parity gaps, making backlog selection less precise.
+- Codex audit/checkpoint state allowed lowercase audit event type drift and left completed 2026-05-22 checkpoints marked in progress.
+
+Fix: added optional trimmed account-recovery hints, switched campaign retry/requeue to bounded claim-before-publish behavior, required trusted workspace context and exact workspace predicates in the foundation helpers, split product docs into completed-local versus future/evidence-bound work, and hardened Codex audit/checkpoint validation.
+
+Validation: focused worker validations passed, the full foundation plus campaign reactor passed, frontend lint/build and marketing Playwright passed, and Codex lifecycle/system validation plus cleanup/monitor checks passed during the pool integration.
+
+Avoidance: public tenant-aware flows should submit backend-supported disambiguation safely, scheduler/retry workers must claim bounded scoped work before events, workspace-owned foundation helpers must not use nullable wildcard predicates, parity docs should separate local evidence from future claims, and Codex validation should guard casing/status drift.
+
 ## 2026-05-22 Route Map Ingress Prefix Coverage
 
 Root cause: `validate-route-map.ps1` checked local Nginx prefix-to-upstream ownership, but Kubernetes ingress validation only warned when a route-map service name was absent from ingress text. Regex-grouped ingress paths could therefore lose or misroute one prefix while validation still passed if the service name appeared elsewhere.
@@ -449,3 +464,339 @@ Root-cause entries must include:
 - validation,
 - prevention,
 - related memory links.
+- 2026-05-22: Campaign send execution loaded campaigns by tenant only after a workspace-scoped batch claim.
+  - Symptom: `SendExecutionService.executeBatch` required the send batch workspace and claimed the batch with tenant/workspace/job/batch scope, but then fetched the campaign by tenant+campaign ID only before rendering and delivery handoff.
+  - Source evidence: `SendExecutionService.java`, `CampaignRepository.java`, and `SendExecutionServiceTest.java`.
+  - Causal chain: send batches gained workspace ownership and scoped claiming, while the campaign lookup kept an older tenant-only repository method. A malformed or legacy batch row could therefore couple a workspace-owned batch to a same-tenant campaign in another workspace.
+  - Fix: replace the tenant-only campaign lookup with `findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull` using the claimed batch workspace, and fail the batch before rendering or send publication if no scoped campaign exists.
+  - Validation: focused regression and full campaign-service test gate passed locally; repo artifact hygiene, Codex validation, and scoped diff checks passed.
+  - Prevention: once a worker claims a workspace-owned lifecycle row, all downstream entity lookups in the send path must keep using that trusted workspace scope before side effects.
+- 2026-05-22: Parallel safe local slices exposed integration-time scope, URL, and release validator gaps.
+  - Symptom: completed slices were individually passing but review found send-time DNS in delivery click rewriting, active-only subscriber-key schema drift between JPA metadata and Flyway, brittle frontend sanitizer/auth tests, and release validators that could miss strict compose safety or per-container production posture.
+  - Source evidence: `OutboundUrlGuard.java`, `ContentProcessingService.java`, `IngestionController.java`, `Subscriber.java`, `V19__workspace_scope_subscriber_key_uniqueness.sql`, frontend auth/sanitize E2E specs, `release-gate.ps1`, `validate-production-overlay.ps1`, and `test-release-evidence-validators.ps1`.
+  - Causal chain: narrow subagent slices fixed local concerns independently, but integration review caught cross-boundary hot-path performance, schema-source-of-truth, test brittleness, and validator false-negative risks before completion.
+  - Fix: add syntax-only URL guard for send-time rewriting, enforce full public URL validation at click redirect, make Flyway the subscriber uniqueness source of truth, harden frontend tests, run compose safety in release-gate, and validate rendered Deployment containers individually.
+  - Validation: focused backend/frontend/release gates, route harnesses, local-only release gate, repo artifact hygiene, Codex validation, and diff checks passed locally.
+  - Prevention: keep integration review as a required step after parallel subagent output; hot-path guards, schema metadata, and release validators need cross-slice review before marking batch work done.
+- 2026-05-22: Backend workspace-scope safety gaps remained in scheduled automation, deliverability domain operations, and content events.
+  - Symptom: schedule trigger jobs could trust stale Quartz data, sender-domain operations could begin from ID lookups without workspace ownership proof, and content template events did not consistently carry envelope workspace scope.
+  - Source evidence: `WorkflowScheduleTriggerJob.java`, `DomainController.java`, `DomainVerificationService.java`, `ContentEventPublisher.java`, `TemplateWorkflowService.java`, `TemplateVersionService.java`, and `EventContractValidator.java`.
+  - Causal chain: earlier tenant/workspace hardening reached primary service APIs, but scheduled jobs, operational side effects, and event-envelope metadata kept older assumptions where tenant ID or object ID was enough.
+  - Fix: load active schedules by schedule+tenant+workspace before publish, resolve sender domains by tenant+workspace+ID before DNS/save/history, pass workspace through content workflow publications, and validate `content.published` workspace metadata in the shared Kafka contract.
+  - Validation: focused automation, deliverability, and content/shared Kafka tests passed; integrated backend module gate passed locally.
+  - Prevention: scheduled jobs, side-effecting service operations, and cross-service events must prove workspace scope at the boundary before context installation or publication.
+- 2026-05-22: Local scouts found remaining unsafe defaults, unbounded fanout, and scope gaps in non-primary paths.
+  - Symptom: platform webhook dispatch loaded every active webhook config and built all dispatch Monos at once; prod runtime guard did not block unsafe `ddl-auto`; Kafka trusted packages could be widened; tracking and delivery outbox publish paths claimed/reloaded by raw ID; frontend treated all `/api/v1/core` requests as workspace optional.
+  - Source evidence: `WebhookDispatcherService.java`, `RuntimeConfigurationGuard.java`, `KafkaConsumerConfig.java`, `TrackingOutboxService.java`, `DeliveryFeedbackOutboxService.java`, and `api-client.ts`.
+  - Causal chain: earlier hardening focused on primary request paths and event contracts, while scheduler/outbox/platform helper paths and frontend preflight rules retained broader or older assumptions.
+  - Fix: page webhook dispatch, reject unsafe production DDL and broad Kafka trust, scope outbox claim/reload by tenant+workspace, and remove broad frontend core workspace-optional matching.
+  - Validation: focused and full touched backend module gates passed; frontend targeted Playwright, lint, and production build passed.
+  - Prevention: helper publishers, outbox pollers, runtime overrides, and frontend client preflight must be included in tenant/workspace and production-safety audits, not just controllers.
+- 2026-05-22: Parallel discovery found secondary scope and boundedness gaps after the primary queue emptied.
+  - Symptom: invitation creation accepted authenticated principals without workspace context; campaign approval mutations loaded approvals by raw ID before workspace proof; campaign dead-letter and automation run/history reads were unbounded; Compose health validation depended on ambient Docker Compose state; frontend treated platform notifications/webhooks as workspace optional.
+  - Source evidence: `AuthController.java`, `CampaignWorkflowService.java`, `CampaignEngineService.java`, `WorkflowStudioService.java`, `validate-compose-health.ps1`, and `api-client.ts`.
+  - Causal chain: previous fixes focused on send execution, scheduler, and outbox paths; operator read paths, admin invitation creation, local validation scripts, and frontend allowlists retained older broad defaults.
+  - Fix: require workspace context before invitation side effects, scope approval lookup through owning campaign workspace, bound DLQ/run/history reads, make Compose health env-file deterministic, and narrow platform frontend preflight.
+  - Validation: combined backend module gate, frontend Playwright/lint/build, Compose health checks, Codex validation, artifact hygiene, and diff check passed locally.
+  - Prevention: when a module is hardened, also audit adjacent read/list endpoints, mutation lookup order, and local validation scripts for boundedness and exact context requirements.
+- 2026-05-22: Public reset credential stayed in the address bar after the frontend captured it.
+  - Symptom: the public reset screen read the credential from query parameters but left the query string visible in browser history/address state.
+  - Source evidence: `frontend/src/components/marketing/PublicAuthViews.tsx` and `frontend/tests/e2e/marketing.spec.ts`.
+  - Causal chain: the page handled credential submission but did not scrub the URL after first capture, and focused marketing E2E coverage did not assert history cleanup or storage boundaries.
+  - Fix: capture the credential once into component state, replace the browser URL with the query-free reset route, preserve missing-credential behavior, and add Playwright assertions for submit payload and storage non-use.
+  - Validation: targeted marketing Playwright, frontend lint, frontend production build, Codex validation, artifact hygiene, and diff check passed locally.
+  - Prevention: public credential-bearing routes should scrub the URL immediately after capture and test both history state and browser-storage boundaries.
+- 2026-05-22: Outbox backlog visibility stopped at publish/retry behavior.
+  - Symptom: tracking and delivery feedback outboxes had durable publish/retry paths but lacked low-cardinality ready-depth and oldest-ready-age metrics, alert rules, dashboard panels, and runbook triage.
+  - Source evidence: `TrackingOutboxService.java`, `DeliveryFeedbackOutboxService.java`, outbox repositories/tests, `prometheus-alerts.yml`, `grafana-legent-overview.json`, and `production-hardening-runbook.md`.
+  - Causal chain: earlier durability and scope fixes improved correctness, but operational evidence still depended on logs/tests and did not expose backlog age/depth for monitoring handoff.
+  - Fix: add queue-only backlog gauges, repository queries for ready count and oldest ready age, focused metric-label tests, Prometheus alerts, Grafana panels, and runbook guidance.
+  - Validation: focused outbox tests, full delivery+tracking backend module gate, production overlay validation, Grafana JSON parse, Codex validation, artifact hygiene, and diff check passed locally.
+  - Prevention: every durable queue/outbox should expose bounded cardinality backlog depth and age metrics before being treated as release-monitorable.
+- 2026-05-22: Admin public-content operations could proceed without full service-level context.
+  - Symptom: admin CMS list/upsert/publish normalized nullable tenant/workspace context and could reach repository methods with missing scope if service code was invoked without the HTTP filter guarantee.
+  - Source evidence: `PublicContentService.java` and `PublicContentServiceTest.java`.
+  - Causal chain: the route-level workspace filter protected the admin path, but the service reused permissive public-read normalization instead of fail-closed context requirements for admin side effects.
+  - Fix: require tenant and workspace context in admin list/upsert/publish before lookup or save, with tests proving no repository interaction when context is missing.
+  - Validation: focused service tests and integrated foundation+content backend gate passed locally.
+  - Prevention: service-level admin/mutation methods should require context even when an HTTP filter also enforces it.
+- 2026-05-22: Template test-send history used an unbounded repository list.
+  - Symptom: template test-send history returned every matching row for a tenant/workspace/template.
+  - Source evidence: `TemplateTestSendService.java`, `TemplateTestSendRecordRepository.java`, and `TemplateTestSendServiceTest.java`.
+  - Causal chain: the endpoint preserved a simple list response shape but never moved the repository query to a bounded page as test-send records accumulated.
+  - Fix: use a bounded first-page `PageRequest` in the service/repository path and add tests for default and max-clamped limits.
+  - Validation: focused content service test and integrated foundation+content backend gate passed locally.
+  - Prevention: operational history/list endpoints should apply default/max limits even when the external response remains a list.
+- 2026-05-22: CI Compose smoke relied on ambient environment discovery.
+  - Symptom: CI used bare Compose config validation while local release gates had moved to an explicit reviewed env-file path.
+  - Source evidence: `.github/workflows/ci-security.yml`, `release-gate.ps1`, and `test-release-evidence-validators.ps1`.
+  - Causal chain: release-gate reproducibility was hardened first, but the CI smoke command still carried older job-level environment assumptions.
+  - Fix: run CI Compose config with the reviewed env-file path and add self-test coverage that fails if CI or release-gate Compose checks drift back to ambient discovery.
+  - Validation: release evidence self-test, Compose safety self-test, Compose safety validation, explicit Compose config, and scoped diff check passed locally.
+  - Prevention: CI smoke gates should use the same reviewed local inputs as release-gate validators.
+- 2026-05-22: Suppression history computed total by loading all rows.
+  - Symptom: `/api/v1/deliverability/suppressions/history` already counted complaint, hard-bounce, and unsubscribe rows with scoped count queries, but computed `total` by loading all tenant/workspace suppression rows and calling `.size()`.
+  - Source evidence: `SuppressionController.java`, `SuppressionListRepository.java`, and `SuppressionControllerTest.java`.
+  - Causal chain: the endpoint started as a small summary but retained an older list-based total even after reason-specific count queries were available.
+  - Fix: add and use `countByTenantIdAndWorkspaceId` for total, preserving response shape and fail-closed tenant/workspace context.
+  - Validation: focused suppression controller tests and full deliverability-service gate passed locally.
+  - Prevention: summary endpoints should use count/aggregate queries rather than materializing rows for totals.
+- 2026-05-22: Template library preferences used global browser-storage keys.
+  - Symptom: favorites and recents could bleed across workspaces because template library state used unscoped local browser-storage keys.
+  - Source evidence: `frontend/src/app/(workspace)/email/templates/page.tsx` and `frontend/tests/e2e/template-builder.spec.ts`.
+  - Causal chain: the template library preference UI was added as a client-side convenience without carrying the active tenant/workspace context into the persistence key.
+  - Fix: scope favorites and recents keys by active tenant/workspace, clear state when context is missing, ignore global legacy keys, and treat corrupt scoped JSON as empty.
+  - Validation: targeted template-builder Playwright, frontend lint, frontend production build, and scoped diff check passed locally.
+  - Prevention: any workspace UI preference persisted in browser storage must include the active routing context or fail closed when context is unavailable.
+- 2026-05-22: Provider-capacity list reads preserved scoped filtering but not bounded reads.
+  - Symptom: the delivery provider-capacity endpoint returned every tenant/workspace profile, which can grow across provider/domain/ISP rules.
+  - Source evidence: `DeliveryOperationsController.java`, `ProviderCapacityService.java`, `ProviderCapacityProfileRepository.java`, and `ProviderCapacityServiceTest.java`.
+  - Causal chain: provider capacity originally exposed a list response shape for operators and kept tenant/workspace scope, but the repository method never accepted a page bound.
+  - Fix: add an optional controller limit, clamp to default/max values in the service, and pass a first-page `PageRequest` to the scoped repository query.
+  - Validation: focused provider-capacity/RBAC tests, full delivery-service gate, and scoped diff check passed locally.
+  - Prevention: operator list endpoints should preserve scope and response contracts while still enforcing default/max repository bounds.
+- 2026-05-22: Audience async import processing reloaded jobs by raw ID after scoped creation.
+  - Symptom: import creation/start was tenant/workspace scoped, but async processing and transactional progress/completion/failure paths reloaded by raw job ID.
+  - Source evidence: `ImportProcessingService.java`, `ImportService.java`, and import service tests.
+  - Causal chain: the async worker originally inferred tenant/workspace from the first raw job load, leaving later reloads and cancellation checks on the older ID-only path.
+  - Fix: pass trusted tenant/workspace scope into async processing and use scoped job lookups before storage, save, event, or context side effects.
+  - Validation: focused import tests and integrated backend gate passed locally.
+  - Prevention: async workers should receive trusted scope from the caller and never infer scope from a raw ID lookup.
+- 2026-05-22: Reputation recovery used an all-row scheduled scan.
+  - Symptom: scheduled deliverability reputation recovery loaded every domain reputation row before applying recovery checks.
+  - Source evidence: `ReputationEngine.java`, `DomainReputationRepository.java`, and `ReputationEngineTest.java`.
+  - Causal chain: the hourly recovery job was written for simple iteration and never moved to bounded paging as scoped domain reputation rows grew.
+  - Fix: read deterministic fixed-size pages and apply the existing recovery logic per page.
+  - Validation: focused reputation engine tests and integrated backend gate passed locally.
+  - Prevention: scheduled maintenance jobs must use bounded reads even when per-row behavior is unchanged.
+- 2026-05-22: Operations assistance persisted broad telemetry maps.
+  - Symptom: deterministic operations assistance accepted and persisted arbitrary telemetry JSON after normal request handling.
+  - Source evidence: `OperationsAssistanceService.java` and `OperationsAssistancePerformanceServiceTest.java`.
+  - Causal chain: governance docs existed, but this local assistance surface had not enforced workspace context plus telemetry minimization before persistence.
+  - Fix: require workspace context, reject restricted telemetry-key shapes recursively, and persist only allowlisted operational fields.
+  - Validation: focused foundation tests and integrated backend gate passed locally.
+  - Prevention: deterministic assistance surfaces should apply data minimization before persistence, even before any external provider integration exists.
+- 2026-05-22: Observability handoff validation stopped at alert runbook links.
+  - Symptom: local validation checked alert runbook URLs but did not prove alert ownership, routing, receiver resolution, or dashboard panel references.
+  - Source evidence: `validate-production-overlay.ps1`, `prometheus-alerts.yml`, `alertmanager.yml`, `grafana-legent-overview.json`, and the production hardening runbook.
+  - Causal chain: earlier observability hardening added metrics and alerts, while local handoff validation did not yet cover the route/dashboard/runbook chain operators need.
+  - Fix: validate team labels, Alertmanager routes and receivers, runbook anchors, Grafana UID/panel references, and receiver settings locally.
+  - Validation: production overlay validation, release evidence self-test, local-only release gate, and scoped diff check passed locally.
+  - Prevention: alert rules should ship with locally validated ownership, routing, dashboard, and runbook references before target firing evidence is collected.
+- 2026-05-22: Data-extension controller pagination accepted unsafe page and size params.
+  - Symptom: data-extension list and record reads could receive negative page values or excessive sizes from controller request params.
+  - Source evidence: `DataExtensionController.java` and `DataExtensionControllerTest.java`.
+  - Causal chain: service-level scoping was preserved, but controller param normalization lagged behind newer bounded-read conventions.
+  - Fix: clamp negative pages to the first page, invalid sizes to the default, and excessive sizes to the shared maximum.
+  - Validation: focused controller tests, integrated audience+content backend gate, and scoped diff check passed locally.
+  - Prevention: controller read endpoints should normalize page and size before constructing service requests.
+- 2026-05-22: Scheduled segment recompute scanned candidate rows without a page boundary.
+  - Symptom: scheduled segment recompute could iterate all due segments in one repository read.
+  - Source evidence: `SegmentEvaluationService.java`, `SegmentRepository.java`, and `SegmentEvaluationServiceTest.java`.
+  - Causal chain: manual segment evaluation behavior had focused correctness coverage, while the scheduled maintenance path retained the simpler all-candidate scan.
+  - Fix: scan due segment candidates in deterministic bounded pages and route each row through existing recompute behavior with context handling.
+  - Validation: focused segment tests, integrated audience+content backend gate, and scoped diff check passed locally.
+  - Prevention: scheduled maintenance scans should use deterministic page boundaries even when per-row business behavior is unchanged.
+- 2026-05-22: Send-governance policy listing trusted raw page and size params.
+  - Symptom: send-governance policy list reads could accept invalid or excessive pagination params at the controller boundary.
+  - Source evidence: `SendGovernancePolicyController.java` and `SendGovernancePolicyControllerTest.java`.
+  - Causal chain: the endpoint already kept scope and method security, but request-param bounds were not centralized at the controller boundary.
+  - Fix: clamp page and size params to safe defaults and maximums before repository-facing list requests.
+  - Validation: focused controller tests, integrated audience+content backend gate, and scoped diff check passed locally.
+  - Prevention: operator list endpoints should apply page/size guards at the public controller boundary while keeping service-level scope authoritative.
+- 2026-05-22: Startup tenant bootstrap loaded all tenants before queuing missing bootstrap work.
+  - Symptom: `TenantBootstrapInitializer` used an all-row tenant read during application-ready startup.
+  - Source evidence: `TenantBootstrapInitializer.java`, `TenantRepository.java`, and `TenantBootstrapInitializerTest.java`.
+  - Causal chain: bootstrap initialization was simple and correctness-focused, while tenant-count growth and active/deleted filtering were handled elsewhere through paged repository patterns.
+  - Fix: scan active non-deleted tenants in deterministic bounded pages and preserve the existing bootstrap-status skip plus request payload.
+  - Validation: focused bootstrap tests, integrated foundation+content+platform backend gate, and scoped diff check passed locally.
+  - Prevention: startup initializers should use bounded repository scans and active/deleted filters before queuing side effects.
+- 2026-05-22: Platform global search returned all matching scoped rows.
+  - Symptom: workspace-scoped search used a list repository method without a result bound.
+  - Source evidence: `GlobalSearchService.java`, `SearchIndexDocRepository.java`, and `GlobalSearchServiceTest.java`.
+  - Causal chain: the service preserved tenant/workspace filtering and a list response shape, but the repository signature predated bounded-read conventions.
+  - Fix: use a bounded first-page repository query and return page content as the existing list shape.
+  - Validation: focused search tests, integrated foundation+content+platform backend gate, and scoped diff check passed locally.
+  - Prevention: search endpoints should preserve scope and response shape while applying explicit default/max result bounds.
+- 2026-05-22: Unread notification reads were scoped but unbounded.
+  - Symptom: unread notification lookup filtered by tenant/workspace/user but could return all unread rows.
+  - Source evidence: `NotificationEngine.java`, `NotificationRepository.java`, and `NotificationEngineTest.java`.
+  - Causal chain: ownership validation was implemented first, while result-count bounds were left to the list response path.
+  - Fix: read the newest unread notifications through a bounded first-page request while keeping create and mark-read behavior unchanged.
+  - Validation: focused notification tests, integrated foundation+content+platform backend gate, and scoped diff check passed locally.
+  - Prevention: scoped user-facing list reads still need explicit bounded repository access.
+- 2026-05-22: Template list/search controls had partial bounds.
+  - Symptom: template list clamped only oversize values and template search returned all matching names.
+  - Source evidence: `TemplateController.java`, `TemplateService.java`, `EmailTemplateRepository.java`, `TemplateServiceTest.java`, and `TemplateControllerTest.java`.
+  - Causal chain: template list/search behavior preserved tenant/workspace scope and response contracts, but invalid page/size and search-result limits were not consistently normalized.
+  - Fix: clamp list page/size params and bound template search with a first-page repository query.
+  - Validation: focused content tests, integrated foundation+content+platform backend gate, and scoped diff check passed locally.
+  - Prevention: list and search endpoints should normalize page/size inputs and apply search bounds even when returning a simple list.
+- 2026-05-22: Provider health monitoring used unbounded active-provider and history reads.
+  - Symptom: scheduled provider health monitoring could load every active provider and every recent provider health check before computing consecutive failures.
+  - Source evidence: `ProviderHealthMonitoringService.java`, `SmtpProviderRepository.java`, `ProviderHealthCheckRepository.java`, and `ProviderHealthMonitoringServiceTest.java`.
+  - Causal chain: health monitoring preserved workspace ownership but retained simple list repository methods from the initial operator implementation.
+  - Fix: use deterministic ID-page active-provider scans and bounded newest-first recent history reads.
+  - Validation: focused provider health tests and the integrated backend service gate passed locally.
+  - Prevention: scheduled provider maintenance paths need bounded scans and bounded per-provider history windows.
+- 2026-05-22: Campaign experiment winner evaluation scanned all active experiments.
+  - Symptom: scheduled experiment evaluation could materialize every active experiment before winner checks.
+  - Source evidence: `CampaignEngineService.java`, `CampaignExperimentRepository.java`, and `CampaignEngineServiceTest.java`.
+  - Causal chain: winner-promotion correctness existed, but the scheduler had not been moved to bounded repository access.
+  - Fix: scan active experiments in deterministic bounded pages while preserving winner-selection behavior.
+  - Validation: focused campaign engine tests and the integrated backend service gate passed locally.
+  - Prevention: scheduled campaign maintenance work should use page/cursor boundaries even when business logic remains unchanged.
+- 2026-05-22: Suppression list endpoints exposed scoped but unbounded list reads.
+  - Symptom: public and internal suppression list paths could return every tenant/workspace suppression row.
+  - Source evidence: `SuppressionController.java`, `SuppressionListRepository.java`, `SuppressionControllerTest.java`, and `DomainControllerRbacTest.java`.
+  - Causal chain: suppression safety focused on scope, bulk check, and history behavior before operator list bounds were added.
+  - Fix: add optional bounded list limits, clamp defaults/max values, and align internal guard reflection coverage with the bounded signature.
+  - Validation: focused suppression/RBAC tests and the integrated backend service gate passed locally.
+  - Prevention: deliverability list endpoints should always pair scope with explicit default/max result bounds.
+- 2026-05-22: Tracking campaign summary list was scoped but unbounded.
+  - Symptom: analytics campaign summary listing could return every scoped summary row.
+  - Source evidence: `AnalyticsController.java`, `CampaignSummaryRepository.java`, and `AnalyticsControllerTest.java`.
+  - Causal chain: tenant/workspace filters were in place, but list response compatibility hid the lack of repository-level bounds.
+  - Fix: read a bounded first page through the scoped repository and preserve the existing list response shape.
+  - Validation: focused analytics controller tests and the integrated backend service gate passed locally.
+  - Prevention: analytics list endpoints should expose explicit result bounds even for existing list-shaped contracts.
+- 2026-05-22: Warmup and rate-state operator endpoints listed all scoped state rows.
+  - Symptom: delivery operator warmup and rate-state endpoints used scoped repository reads without a row limit.
+  - Source evidence: `DeliveryOperationsController.java`, `WarmupService.java`, `SendRateControlService.java`, warmup/rate repositories, and delivery tests.
+  - Causal chain: hot-path reservations were implemented separately from operator read paths, leaving state-list views with the older all-row access pattern.
+  - Fix: add optional limit params and clamp service-level first-page reads to default/max bounds.
+  - Validation: focused warmup/rate tests and the integrated backend service gate passed locally.
+  - Prevention: operator state endpoints should use bounded first pages and only add deeper navigation as an explicit API contract.
+- 2026-05-22: Admin settings list scanned all config rows in memory.
+  - Symptom: foundation admin settings listing used `findAll()` and filtered tenant/context visibility in service memory.
+  - Source evidence: `AdminSettingsService.java`, `ConfigRepository.java`, and `AdminSettingsServiceTest.java`.
+  - Causal chain: visibility logic lived in service code and was never pushed into a scoped pageable repository query.
+  - Fix: add a scoped visible-settings repository query and page through results in bounded chunks.
+  - Validation: focused admin settings tests and the integrated backend service gate passed locally.
+  - Prevention: admin configuration listings should push tenant/context filters into repository queries and page the result set.
+- 2026-05-22: Campaign batch execution still had a tenant-only fallback.
+  - Symptom: direct batch execution without workspace context could fall back to `findById()` plus tenant filtering.
+  - Source evidence: `SendExecutionService.java`, `SendExecutionServiceTest.java`, and `CampaignEventConsumerTest.java`.
+  - Causal chain: retry support retained a legacy tenant-only lookup after batch ownership moved to tenant/workspace scope.
+  - Fix: require workspace context before batch lookup and keep event consumer coverage for tenant/workspace context setup.
+  - Validation: focused campaign tests and the integrated backend reactor gate passed locally.
+  - Prevention: send execution entry points should fail closed before repository access when workspace context is missing.
+- 2026-05-22: Conversion ingestion lacked method-level write authorization.
+  - Symptom: `POST /api/v1/tracking/events` depended on route/security configuration without a controller method guard.
+  - Source evidence: `IngestionController.java` and tracking controller RBAC tests.
+  - Causal chain: public signed open/click endpoints and authenticated conversion ingestion lived in the same controller, but only the public paths had explicit signed-route behavior documented in tests.
+  - Fix: require tracking or analytics write permission on conversion ingestion and keep open/click methods public.
+  - Validation: focused tracking tests and the integrated backend reactor gate passed locally.
+  - Prevention: mixed public/protected controllers need method-level authorization coverage for every protected write.
+- 2026-05-22: Backend sanitizer preserved blank-target links without safe rel normalization.
+  - Symptom: sanitized anchors could retain `target="_blank"` without guaranteed `noopener noreferrer`.
+  - Source evidence: `EmailContentValidationService.java` and `EmailContentValidationServiceTest.java`.
+  - Causal chain: allowed-attribute filtering covered `target`, but rel normalization was not paired with new browsing-context behavior.
+  - Fix: add safe rel values for blank-target anchors while preserving approved rel tokens and dropping unsafe tokens.
+  - Validation: focused content sanitizer tests and the integrated backend reactor gate passed locally.
+  - Prevention: sanitizer changes should couple target/window behavior with rel and URL policy tests.
+- 2026-05-22: Automation and webhook list APIs preserved list contracts without repository bounds.
+  - Symptom: workflow, schedule, activity, and webhook admin listing paths used scoped but unbounded list repository methods.
+  - Source evidence: automation services/repositories/tests and `WebhookController`/`WebhookConfigRepository` tests.
+  - Causal chain: tenant/workspace scoping existed, but list response compatibility hid missing first-page bounds.
+  - Fix: move list APIs to scoped first-page repository access; automation cycle validation now follows scoped dependency IDs instead of scanning all activities.
+  - Validation: focused automation/platform tests and the integrated backend reactor gate passed locally.
+  - Prevention: list-shaped compatibility endpoints still require explicit default/max repository bounds.
+- 2026-05-22: Compose safety validation missed high-risk runtime settings.
+  - Symptom: local Compose validator covered image/config hygiene but not privileged runtime, host namespaces, Docker control socket binds, or broad capability additions.
+  - Source evidence: `validate-compose-safety.ps1` and `test-release-evidence-validators.ps1`.
+  - Causal chain: earlier release validation focused on evidence and image/config inputs before runtime hardening checks were added.
+  - Fix: reject the high-risk settings and run the Compose safety self-test from release evidence validator self-tests.
+  - Validation: Compose safety self-test, release evidence validator self-test, and scoped diff check passed locally.
+  - Prevention: release validators should include negative fixtures for unsafe local runtime capabilities.
+- 2026-05-22: Frontend context bootstrap ignored preferred environment ID.
+  - Symptom: auth context selection considered tenant/workspace preference but not preferred environment when multiple workspace contexts existed.
+  - Source evidence: `context-bootstrap.ts` and `context-bootstrap.spec.ts`.
+  - Causal chain: environment context persisted after workspace context was added, but bootstrap matching logic was not upgraded to use it as a tie breaker.
+  - Fix: match preferred environment inside tenant/workspace candidates with deterministic fallback.
+  - Validation: frontend lint, production build, and context Playwright passed locally.
+  - Prevention: context bootstrap tests should cover tenant, workspace, and environment together.
+- 2026-05-22: DMARC and template approval history were scoped but unbounded.
+  - Symptom: DMARC report history and content template approval history could return all scoped rows.
+  - Source evidence: `DmarcController.java`, `DmarcReportRepository.java`, `TemplateWorkflowService.java`, `TemplateApprovalRepository.java`, and focused tests.
+  - Causal chain: tenant/workspace/RBAC behavior existed before row-count bounds were added to these operator history surfaces.
+  - Fix: use bounded first-page repository reads with default and max limits while preserving list responses.
+  - Validation: focused worker tests and the integrated backend reactor gate passed locally.
+  - Prevention: history/list endpoints need explicit default and max bounds even when preserving legacy list response shapes.
+- 2026-05-22: Feature flag admin paths and notification routes had implicit context/auth assumptions.
+  - Symptom: feature flag admin list/create could reach service code without trusted tenant context, and notification endpoints lacked explicit method authorization.
+  - Source evidence: `FeatureFlagController.java`, `NotificationController.java`, and controller/service tests.
+  - Causal chain: filters and service scoping protected normal paths, but controller-level fail-closed and method-auth coverage lagged behind stricter tenant/auth conventions.
+  - Fix: require tenant context before feature flag admin list/create and add authenticated method guards to notification read/mark-read.
+  - Validation: focused worker tests and the integrated backend reactor gate passed locally.
+  - Prevention: protected controller methods should declare auth/context requirements close to the endpoint and test missing-context behavior.
+- 2026-05-22: Route-map negative fixtures did not cover tracking policy drift broadly enough.
+  - Symptom: route-map validation could pass live config but fixture coverage did not explicitly test several tracking route or ingress-policy regressions.
+  - Source evidence: `test-route-map-validator.ps1` and `validate-route-map.ps1`.
+  - Causal chain: prior validator work covered main route drift first, leaving additional policy-specific regressions to future fixture expansion.
+  - Fix: add tracking-focused negative fixtures and emit accumulated validation errors before exit.
+  - Validation: route-map fixture harness and live route validation passed locally.
+  - Prevention: validators should keep negative fixtures for route aliases, edge policy, and ingress prefix coverage.
+- 2026-05-22: Login could leave stale client context after backend auth succeeded but workspace bootstrap failed.
+  - Symptom: local user, role, tenant, workspace, or environment metadata could survive a post-login context bootstrap failure.
+  - Source evidence: `PublicAuthViews.tsx` and `auth.spec.ts`.
+  - Causal chain: UI metadata was written before active workspace context was confirmed.
+  - Fix: clear local auth/context state before bootstrap, write session metadata only after valid workspace context, and use the same cleanup on bootstrap failure.
+  - Validation: frontend lint, production build, and auth Playwright passed locally.
+  - Prevention: public auth flows should treat workspace bootstrap as part of the local-auth success boundary.
+- 2026-05-22: Analytics and version/history/admin list surfaces preserved list contracts without explicit bounds.
+  - Symptom: tracking analytics rollups/timelines, content template versions, and identity user/invitation admin lists could read unbounded scoped result sets.
+  - Source evidence: `AnalyticsService.java`, `TemplateVersionService.java`, `UserService.java`, `AuthService.java`, and focused tests.
+  - Causal chain: tenant/workspace scoping was implemented before default/max result bounds were consistently applied to legacy list-shaped APIs.
+  - Fix: add bounded windows, bucket caps, first-page reads, and optional limit parameters while preserving existing response shapes.
+  - Validation: focused worker tests and integrated backend reactor gate passed locally.
+  - Prevention: every list-shaped compatibility endpoint needs a default/max bound even when pagination metadata is not yet added.
+- 2026-05-22: Config version controller read/mutation paths trusted ambient tenant context too late.
+  - Symptom: config version history, compare, and rollback could call service methods with missing tenant context.
+  - Source evidence: `ConfigVersionController.java` and `ConfigVersionControllerTest.java`.
+  - Causal chain: scoped service logic existed, but controller entry points did not fail closed before service invocation.
+  - Fix: require tenant context at controller entry for all config version endpoints and prove no service interaction when missing.
+  - Validation: focused foundation tests and integrated backend reactor gate passed locally.
+  - Prevention: protected controller paths should enforce required context before any service call.
+- 2026-05-22: CI did not execute new local route and Compose safety harnesses.
+  - Symptom: local validator hardening existed but was not wired into the GitHub Actions compose smoke lane.
+  - Source evidence: `.github/workflows/ci-security.yml`, `test-route-map-validator.ps1`, and `validate-compose-safety.ps1`.
+  - Causal chain: validator scripts were improved locally before CI orchestration was updated to run them.
+  - Fix: add CI steps for route-map fixture validation and Compose safety self-test/validation using portable PowerShell child execution.
+  - Validation: local route-map fixture/live validation and Compose safety gates passed.
+  - Prevention: every new release/safety validator should be wired into CI or explicitly documented as local-only.
+- 2026-05-22: Compliance evidence treated missing workspace context as broad scope.
+  - Symptom: compliance evidence surfaces could reach repository reads or writes without a trusted workspace in context.
+  - Source evidence: `ComplianceEvidenceService.java`, `ComplianceController.java`, and `ComplianceEvidenceServiceTest.java`.
+  - Causal chain: earlier compliance hardening focused on tenant and privacy-request mutation paths while list/export/create paths still allowed nullable workspace behavior.
+  - Fix: require current workspace context, reject explicit workspace mismatch, and use exact workspace predicates before repository access.
+  - Validation: focused worker tests and integrated foundation/tracking/deliverability/content backend gate passed locally.
+  - Prevention: compliance surfaces should require tenant and workspace context at entry unless a separate tenant-global policy is designed.
+- 2026-05-22: Tracking WebSocket handshake accepted request headers as scope fallback.
+  - Symptom: authenticated WebSocket handshakes without principal workspace context could derive tenant/workspace from upgrade headers.
+  - Source evidence: `TenantHandshakeInterceptor.java` and `TenantHandshakeInterceptorTest.java`.
+  - Causal chain: the interceptor supported multiple transport-context sources, but trusted authenticated scope and request metadata were not clearly separated.
+  - Fix: remove header fallback and keep scope resolution to authenticated context or signed query scope.
+  - Validation: focused worker tests and integrated backend gate passed locally.
+  - Prevention: upgrade request headers must not become tenant/workspace authority for protected channels.
+- 2026-05-22: Reputation and content-block version reads preserved list contracts without bounds.
+  - Symptom: deliverability reputation/insight reads and content block version listing/publish cleanup could materialize larger scoped result sets than needed.
+  - Source evidence: deliverability reputation controller/service/repository tests and content block service/repository tests.
+  - Causal chain: tenant/workspace scope existed, but legacy list-shaped APIs predated consistent default/max repository bounds.
+  - Fix: add bounded first-page queries, default/max limit normalization, and scoped bulk cleanup where safe.
+  - Validation: focused worker tests and integrated backend gate passed locally.
+  - Prevention: compatibility list APIs still need explicit repository-level bounds.
+- 2026-05-22: Frontend public API helpers did not share the core origin guard.
+  - Symptom: public helper calls could be constructed with external absolute URLs before adapter dispatch.
+  - Source evidence: `api-client.ts` and `api-client-context.spec.ts`.
+  - Causal chain: credentialed API calls had stricter preflight than unauthenticated public helpers.
+  - Fix: route public helper targets through the same origin guard while keeping public calls credentialless and header-free.
+  - Validation: frontend lint, production build, and API-client Playwright passed locally.
+  - Prevention: all frontend request helpers should guard origin before adapter dispatch, regardless of auth mode.
+- 2026-05-22: Release validators assumed Windows PowerShell child execution and missed CI coverage for compose health parser behavior.
+  - Symptom: local release utility child processes used a hardcoded executable name, and CI did not exercise compose health self-test logic.
+  - Source evidence: `release-gate.ps1`, `test-release-evidence-validators.ps1`, `validate-compose-health.ps1`, and `.github/workflows/ci-security.yml`.
+  - Causal chain: the validation scripts were Windows-first and parser self-tests were local-only.
+  - Fix: reuse the active PowerShell executable where possible, improve child-process capture, add health parser self-tests, and wire them into CI.
+  - Validation: release evidence validator self-test, local release gate, compose health/safety validators, and route validators passed locally.
+  - Prevention: ops validators should self-test parser behavior and avoid hardcoded shell assumptions.

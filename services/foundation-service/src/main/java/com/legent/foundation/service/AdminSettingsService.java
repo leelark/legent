@@ -11,6 +11,9 @@ import com.legent.foundation.repository.ConfigRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,15 +23,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminSettingsService {
 
+    private static final int LIST_SETTINGS_PAGE_SIZE = 200;
     private static final Set<String> SUPPORTED_VALUE_TYPES = Set.of("STRING", "INTEGER", "BOOLEAN", "JSON", "DECIMAL");
     private static final Set<String> SUPPORTED_SCOPE_TYPES = Set.of(
             ConfigService.SCOPE_GLOBAL,
@@ -51,23 +53,31 @@ public class AdminSettingsService {
         String moduleFilter = normalize(module);
         String categoryFilter = normalize(category);
         String scopeFilter = normalizeUpper(scope);
+        if (scopeFilter != null && !SUPPORTED_SCOPE_TYPES.contains(scopeFilter)) {
+            return List.of();
+        }
 
-        return configRepository.findAll().stream()
-                .filter(config -> config.getDeletedAt() == null)
-                .filter(config -> tenantMatch(config, tenantId))
-                .filter(config -> moduleFilter == null || moduleFilter.equalsIgnoreCase(config.getModuleKey()))
-                .filter(config -> categoryFilter == null || categoryFilter.equalsIgnoreCase(config.getCategory()))
-                .filter(config -> scopeFilter == null || (config.getScopeType() != null && scopeFilter.equals(config.getScopeType().name())))
-                .filter(config -> isVisibleForContext(config, workspaceId, environmentId))
-                .map(this::toEntry)
-                .sorted((a, b) -> {
-                    int moduleCompare = safe(a.getModule()).compareToIgnoreCase(safe(b.getModule()));
-                    if (moduleCompare != 0) {
-                        return moduleCompare;
-                    }
-                    return safe(a.getKey()).compareToIgnoreCase(safe(b.getKey()));
-                })
-                .collect(Collectors.toList());
+        SystemConfig.ScopeType scopeType = scopeFilter == null ? null : SystemConfig.ScopeType.valueOf(scopeFilter);
+        List<AdminSettingsDto.Entry> entries = new ArrayList<>();
+        Pageable pageable = PageRequest.of(0, LIST_SETTINGS_PAGE_SIZE);
+        Page<SystemConfig> page;
+        do {
+            page = configRepository.findVisibleSettings(
+                    tenantId,
+                    workspaceId,
+                    environmentId,
+                    moduleFilter,
+                    categoryFilter,
+                    scopeType,
+                    List.of(SystemConfig.ScopeType.GLOBAL, SystemConfig.ScopeType.TENANT),
+                    SystemConfig.ScopeType.WORKSPACE,
+                    SystemConfig.ScopeType.ENVIRONMENT,
+                    pageable
+            );
+            page.getContent().stream().map(this::toEntry).forEach(entries::add);
+            pageable = page.nextPageable();
+        } while (page.hasNext());
+        return entries;
     }
 
     @Transactional(readOnly = true)
@@ -400,25 +410,6 @@ public class AdminSettingsService {
         return ConfigService.SCOPE_GLOBAL;
     }
 
-    private boolean tenantMatch(SystemConfig config, String tenantId) {
-        if (config.getTenantId() == null) {
-            return true;
-        }
-        return Objects.equals(config.getTenantId(), tenantId);
-    }
-
-    private boolean isVisibleForContext(SystemConfig config, String workspaceId, String environmentId) {
-        if (config.getScopeType() == null) {
-            return true;
-        }
-        return switch (config.getScopeType()) {
-            case GLOBAL, TENANT -> true;
-            case WORKSPACE -> Objects.equals(config.getWorkspaceId(), workspaceId);
-            case ENVIRONMENT -> Objects.equals(config.getWorkspaceId(), workspaceId)
-                    && Objects.equals(config.getEnvironmentId(), environmentId);
-        };
-    }
-
     private void validateType(String type, String value, List<String> errors) {
         try {
             switch (type) {
@@ -462,10 +453,6 @@ public class AdminSettingsService {
             return List.of();
         }
         return value;
-    }
-
-    private String safe(String value) {
-        return value == null ? "" : value;
     }
 
     private String normalize(String value) {

@@ -1,0 +1,26 @@
+{
+    "id":  "tracking-conversion-rbac-write-guard",
+    "createdAt":  "2026-05-22T18:55:03.4038168Z",
+    "objective":  "Add method RBAC to tracking conversion ingestion",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/controller/IngestionController.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/controller/IngestionControllerTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/controller/TrackingAnalyticsControllerRbacTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -Dtest=IngestionControllerTest",
+                           "TrackingAnalyticsControllerRbacTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/tracking-service/src/main/java/com/legent/tracking/controller/IngestionController.java services/tracking-service/src/test/java/com/legent/tracking/controller/IngestionControllerTest.java services/tracking-service/src/test/java/com/legent/tracking/controller/TrackingAnalyticsControllerRbacTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by current pool validation; continue pending scan."
+}

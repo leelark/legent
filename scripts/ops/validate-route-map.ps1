@@ -437,7 +437,7 @@ if (Test-Path $IngressPath) {
 }
 
 if ($errors.Count -gt 0) {
-    $errors | ForEach-Object { Write-Error $_ }
+    $errors | ForEach-Object { Write-Error $_ -ErrorAction Continue }
     exit 1
 }
 

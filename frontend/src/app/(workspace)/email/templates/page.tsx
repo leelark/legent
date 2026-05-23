@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/Badge';
 import { ActionBar, MetricCard, PageHeader, Panel } from '@/components/ui/PageChrome';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
+import { TENANT_STORAGE_KEY, WORKSPACE_STORAGE_KEY } from '@/lib/auth';
 import {
   Template,
   archiveTemplate,
@@ -65,6 +66,15 @@ type ApiErrorLike = {
   message?: unknown;
 };
 
+type TemplatePreferenceKeys = {
+  scope: string;
+  favorites: string;
+  recent: string;
+};
+
+const TEMPLATE_FAVORITES_PREFIX = 'template_favorites';
+const TEMPLATE_RECENT_PREFIX = 'template_recent';
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
@@ -83,6 +93,34 @@ function asArray<T>(value: unknown): T[] {
     return value.data as T[];
   }
   return [];
+}
+
+function normalizeContextValue(value: string | null) {
+  const normalized = value?.trim();
+  return normalized ? normalized : null;
+}
+
+function scopedPreferenceKey(prefix: string, tenantId: string, workspaceId: string) {
+  return `${prefix}:${encodeURIComponent(tenantId)}:${encodeURIComponent(workspaceId)}`;
+}
+
+function getTemplatePreferenceKeys(): TemplatePreferenceKeys | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  const tenantId = normalizeContextValue(localStorage.getItem(TENANT_STORAGE_KEY));
+  const workspaceId = normalizeContextValue(localStorage.getItem(WORKSPACE_STORAGE_KEY));
+  if (!tenantId || !workspaceId) {
+    return null;
+  }
+
+  const scope = `${tenantId}::${workspaceId}`;
+  return {
+    scope,
+    favorites: scopedPreferenceKey(TEMPLATE_FAVORITES_PREFIX, tenantId, workspaceId),
+    recent: scopedPreferenceKey(TEMPLATE_RECENT_PREFIX, tenantId, workspaceId),
+  };
 }
 
 function readStoredIds(key: string) {
@@ -142,6 +180,7 @@ export default function EmailTemplatesPage() {
 
   const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
   const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [preferenceScope, setPreferenceScope] = useState<string | null>(null);
 
   const loadTemplates = useCallback(async () => {
     setLoading(true);
@@ -160,11 +199,31 @@ export default function EmailTemplatesPage() {
     }
   }, [addToast]);
 
+  const loadStoredPreferences = useCallback(() => {
+    const keys = getTemplatePreferenceKeys();
+    if (!keys) {
+      setPreferenceScope(null);
+      setFavoriteIds([]);
+      setRecentIds([]);
+      return;
+    }
+
+    setPreferenceScope(keys.scope);
+    setFavoriteIds(readStoredIds(keys.favorites));
+    setRecentIds(readStoredIds(keys.recent));
+  }, []);
+
   useEffect(() => {
-    setFavoriteIds(readStoredIds('template_favorites'));
-    setRecentIds(readStoredIds('template_recent'));
+    loadStoredPreferences();
     void loadTemplates();
-  }, [loadTemplates]);
+  }, [loadStoredPreferences, loadTemplates]);
+
+  useEffect(() => {
+    const keys = getTemplatePreferenceKeys();
+    if ((keys?.scope ?? null) !== preferenceScope) {
+      loadStoredPreferences();
+    }
+  });
 
   const categories = useMemo(() => {
     const values = Array.from(new Set(templates.map((template) => template.category).filter(Boolean)));
@@ -217,22 +276,47 @@ export default function EmailTemplatesPage() {
   }, [templates]);
 
   const persistFavorites = (nextIds: string[]) => {
+    const keys = getTemplatePreferenceKeys();
+    if (!keys) {
+      setPreferenceScope(null);
+      setFavoriteIds([]);
+      return;
+    }
+
+    setPreferenceScope(keys.scope);
     setFavoriteIds(nextIds);
-    localStorage.setItem('template_favorites', JSON.stringify(nextIds));
+    localStorage.setItem(keys.favorites, JSON.stringify(nextIds));
   };
 
   const toggleFavorite = (templateId: string) => {
-    if (favoriteIds.includes(templateId)) {
-      persistFavorites(favoriteIds.filter((id) => id !== templateId));
+    const keys = getTemplatePreferenceKeys();
+    if (!keys) {
+      setPreferenceScope(null);
+      setFavoriteIds([]);
+      return;
+    }
+
+    const currentIds = keys.scope === preferenceScope ? favoriteIds : readStoredIds(keys.favorites);
+    if (currentIds.includes(templateId)) {
+      persistFavorites(currentIds.filter((id) => id !== templateId));
     } else {
-      persistFavorites([...favoriteIds, templateId]);
+      persistFavorites([...currentIds, templateId]);
     }
   };
 
   const markRecent = (templateId: string) => {
-    const next = [templateId, ...recentIds.filter((id) => id !== templateId)].slice(0, 20);
+    const keys = getTemplatePreferenceKeys();
+    if (!keys) {
+      setPreferenceScope(null);
+      setRecentIds([]);
+      return;
+    }
+
+    const currentIds = keys.scope === preferenceScope ? recentIds : readStoredIds(keys.recent);
+    const next = [templateId, ...currentIds.filter((id) => id !== templateId)].slice(0, 20);
+    setPreferenceScope(keys.scope);
     setRecentIds(next);
-    localStorage.setItem('template_recent', JSON.stringify(next));
+    localStorage.setItem(keys.recent, JSON.stringify(next));
   };
 
   const handleCreateBlank = async () => {

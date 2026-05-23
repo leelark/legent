@@ -6,6 +6,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -18,6 +19,13 @@ import java.util.StringJoiner;
 @Service
 @RequiredArgsConstructor
 public class AnalyticsService {
+    static final int DEFAULT_TIMELINE_BUCKET_LIMIT = 168;
+    static final int MAX_TIMELINE_BUCKET_LIMIT = 744;
+    static final int DEFAULT_HOUR_ROLLUP_BUCKET_LIMIT = 168;
+    static final int DEFAULT_DAY_ROLLUP_BUCKET_LIMIT = 90;
+    static final int MAX_HOUR_ROLLUP_BUCKET_LIMIT = 744;
+    static final int MAX_DAY_ROLLUP_BUCKET_LIMIT = 366;
+
     private final JdbcTemplate jdbcTemplate;
 
     public List<Map<String, Object>> getEventCounts(String tenantId, String workspaceId) {
@@ -39,6 +47,15 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getEventTimeline(String tenantId, String workspaceId, String eventType) {
+        return getEventTimeline(tenantId, workspaceId, eventType, null, null, null);
+    }
+
+    public List<Map<String, Object>> getEventTimeline(String tenantId,
+                                                      String workspaceId,
+                                                      String eventType,
+                                                      Instant startAt,
+                                                      Instant endAt,
+                                                      Integer buckets) {
         if (tenantId == null || tenantId.isBlank()
                 || workspaceId == null || workspaceId.isBlank()
                 || eventType == null || eventType.isBlank()) {
@@ -46,14 +63,23 @@ public class AnalyticsService {
             return new ArrayList<>();
         }
         String normalizedEventType = eventType.trim().toUpperCase(java.util.Locale.ROOT);
+        int bucketLimit = boundedLimit(buckets, DEFAULT_TIMELINE_BUCKET_LIMIT, MAX_TIMELINE_BUCKET_LIMIT);
+        TimeWindow timeWindow = boundedTimeWindow(startAt, endAt, Duration.ofHours(bucketLimit));
+        if (timeWindow == null) {
+            log.warn("Invalid event timeline window for tenant {} workspace {} and eventType {}",
+                    tenantId, workspaceId, normalizedEventType);
+            return new ArrayList<>();
+        }
         try {
             return jdbcTemplate.queryForList("""
                 SELECT date_trunc('hour', "timestamp") AS hour, COALESCE(count(*), 0) AS count
                 FROM raw_events
                 WHERE tenant_id = ? AND workspace_id = ? AND event_type = ?
+                  AND "timestamp" >= ? AND "timestamp" <= ?
                 GROUP BY hour
                 ORDER BY hour
-            """, tenantId, workspaceId, normalizedEventType);
+                LIMIT ?
+            """, tenantId, workspaceId, normalizedEventType, timeWindow.startAt(), timeWindow.endAt(), bucketLimit);
         } catch (DataAccessException e) {
             log.error("Failed to query event timeline for tenant {} workspace {} and eventType {}",
                     tenantId, workspaceId, eventType, e);
@@ -136,11 +162,27 @@ public class AnalyticsService {
     }
 
     public List<Map<String, Object>> getRollups(String tenantId, String workspaceId, String campaignId, String grain) {
+        return getRollups(tenantId, workspaceId, campaignId, grain, null, null, null);
+    }
+
+    public List<Map<String, Object>> getRollups(String tenantId,
+                                                String workspaceId,
+                                                String campaignId,
+                                                String grain,
+                                                Instant startAt,
+                                                Instant endAt,
+                                                Integer buckets) {
         if (tenantId == null || tenantId.isBlank() || workspaceId == null || workspaceId.isBlank()) {
             return new ArrayList<>();
         }
         String normalizedGrain = "day".equalsIgnoreCase(grain) ? "day" : "hour";
-        List<Object> params = new ArrayList<>(List.of(tenantId, workspaceId));
+        int bucketLimit = rollupBucketLimit(buckets, normalizedGrain);
+        TimeWindow timeWindow = boundedTimeWindow(startAt, endAt, rollupWindowDuration(normalizedGrain, bucketLimit));
+        if (timeWindow == null) {
+            log.warn("Invalid rollup window for tenant {} workspace {}", tenantId, workspaceId);
+            return new ArrayList<>();
+        }
+        List<Object> params = new ArrayList<>(List.of(tenantId, workspaceId, timeWindow.startAt(), timeWindow.endAt()));
         StringBuilder sql = new StringBuilder("""
                 SELECT campaign_id,
                        date_trunc('%s', "timestamp") AS bucket,
@@ -154,12 +196,14 @@ public class AnalyticsService {
                        COUNT(*) FILTER (WHERE event_type = 'CONVERSION') AS conversions
                 FROM raw_events
                 WHERE tenant_id = ? AND workspace_id = ?
+                  AND "timestamp" >= ? AND "timestamp" <= ?
                 """.formatted(normalizedGrain));
         if (campaignId != null && !campaignId.isBlank()) {
             sql.append(" AND campaign_id = ?");
             params.add(campaignId);
         }
-        sql.append(" GROUP BY campaign_id, bucket ORDER BY bucket DESC, campaign_id");
+        sql.append(" GROUP BY campaign_id, bucket ORDER BY bucket DESC, campaign_id LIMIT ?");
+        params.add(bucketLimit);
         try {
             return jdbcTemplate.queryForList(sql.toString(), params.toArray());
         } catch (DataAccessException e) {
@@ -284,5 +328,38 @@ public class AnalyticsService {
             return "\"" + raw.replace("\"", "\"\"") + "\"";
         }
         return raw;
+    }
+
+    private int rollupBucketLimit(Integer requestedLimit, String normalizedGrain) {
+        if ("day".equals(normalizedGrain)) {
+            return boundedLimit(requestedLimit, DEFAULT_DAY_ROLLUP_BUCKET_LIMIT, MAX_DAY_ROLLUP_BUCKET_LIMIT);
+        }
+        return boundedLimit(requestedLimit, DEFAULT_HOUR_ROLLUP_BUCKET_LIMIT, MAX_HOUR_ROLLUP_BUCKET_LIMIT);
+    }
+
+    private Duration rollupWindowDuration(String normalizedGrain, int bucketLimit) {
+        if ("day".equals(normalizedGrain)) {
+            return Duration.ofDays(bucketLimit);
+        }
+        return Duration.ofHours(bucketLimit);
+    }
+
+    private int boundedLimit(Integer requestedLimit, int defaultLimit, int maxLimit) {
+        if (requestedLimit == null || requestedLimit < 1) {
+            return defaultLimit;
+        }
+        return Math.min(requestedLimit, maxLimit);
+    }
+
+    private TimeWindow boundedTimeWindow(Instant startAt, Instant endAt, Duration defaultWindow) {
+        Instant effectiveEndAt = endAt == null ? Instant.now() : endAt;
+        Instant effectiveStartAt = startAt == null ? effectiveEndAt.minus(defaultWindow) : startAt;
+        if (effectiveStartAt.isAfter(effectiveEndAt)) {
+            return null;
+        }
+        return new TimeWindow(effectiveStartAt, effectiveEndAt);
+    }
+
+    private record TimeWindow(Instant startAt, Instant endAt) {
     }
 }

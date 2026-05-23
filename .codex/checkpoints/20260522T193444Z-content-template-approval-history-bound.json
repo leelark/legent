@@ -1,0 +1,26 @@
+{
+    "id":  "content-template-approval-history-bound",
+    "createdAt":  "2026-05-22T19:34:44.4022207Z",
+    "objective":  "Bound content template approval history reads",
+    "status":  "DONE",
+    "owner":  "CONTENT_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/content-service/src/main/java/com/legent/content/controller/TemplateWorkflowController.java",
+                         "services/content-service/src/main/java/com/legent/content/service/TemplateWorkflowService.java",
+                         "services/content-service/src/main/java/com/legent/content/repository/TemplateApprovalRepository.java",
+                         "services/content-service/src/test/java/com/legent/content/service/TemplateWorkflowServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/content-service -Dtest=TemplateWorkflowServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/content-service/src/main/java/com/legent/content/controller/TemplateWorkflowController.java services/content-service/src/main/java/com/legent/content/service/TemplateWorkflowService.java services/content-service/src/main/java/com/legent/content/repository/TemplateApprovalRepository.java services/content-service/src/test/java/com/legent/content/service/TemplateWorkflowServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed by integrated pool validation; continue pending scan."
+}

@@ -14,6 +14,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PublicContactServiceTest {
 
@@ -26,7 +27,7 @@ class PublicContactServiceTest {
             return saved;
         });
 
-        PublicContactDto.Request request = new PublicContactDto.Request();
+        PublicContactDto.Request request = validRequest();
         request.setName(" Ada Lovelace ");
         request.setWorkEmail(" ADA@Example.COM ");
         request.setCompany(" Legent Labs ");
@@ -48,6 +49,68 @@ class PublicContactServiceTest {
         assertEquals("RECEIVED", saved.getStatus());
         assertEquals("RECEIVED", response.getStatus());
         assertNotNull(response.getMessage());
+    }
+
+    @Test
+    void submitNormalizesPublicTextWhitespaceBeforePersisting() {
+        PublicContactRequestRepository repository = Mockito.mock(PublicContactRequestRepository.class);
+        Mockito.when(repository.save(Mockito.any())).thenAnswer(invocation -> {
+            PublicContactRequest saved = invocation.getArgument(0);
+            saved.setId("01HXCONTACTREQUEST000000003");
+            return saved;
+        });
+
+        PublicContactDto.Request request = validRequest();
+        request.setName("\tAda\nLovelace ");
+        request.setWorkEmail("\r\nADA@Example.COM\t");
+        request.setCompany("Legent\r\nLabs");
+        request.setInterest("Delivery\u00A0review");
+        request.setMessage("Need\r\nlaunch\tplan where 2 < 3 and 5 > 4.");
+        request.setSourcePage(" pricing\ncontact ");
+
+        new PublicContactService(repository).submit(request);
+
+        ArgumentCaptor<PublicContactRequest> captor = ArgumentCaptor.forClass(PublicContactRequest.class);
+        Mockito.verify(repository).save(captor.capture());
+        PublicContactRequest saved = captor.getValue();
+        assertEquals("Ada Lovelace", saved.getName());
+        assertEquals("ada@example.com", saved.getWorkEmail());
+        assertEquals("Legent Labs", saved.getCompany());
+        assertEquals("Delivery review", saved.getInterest());
+        assertEquals("Need launch plan where 2 < 3 and 5 > 4.", saved.getMessage());
+        assertEquals("pricing contact", saved.getSourcePage());
+    }
+
+    @Test
+    void submitRejectsHtmlPublicTextBeforePersisting() {
+        PublicContactRequestRepository repository = Mockito.mock(PublicContactRequestRepository.class);
+        PublicContactService service = new PublicContactService(repository);
+
+        PublicContactDto.Request rawHtml = validRequest();
+        rawHtml.setMessage("Hello <script>alert(1)</script>");
+        assertThrows(IllegalArgumentException.class, () -> service.submit(rawHtml));
+
+        PublicContactDto.Request encodedHtml = validRequest();
+        encodedHtml.setCompany("&lt;img src=x onerror=alert(1)&gt;");
+        assertThrows(IllegalArgumentException.class, () -> service.submit(encodedHtml));
+
+        Mockito.verify(repository, Mockito.never()).save(Mockito.any());
+    }
+
+    @Test
+    void submitRejectsUnsupportedControlCharactersBeforePersisting() {
+        PublicContactRequestRepository repository = Mockito.mock(PublicContactRequestRepository.class);
+        PublicContactService service = new PublicContactService(repository);
+
+        PublicContactDto.Request nullByte = validRequest();
+        nullByte.setName("Ada\u0000Lovelace");
+        assertThrows(IllegalArgumentException.class, () -> service.submit(nullByte));
+
+        PublicContactDto.Request bidiOverride = validRequest();
+        bidiOverride.setMessage("Need launch plan\u202E");
+        assertThrows(IllegalArgumentException.class, () -> service.submit(bidiOverride));
+
+        Mockito.verify(repository, Mockito.never()).save(Mockito.any());
     }
 
     @Test
@@ -87,5 +150,16 @@ class PublicContactServiceTest {
 
         assertEquals("CONTACTED", response.getStatus());
         Mockito.verify(repository).save(row);
+    }
+
+    private static PublicContactDto.Request validRequest() {
+        PublicContactDto.Request request = new PublicContactDto.Request();
+        request.setName("Ada Lovelace");
+        request.setWorkEmail("ada@example.com");
+        request.setCompany("Legent Labs");
+        request.setInterest("Delivery review");
+        request.setMessage("Need a launch plan.");
+        request.setSourcePage("contact");
+        return request;
     }
 }

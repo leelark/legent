@@ -1,8 +1,7 @@
 package com.legent.deliverability.repository;
 
-import java.util.Optional;
-
 import java.util.List;
+import java.util.Optional;
 
 import com.legent.deliverability.domain.SenderDomain;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -13,5 +12,6 @@ import org.springframework.stereotype.Repository;
 public interface SenderDomainRepository extends JpaRepository<SenderDomain, String> {
     List<SenderDomain> findByTenantIdAndWorkspaceId(String tenantId, String workspaceId);
     Optional<SenderDomain> findByTenantIdAndWorkspaceIdAndDomainName(String tenantId, String workspaceId, String domainName);
+    Optional<SenderDomain> findByTenantIdAndWorkspaceIdAndId(String tenantId, String workspaceId, String id);
     Optional<SenderDomain> findByTenantIdAndId(String tenantId, String id);
 }

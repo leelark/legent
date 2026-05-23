@@ -77,12 +77,9 @@ public class CampaignWorkflowService {
         String userId = TenantContext.getUserId();
         String workspaceId = TenantContext.requireWorkspaceId();
 
-        CampaignApproval approval = approvalRepository.findById(approvalId)
+        CampaignApproval approval = approvalRepository
+                .findByTenantIdAndOwningCampaignWorkspaceIdAndId(tenantId, workspaceId, approvalId)
                 .orElseThrow(() -> new NotFoundException("CampaignApproval", approvalId));
-
-        if (!approval.getTenantId().equals(tenantId)) {
-            throw new ValidationException("tenant", "Approval does not belong to this tenant");
-        }
 
         if (approval.getStatus() != CampaignApproval.ApprovalStatus.PENDING) {
             throw new ValidationException("status", "Approval is not in PENDING state");
@@ -121,12 +118,9 @@ public class CampaignWorkflowService {
         String userId = TenantContext.getUserId();
         String workspaceId = TenantContext.requireWorkspaceId();
 
-        CampaignApproval approval = approvalRepository.findById(approvalId)
+        CampaignApproval approval = approvalRepository
+                .findByTenantIdAndOwningCampaignWorkspaceIdAndId(tenantId, workspaceId, approvalId)
                 .orElseThrow(() -> new NotFoundException("CampaignApproval", approvalId));
-
-        if (!approval.getTenantId().equals(tenantId)) {
-            throw new ValidationException("tenant", "Approval does not belong to this tenant");
-        }
 
         if (approval.getStatus() != CampaignApproval.ApprovalStatus.PENDING) {
             throw new ValidationException("status", "Approval is not in PENDING state");
@@ -188,12 +182,9 @@ public class CampaignWorkflowService {
         String userId = TenantContext.getUserId();
         String workspaceId = TenantContext.requireWorkspaceId();
 
-        CampaignApproval approval = approvalRepository.findById(approvalId)
+        CampaignApproval approval = approvalRepository
+                .findByTenantIdAndOwningCampaignWorkspaceIdAndId(tenantId, workspaceId, approvalId)
                 .orElseThrow(() -> new NotFoundException("CampaignApproval", approvalId));
-
-        if (!approval.getTenantId().equals(tenantId)) {
-            throw new ValidationException("tenant", "Approval does not belong to this tenant");
-        }
 
         if (approval.getStatus() != CampaignApproval.ApprovalStatus.PENDING) {
             throw new ValidationException("status", "Can only cancel PENDING approvals");

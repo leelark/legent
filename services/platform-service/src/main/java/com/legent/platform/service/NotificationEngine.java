@@ -8,6 +8,8 @@ import com.legent.platform.repository.NotificationRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,10 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class NotificationEngine {
+
+    private static final int DEFAULT_UNREAD_NOTIFICATIONS_LIMIT = 100;
+    private static final int MAX_UNREAD_NOTIFICATIONS_LIMIT = 100;
+    private static final Sort UNREAD_NOTIFICATIONS_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
     private final NotificationRepository notificationRepository;
 
@@ -46,8 +52,9 @@ public class NotificationEngine {
      * SECURITY: Filters by tenantId, workspaceId, and userId to prevent cross-scope data access.
      */
     public List<Notification> getUnreadNotifications(String tenantId, String workspaceId, String userId) {
-        return notificationRepository.findByTenantIdAndWorkspaceIdAndUserIdAndIsReadFalseOrderByCreatedAtDesc(
-                tenantId, workspaceId, userId);
+        int limit = Math.min(DEFAULT_UNREAD_NOTIFICATIONS_LIMIT, MAX_UNREAD_NOTIFICATIONS_LIMIT);
+        return notificationRepository.findByTenantIdAndWorkspaceIdAndUserIdAndIsReadFalse(
+                tenantId, workspaceId, userId, PageRequest.of(0, limit, UNREAD_NOTIFICATIONS_SORT));
     }
 
     /**

@@ -1,0 +1,29 @@
+{
+    "id":  "parallel-safe-local-slices-integration-finding-fixes-20260522",
+    "createdAt":  "2026-05-22T13:12:14.5411574Z",
+    "objective":  "Fix integration review findings for delivery click URL validation and audience subscriber schema metadata drift.",
+    "status":  "DONE",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         "shared/legent-common/src/main/java/com/legent/common/security/OutboundUrlGuard.java",
+                         "shared/legent-common/src/test/java/com/legent/common/security/OutboundUrlGuardTest.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/controller/IngestionController.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/controller/IngestionControllerTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/repository/SubscriberWorkspaceMigrationTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "PERFORMANCE_ENGINEER",
+                   "AUDIENCE_SERVICE_OWNER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "focused common/delivery/tracking/audience tests",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Reviewer findings fixed and validated."
+}

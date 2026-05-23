@@ -16,8 +16,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,5 +65,31 @@ class WorkflowBenchmarkPerformanceServiceTest {
         assertThat(deltas.get("campaignCreationSeconds")).isEqualTo(180);
         assertThat(deltas.get("launchErrors")).isEqualTo(3);
         assertThat(deltas.get("observabilityScore")).isEqualTo(18);
+    }
+
+    @Test
+    void record_requiresWorkspaceContextEvenWhenRequestCarriesWorkspace() {
+        TenantContext.setWorkspaceId(null);
+
+        WorkflowBenchmarkRequest request = new WorkflowBenchmarkRequest();
+        request.setWorkspaceId("workspace-1");
+
+        assertThatThrownBy(() -> service.record(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId is required");
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void listBenchmarks_usesExactWorkspaceScope() {
+        when(repository.queryForList(anyString(), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(java.util.List.of());
+
+        service.listBenchmarks(null, 10);
+
+        verify(repository).queryForList(
+                ArgumentMatchers.argThat(sql -> sql.contains("workspace_id = :workspaceId")
+                        && !sql.contains(":workspaceId IS NULL")),
+                ArgumentMatchers.<Map<String, Object>>argThat(params -> "workspace-1".equals(params.get("workspaceId")))
+        );
     }
 }

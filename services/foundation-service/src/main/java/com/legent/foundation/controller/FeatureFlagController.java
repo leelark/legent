@@ -47,7 +47,7 @@ public class FeatureFlagController {
     public PagedResponse<FeatureFlagDto.Response> listFlags(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = requireTenantId();
         Page<FeatureFlagDto.Response> result = featureFlagService.listFlags(
                 tenantId, PageRequest.of(page, Math.min(size, AppConstants.MAX_PAGE_SIZE)));
         return PagedResponse.of(
@@ -70,7 +70,7 @@ public class FeatureFlagController {
     @PreAuthorize("@rbacEvaluator.hasPermission('feature:*', principal.roles)")
     public ApiResponse<FeatureFlagDto.Response> createFlag(
             @Valid @RequestBody FeatureFlagDto.CreateRequest request) {
-        String tenantId = TenantContext.getTenantId();
+        String tenantId = requireTenantId();
         return ApiResponse.ok(featureFlagService.createFlag(tenantId, request));
     }
 
@@ -87,5 +87,13 @@ public class FeatureFlagController {
     @PreAuthorize("@rbacEvaluator.hasPermission('feature:*', principal.roles)")
     public void deleteFlag(@PathVariable String id) {
         featureFlagService.deleteFlag(id);
+    }
+
+    private String requireTenantId() {
+        String tenantId = TenantContext.getTenantId();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalArgumentException("tenantId is required for feature flag management");
+        }
+        return tenantId.trim();
     }
 }

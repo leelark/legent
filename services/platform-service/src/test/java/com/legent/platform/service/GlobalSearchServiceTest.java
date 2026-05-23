@@ -11,13 +11,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.SliceImpl;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -76,10 +81,46 @@ class GlobalSearchServiceTest {
     @Test
     void searchFiltersByTenantAndWorkspace() {
         GlobalSearchService service = new GlobalSearchService(searchRepository, objectMapper);
+        when(searchRepository.findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
+                eq("t1"), eq("w1"), eq("campaign"), any(Pageable.class)))
+                .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(0, GlobalSearchService.DEFAULT_SEARCH_LIMIT), false));
 
         service.search("t1", "w1", "campaign");
 
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         verify(searchRepository).findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
-                "t1", "w1", "campaign");
+                eq("t1"), eq("w1"), eq("campaign"), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(GlobalSearchService.DEFAULT_SEARCH_LIMIT);
+    }
+
+    @Test
+    void searchReturnsExistingListShapeFromBoundedSlice() {
+        GlobalSearchService service = new GlobalSearchService(searchRepository, objectMapper);
+        SearchIndexDoc doc = new SearchIndexDoc();
+        doc.setId("t1:w1:CAMPAIGN:c1");
+        when(searchRepository.findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
+                eq("t1"), eq("w1"), eq("campaign"), any(Pageable.class)))
+                .thenReturn(new SliceImpl<>(List.of(doc), PageRequest.of(0, GlobalSearchService.DEFAULT_SEARCH_LIMIT), false));
+
+        List<SearchIndexDoc> results = service.search("t1", "w1", "campaign");
+
+        assertThat(results).containsExactly(doc);
+    }
+
+    @Test
+    void searchClampsOversizedLimitToMaxFirstPageRequest() {
+        GlobalSearchService service = new GlobalSearchService(searchRepository, objectMapper);
+        when(searchRepository.findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
+                eq("t1"), eq("w1"), eq("campaign"), any(Pageable.class)))
+                .thenReturn(new SliceImpl<>(List.of(), PageRequest.of(0, GlobalSearchService.MAX_SEARCH_LIMIT), false));
+
+        service.search("t1", "w1", "campaign", GlobalSearchService.MAX_SEARCH_LIMIT + 1_000);
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(searchRepository).findByTenantIdAndWorkspaceIdAndSearchableTextContainingIgnoreCase(
+                eq("t1"), eq("w1"), eq("campaign"), pageableCaptor.capture());
+        assertThat(pageableCaptor.getValue().getPageNumber()).isZero();
+        assertThat(pageableCaptor.getValue().getPageSize()).isEqualTo(GlobalSearchService.MAX_SEARCH_LIMIT);
     }
 }

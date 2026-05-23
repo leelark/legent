@@ -1,4 +1,4 @@
-import { post } from './api-client';
+import { post, postPublic } from './api-client';
 
 export interface LoginRequest {
   email: string;
@@ -14,11 +14,40 @@ export interface SignupRequest {
   slug?: string;
 }
 
+export interface ForgotPasswordRequest {
+  email: string;
+  tenantId?: string | null;
+  workspaceId?: string | null;
+}
+
 export interface LoginResponse {
   status: string;
   userId: string;
   tenantId: string;
   roles: string[];
+}
+
+type AuthActionResponse = {
+  status: string;
+  message: string;
+};
+
+function readOptionalHint(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function buildForgotPasswordPayload(request: ForgotPasswordRequest): ForgotPasswordRequest {
+  const payload: ForgotPasswordRequest = {
+    email: request.email.trim(),
+  };
+  const tenantId = readOptionalHint(request.tenantId);
+  const workspaceId = readOptionalHint(request.workspaceId);
+
+  if (tenantId) payload.tenantId = tenantId;
+  if (workspaceId) payload.workspaceId = workspaceId;
+
+  return payload;
 }
 
 export const authApi = {
@@ -36,11 +65,11 @@ export const authApi = {
   refresh: () =>
     post<LoginResponse>('/auth/refresh'),
 
-  forgotPassword: (email: string) =>
-    post<{ status: string; message: string }>('/auth/forgot-password', { email }),
+  forgotPassword: (request: ForgotPasswordRequest) =>
+    postPublic<AuthActionResponse>('/auth/forgot-password', buildForgotPasswordPayload(request)),
 
   resetPassword: (token: string, newPassword: string) =>
-    post<{ status: string; message: string }>('/auth/reset-password', { token, newPassword }),
+    post<AuthActionResponse>('/auth/reset-password', { token, newPassword }),
 
   startOnboarding: (payload: { workspaceId?: string; stepKey?: string; payload?: Record<string, unknown> }) =>
     post<Record<string, unknown>>('/auth/onboarding/start', payload),

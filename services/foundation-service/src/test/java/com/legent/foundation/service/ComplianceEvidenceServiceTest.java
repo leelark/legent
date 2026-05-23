@@ -17,6 +17,8 @@ import org.springframework.dao.EmptyResultDataAccessException;
 import java.util.List;
 import java.util.Map;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -24,6 +26,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -156,6 +159,101 @@ class ComplianceEvidenceServiceTest {
     }
 
     @Test
+    void compliancePaths_rejectMissingWorkspaceBeforeRepositoryAccess() {
+        TenantContext.setWorkspaceId(null);
+
+        assertMissingWorkspaceFails(() -> service.recordAuditEvidence(auditEvidenceRequest(null)));
+        assertMissingWorkspaceFails(() -> service.listAuditEvidence(null, null, 100));
+        assertMissingWorkspaceFails(() -> service.upsertRetentionPolicy(retentionPolicyRequest(null)));
+        assertMissingWorkspaceFails(() -> service.listRetentionMatrix(null));
+        assertMissingWorkspaceFails(() -> service.recordConsent(consentLedgerRequest(null)));
+        assertMissingWorkspaceFails(() -> service.listConsentLedger(null, null, 100));
+        assertMissingWorkspaceFails(() -> service.createPrivacyRequest(privacyRequest(null)));
+        assertMissingWorkspaceFails(() -> service.listPrivacyRequests(null, null, 100));
+        assertMissingWorkspaceFails(() -> service.createComplianceExport(complianceExportRequest(null)));
+        assertMissingWorkspaceFails(() -> service.listComplianceExports(null, 100));
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void compliancePaths_rejectExplicitWorkspaceMismatchBeforeRepositoryAccess() {
+        assertWorkspaceMismatchFails(() -> service.recordAuditEvidence(auditEvidenceRequest("workspace-2")));
+        assertWorkspaceMismatchFails(() -> service.listAuditEvidence("workspace-2", null, 100));
+        assertWorkspaceMismatchFails(() -> service.upsertRetentionPolicy(retentionPolicyRequest("workspace-2")));
+        assertWorkspaceMismatchFails(() -> service.listRetentionMatrix("workspace-2"));
+        assertWorkspaceMismatchFails(() -> service.recordConsent(consentLedgerRequest("workspace-2")));
+        assertWorkspaceMismatchFails(() -> service.listConsentLedger("workspace-2", null, 100));
+        assertWorkspaceMismatchFails(() -> service.createPrivacyRequest(privacyRequest("workspace-2")));
+        assertWorkspaceMismatchFails(() -> service.listPrivacyRequests("workspace-2", null, 100));
+        assertWorkspaceMismatchFails(() -> service.createComplianceExport(complianceExportRequest("workspace-2")));
+        assertWorkspaceMismatchFails(() -> service.listComplianceExports("workspace-2", 100));
+
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void listQueries_useExactTrustedWorkspaceScope() {
+        when(repository.queryForList(any(String.class), ArgumentMatchers.<Map<String, Object>>any())).thenReturn(List.of());
+
+        service.listAuditEvidence("workspace-1", "PrivacyRequest", 25);
+        service.listRetentionMatrix("workspace-1");
+        service.listConsentLedger("workspace-1", "subject-1", 25);
+        service.listPrivacyRequests("workspace-1", "open", 25);
+        service.listComplianceExports("workspace-1", 25);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(repository, org.mockito.Mockito.times(5)).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+
+        assertThat(sqlCaptor.getAllValues())
+                .allSatisfy(sql -> assertThat(sql)
+                        .contains("workspace_id = :workspaceId")
+                        .doesNotContain(":workspaceId IS NULL"));
+        assertThat(paramsCaptor.getAllValues())
+                .allSatisfy(params -> assertThat(params).containsEntry("workspaceId", "workspace-1"));
+    }
+
+    @Test
+    void createComplianceExport_usesExactTrustedWorkspaceForRowEstimateAndAudit() {
+        when(repository.queryForList(any(String.class), ArgumentMatchers.<Map<String, Object>>any()))
+                .thenReturn(List.of(Map.of("count", 7L)))
+                .thenReturn(List.of());
+        when(repository.insert(eq("compliance_export_jobs"), ArgumentMatchers.<Map<String, Object>>any(), eq(List.of("filters"))))
+                .thenAnswer(invocation -> {
+                    Map<String, Object> values = invocation.getArgument(1);
+                    return Map.of(
+                            "id", values.get("id"),
+                            "tenant_id", values.get("tenant_id"),
+                            "workspace_id", values.get("workspace_id"),
+                            "export_type", values.get("export_type"),
+                            "row_count", values.get("row_count")
+                    );
+                });
+        when(repository.insert(eq("immutable_audit_evidence"), ArgumentMatchers.<Map<String, Object>>any(), eq(List.of("payload"))))
+                .thenAnswer(invocation -> invocation.getArgument(1));
+
+        Map<String, Object> saved = service.createComplianceExport(complianceExportRequest("workspace-1"));
+
+        assertThat(saved)
+                .containsEntry("tenant_id", "tenant-1")
+                .containsEntry("workspace_id", "workspace-1")
+                .containsEntry("row_count", 7L);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(repository, org.mockito.Mockito.times(2)).queryForList(sqlCaptor.capture(), paramsCaptor.capture());
+        assertThat(sqlCaptor.getAllValues())
+                .allSatisfy(sql -> assertThat(sql)
+                        .contains("workspace_id = :workspaceId")
+                        .doesNotContain(":workspaceId IS NULL"));
+        assertThat(paramsCaptor.getAllValues())
+                .allSatisfy(params -> assertThat(params).containsEntry("workspaceId", "workspace-1"));
+    }
+
+    @Test
     void updatePrivacyRequest_doesNotAuditWhenScopedRowIsMissing() {
         when(repository.updateByIdAndWorkspace(
                 eq("privacy_requests"),
@@ -175,5 +273,65 @@ class ComplianceEvidenceServiceTest {
 
         verify(repository, never()).updateById(eq("privacy_requests"), anyString(), anyString(), ArgumentMatchers.<Map<String, Object>>any(), ArgumentMatchers.<List<String>>any());
         verify(repository, never()).insert(eq("immutable_audit_evidence"), ArgumentMatchers.<Map<String, Object>>any(), ArgumentMatchers.<List<String>>any());
+    }
+
+    private void assertMissingWorkspaceFails(ThrowingCallable call) {
+        assertThatThrownBy(call)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+    }
+
+    private void assertWorkspaceMismatchFails(ThrowingCallable call) {
+        assertThatThrownBy(call)
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("workspaceId does not match the current workspace");
+    }
+
+    private ComplianceDto.AuditEvidenceRequest auditEvidenceRequest(String workspaceId) {
+        ComplianceDto.AuditEvidenceRequest request = new ComplianceDto.AuditEvidenceRequest();
+        request.setWorkspaceId(workspaceId);
+        request.setEventType("privacy_request_create");
+        request.setResourceType("PrivacyRequest");
+        request.setResourceId("privacy-1");
+        request.setPayload(Map.of("status", "OPEN"));
+        return request;
+    }
+
+    private ComplianceDto.RetentionPolicyRequest retentionPolicyRequest(String workspaceId) {
+        ComplianceDto.RetentionPolicyRequest request = new ComplianceDto.RetentionPolicyRequest();
+        request.setWorkspaceId(workspaceId);
+        request.setDataDomain("privacy");
+        request.setResourceType("PrivacyRequest");
+        request.setRetentionDays(365);
+        return request;
+    }
+
+    private ComplianceDto.ConsentLedgerRequest consentLedgerRequest(String workspaceId) {
+        ComplianceDto.ConsentLedgerRequest request = new ComplianceDto.ConsentLedgerRequest();
+        request.setWorkspaceId(workspaceId);
+        request.setSubjectId("subject-1");
+        request.setEmail("person@example.com");
+        request.setChannel("email");
+        request.setPurpose("marketing");
+        request.setStatus("granted");
+        return request;
+    }
+
+    private ComplianceDto.PrivacyRequest privacyRequest(String workspaceId) {
+        ComplianceDto.PrivacyRequest request = new ComplianceDto.PrivacyRequest();
+        request.setWorkspaceId(workspaceId);
+        request.setSubjectId("subject-1");
+        request.setEmail("person@example.com");
+        request.setRequestType("erasure");
+        return request;
+    }
+
+    private ComplianceDto.ComplianceExportRequest complianceExportRequest(String workspaceId) {
+        ComplianceDto.ComplianceExportRequest request = new ComplianceDto.ComplianceExportRequest();
+        request.setWorkspaceId(workspaceId);
+        request.setExportType("audit_evidence");
+        request.setFormat("json");
+        request.setFilters(Map.of("resourceType", "PrivacyRequest"));
+        return request;
     }
 }
