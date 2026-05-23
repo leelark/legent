@@ -98,6 +98,21 @@ class AnalyticsControllerTest {
     }
 
     @Test
+    void getEventCountsPassesExplicitWindowToService() {
+        Instant startAt = Instant.parse("2026-05-01T00:00:00Z");
+        Instant endAt = Instant.parse("2026-05-02T00:00:00Z");
+        List<Map<String, Object>> rows = List.of(Map.of("event_type", "OPEN", "count", 7L));
+        when(analyticsService.getEventCounts("tenant-1", "workspace-1", startAt, endAt))
+                .thenReturn(rows);
+
+        ApiResponse<List<Map<String, Object>>> response = controller.getEventCounts(startAt, endAt);
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData()).isEqualTo(rows);
+        verify(analyticsService).getEventCounts("tenant-1", "workspace-1", startAt, endAt);
+    }
+
+    @Test
     void getRollupsPassesExplicitWindowAndBucketLimitWithoutChangingDtoShape() {
         Instant startAt = Instant.parse("2026-05-01T00:00:00Z");
         Instant endAt = Instant.parse("2026-05-08T00:00:00Z");

@@ -1,0 +1,25 @@
+{
+    "id":  "delivery-feedback-outbox-backpressure-toggle",
+    "createdAt":  "2026-05-23T11:35:27.2214824Z",
+    "objective":  "Decouple delivery feedback outbox from send-path publish pressure",
+    "status":  "DONE",
+    "owner":  "DELIVERY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "SRE_MONITORING_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service -Dtest=DeliveryFeedbackOutboxServiceTest",
+                           "DeliveryOrchestrationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Delivery feedback outbox backpressure toggle complete; promote kafka-topic-config-coverage or the next unblocked backlog item."
+}

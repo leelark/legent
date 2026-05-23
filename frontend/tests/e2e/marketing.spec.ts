@@ -174,9 +174,16 @@ test('forgot password submits optional tenant hints without storing them', async
   });
 });
 
-test('reset password captures credential once and scrubs URL before submit', async ({ page }) => {
+test('reset password captures credential once, scrubs URL, and submits publicly', async ({ page }) => {
   let resetPayload: unknown = null;
+  let resetHeaders: Record<string, string> = {};
+  await page.addInitScript(() => {
+    localStorage.setItem('legent_tenant_id', 'tenant-1');
+    localStorage.setItem('legent_workspace_id', 'workspace-1');
+    localStorage.setItem('legent_environment_id', 'production');
+  });
   await page.route('**/api/v1/auth/reset-password', async (route) => {
+    resetHeaders = route.request().headers();
     resetPayload = route.request().postDataJSON();
     await route.fulfill({
       status: 200,
@@ -212,6 +219,10 @@ test('reset password captures credential once and scrubs URL before submit', asy
     token: 'single-use-reset-token',
     newPassword: 'NewPassword123!',
   });
+  expect(resetHeaders['x-tenant-id']).toBeUndefined();
+  expect(resetHeaders['x-workspace-id']).toBeUndefined();
+  expect(resetHeaders['x-environment-id']).toBeUndefined();
+  expect(resetHeaders['x-request-id']).toBeUndefined();
 });
 
 test('reset password without credential keeps missing-credential state', async ({ page }) => {

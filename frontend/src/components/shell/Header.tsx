@@ -14,9 +14,10 @@ import {
   WORKSPACE_STORAGE_KEY,
   ENVIRONMENT_STORAGE_KEY,
 } from '@/lib/auth';
+import type { AccountContext } from '@/lib/context-bootstrap';
 import { clsx } from 'clsx';
 
-type ContextItem = { tenantId: string; workspaceId?: string | null };
+type ContextItem = AccountContext;
 type SearchResult = {
   id?: string;
   entityId?: string;
@@ -40,24 +41,45 @@ const normalizeContextPart = (value?: string | null) => {
 };
 
 const contextValue = (context: ContextItem) =>
-  `${context.tenantId}::${normalizeContextPart(context.workspaceId) ?? ''}`;
+  [
+    context.tenantId,
+    normalizeContextPart(context.workspaceId) ?? '',
+    normalizeContextPart(context.environmentId) ?? '',
+  ].join('::');
 
 function selectStoredHeaderContext(
   contexts: ContextItem[],
   storedTenantId?: string | null,
-  storedWorkspaceId?: string | null
+  storedWorkspaceId?: string | null,
+  storedEnvironmentId?: string | null
 ) {
   const tenantId = normalizeContextPart(storedTenantId);
   const workspaceId = normalizeContextPart(storedWorkspaceId);
+  const environmentId = normalizeContextPart(storedEnvironmentId);
 
   if (tenantId && workspaceId) {
-    const exact = contexts.find(
+    if (environmentId) {
+      const exactEnvironment = contexts.find(
+        (ctx) =>
+          ctx.tenantId === tenantId &&
+          normalizeContextPart(ctx.workspaceId) === workspaceId &&
+          normalizeContextPart(ctx.environmentId) === environmentId
+      );
+      if (exactEnvironment) return exactEnvironment;
+    }
+    const exactWorkspace = contexts.find(
       (ctx) => ctx.tenantId === tenantId && normalizeContextPart(ctx.workspaceId) === workspaceId
     );
-    if (exact) return exact;
+    if (exactWorkspace) return exactWorkspace;
   }
 
   if (tenantId && !workspaceId) {
+    if (environmentId) {
+      const tenantEnvironment = contexts.find(
+        (ctx) => ctx.tenantId === tenantId && normalizeContextPart(ctx.environmentId) === environmentId
+      );
+      if (tenantEnvironment) return tenantEnvironment;
+    }
     const tenantOnly = contexts.find((ctx) => ctx.tenantId === tenantId);
     if (tenantOnly) return tenantOnly;
   }
@@ -264,7 +286,8 @@ export function Header() {
         setContexts(next);
         const currentTenant = localStorage.getItem(TENANT_STORAGE_KEY);
         const currentWorkspace = localStorage.getItem(WORKSPACE_STORAGE_KEY);
-        const matched = selectStoredHeaderContext(next, currentTenant, currentWorkspace);
+        const currentEnvironment = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
+        const matched = selectStoredHeaderContext(next, currentTenant, currentWorkspace, currentEnvironment);
         if (matched) {
           setSelectedContext(contextValue(matched));
         }
@@ -314,14 +337,18 @@ export function Header() {
   const handleContextChange = async (value: string) => {
     const previousValue = selectedContext;
     setSelectedContext(value);
-    const [tenantId, workspaceIdRaw] = value.split('::');
-    const workspaceId = normalizeContextPart(workspaceIdRaw);
+    const selected = contexts.find((ctx) => contextValue(ctx) === value);
+    const [tenantIdRaw, workspaceIdRaw, environmentIdRaw] = value.split('::');
+    const tenantId = selected?.tenantId ?? tenantIdRaw;
+    const workspaceId = normalizeContextPart(selected?.workspaceId ?? workspaceIdRaw);
+    const environmentId = normalizeContextPart(selected?.environmentId ?? environmentIdRaw);
     try {
-      await post('/auth/context/switch', { tenantId, workspaceId });
+      await post('/auth/context/switch', { tenantId, workspaceId, environmentId });
       localStorage.setItem(TENANT_STORAGE_KEY, tenantId);
       if (workspaceId) localStorage.setItem(WORKSPACE_STORAGE_KEY, workspaceId);
       else localStorage.removeItem(WORKSPACE_STORAGE_KEY);
-      localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
+      if (environmentId) localStorage.setItem(ENVIRONMENT_STORAGE_KEY, environmentId);
+      else localStorage.removeItem(ENVIRONMENT_STORAGE_KEY);
       switchTenant({ id: tenantId, name: tenantId, slug: tenantId, status: 'ACTIVE', plan: 'STARTER' });
       router.refresh();
     } catch {
@@ -367,7 +394,9 @@ export function Header() {
               const value = contextValue(ctx);
               return (
                 <option key={value} value={value}>
-                  {ctx.workspaceId ? `${ctx.tenantId} / ${ctx.workspaceId}` : ctx.tenantId}
+                  {ctx.workspaceId
+                    ? [ctx.tenantId, ctx.workspaceId, ctx.environmentId].filter(Boolean).join(' / ')
+                    : ctx.tenantId}
                 </option>
               );
             })}

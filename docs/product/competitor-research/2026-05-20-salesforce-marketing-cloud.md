@@ -2,7 +2,7 @@
 
 Access date: 2026-05-20.
 
-Local queue reconciliation: 2026-05-22 (`parity-doc-state-reconcile-20260522`). No new Salesforce source refresh was performed for this reconciliation.
+Local queue reconciliation: 2026-05-23 (`product-parity-accounting-reconcile-20260523`). No new Salesforce source refresh was performed for this reconciliation.
 
 Scope: current official Salesforce Help sources for Marketing Cloud Engagement parity. Facts below are summarized; URLs are the source of record.
 
@@ -45,7 +45,7 @@ Scope: current official Salesforce Help sources for Marketing Cloud Engagement p
 
 ## Inference For Legent
 
-Legent should treat Salesforce parity as operational depth, not a UI clone. As of the 2026-05-22 local queue reconciliation, `journey-runtime-node-contract` is done locally as a runtime capability/guardrail contract, and `flow-analytics-experimentation` is done locally as bounded journey analytics and observed path/goal reporting. These are local implementation states, not claims of Salesforce parity, production readiness, or high-throughput journey evidence.
+Legent should treat Salesforce parity as operational depth, not a UI clone. As of the 2026-05-23 local queue reconciliation, `email-governance-policy-objects`, `contact-data-designer-governance`, `journey-runtime-node-contract`, `flow-analytics-experimentation`, and `mode-aware-workflow-contract` are done locally as bounded implementation contracts. These are local implementation states, not claims of Salesforce parity, production readiness, or high-throughput journey evidence.
 
 Summer 2026 Salesforce release material beyond 2026-05-20 was not used as current baseline scope.
 
@@ -53,8 +53,8 @@ Summer 2026 Salesforce release material beyond 2026-05-20 was not used as curren
 
 | Gap ID | Mode Impact | Severity | Queue Status |
 |---|---|---|---|
-| `email-governance-policy-objects` | Beginner safe defaults, Advanced sender controls, Admin policy/audit | High | BACKLOG |
-| `contact-data-designer-governance` | Beginner list/import presets, Advanced relationships/query preview, Admin retention/deletion | High | BACKLOG |
+| `email-governance-policy-objects` | Beginner safe defaults, Advanced sender controls, Admin policy/audit | High | DONE_LOCAL as of 2026-05-20: tenant/workspace-scoped send governance policy objects and campaign preflight/launch validation exist locally; delivery runtime snapshots, policy UI depth, legal evidence, and provider proof remain future or external. |
+| `contact-data-designer-governance` | Beginner list/import presets, Advanced relationships/query preview, Admin retention/deletion | High | DONE_LOCAL as of 2026-05-20: data-extension governance metadata, field classification, scoped governance audit persistence, and frontend governance controls exist locally; target migration proof, import/contact provenance population, and indexed relationship execution remain future or evidence-bound. |
 | `journey-runtime-node-contract` | Beginner recipes, Advanced accurate node availability, Admin publish/simulation gates | High | DONE_LOCAL as of 2026-05-22: runtime-supported node subset, capability reporting, publish/resume/rollback guardrails, and builder gating exist locally; advanced node handlers and production journey evidence remain unproven. |
 | `flow-analytics-experimentation` | Beginner outcome cards, Advanced step/path/goal drilldown, Admin evidence views | Medium | DONE_LOCAL as of 2026-05-22: bounded workflow step/path/goal analytics and separated experiment scopes exist locally; causal attribution, anomaly accuracy, reconciliation completeness, and production-volume evidence remain unproven. |
 | `automation-studio-activity-orchestration` | Beginner scheduled recipes, Advanced activity builder, Admin run policy | High | SPLIT_LOCAL: parent decomposed into security design, dependency/run contract, capability UI, file/extract, webhook/notification, send handoff, and script sandbox slices. |

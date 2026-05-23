@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { AxiosAdapter, AxiosRequestConfig, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import apiClient, { getPublic, postPublic } from '../../src/lib/api-client';
+import { authApi } from '../../src/lib/auth-api';
 import {
   ENVIRONMENT_STORAGE_KEY,
   ROLES_STORAGE_KEY,
@@ -194,6 +195,65 @@ test.describe('api client context preflight', () => {
     expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
     expect(getHeader(seen[0], 'X-Environment-Id')).toBeUndefined();
     expect(getHeader(seen[0], 'X-Request-Id')).toBeUndefined();
+  });
+
+  test('reset password auth API sends without credentials or tenant headers', async () => {
+    installBrowserContext({
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+      [ENVIRONMENT_STORAGE_KEY]: 'production',
+    });
+    const seen: InternalAxiosRequestConfig[] = [];
+
+    await authApi.resetPassword('single-use-reset-token', 'NewPassword123!', { adapter: captureAdapter(seen) });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].url).toBe('/api/v1/auth/reset-password');
+    expect(seen[0].withCredentials).toBe(false);
+    expect(getHeader(seen[0], 'X-Tenant-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Environment-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Request-Id')).toBeUndefined();
+  });
+
+  test('forgot password auth API sends without credentials or tenant headers', async () => {
+    installBrowserContext({
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+      [ENVIRONMENT_STORAGE_KEY]: 'production',
+    });
+    const seen: InternalAxiosRequestConfig[] = [];
+
+    await authApi.forgotPassword({ email: 'ada@example.com', tenantId: 'tenant-1' }, { adapter: captureAdapter(seen) });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0].url).toBe('/api/v1/auth/forgot-password');
+    expect(seen[0].withCredentials).toBe(false);
+    expect(getHeader(seen[0], 'X-Tenant-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Workspace-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Environment-Id')).toBeUndefined();
+    expect(getHeader(seen[0], 'X-Request-Id')).toBeUndefined();
+  });
+
+  test('workspace auth actions carry tenant workspace and environment context', async () => {
+    installBrowserContext({
+      [TENANT_STORAGE_KEY]: 'tenant-1',
+      [WORKSPACE_STORAGE_KEY]: 'workspace-1',
+      [ENVIRONMENT_STORAGE_KEY]: 'production',
+    });
+    const seen: InternalAxiosRequestConfig[] = [];
+
+    await apiClient.post('/auth/onboarding/start', { stepKey: 'sender' }, { adapter: captureAdapter(seen) });
+    await apiClient.post('/auth/logout-all', {}, { adapter: captureAdapter(seen) });
+    await apiClient.post('/auth/forgot-password', { email: 'workspace-user@example.com' }, { adapter: captureAdapter(seen) });
+
+    expect(seen).toHaveLength(3);
+    for (const config of seen) {
+      expect(getHeader(config, 'X-Tenant-Id')).toBe('tenant-1');
+      expect(getHeader(config, 'X-Workspace-Id')).toBe('workspace-1');
+      expect(getHeader(config, 'X-Environment-Id')).toBe('production');
+      expect(getHeader(config, 'X-Request-Id')).toBe('test-request-id');
+    }
   });
 
   test('public helpers reject external absolute URLs before dispatch', async () => {

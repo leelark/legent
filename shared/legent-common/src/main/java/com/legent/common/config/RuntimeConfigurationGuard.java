@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import com.legent.common.security.InternalApiTokenValidator;
 
+import java.net.URI;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
@@ -26,6 +27,7 @@ public class RuntimeConfigurationGuard {
     );
 
     private static final Set<String> UNSAFE_PRODUCTION_DDL_AUTO_VALUES = Set.of("update", "create", "create-drop");
+    private static final String FRONTEND_BASE_URL_KEY = "legent.frontend.base-url";
 
     private final Environment environment;
 
@@ -56,6 +58,11 @@ public class RuntimeConfigurationGuard {
         if (ddlAuto != null && UNSAFE_PRODUCTION_DDL_AUTO_VALUES.contains(ddlAuto.trim().toLowerCase(Locale.ROOT))) {
             throw new IllegalStateException("Production configuration cannot use unsafe spring.jpa.hibernate.ddl-auto=" + ddlAuto);
         }
+
+        String frontendBaseUrl = environment.getProperty(FRONTEND_BASE_URL_KEY);
+        if (frontendBaseUrl != null && isUnsafeProductionFrontendBaseUrl(frontendBaseUrl)) {
+            throw new IllegalStateException("Production configuration cannot use unsafe " + FRONTEND_BASE_URL_KEY + "=" + frontendBaseUrl);
+        }
     }
 
     private boolean isProductionProfile() {
@@ -66,5 +73,24 @@ public class RuntimeConfigurationGuard {
 
     private boolean isPlaceholderSecret(String value) {
         return InternalApiTokenValidator.isPlaceholderLikeSecret(value);
+    }
+
+    private boolean isUnsafeProductionFrontendBaseUrl(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        if (trimmed.isEmpty()) {
+            return true;
+        }
+        try {
+            URI uri = URI.create(trimmed);
+            String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+            return !"https".equals(scheme)
+                    || "localhost".equals(host)
+                    || "127.0.0.1".equals(host)
+                    || "::1".equals(host)
+                    || "0.0.0.0".equals(host);
+        } catch (IllegalArgumentException ex) {
+            return true;
+        }
     }
 }

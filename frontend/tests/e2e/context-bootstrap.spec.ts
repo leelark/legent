@@ -187,6 +187,82 @@ test('workspace bootstrap falls back within tenant and workspace when preferred 
   });
 });
 
+test('header workspace switch persists the selected environment context', async ({ page }) => {
+  const contextSwitches: unknown[] = [];
+
+  await page.addInitScript(() => {
+    localStorage.setItem('legent_user_id', 'context-user');
+    localStorage.setItem('legent_roles', JSON.stringify(['ADMIN']));
+    localStorage.setItem('legent_tenant_id', 'tenant-1');
+    localStorage.setItem('legent_workspace_id', 'workspace-1');
+    localStorage.setItem('legent_environment_id', 'local');
+  });
+
+  await page.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace('/api/v1', '');
+
+    if (path === '/auth/session') {
+      return fulfill(route, ok({
+        status: 'success',
+        userId: 'context-user',
+        tenantId: 'tenant-1',
+        workspaceId: 'workspace-1',
+        environmentId: 'local',
+        roles: ['ADMIN'],
+      }));
+    }
+
+    if (path === '/auth/contexts') {
+      return fulfill(route, ok([
+        { tenantId: 'tenant-1', workspaceId: 'workspace-1', environmentId: 'local', default: true },
+        { tenantId: 'tenant-1', workspaceId: 'workspace-2', environmentId: 'staging' },
+      ]));
+    }
+
+    if (path === '/auth/context/switch') {
+      contextSwitches.push(request.postDataJSON());
+      return fulfill(route, ok({ status: 'success' }));
+    }
+
+    if (path === '/users/preferences') {
+      return fulfill(route, ok({
+        tenantId: 'tenant-1',
+        userId: 'context-user',
+        theme: 'light',
+        uiMode: 'ADVANCED',
+        density: 'comfortable',
+        sidebarCollapsed: false,
+        metadata: {},
+      }));
+    }
+
+    return fulfill(route, ok([]));
+  });
+
+  await page.goto('/app/email');
+
+  await expect(page.getByRole('heading', { name: 'Email Studio', level: 1 })).toBeVisible({ timeout: 15000 });
+  const contextSelect = page.getByLabel('Workspace context');
+  await expect(contextSelect).toHaveValue('tenant-1::workspace-1::local');
+  await expect.poll(async () => contextSwitches.length).toBe(1);
+
+  await contextSelect.selectOption('tenant-1::workspace-2::staging');
+
+  await expect.poll(async () => contextSwitches.length).toBe(2);
+  expect(contextSwitches[1]).toEqual({
+    tenantId: 'tenant-1',
+    workspaceId: 'workspace-2',
+    environmentId: 'staging',
+  });
+  await expect.poll(async () => readStoredContext(page)).toEqual({
+    tenantId: 'tenant-1',
+    workspaceId: 'workspace-2',
+    environmentId: 'staging',
+  });
+});
+
 test('workspace route fails closed when session lacks workspace context', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('legent_user_id', 'context-user');

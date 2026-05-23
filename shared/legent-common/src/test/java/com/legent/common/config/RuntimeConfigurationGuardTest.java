@@ -48,6 +48,37 @@ class RuntimeConfigurationGuardTest {
     }
 
     @Test
+    void validateProductionConfiguration_rejectsUnsafeFrontendBaseUrl() {
+        for (String frontendBaseUrl : new String[]{
+                "http://localhost:3000",
+                "https://localhost",
+                "http://127.0.0.1:3000",
+                "http://app.legent.example"
+        }) {
+            MockEnvironment environment = new MockEnvironment()
+                    .withProperty("legent.security.jwt.secret", "S3cureProdJwtSecretMaterialForGuardTest2026")
+                    .withProperty("legent.frontend.base-url", frontendBaseUrl);
+            environment.setActiveProfiles("prod");
+
+            RuntimeConfigurationGuard guard = new RuntimeConfigurationGuard(environment);
+
+            assertThrows(IllegalStateException.class, guard::validateProductionConfiguration);
+        }
+    }
+
+    @Test
+    void validateProductionConfiguration_allowsHttpsFrontendBaseUrl() {
+        MockEnvironment environment = new MockEnvironment()
+                .withProperty("legent.security.jwt.secret", "S3cureProdJwtSecretMaterialForGuardTest2026")
+                .withProperty("legent.frontend.base-url", "https://app.legent.example");
+        environment.setActiveProfiles("prod");
+
+        RuntimeConfigurationGuard guard = new RuntimeConfigurationGuard(environment);
+
+        assertDoesNotThrow(guard::validateProductionConfiguration);
+    }
+
+    @Test
     void validateProductionConfiguration_allowsLocalPlaceholders() {
         MockEnvironment environment = new MockEnvironment()
                 .withProperty("legent.security.jwt.secret", "CHANGE_ME_REPLACE_IN_PRODUCTION")

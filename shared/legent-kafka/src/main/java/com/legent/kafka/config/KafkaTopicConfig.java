@@ -30,6 +30,30 @@ public class KafkaTopicConfig {
     }
 
     @Bean
+    public NewTopic emailFailedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_EMAIL_FAILED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic emailFailedDlqTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_EMAIL_FAILED_DLQ)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic emailRetryScheduledTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_EMAIL_RETRY_SCHEDULED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic emailBouncedTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_EMAIL_BOUNCED)
                 .partitions(3)
@@ -49,6 +73,38 @@ public class KafkaTopicConfig {
     public NewTopic emailDeliveredTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_EMAIL_DELIVERED)
                 .partitions(3)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic emailUnsubscribedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_EMAIL_UNSUBSCRIBED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic emailOpenTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_EMAIL_OPEN)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic emailClickTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_EMAIL_CLICK)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic conversionEventTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_CONVERSION_EVENT)
+                .partitions(6)
                 .replicas(1)
                 .build();
     }
@@ -78,6 +134,14 @@ public class KafkaTopicConfig {
     }
 
     @Bean
+    public NewTopic audienceResolutionRequestedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_AUDIENCE_RESOLUTION_REQUESTED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic audienceResolvedTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_AUDIENCE_RESOLVED)
                 .partitions(6)
@@ -94,8 +158,64 @@ public class KafkaTopicConfig {
     }
 
     @Bean
+    public NewTopic batchCompletedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_BATCH_COMPLETED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic sendCompletedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_SEND_COMPLETED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic sendFailedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_SEND_FAILED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
     public NewTopic sendProcessingTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_SEND_PROCESSING)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic subscriberCreatedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_SUBSCRIBER_CREATED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic subscriberUpdatedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_SUBSCRIBER_UPDATED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic subscriberDeletedTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_SUBSCRIBER_DELETED)
+                .partitions(6)
+                .replicas(1)
+                .build();
+    }
+
+    @Bean
+    public NewTopic workflowTriggerTopic() {
+        return TopicBuilder.name(AppConstants.TOPIC_WORKFLOW_TRIGGER)
                 .partitions(6)
                 .replicas(1)
                 .build();

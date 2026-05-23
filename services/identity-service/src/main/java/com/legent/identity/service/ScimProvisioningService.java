@@ -9,6 +9,8 @@ import com.legent.identity.dto.FederationDto;
 import com.legent.identity.repository.FederationJdbcRepository;
 import com.legent.identity.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,7 @@ public class ScimProvisioningService {
 
     private static final TypeReference<List<String>> STRING_LIST = new TypeReference<>() {};
     private static final TypeReference<List<Map<String, Object>>> MAP_LIST = new TypeReference<>() {};
+    private static final int MAX_SCIM_PAGE_SIZE = 200;
 
     private final FederationJdbcRepository repository;
     private final FederatedIdentityService federatedIdentityService;
@@ -70,17 +73,23 @@ public class ScimProvisioningService {
     public Map<String, Object> listUsers(String authorization, String filter, int startIndex, int count) {
         ScimContext context = authenticate(authorization, "scim:users");
         String emailFilter = parseUserNameFilter(filter);
+        String providerId = String.valueOf(context.provider().get("id"));
+        int safeStartIndex = Math.max(1, startIndex);
+        int pageSize = boundedCount(count);
         List<User> users = emailFilter == null
-                ? userRepository.findByTenantId(context.tenantId())
-                : userRepository.findByTenantIdAndEmailIgnoreCase(context.tenantId(), emailFilter).map(List::of).orElse(List.of());
+                ? userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+                        context.tenantId(),
+                        providerId,
+                        new OffsetLimitPageable(safeStartIndex - 1L, pageSize, Sort.by("email").ascending()))
+                : userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndActiveTrue(
+                        context.tenantId(),
+                        providerId,
+                        emailFilter).map(List::of).orElse(List.of());
         List<Map<String, Object>> resources = users.stream()
-                .filter(User::isActive)
                 .filter(user -> isOwnedByProvider(user, context))
-                .skip(Math.max(0, startIndex - 1L))
-                .limit(Math.max(1, Math.min(count, 200)))
                 .map(user -> toScimUser(user, context))
                 .toList();
-        return listResponse(resources, startIndex);
+        return listResponse(resources, safeStartIndex);
     }
 
     @Transactional
@@ -385,6 +394,10 @@ public class ScimProvisioningService {
         return trimmed.substring("userName eq ".length()).replace("\"", "").trim().toLowerCase(Locale.ROOT);
     }
 
+    private int boundedCount(int count) {
+        return Math.max(1, Math.min(count, MAX_SCIM_PAGE_SIZE));
+    }
+
     private String bearer(String authorization) {
         if (authorization == null || !authorization.toLowerCase(Locale.ROOT).startsWith("bearer ")) {
             throw new IllegalArgumentException("SCIM bearer token required");
@@ -479,5 +492,58 @@ public class ScimProvisioningService {
     }
 
     record ScimContext(String tenantId, Map<String, Object> provider, List<String> scopes) {
+    }
+
+    private record OffsetLimitPageable(long offset, int pageSize, Sort sort) implements Pageable {
+        private OffsetLimitPageable {
+            offset = Math.max(0L, offset);
+            pageSize = Math.max(1, Math.min(pageSize, MAX_SCIM_PAGE_SIZE));
+            sort = sort == null ? Sort.unsorted() : sort;
+        }
+
+        @Override
+        public int getPageNumber() {
+            return (int) (offset / pageSize);
+        }
+
+        @Override
+        public int getPageSize() {
+            return pageSize;
+        }
+
+        @Override
+        public long getOffset() {
+            return offset;
+        }
+
+        @Override
+        public Sort getSort() {
+            return sort;
+        }
+
+        @Override
+        public Pageable next() {
+            return new OffsetLimitPageable(offset + pageSize, pageSize, sort);
+        }
+
+        @Override
+        public Pageable previousOrFirst() {
+            return hasPrevious() ? new OffsetLimitPageable(Math.max(0L, offset - pageSize), pageSize, sort) : first();
+        }
+
+        @Override
+        public Pageable first() {
+            return new OffsetLimitPageable(0L, pageSize, sort);
+        }
+
+        @Override
+        public Pageable withPage(int pageNumber) {
+            return new OffsetLimitPageable((long) Math.max(0, pageNumber) * pageSize, pageSize, sort);
+        }
+
+        @Override
+        public boolean hasPrevious() {
+            return offset > 0;
+        }
     }
 }

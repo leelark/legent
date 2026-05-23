@@ -34,6 +34,7 @@ public class DeliveryEventConsumer {
         boolean claimed = false;
         try {
             eventType = requireSendRequestedEventType(event);
+            tenantId = requireTenantId(event);
             Map<String, Object> payload = event.getPayload() != null ? event.getPayload() : Map.of();
             workspaceId = resolveWorkspaceId(event, payload);
             Map<String, Object> scopedPayload = new HashMap<>(payload);
@@ -88,6 +89,14 @@ public class DeliveryEventConsumer {
                     + AppConstants.TOPIC_EMAIL_SEND_REQUESTED + "]");
         }
         return eventType;
+    }
+
+    private String requireTenantId(EventEnvelope<?> event) {
+        String tenantId = normalize(event.getTenantId());
+        if (tenantId != null) {
+            return tenantId;
+        }
+        throw new IllegalArgumentException("tenantId is required for " + AppConstants.TOPIC_EMAIL_SEND_REQUESTED);
     }
 
     private void releaseClaim(String tenantId,

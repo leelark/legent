@@ -1,7 +1,7 @@
 {
     "schemaVersion":  1,
     "freshBaselineDate":  "2026-05-20",
-    "lastUpdated":  "2026-05-22",
+    "lastUpdated":  "2026-05-23",
     "selectionPolicy":  "Sort READY work by priorityScore descending, then no blockers, smallest safe scope, validation availability, and lease compatibility.",
     "readyWork":  [
 
@@ -106,73 +106,6 @@
                                               ],
                             "nextAction":  "Run a target-like load harness with provider-approved capacity before making throughput claims.",
                             "lastUpdated":  "2026-05-22T17:55:13.2382512Z"
-                        },
-                        {
-                            "id":  "campaign-audience-eligibility-final-gate",
-                            "title":  "Add final suppression and preference gate before campaign delivery handoff",
-                            "status":  "BLOCKED",
-                            "priorityScore":  71,
-                            "scoring":  {
-                                            "productionReadinessImpact":  5,
-                                            "securityRisk":  5,
-                                            "userImpact":  5,
-                                            "performanceImpact":  4,
-                                            "technicalDebtImpact":  3
-                                        },
-                            "owner":  "CAMPAIGN_SERVICE_OWNER",
-                            "partnerAgents":  [
-                                                  "AUDIENCE_SERVICE_OWNER",
-                                                  "DELIVERY_SERVICE_OWNER",
-                                                  "DELIVERABILITY_ENGINEER",
-                                                  "TEST_ARCHITECT"
-                                              ],
-                            "scope":  "Ensure direct and legacy campaign send paths cannot hand off recipients to delivery without authoritative preference and suppression checks, including local audience suppressions and nested email channel preferences.",
-                            "nonGoals":  "Do not bypass warmup, rate controls, unsubscribe policy, or provider inbox safety.",
-                            "sourceFiles":  [
-                                                "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/service/SendEligibilityService.java",
-                                                "services/audience-service/src/main/java/com/legent/audience/service/AudienceResolutionService.java",
-                                                "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Every campaign send handoff path has a documented final eligibility gate or routes through audience resolution.",
-                                                       "Local audience suppressions are included in final eligibility.",
-                                                       "Nested channels.email preferences and paused-until preferences are respected.",
-                                                       "Focused tests cover direct/legacy send denial for suppression and preference cases."
-                                                   ],
-                            "validationProfile":  "backend-focused",
-                            "validationCommands":  [
-                                                       ".\\mvnw.cmd -pl services/campaign-service,services/audience-service,services/delivery-service -am test",
-                                                       "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                       "git diff --check"
-                                                   ],
-                            "dependencies":  [
-                                                 "Cross-service contract design"
-                                             ],
-                            "blockers":  [
-                                             "Compatibility decision required for legacy campaign recipient payload behavior before implementation."
-                                         ],
-                            "memoryTargets":  [
-                                                  "security-findings.md",
-                                                  "bug-history.md",
-                                                  "root-cause-history.md",
-                                                  "technical-debt.md"
-                                              ],
-                            "nextAction":  "Make a compatibility decision for legacy campaign recipient payloads, then implement the eligibility marker contract if approved.",
-                            "lastUpdated":  "2026-05-22T17:55:13.2382512Z",
-                            "startedAt":  "2026-05-20T07:41:26.3257305Z",
-                            "completedAt":  "2026-05-20T07:53:21.2501415Z",
-                            "outcome":  "Audience-service final eligibility first slice is complete and validated, but the broader parent cannot be marked DONE until a compatibility decision is made for existing campaign legacy recipient JSON payloads. The proposed next slice is an eligibility marker/contract for BatchingService row payloads and SendExecutionService legacy fallback behavior.",
-                            "validationRun":  [
-                                                  ".\\mvnw.cmd -pl services/audience-service -am \u0027-Dtest=AudienceResolutionConsumerTest,SendEligibilityServiceTest\u0027 \u0027-Dsurefire.failIfNoSpecifiedTests=false\u0027 test",
-                                                  ".\\mvnw.cmd -pl services/audience-service -am test",
-                                                  "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
-                                                  "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
-                                                  "git diff --check"
-                                              ],
-                            "residualRisks":  [
-                                                  "Campaign legacy recipient JSON payloads remain a possible bypass until product/operations decide whether old in-flight batches should fail closed, be grandfathered, or be migrated to an eligibility marker."
-                                              ]
                         },
                         {
                             "id":  "external-provider-capacity",
@@ -11017,10 +10950,911 @@
                          "residualRisks":  [
                                                "Lease history compaction remains deferred until no active worker leases remain and cleanup behavior is reviewed."
                                            ]
+                     },
+                     {
+                         "id":  "campaign-audience-eligibility-final-gate",
+                         "title":  "Add final suppression and preference gate before campaign delivery handoff",
+                         "status":  "DONE",
+                         "priorityScore":  71,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  5,
+                                         "userImpact":  5,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "AUDIENCE_SERVICE_OWNER",
+                                               "DELIVERY_SERVICE_OWNER",
+                                               "DELIVERABILITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Ensure direct and legacy campaign send paths cannot hand off recipients to delivery without authoritative preference and suppression checks, including local audience suppressions and nested email channel preferences.",
+                         "nonGoals":  "Do not bypass warmup, rate controls, unsubscribe policy, or provider inbox safety.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/service/SendEligibilityService.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/service/AudienceResolutionService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryOrchestrationService.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Every campaign send handoff path has a documented final eligibility gate or routes through audience resolution.",
+                                                    "Local audience suppressions are included in final eligibility.",
+                                                    "Nested channels.email preferences and paused-until preferences are respected.",
+                                                    "Focused tests cover direct/legacy send denial for suppression and preference cases."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service,services/audience-service,services/delivery-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+                                              "Cross-service contract design"
+                                          ],
+                         "blockers":  [
+                                          "Compatibility decision required for legacy campaign recipient payload behavior before implementation."
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "bug-history.md",
+                                               "root-cause-history.md",
+                                               "technical-debt.md"
+                                           ],
+                         "nextAction":  "Keep marker-required tests and collect target runtime evidence before release claims.",
+                         "lastUpdated":  "2026-05-23T10:34:28.4656018Z",
+                         "startedAt":  "2026-05-20T07:41:26.3257305Z",
+                         "completedAt":  "2026-05-23T10:34:28.4656018Z",
+                         "outcome":  "Audience final eligibility and campaign eligibility marker enforcement are complete locally; unmarked recipient payloads fail closed before send handoff.",
+                         "validationRun":  [
+                                               "previous audience-service final eligibility Maven gate",
+                                               "campaign-service focused BatchingServiceTest and SendExecutionServiceTest Maven gate"
+                                           ],
+                         "residualRisks":  [
+                                               "Target and in-flight batch operational evidence remains required before production promotion."
+                                           ]
+                     },
+                     {
+                         "id":  "product-parity-accounting-reconcile-20260523",
+                         "title":  "Reconcile product parity docs and queue accounting",
+                         "status":  "DONE",
+                         "priorityScore":  24,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  1,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "PRODUCT_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "SALESFORCE_PARITY_RESEARCHER",
+                                               "DOCUMENTATION_ENGINEER"
+                                           ],
+                         "scope":  "Correct stale product parity statuses and seed local unblocked follow-up queue items discovered by the resumed ONE_OVERALL_TEAM audit.",
+                         "nonGoals":  "Do not refresh external market claims or claim Salesforce/competitor parity.",
+                         "sourceFiles":  [
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             ".codex/backlog/queue.json"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Completed local contracts are marked as DONE_LOCAL in product research notes.",
+                                                    "Narrow local candidates are represented in queue state.",
+                                                    "External/evidence-bound claims remain blocked or explicitly not claimed."
+                                                ],
+                         "validationProfile":  "docs-memory",
+                         "validationCommands":  [
+                                                    "git diff --check -- docs/product/salesforce-parity-matrix.md docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md docs/product/competitor-research/2026-05-20-competitor-capability-scan.md .codex/backlog/queue.json .codex/memory/active-work-items.md .codex/memory/technical-debt.md .codex/memory/design-decisions.md",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "design-decisions.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Docs/backlog reconciliation complete; select next highest-priority ready item.",
+                         "discoveredAt":  "2026-05-23T11:02:15.5387915Z",
+                         "lastUpdated":  "2026-05-23T11:02:15.5443755Z",
+                         "completedAt":  "2026-05-23T11:02:15.5454645Z",
+                         "outcome":  "Correct stale product parity statuses and seed local unblocked follow-up queue items discovered by the resumed ONE_OVERALL_TEAM audit.",
+                         "validationRun":  [
+                                               "git diff --check -- docs/product/salesforce-parity-matrix.md docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md docs/product/competitor-research/2026-05-20-competitor-capability-scan.md .codex/backlog/queue.json .codex/memory/active-work-items.md .codex/memory/technical-debt.md .codex/memory/design-decisions.md",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                           ],
+                         "residualRisks":  [
+                                               "External parity and production claims still require source refresh and target evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "identity-scim-list-bounding",
+                         "title":  "Bound SCIM user listing behind public SCIM route",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "IDENTITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Require SCIM list users to stay provider/tenant bounded and page-limited before returning results from the permitAll SCIM route.",
+                         "nonGoals":  "Do not change SCIM bearer-token validation model, SCIM create/update/delete behavior, or route permitAll configuration without a separate threat model.",
+                         "sourceFiles":  [
+                                             "services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/repository/UserRepository.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/service/ScimProvisioningServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "SCIM list users applies bearer token/provider ownership before broad tenant output.",
+                                                    "SCIM list users enforces bounded count/startIndex behavior.",
+                                                    "Focused tests cover provider mismatch, missing/invalid bounds, and tenant/provider isolation."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/identity-service -am \"-Dtest=ScimProvisioningServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    "git diff --check -- services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java services/identity-service/src/main/java/com/legent/identity/repository/UserRepository.java services/identity-service/src/test/java/com/legent/identity/service/ScimProvisioningServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select next READY item, currently delivery-send-request-tenant-fail-closed.",
+                         "discoveredAt":  "2026-05-23T11:02:15.5776696Z",
+                         "lastUpdated":  "2026-05-23T11:07:16.5427415Z",
+                         "startedAt":  "2026-05-23T11:03:31.0579945Z",
+                         "completedAt":  "2026-05-23T11:07:16.5427415Z",
+                         "outcome":  "SCIM user listing now queries active users by authenticated tenant plus identity provider with bounded offset/page size, and userName filters use tenant/provider/active lookup instead of broad tenant loading.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/identity-service -am \"-Dtest=ScimProvisioningServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                           ],
+                         "residualRisks":  [
+                                               "Local focused tests only; target SCIM IdP paging behavior and production auth telemetry remain release-evidence concerns."
+                                           ]
+                     },
+                     {
+                         "id":  "delivery-send-request-tenant-fail-closed",
+                         "title":  "Fail closed delivery send-request events without tenant scope",
+                         "status":  "DONE",
+                         "priorityScore":  57,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  2
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Require nonblank tenant ID before delivery send-request idempotency claims or orchestration side effects.",
+                         "nonGoals":  "Do not change provider adapters, retry policy, or feedback event schema.",
+                         "sourceFiles":  [
+                                             "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventConsumer.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventConsumerTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Missing tenant ID is rejected before idempotency claim.",
+                                                    "Valid events continue to process unchanged.",
+                                                    "Focused tests cover missing tenant fail-closed behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service -Dtest=DeliveryEventConsumerTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                                    "git diff --check -- services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventConsumer.java services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventConsumerTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select next READY item, currently campaign-kafka-tenant-fail-closed.",
+                         "discoveredAt":  "2026-05-23T11:02:15.5953646Z",
+                         "lastUpdated":  "2026-05-23T11:11:19.6959795Z",
+                         "startedAt":  "2026-05-23T11:08:25.5150729Z",
+                         "completedAt":  "2026-05-23T11:11:19.6959795Z",
+                         "outcome":  "Delivery send-request events now require tenant ID before workspace resolution, idempotency claims, TenantContext setup, or orchestration side effects.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/delivery-service -am \"-Dtest=DeliveryEventConsumerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                           ],
+                         "residualRisks":  [
+                                               "Local focused tests only; target Kafka replay, provider behavior, and production release evidence remain external blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "campaign-kafka-tenant-fail-closed",
+                         "title":  "Fail closed campaign Kafka events without tenant scope",
+                         "status":  "DONE",
+                         "priorityScore":  55,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  2
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Require nonblank tenant ID before campaign event registration, idempotency, or side effects.",
+                         "nonGoals":  "Do not alter campaign business event semantics beyond tenant fail-closed validation.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                                             "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Missing tenant ID is rejected before idempotency claim or side effects.",
+                                                    "Existing workspace validation remains intact.",
+                                                    "Focused tests cover missing tenant and valid event behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/campaign-service -Dtest=CampaignEventConsumerTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                                    "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select next READY item, currently identity-reset-link-production-safety.",
+                         "discoveredAt":  "2026-05-23T11:02:15.5953646Z",
+                         "lastUpdated":  "2026-05-23T11:14:43.8915432Z",
+                         "startedAt":  "2026-05-23T11:12:12.0548528Z",
+                         "completedAt":  "2026-05-23T11:14:43.8915432Z",
+                         "outcome":  "Campaign event registration now requires tenant ID before idempotency registration for claimed Kafka handlers, with missing-tenant no-side-effect tests for audience and send-processing paths.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/campaign-service \"-Dtest=CampaignEventConsumerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                           ],
+                         "residualRisks":  [
+                                               "Local focused tests only; target Kafka replay, high-volume behavior, and production release evidence remain external blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "identity-reset-link-production-safety",
+                         "title":  "Harden password reset link rendering and production frontend URL guard",
+                         "status":  "DONE",
+                         "priorityScore":  51,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "IDENTITY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Ensure reset-link HTML is safely rendered and production runtime cannot default password reset links to localhost.",
+                         "nonGoals":  "Do not read secrets or change actual production environment values.",
+                         "sourceFiles":  [
+                                             "services/identity-service/src/main/resources/application.yml",
+                                             "services/identity-service/src/main/java/com/legent/identity/service/IdentityExperienceService.java",
+                                             "services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java",
+                                             "shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java",
+                                             "shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java",
+                                             "services/identity-service/src/test/java/com/legent/identity/service/IdentityExperienceServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Password reset links are HTML-escaped or rendered safely.",
+                                                    "Production-like profiles reject localhost frontend base URL for user-facing reset links.",
+                                                    "Focused tests cover guard and rendering behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl shared/legent-common,services/identity-service -am \"-Dtest=RuntimeConfigurationGuardTest,IdentityExperienceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    "git diff --check -- shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java services/identity-service/src/main/java/com/legent/identity/service/IdentityExperienceService.java services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java services/identity-service/src/test/java/com/legent/identity/service/IdentityExperienceServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Select the next READY item, currently audience-segment-recompute-bounded-membership.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6107714Z",
+                         "lastUpdated":  "2026-05-23T11:22:01.9606572Z",
+                         "startedAt":  "2026-05-23T11:15:36.6990670Z",
+                         "completedAt":  "2026-05-23T11:22:01.9606572Z",
+                         "outcome":  "Production profiles now reject unsafe frontend reset-link base URLs, and identity reset-email HTML escapes generated reset URLs before embedding them in anchor markup.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl shared/legent-common,services/identity-service -am \"-Dtest=RuntimeConfigurationGuardTest,IdentityExperienceServiceTest,IdentityEventPublisherTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "git diff --check -- shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java services/identity-service/src/test/java/com/legent/identity/event/IdentityEventPublisherTest.java"
+                                           ],
+                         "residualRisks":  [
+                                               "Local focused tests only; target production configuration, real email rendering, provider behavior, and strict release evidence remain separate release concerns."
+                                           ]
+                     },
+                     {
+                         "id":  "audience-segment-recompute-bounded-membership",
+                         "title":  "Bound audience segment recompute membership materialization",
+                         "status":  "DONE",
+                         "priorityScore":  50,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  1,
+                                         "userImpact":  4,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Avoid materializing entire segment membership and batch args in memory during recompute; use bounded chunks or set-based recompute where safe.",
+                         "nonGoals":  "Do not redesign Segment Builder v2 semantics or change subscriber eligibility rules.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                                             "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Segment recompute avoids unbounded in-memory membership lists.",
+                                                    "Existing segment semantics remain covered.",
+                                                    "Focused tests cover chunking or set-based behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -Dtest=SegmentEvaluationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                                    "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote the highest-priority unblocked backlog item if no READY work remains.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6135154Z",
+                         "lastUpdated":  "2026-05-23T11:28:57.4894511Z",
+                         "startedAt":  "2026-05-23T11:23:39.4919051Z",
+                         "completedAt":  "2026-05-23T11:28:57.4894511Z",
+                         "outcome":  "Segment recompute now pages matching subscriber IDs with a bounded keyset cursor and inserts each page as a bounded membership batch instead of materializing all subscriber IDs and batch args in memory.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/audience-service \"-Dtest=SegmentEvaluationServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "git diff --check -- services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                                           ],
+                         "residualRisks":  [
+                                               "Local focused tests only; target segment-volume runtime, database contention, scheduler concurrency, and durable predictive rollback snapshot evidence remain separate release concerns."
+                                           ]
+                     },
+                     {
+                         "id":  "tracking-analytics-event-window-bound",
+                         "title":  "Bound tracking analytics event counts",
+                         "status":  "DONE",
+                         "priorityScore":  46,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  1,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "TRACKING_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Bound dashboard/WebSocket analytics event counts by an explicit time window or pre-aggregated query so each open session does not repeatedly count all raw events.",
+                         "nonGoals":  "Do not claim high-volume ClickHouse behavior without runtime evidence.",
+                         "sourceFiles":  [
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                                             "services/tracking-service/src/main/java/com/legent/tracking/ws/AnalyticsWebSocketHandler.java",
+                                             "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Default analytics counts are time bounded or aggregate-backed.",
+                                                    "WebSocket refresh does not trigger all-time raw scans by default.",
+                                                    "Focused tests cover bounded query behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/tracking-service -Dtest=AnalyticsServiceTest,AnalyticsControllerTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote delivery-feedback-outbox-backpressure-toggle if no READY work remains.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6275647Z",
+                         "lastUpdated":  "2026-05-23T11:34:27.3255405Z",
+                         "startedAt":  "2026-05-23T11:30:37.6754476Z",
+                         "completedAt":  "2026-05-23T11:34:27.3255405Z",
+                         "outcome":  "Tracking event-count analytics now use a bounded default 168-hour window, reject invalid windows, clamp explicit count windows to 31 days, and expose optional count windows through the analytics endpoint while WebSocket broadcasts use the bounded default.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/tracking-service \"-Dtest=AnalyticsServiceTest,AnalyticsControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "git diff --check -- services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java services/tracking-service/src/test/java/com/legent/tracking/controller/AnalyticsControllerTest.java"
+                                           ],
+                         "residualRisks":  [
+                                               "Local focused tests only; target raw-event volume, timestamp index/selectivity, WebSocket fanout latency, ClickHouse/runtime analytics latency, and strict release evidence remain separate release concerns."
+                                           ]
+                     },
+                     {
+                         "id":  "delivery-feedback-outbox-backpressure-toggle",
+                         "title":  "Decouple delivery feedback outbox from send-path publish pressure",
+                         "status":  "DONE",
+                         "priorityScore":  46,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  1,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PERFORMANCE_ENGINEER",
+                                               "SRE_MONITORING_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Add a local configuration/policy boundary so delivery feedback outbox writes can avoid immediate after-commit publish pressure in high-volume send paths.",
+                         "nonGoals":  "Do not disable feedback publication globally or hide failed publication evidence.",
+                         "sourceFiles":  [
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Immediate publish is configurable or bounded.",
+                                                    "Deferred mode preserves durable outbox state and observability.",
+                                                    "Focused tests cover immediate and deferred behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service -Dtest=DeliveryFeedbackOutboxServiceTest,DeliveryOrchestrationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote kafka-topic-config-coverage or the next unblocked backlog item if no READY work remains.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6275647Z",
+                         "lastUpdated":  "2026-05-23T11:38:41.4950740Z",
+                         "startedAt":  "2026-05-23T11:35:27.3255508Z",
+                         "completedAt":  "2026-05-23T11:38:41.4950740Z",
+                         "outcome":  "Delivery feedback enqueue now keeps durable pending outbox rows while allowing immediate publish to be disabled with legent.delivery.feedback-outbox.immediate-publish-enabled=false, deferring publish pressure to the scheduled poller.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/delivery-service -am \"-Dtest=DeliveryFeedbackOutboxServiceTest,DeliveryOrchestrationServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "git diff --check -- services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java"
+                                           ],
+                         "residualRisks":  [
+                                               "Local focused tests only; target poller throughput, Kafka lag, provider send load, outbox retention/cleanup, alert tuning, and strict release evidence remain separate release concerns."
+                                           ]
+                     },
+                     {
+                         "id":  "kafka-topic-config-coverage",
+                         "title":  "Align Kafka topic bean coverage with published event constants",
+                         "status":  "DONE",
+                         "priorityScore":  45,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  2,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "SHARED_KAFKA_OWNER",
+                         "partnerAgents":  [
+                                               "BACKEND_PLATFORM_OWNER",
+                                               "TEST_ARCHITECT",
+                                               "DEVOPS_ENGINEER"
+                                           ],
+                         "scope":  "Add local topic configuration coverage for high-volume event constants published by shared EventPublisher where local runtime should create/manage topics.",
+                         "nonGoals":  "Do not infer production broker topology or replication evidence from local bean coverage.",
+                         "sourceFiles":  [
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+                                             "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java",
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventPublisher.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Topic config/test coverage accounts for publisher topic constants.",
+                                                    "High-volume topics have explicit local declarations or documented external-management exclusions.",
+                                                    "Focused tests fail on future drift."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka -Dtest=KafkaTopicConfigTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "performance-bottlenecks.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md"
+                                           ],
+                         "nextAction":  "Promote frontend-auth-context-allowlist if no READY work remains.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6448073Z",
+                         "lastUpdated":  "2026-05-23T11:42:39.2610218Z",
+                         "startedAt":  "2026-05-23T11:39:40.9418457Z",
+                         "completedAt":  "2026-05-23T11:42:39.2610218Z",
+                         "outcome":  "Local Kafka topic config now declares every EventPublisher high-volume topic, and KafkaTopicConfigTest fails on future drift between the publisher high-volume set and local topic beans.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl shared/legent-kafka \"-Dtest=KafkaTopicConfigTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "git diff --check -- shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventPublisher.java"
+                                           ],
+                         "residualRisks":  [
+                                               "Local topic bean coverage only; production broker partition counts, replication, retention, ACLs, and strict release evidence remain external release concerns."
+                                           ]
+                     },
+                     {
+                         "id":  "frontend-auth-context-allowlist",
+                         "title":  "Narrow frontend auth API context suppression to public allowlist",
+                         "status":  "DONE",
+                         "priorityScore":  43,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Replace broad /auth context suppression with an explicit context-free allowlist so credentialed workspace auth actions can carry tenant/workspace/environment context when required.",
+                         "nonGoals":  "Do not store tokens in browser storage or change cookie auth behavior.",
+                         "sourceFiles":  [
+                                             "frontend/src/lib/api-client.ts",
+                                             "frontend/src/lib/auth-api.ts",
+                                             "frontend/src/lib/admin-api.ts",
+                                             "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                                             "frontend/tests/e2e/api-client-context.spec.ts",
+                                             "frontend/tests/e2e/admin.spec.ts",
+                                             "frontend/tests/e2e/marketing.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Public forgot/reset flows stay credentialless/contextless.",
+                                                    "Credentialed auth subroutes that operate inside workspace context carry tenant/workspace/environment headers.",
+                                                    "Targeted Playwright/API-client tests cover both classes."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/api-client-context.spec.ts tests/e2e/admin.spec.ts tests/e2e/marketing.spec.ts --project=chromium --reporter=line"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote the next unblocked backlog item if no READY work remains.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6460584Z",
+                         "lastUpdated":  "2026-05-23T11:49:53.5792632Z",
+                         "startedAt":  "2026-05-23T11:43:57.0190985Z",
+                         "completedAt":  "2026-05-23T11:49:53.5792632Z",
+                         "outcome":  "Frontend auth context suppression now uses an explicit context-free allowlist; public forgot/reset flows stay credentialless through public helpers while workspace auth actions carry tenant/workspace/environment context.",
+                         "validationRun":  [
+                                               "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/api-client-context.spec.ts tests/e2e/admin.spec.ts tests/e2e/marketing.spec.ts --project=chromium --reporter=line",
+                                               "git diff --check -- frontend/src/lib/api-client.ts frontend/src/lib/auth-api.ts frontend/tests/e2e/api-client-context.spec.ts"
+                                           ],
+                         "residualRisks":  [
+                                               "Local frontend validation only; backend authorization remains authoritative and target browser/session evidence remains part of release validation."
+                                           ]
+                     },
+                     {
+                         "id":  "tracking-reconciliation-dedupe-raw-counts",
+                         "title":  "Deduplicate tracking reconciliation raw counts",
+                         "status":  "DONE",
+                         "priorityScore":  44,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  1,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "TRACKING_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PERFORMANCE_ENGINEER",
+                                               "TEST_ARCHITECT"
+                                           ],
+                         "scope":  "Align tracking reconciliation raw count queries with rollup dedupe semantics so duplicate raw event IDs do not inflate campaign reconciliation metrics.",
+                         "nonGoals":  "Do not claim physical raw table dedupe or live ClickHouse semantics without runtime evidence.",
+                         "sourceFiles":  [
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                                             "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java",
+                                             "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Campaign reconciliation counts dedupe by tenant/workspace/event type/event ID where local raw rows can duplicate.",
+                                                    "Rollup and reconciliation semantics are documented by tests.",
+                                                    "Residual live ClickHouse/raw-events proof remains blocked externally."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/tracking-service -Dtest=AnalyticsServiceTest,AnalyticsControllerTest,ClickHouseRollupServiceTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "performance-bottlenecks.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote deliverability-safety-validation-map if no READY work remains.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6460584Z",
+                         "lastUpdated":  "2026-05-23T11:53:56.7733050Z",
+                         "startedAt":  "2026-05-23T11:51:14.6920734Z",
+                         "completedAt":  "2026-05-23T11:53:56.7733050Z",
+                         "outcome":  "Campaign reconciliation raw counts now aggregate from a canonical raw-events subquery grouped by tenant/workspace/event type/event ID, matching rollup dedupe semantics.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/tracking-service \"-Dtest=AnalyticsServiceTest,AnalyticsControllerTest,ClickHouseRollupServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "git diff --check -- services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                                           ],
+                         "residualRisks":  [
+                                               "Query-shape evidence only; physical raw-event dedupe, live ClickHouse duplicate/reconciliation evidence, Docker/PostgreSQL idempotency proof, and strict release evidence remain separate blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "deliverability-safety-validation-map",
+                         "title":  "Map deliverability safety invariants to local validation and external blockers",
+                         "status":  "DONE",
+                         "priorityScore":  30,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  2,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "DOCUMENTATION_ENGINEER",
+                         "partnerAgents":  [
+                                               "DELIVERABILITY_ENGINEER",
+                                               "RELEASE_MANAGER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Expand deliverability safety docs with a validation map that ties safety invariants to local tests, validators, and blocked target evidence.",
+                         "nonGoals":  "Do not claim provider capacity, inbox placement, or target deliverability evidence.",
+                         "sourceFiles":  [
+                                             "docs/security/deliverability-and-safety.md",
+                                             ".codex/memory/blocked-items.md",
+                                             ".codex/memory/performance-bottlenecks.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Safety invariants map to current local tests/validators or explicit external blockers.",
+                                                    "Provider capacity and inbox placement remain evidence-bound.",
+                                                    "Repo artifact hygiene passes."
+                                                ],
+                         "validationProfile":  "docs-memory",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "git diff --check -- docs/security/deliverability-and-safety.md .codex/memory/blocked-items.md .codex/memory/performance-bottlenecks.md"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "blocked-items.md",
+                                               "performance-bottlenecks.md"
+                                           ],
+                         "nextAction":  "Run Codex validation/monitor; if no local work remains, report remaining external blockers without claiming production readiness.",
+                         "discoveredAt":  "2026-05-23T11:02:15.6615885Z",
+                         "lastUpdated":  "2026-05-23T11:58:52.6385526Z",
+                         "startedAt":  "2026-05-23T11:55:04.3651492Z",
+                         "completedAt":  "2026-05-23T11:58:52.6385526Z",
+                         "outcome":  "Mapped deliverability safety invariants to local validation evidence and explicit external blockers; corrected stale tracking readiness blocker language after local reconciliation raw-count dedupe.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check -- docs/security/deliverability-and-safety.md .codex/memory/blocked-items.md .codex/memory/performance-bottlenecks.md"
+                                           ],
+                         "residualRisks":  [
+                                               "Provider capacity, inbox placement, live high-volume proof, target DNS/FBL/egress/monitoring/TLS evidence, and production release evidence remain external blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "deployment-manager-readiness-options-20260523",
+                         "title":  "Expose Deployment Manager readiness options and evidence boundaries",
+                         "status":  "DONE",
+                         "priorityScore":  54,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "RELEASE_MANAGER",
+                         "partnerAgents":  [
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "FRONTEND_OWNER",
+                                               "DEVOPS_ENGINEER",
+                                               "DELIVERABILITY_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Add an in-app Deployment Manager readiness surface and operations guide mapping local 100 percent completion to free/paid external production evidence paths.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, provider capacity, inbox placement, or 10 lakh/10h throughput without target evidence.",
+                         "sourceFiles":  [
+                                             "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                                             "frontend/tests/e2e/admin.spec.ts",
+                                             "docs/operations/deployment-manager-provider-options.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Settings exposes Deployment section with maturity categories, free validation track, paid production track, and runtime keys.",
+                                                    "Operations guide defines 100 percent local versus claimable production evidence and provider options.",
+                                                    "Frontend/admin focused validation and repo hygiene pass."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint; npm run build:ci; .\\\\node_modules\\\\.bin\\\\playwright.cmd test tests/e2e/admin.spec.ts --project=chromium --reporter=line",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\\\ops\\\\validate-repo-artifact-hygiene.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\\\utilities\\\\validate-codex-system.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "design-decisions.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md",
+                                               "blocked-items.md",
+                                               "performance-bottlenecks.md"
+                                           ],
+                         "nextAction":  "Collect target production/provider evidence or promote the next scoped product parity implementation gap.",
+                         "discoveredAt":  "2026-05-23T12:31:20.0659098Z",
+                         "startedAt":  "2026-05-23T12:31:20.0659098Z",
+                         "lastUpdated":  "2026-05-23T12:41:31.2775962Z",
+                         "completedAt":  "2026-05-23T12:41:31.2775962Z",
+                         "outcome":  "Deployment Manager settings now exposes local/paid deployment tracks, maturity target mapping, runtime evidence keys, and explicit production evidence boundaries; operations guide documents free and paid provider options without claiming external readiness.",
+                         "validationRun":  [
+                                               "cd frontend; npm run lint; npm run build:ci; .\\\\node_modules\\\\.bin\\\\playwright.cmd test tests/e2e/admin.spec.ts --project=chromium --reporter=line,git diff --check -- frontend/src/components/settings/EnterpriseSettingsConsole.tsx frontend/tests/e2e/admin.spec.ts docs/operations/deployment-manager-provider-options.md .codex/backlog/queue.json .codex/state/team-state.json .codex/memory/active-work-items.md,powershell -ExecutionPolicy Bypass -File scripts\\\\ops\\\\validate-repo-artifact-hygiene.ps1,powershell -ExecutionPolicy Bypass -File scripts\\\\ops\\\\test-release-evidence-validators.ps1,powershell -ExecutionPolicy Bypass -File .codex\\\\utilities\\\\validate-codex-system.ps1"
+                                           ],
+                         "residualRisks":  [
+                                               "Local guide/UI only; production readiness, Salesforce parity, AI parity, provider capacity, live high-volume proof, and strict release remain blocked by external evidence or additional implementation."
+                                           ]
                      }
                  ],
     "activeWork":  [
+                       {
+                           "id":  "deployment-manager-readiness-options-20260523",
+                           "title":  "Expose Deployment Manager readiness options and evidence boundaries",
+                           "status":  "IN_PROGRESS",
+                           "priorityScore":  54,
+                           "scoring":  {
+                                           "productionReadinessImpact":  5,
+                                           "securityRisk":  2,
+                                           "userImpact":  4,
+                                           "performanceImpact":  3,
+                                           "technicalDebtImpact":  3
+                                       },
+                           "owner":  "RELEASE_MANAGER",
+                           "partnerAgents":  [
+                                                 "PRODUCT_MANAGER_AGENT",
+                                                 "FRONTEND_OWNER",
+                                                 "DEVOPS_ENGINEER",
+                                                 "DELIVERABILITY_ENGINEER",
+                                                 "QA_ENGINEER"
+                                             ],
+                           "scope":  "Add an in-app Deployment Manager readiness surface and operations guide mapping local 100 percent completion to free/paid external production evidence paths.",
+                           "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, provider capacity, inbox placement, or 10 lakh/10h throughput without target evidence.",
+                           "sourceFiles":  [
+                                               "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                                               "frontend/tests/e2e/admin.spec.ts",
+                                               "docs/operations/deployment-manager-provider-options.md"
+                                           ],
+                           "acceptanceCriteria":  [
+                                                      "Settings exposes Deployment section with maturity categories, free validation track, paid production track, and runtime keys.",
+                                                      "Operations guide defines 100 percent local versus claimable production evidence and provider options.",
+                                                      "Frontend/admin focused validation and repo hygiene pass."
+                                                  ],
+                           "validationProfile":  "frontend-focused",
+                           "validationCommands":  [
+                                                      "cd frontend; npm run lint; npm run build:ci; .\\\\node_modules\\\\.bin\\\\playwright.cmd test tests/e2e/admin.spec.ts --project=chromium --reporter=line",
+                                                      "powershell -ExecutionPolicy Bypass -File scripts\\\\ops\\\\validate-repo-artifact-hygiene.ps1",
+                                                      "powershell -ExecutionPolicy Bypass -File .codex\\\\utilities\\\\validate-codex-system.ps1"
+                                                  ],
+                           "dependencies":  [
 
+                                            ],
+                           "blockers":  [
+
+                                        ],
+                           "memoryTargets":  [
+                                                 "active-work-items.md",
+                                                 "design-decisions.md",
+                                                 "release-history.md",
+                                                 "unresolved-risks.md",
+                                                 "blocked-items.md",
+                                                 "performance-bottlenecks.md"
+                                             ],
+                           "nextAction":  "Patch UI, docs, memory, then validate locally.",
+                           "discoveredAt":  "2026-05-23T12:31:20.0659098Z",
+                           "startedAt":  "2026-05-23T12:31:20.0659098Z",
+                           "lastUpdated":  "2026-05-23T12:39:46.2636291Z"
+                       }
                    ],
     "activeAgents":  [
 

@@ -2,6 +2,103 @@
 
 Fresh baseline date: 2026-05-20.
 
+## 2026-05-23 Backend Validation Stability
+
+Root cause: the broad backend reactor runs multiple service test suites concurrently. `DeliverabilityServiceClientTest` relied on the default `HttpServer` executor, and `SendExecutionServiceTest` used one-second preemptive timeouts for async render/publish coordination, so heavy parallel validation could starve otherwise correct test paths.
+
+Fix: gave the local HTTP fixture a dedicated executor and replaced brittle preemptive timeouts with bounded latch/future completion assertions.
+
+Validation: focused audience/campaign tests passed, release evidence validator self-test passed, and full `.\mvnw.cmd test` passed.
+
+Avoidance: async tests should synchronize on explicit latches/futures and use realistic bounded waits; local HTTP fixtures should own their executor when used inside a parallel reactor.
+
+## 2026-05-23 Tracking Reconciliation Raw Count Dedupe
+
+Root cause: campaign reconciliation compared summary counters against raw-event counts grouped directly from `raw_events`. Rollup refresh had already been changed to use a canonical deduped raw-event source, but reconciliation still counted duplicate raw rows with the same event ID.
+
+Fix: changed `AnalyticsService.rawCountsForCampaign` to count from a canonical subquery grouped by tenant, workspace, event type, and event ID before grouping by event type.
+
+Validation: focused tracking tests passed, including the new reconciliation SQL assertion and existing campaign-day rollup canonical-source assertions.
+
+Avoidance: every analytics path used for operational reconciliation must share the same idempotent raw-event semantics as rollups, or explicitly document why it is measuring physical raw rows.
+
+## 2026-05-23 Frontend Auth Context Allowlist
+
+Root cause: the API client treated the entire `/api/v1/auth` prefix as context-free. That kept public and bootstrap auth flows simple, but it also stripped tenant/workspace/environment headers from credentialed workspace auth actions that need scoped context.
+
+Fix: replaced broad auth-prefix suppression with an explicit context-free auth endpoint allowlist. Public forgot/reset flows continue through `postPublic`; credentialed workspace auth paths outside the allowlist now receive normal context headers and fail client-side if required context is missing.
+
+Validation: targeted API-client tests prove public reset/forgot remain credentialless, workspace auth actions carry tenant/workspace/environment/request IDs, and existing admin/marketing flows still pass under lint/build/Chromium validation.
+
+Avoidance: every new auth subroute must be classified as context-free public/bootstrap behavior or workspace-scoped credentialed behavior, with API-client tests for the chosen class.
+
+## 2026-05-23 Kafka High-Volume Topic Config Coverage
+
+Root cause: `EventPublisher` treated several topics as high-volume for partition-key safety, but `KafkaTopicConfig` only declared a subset as local `NewTopic` beans. Future local runtimes could therefore publish high-volume events whose topics were not created by the local topic configuration, and tests would not catch drift when the high-volume set changed.
+
+Fix: added local topic beans for the missing high-volume topics and exposed the publisher high-volume topic set through a read-only static accessor. `KafkaTopicConfigTest` now asserts every high-volume publisher topic has a local topic definition and that configured source topics fit within the shared DLQ partition range.
+
+Validation: focused Kafka topic config tests passed with the new drift coverage.
+
+Avoidance: any new high-volume topic must be paired with explicit topic ownership: local bean coverage or a documented external-managed exclusion backed by tests and release evidence.
+
+## 2026-05-23 Delivery Feedback Outbox Backpressure Toggle
+
+Root cause: delivery feedback enqueue always attempted an immediate publish after the durable outbox save, either after transaction commit or inline when no transaction synchronization was active. That preserved low-latency feedback but coupled high-volume send paths to Kafka publish pressure even though the durable poller already existed.
+
+Fix: added the `legent.delivery.feedback-outbox.immediate-publish-enabled` property with default `true`. When set to `false`, enqueue still writes the pending outbox event and returns without claiming/publishing, leaving publication to the scheduled bounded poller and existing retry/metrics paths.
+
+Validation: focused delivery outbox tests prove deferred mode saves a pending row without claiming publish or calling the publisher, while existing publish success/failure/scope and orchestration tests still pass.
+
+Avoidance: durable outbox producers should keep send-path side effects configurable where downstream publish pressure can compete with provider throughput; deferred mode must preserve pending state, visibility, retries, and alerting instead of dropping feedback.
+
+## 2026-05-23 Tracking Analytics Event Count Window Bound
+
+Root cause: `AnalyticsService.getEventCounts` grouped over all `raw_events` for a tenant/workspace, and the WebSocket broadcaster called that method every five seconds for each open session. Timeline and rollup endpoints were already windowed, but the dashboard count path still repeated an all-time scan.
+
+Fix: added a bounded event-count window with a default 168-hour lookback, invalid-window rejection, and 31-day maximum clamp for explicit windows. The analytics controller now passes optional `startAt`/`endAt`, while the WebSocket path remains API-compatible and uses the bounded default.
+
+Validation: focused service/controller tests passed, proving the timestamp predicates, invalid-window short circuit, max-window clamp, and controller window pass-through.
+
+Avoidance: high-frequency dashboard and WebSocket analytics should default to bounded recent windows or pre-aggregated tables; all-time raw-event queries should be explicit export/reconciliation workflows with separate evidence.
+
+## 2026-05-23 Audience Segment Recompute Bounded Membership
+
+Root cause: segment recompute used the same query shape as preview materialization, returning every matching subscriber ID into a single Java list and then constructing a second full `batchArgs` list before insert. Large segments could therefore pressure heap and transaction time even though scheduled segment discovery was already paged.
+
+Fix: replaced full materialization with bounded keyset pages ordered by subscriber ID. Recompute now inserts one page at a time and tracks member count incrementally while preserving the existing rule SQL, tenant/workspace scope, delete-before-rebuild behavior, cache invalidation, and recomputed event publication.
+
+Validation: focused segment evaluation tests passed with a regression that forces one full recompute page plus a partial second page and proves the second query uses `afterSubscriberId`, both queries set the page limit, and insert batches remain bounded.
+
+Avoidance: recompute and scheduler paths should page both work discovery and per-item materialization; previews can count without materialization, but write paths must avoid building full audience lists or full JDBC batch arguments in memory.
+
+## 2026-05-23 Identity Reset Link Production Safety
+
+Root causes:
+- Runtime production configuration validation did not treat `legent.frontend.base-url` as a release-critical value, so a production profile could start with an unset, local, or non-HTTPS reset-link origin.
+- Reset email HTML embedded the generated reset URL directly into the anchor attribute instead of escaping it at the HTML boundary.
+
+Fix: added a shared production guard for `legent.frontend.base-url` that rejects blank, invalid, non-HTTPS, and loopback hosts, and escaped reset URLs in the identity email publisher before HTML insertion.
+
+Validation: focused common and identity tests passed for runtime guard behavior, existing reset-token behavior, and HTML escaping. Scoped diff check passed with line-ending warnings only.
+
+Avoidance: release-critical URLs that appear in user-facing email links must be validated during production startup, and dynamic URL values must be escaped at every HTML template boundary.
+
+## 2026-05-23 Local Readiness Cycle
+
+Root causes:
+- Public reset-password reused the credentialed API helper, so local tenant/workspace/environment context could leak into a public credential flow.
+- Header context switching treated tenant/workspace as the full context identity and discarded environment selection during workspace changes.
+- Campaign batch rows did not carry durable proof that audience resolution had applied final send eligibility, and legacy recipient JSON could still enter send execution without that proof.
+- Delivery rate control reclaimed all expired reservations for the current key before every reservation decision, adding avoidable database lock work on open-capacity sends.
+- ClickHouse campaign-day rollup refresh counted every raw event row, so ambiguous or partial batch-write retries could overcount refreshed rollups.
+
+Fix: switched reset-password to `postPublic`, made header context values environment-aware, added a campaign audience eligibility marker helper with fail-closed enforcement and marker stripping before rendering, deferred/bounded expired-reservation cleanup to capacity-pressure decisions, and changed the campaign-day rollup SQL to aggregate from a canonical deduped raw-events source.
+
+Validation: frontend lint/build/Playwright, focused campaign/delivery/tracking Maven tests, route-map validation, repository artifact hygiene, and Codex system validation passed locally.
+
+Avoidance: public auth APIs should use public helpers by default; context identity must include environment; send execution needs durable eligibility proof before side effects; hot-path cleanup should be bounded and conditional; analytics rollups should use canonical idempotent sources when raw ingestion can retry.
+
 ## 2026-05-22 Safe Local Pool Q Closeout
 
 Root causes:
@@ -800,3 +897,24 @@ Root-cause entries must include:
   - Fix: reuse the active PowerShell executable where possible, improve child-process capture, add health parser self-tests, and wire them into CI.
   - Validation: release evidence validator self-test, local release gate, compose health/safety validators, and route validators passed locally.
   - Prevention: ops validators should self-test parser behavior and avoid hardcoded shell assumptions.
+- 2026-05-23: SCIM list users filtered provider/page bounds after broad tenant lookup.
+  - Symptom: the public SCIM `/Users` route authenticated bearer tokens, then loaded all tenant users before active/provider filtering and pagination.
+  - Source evidence: `ScimProvisioningService.java`, `UserRepository.java`, and `ScimProvisioningServiceTest.java`.
+  - Causal chain: SCIM create/get/update/delete paths had provider ownership checks, but list pagination reused a tenant-wide repository helper and applied the most important bounds in memory.
+  - Fix: add provider-scoped active user repository lookups with bounded offset/page size, and use tenant/provider/active lookup for `userName eq` filters.
+  - Validation: focused identity SCIM test gate passed locally with 9 tests.
+  - Prevention: public bearer-token endpoints should apply tenant/provider/page constraints in repository queries before materializing rows.
+- 2026-05-23: Delivery send-request consumer claimed idempotency without a tenant guard.
+  - Symptom: malformed send-request envelopes could reach workspace resolution and idempotency claim code with a null tenant ID.
+  - Source evidence: `DeliveryEventConsumer.java`, `EmailFailedConsumer.java`, and `DeliveryEventConsumerTest.java`.
+  - Causal chain: workspace and event-type validation were hardened earlier, while tenant validation existed in the failed-email consumer but was not mirrored in send-request handling.
+  - Fix: require nonblank tenant ID immediately after event-type validation and before any claim or side effect.
+  - Validation: focused delivery event consumer test gate passed locally with 5 tests.
+  - Prevention: every Kafka consumer should validate tenant, workspace, event type, and claim key before idempotency or side effects.
+- 2026-05-23: Campaign event registration allowed missing tenant IDs into idempotency.
+  - Symptom: campaign Kafka handlers validated workspace and payload fields before side effects, but central event registration passed `event.getTenantId()` directly into idempotency.
+  - Source evidence: `CampaignEventConsumer.java` and `CampaignEventConsumerTest.java`.
+  - Causal chain: workspace guards were added to individual handlers, while the shared idempotency-registration helper did not enforce tenant scope.
+  - Fix: enforce nonblank tenant ID in `registerEvent` before `registerIfNew` and keep representative missing-tenant tests for audience-resolved and send-processing handlers.
+  - Validation: focused campaign event consumer test gate passed locally with 25 tests.
+  - Prevention: shared registration helpers should enforce tenant and workspace prerequisites before all idempotency claims.

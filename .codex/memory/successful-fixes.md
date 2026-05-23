@@ -2,6 +2,96 @@
 
 Fresh baseline date: 2026-05-20.
 
+## 2026-05-23 Backend Validation Stability
+
+Source: `services/audience-service/src/test/java/com/legent/audience/client/DeliverabilityServiceClientTest.java` and `services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java`.
+
+Outcome: the deliverability client HTTP fixture now uses an explicit server executor, and campaign async render/publish tests use bounded completion assertions instead of brittle one-second preemptive timeouts. This keeps the same behavioral coverage while making the full parallel Maven reactor stable under local load.
+
+Validation: focused `.\mvnw.cmd -pl services/audience-service,services/campaign-service -am "-Dtest=DeliverabilityServiceClientTest,SendExecutionServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed, release evidence validator self-test passed, and full `.\mvnw.cmd test` passed.
+
+Residual risk: this is local test stability only. It does not replace target runtime evidence, provider capacity, live load, or strict release evidence.
+
+## 2026-05-23 Tracking Reconciliation Raw Count Dedupe
+
+Source: `services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java`, `services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java`, and existing ClickHouse rollup dedupe tests.
+
+Outcome: campaign reconciliation raw counts now aggregate from a canonical raw-events subquery grouped by tenant, workspace, event type, and event ID. This aligns reconciliation with campaign-day rollup refresh semantics so duplicate raw rows do not inflate local mismatch checks.
+
+Validation: focused `.\mvnw.cmd -pl services/tracking-service "-Dtest=AnalyticsServiceTest,AnalyticsControllerTest,ClickHouseRollupServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed with 23 tests, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is query-shape evidence only. Physical raw-event dedupe, live ClickHouse duplicate-rate/reconciliation evidence, and Docker/PostgreSQL idempotency proof remain external blockers for the broader tracking readiness item.
+
+## 2026-05-23 Frontend Auth Context Allowlist
+
+Source: `frontend/src/lib/api-client.ts`, `frontend/src/lib/auth-api.ts`, and `frontend/tests/e2e/api-client-context.spec.ts`.
+
+Outcome: the frontend no longer suppresses tenant/workspace/environment headers for every `/auth/**` credentialed request. Context-free auth is now an explicit allowlist for login, signup, session, refresh, logout, account contexts, and context switch. Public forgot/reset flows remain credentialless through `postPublic`, while workspace auth actions such as onboarding, logout-all, and credentialed forgot-password calls carry tenant/workspace/environment headers.
+
+Validation: `npm run lint`, `npm run build:ci`, and targeted Chromium Playwright `api-client-context.spec.ts`, `admin.spec.ts`, and `marketing.spec.ts` passed with 33 tests. Scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local frontend/client validation only. Backend authorization remains authoritative, and credentialed cross-browser/session evidence remains part of normal release validation.
+
+## 2026-05-23 Kafka High-Volume Topic Config Coverage
+
+Source: `shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java`, `shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java`, and `shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventPublisher.java`.
+
+Outcome: local Kafka topic configuration now explicitly declares every topic in the shared publisher high-volume set, including audience-resolution request, send completion/failure, batch completion, subscriber lifecycle, workflow trigger, and delivery/tracking feedback topics. A focused drift test now compares configured local source topics against `EventPublisher.highVolumeTopics()`.
+
+Validation: focused `.\mvnw.cmd -pl shared/legent-kafka "-Dtest=KafkaTopicConfigTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed with 4 tests, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local topic-bean coverage only. Production broker partition counts, replication, retention, ACLs, and managed-topic policy evidence remain external release requirements.
+
+## 2026-05-23 Delivery Feedback Outbox Backpressure Toggle
+
+Source: `services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java` and `services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java`.
+
+Outcome: delivery feedback still persists a durable outbox row, but immediate publish is now controlled by `legent.delivery.feedback-outbox.immediate-publish-enabled` with a safe default of `true`. When disabled, enqueue leaves the event `PENDING` and avoids a send-path publish claim; the scheduled outbox poller remains responsible for publication and retry evidence.
+
+Validation: initial delivery-only Maven run failed before tests on stale upstream shared classes; rerun with `-am` passed focused `DeliveryFeedbackOutboxServiceTest,DeliveryOrchestrationServiceTest` with 23 tests. Scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local backpressure control evidence only. Target poller throughput, Kafka lag, provider send load, outbox retention/cleanup, and alert tuning remain release/performance evidence.
+
+## 2026-05-23 Tracking Analytics Event Count Window Bound
+
+Source: `services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java`, `services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java`, and focused tracking analytics tests.
+
+Outcome: event-count analytics no longer count all raw events by default. The service applies a default 168-hour window, rejects invalid windows, clamps explicit windows to 31 days, and the HTTP counts endpoint accepts optional `startAt`/`endAt`. WebSocket analytics continues to call the no-arg service method, which now uses the bounded default window.
+
+Validation: focused `.\mvnw.cmd -pl services/tracking-service "-Dtest=AnalyticsServiceTest,AnalyticsControllerTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed with 16 tests, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local query-shape evidence only. Target raw-event volume, timestamp index/selectivity, WebSocket fanout latency, and ClickHouse/runtime analytics evidence remain required before scale or production readiness claims.
+
+## 2026-05-23 Audience Segment Recompute Bounded Membership
+
+Source: `services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java` and `services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java`.
+
+Outcome: segment recompute now materializes memberships through bounded keyset pages ordered by subscriber ID. Each page is inserted as its own bounded batch, so large segment recomputes no longer build one full subscriber ID list and one full insert-argument list in memory.
+
+Validation: focused `.\mvnw.cmd -pl services/audience-service "-Dtest=SegmentEvaluationServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed with 11 tests, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local unit/service evidence only. Target segment-volume, database lock/latency, scheduler concurrency, and durable predictive rollback snapshot evidence remain separate from the local fix.
+
+## 2026-05-23 Identity Reset Link Production Safety
+
+Source: `shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java`, `services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java`, and focused common/identity tests.
+
+Outcome: production profiles now fail closed when `legent.frontend.base-url` is blank, invalid, non-HTTPS, or loopback, preventing reset links from being emitted with unsafe or local frontend origins. Reset email HTML now escapes generated reset URLs before placing them in anchor attributes.
+
+Validation: focused `.\mvnw.cmd -pl shared/legent-common,services/identity-service -am "-Dtest=RuntimeConfigurationGuardTest,IdentityExperienceServiceTest,IdentityEventPublisherTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed, and scoped `git diff --check` passed with CRLF warnings only.
+
+Residual risk: this is local configuration and email-template safety evidence only. Target production configuration, actual email rendering, provider delivery behavior, and strict release evidence remain separate.
+
+## 2026-05-23 Local Readiness Cycle
+
+Source: `frontend/src/lib/auth-api.ts`, `Header.tsx`, frontend Playwright specs, `CampaignAudienceEligibilityMarker.java`, `BatchingService.java`, `SendExecutionService.java`, `SendRateControlService.java`, `DeliverySendReservationRepository.java`, `ClickHouseRollupService.java`, focused backend/frontend tests, and 2026-05-23 checkpoints.
+
+Outcome: the ONE_OVERALL_TEAM cycle completed five local production-readiness slices. Public reset-password now uses credentialless public API helpers without tenant/workspace/environment/request headers. Header workspace switching now preserves selected environment context. Campaign send execution now requires an audience eligibility marker on row-backed and legacy recipient payloads and fails closed before delivery handoff when missing. Delivery rate-control no longer sweeps expired reservations on every open-capacity reservation and bounds cleanup under capacity pressure. ClickHouse campaign-day rollup refresh now dedupes raw events by tenant/workspace/event type/event ID before counting.
+
+Validation: focused frontend lint/build/Playwright gates passed, focused campaign Maven gate passed with 32 tests, focused delivery Maven gate passed with 11 tests, focused tracking Maven gate passed with 24 tests, route-map validation passed, repository artifact hygiene passed, and Codex system validation passed during integration.
+
+Residual risk: this is local evidence only. Strict production release, provider capacity, live load, live ClickHouse behavior, target DB migrations, monitoring handoff, CI/security transcript, restore drill, TLS/admission, and external egress evidence remain blocked or unproven.
+
 ## 2026-05-22 Account Recovery, Requeue, Workspace Guards, Parity Docs, And Codex Hygiene
 
 Source: `frontend/src/components/marketing/PublicAuthViews.tsx`, `frontend/src/lib/auth-api.ts`, `frontend/tests/e2e/marketing.spec.ts`, campaign batch retry/checkpoint/orchestration services and tests, `GlobalEnterpriseService.java`, `PerformanceLedgerSupport.java`, product parity docs, Codex audit/checkpoint validation utilities, and 2026-05-22 checkpoints.
@@ -764,3 +854,33 @@ Outcome: compliance evidence now requires trusted workspace context and exact wo
 Validation: focused worker gates passed; integrated backend reactor gate passed for foundation, tracking, deliverability, content, and shared modules; frontend lint/build/API-client Playwright passed; release evidence validators, local release gate, Compose health/safety validators, route-map validators, repo artifact hygiene, Codex validation, and scoped diff check passed.
 
 Residual risk: evidence is local only. Insight averages now use a bounded recent window, and production release, target runtime, load, provider, monitoring, and external evidence remain blocked until collected.
+
+## 2026-05-23 Identity SCIM List Bounds
+
+Source: `ScimProvisioningService.java`, `UserRepository.java`, and `ScimProvisioningServiceTest.java`.
+
+Outcome: SCIM user listing no longer loads all tenant users before provider filtering. It queries active users by tenant plus SCIM provider with bounded offset/page size, and `userName eq` filtering uses a tenant/provider/active lookup.
+
+Validation: focused `.\mvnw.cmd -pl services/identity-service -am "-Dtest=ScimProvisioningServiceTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed with 9 tests.
+
+Residual risk: local unit/service evidence only; target SCIM IdP paging behavior and production auth telemetry remain release evidence concerns.
+
+## 2026-05-23 Delivery Send Request Tenant Guard
+
+Source: `DeliveryEventConsumer.java` and `DeliveryEventConsumerTest.java`.
+
+Outcome: delivery send-request events now fail closed when tenant scope is missing before workspace resolution, idempotency claims, `TenantContext` setup, or orchestration side effects.
+
+Validation: focused `.\mvnw.cmd -pl services/delivery-service -am "-Dtest=DeliveryEventConsumerTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed with 5 tests. A first non-reactor attempt failed because PowerShell parsing/upstream shared compilation required quoted properties and `-am`; rerun passed.
+
+Residual risk: local consumer coverage only; target Kafka replay, provider behavior, and production evidence remain separate blockers.
+
+## 2026-05-23 Campaign Kafka Tenant Guard
+
+Source: `CampaignEventConsumer.java` and `CampaignEventConsumerTest.java`.
+
+Outcome: campaign event registration now requires nonblank tenant scope before idempotency registration, which protects claimed audience, send-processing, batch-created, automation-send, tracking-ingested, and delivery-feedback reconciliation paths.
+
+Validation: focused `.\mvnw.cmd -pl services/campaign-service "-Dtest=CampaignEventConsumerTest" "-Dsurefire.failIfNoSpecifiedTests=false" test` passed with 25 tests.
+
+Residual risk: local consumer coverage only; target Kafka replay, high-volume processing, and production release evidence remain separate blockers.

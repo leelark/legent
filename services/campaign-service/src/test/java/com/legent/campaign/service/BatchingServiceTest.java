@@ -1,10 +1,10 @@
 package com.legent.campaign.service;
 
-import java.util.Optional;
-
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.exception.ValidationException;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.mockito.ArgumentCaptor;
 
@@ -177,7 +177,7 @@ class BatchingServiceTest {
     }
 
     @Test
-    void processResolvedAudienceChunk_SplitsOversizedDomainIntoBoundedDatabaseBatches() {
+    void processResolvedAudienceChunk_SplitsOversizedDomainIntoBoundedDatabaseBatches() throws Exception {
         String tenantId = "tenant-1";
         String jobId = "job-1";
         SendJob job = new SendJob();
@@ -246,6 +246,14 @@ class BatchingServiceTest {
                 && "workspace-test".equals(row.getWorkspaceId())
                 && "job-1".equals(row.getJobId())
                 && row.getBatchId().startsWith("batch-"));
+        for (List<SendBatchRecipient> rows : recipientBatches) {
+            for (SendBatchRecipient row : rows) {
+                Map<String, String> payload = mapper.readValue(row.getPayload(), new TypeReference<>() {});
+                assertThat(payload)
+                        .containsEntry(CampaignAudienceEligibilityMarker.FIELD_NAME,
+                                CampaignAudienceEligibilityMarker.PASSED_VALUE);
+            }
+        }
         assertThat(job.getTotalTarget()).isEqualTo(AppConstants.SEND_BATCH_SIZE + 1L);
         verify(eventPublisher, times(2)).publishBatchCreated(eq(tenantId), eq(jobId), anyString());
         verify(eventPublisher, never()).publishSendProcessing(anyString(), anyString(), anyString(), anyString());

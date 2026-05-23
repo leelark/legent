@@ -184,6 +184,10 @@ public class EventPublisher {
         return HIGH_VOLUME_TOPICS.contains(topic);
     }
 
+    public static Set<String> highVolumeTopics() {
+        return HIGH_VOLUME_TOPICS;
+    }
+
     private <T> boolean isTenantKey(String key, EventEnvelope<T> envelope) {
         return normalize(envelope.getTenantId())
                 .map(tenantId -> tenantId.equals(key))

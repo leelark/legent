@@ -1,0 +1,28 @@
+{
+    "id":  "frontend-auth-context-allowlist",
+    "createdAt":  "2026-05-23T11:43:56.9012020Z",
+    "objective":  "Narrow frontend auth API context suppression to public allowlist",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/lib/api-client.ts",
+                         "frontend/src/lib/auth-api.ts",
+                         "frontend/src/lib/admin-api.ts",
+                         "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                         "frontend/tests/e2e/api-client-context.spec.ts",
+                         "frontend/tests/e2e/admin.spec.ts",
+                         "frontend/tests/e2e/marketing.spec.ts"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/api-client-context.spec.ts tests/e2e/admin.spec.ts tests/e2e/marketing.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Frontend auth context allowlist complete; promote the next unblocked backlog item."
+}

@@ -1,0 +1,26 @@
+{
+    "id":  "delivery-rate-control-bounded-expiry-sweep",
+    "createdAt":  "2026-05-23T10:22:09.9889375Z",
+    "objective":  "Bound delivery expired reservation cleanup in rate-control hot path",
+    "status":  "DONE",
+    "owner":  "PERFORMANCE_ENGINEER",
+    "filesInScope":  [
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliverySendReservationRepository.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/SendRateControlServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "DELIVERY_SERVICE_OWNER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service -am  -Dtest=SendRateControlServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java services/delivery-service/src/main/java/com/legent/delivery/repository/DeliverySendReservationRepository.java services/delivery-service/src/test/java/com/legent/delivery/service/SendRateControlServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed: delivery rate-control expired lease cleanup is bounded and deferred to capacity pressure; focused delivery Maven validation passed."
+}

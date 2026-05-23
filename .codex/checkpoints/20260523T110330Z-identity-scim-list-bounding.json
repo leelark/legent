@@ -1,0 +1,25 @@
+{
+    "id":  "identity-scim-list-bounding",
+    "createdAt":  "2026-05-23T11:03:30.9608426Z",
+    "objective":  "Bound SCIM user listing behind public SCIM route",
+    "status":  "DONE",
+    "owner":  "IDENTITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java",
+                         "services/identity-service/src/main/java/com/legent/identity/repository/UserRepository.java",
+                         "services/identity-service/src/test/java/com/legent/identity/service/ScimProvisioningServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/identity-service -am \"-Dtest=ScimProvisioningServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           "git diff --check -- services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java services/identity-service/src/main/java/com/legent/identity/repository/UserRepository.java services/identity-service/src/test/java/com/legent/identity/service/ScimProvisioningServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "SCIM list bounding complete; select delivery-send-request-tenant-fail-closed next."
+}

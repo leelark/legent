@@ -44,6 +44,9 @@ public class DeliveryFeedbackOutboxService {
     @Value("${legent.delivery.feedback-outbox.max-attempts:8}")
     private int maxAttempts;
 
+    @Value("${legent.delivery.feedback-outbox.immediate-publish-enabled:true}")
+    private boolean immediatePublishEnabled;
+
     @PostConstruct
     void registerBacklogMetrics() {
         Gauge.builder("legent.outbox.ready.depth", this, DeliveryFeedbackOutboxService::readyDepth)
@@ -93,6 +96,9 @@ public class DeliveryFeedbackOutboxService {
         DeliveryFeedbackOutboxEvent event = toEntity(message);
         outboxRepository.save(event);
 
+        if (!immediatePublishEnabled) {
+            return;
+        }
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

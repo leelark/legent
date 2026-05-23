@@ -1,0 +1,22 @@
+{
+    "id":  "validation-gate-flake-hardening-20260523",
+    "createdAt":  "2026-05-23T12:09:03.7445460Z",
+    "objective":  "Stabilize backend validation tests surfaced by full Maven gate under parallel load",
+    "status":  "DONE",
+    "owner":  "QA_ENGINEER",
+    "filesInScope":  [
+                         "services/audience-service/src/test/java/com/legent/audience/client/DeliverabilityServiceClientTest.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+                     ],
+    "agents":  [
+
+               ],
+    "validationPlan":  [
+
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Backend full Maven gate passes; no additional local QA work remains from this validation failure."
+}

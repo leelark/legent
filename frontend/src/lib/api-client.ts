@@ -186,8 +186,19 @@ function matchesPath(path: string, route: string): boolean {
   return path === route || path.startsWith(`${route}/`);
 }
 
-function isAuthEndpoint(url: string | undefined): boolean {
-  return matchesPath(getApiPath(url), '/api/v1/auth');
+const CONTEXT_FREE_AUTH_ENDPOINTS = [
+  '/api/v1/auth/login',
+  '/api/v1/auth/signup',
+  '/api/v1/auth/session',
+  '/api/v1/auth/refresh',
+  '/api/v1/auth/logout',
+  '/api/v1/auth/contexts',
+  '/api/v1/auth/context/switch',
+];
+
+function isContextFreeAuthEndpoint(url: string | undefined): boolean {
+  const path = getApiPath(url);
+  return CONTEXT_FREE_AUTH_ENDPOINTS.some((route) => matchesPath(path, route));
 }
 
 function isTenantFreeEndpoint(url: string | undefined): boolean {
@@ -293,26 +304,26 @@ apiClient.interceptors.request.use(async (config) => {
     const tenantId = getStoredTenantId();
     const workspaceId = localStorage.getItem(WORKSPACE_STORAGE_KEY);
     const environmentId = localStorage.getItem(ENVIRONMENT_STORAGE_KEY);
-    const isAuthRequest = isAuthEndpoint(resolvedUrl);
+    const isContextFreeAuthRequest = isContextFreeAuthEndpoint(resolvedUrl);
     const isTenantFreeRequest = isTenantFreeEndpoint(resolvedUrl);
     const requestId =
       (window.crypto && 'randomUUID' in window.crypto)
         ? window.crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-    const needsTenantContext = !isAuthRequest && !isTenantFreeRequest;
+    const needsTenantContext = !isContextFreeAuthRequest && !isTenantFreeRequest;
     const needsWorkspaceContext =
       needsTenantContext &&
       !isWorkspaceOptionalEndpoint(resolvedUrl);
 
     config.headers = config.headers ?? {};
-    if (!isAuthRequest && tenantId && !hasHeader(config.headers, 'X-Tenant-Id')) {
+    if (!isContextFreeAuthRequest && tenantId && !hasHeader(config.headers, 'X-Tenant-Id')) {
       setHeader(config.headers, 'X-Tenant-Id', tenantId);
     }
-    if (!isAuthRequest && workspaceId && !hasHeader(config.headers, 'X-Workspace-Id')) {
+    if (!isContextFreeAuthRequest && workspaceId && !hasHeader(config.headers, 'X-Workspace-Id')) {
       setHeader(config.headers, 'X-Workspace-Id', workspaceId);
     }
-    if (!isAuthRequest && environmentId && !hasHeader(config.headers, 'X-Environment-Id')) {
+    if (!isContextFreeAuthRequest && environmentId && !hasHeader(config.headers, 'X-Environment-Id')) {
       setHeader(config.headers, 'X-Environment-Id', environmentId);
     }
     if (!hasHeader(config.headers, 'X-Request-Id')) {
@@ -352,7 +363,7 @@ apiClient.interceptors.response.use(
   (error) => {
     const clientError = error as ApiClientError;
     clientError.normalized = parseApiError(clientError);
-    if (clientError.response?.status === 401 && !isAuthEndpoint(clientError.config?.url)) {
+    if (clientError.response?.status === 401 && !isContextFreeAuthEndpoint(clientError.config?.url)) {
       if (typeof window !== 'undefined') {
         clearStoredAuth();
         window.location.href = '/login';

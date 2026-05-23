@@ -138,6 +138,23 @@ class DeliveryEventConsumerTest {
     }
 
     @Test
+    void handleSendRequest_rejectsMissingTenantWithoutClaiming() {
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("evt-missing-tenant")
+                .eventType(AppConstants.TOPIC_EMAIL_SEND_REQUESTED)
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-missing-tenant")
+                .payload(Map.of("workspaceId", "workspace-1", "email", "recipient@example.com"))
+                .build();
+
+        assertThatThrownBy(() -> consumer.handleSendRequest(event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("tenantId is required");
+
+        verifyNoInteractions(idempotencyService, orchestrationService);
+    }
+
+    @Test
     void handleSendRequest_rejectsUnexpectedEventTypeWithoutClaiming() {
         EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
                 .eventId("evt-wrong-type")

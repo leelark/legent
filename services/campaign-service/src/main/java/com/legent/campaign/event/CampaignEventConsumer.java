@@ -414,21 +414,30 @@ public class CampaignEventConsumer {
                                             String workspaceId,
                                             String eventId,
                                             String idempotencyKey) {
+        String tenantId = requireTenantId(event, eventType);
         boolean claimed = idempotencyService.registerIfNew(
-                event.getTenantId(),
+                tenantId,
                 workspaceId,
                 eventType,
                 eventId,
                 idempotencyKey
         );
         return new EventRegistration(
-                event.getTenantId(),
+                tenantId,
                 workspaceId,
                 eventType,
                 eventId,
                 idempotencyKey,
                 claimed
         );
+    }
+
+    private String requireTenantId(EventEnvelope<?> event, String topic) {
+        String tenantId = event == null ? null : stringValue(event.getTenantId());
+        if (tenantId != null) {
+            return tenantId;
+        }
+        throw new IllegalArgumentException("tenantId is required for " + topic + " event " + eventId(event));
     }
 
     private void completeEvent(EventRegistration registration) {

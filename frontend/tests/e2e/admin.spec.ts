@@ -360,6 +360,7 @@ test('settings console covers sections and deliverability response aliases', asy
     { button: /Security/, heading: 'Security Settings' },
     { button: /Notifications/, heading: 'Notification Settings' },
     { button: /Module Preferences/, heading: 'Module Preferences' },
+    { button: /Deployment/, heading: 'Deployment Manager' },
   ];
 
   for (const section of sections) {
@@ -374,6 +375,14 @@ test('settings console covers sections and deliverability response aliases', asy
   await expect(providerRow).toContainText('HEALTHY');
   await expect(providerRow).not.toContainText('INACTIVE');
   await expect(page.getByTestId('provider-health-provider-paused')).toContainText('INACTIVE');
+
+  await settingsSurface.getByRole('button', { name: /Deployment/ }).click();
+  await expect(page.getByRole('heading', { name: 'Deployment Manager' })).toBeVisible();
+  await expect(page.getByTestId('deployment-track-free')).toContainText('Free validation path');
+  await expect(page.getByTestId('deployment-track-paid')).toContainText('Paid production path');
+  await expect(page.getByTestId('deployment-runtime-keys')).toContainText('delivery.provider.mode');
+  await expect(page.getByTestId('deployment-maturity-frontend-local-maturity')).toContainText('100% local completion');
+  await expect(page.getByText('Not production evidence')).toBeVisible();
 
   await settingsSurface.getByRole('button', { name: /Deliverability/ }).click();
   await expect(page.getByRole('heading', { name: 'Deliverability Settings' })).toBeVisible();

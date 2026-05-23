@@ -1,0 +1,38 @@
+{
+    "id":  "deployment-manager-readiness-options-20260523",
+    "createdAt":  "2026-05-23T12:30:52.4277528Z",
+    "objective":  "Map 100 percent maturity targets to local Deployment Manager controls and explicit free/paid external evidence paths.",
+    "status":  "IN_PROGRESS",
+    "owner":  "RELEASE_MANAGER",
+    "filesInScope":  [
+                         "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                         "frontend/tests/e2e/admin.spec.ts",
+                         "docs/operations/deployment-manager-provider-options.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/blocked-items.md",
+                         ".codex/memory/performance-bottlenecks.md"
+                     ],
+    "agents":  [
+                   "RELEASE_MANAGER",
+                   "PRODUCT_MANAGER_AGENT",
+                   "FRONTEND_OWNER",
+                   "DEVOPS_ENGINEER",
+                   "DELIVERABILITY_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\\\node_modules\\\\.bin\\\\playwright.cmd test tests/e2e/admin.spec.ts --project=chromium --reporter=line",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\\\ops\\\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\\\utilities\\\\validate-codex-system.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Patch Deployment Manager readiness surface, provider guide, memory, and run focused gates."
+}

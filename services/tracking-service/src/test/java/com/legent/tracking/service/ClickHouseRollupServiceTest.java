@@ -42,6 +42,31 @@ class ClickHouseRollupServiceTest {
     }
 
     @Test
+    void rollupSql_deduplicatesRawEventsInsideScopedSourceQuery() {
+        ClickHouseRollupService service = new ClickHouseRollupService(emptyProvider());
+        String sql = service.campaignDayRefreshSql();
+        String canonicalSource = canonicalRawEventsSource(sql);
+
+        assertThat(canonicalSource)
+                .contains("SELECT tenant_id")
+                .contains("event_type")
+                .contains("id")
+                .contains("any(campaign_id) AS campaign_id")
+                .contains("any(subscriber_id) AS subscriber_id")
+                .contains("min(timestamp) AS timestamp")
+                .contains("any(metadata) AS metadata")
+                .contains("FROM raw_events")
+                .contains("WHERE tenant_id = ?")
+                .contains("AND workspace_id = ?")
+                .contains("AND timestamp >= ?")
+                .contains("AND timestamp < ?")
+                .contains("GROUP BY tenant_id, workspace_id, event_type, id");
+        assertThat(sql)
+                .contains(") AS canonical_raw_events")
+                .contains("GROUP BY tenant_id, workspace_id, campaign_id, bucket_date");
+    }
+
+    @Test
     void rawEventSchema_isPartitionedRetainedAndWorkspaceScoped() {
         ClickHouseRollupService service = new ClickHouseRollupService(emptyProvider());
 
@@ -164,7 +189,17 @@ class ClickHouseRollupServiceTest {
                 && sql.contains("tenant_id = ?")
                 && sql.contains("workspace_id = ?")
                 && sql.contains("timestamp >= ?")
-                && sql.contains("timestamp < ?");
+                && sql.contains("timestamp < ?")
+                && sql.contains("GROUP BY tenant_id, workspace_id, event_type, id")
+                && sql.contains(") AS canonical_raw_events");
+    }
+
+    private String canonicalRawEventsSource(String sql) {
+        int sourceStart = sql.indexOf("FROM (");
+        int sourceEnd = sql.indexOf(") AS canonical_raw_events");
+        assertThat(sourceStart).isGreaterThanOrEqualTo(0);
+        assertThat(sourceEnd).isGreaterThan(sourceStart);
+        return sql.substring(sourceStart, sourceEnd);
     }
 
     private ObjectProvider<JdbcTemplate> emptyProvider() {

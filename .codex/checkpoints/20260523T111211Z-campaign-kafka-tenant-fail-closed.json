@@ -1,0 +1,24 @@
+{
+    "id":  "campaign-kafka-tenant-fail-closed",
+    "createdAt":  "2026-05-23T11:12:11.9687584Z",
+    "objective":  "Fail closed campaign Kafka events without tenant scope",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -Dtest=CampaignEventConsumerTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Campaign tenant fail-closed guard complete; select identity-reset-link-production-safety next."
+}

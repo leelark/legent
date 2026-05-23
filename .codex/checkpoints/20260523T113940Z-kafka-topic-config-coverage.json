@@ -1,0 +1,25 @@
+{
+    "id":  "kafka-topic-config-coverage",
+    "createdAt":  "2026-05-23T11:39:40.8330405Z",
+    "objective":  "Align Kafka topic bean coverage with published event constants",
+    "status":  "DONE",
+    "owner":  "SHARED_KAFKA_OWNER",
+    "filesInScope":  [
+                         "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+                         "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java",
+                         "shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventPublisher.java"
+                     ],
+    "agents":  [
+                   "BACKEND_PLATFORM_OWNER",
+                   "TEST_ARCHITECT",
+                   "DEVOPS_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl shared/legent-kafka -Dtest=KafkaTopicConfigTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Kafka topic config coverage complete; promote frontend-auth-context-allowlist or the next unblocked backlog item."
+}

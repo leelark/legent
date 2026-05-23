@@ -1,0 +1,27 @@
+{
+    "id":  "frontend-environment-context-switch",
+    "createdAt":  "2026-05-23T10:06:32.9945124Z",
+    "objective":  "Preserve environment context during workspace switching",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/components/shell/Header.tsx",
+                         "frontend/src/lib/context-bootstrap.ts",
+                         "frontend/src/lib/auth.ts",
+                         "frontend/tests/e2e/context-bootstrap.spec.ts"
+                     ],
+    "agents":  [
+                   "FRONTEND_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint",
+                           "cd frontend; npm run build:ci",
+                           "cd frontend; npm run test:e2e:smoke"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed: header workspace switch preserves environment context; lint, build, and focused Playwright validation passed."
+}

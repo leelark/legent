@@ -52,10 +52,11 @@ public class AnalyticsController {
 
     @GetMapping("/events/counts")
     @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
-    public ApiResponse<List<Map<String, Object>>> getEventCounts() {
+    public ApiResponse<List<Map<String, Object>>> getEventCounts(@RequestParam(required = false) Instant startAt,
+                                                                 @RequestParam(required = false) Instant endAt) {
         String tenantId = TenantContext.getTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
-        return ApiResponse.ok(analyticsService.getEventCounts(tenantId, workspaceId));
+        return ApiResponse.ok(analyticsService.getEventCounts(tenantId, workspaceId, startAt, endAt));
     }
 
     @GetMapping("/events/timeline")

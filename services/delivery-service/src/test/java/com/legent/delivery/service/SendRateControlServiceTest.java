@@ -6,11 +6,14 @@ import com.legent.delivery.domain.WarmupState;
 import com.legent.delivery.repository.DeliverySendReservationRepository;
 import com.legent.delivery.repository.SendRateStateRepository;
 import com.legent.delivery.repository.WarmupStateRepository;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 @DataJpaTest(properties = {
         "spring.flyway.enabled=false",
@@ -46,7 +54,7 @@ class SendRateControlServiceTest {
     @Autowired private WarmupService warmupService;
     @Autowired private SendRateStateRepository sendRateStateRepository;
     @Autowired private WarmupStateRepository warmupStateRepository;
-    @Autowired private DeliverySendReservationRepository reservationRepository;
+    @SpyBean private DeliverySendReservationRepository reservationRepository;
 
     @BeforeEach
     void cleanDatabase() {
@@ -150,6 +158,31 @@ class SendRateControlServiceTest {
     }
 
     @Test
+    void reserve_OpenCapacityDoesNotSweepExpiredReservations() {
+        seedWarmup(120, 1000, 1, 1);
+        seedRateState(1);
+        seedExpiredReservation("expired-open", Instant.now().minus(5, ChronoUnit.MINUTES));
+        clearInvocations(reservationRepository);
+
+        SendRateControlService.RateLimitDecision decision = reserve("msg-open");
+
+        assertTrue(decision.allowed());
+        assertEquals(2, currentRateState().getUsedThisMinute());
+        assertEquals(2, currentWarmup().getSentThisHour());
+        assertEquals(DeliverySendReservation.STATUS_RESERVED, reservationRepository
+                .findByTenantIdAndWorkspaceIdAndReservationId(TENANT_ID, WORKSPACE_ID, "expired-open")
+                .orElseThrow()
+                .getStatus());
+        verify(reservationRepository, never()).findExpiredRateReservationsForUpdate(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq(rateLimitKey()),
+                eq(DeliverySendReservation.STATUS_RESERVED),
+                any(Instant.class),
+                any(Pageable.class));
+    }
+
+    @Test
     void release_ReturnsTokensAndAllowsSameReservationToReserveAgain() {
         seedWarmup(1, 1, 0, 0);
         seedRateState(0);
@@ -216,6 +249,51 @@ class SendRateControlServiceTest {
                 .findByTenantIdAndWorkspaceIdAndReservationId(TENANT_ID, WORKSPACE_ID, "msg-1")
                 .orElseThrow()
                 .getStatus());
+    }
+
+    @Test
+    void reserve_CapacityPressureReclaimsBoundedOldestExpiredReservationsOnce() {
+        seedWarmup(120, 1000, 26, 26);
+        seedRateState(26);
+        Instant oldestLeaseExpiry = Instant.now().minus(60, ChronoUnit.MINUTES);
+        for (int index = 0; index < 26; index++) {
+            seedExpiredReservation(String.format("expired-%02d", index), oldestLeaseExpiry.plus(index, ChronoUnit.MINUTES));
+        }
+        clearInvocations(reservationRepository);
+
+        SendRateControlService.RateLimitDecision decision = reserve("msg-pressure");
+
+        assertTrue(decision.allowed());
+        assertEquals(2, currentRateState().getUsedThisMinute());
+        assertEquals(2, currentWarmup().getSentThisHour());
+        assertEquals(25, reservationRepository.findAll().stream()
+                .filter(reservation -> DeliverySendReservation.STATUS_RELEASED.equals(reservation.getStatus()))
+                .count());
+        assertEquals(2, reservationRepository.countByTenantIdAndWorkspaceIdAndStatus(
+                TENANT_ID, WORKSPACE_ID, DeliverySendReservation.STATUS_RESERVED));
+        assertEquals(DeliverySendReservation.STATUS_RELEASED, reservationRepository
+                .findByTenantIdAndWorkspaceIdAndReservationId(TENANT_ID, WORKSPACE_ID, "expired-00")
+                .orElseThrow()
+                .getStatus());
+        assertEquals(DeliverySendReservation.STATUS_RELEASED, reservationRepository
+                .findByTenantIdAndWorkspaceIdAndReservationId(TENANT_ID, WORKSPACE_ID, "expired-24")
+                .orElseThrow()
+                .getStatus());
+        assertEquals(DeliverySendReservation.STATUS_RESERVED, reservationRepository
+                .findByTenantIdAndWorkspaceIdAndReservationId(TENANT_ID, WORKSPACE_ID, "expired-25")
+                .orElseThrow()
+                .getStatus());
+
+        ArgumentCaptor<Pageable> pageCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(reservationRepository).findExpiredRateReservationsForUpdate(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq(rateLimitKey()),
+                eq(DeliverySendReservation.STATUS_RESERVED),
+                any(Instant.class),
+                pageCaptor.capture());
+        assertEquals(0, pageCaptor.getValue().getPageNumber());
+        assertEquals(25, pageCaptor.getValue().getPageSize());
     }
 
     @Test
@@ -324,6 +402,28 @@ class SendRateControlServiceTest {
         state.setRiskScore(0);
         state.setLastAdjustedAt(now);
         sendRateStateRepository.saveAndFlush(state);
+    }
+
+    private void seedExpiredReservation(String reservationId, Instant leaseExpiresAt) {
+        DeliverySendReservation reservation = new DeliverySendReservation();
+        reservation.setTenantId(TENANT_ID);
+        reservation.setWorkspaceId(WORKSPACE_ID);
+        reservation.setReservationId(reservationId);
+        reservation.setRateLimitKey(rateLimitKey());
+        reservation.setSenderDomain(SENDER_DOMAIN);
+        reservation.setProviderId(PROVIDER_ID);
+        reservation.setRecipientDomain(RECIPIENT_DOMAIN);
+        reservation.setStatus(DeliverySendReservation.STATUS_RESERVED);
+        reservation.setMaxPerMinute(currentRateState().getMaxPerMinute());
+        reservation.setRiskScore(0);
+        reservation.setWarmupHourlyLimit(currentWarmup().getHourlyLimit());
+        reservation.setWarmupDailyLimit(currentWarmup().getDailyLimit());
+        reservation.setRateWindowStartedAt(currentRateState().getWindowStartedAt());
+        reservation.setWarmupHourWindowStartedAt(currentWarmup().getHourWindowStartedAt());
+        reservation.setWarmupDayWindowStartedAt(currentWarmup().getDayWindowStartedAt());
+        reservation.setLeaseExpiresAt(leaseExpiresAt);
+        reservation.setReservedAt(leaseExpiresAt.minus(5, ChronoUnit.MINUTES));
+        reservationRepository.saveAndFlush(reservation);
     }
 
     private SendRateState currentRateState() {

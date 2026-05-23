@@ -1,0 +1,26 @@
+{
+    "id":  "tracking-reconciliation-dedupe-raw-counts",
+    "createdAt":  "2026-05-23T11:51:14.5929561Z",
+    "objective":  "Deduplicate tracking reconciliation raw counts",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -Dtest=AnalyticsServiceTest",
+                           "AnalyticsControllerTest",
+                           "ClickHouseRollupServiceTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Tracking reconciliation raw-count dedupe complete; promote deliverability-safety-validation-map if no READY work remains."
+}

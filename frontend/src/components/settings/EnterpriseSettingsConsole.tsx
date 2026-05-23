@@ -38,7 +38,7 @@ import { WebhookPanel } from '@/components/admin/WebhookPanel';
 import { DmarcDashboard } from '@/components/deliverability/DmarcDashboard';
 import { ReputationDashboard } from '@/components/deliverability/ReputationDashboard';
 
-type SettingsSection = 'profile' | 'security' | 'notifications' | 'modules' | 'integrations' | 'deliverability';
+type SettingsSection = 'profile' | 'security' | 'notifications' | 'modules' | 'integrations' | 'deployment' | 'deliverability';
 
 type SettingsMetadata = {
   profile?: Record<string, unknown>;
@@ -46,6 +46,7 @@ type SettingsMetadata = {
   notifications?: Record<string, unknown>;
   modules?: Record<string, unknown>;
   integrations?: Record<string, unknown>;
+  deployment?: Record<string, unknown>;
 };
 
 type PreferenceLoadState = 'loading' | 'loaded' | 'failed';
@@ -56,12 +57,84 @@ const sectionDefs: Array<{ id: SettingsSection; label: string; detail: string; i
   { id: 'notifications', label: 'Notifications', detail: 'email, in-app, workflow alerts', icon: Bell },
   { id: 'modules', label: 'Module Preferences', detail: 'views, filters, widgets', icon: Grid2X2 },
   { id: 'integrations', label: 'Integrations', detail: 'webhooks, providers, tokens', icon: PlugZap },
+  { id: 'deployment', label: 'Deployment', detail: 'readiness, evidence, provider path', icon: ShieldCheck },
   { id: 'deliverability', label: 'Deliverability', detail: 'domains, DNS, reputation', icon: Globe2 },
 ];
 
 const digestOptions = ['instant', 'hourly', 'daily', 'weekly'];
 const localeOptions = ['en-US', 'en-IN', 'en-GB'];
 const timezoneOptions = ['Asia/Calcutta', 'UTC', 'America/New_York', 'Europe/London'];
+const deploymentTrackOptions = ['LOCAL_VALIDATION', 'PRODUCTION_MANAGED'];
+const deploymentProviderOptions = ['MAILHOG', 'SMTP', 'AMAZON_SES', 'SENDGRID', 'MAILGUN'];
+
+type DeploymentMaturityTarget = {
+  label: string;
+  localTarget: string;
+  evidenceBoundary: string;
+};
+
+const deploymentMaturityTargets: DeploymentMaturityTarget[] = [
+  {
+    label: 'Frontend local maturity',
+    localTarget: '100% local completion',
+    evidenceBoundary: 'Lint, build, smoke, and browser transcript pass for target settings and workspace flows.',
+  },
+  {
+    label: 'Infra/release controls',
+    localTarget: '100% local completion',
+    evidenceBoundary: 'Compose, route map, overlay, artifact hygiene, release validators, and strict gate prerequisites stay green.',
+  },
+  {
+    label: 'Production readiness',
+    localTarget: '100% local plan readiness',
+    evidenceBoundary: 'Claimable only after target egress, image, restore, TLS, CI/security, monitoring, and live smoke evidence.',
+  },
+  {
+    label: 'Salesforce-class product parity',
+    localTarget: '100% roadmap clarity',
+    evidenceBoundary: 'Claimable parity requires implemented journeys, segmentation, data extensions, testing, analytics, and AI workflows.',
+  },
+  {
+    label: '10 lakh / 10h send readiness',
+    localTarget: '100% architecture checklist',
+    evidenceBoundary: 'Claimable only with warmed domains, provider quota, load report, Kafka lag, retry, DLQ, and tracking isolation proof.',
+  },
+  {
+    label: 'AI parity',
+    localTarget: '100% governance checklist',
+    evidenceBoundary: 'Claimable only after model provider, evals, safety review, cost controls, draft UX, and audit evidence.',
+  },
+];
+
+const deploymentRuntimeKeys = [
+  'deployment.track',
+  'deployment.evidence.dir',
+  'deployment.egress.evidence.path',
+  'deployment.image.evidence.manifest',
+  'delivery.provider.mode',
+  'delivery.provider.capacityProfileId',
+  'ai.provider.mode',
+  'tracking.analytics.clickhouse.mode',
+  'observability.provider',
+  'release.strictEvidenceRequired',
+];
+
+const deploymentTracks = [
+  {
+    id: 'free',
+    title: 'Free validation path',
+    mode: 'LOCAL_VALIDATION',
+    items: ['Docker Compose runtime', 'MailHog delivery sink', 'local ClickHouse/OpenSearch/MinIO', "Let's Encrypt or local TLS", 'GitHub Actions free quota'],
+    boundary: 'Local validation only. It does not prove production egress, provider quota, sender reputation, or high-volume throughput.',
+  },
+  {
+    id: 'paid',
+    title: 'Paid production path',
+    mode: 'PRODUCTION_MANAGED',
+    items: ['managed Kubernetes or cloud app runtime', 'managed PostgreSQL/Redis/Kafka/ClickHouse', 'SES, SendGrid, or Mailgun with approved capacity', 'dedicated or managed IP warmup', 'Datadog, Grafana Cloud, or PagerDuty'],
+    boundary: 'Production claim requires dated evidence from the target account, provider, registry, runtime, and monitoring stack.',
+  },
+];
 
 export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { initialSection?: SettingsSection }) {
   const { addToast } = useToast();
@@ -355,6 +428,7 @@ export function EnterpriseSettingsConsole({ initialSection = 'profile' }: { init
               {active === 'notifications' && <NotificationSettings key="notifications" metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
               {active === 'modules' && <ModuleSettings key="modules" metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
               {active === 'integrations' && <IntegrationSettings key="integrations" providers={providers} metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
+              {active === 'deployment' && <DeploymentSettings key="deployment" metadata={metadata} updateMeta={updateMeta} save={save} saving={saving} saveDisabled={preferenceSaveDisabled} />}
               {active === 'deliverability' && (
                 <DeliverabilitySettings
                   key="deliverability"
@@ -558,6 +632,100 @@ function IntegrationSettings({ providers, metadata, updateMeta, save, saving, sa
           </div>
         </Panel>
       </div>
+    </>
+  );
+}
+
+function DeploymentSettings({ metadata, updateMeta, save, saving, saveDisabled }: SettingsPaneProps) {
+  const deployment = metadata.deployment || {};
+  const selectedTrack = asText(deployment.track, 'LOCAL_VALIDATION');
+  const providerMode = asText(deployment.providerMode, 'MAILHOG');
+  return (
+    <>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <Panel>
+          <PaneHeader icon={ShieldCheck} title="Deployment Manager" detail="Local completion targets, release evidence boundaries, and provider track selection." />
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            <SelectField
+              label="Deployment track"
+              value={selectedTrack}
+              options={deploymentTrackOptions}
+              onChange={(value) => updateMeta('deployment', 'track', value)}
+            />
+            <SelectField
+              label="Delivery provider mode"
+              value={providerMode}
+              options={deploymentProviderOptions}
+              onChange={(value) => updateMeta('deployment', 'providerMode', value)}
+            />
+          </div>
+
+          <div className="mt-5 grid gap-3 lg:grid-cols-2">
+            {deploymentTracks.map((track) => (
+              <div key={track.id} data-testid={`deployment-track-${track.id}`} className="rounded-lg border border-border-default bg-surface-secondary p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-content-primary">{track.title}</p>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-content-muted">{track.mode}</p>
+                  </div>
+                  <Status label={track.mode === selectedTrack ? 'SELECTED' : 'AVAILABLE'} ok={track.mode === selectedTrack} />
+                </div>
+                <div className="mt-4 grid gap-2">
+                  {track.items.map((item) => (
+                    <Posture key={item} label={item} ok />
+                  ))}
+                </div>
+                <p className="mt-4 text-xs leading-5 text-content-secondary">{track.boundary}</p>
+              </div>
+            ))}
+          </div>
+
+          <Button className="mt-5" onClick={() => save()} loading={saving} disabled={saveDisabled} icon={<Save className="h-4 w-4" />}>
+            Save deployment
+          </Button>
+        </Panel>
+
+        <Panel>
+          <PaneHeader icon={Database} title="Runtime Keys" detail="Settings surfaced for deployment manager and release evidence wiring." />
+          <div data-testid="deployment-runtime-keys" className="mt-5 space-y-2">
+            {deploymentRuntimeKeys.map((key) => (
+              <InfoLine key={key} label={key} value={deploymentRuntimeValue(key, selectedTrack, providerMode)} />
+            ))}
+          </div>
+        </Panel>
+      </div>
+
+      <Panel className="mt-4">
+        <PaneHeader icon={Activity} title="100% Readiness Matrix" detail="Local targets and claim boundaries for the current maturity categories." />
+        <div className="mt-5 overflow-hidden rounded-lg border border-border-default">
+          <div className="overflow-x-auto">
+            <div className="min-w-[780px]">
+              <div className="grid grid-cols-[220px_170px_minmax(260px,1fr)] gap-0 bg-surface-secondary px-3 py-2 text-xs font-semibold text-content-muted">
+                <span>Category</span>
+                <span>Local target</span>
+                <span>Evidence boundary</span>
+              </div>
+              <div className="divide-y divide-border-default">
+                {deploymentMaturityTargets.map((target) => (
+                  <div
+                    key={target.label}
+                    data-testid={`deployment-maturity-${target.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+                    className="grid grid-cols-[220px_170px_minmax(260px,1fr)] gap-0 px-3 py-3 text-sm"
+                  >
+                    <span className="font-semibold text-content-primary">{target.label}</span>
+                    <span className="text-success">{target.localTarget}</span>
+                    <span className="text-content-secondary">{target.evidenceBoundary}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Not production evidence: external target runtime, paid provider, DNS, monitoring, restore, image, and live load proof must be attached before release claims.</span>
+        </div>
+      </Panel>
     </>
   );
 }
@@ -799,6 +967,40 @@ function readRecordValue(record: Record<string, unknown>, keys: string[]) {
     }
   }
   return undefined;
+}
+
+function deploymentRuntimeValue(key: string, track: string, providerMode: string) {
+  if (key === 'deployment.track') {
+    return track;
+  }
+  if (key === 'delivery.provider.mode') {
+    return providerMode;
+  }
+  if (key === 'ai.provider.mode') {
+    return track === 'PRODUCTION_MANAGED' ? 'OPENAI_OR_AZURE_OPENAI' : 'LOCAL_STUB';
+  }
+  if (key === 'tracking.analytics.clickhouse.mode') {
+    return track === 'PRODUCTION_MANAGED' ? 'MANAGED' : 'LOCAL';
+  }
+  if (key === 'observability.provider') {
+    return track === 'PRODUCTION_MANAGED' ? 'DATADOG_OR_GRAFANA_CLOUD' : 'LOCAL';
+  }
+  if (key === 'release.strictEvidenceRequired') {
+    return 'true';
+  }
+  if (key.endsWith('.dir')) {
+    return 'docs/release-evidence';
+  }
+  if (key.endsWith('.path')) {
+    return 'docs/release-evidence/external';
+  }
+  if (key.endsWith('.manifest')) {
+    return 'docs/release-evidence/images';
+  }
+  if (key.endsWith('capacityProfileId')) {
+    return track === 'PRODUCTION_MANAGED' ? 'provider-approved-profile' : 'local-validation-profile';
+  }
+  return 'configured';
 }
 
 function getDomainName(domain: Record<string, unknown>) {

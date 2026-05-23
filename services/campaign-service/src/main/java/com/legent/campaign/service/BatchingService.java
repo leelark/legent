@@ -173,7 +173,7 @@ public class BatchingService {
             row.setSequenceNumber(i + 1);
             row.setSubscriberId(subscriber.get("subscriberId"));
             row.setEmail(subscriber.get("email"));
-            row.setPayload(writeRecipientPayload(subscriber));
+            row.setPayload(writeRecipientPayload(CampaignAudienceEligibilityMarker.markEligible(subscriber)));
             rows.add(row);
         }
         return rows;

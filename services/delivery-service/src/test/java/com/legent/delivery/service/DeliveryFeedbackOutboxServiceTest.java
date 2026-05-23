@@ -29,6 +29,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -55,6 +56,7 @@ class DeliveryFeedbackOutboxServiceTest {
         service = new DeliveryFeedbackOutboxService(outboxRepository, deliveryEventPublisher, objectMapper, meterRegistry);
         service.registerBacklogMetrics();
         ReflectionTestUtils.setField(service, "maxAttempts", 3);
+        ReflectionTestUtils.setField(service, "immediatePublishEnabled", true);
     }
 
     @Test
@@ -86,6 +88,37 @@ class DeliveryFeedbackOutboxServiceTest {
         assertEquals(DeliveryFeedbackOutboxEvent.STATUS_PENDING, saved.getStatus());
         assertEquals(3, saved.getMaxAttempts());
         assertTrue(saved.getPayloadJson().contains("\"messageId\":\"msg-1\""));
+    }
+
+    @Test
+    void enqueue_WhenImmediatePublishDisabled_PersistsPendingEventWithoutClaimingPublish() {
+        ReflectionTestUtils.setField(service, "immediatePublishEnabled", false);
+        DeliveryFeedbackMessage message = message("outbox-deferred");
+        when(outboxRepository.existsByTenantIdAndWorkspaceIdAndEventTypeAndTransitionKeyAndDeletedAtIsNull(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_EMAIL_SENT,
+                "msg-1:SENT")).thenReturn(false);
+        when(outboxRepository.save(any(DeliveryFeedbackOutboxEvent.class))).thenAnswer(invocation -> {
+            DeliveryFeedbackOutboxEvent event = invocation.getArgument(0, DeliveryFeedbackOutboxEvent.class);
+            event.setId("outbox-deferred");
+            return event;
+        });
+
+        service.enqueue(message);
+
+        ArgumentCaptor<DeliveryFeedbackOutboxEvent> eventCaptor = ArgumentCaptor.forClass(DeliveryFeedbackOutboxEvent.class);
+        verify(outboxRepository).save(eventCaptor.capture());
+        assertEquals(DeliveryFeedbackOutboxEvent.STATUS_PENDING, eventCaptor.getValue().getStatus());
+        verify(outboxRepository, never()).claimReadyForPublish(
+                anyString(),
+                anyString(),
+                anyString(),
+                anyCollection(),
+                any(Instant.class),
+                anyString(),
+                any(Instant.class));
+        verify(deliveryEventPublisher, never()).publishOrThrow(any(DeliveryFeedbackMessage.class));
     }
 
     @Test

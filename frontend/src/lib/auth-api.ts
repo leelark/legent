@@ -1,3 +1,4 @@
+import type { AxiosRequestConfig } from 'axios';
 import { post, postPublic } from './api-client';
 
 export interface LoginRequest {
@@ -32,6 +33,8 @@ type AuthActionResponse = {
   message: string;
 };
 
+type PublicAuthRequestConfig = Pick<AxiosRequestConfig, 'adapter'>;
+
 function readOptionalHint(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
@@ -65,11 +68,11 @@ export const authApi = {
   refresh: () =>
     post<LoginResponse>('/auth/refresh'),
 
-  forgotPassword: (request: ForgotPasswordRequest) =>
-    postPublic<AuthActionResponse>('/auth/forgot-password', buildForgotPasswordPayload(request)),
+  forgotPassword: (request: ForgotPasswordRequest, config?: PublicAuthRequestConfig) =>
+    postPublic<AuthActionResponse>('/auth/forgot-password', buildForgotPasswordPayload(request), config),
 
-  resetPassword: (token: string, newPassword: string) =>
-    post<AuthActionResponse>('/auth/reset-password', { token, newPassword }),
+  resetPassword: (token: string, newPassword: string, config?: PublicAuthRequestConfig) =>
+    postPublic<AuthActionResponse>('/auth/reset-password', { token, newPassword }, config),
 
   startOnboarding: (payload: { workspaceId?: string; stepKey?: string; payload?: Record<string, unknown> }) =>
     post<Record<string, unknown>>('/auth/onboarding/start', payload),

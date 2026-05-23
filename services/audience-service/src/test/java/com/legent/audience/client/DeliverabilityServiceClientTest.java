@@ -9,6 +9,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -23,6 +25,7 @@ class DeliverabilityServiceClientTest {
     private static final String INTERNAL_TOKEN = "internal-service-token-1234567890abcdef";
 
     private HttpServer server;
+    private ExecutorService serverExecutor;
     private DeliverabilityServiceClient client;
     private final AtomicReference<CapturedRequest> capturedRequest = new AtomicReference<>();
     private final AtomicInteger responseStatus = new AtomicInteger(200);
@@ -34,6 +37,8 @@ class DeliverabilityServiceClientTest {
                 {"success":true,"data":{"checkedCount":2,"suppressedCount":1,"suppressedEmails":["User@Example.COM"]}}
                 """;
         server = HttpServer.create(new InetSocketAddress(0), 0);
+        serverExecutor = Executors.newSingleThreadExecutor();
+        server.setExecutor(serverExecutor);
         server.createContext("/", this::handleRequest);
         server.start();
         client = new DeliverabilityServiceClient("http://localhost:" + server.getAddress().getPort(), INTERNAL_TOKEN);
@@ -43,6 +48,9 @@ class DeliverabilityServiceClientTest {
     void tearDown() {
         if (server != null) {
             server.stop(0);
+        }
+        if (serverExecutor != null) {
+            serverExecutor.shutdownNow();
         }
     }
 

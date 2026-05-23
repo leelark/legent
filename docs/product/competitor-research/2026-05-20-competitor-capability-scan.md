@@ -2,7 +2,7 @@
 
 Access date: 2026-05-20.
 
-Local queue reconciliation: 2026-05-22 (`parity-doc-state-reconcile-20260522`). No new competitor source refresh was performed for this reconciliation.
+Local queue reconciliation: 2026-05-23 (`product-parity-accounting-reconcile-20260523`). No new competitor source refresh was performed for this reconciliation.
 
 Scope: official or primary vendor sources for current email marketing automation parity signals as of 2026-05-20. Facts are summarized for backlog routing. Treat any current-market claim after that date as needing refresh.
 
@@ -41,7 +41,7 @@ Scope: official or primary vendor sources for current email marketing automation
 
 ## Inference For Legent
 
-Competitor parity is converging around marketer-owned visual journeys, guided setup, dynamic behavioral segmentation, ecommerce and event triggers, cross-channel steps, predictive audience signals, step-level analytics, experimentation, and deliverability-aware sending. As of the 2026-05-22 local queue reconciliation, Legent has closed the local runtime-node contract and local flow-analytics/experimentation slices. That evidence supports internal queue state only; it does not establish competitor parity, production behavior, or deliverability/throughput outcomes.
+Competitor parity is converging around marketer-owned visual journeys, guided setup, dynamic behavioral segmentation, ecommerce and event triggers, cross-channel steps, predictive audience signals, step-level analytics, experimentation, and deliverability-aware sending. As of the 2026-05-23 local queue reconciliation, Legent has closed the local runtime-node contract, flow-analytics/experimentation, mode-aware workflow, send-governance policy, contact-data governance, and AI draft-application contract slices. That evidence supports internal queue state only; it does not establish competitor parity, production behavior, or deliverability/throughput outcomes.
 
 ## Gap Candidates
 
@@ -49,8 +49,8 @@ Competitor parity is converging around marketer-owned visual journeys, guided se
 |---|---|---|---|
 | `journey-runtime-node-contract` | Beginner recipes and Advanced node library must reflect executable runtime behavior. | High | DONE_LOCAL as of 2026-05-22: runtime-supported node subset, capability reporting, publish/resume/rollback guardrails, and builder gating exist locally; broader journey-node runtime expansion remains future work. |
 | `segment-builder-v2` | Beginner presets, Advanced nested behavioral filters, Admin governance. | Medium | SPLIT_PROPOSED: see `segment-builder-v2-*` descriptions below. |
-| `mode-aware-workflow-contract` | BASIC and ADVANCED exist; role-gated Admin is not yet a product contract. | Medium | BACKLOG |
-| `deliverability-aware-automation` | Warmup, engaged-first ramps, quiet hours, suppression, and volume caps must be journey-aware. | High | BACKLOG: related send handoff controls are split under `automation-send-activity-handoff`; live deliverability and delivery-policy snapshot evidence remain external. |
+| `mode-aware-workflow-contract` | BASIC and ADVANCED exist; Admin remains role-gated rather than a third mode. | Medium | DONE_LOCAL as of 2026-05-20: typed mode metadata, Settings navigation filtering, Admin role-gate separation, and campaign Experiment Engine render/payload gating exist locally. |
+| `deliverability-aware-automation` | Warmup, engaged-first ramps, quiet hours, suppression, and volume caps must be journey-aware. | High | PARTIAL_LOCAL: governed send handoff controls are local; live deliverability and delivery-policy snapshot evidence remain external or queued separately. |
 | `flow-analytics-experimentation` | Step metrics, conversion goals, observed path tests, campaign experiment metrics, and scope-separated reporting. | Medium | DONE_LOCAL as of 2026-05-22: bounded step/path/goal analytics and separated journey/campaign experiment scopes exist locally; causal winner-path reporting, anomaly accuracy, and production-volume evidence remain future work. |
 | `ai-governance-optimization-foundation` | AI suggestions require opt-in, provider disclosure, audit, and privacy guardrails; local draft-only policy/audit scaffold exists, model-provider generation remains future work. | High | PARTIAL_LOCAL: see `ai-*` descriptions below. |
 | `contact-builder-governance-split` | Relationship, provenance, retention, deletion, and sendable-key governance must stay separated from generic segmentation. | High | SPLIT_PROPOSED: see `contact-builder-*` descriptions below. |
@@ -58,7 +58,7 @@ Competitor parity is converging around marketer-owned visual journeys, guided se
 
 ## Narrow Backlog Descriptions
 
-These descriptions split broad parity themes into docs/backlog candidates without mutating queue state.
+These descriptions split broad parity themes into docs/backlog candidates. The 2026-05-23 reconciliation seeds queue items only when a candidate is local, narrow, and unblocked; external evidence items remain blocked.
 
 | Candidate | Description | Local Contract Boundary | Refresh / Evidence Requirement |
 |---|---|---|---|

@@ -2,6 +2,7 @@ package com.legent.delivery.repository;
 
 import com.legent.delivery.domain.DeliverySendReservation;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -39,10 +40,12 @@ public interface DeliverySendReservationRepository extends JpaRepository<Deliver
               AND r.status = :status
               AND r.leaseExpiresAt <= :now
               AND r.deletedAt IS NULL
+            ORDER BY r.leaseExpiresAt ASC, r.reservedAt ASC, r.id ASC
             """)
     List<DeliverySendReservation> findExpiredRateReservationsForUpdate(@Param("tenantId") String tenantId,
                                                                        @Param("workspaceId") String workspaceId,
                                                                        @Param("rateLimitKey") String rateLimitKey,
                                                                        @Param("status") String status,
-                                                                       @Param("now") Instant now);
+                                                                       @Param("now") Instant now,
+                                                                       Pageable pageable);
 }

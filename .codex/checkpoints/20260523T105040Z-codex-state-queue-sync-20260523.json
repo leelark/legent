@@ -1,0 +1,28 @@
+{
+    "id":  "codex-state-queue-sync-20260523",
+    "createdAt":  "2026-05-23T10:50:40.7198205Z",
+    "objective":  "Synchronize Codex team state with queue after the safe local work cycle and resumed user instruction.",
+    "status":  "DONE",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         ".codex/state/team-state.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/audit/events/2026-05-23.jsonl",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "PROGRAM_MANAGER_AGENT",
+                   "read-only scouts"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\list-active-work.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Team state synchronized to queue source of truth; continue product parity/backlog reconciliation discovered by scout."
+}

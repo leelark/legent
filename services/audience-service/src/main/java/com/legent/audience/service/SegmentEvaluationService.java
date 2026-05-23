@@ -55,6 +55,12 @@ public class SegmentEvaluationService {
 
     private static final Duration COUNT_CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_SEGMENT_COUNT_TTL_SECONDS);
     static final int SCHEDULED_RECOMPUTE_PAGE_SIZE = 100;
+    static final int RECOMPUTE_MEMBER_PAGE_SIZE = 1_000;
+    private static final String SEGMENT_MEMBERSHIP_INSERT_SQL = """
+            INSERT INTO segment_memberships
+            (id, tenant_id, workspace_id, ownership_scope, segment_id, subscriber_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """;
 
     /**
      * Real-time count preview — runs the query without materializing results.
@@ -116,33 +122,10 @@ public class SegmentEvaluationService {
                 // Clear existing memberships
                 membershipRepository.deleteAllByTenantIdAndWorkspaceIdAndSegmentId(tenantId, workspaceId, segmentId);
 
-                // Execute query and materialize using batch insert
-                List<String> subscriberIds = executeQuery(tenantId, workspaceId, segment.getRules());
-                if (!subscriberIds.isEmpty()) {
-                    String sqlInsert = """
-                            INSERT INTO segment_memberships
-                            (id, tenant_id, workspace_id, ownership_scope, segment_id, subscriber_id, created_at, updated_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                            """;
-                    List<Object[]> batchArgs = new ArrayList<>();
-                    Instant now = Instant.now();
-                    for (String subId : subscriberIds) {
-                        batchArgs.add(new Object[] {
-                                com.legent.common.util.IdGenerator.newId(),
-                                tenantId,
-                                workspaceId,
-                                "WORKSPACE",
-                                segmentId,
-                                subId,
-                                now,
-                                now
-                        });
-                    }
-                    jdbcTemplate.batchUpdate(sqlInsert, batchArgs);
-                }
+                long memberCount = materializeMemberships(tenantId, workspaceId, segmentId, segment.getRules());
 
                 long durationMs = System.currentTimeMillis() - startMs;
-                segment.setMemberCount(subscriberIds.size());
+                segment.setMemberCount(memberCount);
                 segment.setLastEvaluatedAt(Instant.now());
                 segment.setEvaluationDurationMs(durationMs);
                 segment.setStatus(Segment.SegmentStatus.ACTIVE);
@@ -153,7 +136,7 @@ public class SegmentEvaluationService {
                 cacheService.delete(cacheKey);
 
                 eventPublisher.publishRecomputed(segment);
-                log.info("Segment recomputed: id={}, members={}, duration={}ms", segmentId, subscriberIds.size(),
+                log.info("Segment recomputed: id={}, members={}, duration={}ms", segmentId, memberCount,
                         durationMs);
 
             } catch (Exception e) {
@@ -227,19 +210,67 @@ public class SegmentEvaluationService {
         return ((Number) query.getSingleResult()).longValue();
     }
 
+    private long materializeMemberships(String tenantId, String workspaceId, String segmentId, Map<String, Object> rules) {
+        long memberCount = 0;
+        String afterSubscriberId = null;
+
+        while (true) {
+            List<String> subscriberIds = executeQueryPage(
+                    tenantId,
+                    workspaceId,
+                    rules,
+                    afterSubscriberId,
+                    RECOMPUTE_MEMBER_PAGE_SIZE);
+            if (subscriberIds.isEmpty()) {
+                return memberCount;
+            }
+
+            List<Object[]> batchArgs = new ArrayList<>(subscriberIds.size());
+            Instant now = Instant.now();
+            for (String subId : subscriberIds) {
+                batchArgs.add(new Object[] {
+                        com.legent.common.util.IdGenerator.newId(),
+                        tenantId,
+                        workspaceId,
+                        "WORKSPACE",
+                        segmentId,
+                        subId,
+                        now,
+                        now
+                });
+            }
+            jdbcTemplate.batchUpdate(SEGMENT_MEMBERSHIP_INSERT_SQL, batchArgs);
+
+            memberCount += subscriberIds.size();
+            afterSubscriberId = subscriberIds.get(subscriberIds.size() - 1);
+            if (subscriberIds.size() < RECOMPUTE_MEMBER_PAGE_SIZE) {
+                return memberCount;
+            }
+        }
+    }
+
     @SuppressWarnings("unchecked")
-    private List<String> executeQuery(String tenantId, String workspaceId, Map<String, Object> rules) {
+    private List<String> executeQueryPage(String tenantId, String workspaceId, Map<String, Object> rules,
+            String afterSubscriberId, int pageSize) {
         StringBuilder sql = new StringBuilder(
                 "SELECT s.id FROM subscribers s WHERE s.tenant_id = :tid AND s.workspace_id = :wid AND s.deleted_at IS NULL");
         Map<String, Object> params = new HashMap<>();
         params.put("tid", tenantId);
         params.put("wid", workspaceId);
+        if (afterSubscriberId != null) {
+            sql.append(" AND s.id > :afterSubscriberId");
+            params.put("afterSubscriberId", afterSubscriberId);
+        }
 
         appendRuleConditions(sql, params, rules, 0);
+        sql.append(" ORDER BY s.id");
 
         Query query = entityManager.createNativeQuery(sql.toString());
         params.forEach(query::setParameter);
-        return query.getResultList();
+        query.setMaxResults(pageSize);
+        return query.getResultList().stream()
+                .map(String.class::cast)
+                .toList();
     }
 
     /**

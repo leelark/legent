@@ -89,8 +89,9 @@ public class SendExecutionService {
 
     @Transactional
     public void executeBatch(String tenantId, String jobId, String batchId, String payloadJson) {
+        SendBatch batch = null;
         try {
-            SendBatch batch = findBatchWithRetry(tenantId, batchId);
+            batch = findBatchWithRetry(tenantId, batchId);
             if (batch.getStatus() == SendBatch.BatchStatus.COMPLETED) return;
             if (batch.getStatus() == SendBatch.BatchStatus.PROCESSING) {
                 log.info("Skipping batch {} because it is already processing", batchId);
@@ -179,7 +180,7 @@ public class SendExecutionService {
                 
                 // Publish individual email send requests into Delivery Kafka Topic
                 Map<String, Object> variables = new java.util.HashMap<>();
-                variables.putAll(sub);
+                variables.putAll(CampaignAudienceEligibilityMarker.withoutMarker(sub));
                 variables.put("campaignId", batch.getCampaignId());
                 variables.put("jobId", batch.getJobId());
                 variables.put("batchId", batchId);
@@ -434,6 +435,11 @@ public class SendExecutionService {
             }
             batchRepository.save(batch);
             reconcileJobIfFinished(batch);
+        } catch (CampaignAudienceEligibilityMarker.MissingAudienceEligibilityMarkerException e) {
+            if (batch == null) {
+                throw e;
+            }
+            failBatch(tenantId, batch, CampaignAudienceEligibilityMarker.FAILURE_CODE, e.getMessage());
         } catch (ValidationException e) {
             throw e;
         } catch (Exception e) {
@@ -487,7 +493,9 @@ public class SendExecutionService {
         List<Map<String, String>> subscribers = subscribersFromLegacyPayload(sourcePayload);
         return new RecipientPage(false, subscribers.stream()
                 .filter(sub -> sub != null && sub.get("email") != null && !sub.get("email").isBlank())
-                .map(sub -> new RecipientWorkItem(null, sub))
+                .map(sub -> new RecipientWorkItem(
+                        null,
+                        CampaignAudienceEligibilityMarker.requireEligible(sub, "Legacy send batch recipient payload")))
                 .toList());
     }
 
@@ -506,7 +514,7 @@ public class SendExecutionService {
         if (row.getSubscriberId() != null && !row.getSubscriberId().isBlank()) {
             subscriber.put("subscriberId", row.getSubscriberId());
         }
-        return subscriber;
+        return CampaignAudienceEligibilityMarker.requireEligible(subscriber, "Send batch recipient row payload");
     }
 
     private List<Map<String, String>> subscribersFromLegacyPayload(String payloadJson) {

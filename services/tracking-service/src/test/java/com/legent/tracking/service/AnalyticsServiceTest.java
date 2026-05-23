@@ -2,11 +2,13 @@ package com.legent.tracking.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -29,9 +31,54 @@ class AnalyticsServiceTest {
     @InjectMocks private AnalyticsService service;
 
     @Test
-    void getEventCounts_executesQuery() throws Exception {
-        // Mocking DataSource and its interactions is complex for JdbcTemplate
-        // We'll just verify the service exists for now as it's a wrapper
+    void getEventCounts_appliesDefaultWindow() {
+        List<Map<String, Object>> expected = List.of(Map.of(
+                "event_type", "OPEN",
+                "count", 10L
+        ));
+        when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"),
+                any(Instant.class), any(Instant.class)))
+                .thenReturn(expected);
+
+        List<Map<String, Object>> result = service.getEventCounts("tenant-1", "workspace-1");
+
+        assertThat(result).isEqualTo(expected);
+        verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("\"timestamp\" >= ?")
+                        && sql.contains("\"timestamp\" <= ?")
+                        && sql.contains("GROUP BY event_type")),
+                eq("tenant-1"),
+                eq("workspace-1"),
+                any(Instant.class),
+                any(Instant.class));
+    }
+
+    @Test
+    void getEventCounts_clampsOversizedExplicitWindow() {
+        Instant requestedStartAt = Instant.parse("2026-01-01T00:00:00Z");
+        Instant endAt = Instant.parse("2026-03-15T00:00:00Z");
+        when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"),
+                any(Instant.class), eq(endAt)))
+                .thenReturn(List.of());
+
+        service.getEventCounts("tenant-1", "workspace-1", requestedStartAt, endAt);
+
+        ArgumentCaptor<Instant> startCaptor = ArgumentCaptor.forClass(Instant.class);
+        verify(jdbcTemplate).queryForList(anyString(),
+                eq("tenant-1"),
+                eq("workspace-1"),
+                startCaptor.capture(),
+                eq(endAt));
+        assertThat(Duration.between(startCaptor.getValue(), endAt))
+                .isEqualTo(AnalyticsService.MAX_EVENT_COUNT_WINDOW);
+    }
+
+    @Test
+    void getEventCounts_rejectsInvalidExplicitWindowWithoutQuery() {
+        Instant startAt = Instant.parse("2026-05-03T00:00:00Z");
+        Instant endAt = Instant.parse("2026-05-02T00:00:00Z");
+
+        assertThat(service.getEventCounts("tenant-1", "workspace-1", startAt, endAt)).isEmpty();
+        verifyNoInteractions(jdbcTemplate);
     }
 
     @Test
@@ -164,5 +211,29 @@ class AnalyticsServiceTest {
     @Test
     void getJourneyGoalMetrics_missingScopeReturnsEmptyWithoutQuery() {
         assertThat(service.getJourneyGoalMetrics("tenant-1", "", "workflow-1")).isEmpty();
+    }
+
+    @Test
+    void rawCountsForCampaign_deduplicatesRawRowsByEventTypeAndEventId() {
+        when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"), eq("campaign-1")))
+                .thenReturn(List.of(
+                        Map.of("event_type", "OPEN", "count", 2L),
+                        Map.of("event_type", "CLICK", "count", 1L)
+                ));
+
+        Map<String, Object> counts = service.rawCountsForCampaign("tenant-1", "workspace-1", "campaign-1");
+
+        assertThat(counts)
+                .containsEntry("OPEN", 2L)
+                .containsEntry("CLICK", 1L);
+        verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("FROM (")
+                        && sql.contains("FROM raw_events")
+                        && sql.contains("WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?")
+                        && sql.contains("GROUP BY tenant_id, workspace_id, event_type, id")
+                        && sql.contains(") AS canonical_raw_events")
+                        && sql.contains("GROUP BY event_type")),
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("campaign-1"));
     }
 }

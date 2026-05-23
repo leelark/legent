@@ -6,6 +6,7 @@ import com.legent.kafka.model.EventEnvelope;
 import com.legent.kafka.producer.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -36,6 +37,7 @@ public class IdentityEventPublisher {
                                           String email,
                                           String resetUrl,
                                           String idempotencyKey) {
+        String escapedResetUrl = HtmlUtils.htmlEscape(resetUrl == null ? "" : resetUrl);
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("email", email);
         payload.put("subject", "Reset your Legent password");
@@ -45,10 +47,10 @@ public class IdentityEventPublisher {
         payload.put("messageId", "pwdreset-" + idempotencyKey);
         payload.put("contentReference", systemContentReference("system:password-reset:", idempotencyKey));
         payload.put("htmlBody",
-                "<html><body style=\"font-family:Arial,sans-serif\">" +
+                        "<html><body style=\"font-family:Arial,sans-serif\">" +
                         "<h2>Reset your password</h2>" +
                         "<p>Use secure link below to set new password.</p>" +
-                        "<p><a href=\"" + resetUrl + "\">Reset Password</a></p>" +
+                        "<p><a href=\"" + escapedResetUrl + "\">Reset Password</a></p>" +
                         "<p>If you did not request this, ignore this email.</p>" +
                         "</body></html>");
         payload.put("fromName", "Legent Security");

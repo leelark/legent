@@ -230,11 +230,22 @@ public class ClickHouseRollupService {
                        sumIf(toFloat64OrZero(JSONExtractString(metadata, 'value')), event_type = 'CONVERSION') AS revenue,
                        uniqExact(subscriber_id) AS unique_subscribers,
                        now() AS updated_at
-                FROM raw_events
-                WHERE tenant_id = ?
-                  AND workspace_id = ?
-                  AND timestamp >= ?
-                  AND timestamp < ?
+                FROM (
+                    SELECT tenant_id,
+                           workspace_id,
+                           event_type,
+                           id,
+                           any(campaign_id) AS campaign_id,
+                           any(subscriber_id) AS subscriber_id,
+                           min(timestamp) AS timestamp,
+                           any(metadata) AS metadata
+                    FROM raw_events
+                    WHERE tenant_id = ?
+                      AND workspace_id = ?
+                      AND timestamp >= ?
+                      AND timestamp < ?
+                    GROUP BY tenant_id, workspace_id, event_type, id
+                ) AS canonical_raw_events
                 GROUP BY tenant_id, workspace_id, campaign_id, bucket_date
                 """;
     }

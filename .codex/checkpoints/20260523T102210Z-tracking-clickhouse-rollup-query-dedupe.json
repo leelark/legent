@@ -1,0 +1,28 @@
+{
+    "id":  "tracking-clickhouse-rollup-query-dedupe",
+    "createdAt":  "2026-05-23T10:22:10.7840905Z",
+    "objective":  "Deduplicate ClickHouse campaign day rollup refresh at query time",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                     ],
+    "agents":  [
+                   "TRACKING_SERVICE_OWNER",
+                   "PERFORMANCE_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -am -Dtest=ClickHouseRollupServiceTest",
+                           "ClickHouseWriterTest",
+                           "ClickHouseInitSqlTest",
+                           "TrackingEventConsumerTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed: ClickHouse campaign-day rollup refresh uses canonical deduped raw-events source; focused tracking Maven validation passed."
+}

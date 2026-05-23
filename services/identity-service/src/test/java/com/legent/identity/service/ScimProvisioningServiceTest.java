@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -55,7 +56,7 @@ class ScimProvisioningServiceTest {
     }
 
     @Test
-    void listUsers_validatesScopeAndReturnsActiveUsers() throws Exception {
+    void listUsers_validatesScopeAndReturnsProviderScopedActiveUsers() throws Exception {
         String rawToken = "legent_scim_test";
         Map<String, Object> tokenRow = tokenRow(rawToken, List.of("scim:users"));
         when(repository.queryForList(anyString(), anyMap())).thenReturn(List.of(tokenRow));
@@ -63,9 +64,11 @@ class ScimProvisioningServiceTest {
                 .thenReturn(tokenRow);
 
         User active = user("user-1", "active@example.com", true);
-        User inactive = user("user-2", "inactive@example.com", false);
-        User otherProvider = user("user-3", "other-provider@example.com", true, "provider-2");
-        when(userRepository.findByTenantId("tenant-1")).thenReturn(List.of(active, inactive, otherProvider));
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+                eq("tenant-1"),
+                eq("provider-1"),
+                argThat(pageable -> pageable.getOffset() == 0L && pageable.getPageSize() == 100)))
+                .thenReturn(List.of(active));
 
         Map<String, Object> response = service.listUsers("Bearer " + rawToken, null, 1, 100);
 
@@ -74,6 +77,85 @@ class ScimProvisioningServiceTest {
         List<Map<String, Object>> resources = (List<Map<String, Object>>) response.get("Resources");
         assertEquals("active@example.com", resources.get(0).get("userName"));
         verify(repository).queryForList(anyString(), eq(Map.of("hash", sha256(rawToken))));
+        verify(userRepository, never()).findByTenantId("tenant-1");
+    }
+
+    @Test
+    void listUsers_boundsPageRequestBeforeRepositoryQuery() throws Exception {
+        String rawToken = "legent_scim_test";
+        stubToken(rawToken);
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+                eq("tenant-1"),
+                eq("provider-1"),
+                argThat(pageable -> pageable.getOffset() == 4L && pageable.getPageSize() == 200)))
+                .thenReturn(List.of());
+
+        Map<String, Object> response = service.listUsers("Bearer " + rawToken, null, 5, 5_000);
+
+        assertEquals(5, response.get("startIndex"));
+        assertEquals(0, response.get("totalResults"));
+        verify(userRepository, never()).findByTenantId("tenant-1");
+    }
+
+    @Test
+    void listUsers_normalizesInvalidBoundsBeforeRepositoryQuery() throws Exception {
+        String rawToken = "legent_scim_test";
+        stubToken(rawToken);
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+                eq("tenant-1"),
+                eq("provider-1"),
+                argThat(pageable -> pageable.getOffset() == 0L && pageable.getPageSize() == 1)))
+                .thenReturn(List.of());
+
+        Map<String, Object> response = service.listUsers("Bearer " + rawToken, null, -20, 0);
+
+        assertEquals(1, response.get("startIndex"));
+        assertEquals(0, response.get("totalResults"));
+        verify(userRepository, never()).findByTenantId("tenant-1");
+    }
+
+    @Test
+    void listUsers_emailFilterUsesProviderScopedLookup() throws Exception {
+        String rawToken = "legent_scim_test";
+        stubToken(rawToken);
+        User active = user("user-1", "active@example.com", true);
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndActiveTrue(
+                "tenant-1",
+                "provider-1",
+                "active@example.com"))
+                .thenReturn(Optional.of(active));
+
+        Map<String, Object> response = service.listUsers("Bearer " + rawToken,
+                "userName eq \"ACTIVE@example.com\"",
+                1,
+                100);
+
+        assertEquals(1, response.get("totalResults"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> resources = (List<Map<String, Object>>) response.get("Resources");
+        assertEquals("active@example.com", resources.get(0).get("userName"));
+        verify(userRepository, never()).findByTenantId("tenant-1");
+        verify(userRepository, never()).findByTenantIdAndEmailIgnoreCase(anyString(), anyString());
+    }
+
+    @Test
+    void listUsers_emailFilterRejectsUserOwnedByAnotherProvider() throws Exception {
+        String rawToken = "legent_scim_test";
+        stubToken(rawToken);
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndActiveTrue(
+                "tenant-1",
+                "provider-1",
+                "other@example.com"))
+                .thenReturn(Optional.empty());
+
+        Map<String, Object> response = service.listUsers("Bearer " + rawToken,
+                "userName eq \"other@example.com\"",
+                1,
+                100);
+
+        assertEquals(0, response.get("totalResults"));
+        verify(userRepository, never()).findByTenantId("tenant-1");
+        verify(userRepository, never()).findByTenantIdAndEmailIgnoreCase(anyString(), anyString());
     }
 
     @Test

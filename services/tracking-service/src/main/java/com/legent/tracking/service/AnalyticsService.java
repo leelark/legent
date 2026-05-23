@@ -19,6 +19,8 @@ import java.util.StringJoiner;
 @Service
 @RequiredArgsConstructor
 public class AnalyticsService {
+    static final Duration DEFAULT_EVENT_COUNT_WINDOW = Duration.ofHours(168);
+    static final Duration MAX_EVENT_COUNT_WINDOW = Duration.ofDays(31);
     static final int DEFAULT_TIMELINE_BUCKET_LIMIT = 168;
     static final int MAX_TIMELINE_BUCKET_LIMIT = 744;
     static final int DEFAULT_HOUR_ROLLUP_BUCKET_LIMIT = 168;
@@ -29,8 +31,20 @@ public class AnalyticsService {
     private final JdbcTemplate jdbcTemplate;
 
     public List<Map<String, Object>> getEventCounts(String tenantId, String workspaceId) {
+        return getEventCounts(tenantId, workspaceId, null, null);
+    }
+
+    public List<Map<String, Object>> getEventCounts(String tenantId,
+                                                    String workspaceId,
+                                                    Instant startAt,
+                                                    Instant endAt) {
         if (tenantId == null || tenantId.isBlank() || workspaceId == null || workspaceId.isBlank()) {
             log.warn("Tenant/workspace context missing; returning empty event counts");
+            return new ArrayList<>();
+        }
+        TimeWindow timeWindow = boundedTimeWindow(startAt, endAt, DEFAULT_EVENT_COUNT_WINDOW, MAX_EVENT_COUNT_WINDOW);
+        if (timeWindow == null) {
+            log.warn("Invalid event count window for tenant {} workspace {}", tenantId, workspaceId);
             return new ArrayList<>();
         }
         try {
@@ -38,8 +52,9 @@ public class AnalyticsService {
                 SELECT event_type, COALESCE(count(*), 0) AS count
                 FROM raw_events
                 WHERE tenant_id = ? AND workspace_id = ?
+                  AND "timestamp" >= ? AND "timestamp" <= ?
                 GROUP BY event_type
-            """, tenantId, workspaceId);
+            """, tenantId, workspaceId, timeWindow.startAt(), timeWindow.endAt());
         } catch (DataAccessException e) {
             log.error("Failed to query event counts for tenant {} workspace {}", tenantId, workspaceId, e);
             return new ArrayList<>();
@@ -294,8 +309,12 @@ public class AnalyticsService {
     public Map<String, Object> rawCountsForCampaign(String tenantId, String workspaceId, String campaignId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT event_type, COUNT(*) AS count
-                FROM raw_events
-                WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?
+                FROM (
+                    SELECT event_type, id
+                    FROM raw_events
+                    WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?
+                    GROUP BY tenant_id, workspace_id, event_type, id
+                ) AS canonical_raw_events
                 GROUP BY event_type
                 """, tenantId, workspaceId, campaignId);
         Map<String, Object> counts = new LinkedHashMap<>();
@@ -352,10 +371,17 @@ public class AnalyticsService {
     }
 
     private TimeWindow boundedTimeWindow(Instant startAt, Instant endAt, Duration defaultWindow) {
+        return boundedTimeWindow(startAt, endAt, defaultWindow, null);
+    }
+
+    private TimeWindow boundedTimeWindow(Instant startAt, Instant endAt, Duration defaultWindow, Duration maxWindow) {
         Instant effectiveEndAt = endAt == null ? Instant.now() : endAt;
         Instant effectiveStartAt = startAt == null ? effectiveEndAt.minus(defaultWindow) : startAt;
         if (effectiveStartAt.isAfter(effectiveEndAt)) {
             return null;
+        }
+        if (maxWindow != null && Duration.between(effectiveStartAt, effectiveEndAt).compareTo(maxWindow) > 0) {
+            effectiveStartAt = effectiveEndAt.minus(maxWindow);
         }
         return new TimeWindow(effectiveStartAt, effectiveEndAt);
     }

@@ -179,6 +179,31 @@ class CampaignEventConsumerTest {
     }
 
     @Test
+    void handleAudienceResolvedThrowsWhenTenantMissingAndDoesNotClaimProcessed() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workspaceId", "workspace-1");
+        payload.put("campaignId", "campaign-1");
+        payload.put("jobId", "job-1");
+        payload.put("isLastChunk", true);
+        payload.put("subscribers", List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("audience-missing-tenant")
+                .eventType(AppConstants.TOPIC_AUDIENCE_RESOLVED)
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-audience-missing-tenant")
+                .payload(payload)
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAudienceResolved(event));
+
+        assertEquals("Failed handling TOPIC_AUDIENCE_RESOLVED", thrown.getMessage());
+        assertEquals(
+                "tenantId is required for " + AppConstants.TOPIC_AUDIENCE_RESOLVED + " event audience-missing-tenant",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
     void handleAudienceResolvedThrowsWhenJobMissingAndDoesNotClaimProcessed() {
         Map<String, Object> payload = new HashMap<>();
         payload.put("workspaceId", "workspace-1");
@@ -308,6 +333,27 @@ class CampaignEventConsumerTest {
         assertEquals("Failed handling TOPIC_SEND_PROCESSING", thrown.getMessage());
         assertEquals(
                 "workspaceId is required for " + AppConstants.TOPIC_SEND_PROCESSING + " event processing-missing-workspace",
+                thrown.getCause().getMessage());
+        verifyNoConsumerSideEffects();
+    }
+
+    @Test
+    void handleSendProcessingThrowsWhenTenantMissingAndDoesNotClaimProcessed() {
+        EventEnvelope<String> event = EventEnvelope.<String>builder()
+                .eventId("processing-missing-tenant")
+                .eventType(AppConstants.TOPIC_SEND_PROCESSING)
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-processing-missing-tenant")
+                .payload("""
+                        {"workspaceId":"workspace-1","jobId":"job-1","batchId":"batch-1"}
+                        """)
+                .build();
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleSendProcessing(event));
+
+        assertEquals("Failed handling TOPIC_SEND_PROCESSING", thrown.getMessage());
+        assertEquals(
+                "tenantId is required for " + AppConstants.TOPIC_SEND_PROCESSING + " event processing-missing-tenant",
                 thrown.getCause().getMessage());
         verifyNoConsumerSideEffects();
     }

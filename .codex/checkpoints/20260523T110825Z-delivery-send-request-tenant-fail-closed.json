@@ -1,0 +1,24 @@
+{
+    "id":  "delivery-send-request-tenant-fail-closed",
+    "createdAt":  "2026-05-23T11:08:25.4243096Z",
+    "objective":  "Fail closed delivery send-request events without tenant scope",
+    "status":  "DONE",
+    "owner":  "DELIVERY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventConsumer.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventConsumerTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service -Dtest=DeliveryEventConsumerTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "git diff --check -- services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventConsumer.java services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventConsumerTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Delivery tenant fail-closed guard complete; select campaign-kafka-tenant-fail-closed next."
+}

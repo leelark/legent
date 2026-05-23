@@ -250,6 +250,57 @@ class SegmentEvaluationServiceTest {
     }
 
     @Test
+    @DisplayName("recompute materializes memberships in bounded keyset pages")
+    void recompute_materializesMembershipsInBoundedKeysetPages() {
+        Segment segment = segmentWithRules(Map.of("operator", "AND", "conditions", List.of(
+                Map.of("field", "status", "op", "EQUALS", "value", "ACTIVE")
+        )));
+        segment.setId("seg-bounded");
+
+        List<String> firstPage = IntStream.range(0, SegmentEvaluationService.RECOMPUTE_MEMBER_PAGE_SIZE)
+                .mapToObj(i -> "sub-%04d".formatted(i))
+                .toList();
+        List<String> secondPage = List.of("sub-1000", "sub-1001");
+        Query firstQuery = mock(Query.class);
+        Query secondQuery = mock(Query.class);
+
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-bounded"))
+                .thenReturn(Optional.of(segment));
+        when(entityManager.createNativeQuery(anyString())).thenReturn(firstQuery, secondQuery);
+        when(firstQuery.getResultList()).thenReturn(firstPage);
+        when(secondQuery.getResultList()).thenReturn(secondPage);
+
+        evaluationService.recompute("seg-bounded", TENANT_ID, WORKSPACE_ID);
+
+        ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
+        verify(entityManager, times(2)).createNativeQuery(sqlCaptor.capture());
+        assertThat(sqlCaptor.getAllValues().get(0))
+                .contains("ORDER BY s.id")
+                .doesNotContain("afterSubscriberId");
+        assertThat(sqlCaptor.getAllValues().get(1))
+                .contains("s.id > :afterSubscriberId")
+                .contains("ORDER BY s.id");
+
+        verify(firstQuery).setMaxResults(SegmentEvaluationService.RECOMPUTE_MEMBER_PAGE_SIZE);
+        verify(secondQuery).setMaxResults(SegmentEvaluationService.RECOMPUTE_MEMBER_PAGE_SIZE);
+        verify(secondQuery).setParameter("afterSubscriberId", "sub-0999");
+
+        @SuppressWarnings({ "rawtypes", "unchecked" })
+        ArgumentCaptor<List> batchCaptor = ArgumentCaptor.forClass(List.class);
+        verify(jdbcTemplate, times(2)).batchUpdate(contains("INSERT INTO segment_memberships"), batchCaptor.capture());
+        assertThat(batchCaptor.getAllValues())
+                .extracting(List::size)
+                .containsExactly(SegmentEvaluationService.RECOMPUTE_MEMBER_PAGE_SIZE, 2);
+
+        assertThat(segment.getMemberCount()).isEqualTo(SegmentEvaluationService.RECOMPUTE_MEMBER_PAGE_SIZE + 2L);
+        assertThat(segment.getStatus()).isEqualTo(Segment.SegmentStatus.ACTIVE);
+        verify(membershipRepository).deleteAllByTenantIdAndWorkspaceIdAndSegmentId(TENANT_ID, WORKSPACE_ID, "seg-bounded");
+        verify(eventPublisher).publishRecomputed(segment);
+        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getWorkspaceId()).isNull();
+    }
+
+    @Test
     @DisplayName("scheduledRecompute scans scheduled segments in bounded id pages")
     void scheduledRecompute_scansScheduledSegmentsInBoundedIdPages() {
         SegmentEvaluationService recomputeDelegate = mock(SegmentEvaluationService.class);

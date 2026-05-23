@@ -8582,6 +8582,1194 @@
                        "acquiredAt":  "2026-05-22T21:45:41.5721230Z",
                        "expiresAt":  "2026-05-22T22:15:41.5721230Z",
                        "heartbeatAt":  "2026-05-22T21:46:08.3396469Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T094000Z-frontend-public-reset-credentialless-api-20260523T100446Z",
+                       "threadId":  "overall-20260523T094000Z",
+                       "workItemId":  "frontend-public-reset-credentialless-api",
+                       "agentId":  "019e5448-583f-76b0-8bff-947038d8eab1",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/lib/auth-api.ts",
+                                            "frontend/src/components/marketing/PublicAuthViews.tsx",
+                                            "frontend/tests/e2e/auth.spec.ts",
+                                            "frontend/tests/e2e/marketing.spec.ts",
+                                            "frontend/tests/e2e/api-client-context.spec.ts"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/lib/auth-api.ts",
+                                          "frontend/src/components/marketing/PublicAuthViews.tsx",
+                                          "frontend/tests/e2e/auth.spec.ts",
+                                          "frontend/tests/e2e/marketing.spec.ts",
+                                          "frontend/tests/e2e/api-client-context.spec.ts"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:04:46.8909945Z",
+                       "expiresAt":  "2026-05-23T14:04:46.8909945Z",
+                       "heartbeatAt":  "2026-05-23T10:19:59.0265360Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T094000Z-overall-safe-local-pool-20260523-20260523T100452Z",
+                       "threadId":  "overall-20260523T094000Z",
+                       "workItemId":  "overall-safe-local-pool-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/backlog/queue.json",
+                                            ".codex/state/team-state.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/blocked-items.md",
+                                            ".codex/memory/unresolved-risks.md",
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/dashboards/team-dashboard.md",
+                                            ".codex/threads/thread-registry.json",
+                                            ".codex/worktrees/leases/active-leases.json",
+                                            ".codex/audit/events/2026-05-23.jsonl",
+                                            ".codex/checkpoints"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/backlog/queue.json",
+                                          ".codex/state/team-state.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/blocked-items.md",
+                                          ".codex/memory/unresolved-risks.md",
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/dashboards/team-dashboard.md",
+                                          ".codex/threads/thread-registry.json",
+                                          ".codex/worktrees/leases/active-leases.json",
+                                          ".codex/audit/events/2026-05-23.jsonl",
+                                          ".codex/checkpoints"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:04:52.9770519Z",
+                       "expiresAt":  "2026-05-23T14:04:52.9770519Z",
+                       "heartbeatAt":  "2026-05-23T10:40:31.2966714Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T094000Z-campaign-eligibility-marker-fail-closed-20260523T100501Z",
+                       "threadId":  "overall-20260523T094000Z",
+                       "workItemId":  "campaign-eligibility-marker-fail-closed",
+                       "agentId":  "019e5448-bda5-7850-a1a1-997a15317ce1",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java",
+                                            "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                            "services/campaign-service/src/test/java/com/legent/campaign/service/BatchingServiceTest.java",
+                                            "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java",
+                                          "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                                          "services/campaign-service/src/test/java/com/legent/campaign/service/BatchingServiceTest.java",
+                                          "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:05:01.4578709Z",
+                       "expiresAt":  "2026-05-23T14:05:01.4578709Z",
+                       "heartbeatAt":  "2026-05-23T10:20:31.9095020Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T094000Z-frontend-environment-context-switch-20260523T100550Z",
+                       "threadId":  "overall-20260523T094000Z",
+                       "workItemId":  "frontend-environment-context-switch",
+                       "agentId":  "019e5448-82c3-7d61-ba73-ee66647ec61a",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/components/shell/Header.tsx",
+                                            "frontend/src/lib/context-bootstrap.ts",
+                                            "frontend/src/lib/auth.ts",
+                                            "frontend/tests/e2e/context-bootstrap.spec.ts"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/components/shell/Header.tsx",
+                                          "frontend/src/lib/context-bootstrap.ts",
+                                          "frontend/src/lib/auth.ts",
+                                          "frontend/tests/e2e/context-bootstrap.spec.ts"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:05:50.5651895Z",
+                       "expiresAt":  "2026-05-23T14:05:50.5651895Z",
+                       "heartbeatAt":  "2026-05-23T10:20:31.4641620Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T094000Z-campaign-eligibility-marker-helper-20260523T101202Z",
+                       "threadId":  "overall-20260523T094000Z",
+                       "workItemId":  "campaign-eligibility-marker-helper",
+                       "agentId":  "019e5448-bda5-7850-a1a1-997a15317ce1",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignAudienceEligibilityMarker.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignAudienceEligibilityMarker.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:12:02.5544298Z",
+                       "expiresAt":  "2026-05-23T14:12:02.5544298Z",
+                       "heartbeatAt":  "2026-05-23T10:20:32.0663819Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T094000Z-delivery-rate-control-bounded-expiry-sweep-20260523T102209Z",
+                       "threadId":  "overall-20260523T094000Z",
+                       "workItemId":  "delivery-rate-control-bounded-expiry-sweep",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                            "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliverySendReservationRepository.java",
+                                            "services/delivery-service/src/test/java/com/legent/delivery/service/SendRateControlServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java",
+                                          "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliverySendReservationRepository.java",
+                                          "services/delivery-service/src/test/java/com/legent/delivery/service/SendRateControlServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:22:09.1817965Z",
+                       "expiresAt":  "2026-05-23T14:22:09.1817965Z",
+                       "heartbeatAt":  "2026-05-23T10:31:53.7474105Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T094000Z-tracking-clickhouse-rollup-query-dedupe-20260523T102210Z",
+                       "threadId":  "overall-20260523T094000Z",
+                       "workItemId":  "tracking-clickhouse-rollup-query-dedupe",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                            "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                                          "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:22:10.0886498Z",
+                       "expiresAt":  "2026-05-23T14:22:10.0886498Z",
+                       "heartbeatAt":  "2026-05-23T10:29:48.4223107Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T105053Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "PROGRAM_MANAGER_AGENT",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json",
+                                            ".codex/dashboards/team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json",
+                                          ".codex/dashboards/team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:50:53.8880543Z",
+                       "expiresAt":  "2026-05-23T11:50:53.8880543Z",
+                       "heartbeatAt":  "2026-05-23T10:54:03.0056687Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-product-parity-accounting-reconcile-20260523-20260523T105438Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "product-parity-accounting-reconcile-20260523",
+                       "agentId":  "PRODUCT_MANAGER_AGENT",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "docs/product/salesforce-parity-matrix.md",
+                                            "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                            "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                            ".codex/backlog/queue.json",
+                                            ".codex/state/team-state.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/design-decisions.md",
+                                            ".codex/dashboards/team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          "docs/product/salesforce-parity-matrix.md",
+                                          "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                          "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                          ".codex/backlog/queue.json",
+                                          ".codex/state/team-state.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/design-decisions.md",
+                                          ".codex/dashboards/team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T10:54:38.2186531Z",
+                       "expiresAt":  "2026-05-23T12:54:38.2186531Z",
+                       "heartbeatAt":  "2026-05-23T11:03:22.2547113Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-identity-scim-list-bounding-20260523T110330Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "identity-scim-list-bounding",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java",
+                                            "services/identity-service/src/main/java/com/legent/identity/repository/UserRepository.java",
+                                            "services/identity-service/src/test/java/com/legent/identity/service/ScimProvisioningServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/identity-service/src/main/java/com/legent/identity/service/ScimProvisioningService.java",
+                                          "services/identity-service/src/main/java/com/legent/identity/repository/UserRepository.java",
+                                          "services/identity-service/src/test/java/com/legent/identity/service/ScimProvisioningServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:03:30.0463978Z",
+                       "expiresAt":  "2026-05-23T15:03:30.0463978Z",
+                       "heartbeatAt":  "2026-05-23T11:07:16.9250850Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-team-state-sync-after-identity-scim-20260523T110747Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "team-state-sync-after-identity-scim",
+                       "agentId":  "PROGRAM_MANAGER_AGENT",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:07:47.5820874Z",
+                       "expiresAt":  "2026-05-23T11:37:47.5820874Z",
+                       "heartbeatAt":  "2026-05-23T11:08:00.5516460Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-delivery-send-request-tenant-fail-closed-20260523T110824Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "delivery-send-request-tenant-fail-closed",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventConsumer.java",
+                                            "services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventConsumerTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/delivery-service/src/main/java/com/legent/delivery/event/DeliveryEventConsumer.java",
+                                          "services/delivery-service/src/test/java/com/legent/delivery/event/DeliveryEventConsumerTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:08:24.7193993Z",
+                       "expiresAt":  "2026-05-23T15:08:24.7193993Z",
+                       "heartbeatAt":  "2026-05-23T11:11:20.1887580Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-team-state-sync-after-delivery-tenant-20260523T111134Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "team-state-sync-after-delivery-tenant",
+                       "agentId":  "PROGRAM_MANAGER_AGENT",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:11:34.2569111Z",
+                       "expiresAt":  "2026-05-23T11:41:34.2569111Z",
+                       "heartbeatAt":  "2026-05-23T11:11:43.6900076Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-campaign-kafka-tenant-fail-closed-20260523T111211Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "campaign-kafka-tenant-fail-closed",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                                            "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/campaign-service/src/main/java/com/legent/campaign/event/CampaignEventConsumer.java",
+                                          "services/campaign-service/src/test/java/com/legent/campaign/event/CampaignEventConsumerTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:12:11.1949340Z",
+                       "expiresAt":  "2026-05-23T15:12:11.1949340Z",
+                       "heartbeatAt":  "2026-05-23T11:14:44.1925646Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-team-state-sync-after-campaign-tenant-20260523T111458Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "team-state-sync-after-campaign-tenant",
+                       "agentId":  "PROGRAM_MANAGER_AGENT",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:14:58.5870813Z",
+                       "expiresAt":  "2026-05-23T11:44:58.5870813Z",
+                       "heartbeatAt":  "2026-05-23T11:15:08.8333454Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-identity-reset-link-production-safety-20260523T111535Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "identity-reset-link-production-safety",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/identity-service/src/main/resources/application.yml",
+                                            "services/identity-service/src/main/java/com/legent/identity/service/IdentityExperienceService.java",
+                                            "services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java",
+                                            "shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java",
+                                            "shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java",
+                                            "services/identity-service/src/test/java/com/legent/identity/service/IdentityExperienceServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/identity-service/src/main/resources/application.yml",
+                                          "services/identity-service/src/main/java/com/legent/identity/service/IdentityExperienceService.java",
+                                          "services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java",
+                                          "shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java",
+                                          "shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java",
+                                          "services/identity-service/src/test/java/com/legent/identity/service/IdentityExperienceServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:15:35.9250642Z",
+                       "expiresAt":  "2026-05-23T15:15:35.9250642Z",
+                       "heartbeatAt":  "2026-05-23T11:22:02.2296394Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-identity-reset-link-production-safety-20260523T111619Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "identity-reset-link-production-safety",
+                       "agentId":  "IDENTITY_SERVICE_OWNER",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/identity-service/src/test/java/com/legent/identity/event/IdentityEventPublisherTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/identity-service/src/test/java/com/legent/identity/event/IdentityEventPublisherTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:16:19.9769041Z",
+                       "expiresAt":  "2026-05-23T13:16:19.9769041Z",
+                       "heartbeatAt":  "2026-05-23T11:22:02.2296394Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-identity-reset-link-production-safety-20260523T112112Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "identity-reset-link-production-safety",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:21:12.2790528Z",
+                       "expiresAt":  "2026-05-23T13:21:12.2790528Z",
+                       "heartbeatAt":  "2026-05-23T11:22:02.2296394Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T112235Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:22:35.9409517Z",
+                       "expiresAt":  "2026-05-23T11:52:35.9409517Z",
+                       "heartbeatAt":  "2026-05-23T11:22:53.8283628Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-audience-segment-recompute-bounded-membership-20260523T112338Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "audience-segment-recompute-bounded-membership",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                                            "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                                          "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:23:38.7113960Z",
+                       "expiresAt":  "2026-05-23T15:23:38.7113960Z",
+                       "heartbeatAt":  "2026-05-23T11:28:57.8037064Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-audience-segment-recompute-bounded-membership-20260523T112757Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "audience-segment-recompute-bounded-membership",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/performance-bottlenecks.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/active-work-items.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/performance-bottlenecks.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/active-work-items.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:27:57.0567569Z",
+                       "expiresAt":  "2026-05-23T13:27:57.0567569Z",
+                       "heartbeatAt":  "2026-05-23T11:28:57.8037064Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T112916Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:29:16.7473752Z",
+                       "expiresAt":  "2026-05-23T11:59:16.7473752Z",
+                       "heartbeatAt":  "2026-05-23T11:29:33.7912677Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T113007Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:30:07.1839905Z",
+                       "expiresAt":  "2026-05-23T12:00:07.1839905Z",
+                       "heartbeatAt":  "2026-05-23T11:30:25.4735138Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-tracking-analytics-event-window-bound-20260523T113036Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "tracking-analytics-event-window-bound",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                                            "services/tracking-service/src/main/java/com/legent/tracking/ws/AnalyticsWebSocketHandler.java",
+                                            "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java",
+                                            "services/tracking-service/src/test/java/com/legent/tracking/controller/AnalyticsControllerTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                                          "services/tracking-service/src/main/java/com/legent/tracking/ws/AnalyticsWebSocketHandler.java",
+                                          "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java",
+                                          "services/tracking-service/src/test/java/com/legent/tracking/controller/AnalyticsControllerTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:30:36.9684610Z",
+                       "expiresAt":  "2026-05-23T15:30:36.9684610Z",
+                       "heartbeatAt":  "2026-05-23T11:34:27.7794077Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-tracking-analytics-event-window-bound-20260523T113122Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "tracking-analytics-event-window-bound",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:31:22.9708411Z",
+                       "expiresAt":  "2026-05-23T13:31:22.9708411Z",
+                       "heartbeatAt":  "2026-05-23T11:34:27.7794077Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-tracking-analytics-event-window-bound-20260523T113323Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "tracking-analytics-event-window-bound",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/performance-bottlenecks.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/active-work-items.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/performance-bottlenecks.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/active-work-items.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:33:23.3127388Z",
+                       "expiresAt":  "2026-05-23T13:33:23.3127388Z",
+                       "heartbeatAt":  "2026-05-23T11:34:27.7794077Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T113447Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:34:47.0939006Z",
+                       "expiresAt":  "2026-05-23T12:04:47.0939006Z",
+                       "heartbeatAt":  "2026-05-23T11:35:02.4979269Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-delivery-feedback-outbox-backpressure-toggle-20260523T113526Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "delivery-feedback-outbox-backpressure-toggle",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                                            "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                                          "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:35:26.5884951Z",
+                       "expiresAt":  "2026-05-23T15:35:26.5884951Z",
+                       "heartbeatAt":  "2026-05-23T11:38:41.7950650Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-delivery-feedback-outbox-backpressure-toggle-20260523T113745Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "delivery-feedback-outbox-backpressure-toggle",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/performance-bottlenecks.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/active-work-items.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/performance-bottlenecks.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/active-work-items.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:37:45.5075621Z",
+                       "expiresAt":  "2026-05-23T13:37:45.5075621Z",
+                       "heartbeatAt":  "2026-05-23T11:38:41.7950650Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T113902Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:39:02.5827959Z",
+                       "expiresAt":  "2026-05-23T12:09:02.5827959Z",
+                       "heartbeatAt":  "2026-05-23T11:39:17.5597420Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-kafka-topic-config-coverage-20260523T113940Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "kafka-topic-config-coverage",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+                                            "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java",
+                                            "shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventPublisher.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+                                          "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java",
+                                          "shared/legent-kafka/src/main/java/com/legent/kafka/producer/EventPublisher.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:39:40.1698665Z",
+                       "expiresAt":  "2026-05-23T15:39:40.1698665Z",
+                       "heartbeatAt":  "2026-05-23T11:42:39.5116423Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-kafka-topic-config-coverage-20260523T114143Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "kafka-topic-config-coverage",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/performance-bottlenecks.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/active-work-items.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/performance-bottlenecks.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/active-work-items.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:41:43.3653532Z",
+                       "expiresAt":  "2026-05-23T13:41:43.3653532Z",
+                       "heartbeatAt":  "2026-05-23T11:42:39.5261156Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T114309Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:43:09.5674043Z",
+                       "expiresAt":  "2026-05-23T12:13:09.5674043Z",
+                       "heartbeatAt":  "2026-05-23T11:43:25.5771509Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-frontend-auth-context-allowlist-20260523T114356Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "frontend-auth-context-allowlist",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/lib/api-client.ts",
+                                            "frontend/src/lib/auth-api.ts",
+                                            "frontend/src/lib/admin-api.ts",
+                                            "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                                            "frontend/tests/e2e/api-client-context.spec.ts",
+                                            "frontend/tests/e2e/admin.spec.ts",
+                                            "frontend/tests/e2e/marketing.spec.ts"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/lib/api-client.ts",
+                                          "frontend/src/lib/auth-api.ts",
+                                          "frontend/src/lib/admin-api.ts",
+                                          "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                                          "frontend/tests/e2e/api-client-context.spec.ts",
+                                          "frontend/tests/e2e/admin.spec.ts",
+                                          "frontend/tests/e2e/marketing.spec.ts"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:43:56.2346453Z",
+                       "expiresAt":  "2026-05-23T15:43:56.2346453Z",
+                       "heartbeatAt":  "2026-05-23T11:49:53.8796525Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-frontend-auth-context-allowlist-20260523T114815Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "frontend-auth-context-allowlist",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/security-findings.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/active-work-items.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/security-findings.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/active-work-items.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:48:15.9649603Z",
+                       "expiresAt":  "2026-05-23T13:48:15.9649603Z",
+                       "heartbeatAt":  "2026-05-23T11:49:53.8796525Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T115014Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:50:14.6070854Z",
+                       "expiresAt":  "2026-05-23T12:20:14.6070854Z",
+                       "heartbeatAt":  "2026-05-23T11:50:33.9333621Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-tracking-reconciliation-dedupe-raw-counts-20260523T115113Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "tracking-reconciliation-dedupe-raw-counts",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                                            "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java",
+                                            "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                                          "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java",
+                                          "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:51:13.9346644Z",
+                       "expiresAt":  "2026-05-23T15:51:13.9346644Z",
+                       "heartbeatAt":  "2026-05-23T11:53:57.0476381Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-tracking-reconciliation-dedupe-raw-counts-20260523T115248Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "tracking-reconciliation-dedupe-raw-counts",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/performance-bottlenecks.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/technical-debt.md",
+                                            ".codex/memory/active-work-items.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/performance-bottlenecks.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/technical-debt.md",
+                                          ".codex/memory/active-work-items.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:52:48.0400396Z",
+                       "expiresAt":  "2026-05-23T13:52:48.0400396Z",
+                       "heartbeatAt":  "2026-05-23T11:53:57.0476381Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-state-queue-sync-20260523-20260523T115416Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-state-queue-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:54:16.6096016Z",
+                       "expiresAt":  "2026-05-23T12:24:16.6096016Z",
+                       "heartbeatAt":  "2026-05-23T11:54:32.7628946Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-deliverability-safety-validation-map-20260523T115503Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "deliverability-safety-validation-map",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "docs/security/deliverability-and-safety.md",
+                                            ".codex/memory/blocked-items.md",
+                                            ".codex/memory/performance-bottlenecks.md"
+                                        ],
+                       "writeGlobs":  [
+                                          "docs/security/deliverability-and-safety.md",
+                                          ".codex/memory/blocked-items.md",
+                                          ".codex/memory/performance-bottlenecks.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:55:03.4788600Z",
+                       "expiresAt":  "2026-05-23T15:55:03.4788600Z",
+                       "heartbeatAt":  "2026-05-23T11:58:52.9014170Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-codex-final-state-sync-20260523-20260523T115946Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "codex-final-state-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/dashboards/team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/dashboards/team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T11:59:46.0698164Z",
+                       "expiresAt":  "2026-05-23T12:29:46.0698164Z",
+                       "heartbeatAt":  "2026-05-23T12:00:36.1693017Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-validation-gate-flake-hardening-20260523-20260523T120902Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "validation-gate-flake-hardening-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "services/audience-service/src/test/java/com/legent/audience/client/DeliverabilityServiceClientTest.java",
+                                            "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+                                        ],
+                       "writeGlobs":  [
+                                          "services/audience-service/src/test/java/com/legent/audience/client/DeliverabilityServiceClientTest.java",
+                                          "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T12:09:02.9533308Z",
+                       "expiresAt":  "2026-05-23T14:09:02.9533308Z",
+                       "heartbeatAt":  "2026-05-23T12:16:40.0334340Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-validation-gate-flake-hardening-20260523-memory-20260523T121542Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "validation-gate-flake-hardening-20260523-memory",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/memory/successful-fixes.md",
+                                            ".codex/memory/root-cause-history.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/technical-debt.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/memory/successful-fixes.md",
+                                          ".codex/memory/root-cause-history.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/technical-debt.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T12:15:42.3868418Z",
+                       "expiresAt":  "2026-05-23T13:15:42.3868418Z",
+                       "heartbeatAt":  "2026-05-23T12:16:39.6848088Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-final-dashboard-refresh-20260523-20260523T121707Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "final-dashboard-refresh-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/dashboards/team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/dashboards/team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T12:17:07.2411628Z",
+                       "expiresAt":  "2026-05-23T12:32:07.2411628Z",
+                       "heartbeatAt":  "2026-05-23T12:17:18.0887251Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-deployment-manager-readiness-options-20260523-20260523T123038Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "deployment-manager-readiness-options-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                                            "frontend/tests/e2e/admin.spec.ts",
+                                            "docs/operations/deployment-manager-provider-options.md",
+                                            ".codex/backlog/queue.json",
+                                            ".codex/state/team-state.json",
+                                            ".codex/memory/active-work-items.md",
+                                            ".codex/memory/design-decisions.md",
+                                            ".codex/memory/release-history.md",
+                                            ".codex/memory/unresolved-risks.md",
+                                            ".codex/memory/blocked-items.md",
+                                            ".codex/memory/performance-bottlenecks.md"
+                                        ],
+                       "writeGlobs":  [
+                                          "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                                          "frontend/tests/e2e/admin.spec.ts",
+                                          "docs/operations/deployment-manager-provider-options.md",
+                                          ".codex/backlog/queue.json",
+                                          ".codex/state/team-state.json",
+                                          ".codex/memory/active-work-items.md",
+                                          ".codex/memory/design-decisions.md",
+                                          ".codex/memory/release-history.md",
+                                          ".codex/memory/unresolved-risks.md",
+                                          ".codex/memory/blocked-items.md",
+                                          ".codex/memory/performance-bottlenecks.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T12:30:38.7980964Z",
+                       "expiresAt":  "2026-05-23T16:30:38.7980964Z",
+                       "heartbeatAt":  "2026-05-23T12:41:31.6786916Z"
+                   },
+                   {
+                       "leaseId":  "overall-20260523T104219Z-deployment-manager-readiness-state-sync-20260523-20260523T124141Z",
+                       "threadId":  "overall-20260523T104219Z",
+                       "workItemId":  "deployment-manager-readiness-state-sync-20260523",
+                       "agentId":  "",
+                       "owner":  "PROGRAM_MANAGER_AGENT",
+                       "worktreeId":  "",
+                       "branch":  "",
+                       "filesInScope":  [
+                                            ".codex/state/team-state.json",
+                                            ".codex/dashboards/team-dashboard.md"
+                                        ],
+                       "writeGlobs":  [
+                                          ".codex/state/team-state.json",
+                                          ".codex/dashboards/team-dashboard.md"
+                                      ],
+                       "readOnly":  false,
+                       "status":  "RELEASED",
+                       "baseCommit":  "6b63de4a0aa807febd89e3a6ea38e26fa0975ef0",
+                       "acquiredAt":  "2026-05-23T12:41:41.6595236Z",
+                       "expiresAt":  "2026-05-23T13:11:41.6595236Z",
+                       "heartbeatAt":  "2026-05-23T12:42:06.1499052Z"
                    }
                ]
 }

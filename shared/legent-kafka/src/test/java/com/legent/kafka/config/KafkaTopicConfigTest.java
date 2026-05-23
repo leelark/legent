@@ -1,11 +1,14 @@
 package com.legent.kafka.config;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.kafka.producer.EventPublisher;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,22 +52,57 @@ class KafkaTopicConfigTest {
     void configuredSourceTopicsFitInsideDlqPartitionRange() {
         KafkaTopicConfig config = new KafkaTopicConfig();
         NewTopic dlqTopic = config.kafkaDeadLetterTopic();
-        List<NewTopic> sourceTopics = List.of(
-                config.emailSentTopic(),
-                config.emailBouncedTopic(),
-                config.emailComplaintTopic(),
-                config.emailDeliveredTopic(),
-                config.trackingIngestedTopic(),
-                config.emailSendRequestedTopic(),
-                config.sendRequestedTopic(),
-                config.audienceResolvedTopic(),
-                config.batchCreatedTopic(),
-                config.sendProcessingTopic()
-        );
+        List<NewTopic> sourceTopics = configuredSourceTopics(config);
 
         sourceTopics.forEach(topic -> assertTrue(
                 topic.numPartitions() <= dlqTopic.numPartitions(),
                 () -> "DLQ topic must have at least as many partitions as " + topic.name()
         ));
+    }
+
+    @Test
+    void eventPublisherHighVolumeTopicsHaveLocalTopicDefinitions() {
+        KafkaTopicConfig config = new KafkaTopicConfig();
+
+        Set<String> configuredTopicNames = configuredSourceTopics(config).stream()
+                .map(NewTopic::name)
+                .collect(Collectors.toSet());
+
+        assertTrue(configuredTopicNames.containsAll(EventPublisher.highVolumeTopics()),
+                () -> "Missing local topic definitions for "
+                        + EventPublisher.highVolumeTopics().stream()
+                                .filter(topic -> !configuredTopicNames.contains(topic))
+                                .sorted()
+                                .toList());
+    }
+
+    private List<NewTopic> configuredSourceTopics(KafkaTopicConfig config) {
+        return List.of(
+                config.emailSentTopic(),
+                config.emailFailedTopic(),
+                config.emailFailedDlqTopic(),
+                config.emailRetryScheduledTopic(),
+                config.emailBouncedTopic(),
+                config.emailComplaintTopic(),
+                config.emailDeliveredTopic(),
+                config.emailUnsubscribedTopic(),
+                config.emailOpenTopic(),
+                config.emailClickTopic(),
+                config.conversionEventTopic(),
+                config.trackingIngestedTopic(),
+                config.emailSendRequestedTopic(),
+                config.sendRequestedTopic(),
+                config.audienceResolutionRequestedTopic(),
+                config.audienceResolvedTopic(),
+                config.batchCreatedTopic(),
+                config.batchCompletedTopic(),
+                config.sendCompletedTopic(),
+                config.sendFailedTopic(),
+                config.sendProcessingTopic(),
+                config.subscriberCreatedTopic(),
+                config.subscriberUpdatedTopic(),
+                config.subscriberDeletedTopic(),
+                config.workflowTriggerTopic()
+        );
     }
 }

@@ -1,0 +1,27 @@
+{
+    "id":  "campaign-eligibility-marker-fail-closed",
+    "createdAt":  "2026-05-23T10:06:33.9295049Z",
+    "objective":  "Fail closed campaign send handoff when recipient payload lacks final eligibility proof",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/BatchingService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/SendExecutionService.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/BatchingServiceTest.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/SendExecutionServiceTest.java"
+                     ],
+    "agents":  [
+                   "CAMPAIGN_SERVICE_OWNER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/campaign-service -Dtest=BatchingServiceTest",
+                           "SendExecutionServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed: send execution fails closed without final audience eligibility marker; focused campaign Maven validation passed."
+}

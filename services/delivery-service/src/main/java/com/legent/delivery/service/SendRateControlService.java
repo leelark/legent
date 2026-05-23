@@ -24,6 +24,7 @@ public class SendRateControlService {
 
     private static final int DEFAULT_STATE_LIST_LIMIT = 50;
     private static final int MAX_STATE_LIST_LIMIT = 200;
+    private static final int EXPIRED_RECLAIM_BATCH_SIZE = 25;
 
     private final SendRateStateRepository sendRateStateRepository;
     private final DeliverySendReservationRepository reservationRepository;
@@ -84,7 +85,6 @@ public class SendRateControlService {
         SendRateState state = getOrCreateRateStateForUpdate(
                 tenantId, workspaceId, rateLimitKey, senderDomain, providerId, recipientDomain);
         rollWindow(state);
-        expireLeasesForCurrentRate(tenantId, workspaceId, rateLimitKey, state, warmupState, now);
 
         existing = reservationRepository
                 .findActiveForUpdate(tenantId, workspaceId, normalizedReservationId)
@@ -102,10 +102,21 @@ public class SendRateControlService {
             return existingAllowedDecision(existing, "reservation already active");
         }
 
+        if (isReserved(existing) && sameRateScope(existing, rateLimitKey) && !existing.getLeaseExpiresAt().isAfter(now)) {
+            releaseLocked(existing, state, warmupState, now, "LEASE_EXPIRED");
+        }
+
         WarmupService.WarmupDecision warmup = warmupService.evaluateCapacity(warmupState, now);
         int maxPerMinute = calculateMaxPerMinute(providerMaxSendRatePerSecond, riskScore, warmupState);
         state.setMaxPerMinute(maxPerMinute);
         state.setRiskScore(riskScore);
+
+        if (!warmup.allowed() || state.getUsedThisMinute() >= maxPerMinute) {
+            int reclaimed = expireLeasesForCurrentRate(tenantId, workspaceId, rateLimitKey, state, warmupState, now);
+            if (reclaimed > 0) {
+                warmup = warmupService.evaluateCapacity(warmupState, now);
+            }
+        }
 
         if (!warmup.allowed()) {
             state.setThrottleState("WARMUP_DEFER");
@@ -253,22 +264,24 @@ public class SendRateControlService {
                 .orElseThrow(() -> new IllegalStateException("Unable to create send rate state"));
     }
 
-    private void expireLeasesForCurrentRate(String tenantId,
-                                            String workspaceId,
-                                            String rateLimitKey,
-                                            SendRateState state,
-                                            WarmupState warmupState,
-                                            Instant now) {
+    private int expireLeasesForCurrentRate(String tenantId,
+                                           String workspaceId,
+                                           String rateLimitKey,
+                                           SendRateState state,
+                                           WarmupState warmupState,
+                                           Instant now) {
         List<DeliverySendReservation> expiredReservations = reservationRepository.findExpiredRateReservationsForUpdate(
                 tenantId,
                 workspaceId,
                 rateLimitKey,
                 DeliverySendReservation.STATUS_RESERVED,
-                now);
+                now,
+                PageRequest.of(0, EXPIRED_RECLAIM_BATCH_SIZE));
         for (DeliverySendReservation reservation : expiredReservations) {
             releaseLocked(reservation, state, warmupState, now, "LEASE_EXPIRED");
             reservationRepository.save(reservation);
         }
+        return expiredReservations.size();
     }
 
     private void releaseLocked(DeliverySendReservation reservation,

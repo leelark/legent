@@ -45,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -114,8 +114,8 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "same@example.com", "subscriberId", "sub-1", "firstName", "Asha"),
-                Map.of("email", "same@example.com", "subscriberId", "sub-1", "firstName", "Asha"));
+                eligibleSubscriber("same@example.com", "sub-1", Map.of("firstName", "Asha")),
+                eligibleSubscriber("same@example.com", "sub-1", Map.of("firstName", "Asha")));
 
         stubBatchExecution(batch, campaign, subscribers);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
@@ -132,8 +132,8 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1", "firstName", "Asha"),
-                Map.of("email", "two@example.com", "subscriberId", "sub-2", "firstName", "Ishan"));
+                eligibleSubscriber("one@example.com", "sub-1", Map.of("firstName", "Asha")),
+                eligibleSubscriber("two@example.com", "sub-2", Map.of("firstName", "Ishan")));
 
         stubBatchExecution(batch, campaign, subscribers);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
@@ -150,8 +150,8 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
-                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+                eligibleSubscriber("one@example.com", "sub-1"),
+                eligibleSubscriber("two@example.com", "sub-2"));
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers);
@@ -170,8 +170,8 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
-                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+                eligibleSubscriber("one@example.com", "sub-1"),
+                eligibleSubscriber("two@example.com", "sub-2"));
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers, 1);
@@ -183,7 +183,7 @@ class SendExecutionServiceTest {
         assertEquals(SendBatch.BatchStatus.PARTIAL, batch.getStatus());
         List<Map<String, String>> remaining = objectMapper.readValue(
                 batch.getPayload(), new TypeReference<>() {});
-        assertEquals(List.of(Map.of("email", "two@example.com", "subscriberId", "sub-2")), remaining);
+        assertEquals(List.of(eligibleSubscriber("two@example.com", "sub-2")), remaining);
         verify(batchRepository, times(1)).save(batch);
     }
 
@@ -192,8 +192,8 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
-                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+                eligibleSubscriber("one@example.com", "sub-1"),
+                eligibleSubscriber("two@example.com", "sub-2"));
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers);
@@ -213,7 +213,7 @@ class SendExecutionServiceTest {
         assertEquals(0, batch.getFailureCount());
         List<Map<String, String>> retryPayload = objectMapper.readValue(
                 batch.getPayload(), new TypeReference<>() {});
-        assertEquals(List.of(Map.of("email", "two@example.com", "subscriberId", "sub-2")), retryPayload);
+        assertEquals(List.of(eligibleSubscriber("two@example.com", "sub-2")), retryPayload);
     }
 
     @Test
@@ -224,8 +224,8 @@ class SendExecutionServiceTest {
         SendBatchRecipient first = recipientRow(1, "sub-1", "one@example.com");
         SendBatchRecipient second = recipientRow(2, "sub-2", "two@example.com");
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"),
-                Map.of("email", "two@example.com", "subscriberId", "sub-2"));
+                eligibleSubscriber("one@example.com", "sub-1"),
+                eligibleSubscriber("two@example.com", "sub-2"));
 
         stubBatchExecution(batch, campaign, subscribers);
         when(batchRecipientRepository.countByTenantIdAndWorkspaceIdAndJobIdAndBatchIdAndDeletedAtIsNull(
@@ -256,12 +256,64 @@ class SendExecutionServiceTest {
     }
 
     @Test
+    void legacyPayloadWithAudienceEligibilityMarkerCanHandoffToDelivery() throws Exception {
+        SendBatch batch = batch();
+        Campaign campaign = campaign();
+        List<Map<String, String>> subscribers = List.of(eligibleSubscriber("one@example.com", "sub-1"));
+        batch.setPayload(objectMapper.writeValueAsString(subscribers));
+
+        stubBatchExecution(batch, campaign, subscribers);
+        when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
+                .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+    }
+
+    @Test
+    void legacyPayloadWithoutAudienceEligibilityMarkerFailsClosedBeforeDeliveryHandoff() throws Exception {
+        SendBatch batch = batch();
+        batch.setBatchSize(1);
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+
+        when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
+                .thenReturn(Optional.of(batch));
+        when(batchRepository.claimRetryableBatchForProcessing(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq("batch-1"),
+                eq(SendBatch.BatchStatus.PROCESSING),
+                eq(SendBatch.BatchStatus.PENDING),
+                eq(SendBatch.BatchStatus.FAILED),
+                eq(5),
+                any())).thenReturn(1);
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_SEND_FAILED), any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
+        assertEquals("Validation failed for field 'audienceEligibility': Legacy send batch recipient payload is missing final audience eligibility marker",
+                batch.getLastError());
+        verify(campaignRepository, never()).findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                anyString(), anyString(), anyString());
+        verify(sendSafetyService, never()).buildPlan(any());
+        verify(contentServiceClient, never()).renderTemplate(anyString(), anyString(), anyString(), any());
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_FAILED), any());
+    }
+
+    @Test
     void externalizesOversizedRenderedPayloadBeforePublishingSendRequest() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
-        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
         ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1200);
         ReflectionTestUtils.setField(service, "contentReferenceEnabled", false);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
@@ -293,9 +345,9 @@ class SendExecutionServiceTest {
     void publishesReferenceOnlyPayloadWhenInlineContentDisabled() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
-        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", false);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
@@ -321,9 +373,9 @@ class SendExecutionServiceTest {
     void publishesContractCompliantPayloadWhenContentReferencesConfiguredOn() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
-        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
         ReflectionTestUtils.setField(service, "contentReferenceEnabled", true);
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
@@ -350,9 +402,9 @@ class SendExecutionServiceTest {
     void publishesContractCompliantPayloadWhenContentReferencesConfiguredOff() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
-        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
         ReflectionTestUtils.setField(service, "contentReferenceEnabled", false);
         ReflectionTestUtils.setField(service, "includeInlineRenderedContent", true);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
@@ -378,9 +430,9 @@ class SendExecutionServiceTest {
     void failsClosedWhenContentReferenceCreationFailsWithInlineFallbackConfigured() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
-        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
         when(contentReferenceService.createReference(any(), eq(true)))
@@ -416,7 +468,7 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"));
+                eligibleSubscriber("one@example.com", "sub-1"));
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
 
         stubBatchExecution(batch, campaign, subscribers);
@@ -445,7 +497,7 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"));
+                eligibleSubscriber("one@example.com", "sub-1"));
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
         CompletableFuture<SendResult<String, Object>> handoff = new CompletableFuture<>();
 
@@ -466,7 +518,7 @@ class SendExecutionServiceTest {
 
             handoff.complete(null);
 
-            assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
+            assertDoesNotThrow(() -> execution.get(5, TimeUnit.SECONDS));
             assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
             verify(batchRepository).save(batch);
         } finally {
@@ -479,7 +531,7 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         Campaign campaign = campaign();
         List<Map<String, String>> subscribers = List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"));
+                eligibleSubscriber("one@example.com", "sub-1"));
         batch.setPayload(objectMapper.writeValueAsString(subscribers));
         CountDownLatch renderEntered = new CountDownLatch(1);
         CountDownLatch releaseRender = new CountDownLatch(1);
@@ -499,18 +551,14 @@ class SendExecutionServiceTest {
                 () -> executeBatchWithWorkspaceContext(batch.getPayload()), executor);
 
         try {
-            assertTimeoutPreemptively(Duration.ofSeconds(1), () -> {
-                if (!renderEntered.await(1, TimeUnit.SECONDS)) {
-                    throw new AssertionError("render was not invoked");
-                }
-            });
+            assertTrue(renderEntered.await(5, TimeUnit.SECONDS), "render was not invoked");
             assertFalse(execution.isDone());
             assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
             verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
 
             releaseRender.countDown();
 
-            assertTimeoutPreemptively(Duration.ofSeconds(2), execution::join);
+            assertDoesNotThrow(() -> execution.get(5, TimeUnit.SECONDS));
             assertEquals(SendBatch.BatchStatus.COMPLETED, batch.getStatus());
             verify(eventPublisher).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
         } finally {
@@ -554,7 +602,7 @@ class SendExecutionServiceTest {
     void executeBatchSkipsWhenConditionalClaimLosesRace() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
                 .thenReturn(Optional.of(batch));
         when(batchRepository.claimRetryableBatchForProcessing(
@@ -580,7 +628,7 @@ class SendExecutionServiceTest {
     void executeBatchFailsClosedBeforeRenderWhenCampaignIsOutsideBatchWorkspace() throws Exception {
         SendBatch batch = batch();
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         when(batchRepository.findByTenantWorkspaceAndId("tenant-1", "workspace-1", "batch-1"))
                 .thenReturn(Optional.of(batch));
         when(batchRepository.claimRetryableBatchForProcessing(
@@ -616,10 +664,10 @@ class SendExecutionServiceTest {
         batch.setStatus(SendBatch.BatchStatus.FAILED);
         batch.setRetryCount(1);
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
 
-        stubBatchExecution(batch, campaign, List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")));
+        stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
 
@@ -800,7 +848,7 @@ class SendExecutionServiceTest {
         SendBatch batch = batch();
         batch.setBatchSize(1);
         batch.setPayload(objectMapper.writeValueAsString(List.of(
-                Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+                eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
         campaign.setContentId(null);
         campaign.setStatus(Campaign.CampaignStatus.SENDING);
@@ -954,6 +1002,20 @@ class SendExecutionServiceTest {
         return batch;
     }
 
+    private Map<String, String> eligibleSubscriber(String email, String subscriberId) {
+        return eligibleSubscriber(email, subscriberId, Map.of());
+    }
+
+    private Map<String, String> eligibleSubscriber(String email,
+                                                   String subscriberId,
+                                                   Map<String, String> attributes) {
+        Map<String, String> subscriber = new java.util.LinkedHashMap<>();
+        subscriber.put("email", email);
+        subscriber.put("subscriberId", subscriberId);
+        subscriber.putAll(attributes);
+        return CampaignAudienceEligibilityMarker.markEligible(subscriber);
+    }
+
     private SendBatchRecipient recipientRow(int sequence, String subscriberId, String email) throws Exception {
         SendBatchRecipient row = new SendBatchRecipient();
         row.setId("recipient-" + sequence);
@@ -966,7 +1028,7 @@ class SendExecutionServiceTest {
         row.setEmail(email);
         row.setStatus(SendBatchRecipient.RecipientStatus.PENDING);
         row.setAttemptCount(0);
-        row.setPayload(objectMapper.writeValueAsString(Map.of("email", email, "subscriberId", subscriberId)));
+        row.setPayload(objectMapper.writeValueAsString(eligibleSubscriber(email, subscriberId)));
         return row;
     }
 

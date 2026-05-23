@@ -1,0 +1,30 @@
+{
+    "id":  "identity-reset-link-production-safety",
+    "createdAt":  "2026-05-23T11:15:36.6074557Z",
+    "objective":  "Harden password reset link rendering and production frontend URL guard",
+    "status":  "DONE",
+    "owner":  "IDENTITY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/identity-service/src/main/resources/application.yml",
+                         "services/identity-service/src/main/java/com/legent/identity/service/IdentityExperienceService.java",
+                         "services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java",
+                         "shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java",
+                         "shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java",
+                         "services/identity-service/src/test/java/com/legent/identity/service/IdentityExperienceServiceTest.java"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl shared/legent-common",
+                           "services/identity-service -am \"-Dtest=RuntimeConfigurationGuardTest",
+                           "IdentityExperienceServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           "git diff --check -- shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java shared/legent-common/src/test/java/com/legent/common/config/RuntimeConfigurationGuardTest.java services/identity-service/src/main/java/com/legent/identity/service/IdentityExperienceService.java services/identity-service/src/main/java/com/legent/identity/event/IdentityEventPublisher.java services/identity-service/src/test/java/com/legent/identity/service/IdentityExperienceServiceTest.java"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Identity reset link production safety complete; select audience-segment-recompute-bounded-membership next."
+}

@@ -34,6 +34,16 @@ Rationale: combining completed local work with broad competitor parity language 
 
 Impact: no new market claims were introduced in the latest doc split; future claims need a dated source refresh before product copy, roadmap commitments, or release readiness messaging.
 
+## 2026-05-23 Parity Queue Accounting Boundary
+
+Source: `docs/product/salesforce-parity-matrix.md`, `docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md`, `docs/product/competitor-research/2026-05-20-competitor-capability-scan.md`, `.codex/backlog/queue.json`, and read-only scout findings from the resumed overall audit.
+
+Decision: when a parity doc names a narrow local follow-up and the resumed audit confirms it is unblocked, the work must be represented in `.codex/backlog/queue.json`; docs-only backlog descriptions are allowed only until a queue/state lease permits safe `.codex` edits.
+
+Rationale: an empty ready/backlog queue while docs list local follow-ups causes the autonomous loop to stop early and hides safe local progress behind external blockers.
+
+Impact: completed local contracts are marked `DONE_LOCAL` in dated research notes, new local security/performance/frontend/docs candidates are queued for selection, and external parity, production, high-volume, provider, legal, and runtime evidence remain blocked rather than implied.
+
 ## 2026-05-20 AI Claim Boundary
 
 Source: local audit of foundation intelligence controllers/services, source search for model-provider integrations, `docs/product/ai-governance-optimization-foundation.md`, and current official vendor AI trust/optimization documentation.
@@ -103,5 +113,15 @@ Rationale: the previous hybrid coordinator could start module implementation bef
 Impact: missing module threads are treated as planned/ready assignments, not blockers. Module implementation is blocked only by active overlapping source-code leases, relevant failed validation, external evidence gaps, credentials, production access, or explicit human decision. Shared `.codex` metadata leases should be short and exact.
 
 Follow-up: use `.codex/utilities/get-module-prompt.ps1 -Module multi-module-coordinator` for the coordinator, then start module threads separately with their module prompts.
+
+## 2026-05-23 Deployment Manager Evidence Boundary
+
+Source: `frontend/src/components/settings/EnterpriseSettingsConsole.tsx`, `docs/operations/deployment-manager-provider-options.md`, official provider documentation checked on 2026-05-23, and validation from `npm run lint`, `npm run build:ci`, targeted admin Playwright, repo artifact hygiene, release evidence validator self-tests, and Codex system validation.
+
+Decision: the Deployment Manager settings surface may present `LOCAL_VALIDATION` and `PRODUCTION_MANAGED` tracks, runtime config keys, and 100% local readiness targets, but it must keep production, Salesforce-class parity, AI parity, and 10 lakh / 10h send claims evidence-bound.
+
+Rationale: local code, docs, and validators can complete the planning/configuration path; they cannot create paid provider quota, warmed sender reputation, target runtime smoke, image provenance, restore, monitoring, or live load evidence.
+
+Impact: free/local path is validation-only. Paid production path requires dated provider/runtime/registry/monitoring evidence before strict release or throughput claims.
 
 Decision update rule: add only durable decisions with source, rationale, impact, and validation or follow-up.
