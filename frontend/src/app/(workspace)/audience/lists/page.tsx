@@ -8,6 +8,7 @@ import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageChrome';
+import { useToast } from '@/components/ui/Toast';
 import { useApi } from '@/hooks/useApi';
 import { post, put, del } from '@/lib/api-client';
 import { Plus, Trash, PencilSimple } from '@phosphor-icons/react';
@@ -19,6 +20,7 @@ const statusBadgeMap: Record<string, 'success' | 'default'> = {
 };
 
 export default function ListsPage() {
+  const { addToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -27,6 +29,7 @@ export default function ListsPage() {
     listType: 'PUBLICATION',
   });
   const [error, setError] = useState<string | null>(null);
+  const [deleteList, setDeleteList] = useState<AudienceList | null>(null);
   const { data, loading, refetch } = useApi<PagedResponse<AudienceList>>('/lists?page=0&size=100');
   const rows = data?.content ?? data?.data ?? [];
 
@@ -56,19 +59,24 @@ export default function ListsPage() {
         await post('/lists', form);
       }
       setIsModalOpen(false);
+      addToast({ type: 'success', title: editingId ? 'List updated' : 'List created', message: form.name });
       refetch();
     } catch {
       setError('Failed to save list');
+      addToast({ type: 'error', title: 'List save failed', message: 'Unable to save list.' });
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm('Delete this list?')) return;
+  const remove = async () => {
+    if (!deleteList) return;
     try {
-      await del(`/lists/${id}`);
+      await del(`/lists/${deleteList.id}`);
+      addToast({ type: 'success', title: 'List deleted', message: deleteList.name });
+      setDeleteList(null);
       refetch();
     } catch {
       setError('Failed to delete list');
+      addToast({ type: 'error', title: 'List delete failed', message: 'No list was removed.' });
     }
   };
 
@@ -86,8 +94,8 @@ export default function ListsPage() {
       header: '',
       render: (row: AudienceList) => (
         <div className="flex justify-end gap-2">
-          <button onClick={() => openEdit(row)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
-          <button onClick={() => remove(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
+          <button aria-label={`Edit ${row.name}`} onClick={() => openEdit(row)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
+          <button aria-label={`Delete ${row.name}`} onClick={() => setDeleteList(row)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
         </div>
       )
     }
@@ -136,6 +144,23 @@ export default function ListsPage() {
             <Button onClick={save} disabled={!form.name}>Save</Button>
           </div>
         </div>
+      </Modal>
+      <Modal
+        open={Boolean(deleteList)}
+        onClose={() => setDeleteList(null)}
+        title="Delete list?"
+        description="This removes the list from audience inventory. Confirm only after checking campaign targeting impact."
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setDeleteList(null)}>Cancel</Button>
+            <Button variant="danger" onClick={remove}>Delete</Button>
+          </>
+        )}
+      >
+        <p className="text-sm leading-6 text-content-secondary">
+          Delete {deleteList?.name ? `"${deleteList.name}"` : 'this list'}?
+        </p>
       </Modal>
     </div>
   );

@@ -150,6 +150,11 @@ public class DeliveryOperationsService {
                 payload.put("fromEmail", sourceLog.getFromEmail());
                 payload.put("fromName", sourceLog.getFromName());
                 payload.put("replyToEmail", sourceLog.getReplyToEmail());
+                payload.put("sendGovernancePolicyId", sourceLog.getSendGovernancePolicyId());
+                payload.put("sendGovernancePolicyKey", sourceLog.getSendGovernancePolicyKey());
+                payload.put("sendGovernancePolicyVersion", sourceLog.getSendGovernancePolicyVersion());
+                payload.put("sendGovernancePolicySnapshotHash", sourceLog.getSendGovernancePolicySnapshotHash());
+                payload.put("sendGovernancePolicySnapshot", sourceLog.getSendGovernancePolicySnapshot());
                 String contentReference = sourceLog.getContentReference();
                 if (contentReference == null || contentReference.isBlank()) {
                     throw new IllegalStateException("Source message contentReference is required for replay");

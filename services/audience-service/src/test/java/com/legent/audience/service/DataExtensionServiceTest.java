@@ -594,6 +594,31 @@ class DataExtensionServiceTest {
     }
 
     @Test
+    void markImportProvenanceUpdatesGovernanceAndWritesAuditEntry() {
+        DataExtension de = dataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+        when(deRepository.save(de)).thenReturn(de);
+
+        service.markImportProvenance("de-1", "job-1", "imports/customers.csv");
+
+        assertThat(de.getSourceType()).isEqualTo("IMPORT");
+        assertThat(de.getSourceSystem()).isEqualTo("AUDIENCE_IMPORT");
+        assertThat(de.getSourceReference()).isEqualTo("job-1");
+        assertThat(de.getGovernanceNotes()).contains("job-1").contains("imports/customers.csv");
+        assertThat(de.getGovernanceReviewedBy()).isEqualTo("user-1");
+        assertThat(de.getGovernanceReviewedAt()).isNotNull();
+        ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
+        verify(governanceAuditRepository).save(auditCaptor.capture());
+        assertThat(auditCaptor.getValue().getAction()).isEqualTo("IMPORT_PROVENANCE_POPULATED");
+        assertThat(auditCaptor.getValue().getCreatedBy()).isEqualTo("user-1");
+        assertThat(auditCaptor.getValue().getMetadata())
+                .containsEntry("sourceType", "IMPORT")
+                .containsEntry("sourceSystem", "AUDIENCE_IMPORT")
+                .containsEntry("sourceReference", "job-1");
+    }
+
+    @Test
     void listGovernanceAuditUsesTenantWorkspaceScopedRepository() {
         DataExtension de = dataExtension();
         DataExtensionGovernanceAudit audit = new DataExtensionGovernanceAudit();

@@ -8,6 +8,7 @@ import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { PageHeader } from '@/components/ui/PageChrome';
+import { useToast } from '@/components/ui/Toast';
 import { useApi } from '@/hooks/useApi';
 import { del, get, post, put } from '@/lib/api-client';
 import { ClockCounterClockwise, PencilSimple, Plus, ShieldCheck, Trash } from '@phosphor-icons/react';
@@ -177,6 +178,7 @@ function TextAreaField({
 }
 
 export default function DataExtensionsPage() {
+  const { addToast } = useToast();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -191,6 +193,7 @@ export default function DataExtensionsPage() {
   const [governanceAuditLoading, setGovernanceAuditLoading] = useState(false);
   const [governanceAuditError, setGovernanceAuditError] = useState<string | null>(null);
   const [governanceSaving, setGovernanceSaving] = useState(false);
+  const [deleteExtension, setDeleteExtension] = useState<DataExtension | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { data, loading, refetch } = useApi<PagedResponse<DataExtension>>('/data-extensions?page=0&size=100');
   const rows = data?.content ?? data?.data ?? [];
@@ -254,13 +257,16 @@ export default function DataExtensionsPage() {
     setFields((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
-  const remove = async (id: string) => {
-    if (!confirm('Delete this data extension?')) return;
+  const remove = async () => {
+    if (!deleteExtension) return;
     try {
-      await del(`/data-extensions/${id}`);
+      await del(`/data-extensions/${deleteExtension.id}`);
+      addToast({ type: 'success', title: 'Data extension deleted', message: deleteExtension.name });
+      setDeleteExtension(null);
       refetch();
     } catch {
       setError('Failed to delete data extension');
+      addToast({ type: 'error', title: 'Data extension delete failed', message: 'No data extension was removed.' });
     }
   };
 
@@ -348,7 +354,7 @@ export default function DataExtensionsPage() {
           </button>
           <button
             type="button"
-            onClick={() => remove(row.id)}
+            onClick={() => setDeleteExtension(row)}
             className="rounded-lg p-1 text-content-muted transition-colors hover:bg-surface-secondary hover:text-danger"
             aria-label={`Delete ${row.name ?? row.id}`}
           >
@@ -595,6 +601,24 @@ export default function DataExtensionsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={Boolean(deleteExtension)}
+        onClose={() => setDeleteExtension(null)}
+        title="Delete data extension?"
+        description="This removes the custom table definition from audience inventory. Confirm only after checking segment, journey, and campaign dependencies."
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setDeleteExtension(null)}>Cancel</Button>
+            <Button variant="danger" onClick={remove}>Delete</Button>
+          </>
+        )}
+      >
+        <p className="text-sm leading-6 text-content-secondary">
+          Delete {deleteExtension?.name ? `"${deleteExtension.name}"` : 'this data extension'}?
+        </p>
       </Modal>
     </div>
   );

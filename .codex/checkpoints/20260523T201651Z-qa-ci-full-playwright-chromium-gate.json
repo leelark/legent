@@ -1,0 +1,48 @@
+﻿{
+    "id":  "qa-ci-full-playwright-chromium-gate",
+    "createdAt":  "2026-05-23T20:16:51.5751240Z",
+    "objective":  "Promote full Chromium Playwright suite into CI/manual gate",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         ".github/workflows/ci-security.yml",
+                         "frontend/package.json",
+                         "frontend/playwright.config.ts",
+                         "frontend/tests/e2e",
+                         ".codex/workflows/validation-gates.md",
+                         ".codex/memory/test-impact-map.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         "frontend/tests/e2e/admin.spec.ts",
+                         ".codex/memory/release-history.md"
+                     ],
+    "agents":  [
+                   "QA_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed locally; use npm run test:e2e:chromium as the full Chromium frontend CI/manual gate while keeping smoke/sanitize/visual scripts for fast feedback.",
+    "completedAt":  "2026-05-23T20:29:27.3127887Z",
+    "validationRun":  [
+                          "cd frontend; npm run lint",
+                          "cd frontend; npm run build:ci",
+                          "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/admin.spec.ts --project=chromium --reporter=line",
+                          "cd frontend; npm run test:e2e:chromium (119 passed, 1 skipped credentialed login smoke)",
+                          "cd frontend; npm audit --omit=dev --audit-level=high",
+                          "git diff --check -- scoped QA gate files"
+                      ],
+    "residualRisks":  [
+                          "One context-bootstrap login smoke remains skipped without E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD; target login proof remains separate.",
+                          "This is local/CI frontend evidence only, not production readiness evidence."
+                      ]
+}

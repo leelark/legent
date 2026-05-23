@@ -31,6 +31,7 @@ export type Campaign = {
   complianceEnabled?: boolean;
   providerId?: string;
   sendingDomain?: string;
+  sendGovernancePolicyId?: string;
   timezone?: string;
   frequencyCap?: number;
   approvalRequired?: boolean;

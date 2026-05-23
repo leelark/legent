@@ -85,6 +85,8 @@ legent:
     token-ttl: ${LEGENT_SERVICE_AUTH_TOKEN_TTL:PT2M}
   deliverability-service:
     url: ${LEGENT_DELIVERABILITY_SERVICE_URL:http://deliverability-service:8087}
+  audience-service:
+    url: ${LEGENT_AUDIENCE_SERVICE_URL:http://audience-service:8082}
   delivery-service:
     url: ${LEGENT_DELIVERY_SERVICE_URL:http://delivery-service:8084}
   campaign:

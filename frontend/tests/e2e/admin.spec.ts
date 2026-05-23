@@ -49,6 +49,43 @@ const performanceSummary = {
   generatedAt: '2026-05-07T09:00:00Z',
 };
 
+const sendGovernancePolicies = [
+  {
+    id: 'policy-1',
+    policyKey: 'commercial-default',
+    name: 'Commercial Default',
+    classification: 'COMMERCIAL',
+    providerId: 'provider-1',
+    sendingDomain: 'example.com',
+    publicationPolicy: 'APPROVED_CONTENT_REQUIRED',
+    unsubscribePolicy: 'REQUIRED',
+    suppressionRequired: true,
+    consentRequired: false,
+    trackingAllowed: true,
+    sendLogRetentionDays: 365,
+    active: true,
+    version: 3,
+    createdAt: '2026-05-07T09:00:00Z',
+    updatedAt: '2026-05-07T09:30:00Z',
+  },
+  {
+    id: 'policy-2',
+    policyKey: 'transactional-low-risk',
+    name: 'Transactional Low Risk',
+    classification: 'TRANSACTIONAL',
+    publicationPolicy: 'NO_APPROVAL_REQUIRED',
+    unsubscribePolicy: 'OPTIONAL',
+    suppressionRequired: false,
+    consentRequired: false,
+    trackingAllowed: false,
+    sendLogRetentionDays: 90,
+    active: false,
+    version: 1,
+    createdAt: '2026-05-07T08:00:00Z',
+    updatedAt: '2026-05-07T08:30:00Z',
+  },
+];
+
 function ok(data: unknown) {
   return {
     success: true,
@@ -81,8 +118,10 @@ async function fulfill(route: Route, data: unknown) {
 type MockAdminApiOptions = {
   domains?: unknown[];
   omitSessionRoles?: boolean;
+  policies?: unknown[];
   providers?: unknown[];
   searchResults?: unknown[];
+  seenPolicies?: unknown[];
   seenPaths?: string[];
   sessionRoles?: string[];
 };
@@ -184,6 +223,39 @@ async function mockAdminApis(page: Page, options: MockAdminApiOptions = {}) {
     }
     if (path === '/deliverability/domains') {
       return fulfill(route, ok(options.domains ?? [{ id: 'domain-1', domainName: 'example.com', status: 'VERIFIED', isActive: true, spfVerified: true, dkimVerified: true, dmarcVerified: false }]));
+    }
+    if (path === '/content/send-governance-policies' && method === 'POST') {
+      const body = JSON.parse(request.postData() || '{}');
+      options.seenPolicies?.push(body);
+      return fulfill(route, ok({
+        id: 'policy-created',
+        ...body,
+        active: body.active ?? true,
+        version: 1,
+        createdAt: '2026-05-07T10:00:00Z',
+        updatedAt: '2026-05-07T10:00:00Z',
+      }));
+    }
+    if (path.startsWith('/content/send-governance-policies/') && method === 'PUT') {
+      const body = JSON.parse(request.postData() || '{}');
+      options.seenPolicies?.push(body);
+      return fulfill(route, ok({
+        id: path.split('/').pop(),
+        ...body,
+        version: 4,
+        createdAt: '2026-05-07T09:00:00Z',
+        updatedAt: '2026-05-07T10:05:00Z',
+      }));
+    }
+    if (path === '/content/send-governance-policies') {
+      const policies = options.policies ?? sendGovernancePolicies;
+      return fulfill(route, ok({
+        content: policies,
+        totalElements: policies.length,
+        totalPages: 1,
+        page: 0,
+        size: 100,
+      }));
     }
     if (path.startsWith('/deliverability/domains/') && path.endsWith('/verify')) {
       return fulfill(route, ok({ status: 'VERIFIED' }));
@@ -383,6 +455,25 @@ test('settings console covers sections and deliverability response aliases', asy
   await expect(page.getByTestId('deployment-runtime-keys')).toContainText('delivery.provider.mode');
   await expect(page.getByTestId('deployment-maturity-frontend-local-maturity')).toContainText('100% local completion');
   await expect(page.getByText('Not production evidence')).toBeVisible();
+  await expect(page.getByTestId('deployment-evidence-strict-status')).toContainText('BLOCKED');
+  await expect(page.getByText('Production ready', { exact: true })).toHaveCount(0);
+
+  await page.getByLabel('Evidence reference').fill('docs/release-evidence/local/frontend-build.txt');
+  await page.getByLabel('Evidence summary').fill('Local lint, build, and settings Playwright evidence from this workspace.');
+  await page.getByTestId('deployment-evidence-attach').click();
+  await expect(page.getByTestId('deployment-evidence-local-count')).toContainText('1');
+  await expect(page.getByTestId('deployment-evidence-production-count')).toContainText('0');
+
+  await page.getByTestId('deployment-evidence-category').selectOption('production-egress');
+  await page.getByLabel('Evidence reference').fill('docs/release-evidence/production/egress-reviewed.json');
+  await page.getByLabel('Evidence summary').fill('Reviewed production egress allowlist evidence placeholder path pending strict gate execution.');
+  await page.getByTestId('deployment-evidence-attach').click();
+  await expect(page.getByTestId('deployment-evidence-production-count')).toContainText('1');
+  await expect(page.getByTestId('deployment-evidence-strict-status')).toContainText('Production readiness remains blocked');
+  await expect(page.getByText('docs/release-evidence/local/frontend-build.txt')).toBeVisible();
+  await expect(page.getByText('docs/release-evidence/production/egress-reviewed.json')).toBeVisible();
+  await page.getByRole('button', { name: 'Save deployment' }).click();
+  await expect(page.getByText('Settings saved')).toBeVisible();
 
   await settingsSurface.getByRole('button', { name: /Deliverability/ }).click();
   await expect(page.getByRole('heading', { name: 'Deliverability Settings' })).toBeVisible();
@@ -448,19 +539,33 @@ test('tracking compatibility route redirects to analytics', async ({ page }) => 
 });
 
 test('admin console renders governance and operations tabs with mocks', async ({ page }) => {
-  await mockAdminApis(page);
+  const seenPolicies: unknown[] = [];
+  await mockAdminApis(page, { seenPolicies });
   await page.goto('/app/admin', { waitUntil: 'domcontentloaded' });
 
   await expect(page.getByRole('heading', { name: /Admin Control Plane/ })).toBeVisible({ timeout: 45000 });
+
+  await page.getByRole('button', { name: /Configuration/ }).click();
+  await expect(page.getByTestId('send-governance-policy-panel')).toContainText('Commercial Default v3');
+  await expect(page.getByTestId('send-governance-policy-panel')).toContainText('APPROVED CONTENT REQUIRED');
+  await page.getByRole('button', { name: /Edit Commercial Default v3/ }).click();
+  await page.getByLabel('Policy name').fill('Commercial Default Updated');
+  await page.getByRole('button', { name: 'Update policy' }).click();
+  await expect(page.getByText('Policy updated')).toBeVisible();
+  expect(seenPolicies[0]).toMatchObject({
+    policyKey: 'commercial-default',
+    name: 'Commercial Default Updated',
+    publicationPolicy: 'APPROVED_CONTENT_REQUIRED',
+  });
 
   const tabs = [
     { button: /Federation/, heading: 'Federation', evidence: 'Configured providers' },
     { button: /Audit Center/, heading: 'Audit', evidence: 'Investigation Mode' },
     { button: /Configuration/, heading: 'Runtime Config', evidence: 'Default Setup Status' },
     { button: /Platform Ops/, heading: 'Branding', evidence: 'Webhook Integrations' },
-    { button: /Differentiation/, heading: 'Differentiation Platform', evidence: 'AI Copilot' },
+    { button: /Differentiation/, heading: 'Differentiation Platform', evidence: 'AI Recommendation Review' },
     { button: /Global Ops/, heading: 'Global Ops', evidence: 'Topology Control' },
-    { button: /Performance Intelligence/, heading: 'Performance Intelligence', evidence: 'Realtime Personalization' },
+    { button: /Performance Intelligence/, heading: 'Performance Intelligence', evidence: 'Personalization Evidence' },
   ];
 
   for (const tab of tabs) {
@@ -477,7 +582,7 @@ test('admin console exposes performance intelligence evidence and demo flow', as
   await expect(page.getByRole('heading', { name: /Admin Control Plane/ })).toBeVisible({ timeout: 45000 });
   await page.getByRole('button', { name: /Performance Intelligence/ }).click();
   await expect(page.getByRole('heading', { name: 'Performance Intelligence' })).toBeVisible();
-  await expect(page.getByText('Realtime Personalization', { exact: true })).toBeVisible();
+  await expect(page.getByText('Personalization Evidence', { exact: true })).toBeVisible();
   await expect(page.getByText('Closed-loop Optimization', { exact: true })).toBeVisible();
   await expect(page.getByText('Workflow Benchmarks', { exact: true })).toBeVisible();
   await expect(page.getByText('LEADER', { exact: true }).first()).toBeVisible();

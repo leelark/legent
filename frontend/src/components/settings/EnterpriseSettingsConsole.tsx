@@ -73,6 +73,25 @@ type DeploymentMaturityTarget = {
   evidenceBoundary: string;
 };
 
+type DeploymentEvidenceScope = 'LOCAL' | 'PRODUCTION';
+
+type DeploymentEvidenceCategory = {
+  id: string;
+  label: string;
+  scope: DeploymentEvidenceScope;
+  detail: string;
+  requiredForStrictGate: boolean;
+};
+
+type DeploymentEvidenceEntry = {
+  id: string;
+  categoryId: string;
+  scope: DeploymentEvidenceScope;
+  evidenceRef: string;
+  summary: string;
+  attachedAt: string;
+};
+
 const deploymentMaturityTargets: DeploymentMaturityTarget[] = [
   {
     label: 'Frontend local maturity',
@@ -90,9 +109,9 @@ const deploymentMaturityTargets: DeploymentMaturityTarget[] = [
     evidenceBoundary: 'Claimable only after target egress, image, restore, TLS, CI/security, monitoring, and live smoke evidence.',
   },
   {
-    label: 'Salesforce-class product parity',
+    label: 'Salesforce comparison readiness',
     localTarget: '100% roadmap clarity',
-    evidenceBoundary: 'Claimable parity requires implemented journeys, segmentation, data extensions, testing, analytics, and AI workflows.',
+    evidenceBoundary: 'Salesforce parity remains unclaimable until implemented journeys, segmentation, data extensions, testing, analytics, AI workflows, and current source review are evidenced.',
   },
   {
     label: '10 lakh / 10h send readiness',
@@ -100,9 +119,9 @@ const deploymentMaturityTargets: DeploymentMaturityTarget[] = [
     evidenceBoundary: 'Claimable only with warmed domains, provider quota, load report, Kafka lag, retry, DLQ, and tracking isolation proof.',
   },
   {
-    label: 'AI parity',
+    label: 'AI governance readiness',
     localTarget: '100% governance checklist',
-    evidenceBoundary: 'Claimable only after model provider, evals, safety review, cost controls, draft UX, and audit evidence.',
+    evidenceBoundary: 'Model-backed AI claims remain unclaimable until provider contract, evals, safety review, cost controls, draft UX, and audit evidence are complete.',
   },
 ];
 
@@ -133,6 +152,51 @@ const deploymentTracks = [
     mode: 'PRODUCTION_MANAGED',
     items: ['managed Kubernetes or cloud app runtime', 'managed PostgreSQL/Redis/Kafka/ClickHouse', 'SES, SendGrid, or Mailgun with approved capacity', 'dedicated or managed IP warmup', 'Datadog, Grafana Cloud, or PagerDuty'],
     boundary: 'Production claim requires dated evidence from the target account, provider, registry, runtime, and monitoring stack.',
+  },
+];
+
+const deploymentEvidenceCategories: DeploymentEvidenceCategory[] = [
+  {
+    id: 'local-frontend-gates',
+    label: 'Local frontend gates',
+    scope: 'LOCAL',
+    detail: 'Lint, build, and focused Playwright/browser transcript for the touched workspace route.',
+    requiredForStrictGate: false,
+  },
+  {
+    id: 'local-release-validators',
+    label: 'Local release validators',
+    scope: 'LOCAL',
+    detail: 'Route map, artifact hygiene, production overlay, Compose config, and local-only release gate output.',
+    requiredForStrictGate: false,
+  },
+  {
+    id: 'production-egress',
+    label: 'Production egress evidence',
+    scope: 'PRODUCTION',
+    detail: 'Reviewed target egress allowlist/NAT/provider proof with strict release-gate input path.',
+    requiredForStrictGate: true,
+  },
+  {
+    id: 'production-image-provenance',
+    label: 'Image digest/SBOM/provenance',
+    scope: 'PRODUCTION',
+    detail: 'Registry digest manifest, SBOM, signature, and provenance evidence for every production image.',
+    requiredForStrictGate: true,
+  },
+  {
+    id: 'production-ga-restore-monitoring',
+    label: 'GA smoke, restore, CI/security',
+    scope: 'PRODUCTION',
+    detail: 'Live synthetic smoke, restore drill, CI/security transcript, filesystem SBOM, TLS/admission, and monitoring handoff evidence.',
+    requiredForStrictGate: true,
+  },
+  {
+    id: 'production-provider-load',
+    label: 'Provider capacity/load proof',
+    scope: 'PRODUCTION',
+    detail: 'Provider-approved quota, warmed sender reputation, load report, Kafka lag, retry, and DLQ proof.',
+    requiredForStrictGate: true,
   },
 ];
 
@@ -640,6 +704,44 @@ function DeploymentSettings({ metadata, updateMeta, save, saving, saveDisabled }
   const deployment = metadata.deployment || {};
   const selectedTrack = asText(deployment.track, 'LOCAL_VALIDATION');
   const providerMode = asText(deployment.providerMode, 'MAILHOG');
+  const evidenceEntries = useMemo(() => readDeploymentEvidenceEntries(deployment.evidenceLedger), [deployment.evidenceLedger]);
+  const [evidenceCategoryId, setEvidenceCategoryId] = useState(deploymentEvidenceCategories[0].id);
+  const [evidenceRef, setEvidenceRef] = useState('');
+  const [evidenceSummary, setEvidenceSummary] = useState('');
+  const selectedEvidenceCategory = deploymentEvidenceCategories.find((category) => category.id === evidenceCategoryId) ?? deploymentEvidenceCategories[0];
+  const localEvidenceCount = evidenceEntries.filter((entry) => entry.scope === 'LOCAL').length;
+  const productionEvidenceCount = evidenceEntries.filter((entry) => entry.scope === 'PRODUCTION').length;
+  const strictRequiredCategories = deploymentEvidenceCategories.filter((category) => category.requiredForStrictGate);
+  const coveredStrictCategoryIds = new Set(evidenceEntries.filter((entry) => entry.scope === 'PRODUCTION').map((entry) => entry.categoryId));
+  const missingStrictCategories = strictRequiredCategories.filter((category) => !coveredStrictCategoryIds.has(category.id));
+  const strictGateRunnable = missingStrictCategories.length === 0;
+
+  const stageEvidence = () => {
+    const normalizedRef = evidenceRef.trim();
+    const normalizedSummary = evidenceSummary.trim();
+    if (!normalizedRef || !normalizedSummary) {
+      return;
+    }
+    if (containsSensitiveEvidenceText(`${normalizedRef} ${normalizedSummary}`)) {
+      return;
+    }
+    const nextEntry: DeploymentEvidenceEntry = {
+      id: `evidence-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+      categoryId: selectedEvidenceCategory.id,
+      scope: selectedEvidenceCategory.scope,
+      evidenceRef: normalizedRef,
+      summary: normalizedSummary,
+      attachedAt: new Date().toISOString(),
+    };
+    updateMeta('deployment', 'evidenceLedger', [...evidenceEntries, nextEntry]);
+    setEvidenceRef('');
+    setEvidenceSummary('');
+  };
+
+  const removeEvidence = (id: string) => {
+    updateMeta('deployment', 'evidenceLedger', evidenceEntries.filter((entry) => entry.id !== id));
+  };
+
   return (
     <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -726,7 +828,143 @@ function DeploymentSettings({ metadata, updateMeta, save, saving, saveDisabled }
           <span>Not production evidence: external target runtime, paid provider, DNS, monitoring, restore, image, and live load proof must be attached before release claims.</span>
         </div>
       </Panel>
+
+      <Panel className="mt-4" data-testid="deployment-evidence-ledger">
+        <PaneHeader icon={ShieldCheck} title="Evidence Ledger" detail="Attach local validation output separately from strict production evidence." />
+        <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-4">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+              <label className="block text-xs font-semibold text-content-secondary">
+                Evidence category
+                <select
+                  aria-label="Evidence category"
+                  data-testid="deployment-evidence-category"
+                  value={evidenceCategoryId}
+                  onChange={(event) => setEvidenceCategoryId(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                >
+                  {deploymentEvidenceCategories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.scope} - {category.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Field
+                label="Evidence reference"
+                value={evidenceRef}
+                onChange={setEvidenceRef}
+              />
+            </div>
+            <label className="block text-xs font-semibold text-content-secondary">
+              Evidence summary
+              <textarea
+                aria-label="Evidence summary"
+                value={evidenceSummary}
+                onChange={(event) => setEvidenceSummary(event.target.value)}
+                className="mt-1 min-h-[92px] w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                placeholder="Summarize command, target, timestamp, reviewer, or missing external proof."
+              />
+            </label>
+            <div className="rounded-lg border border-border-default bg-surface-secondary px-3 py-3 text-sm text-content-secondary">
+              <p className="font-semibold text-content-primary">{selectedEvidenceCategory.label}</p>
+              <p className="mt-1 leading-5">{selectedEvidenceCategory.detail}</p>
+              {containsSensitiveEvidenceText(`${evidenceRef} ${evidenceSummary}`) && (
+                <p className="mt-2 text-danger">Do not attach secrets, tokens, passwords, or private keys.</p>
+              )}
+            </div>
+            <Button
+              data-testid="deployment-evidence-attach"
+              onClick={stageEvidence}
+              disabled={!evidenceRef.trim() || !evidenceSummary.trim() || containsSensitiveEvidenceText(`${evidenceRef} ${evidenceSummary}`)}
+              icon={<ShieldCheck className="h-4 w-4" />}
+            >
+              Attach Evidence
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div data-testid="deployment-evidence-local-count" className="rounded-lg border border-border-default bg-surface-secondary p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-content-muted">Local</p>
+                <p className="mt-1 text-2xl font-semibold text-content-primary">{localEvidenceCount}</p>
+              </div>
+              <div data-testid="deployment-evidence-production-count" className="rounded-lg border border-border-default bg-surface-secondary p-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-content-muted">Production</p>
+                <p className="mt-1 text-2xl font-semibold text-content-primary">{productionEvidenceCount}</p>
+              </div>
+            </div>
+            <div data-testid="deployment-evidence-strict-status" className="rounded-lg border border-border-default bg-surface-secondary p-3">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold text-content-primary">Strict release gate</p>
+                <Status label={strictGateRunnable ? 'RUN GATE' : 'BLOCKED'} ok={strictGateRunnable} />
+              </div>
+              <p className="mt-2 text-sm leading-5 text-content-secondary">
+                {strictGateRunnable
+                  ? 'All production evidence categories have attachments; run strict validators before any release decision.'
+                  : `${missingStrictCategories.length} production evidence categor${missingStrictCategories.length === 1 ? 'y' : 'ies'} missing. Production readiness remains blocked.`}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-4 xl:grid-cols-2">
+          <EvidenceList
+            entries={evidenceEntries.filter((entry) => entry.scope === 'LOCAL')}
+            title="Local Validation Evidence"
+            onRemove={removeEvidence}
+          />
+          <EvidenceList
+            entries={evidenceEntries.filter((entry) => entry.scope === 'PRODUCTION')}
+            title="Strict Production Evidence"
+            onRemove={removeEvidence}
+          />
+        </div>
+      </Panel>
     </>
+  );
+}
+
+function EvidenceList({
+  entries,
+  title,
+  onRemove,
+}: {
+  entries: DeploymentEvidenceEntry[];
+  title: string;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border-default">
+      <div className="flex items-center justify-between gap-3 border-b border-border-default bg-surface-secondary px-3 py-2">
+        <p className="text-sm font-semibold text-content-primary">{title}</p>
+        <span className="text-xs font-semibold text-content-muted">{entries.length}</span>
+      </div>
+      {entries.length === 0 ? (
+        <Empty text="No evidence attached." />
+      ) : (
+        <div className="divide-y divide-border-default">
+          {entries.map((entry) => {
+            const category = deploymentEvidenceCategories.find((item) => item.id === entry.categoryId);
+            return (
+              <div key={entry.id} className="p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-content-primary">{category?.label ?? entry.categoryId}</p>
+                    <p className="mt-1 truncate font-mono text-xs text-content-secondary">{entry.evidenceRef}</p>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => onRemove(entry.id)}>
+                    Remove
+                  </Button>
+                </div>
+                <p className="mt-2 text-sm leading-5 text-content-secondary">{entry.summary}</p>
+                <p className="mt-2 text-xs text-content-muted">Attached {formatEvidenceDate(entry.attachedAt)}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -967,6 +1205,46 @@ function readRecordValue(record: Record<string, unknown>, keys: string[]) {
     }
   }
   return undefined;
+}
+
+function readDeploymentEvidenceEntries(value: unknown): DeploymentEvidenceEntry[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((item) => {
+    if (typeof item !== 'object' || item === null) {
+      return [];
+    }
+    const record = item as Record<string, unknown>;
+    const categoryId = asText(record.categoryId).trim();
+    const scope = asText(record.scope).toUpperCase();
+    const evidenceRef = asText(record.evidenceRef).trim();
+    const summary = asText(record.summary).trim();
+    const attachedAt = asText(record.attachedAt).trim();
+    if (!categoryId || (scope !== 'LOCAL' && scope !== 'PRODUCTION') || !evidenceRef || !summary) {
+      return [];
+    }
+    return [{
+      id: asText(record.id, `evidence-${categoryId}-${evidenceRef}`).trim(),
+      categoryId,
+      scope: scope as DeploymentEvidenceScope,
+      evidenceRef,
+      summary,
+      attachedAt: attachedAt || new Date(0).toISOString(),
+    }];
+  });
+}
+
+function containsSensitiveEvidenceText(value: string) {
+  return /(password|secret|private\s*key|api[_-]?key|token=|bearer\s+)/i.test(value);
+}
+
+function formatEvidenceDate(value: string) {
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) {
+    return 'unknown';
+  }
+  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(timestamp));
 }
 
 function deploymentRuntimeValue(key: string, track: string, providerMode: string) {

@@ -2,6 +2,7 @@ package com.legent.campaign.event;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.campaign.client.AudienceResolutionClient;
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
@@ -48,6 +49,7 @@ public class CampaignEventConsumer {
     private final CampaignStateMachineService stateMachine;
     private final CampaignSendSafetyService sendSafetyService;
     private final CampaignMetricsService metricsService;
+    private final AudienceResolutionClient audienceResolutionClient;
 
     @KafkaListener(topics = AppConstants.TOPIC_AUDIENCE_RESOLVED, groupId = AppConstants.GROUP_CAMPAIGN)
     public void handleAudienceResolved(EventEnvelope<Map<String, Object>> event) {
@@ -64,18 +66,18 @@ public class CampaignEventConsumer {
                 return;
             }
             applyTenantContext(event, workspaceId);
-            boolean isLastChunk = Boolean.parseBoolean(String.valueOf(payload.getOrDefault("isLastChunk", true)));
-            
-            // Re-serialize and deserialize to get typed list
-            List<Map<String, String>> subscribers = objectMapper.convertValue(
-                    payload.get("subscribers"), new TypeReference<>() {}
-            );
-            if (subscribers == null) {
-                subscribers = List.of();
-            }
+            AudienceResolvedChunk chunk = resolveAudienceChunk(event, payload, workspaceId, jobId);
 
-            log.info("Received resolved audience chunk for job {}. Size: {}, isLast: {}", jobId, subscribers.size(), isLastChunk);
-            batchingService.processResolvedAudienceChunk(event.getTenantId(), workspaceId, jobId, subscribers, isLastChunk);
+            log.info("Received resolved audience chunk for job {}. Size: {}, isLast: {}",
+                    jobId,
+                    chunk.subscribers().size(),
+                    chunk.isLastChunk());
+            batchingService.processResolvedAudienceChunk(
+                    event.getTenantId(),
+                    workspaceId,
+                    jobId,
+                    chunk.subscribers(),
+                    chunk.isLastChunk());
             sideEffectsComplete = true;
             completeEvent(registration);
 
@@ -198,6 +200,34 @@ public class CampaignEventConsumer {
             return objectMapper.convertValue(map, new TypeReference<>() {});
         }
         throw new IllegalArgumentException("Unsupported event payload type: " + payload.getClass().getName());
+    }
+
+    private AudienceResolvedChunk resolveAudienceChunk(
+            EventEnvelope<Map<String, Object>> event,
+            Map<String, Object> payload,
+            String workspaceId,
+            String jobId) {
+        boolean isLastChunk = Boolean.parseBoolean(String.valueOf(payload.getOrDefault("isLastChunk", true)));
+        if (payload.containsKey("subscribers")) {
+            List<Map<String, String>> subscribers = objectMapper.convertValue(
+                    payload.get("subscribers"), new TypeReference<>() {}
+            );
+            if (subscribers == null) {
+                subscribers = List.of();
+            }
+            return new AudienceResolvedChunk(subscribers, isLastChunk);
+        }
+
+        String chunkId = requirePayloadString(payload, "chunkId", AppConstants.TOPIC_AUDIENCE_RESOLVED, event);
+        requirePayloadString(payload, "subscriberStorage", AppConstants.TOPIC_AUDIENCE_RESOLVED, event);
+        requirePayloadString(payload, "chunkReferenceType", AppConstants.TOPIC_AUDIENCE_RESOLVED, event);
+        requirePayloadString(payload, "chunkUri", AppConstants.TOPIC_AUDIENCE_RESOLVED, event);
+        AudienceResolutionClient.ResolvedAudienceChunk chunk = audienceResolutionClient.readChunk(
+                event.getTenantId(),
+                workspaceId,
+                jobId,
+                chunkId);
+        return new AudienceResolvedChunk(chunk.subscribers(), chunk.isLastChunk());
     }
 
     @KafkaListener(topics = AppConstants.TOPIC_EMAIL_SENT, groupId = AppConstants.GROUP_CAMPAIGN, concurrency = "5")
@@ -642,5 +672,8 @@ public class CampaignEventConsumer {
                                      String eventId,
                                      String idempotencyKey,
                                      boolean claimed) {
+    }
+
+    private record AudienceResolvedChunk(List<Map<String, String>> subscribers, boolean isLastChunk) {
     }
 }

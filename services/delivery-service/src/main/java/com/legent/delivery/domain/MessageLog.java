@@ -8,6 +8,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 
 @Entity
@@ -113,5 +115,20 @@ public class MessageLog extends BaseEntity {
 
     @Column(name = "content_reference")
     private String contentReference;
-}
 
+    @Column(name = "send_governance_policy_id", length = 64)
+    private String sendGovernancePolicyId;
+
+    @Column(name = "send_governance_policy_key", length = 128)
+    private String sendGovernancePolicyKey;
+
+    @Column(name = "send_governance_policy_version")
+    private Long sendGovernancePolicyVersion;
+
+    @Column(name = "send_governance_policy_snapshot_hash", length = 64)
+    private String sendGovernancePolicySnapshotHash;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "send_governance_policy_snapshot", columnDefinition = "jsonb")
+    private String sendGovernancePolicySnapshot;
+}

@@ -16,6 +16,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Slf4j
 @Service
@@ -35,17 +37,31 @@ public class DeliveryFeedbackOutboxService {
 
     private static final Duration PUBLISHING_LEASE = Duration.ofMinutes(5);
     private static final TypeReference<Map<String, String>> PAYLOAD_TYPE = new TypeReference<>() {};
+    static final int MAX_RETENTION_CLEANUP_BATCH_SIZE = 10_000;
 
     private final DeliveryFeedbackOutboxEventRepository outboxRepository;
     private final DeliveryEventPublisher deliveryEventPublisher;
     private final ObjectMapper objectMapper;
     private final MeterRegistry meterRegistry;
+    private final AtomicBoolean retentionCleanupRunning = new AtomicBoolean(false);
 
     @Value("${legent.delivery.feedback-outbox.max-attempts:8}")
     private int maxAttempts;
 
     @Value("${legent.delivery.feedback-outbox.immediate-publish-enabled:true}")
     private boolean immediatePublishEnabled;
+
+    @Value("${legent.delivery.feedback-outbox.retention.enabled:true}")
+    private boolean retentionCleanupEnabled;
+
+    @Value("${legent.delivery.feedback-outbox.retention.published-days:14}")
+    private int publishedRetentionDays;
+
+    @Value("${legent.delivery.feedback-outbox.retention.failed-days:90}")
+    private int failedRetentionDays;
+
+    @Value("${legent.delivery.feedback-outbox.retention.batch-size:5000}")
+    private int retentionCleanupBatchSize;
 
     @PostConstruct
     void registerBacklogMetrics() {
@@ -117,6 +133,49 @@ public class DeliveryFeedbackOutboxService {
                 List.of(DeliveryFeedbackOutboxEvent.STATUS_PENDING, DeliveryFeedbackOutboxEvent.STATUS_PUBLISHING),
                 Instant.now());
         ready.forEach(event -> publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId()));
+    }
+
+    @Scheduled(fixedDelayString = "${legent.delivery.feedback-outbox.retention.interval-ms:3600000}")
+    public void cleanupTerminalEventsOnSchedule() {
+        if (!retentionCleanupEnabled) {
+            return;
+        }
+        if (!retentionCleanupRunning.compareAndSet(false, true)) {
+            log.warn("Skipping delivery feedback outbox retention cleanup because a prior cleanup is still running");
+            return;
+        }
+        try {
+            RetentionCleanupResult result = cleanupTerminalEvents();
+            if (result.totalDeleted() > 0) {
+                log.info("Cleaned {} terminal delivery feedback outbox event(s): published={}, failed={}",
+                        result.totalDeleted(), result.publishedDeleted(), result.failedDeleted());
+            }
+        } catch (RuntimeException ex) {
+            log.error("Delivery feedback outbox retention cleanup failed", ex);
+        } finally {
+            retentionCleanupRunning.set(false);
+        }
+    }
+
+    @Transactional
+    public RetentionCleanupResult cleanupTerminalEvents() {
+        int batchSize = effectiveRetentionBatchSize();
+        Instant now = Instant.now();
+        long startedNanos = System.nanoTime();
+        try {
+            int publishedDeleted = cleanupPublishedEvents(now.minus(retentionDays(publishedRetentionDays)), batchSize, now);
+            int failedDeleted = cleanupFailedEvents(now.minus(retentionDays(failedRetentionDays)), batchSize, now);
+            RetentionCleanupResult result = new RetentionCleanupResult(publishedDeleted, failedDeleted);
+            recordRetentionCleanupDuration(startedNanos, "success");
+            recordRetentionCleanupRows(DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED, "success", publishedDeleted);
+            recordRetentionCleanupRows(DeliveryFeedbackOutboxEvent.STATUS_FAILED, "success", failedDeleted);
+            return result;
+        } catch (RuntimeException ex) {
+            recordRetentionCleanupDuration(startedNanos, "failed");
+            recordRetentionCleanupRows(DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED, "failed", 0);
+            recordRetentionCleanupRows(DeliveryFeedbackOutboxEvent.STATUS_FAILED, "failed", 0);
+            throw ex;
+        }
     }
 
     public void publishPending(String outboxId, String tenantId, String workspaceId) {
@@ -270,6 +329,37 @@ public class DeliveryFeedbackOutboxService {
         return List.of(DeliveryFeedbackOutboxEvent.STATUS_PENDING, DeliveryFeedbackOutboxEvent.STATUS_PUBLISHING);
     }
 
+    private int cleanupPublishedEvents(Instant cutoff, int batchSize, Instant deletedAt) {
+        List<String> ids = outboxRepository.findPublishedIdsEligibleForRetention(
+                DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED,
+                cutoff,
+                PageRequest.of(0, batchSize));
+        return softDeleteTerminalIds(ids, DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED, deletedAt);
+    }
+
+    private int cleanupFailedEvents(Instant cutoff, int batchSize, Instant deletedAt) {
+        List<String> ids = outboxRepository.findFailedIdsEligibleForRetention(
+                DeliveryFeedbackOutboxEvent.STATUS_FAILED,
+                cutoff,
+                PageRequest.of(0, batchSize));
+        return softDeleteTerminalIds(ids, DeliveryFeedbackOutboxEvent.STATUS_FAILED, deletedAt);
+    }
+
+    private int softDeleteTerminalIds(List<String> ids, String status, Instant deletedAt) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        return outboxRepository.softDeleteTerminalIds(ids, status, deletedAt);
+    }
+
+    private int effectiveRetentionBatchSize() {
+        return Math.max(1, Math.min(retentionCleanupBatchSize, MAX_RETENTION_CLEANUP_BATCH_SIZE));
+    }
+
+    private Duration retentionDays(int days) {
+        return Duration.ofDays(Math.max(1, days));
+    }
+
     private String trimError(Exception ex) {
         Throwable cause = ex instanceof CompletionException && ex.getCause() != null ? ex.getCause() : ex;
         String message = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
@@ -294,5 +384,28 @@ public class DeliveryFeedbackOutboxService {
                 .tag("outcome", outcome)
                 .register(meterRegistry)
                 .record((double) duration.toNanos() / PUBLISHING_LEASE.toNanos());
+    }
+
+    private void recordRetentionCleanupDuration(long startedNanos, String outcome) {
+        Timer.builder("legent.delivery.feedback.outbox.retention.cleanup.duration")
+                .description("Time spent cleaning terminal delivery feedback outbox events")
+                .tag("outcome", outcome)
+                .register(meterRegistry)
+                .record(Duration.ofNanos(System.nanoTime() - startedNanos));
+    }
+
+    private void recordRetentionCleanupRows(String status, String outcome, int rows) {
+        DistributionSummary.builder("legent.delivery.feedback.outbox.retention.cleanup.rows")
+                .description("Terminal delivery feedback outbox events cleaned by retention policy")
+                .tag("status", status)
+                .tag("outcome", outcome)
+                .register(meterRegistry)
+                .record(rows);
+    }
+
+    public record RetentionCleanupResult(int publishedDeleted, int failedDeleted) {
+        public int totalDeleted() {
+            return publishedDeleted + failedDeleted;
+        }
     }
 }

@@ -314,7 +314,7 @@ class SendExecutionServiceTest {
                 eligibleSubscriber("one@example.com", "sub-1"))));
         Campaign campaign = campaign();
         stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
-        ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1200);
+        ReflectionTestUtils.setField(service, "maxEmailPayloadBytes", 1800);
         ReflectionTestUtils.setField(service, "contentReferenceEnabled", false);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent(
@@ -391,11 +391,35 @@ class SendExecutionServiceTest {
         assertEquals("content-ref-1", payload.get("contentReference"));
         assertEquals("<p>Hello</p>", payload.get("htmlBody"));
         assertEquals("Hello", payload.get("textBody"));
+        assertEquals("policy-1", payload.get("sendGovernancePolicyId"));
+        assertEquals("promo.default", payload.get("sendGovernancePolicyKey"));
+        assertEquals(1L, payload.get("sendGovernancePolicyVersion"));
+        assertNotNull(payload.get("sendGovernancePolicySnapshotHash"));
+        assertTrue(payload.get("sendGovernancePolicySnapshot") instanceof Map<?, ?>);
         EmailContentReference metadata = (EmailContentReference) payload.get("contentReferenceMetadata");
         assertNotNull(metadata);
         assertEquals(Boolean.TRUE, metadata.getInlineFallbackIncluded());
         assertDoesNotThrow(() -> new EventContractValidator().validate(AppConstants.TOPIC_EMAIL_SEND_REQUESTED, envelope));
         verify(contentReferenceService).createReference(any(), eq(true));
+    }
+
+    @Test
+    void failsClosedWhenSendGovernancePolicySnapshotCannotBeCreated() throws Exception {
+        SendBatch batch = batch();
+        batch.setPayload(objectMapper.writeValueAsString(List.of(
+                eligibleSubscriber("one@example.com", "sub-1"))));
+        Campaign campaign = campaign();
+        campaign.setSendGovernancePolicyId("missing-policy");
+        stubBatchExecution(batch, campaign, List.of(eligibleSubscriber("one@example.com", "sub-1")));
+        when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "missing-policy"))
+                .thenThrow(new ContentServiceClient.ContentServiceException("content-service unavailable"));
+
+        service.executeBatch("tenant-1", "job-1", "batch-1", batch.getPayload());
+
+        assertEquals(SendBatch.BatchStatus.FAILED, batch.getStatus());
+        assertEquals("content-service unavailable", batch.getLastError());
+        verify(eventPublisher, never()).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_SEND_FAILED), any());
     }
 
     @Test
@@ -808,14 +832,14 @@ class SendExecutionServiceTest {
                 "tenant-1", "workspace-1", "job-1")).thenReturn(Optional.of(job));
         when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
                 "tenant-1", "workspace-1", "campaign-1")).thenReturn(Optional.of(campaign));
-        doAnswer(invocation -> {
+        lenient().doAnswer(invocation -> {
             SendJob target = invocation.getArgument(0);
             SendJob.JobStatus status = invocation.getArgument(1);
             target.setStatus(status);
             target.setErrorMessage(invocation.getArgument(2));
             return null;
         }).when(stateMachine).transitionJob(any(SendJob.class), any(SendJob.JobStatus.class), anyString());
-        doAnswer(invocation -> {
+        lenient().doAnswer(invocation -> {
             Campaign target = invocation.getArgument(0);
             Campaign.CampaignStatus status = invocation.getArgument(1);
             target.setStatus(status);
@@ -943,9 +967,11 @@ class SendExecutionServiceTest {
         when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
                 "tenant-1", "workspace-1", "campaign-1"))
                 .thenReturn(Optional.of(campaign));
+        lenient().when(contentServiceClient.getSendGovernancePolicy("tenant-1", "workspace-1", "policy-1"))
+                .thenReturn(validPolicy());
         when(sendSafetyService.buildPlan(campaign))
                 .thenReturn(new CampaignSendSafetyService.SendPlan(null, List.of(), null, null));
-        doAnswer(invocation -> {
+        lenient().doAnswer(invocation -> {
             Map<String, String> subscriber = invocation.getArgument(3);
             String messageId = invocation.getArgument(4);
             return CampaignSendSafetyService.PreparedRecipient.send(
@@ -957,7 +983,7 @@ class SendExecutionServiceTest {
                     null,
                     BigDecimal.ZERO);
         }).when(sendSafetyService).prepareRecipient(eq(campaign), eq(batch), any(), any(), anyString());
-        when(throttlingService.acquirePermits(eq("tenant-1"), eq("example.com"), anyInt()))
+        lenient().when(throttlingService.acquirePermits(eq("tenant-1"), eq("example.com"), anyInt()))
                 .thenReturn(acquiredPermits);
         lenient().when(contentReferenceService.createReference(any(), anyBoolean()))
                 .thenAnswer(invocation -> EmailContentReference.builder()
@@ -1040,9 +1066,33 @@ class SendExecutionServiceTest {
         campaign.setName("Campaign");
         campaign.setContentId("content-1");
         campaign.setSubject("Campaign subject");
+        campaign.setSenderProfileId("sender-1");
+        campaign.setSendGovernancePolicyId("policy-1");
         campaign.setSenderEmail("sender@example.com");
         campaign.setSenderName("Sender");
         campaign.setReplyToEmail("reply@example.com");
+        campaign.setProviderId("provider-1");
+        campaign.setSendingDomain("example.com");
         return campaign;
+    }
+
+    private ContentServiceClient.SendGovernancePolicySummary validPolicy() {
+        return new ContentServiceClient.SendGovernancePolicySummary(
+                "policy-1",
+                "promo.default",
+                "COMMERCIAL",
+                true,
+                "sender-1",
+                "delivery-1",
+                "example.com",
+                "provider-1",
+                "REQUIRED",
+                true,
+                false,
+                true,
+                365,
+                "APPROVED_CONTENT_REQUIRED",
+                1L,
+                true);
     }
 }

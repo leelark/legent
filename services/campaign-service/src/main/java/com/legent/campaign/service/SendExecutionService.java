@@ -36,6 +36,10 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
+
 /**
  * Service for executing send batches.
  */
@@ -144,6 +148,13 @@ public class SendExecutionService {
             }
             
             CampaignSendSafetyService.SendPlan sendPlan = sendSafetyService.buildPlan(campaign);
+            SendGovernancePolicySnapshot policySnapshot;
+            try {
+                policySnapshot = buildSendGovernancePolicySnapshot(campaign);
+            } catch (RuntimeException e) {
+                failBatch(tenantId, batch, "SEND_GOVERNANCE_POLICY_SNAPSHOT_UNAVAILABLE", e.getMessage());
+                return;
+            }
             List<PreparedWorkItem> preparedRecipients = new java.util.ArrayList<>();
             int skippedRecipients = 0;
             for (RecipientWorkItem recipient : recipients) {
@@ -227,6 +238,14 @@ public class SendExecutionService {
                 emailPayload.put("jobId", batch.getJobId());
                 emailPayload.put("batchId", batchId);
                 emailPayload.put("workspaceId", batch.getWorkspaceId());
+                emailPayload.put("senderProfileId", campaign.getSenderProfileId());
+                emailPayload.put("sendingDomain", campaign.getSendingDomain());
+                emailPayload.put("providerId", campaign.getProviderId());
+                emailPayload.put("sendGovernancePolicyId", policySnapshot.policyId());
+                emailPayload.put("sendGovernancePolicyKey", policySnapshot.policyKey());
+                emailPayload.put("sendGovernancePolicyVersion", policySnapshot.policyVersion());
+                emailPayload.put("sendGovernancePolicySnapshotHash", policySnapshot.snapshotHash());
+                emailPayload.put("sendGovernancePolicySnapshot", policySnapshot.snapshot());
                 if (batch.getTeamId() != null) {
                     emailPayload.put("teamId", batch.getTeamId());
                 }
@@ -649,6 +668,91 @@ public class SendExecutionService {
         return rendered;
     }
 
+    private SendGovernancePolicySnapshot buildSendGovernancePolicySnapshot(Campaign campaign) {
+        String policyId = requireText(campaign.getSendGovernancePolicyId(), "sendGovernancePolicyId");
+        ContentServiceClient.SendGovernancePolicySummary policy = contentServiceClient.getSendGovernancePolicy(
+                campaign.getTenantId(),
+                campaign.getWorkspaceId(),
+                policyId);
+        if (!policyId.equals(requireText(policy.id(), "sendGovernancePolicy.id"))) {
+            throw new ValidationException("sendGovernancePolicyId", "Content-service returned a mismatched send governance policy");
+        }
+        if (!Boolean.TRUE.equals(policy.active())) {
+            throw new ValidationException("sendGovernancePolicyId", "Send governance policy is inactive");
+        }
+        Long policyVersion = policy.version();
+        if (policyVersion == null) {
+            throw new ValidationException("sendGovernancePolicyVersion", "Send governance policy version is required");
+        }
+        if (Boolean.TRUE.equals(policy.commercial())) {
+            if (!Boolean.TRUE.equals(policy.suppressionRequired())) {
+                throw new ValidationException("sendGovernancePolicyId", "Commercial send governance policy must require suppression checks");
+            }
+            if (!"REQUIRED".equalsIgnoreCase(requireText(policy.unsubscribePolicy(), "unsubscribePolicy"))) {
+                throw new ValidationException("sendGovernancePolicyId", "Commercial send governance policy must require unsubscribe handling");
+            }
+        }
+
+        TreeMap<String, Object> snapshot = new TreeMap<>();
+        snapshot.put("active", policy.active());
+        snapshot.put("classification", normalizeText(policy.classification()));
+        snapshot.put("commercial", policy.commercial());
+        snapshot.put("consentRequired", policy.consentRequired());
+        snapshot.put("deliveryProfileId", normalizeText(policy.deliveryProfileId()));
+        snapshot.put("policyId", policy.id());
+        snapshot.put("policyKey", requireText(policy.policyKey(), "policyKey"));
+        snapshot.put("providerId", normalizeText(policy.providerId()));
+        snapshot.put("publicationPolicy", normalizeText(policy.publicationPolicy()));
+        snapshot.put("sendLogRetentionDays", policy.sendLogRetentionDays());
+        snapshot.put("senderProfileId", normalizeText(policy.senderProfileId()));
+        snapshot.put("sendingDomain", normalizeText(policy.sendingDomain()));
+        snapshot.put("suppressionRequired", policy.suppressionRequired());
+        snapshot.put("trackingAllowed", policy.trackingAllowed());
+        snapshot.put("unsubscribePolicy", normalizeText(policy.unsubscribePolicy()));
+        snapshot.put("version", policyVersion);
+
+        String snapshotHash = sha256Hex(writeCanonicalJson(snapshot));
+        return new SendGovernancePolicySnapshot(
+                policy.id(),
+                policy.policyKey(),
+                policyVersion,
+                snapshotHash,
+                Collections.unmodifiableSortedMap(snapshot));
+    }
+
+    private String requireText(String value, String field) {
+        String normalized = normalizeText(value);
+        if (normalized == null) {
+            throw new ValidationException(field, field + " is required");
+        }
+        return normalized;
+    }
+
+    private String normalizeText(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private String writeCanonicalJson(SortedMap<String, Object> value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            throw new ValidationException("sendGovernancePolicySnapshot", "Unable to serialize send governance policy snapshot");
+        }
+    }
+
+    private String sha256Hex(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to hash send governance policy snapshot", e);
+        }
+    }
+
     private String requireWorkspaceId(String workspaceId, String batchId) {
         if (workspaceId == null || workspaceId.isBlank()) {
             throw new ValidationException("workspaceId", "Send batch " + batchId + " is missing workspace context");
@@ -690,6 +794,13 @@ public class SendExecutionService {
     }
 
     private record RecipientPage(boolean rowBacked, List<RecipientWorkItem> recipients) {
+    }
+
+    private record SendGovernancePolicySnapshot(String policyId,
+                                                String policyKey,
+                                                Long policyVersion,
+                                                String snapshotHash,
+                                                SortedMap<String, Object> snapshot) {
     }
 
     private void failBatch(String tenantId, SendBatch batch, String reason, String message) {

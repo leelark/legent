@@ -1,0 +1,52 @@
+{
+    "id":  "backend-it-failsafe-testcontainers-profile",
+    "createdAt":  "2026-05-23T18:11:36.8611867Z",
+    "objective":  "Establish backend integration-test phase and Testcontainers profile",
+    "status":  "DONE",
+    "owner":  "TEST_ARCHITECT",
+    "filesInScope":  [
+                         "pom.xml",
+                         "shared/legent-test-support/pom.xml",
+                         "shared/legent-test-support/src/main/java/com/legent/test/BaseIntegrationTest.java",
+                         "shared/legent-test-support/src/test/java/com/legent/test/FailsafeProfileIT.java",
+                         ".github/workflows/ci-security.yml",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/test-impact-map.md",
+                         ".codex/workflows/validation-gates.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyServiceIT.java"
+                     ],
+    "agents":  [
+                   "BACKEND_PLATFORM_OWNER",
+                   "QA_ENGINEER",
+                   "DEVOPS_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd test",
+                           ".\\mvnw.cmd -DskipITs=false verify"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue coordinated READY backlog scan.",
+    "completedAt":  "2026-05-23T18:30:18.5459352Z",
+    "outcome":  "Backend integration-test phase now has a parent Maven Failsafe profile, explicit Surefire/Failsafe naming contract, optional CI integration gate, sample Failsafe IT, and the tracking Testcontainers idempotency test moved from Surefire to Failsafe.",
+    "validationRun":  [
+                          "git diff --check -- pom.xml .github/workflows/ci-security.yml shared/legent-test-support/src/main/java/com/legent/test/BaseIntegrationTest.java shared/legent-test-support/src/test/java/com/legent/test/FailsafeProfileIT.java services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyServiceIT.java .codex/workflows/validation-gates.md .codex/memory/test-impact-map.md .codex/checkpoints/20260523T181136Z-backend-it-failsafe-testcontainers-profile.json",
+                          "rg -n '[ \\t]+$' pom.xml .github/workflows/ci-security.yml shared/legent-test-support/src/main/java/com/legent/test/BaseIntegrationTest.java shared/legent-test-support/src/test/java/com/legent/test/FailsafeProfileIT.java services/tracking-service/src/test/java/com/legent/tracking/service/TrackingEventIdempotencyServiceIT.java .codex/workflows/validation-gates.md .codex/memory/test-impact-map.md .codex/checkpoints/20260523T181136Z-backend-it-failsafe-testcontainers-profile.json",
+                          ".\\mvnw.cmd -pl shared/legent-test-support -am test",
+                          ".\\mvnw.cmd -pl shared/legent-test-support -am -DskipITs=false verify",
+                          ".\\mvnw.cmd -pl services/tracking-service -am test",
+                          ".\\mvnw.cmd -pl services/tracking-service -am -DskipITs=false verify",
+                          ".\\mvnw.cmd test",
+                          ".\\mvnw.cmd -DskipITs=false verify"
+                      ],
+    "residualRisks":  [
+                          "Docker was unavailable locally; the tracking Testcontainers IT was discovered by Failsafe and skipped via disabledWithoutDocker, so live PostgreSQL/Testcontainers runtime proof still requires a Docker-capable target run."
+                      ]
+}

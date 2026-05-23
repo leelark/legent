@@ -69,15 +69,27 @@ const formatRunTimestamp = (value?: string) => {
   });
 };
 
-const runStatusVariant = (status?: AutomationActivityRun['status']): 'success' | 'danger' | 'info' | 'default' => {
+const runStatusVariant = (status?: AutomationActivityRun['status']): 'success' | 'danger' | 'warning' | 'info' | 'default' => {
   if (status === 'SUCCEEDED') return 'success';
   if (status === 'FAILED') return 'danger';
   if (status === 'VERIFIED') return 'info';
+  if (status === 'LOCKED') return 'warning';
   return 'default';
 };
 
+const formatRetryAfter = (seconds?: number) => {
+  if (!seconds || seconds <= 0) {
+    return 'not provided';
+  }
+  if (seconds < 60) {
+    return `${seconds} seconds`;
+  }
+  const minutes = Math.ceil(seconds / 60);
+  return `${minutes} minute${minutes === 1 ? '' : 's'}`;
+};
+
 const ACTIVITY_TYPES: AutomationActivityType[] = ['SQL_QUERY', 'IMPORT', 'WEBHOOK', 'NOTIFICATION', 'FILE_DROP', 'EXTRACT', 'SCRIPT'];
-const LIVE_SUPPORTED_ACTIVITY_TYPES = new Set<AutomationActivityType>(['SQL_QUERY', 'IMPORT', 'WEBHOOK', 'NOTIFICATION']);
+const LIVE_SUPPORTED_ACTIVITY_TYPES = new Set<AutomationActivityType>(['SQL_QUERY', 'IMPORT', 'WEBHOOK', 'NOTIFICATION', 'SEND_EMAIL']);
 const UNSAFE_ARTIFACT_REFERENCE_TOKENS = ['http://', 'https://', 's3://', 'gs://', 'file:'];
 
 const isUnsafeArtifactReference = (value: string) => {
@@ -143,6 +155,11 @@ const ACTIVITY_CAPABILITY: Record<AutomationActivityType, { label: string; descr
   NOTIFICATION: {
     label: 'Live execution',
     description: 'Publishes terminal-state platform notifications with scoped recipients and idempotent runs.',
+    liveSupported: true,
+  },
+  SEND_EMAIL: {
+    label: 'Live execution',
+    description: 'Launches approved campaign sends from automation without overriding campaign safety controls.',
     liveSupported: true,
   },
 };
@@ -213,6 +230,8 @@ export default function AutomationPage() {
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [activityActionErrors, setActivityActionErrors] = useState<Record<string, string | undefined>>({});
   const [verificationResults, setVerificationResults] = useState<Record<string, AutomationVerificationResponse | undefined>>({});
+  const [lastActivityRuns, setLastActivityRuns] = useState<Record<string, AutomationActivityRun | undefined>>({});
+  const [overrideReasons, setOverrideReasons] = useState<Record<string, string>>({});
   const [expandedRunHistory, setExpandedRunHistory] = useState<string[]>([]);
   const [activityRuns, setActivityRuns] = useState<Record<string, AutomationActivityRun[]>>({});
   const [runHistoryLoading, setRunHistoryLoading] = useState<Record<string, boolean>>({});
@@ -464,8 +483,16 @@ export default function AutomationPage() {
     };
   };
 
-  const runActivityAction = async (activityId: string, mode: 'verify' | 'dryRun') => {
+  const runActivityAction = async (activityId: string, mode: 'verify' | 'dryRun' | 'liveRun' | 'overrideLiveRun') => {
     if (!showActivityExecution) {
+      return;
+    }
+    const overrideReason = (overrideReasons[activityId] ?? '').trim();
+    if (mode === 'overrideLiveRun' && !overrideReason) {
+      setActivityActionErrors((current) => ({
+        ...current,
+        [activityId]: 'Override reason is required before bypassing an active lock.',
+      }));
       return;
     }
     setActionBusy(`${activityId}:${mode}`);
@@ -475,10 +502,18 @@ export default function AutomationPage() {
         const verification = await verifyAutomationActivity(activityId);
         setVerificationResults((current) => ({ ...current, [activityId]: verification }));
       } else {
-        await runAutomationActivity(activityId, { dryRun: true, triggerSource: 'MANUAL' });
+        const liveRun = mode === 'liveRun' || mode === 'overrideLiveRun';
+        const run = await runAutomationActivity(activityId, {
+          dryRun: !liveRun,
+          confirmLiveRun: liveRun ? true : undefined,
+          triggerSource: 'MANUAL',
+          operatorOverride: mode === 'overrideLiveRun' ? true : undefined,
+          overrideReason: mode === 'overrideLiveRun' ? overrideReason : undefined,
+        });
+        setLastActivityRuns((current) => ({ ...current, [activityId]: run }));
       }
       await loadWorkflows();
-      if (mode === 'dryRun' && expandedRunHistory.includes(activityId)) {
+      if (mode !== 'verify' && expandedRunHistory.includes(activityId)) {
         await loadActivityRuns(activityId);
       }
     } catch (e: unknown) {
@@ -716,6 +751,9 @@ export default function AutomationPage() {
               : capability.liveSupported;
             const dependencyIds = activity.dependencyActivityIds ?? [];
             const actionError = activityActionErrors[activity.id];
+            const lastRun = lastActivityRuns[activity.id];
+            const overrideReason = overrideReasons[activity.id] ?? '';
+            const lockOverrideAvailable = lastRun?.status === 'LOCKED' || runs.some((run) => run.status === 'LOCKED');
 
             return (
               <div key={activity.id} className="p-4">
@@ -768,10 +806,46 @@ export default function AutomationPage() {
                         >
                           Dry Run
                         </Button>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          loading={actionBusy === `${activity.id}:liveRun`}
+                          onClick={() => runActivityAction(activity.id, 'liveRun')}
+                          disabled={!liveExecutionSupported}
+                          title={liveExecutionSupported ? undefined : `${activity.activityType} live execution is not supported yet`}
+                          data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.id}
+                          data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.visibility}
+                        >
+                          Run Live
+                        </Button>
                       </>
                     )}
                   </div>
                 </div>
+                {showActivityExecution && liveExecutionSupported && (
+                  <div className="mt-3 grid gap-2 rounded-lg border border-border-default bg-surface-secondary/60 p-3 md:grid-cols-[minmax(220px,1fr)_auto] md:items-end">
+                    <Input
+                      label="Override reason"
+                      id={`override-reason-${activity.id}`}
+                      value={overrideReason}
+                      onChange={(event) => setOverrideReasons((current) => ({ ...current, [activity.id]: event.target.value }))}
+                      placeholder="Required to bypass an active lock"
+                      aria-label={`Override reason for ${activity.name}`}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={actionBusy === `${activity.id}:overrideLiveRun`}
+                      onClick={() => runActivityAction(activity.id, 'overrideLiveRun')}
+                      disabled={!lockOverrideAvailable}
+                      title={lockOverrideAvailable ? undefined : 'Run Live must detect an active lock before override.'}
+                      data-mode-feature={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.id}
+                      data-mode-visibility={AUTOMATION_WORKFLOW_MODE_FEATURES.activityExecution.visibility}
+                    >
+                      Override lock
+                    </Button>
+                  </div>
+                )}
                 {(actionError || storedVerification) && (
                   <div className="mt-3 grid gap-2 md:grid-cols-2">
                     {actionError && (
@@ -800,6 +874,32 @@ export default function AutomationPage() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+                {lastRun && (
+                  <div
+                    className="mt-3 rounded-lg border border-border-default bg-surface-secondary/70 px-3 py-2 text-sm"
+                    aria-label={`Latest run result for ${activity.name}`}
+                  >
+                    <div className="mb-1 flex flex-wrap items-center gap-2">
+                      <Badge variant={runStatusVariant(lastRun.status)}>{lastRun.status}</Badge>
+                      <Badge variant={lastRun.dryRun ? 'info' : 'warning'}>{lastRun.dryRun ? 'Dry run' : 'Live'}</Badge>
+                      {lastRun.operatorOverride && <Badge variant="warning">Override</Badge>}
+                    </div>
+                    {lastRun.status === 'LOCKED' ? (
+                      <p className="text-xs leading-5 text-amber-700 dark:text-amber-300">
+                        Lock owner: {lastRun.lockOwnerRunId || 'unknown'}; retry after {formatRetryAfter(lastRun.retryAfterSeconds)}; locked until {formatRunTimestamp(lastRun.lockedUntil)}.
+                      </p>
+                    ) : lastRun.operatorOverride ? (
+                      <p className="text-xs leading-5 text-content-secondary">
+                        Operator override recorded: {lastRun.overrideReason || 'reason retained by audit ledger'}.
+                      </p>
+                    ) : (
+                      <p className="text-xs leading-5 text-content-secondary">
+                        Rows: {lastRun.rowsRead ?? 0} read, {lastRun.rowsWritten ?? 0} written; trace: {lastRun.traceId || 'None'}.
+                      </p>
+                    )}
+                    {lastRun.errorMessage && <p className="mt-1 text-xs leading-5 text-danger">{lastRun.errorMessage}</p>}
                   </div>
                 )}
                 {isExpanded && (
@@ -834,6 +934,7 @@ export default function AutomationPage() {
                             <div className="flex flex-wrap items-center gap-2">
                               <Badge variant={runStatusVariant(run.status)}>{run.status}</Badge>
                               <Badge variant={run.dryRun ? 'info' : 'warning'}>{run.dryRun ? 'Dry run' : 'Live'}</Badge>
+                              {run.operatorOverride && <Badge variant="warning">Override</Badge>}
                             </div>
                             <div className="grid gap-1 text-content-secondary sm:grid-cols-2">
                               <span>Trigger: {run.triggerSource || 'Unknown'}</span>
@@ -844,8 +945,18 @@ export default function AutomationPage() {
                               <span>Started: {formatRunTimestamp(run.startedAt)}</span>
                               <span>Completed: {formatRunTimestamp(run.completedAt)}</span>
                             </div>
-                            {run.errorMessage ? (
+                            {run.status === 'LOCKED' ? (
+                              <div className="rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                <p>Lock owner: {run.lockOwnerRunId || 'unknown'}</p>
+                                <p>Retry after: {formatRetryAfter(run.retryAfterSeconds)}</p>
+                                <p>Locked until: {formatRunTimestamp(run.lockedUntil)}</p>
+                              </div>
+                            ) : run.errorMessage ? (
                               <p className="rounded-md bg-danger/10 px-2 py-1 text-xs font-medium text-danger">{run.errorMessage}</p>
+                            ) : run.operatorOverride ? (
+                              <p className="rounded-md bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                                Override reason: {run.overrideReason || 'retained by audit ledger'}
+                              </p>
                             ) : (
                               <p className="text-xs font-medium text-content-muted">No error reported</p>
                             )}

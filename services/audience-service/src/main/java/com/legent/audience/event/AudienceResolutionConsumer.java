@@ -5,6 +5,7 @@ import com.legent.audience.domain.Subscriber;
 import com.legent.audience.repository.AudienceCandidateRepository;
 import com.legent.audience.repository.AudienceCandidateRepository.AudienceCandidateCriteria;
 import com.legent.audience.service.AudienceEventIdempotencyService;
+import com.legent.audience.service.AudienceResolutionChunkService;
 import com.legent.audience.service.SendEligibilityService;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
@@ -40,6 +41,7 @@ public class AudienceResolutionConsumer {
     private final AudienceCandidateRepository audienceCandidateRepository;
     private final DeliverabilityServiceClient deliverabilityClient;
     private final AudienceEventIdempotencyService idempotencyService;
+    private final AudienceResolutionChunkService chunkService;
     private final SendEligibilityService sendEligibilityService;
 
     @Transactional
@@ -157,6 +159,7 @@ public class AudienceResolutionConsumer {
                 if (state.currentChunk().size() == RESOLVED_AUDIENCE_CHUNK_SIZE) {
                     queueResolvedAudienceChunk(
                             tenantId,
+                            workspaceId,
                             campaignId,
                             jobId,
                             state,
@@ -168,6 +171,7 @@ public class AudienceResolutionConsumer {
         if (!state.currentChunk().isEmpty()) {
             queueResolvedAudienceChunk(
                     tenantId,
+                    workspaceId,
                     campaignId,
                     jobId,
                     state,
@@ -175,11 +179,12 @@ public class AudienceResolutionConsumer {
         }
 
         if (state.pendingChunk() == null) {
-            publishResolvedAudienceChunk(tenantId, campaignId, jobId, List.of(), 0, 1, 0, true);
+            publishResolvedAudienceChunk(tenantId, workspaceId, campaignId, jobId, List.of(), 0, 1, 0, true);
         } else {
             PendingChunk finalChunk = state.pendingChunk();
             publishResolvedAudienceChunk(
                     tenantId,
+                    workspaceId,
                     campaignId,
                     jobId,
                     finalChunk.subscribers(),
@@ -193,6 +198,7 @@ public class AudienceResolutionConsumer {
 
     private void queueResolvedAudienceChunk(
             String tenantId,
+            String workspaceId,
             String campaignId,
             String jobId,
             PublishingState state,
@@ -201,6 +207,7 @@ public class AudienceResolutionConsumer {
         if (previous != null) {
             publishResolvedAudienceChunk(
                     tenantId,
+                    workspaceId,
                     campaignId,
                     jobId,
                     previous.subscribers(),
@@ -213,6 +220,7 @@ public class AudienceResolutionConsumer {
 
     private void publishResolvedAudienceChunk(
             String tenantId,
+            String workspaceId,
             String campaignId,
             String jobId,
             List<Map<String, String>> chunk,
@@ -220,38 +228,54 @@ public class AudienceResolutionConsumer {
             int totalChunks,
             int totalSubscribers,
             boolean isLastChunk) {
+        String chunkId = resolvedChunkId(jobId, chunkIndex);
+        AudienceResolutionChunkService.ChunkReference chunkReference = chunkService.storeChunk(
+                tenantId,
+                workspaceId,
+                campaignId,
+                jobId,
+                chunkId,
+                chunkIndex,
+                totalChunks,
+                totalSubscribers,
+                isLastChunk,
+                chunk);
         EventEnvelope<Map<String, Object>> responseEvent = EventEnvelope.wrap(
             AppConstants.TOPIC_AUDIENCE_RESOLVED, tenantId, "audience-service",
-            Map.of(
-                "campaignId", campaignId,
-                "jobId", jobId,
-                "chunkId", resolvedChunkId(jobId, chunkIndex),
-                "chunkIndex", chunkIndex,
-                "totalChunks", totalChunks,
-                "chunkSize", chunk.size(),
-                "totalResolvedSubscribers", totalSubscribers,
-                "isLastChunk", isLastChunk,
-                "subscribers", chunk
+            Map.ofEntries(
+                Map.entry("campaignId", campaignId),
+                Map.entry("jobId", jobId),
+                Map.entry("chunkId", chunkReference.chunkId()),
+                Map.entry("chunkIndex", chunkIndex),
+                Map.entry("totalChunks", totalChunks),
+                Map.entry("chunkSize", chunk.size()),
+                Map.entry("totalResolvedSubscribers", totalSubscribers),
+                Map.entry("isLastChunk", isLastChunk),
+                Map.entry("chunkReferenceType", chunkReference.referenceType()),
+                Map.entry("subscriberStorage", chunkReference.storageBackend()),
+                Map.entry("chunkUri", chunkReference.chunkUri()),
+                Map.entry("partitionKey", chunkReference.chunkId())
             )
         );
+        responseEvent.setSchemaVersion(2);
 
-        publishResolvedAudienceEvent(tenantId, jobId, responseEvent);
+        publishResolvedAudienceEvent(tenantId, chunkReference.chunkId(), responseEvent);
         log.info("Sent resolved audience chunk {}/{} with {} subscribers for job {}",
                 chunkIndex + 1, totalChunks, chunk.size(), jobId);
     }
 
     private void publishResolvedAudienceEvent(
             String tenantId,
-            String jobId,
+            String chunkId,
             EventEnvelope<Map<String, Object>> responseEvent) {
         try {
-            eventPublisher.publish(AppConstants.TOPIC_AUDIENCE_RESOLVED, partitionKey(tenantId, jobId), responseEvent).join();
+            eventPublisher.publish(AppConstants.TOPIC_AUDIENCE_RESOLVED, partitionKey(tenantId, chunkId), responseEvent).join();
         } catch (CompletionException e) {
             Throwable cause = e.getCause() != null ? e.getCause() : e;
             if (cause instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
-            throw new IllegalStateException("Failed to publish resolved audience for job " + jobId, cause);
+            throw new IllegalStateException("Failed to publish resolved audience chunk " + chunkId, cause);
         }
     }
 

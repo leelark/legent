@@ -1,0 +1,54 @@
+{
+    "id":  "automation-activity-lock-concurrency-policy",
+    "createdAt":  "2026-05-23T16:52:32.0357616Z",
+    "objective":  "Add Automation Studio activity lock and concurrency policy",
+    "status":  "DONE",
+    "completedAt":  "2026-05-23T17:25:00Z",
+    "summary":  "Added tenant/workspace-scoped Automation Studio live-run activity locks with retry-after locked responses, explicit reason-required operator override, lock audit rows, frontend live/locked/override controls, and backend/frontend regression coverage.",
+    "owner":  "AUTOMATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/automation-service/src/main/java/com/legent/automation/dto/AutomationStudioDto.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationActivityLockService.java",
+                         "services/automation-service/src/main/java/com/legent/automation/controller/AutomationStudioController.java",
+                         "services/automation-service/src/main/resources/db/migration/V9__automation_activity_lock_policy.sql",
+                         "services/automation-service/src/test/java/com/legent/automation/service/AutomationStudioServiceTest.java",
+                         "services/automation-service/src/test/java/com/legent/automation/service/AutomationActivityLockServiceTest.java",
+                         "frontend/src/lib/automation-api.ts",
+                         "frontend/src/app/(workspace)/automation/page.tsx",
+                         "frontend/tests/e2e/automation-studio.spec.ts",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "SRE_MONITORING_ENGINEER",
+                   "QA_ENGINEER",
+                   "FRONTEND_OWNER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=AutomationStudioServiceTest",
+                           "AutomationEventIdempotencyServiceTest",
+                           "WorkflowStudioServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=AutomationStudioServiceTest,AutomationActivityLockServiceTest,AutomationEventIdempotencyServiceTest,WorkflowStudioServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          "cd frontend; npm run lint",
+                          "cd frontend; npm run build:ci",
+                          "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts --project=chromium --reporter=line",
+                          "git diff --check -- services/automation-service frontend/src/lib/automation-api.ts frontend/src/app/(workspace)/automation/page.tsx frontend/tests/e2e/automation-studio.spec.ts"
+                      ],
+    "residualRisks":  [
+                          "Local tests and UI mocks only; no live multi-operator race test or production runtime audit transcript was introduced.",
+                          "Operator override is now explicit and persisted, but production release still requires broader RBAC and audit-log evidence."
+                      ],
+    "nextAction":  "Monitor live activity lock behavior during broader Automation Studio release validation."
+}

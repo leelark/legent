@@ -5,6 +5,7 @@ import com.legent.audience.domain.Subscriber;
 import com.legent.audience.repository.AudienceCandidateRepository;
 import com.legent.audience.repository.AudienceCandidateRepository.AudienceCandidateCriteria;
 import com.legent.audience.service.AudienceEventIdempotencyService;
+import com.legent.audience.service.AudienceResolutionChunkService;
 import com.legent.audience.service.SendEligibilityService;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.model.EventEnvelope;
@@ -31,10 +32,13 @@ import java.util.stream.IntStream;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -51,6 +55,7 @@ class AudienceResolutionConsumerTest {
     @Mock private AudienceCandidateRepository audienceCandidateRepository;
     @Mock private DeliverabilityServiceClient deliverabilityClient;
     @Mock private AudienceEventIdempotencyService idempotencyService;
+    @Mock private AudienceResolutionChunkService chunkService;
     @Mock private SendEligibilityService sendEligibilityService;
 
     private AudienceResolutionConsumer consumer;
@@ -62,9 +67,31 @@ class AudienceResolutionConsumerTest {
                 audienceCandidateRepository,
                 deliverabilityClient,
                 idempotencyService,
+                chunkService,
                 sendEligibilityService);
         lenient().when(eventPublisher.publish(any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(null));
+        lenient().when(chunkService.storeChunk(
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        anyInt(),
+                        anyInt(),
+                        anyInt(),
+                        anyBoolean(),
+                        anyList()))
+                .thenAnswer(invocation -> {
+                    String chunkId = invocation.getArgument(4);
+                    List<Map<String, String>> chunk = invocation.getArgument(9);
+                    return new AudienceResolutionChunkService.ChunkReference(
+                            chunkId,
+                            AudienceResolutionChunkService.STORAGE_BACKEND,
+                            AudienceResolutionChunkService.REFERENCE_TYPE,
+                            chunk.size(),
+                            "/api/v1/audience-resolution-chunks/" + chunkId + "/internal");
+                });
         lenient().when(sendEligibilityService.evaluateAll(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenAnswer(invocation -> {
                     List<Subscriber> subscribers = invocation.getArgument(2);
@@ -103,10 +130,14 @@ class AudienceResolutionConsumerTest {
         consumer.handleResolutionRequest(requestEvent("event-1", "idem-1"));
 
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
-        verify(eventPublisher, times(2)).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), envelopeCaptor.capture());
+        ArgumentCaptor<String> keyCaptor = ArgumentCaptor.forClass(String.class);
+        verify(eventPublisher, times(2)).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), keyCaptor.capture(), envelopeCaptor.capture());
+        assertThat(keyCaptor.getAllValues())
+                .containsExactly(JOB_ID + ":audience:0", JOB_ID + ":audience:1");
 
         List<EventEnvelope<Map<String, Object>>> publishedEvents = envelopeCaptor.getAllValues();
         assertThat(publishedEvents).hasSize(2);
+        assertThat(publishedEvents).extracting(EventEnvelope::getSchemaVersion).containsExactly(2, 2);
 
         Map<String, Object> firstPayload = publishedEvents.get(0).getPayload();
         assertThat(firstPayload)
@@ -117,8 +148,11 @@ class AudienceResolutionConsumerTest {
                 .containsEntry("totalChunks", -1)
                 .containsEntry("chunkSize", AppConstants.SEND_BATCH_SIZE)
                 .containsEntry("totalResolvedSubscribers", -1)
-                .containsEntry("isLastChunk", false);
-        assertThat(subscriberPayload(firstPayload)).hasSize(AppConstants.SEND_BATCH_SIZE);
+                .containsEntry("isLastChunk", false)
+                .containsEntry("chunkReferenceType", AudienceResolutionChunkService.REFERENCE_TYPE)
+                .containsEntry("subscriberStorage", AudienceResolutionChunkService.STORAGE_BACKEND)
+                .containsEntry("chunkUri", "/api/v1/audience-resolution-chunks/" + JOB_ID + ":audience:0/internal")
+                .doesNotContainKey("subscribers");
         assertThat(publishedEvents.get(0).getTenantId()).isEqualTo(TENANT_ID);
         assertThat(publishedEvents.get(0).getWorkspaceId()).isEqualTo(WORKSPACE_ID);
 
@@ -129,8 +163,11 @@ class AudienceResolutionConsumerTest {
                 .containsEntry("totalChunks", 2)
                 .containsEntry("chunkSize", 1)
                 .containsEntry("totalResolvedSubscribers", totalSubscribers)
-                .containsEntry("isLastChunk", true);
-        assertThat(subscriberPayload(secondPayload)).hasSize(1);
+                .containsEntry("isLastChunk", true)
+                .doesNotContainKey("subscribers");
+        assertThat(storedChunks())
+                .extracting(List::size)
+                .containsExactly(AppConstants.SEND_BATCH_SIZE, 1);
     }
 
     @Test
@@ -176,7 +213,7 @@ class AudienceResolutionConsumerTest {
         consumer.handleResolutionRequest(requestEvent("event-empty", "idem-empty"));
 
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
-        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), envelopeCaptor.capture());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID + ":audience:0"), envelopeCaptor.capture());
         verify(deliverabilityClient, never()).checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList());
         verify(sendEligibilityService, never()).evaluateAll(any(), any(), anyList());
 
@@ -187,8 +224,9 @@ class AudienceResolutionConsumerTest {
                 .containsEntry("totalChunks", 1)
                 .containsEntry("chunkSize", 0)
                 .containsEntry("totalResolvedSubscribers", 0)
-                .containsEntry("isLastChunk", true);
-        assertThat(subscriberPayload(payload)).isEmpty();
+                .containsEntry("isLastChunk", true)
+                .doesNotContainKey("subscribers");
+        assertThat(storedChunks()).containsExactly(List.of());
     }
 
     @Test
@@ -244,15 +282,16 @@ class AudienceResolutionConsumerTest {
                 .allSatisfy(emails -> assertThat(emails).containsExactly("user0@example.com", "user1@example.com", "user2@example.com"));
 
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
-        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), envelopeCaptor.capture());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID + ":audience:0"), envelopeCaptor.capture());
 
         Map<String, Object> payload = envelopeCaptor.getValue().getPayload();
         assertThat(payload)
                 .containsEntry("totalResolvedSubscribers", 2)
                 .containsEntry("chunkSize", 2)
                 .containsEntry("totalChunks", 1)
-                .containsEntry("isLastChunk", true);
-        assertThat(subscriberPayload(payload))
+                .containsEntry("isLastChunk", true)
+                .doesNotContainKey("subscribers");
+        assertThat(storedChunks().get(0))
                 .extracting("email")
                 .containsExactly("user0@example.com", "user2@example.com");
     }
@@ -276,15 +315,16 @@ class AudienceResolutionConsumerTest {
         consumer.handleResolutionRequest(requestEvent("event-local-eligibility", "idem-local-eligibility"));
 
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
-        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), envelopeCaptor.capture());
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID + ":audience:0"), envelopeCaptor.capture());
 
         Map<String, Object> payload = envelopeCaptor.getValue().getPayload();
         assertThat(payload)
                 .containsEntry("totalResolvedSubscribers", 2)
                 .containsEntry("chunkSize", 2)
                 .containsEntry("totalChunks", 1)
-                .containsEntry("isLastChunk", true);
-        assertThat(subscriberPayload(payload))
+                .containsEntry("isLastChunk", true)
+                .doesNotContainKey("subscribers");
+        assertThat(storedChunks().get(0))
                 .extracting("email")
                 .containsExactly("user0@example.com", "user2@example.com");
     }
@@ -357,7 +397,7 @@ class AudienceResolutionConsumerTest {
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
         RuntimeException publishFailure = new RuntimeException("publish failed");
-        when(eventPublisher.publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), any()))
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID + ":audience:0"), any()))
                 .thenThrow(publishFailure);
 
         assertThatThrownBy(() -> consumer.handleResolutionRequest(requestEvent("event-publish-fail", "idem-publish-fail")))
@@ -375,7 +415,7 @@ class AudienceResolutionConsumerTest {
         when(deliverabilityClient.checkSuppressedEmails(eq(TENANT_ID), eq(WORKSPACE_ID), anyList()))
                 .thenReturn(Set.of());
         RuntimeException publishFailure = new RuntimeException("async publish failed");
-        when(eventPublisher.publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID), any()))
+        when(eventPublisher.publish(eq(AppConstants.TOPIC_AUDIENCE_RESOLVED), eq(JOB_ID + ":audience:0"), any()))
                 .thenReturn(CompletableFuture.failedFuture(publishFailure));
 
         assertThatThrownBy(() -> consumer.handleResolutionRequest(requestEvent("event-async-publish-fail", "idem-async-publish-fail")))
@@ -565,8 +605,20 @@ class AudienceResolutionConsumerTest {
         return criteriaCaptor.getValue();
     }
 
-    @SuppressWarnings("unchecked")
-    private List<Map<String, String>> subscriberPayload(Map<String, Object> payload) {
-        return (List<Map<String, String>>) payload.get("subscribers");
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private List<List<Map<String, String>>> storedChunks() {
+        ArgumentCaptor<List<Map<String, String>>> chunkCaptor = (ArgumentCaptor) ArgumentCaptor.forClass(List.class);
+        verify(chunkService, atLeastOnce()).storeChunk(
+                eq(TENANT_ID),
+                eq(WORKSPACE_ID),
+                eq(CAMPAIGN_ID),
+                eq(JOB_ID),
+                any(),
+                anyInt(),
+                anyInt(),
+                anyInt(),
+                anyBoolean(),
+                chunkCaptor.capture());
+        return chunkCaptor.getAllValues();
     }
 }

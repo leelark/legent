@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/health/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/data-extensions/query-activities/internal").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/imports/internal/start").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/audience-resolution-chunks/*/internal").permitAll()
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

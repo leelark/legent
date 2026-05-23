@@ -68,13 +68,17 @@ async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}, 
       }));
     }
     if (path === '/campaigns' && method === 'POST') {
-      seen.campaign = JSON.parse(request.postData() || '{}');
+      const body = JSON.parse(request.postData() || '{}');
+      seen.campaign = body;
       return fulfill(route, ok({
         id: 'camp-1',
         name: 'Spring Launch',
         subject: 'Launch day',
         status: 'DRAFT',
         templateId: 'tpl-1',
+        providerId: 'provider-1',
+        sendingDomain: 'example.com',
+        sendGovernancePolicyId: body.sendGovernancePolicyId,
         audiences: [{ audienceType: 'LIST', audienceId: 'list-1', action: 'INCLUDE' }],
       }));
     }
@@ -224,10 +228,16 @@ async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}, 
       return fulfill(route, ok([{ id: 'dlq-1', campaignId: 'camp-1', jobId: 'job-1', batchId: 'batch-1', email: 'bad@example.com', reason: 'PROVIDER_TIMEOUT', retryCount: 1, status: 'OPEN', createdAt: '2026-05-08T04:02:00Z' }]));
     }
     if (path === '/providers') {
-      return fulfill(route, ok([{ id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY' }]));
+      return fulfill(route, ok([
+        { id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY' },
+        { id: 'provider-paused', name: 'Paused SMTP', type: 'SMTP', isActive: false, healthStatus: 'UNHEALTHY' },
+      ]));
     }
     if (path === '/providers/health') {
-      return fulfill(route, ok([{ id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY' }]));
+      return fulfill(route, ok([
+        { id: 'provider-1', name: 'Primary SMTP', type: 'SMTP', isActive: true, healthStatus: 'HEALTHY' },
+        { id: 'provider-paused', name: 'Paused SMTP', type: 'SMTP', isActive: false, healthStatus: 'UNHEALTHY' },
+      ]));
     }
     if (path === '/delivery/queue/stats') {
       return fulfill(route, ok({ pending: 0, processing: 0, sent: 200, failed: 0, replayPending: 0, replayFailed: 0, unhealthyProviders: 0, updatedAt: '2026-05-08T04:00:00Z' }));
@@ -236,7 +246,35 @@ async function mockCampaignApis(page: Page, seen: Record<string, unknown> = {}, 
       return fulfill(route, ok({ activeProviders: 1, healthyProviders: 1, degradedProviders: 0, unhealthyProviders: 0, readiness: 98, updatedAt: '2026-05-08T04:00:00Z' }));
     }
     if (path === '/deliverability/domains') {
-      return fulfill(route, ok([{ id: 'domain-1', domainName: 'example.com', status: 'VERIFIED' }]));
+      return fulfill(route, ok([
+        { id: 'domain-1', domainName: 'example.com', status: 'VERIFIED', isActive: true, spfVerified: true, dkimVerified: true, dmarcVerified: true },
+        { id: 'domain-2', domainName: 'pending.example.com', status: 'PENDING', isActive: true, spfVerified: false, dkimVerified: false, dmarcVerified: false },
+      ]));
+    }
+    if (path === '/content/send-governance-policies') {
+      return fulfill(route, ok({
+        content: [
+          {
+            id: 'policy-1',
+            policyKey: 'commercial-default',
+            name: 'Commercial Default',
+            classification: 'COMMERCIAL',
+            publicationPolicy: 'APPROVED_CONTENT_REQUIRED',
+            unsubscribePolicy: 'REQUIRED',
+            suppressionRequired: true,
+            consentRequired: false,
+            trackingAllowed: true,
+            sendLogRetentionDays: 365,
+            active: true,
+            version: 3,
+            updatedAt: '2026-05-08T04:00:00Z',
+          },
+        ],
+        totalElements: 1,
+        totalPages: 1,
+        page: 0,
+        size: 100,
+      }));
     }
 
     return fulfill(route, ok([]));
@@ -252,6 +290,14 @@ test('campaign wizard saves experiment, budget, and frequency policy', async ({ 
   await page.getByLabel('Campaign Name *').fill('Spring Launch');
   await page.getByLabel('Subject Line *').fill('Launch day');
   await page.getByLabel('Template').selectOption('tpl-1');
+  await page.getByLabel('Sender Email').fill('marketing@example.com');
+  await expect(page.getByLabel('Delivery Provider')).toContainText('Primary SMTP');
+  await expect(page.getByLabel('Sending Domain')).toContainText('example.com');
+  await page.getByLabel('Delivery Provider').selectOption('provider-1');
+  await page.getByLabel('Sending Domain').selectOption('example.com');
+  await expect(page.getByTestId('campaign-delivery-readiness')).toContainText('Provider ready');
+  await expect(page.getByTestId('campaign-delivery-readiness')).toContainText('Domain ready');
+  await expect(page.getByTestId('campaign-delivery-readiness')).toContainText('Sender aligned');
   await page.getByRole('button', { name: 'Next', exact: true }).click();
 
   await page.getByLabel('Audience').selectOption('list-1');
@@ -259,6 +305,10 @@ test('campaign wizard saves experiment, budget, and frequency policy', async ({ 
   await page.getByRole('button', { name: 'Next', exact: true }).click();
 
   await page.getByLabel('Frequency Cap').fill('3');
+  await expect(page.getByLabel('Send Governance Policy')).toContainText('Commercial Default v3');
+  await page.getByLabel('Send Governance Policy').selectOption('policy-1');
+  await expect(page.getByTestId('campaign-governance-policy')).toContainText('APPROVED CONTENT REQUIRED');
+  await expect(page.getByTestId('campaign-governance-policy')).toContainText('Commercial Default v3 is active');
   await page.getByLabel('Budget Limit').fill('100');
   await page.getByLabel('Cost Per Send').fill('0.01');
   await page.getByLabel('Enforce budget').check();
@@ -272,7 +322,13 @@ test('campaign wizard saves experiment, budget, and frequency policy', async ({ 
   await page.getByRole('button', { name: 'Save Draft' }).click();
   await expect(page.getByText('Draft saved')).toBeVisible();
 
-  expect(seen.campaign).toMatchObject({ name: 'Spring Launch', templateId: 'tpl-1' });
+  expect(seen.campaign).toMatchObject({
+    name: 'Spring Launch',
+    templateId: 'tpl-1',
+    providerId: 'provider-1',
+    sendingDomain: 'example.com',
+    sendGovernancePolicyId: 'policy-1',
+  });
   expect(seen.budget).toMatchObject({ enforced: true, budgetLimit: 100, costPerSend: 0.01 });
   expect(seen.frequency).toMatchObject({ enabled: true, maxSends: 3, windowHours: 48 });
   expect(seen.experiment).toMatchObject({ experimentType: 'AB', winnerMetric: 'CLICKS', holdoutPercentage: 5, status: 'ACTIVE' });
@@ -287,6 +343,9 @@ test('campaign wizard basic mode hides advanced delivery controls and skips adva
   await page.getByLabel('Campaign Name *').fill('Basic Launch');
   await page.getByLabel('Subject Line *').fill('Basic launch day');
   await page.getByLabel('Template').selectOption('tpl-1');
+  await page.getByLabel('Sender Email').fill('marketing@example.com');
+  await page.getByLabel('Delivery Provider').selectOption('provider-1');
+  await page.getByLabel('Sending Domain').selectOption('example.com');
   await page.getByRole('button', { name: 'Next', exact: true }).click();
 
   await page.getByLabel('Audience').selectOption('list-1');
@@ -310,7 +369,12 @@ test('campaign wizard basic mode hides advanced delivery controls and skips adva
   await page.getByRole('button', { name: 'Save Draft' }).click();
   await expect(page.getByText('Draft saved')).toBeVisible();
 
-  expect(seen.campaign).toMatchObject({ name: 'Basic Launch', templateId: 'tpl-1' });
+  expect(seen.campaign).toMatchObject({
+    name: 'Basic Launch',
+    templateId: 'tpl-1',
+    providerId: 'provider-1',
+    sendingDomain: 'example.com',
+  });
   expect(seen.budget).toBeUndefined();
   expect(seen.frequency).toBeUndefined();
   expect(seen.experiment).toBeUndefined();

@@ -1,6 +1,7 @@
 package com.legent.delivery.repository;
 
 import com.legent.delivery.domain.DeliveryFeedbackOutboxEvent;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -42,6 +43,44 @@ public interface DeliveryFeedbackOutboxEventRepository extends JpaRepository<Del
             String id,
             String tenantId,
             String workspaceId);
+
+    @Query("""
+            SELECT e.id
+              FROM DeliveryFeedbackOutboxEvent e
+             WHERE e.status = :status
+               AND e.publishedAt < :cutoff
+               AND e.deletedAt IS NULL
+             ORDER BY e.publishedAt ASC, e.id ASC
+            """)
+    List<String> findPublishedIdsEligibleForRetention(@Param("status") String status,
+                                                       @Param("cutoff") Instant cutoff,
+                                                       Pageable pageable);
+
+    @Query("""
+            SELECT e.id
+              FROM DeliveryFeedbackOutboxEvent e
+             WHERE e.status = :status
+               AND COALESCE(e.lastAttemptAt, e.updatedAt, e.createdAt) < :cutoff
+               AND e.deletedAt IS NULL
+             ORDER BY COALESCE(e.lastAttemptAt, e.updatedAt, e.createdAt) ASC, e.id ASC
+            """)
+    List<String> findFailedIdsEligibleForRetention(@Param("status") String status,
+                                                   @Param("cutoff") Instant cutoff,
+                                                   Pageable pageable);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Transactional
+    @Query("""
+            UPDATE DeliveryFeedbackOutboxEvent e
+               SET e.deletedAt = :deletedAt,
+                   e.updatedAt = :deletedAt
+             WHERE e.id IN (:ids)
+               AND e.status = :status
+               AND e.deletedAt IS NULL
+            """)
+    int softDeleteTerminalIds(@Param("ids") Collection<String> ids,
+                              @Param("status") String status,
+                              @Param("deletedAt") Instant deletedAt);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Transactional

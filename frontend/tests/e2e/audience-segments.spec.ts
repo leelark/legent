@@ -80,3 +80,69 @@ test('filters segment rule operators by selected field type', async ({ page }) =
   await expect.poll(() => postedPayload?.rules?.groups?.[0]?.conditions?.[0]?.op).toBe('IN_LIST');
   await expect.poll(() => postedPayload?.rules?.groups?.[0]?.conditions?.[0]?.value).toBe('list-123');
 });
+
+test('deletes a segment with app modal and no native dialog', async ({ page }) => {
+  const nativeDialogs: string[] = [];
+  let deletedSegmentId: string | null = null;
+
+  page.on('dialog', async (dialog) => {
+    nativeDialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
+
+  await mockWorkspaceApis(page);
+  await page.route('**/api/v1/segments**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace('/api/v1', '');
+
+    if (request.method() === 'GET' && path === '/segments') {
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: [
+            {
+              id: 'segment-1',
+              name: 'Dormant subscribers',
+              status: 'ACTIVE',
+              memberCount: 42,
+              createdAt: '2026-05-01T00:00:00Z',
+            },
+          ],
+          pagination: {
+            page: 0,
+            size: 50,
+            totalElements: 1,
+            totalPages: 1,
+          },
+        }),
+      });
+    }
+
+    if (request.method() === 'DELETE' && path === '/segments/segment-1') {
+      deletedSegmentId = 'segment-1';
+      return route.fulfill({
+        status: 204,
+        body: '',
+      });
+    }
+
+    return route.fallback();
+  });
+
+  await page.goto('/app/audience/segments');
+  await page.getByRole('button', { name: 'Delete Dormant subscribers' }).click();
+
+  const dialog = page.getByRole('dialog', { name: 'Delete segment?' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog).toContainText('Dormant subscribers');
+  await expect(nativeDialogs).toEqual([]);
+
+  await dialog.getByRole('button', { name: 'Delete' }).click();
+
+  await expect.poll(() => deletedSegmentId).toBe('segment-1');
+  await expect(page.getByText('Segment deleted')).toBeVisible();
+  await expect(nativeDialogs).toEqual([]);
+});

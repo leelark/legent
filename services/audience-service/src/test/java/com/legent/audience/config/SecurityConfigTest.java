@@ -71,6 +71,15 @@ class SecurityConfigTest {
     }
 
     @Test
+    void internalAudienceResolutionChunkRouteReachesControllerWithoutJwt() throws Exception {
+        mockMvc.perform(get("/api/v1/audience-resolution-chunks/job-1:audience:0/internal")
+                        .queryParam("jobId", "job-1")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"route\":\"audience-resolution-chunk\"}"));
+    }
+
+    @Test
     void workspaceAudienceRoutesStillRequireAuthentication() throws Exception {
         mockMvc.perform(get("/api/v1/data-extensions")
                         .accept(MediaType.APPLICATION_JSON))
@@ -152,6 +161,11 @@ class SecurityConfigTest {
         @ResponseStatus(HttpStatus.ACCEPTED)
         Map<String, String> internalImportStart() {
             return Map.of("route", "import-start");
+        }
+
+        @GetMapping("/api/v1/audience-resolution-chunks/{chunkId}/internal")
+        Map<String, String> internalAudienceResolutionChunk() {
+            return Map.of("route", "audience-resolution-chunk");
         }
 
         @GetMapping("/api/v1/data-extensions")

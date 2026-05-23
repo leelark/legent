@@ -1,19 +1,24 @@
 package com.legent.audience.service;
 
 import com.legent.audience.domain.ImportJob;
+import com.legent.audience.domain.Subscriber;
+import com.legent.audience.domain.SubscriberIdentityProvenance;
 import com.legent.audience.event.ImportEventPublisher;
 import com.legent.audience.repository.ImportJobRepository;
+import com.legent.audience.repository.SubscriberIdentityProvenanceRepository;
 import com.legent.audience.repository.SubscriberRepository;
 import com.legent.common.constant.AppConstants;
 import io.minio.GetObjectResponse;
 import io.minio.MinioClient;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import okhttp3.Headers;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -105,9 +110,72 @@ class ImportProcessingServiceTest {
         assertEquals(rowCount, job.getErrorRows());
         assertEquals(AppConstants.IMPORT_MAX_ERRORS, job.getErrors().size());
         assertEquals(ImportJob.ImportStatus.COMPLETED_WITH_ERRORS, job.getStatus());
+        verify(dataExtensionService).markImportProvenance("de-1", "job-2", "imports/data-extension.csv");
         verify(subscriberRepository, never()).saveAll(any());
         verify(eventPublisher).publishCompleted(job);
         verify(importJobRepository, never()).findById(anyString());
+    }
+
+    @Test
+    void subscriberImportPopulatesContactProvenanceFields() throws Exception {
+        ImportJobRepository importJobRepository = mock(ImportJobRepository.class);
+        SubscriberRepository subscriberRepository = mock(SubscriberRepository.class);
+        SubscriberIdentityProvenanceRepository provenanceRepository = mock(SubscriberIdentityProvenanceRepository.class);
+        DataExtensionService dataExtensionService = mock(DataExtensionService.class);
+        ImportEventPublisher eventPublisher = mock(ImportEventPublisher.class);
+        MinioClient minioClient = mock(MinioClient.class);
+        PlatformTransactionManager transactionManager = transactionManager();
+        ImportJob job = importJob("job-3", "SUBSCRIBER", "imports/subscribers.csv",
+                Map.of("email", "Email", "firstName", "First Name", "source", "Source"));
+
+        when(importJobRepository.findByTenantIdAndWorkspaceIdAndId("tenant-1", "workspace-1", "job-3"))
+                .thenReturn(Optional.of(job));
+        when(importJobRepository.save(any(ImportJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "ada@example.com"))
+                .thenReturn(Optional.empty());
+        when(subscriberRepository.saveAll(any())).thenAnswer(invocation -> {
+            @SuppressWarnings("unchecked")
+            List<Subscriber> subscribers = invocation.getArgument(0, List.class);
+            subscribers.forEach(subscriber -> subscriber.setId("sub-1"));
+            return subscribers;
+        });
+        when(minioClient.getObject(any())).thenReturn(csvObject("imports/subscribers.csv",
+                "Email,First Name,Source\nAda@example.com,Ada,legacy-list\n"));
+        ImportProcessingService service = service(
+                importJobRepository,
+                subscriberRepository,
+                provenanceRepository,
+                dataExtensionService,
+                eventPublisher,
+                transactionManager,
+                minioClient);
+
+        service.processImport("job-3", "tenant-1", "workspace-1");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<Subscriber>> subscriberCaptor = ArgumentCaptor.forClass((Class<List<Subscriber>>) (Class<?>) List.class);
+        verify(subscriberRepository).saveAll(subscriberCaptor.capture());
+        Subscriber saved = subscriberCaptor.getValue().get(0);
+        assertEquals("IMPORT", saved.getSource());
+        assertEquals("AUDIENCE_IMPORT", saved.getLeadSource());
+        assertEquals("CSV_IMPORT", saved.getAcquisitionChannel());
+        assertEquals("import:job-3", saved.getCampaignSource());
+        assertEquals("Ada", saved.getFirstName());
+        assertEquals(false, saved.getCustomFields().containsKey("source"));
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<SubscriberIdentityProvenance>> provenanceCaptor =
+                ArgumentCaptor.forClass((Class<List<SubscriberIdentityProvenance>>) (Class<?>) List.class);
+        verify(provenanceRepository).saveAll(provenanceCaptor.capture());
+        SubscriberIdentityProvenance provenance = provenanceCaptor.getValue().get(0);
+        assertEquals("tenant-1", provenance.getTenantId());
+        assertEquals("workspace-1", provenance.getWorkspaceId());
+        assertEquals("sub-1", provenance.getSubscriberId());
+        assertEquals("IMPORT", provenance.getSourceType());
+        assertEquals("job-3", provenance.getSourceRef());
+        assertEquals("user-1", provenance.getCreatedBy());
+        assertEquals("imports/subscribers.csv", provenance.getMetadata().get("fileName"));
+        verify(dataExtensionService, never()).markImportProvenance(anyString(), anyString(), anyString());
     }
 
     @Test
@@ -146,9 +214,27 @@ class ImportProcessingServiceTest {
                                             ImportEventPublisher eventPublisher,
                                             PlatformTransactionManager transactionManager,
                                             MinioClient minioClient) {
+        return service(
+                importJobRepository,
+                subscriberRepository,
+                mock(SubscriberIdentityProvenanceRepository.class),
+                dataExtensionService,
+                eventPublisher,
+                transactionManager,
+                minioClient);
+    }
+
+    private ImportProcessingService service(ImportJobRepository importJobRepository,
+                                            SubscriberRepository subscriberRepository,
+                                            SubscriberIdentityProvenanceRepository provenanceRepository,
+                                            DataExtensionService dataExtensionService,
+                                            ImportEventPublisher eventPublisher,
+                                            PlatformTransactionManager transactionManager,
+                                            MinioClient minioClient) {
         ImportProcessingService service = new ImportProcessingService(
                 importJobRepository,
                 subscriberRepository,
+                provenanceRepository,
                 dataExtensionService,
                 eventPublisher,
                 transactionManager,
@@ -171,6 +257,7 @@ class ImportProcessingServiceTest {
         job.setWorkspaceId("workspace-1");
         job.setFileName(fileName);
         job.setTargetType(targetType);
+        job.setStartedBy("user-1");
         job.setFieldMapping(mapping);
         return job;
     }

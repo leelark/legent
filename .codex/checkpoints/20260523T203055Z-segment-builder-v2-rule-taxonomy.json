@@ -1,0 +1,42 @@
+﻿{
+    "id":  "segment-builder-v2-rule-taxonomy",
+    "createdAt":  "2026-05-23T20:30:55.6823483Z",
+    "objective":  "Define Segment Builder v2 rule taxonomy",
+    "status":  "DONE",
+    "owner":  "PRODUCT_MANAGER_AGENT",
+    "filesInScope":  [
+                         "docs/product/salesforce-parity-matrix.md",
+                         "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                         "frontend/src/components/audience/SegmentRuleBuilder.tsx",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/successful-fixes.md"
+                     ],
+    "agents":  [
+                   "UX_STRATEGIST",
+                   "AUDIENCE_SERVICE_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "git diff --check -- docs/product .codex/backlog/queue.json"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed locally; keep Segment Builder execution and governance UI in separate backlog items before any parity or runtime claim.",
+    "completedAt":  "2026-05-23T20:35:51.9736534Z",
+    "validationRun":  [
+                          "git diff --check -- docs/product .codex/backlog/queue.json",
+                          "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                          "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1"
+                      ],
+    "residualRisks":  [
+                          "Taxonomy is documentation only; no indexed execution, preview/explain runtime, governance UI, or high-volume proof is implemented by this slice.",
+                          "Salesforce/competitor parity claims still require broader current source refresh and local runtime evidence."
+                      ]
+}

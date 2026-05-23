@@ -181,6 +181,8 @@ class CampaignLaunchReadinessGateTest {
                         false,
                         true,
                         365,
+                        "APPROVED_CONTENT_REQUIRED",
+                        1L,
                         false));
         when(deliverabilityClient.authChecks("tenant-1", "workspace-1")).thenReturn(List.of(verifiedAuth()));
         when(deliverabilityClient.suppressionHealth("tenant-1", "workspace-1")).thenReturn(
@@ -261,6 +263,8 @@ class CampaignLaunchReadinessGateTest {
                 false,
                 true,
                 365,
+                "APPROVED_CONTENT_REQUIRED",
+                1L,
                 true);
     }
 
@@ -279,6 +283,8 @@ class CampaignLaunchReadinessGateTest {
                 false,
                 true,
                 365,
+                "APPROVED_CONTENT_REQUIRED",
+                1L,
                 true);
     }
 

@@ -22,6 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -43,6 +44,7 @@ public class AutomationStudioService {
     private static final int DEFAULT_RUN_LIMIT = 50;
     private static final int MAX_RUN_LIMIT = 200;
     private static final String ACTIVITY_RUN_EVENT_TYPE = "automation.activity.run";
+    private static final Duration ACTIVITY_LOCK_TTL = Duration.ofMinutes(15);
     private static final Set<AutomationStudioDto.ActivityType> LIVE_EXECUTION_SUPPORTED_TYPES = EnumSet.of(
             AutomationStudioDto.ActivityType.SQL_QUERY,
             AutomationStudioDto.ActivityType.IMPORT,
@@ -98,6 +100,7 @@ public class AutomationStudioService {
     private final AudienceDataExtensionClient audienceDataExtensionClient;
     private final AutomationArtifactService artifactService;
     private final AutomationEventIdempotencyService idempotencyService;
+    private final AutomationActivityLockService activityLockService;
     private final WorkflowEventPublisher workflowEventPublisher;
 
     @Transactional(readOnly = true)
@@ -200,6 +203,20 @@ public class AutomationStudioService {
                     "traceId", run.getTraceId(),
                     "dependencyTrace", dependencyTrace)));
         } else {
+            AutomationActivityLockService.LockLease activityLock = null;
+            if (!dryRun) {
+                activityLock = activityLockService.acquire(
+                        activity.getTenantId(),
+                        activity.getWorkspaceId(),
+                        activity.getId(),
+                        run.getId(),
+                        safeRequest.isOperatorOverride(),
+                        safeRequest.getOverrideReason(),
+                        ACTIVITY_LOCK_TTL);
+                if (!activityLock.acquired()) {
+                    return saveLockedRun(activity, run, activityLock, dependencyTrace);
+                }
+            }
             boolean idempotencyClaimed = false;
             try {
                 if (!dryRun && requiresSideEffectIdempotency(activity)) {
@@ -229,6 +246,13 @@ public class AutomationStudioService {
                     idempotencyClaimed = true;
                 }
                 Map<String, Object> result = sanitizeForPersistence(runResult(activity, safeRequest, run));
+                if (activityLock != null) {
+                    result.put("activityLock", lockMetadata(activityLock));
+                    result.put("operatorOverride", activityLock.operatorOverride());
+                    if (activityLock.overrideReason() != null) {
+                        result.put("overrideReason", activityLock.overrideReason());
+                    }
+                }
                 result.put("traceId", run.getTraceId());
                 result.put("dependencyTrace", dependencyTrace);
                 if (idempotencyKey != null) {
@@ -267,6 +291,14 @@ public class AutomationStudioService {
                         "traceId", run.getTraceId(),
                         "dependencyTrace", dependencyTrace,
                         "error", errorMessage)));
+            } finally {
+                if (activityLock != null && activityLock.acquired()) {
+                    activityLockService.release(
+                            activity.getTenantId(),
+                            activity.getWorkspaceId(),
+                            activity.getId(),
+                            run.getId());
+                }
             }
         }
         run.setCompletedAt(Instant.now());
@@ -289,6 +321,43 @@ public class AutomationStudioService {
                 .stream()
                 .map(this::toRunResponse)
                 .toList();
+    }
+
+    private AutomationStudioDto.RunResponse saveLockedRun(AutomationActivity activity,
+                                                          AutomationActivityRun run,
+                                                          AutomationActivityLockService.LockLease lock,
+                                                          Map<String, Object> dependencyTrace) {
+        run.setStatus(AutomationStudioDto.RunStatus.LOCKED);
+        run.setErrorCode("ACTIVITY_LOCKED");
+        run.setErrorMessage(lock.reason());
+        run.setRowsRead(0L);
+        run.setRowsWritten(0L);
+        run.setCompletedAt(Instant.now());
+        run.setResultJson(writeJson(Map.of(
+                "activityType", activity.getActivityType().name(),
+                "dryRun", false,
+                "traceId", run.getTraceId(),
+                "dependencyTrace", dependencyTrace,
+                "lockId", lock.lockId(),
+                "lockOwnerRunId", lock.runId(),
+                "lockedUntil", lock.lockedUntil() == null ? "" : lock.lockedUntil().toString(),
+                "retryAfterSeconds", lock.retryAfterSeconds() == null ? 60L : lock.retryAfterSeconds(),
+                "message", lock.reason())));
+        AutomationActivityRun savedRun = runRepository.save(run);
+        activity.setLastRunAt(savedRun.getCompletedAt());
+        activityRepository.save(activity);
+        return toRunResponse(savedRun);
+    }
+
+    private Map<String, Object> lockMetadata(AutomationActivityLockService.LockLease lock) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("lockId", lock.lockId());
+        metadata.put("lockedUntil", lock.lockedUntil() == null ? null : lock.lockedUntil().toString());
+        metadata.put("operatorOverride", lock.operatorOverride());
+        if (lock.overrideReason() != null) {
+            metadata.put("overrideReason", lock.overrideReason());
+        }
+        return metadata;
     }
 
     private void apply(AutomationActivity activity, AutomationStudioDto.ActivityRequest request) {
@@ -1296,6 +1365,7 @@ public class AutomationStudioService {
     }
 
     private AutomationStudioDto.RunResponse toRunResponse(AutomationActivityRun run) {
+        Map<String, Object> result = sanitizeForPersistence(readMap(run.getResultJson()));
         return AutomationStudioDto.RunResponse.builder()
                 .id(run.getId())
                 .activityId(run.getActivityId())
@@ -1308,12 +1378,29 @@ public class AutomationStudioService {
                 .errorCode(run.getErrorCode())
                 .errorMessage(run.getErrorMessage())
                 .idempotencyKey(run.getIdempotencyKey())
+                .retryAfterSeconds(asLong(result.get("retryAfterSeconds")))
+                .lockedUntil(asInstant(result.get("lockedUntil")))
+                .lockOwnerRunId(asString(result.get("lockOwnerRunId")))
+                .operatorOverride(Boolean.TRUE.equals(result.get("operatorOverride")))
+                .overrideReason(asString(result.get("overrideReason")))
                 .dependencyTrace(sanitizeForPersistence(readMap(run.getDependencyTraceJson())))
-                .result(sanitizeForPersistence(readMap(run.getResultJson())))
+                .result(result)
                 .startedAt(run.getStartedAt())
                 .completedAt(run.getCompletedAt())
                 .createdAt(run.getCreatedAt())
                 .build();
+    }
+
+    private Instant asInstant(Object value) {
+        String text = asString(value);
+        if (text == null) {
+            return null;
+        }
+        try {
+            return Instant.parse(text);
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     private Map<String, Object> readMap(String json) {

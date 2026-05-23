@@ -3,7 +3,9 @@ import { expect, test, type Page, type Route } from '@playwright/test';
 type SeenRequests = {
   advancedRequests?: string[];
   draftPayload?: Record<string, unknown>;
+  draftPayloads?: Record<string, unknown>[];
   updatePayload?: Record<string, unknown>;
+  updatePayloads?: Record<string, unknown>[];
   renderPayload?: Record<string, unknown>;
   validatePayload?: Record<string, unknown>;
 };
@@ -168,6 +170,7 @@ async function mockTemplateStudioApis(
     if (path === '/templates/tpl-1' && method === 'PUT') {
       const payload = JSON.parse(request.postData() || '{}') as Record<string, unknown>;
       seen.updatePayload = payload;
+      seen.updatePayloads = [...(seen.updatePayloads ?? []), payload];
       currentTemplate = {
         ...currentTemplate,
         ...payload,
@@ -179,7 +182,57 @@ async function mockTemplateStudioApis(
     }
     if (path === '/templates/tpl-1/draft' && method === 'POST') {
       seen.draftPayload = JSON.parse(request.postData() || '{}') as Record<string, unknown>;
+      seen.draftPayloads = [...(seen.draftPayloads ?? []), seen.draftPayload];
+      const aiAssistance = seen.draftPayload.aiAssistance as Record<string, unknown> | undefined;
+      if (aiAssistance) {
+        const aiContentAssistance = {
+          status: 'APPLIED_TO_DRAFT',
+          decision: aiAssistance.decision,
+          requestedAction: aiAssistance.requestedAction,
+          auditId: aiAssistance.auditId,
+          policyKey: aiAssistance.policyKey,
+          policyVersion: aiAssistance.policyVersion,
+          promptHash: aiAssistance.promptHash,
+          outputHash: aiAssistance.outputHash,
+          evidenceRefs: aiAssistance.evidenceRefs,
+          humanReviewed: aiAssistance.humanReviewed,
+          appliedBy: 'template-user',
+          appliedAt: '2026-05-19T01:00:00Z',
+        };
+        const parsedMetadata = JSON.parse(currentTemplate.metadata || '{}') as Record<string, unknown>;
+        currentTemplate = {
+          ...currentTemplate,
+          metadata: JSON.stringify({ ...parsedMetadata, aiContentAssistance }),
+        };
+      }
       return fulfill(route, ok({ templateId: 'tpl-1', status: 'DRAFT' }));
+    }
+    if (path === '/performance-intelligence/ai-content/audits') {
+      return fulfill(route, ok([
+        {
+          id: 'audit-approved',
+          policy_key: 'draft-content',
+          policy_version: 'v3',
+          decision: 'APPROVED_DRAFT_ONLY',
+          requested_action: 'APPLY_TO_DRAFT',
+          prompt_hash: 'a'.repeat(64),
+          output_hash: 'b'.repeat(64),
+          human_reviewed: true,
+          evidence_refs: ['review-ticket-1'],
+          created_at: '2026-05-18T12:00:00Z',
+        },
+        {
+          id: 'audit-unreviewed',
+          policy_key: 'draft-content',
+          policy_version: 'v3',
+          decision: 'REVIEW_REQUIRED',
+          requested_action: 'APPLY_TO_DRAFT',
+          output_hash: 'c'.repeat(64),
+          human_reviewed: false,
+          evidence_refs: ['review-ticket-2'],
+          created_at: '2026-05-18T11:00:00Z',
+        },
+      ]));
     }
     if (path === '/templates/tpl-1/render' && method === 'POST') {
       seen.renderPayload = JSON.parse(request.postData() || '{}') as Record<string, unknown>;
@@ -353,6 +406,46 @@ test('template module exposes library controls and command-center QA flow', asyn
 
   await page.getByRole('tab', { name: 'Preview & QA' }).click();
   await expect(page.getByTestId('template-preview-frame')).toContainText('Rendered launch QA');
+});
+
+test('template studio applies only reviewed AI draft evidence through hash contract', async ({ page }) => {
+  const seen: SeenRequests = {};
+  await mockTemplateStudioApis(page, seen, { uiMode: 'ADVANCED' });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  await page.goto('/app/email/templates/tpl-1', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Template Studio' })).toBeVisible({ timeout: 45_000 });
+
+  const aiPanel = page.getByTestId('reviewed-ai-draft-panel');
+  await expect(aiPanel).toBeVisible();
+  await expect(aiPanel.getByTestId('reviewed-ai-draft-select')).toHaveValue('audit-approved');
+  await expect(aiPanel.getByText('1 audit record hidden by review/hash checks.')).toBeVisible();
+  await expect(aiPanel.getByText('No audit')).toBeVisible();
+
+  await aiPanel.getByTestId('reviewed-ai-draft-apply').click();
+  await expect.poll(() => (seen.draftPayloads ?? []).some((payload) => Boolean(payload.aiAssistance))).toBeTruthy();
+
+  const firstAiDraftPayload = (seen.draftPayloads ?? []).find((payload) => Boolean(payload.aiAssistance)) ?? {};
+  const aiAssistance = firstAiDraftPayload.aiAssistance as Record<string, unknown>;
+  expect(aiAssistance).toEqual({
+    auditId: 'audit-approved',
+    policyKey: 'draft-content',
+    policyVersion: 'v3',
+    decision: 'APPROVED_DRAFT_ONLY',
+    requestedAction: 'APPLY_TO_DRAFT',
+    promptHash: 'a'.repeat(64),
+    outputHash: 'b'.repeat(64),
+    humanReviewed: true,
+    evidenceRefs: ['review-ticket-1'],
+  });
+  expect(JSON.stringify(firstAiDraftPayload)).not.toContain('review-ticket-2');
+  expect(seen.updatePayloads?.[0]?.metadata).toBeUndefined();
+
+  await expect(aiPanel.getByText('audit-approved')).toBeVisible();
+  await aiPanel.getByTestId('reviewed-ai-draft-revert').click();
+  await expect.poll(() => (seen.draftPayloads ?? []).length).toBeGreaterThan(1);
+  const lastDraftPayload = seen.draftPayloads?.[seen.draftPayloads.length - 1] ?? {};
+  expect(lastDraftPayload.aiAssistance).toBeUndefined();
 });
 
 test('template library scopes favorites and recents by tenant and workspace', async ({ page }) => {

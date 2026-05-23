@@ -132,7 +132,7 @@ export interface WorkflowRunStep {
   version?: number;
 }
 
-export type AutomationActivityType = 'SQL_QUERY' | 'FILE_DROP' | 'IMPORT' | 'EXTRACT' | 'SCRIPT' | 'WEBHOOK' | 'NOTIFICATION';
+export type AutomationActivityType = 'SQL_QUERY' | 'FILE_DROP' | 'IMPORT' | 'EXTRACT' | 'SCRIPT' | 'WEBHOOK' | 'NOTIFICATION' | 'SEND_EMAIL';
 export type AutomationActivityStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 export type AutomationFailurePolicy = 'STOP_ON_FAILURE' | 'SKIP_DEPENDENTS' | 'CONTINUE_INDEPENDENT';
 
@@ -161,7 +161,7 @@ export interface AutomationActivity {
 export interface AutomationActivityRun {
   id: string;
   activityId: string;
-  status: 'VERIFIED' | 'SUCCEEDED' | 'FAILED';
+  status: 'VERIFIED' | 'SUCCEEDED' | 'FAILED' | 'LOCKED';
   dryRun: boolean;
   triggerSource?: string;
   rowsRead?: number;
@@ -170,6 +170,11 @@ export interface AutomationActivityRun {
   errorCode?: string;
   errorMessage?: string;
   idempotencyKey?: string;
+  retryAfterSeconds?: number;
+  lockedUntil?: string;
+  lockOwnerRunId?: string;
+  operatorOverride?: boolean;
+  overrideReason?: string;
   dependencyTrace?: Record<string, unknown>;
   result?: Record<string, unknown>;
   startedAt?: string;
@@ -244,7 +249,15 @@ export const createAutomationActivity = async (payload: {
 }) => post<AutomationActivity>('/automation-studio/activities', payload);
 export const verifyAutomationActivity = async (id: string) =>
   post<AutomationVerificationResponse>(`/automation-studio/activities/${id}/verify`, {});
-export const runAutomationActivity = async (id: string, payload: { dryRun?: boolean; confirmLiveRun?: boolean; idempotencyKey?: string; triggerSource?: string; overrides?: Record<string, unknown> }) =>
+export const runAutomationActivity = async (id: string, payload: {
+  dryRun?: boolean;
+  confirmLiveRun?: boolean;
+  idempotencyKey?: string;
+  triggerSource?: string;
+  operatorOverride?: boolean;
+  overrideReason?: string;
+  overrides?: Record<string, unknown>;
+}) =>
   post<AutomationActivityRun>(`/automation-studio/activities/${id}/runs`, payload);
 export const listAutomationActivityRuns = async (id: string, limit = 50) =>
   get<AutomationActivityRun[]>(`/automation-studio/activities/${id}/runs?limit=${limit}`);

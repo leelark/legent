@@ -9,18 +9,18 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.2.5</version>
-        <relativePath/> 
-    </parent> 
- 
-    <groupId>com.legent</groupId> 
+        <relativePath/>
+    </parent>
+
+    <groupId>com.legent</groupId>
     <artifactId>legent-email-studio</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
- 
+
     <name>Legent Email Studio</name>
     <description>Enterprise Email Marketing Platform — Monorepo Parent</description>
 
-    <modules>  
+    <modules>
         <!-- Shared Libraries -->
         <module>shared/legent-common</module>
         <module>shared/legent-security</module>
@@ -37,8 +37,8 @@
         <module>services/tracking-service</module>
         <module>services/automation-service</module>
         <module>services/deliverability-service</module>
-        <module>services/platform-service</module> 
-    </modules> 
+        <module>services/platform-service</module>
+    </modules>
     <properties>
         <java.version>21</java.version>
         <maven.compiler.source>21</maven.compiler.source>
@@ -50,7 +50,7 @@
         <spring-kafka.version>3.1.4</spring-kafka.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <lombok.version>1.18.32</lombok.version>
-        
+
         <jackson.version>2.17.0</jackson.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <micrometer.version>1.12.5</micrometer.version>
@@ -63,6 +63,11 @@
         <!-- Plugin Versions -->
         <maven-compiler-plugin.version>3.13.0</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.2.5</maven-surefire-plugin.version>
+        <maven-failsafe-plugin.version>3.2.5</maven-failsafe-plugin.version>
+        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+        <jacocoArgLine></jacocoArgLine>
+        <skipITs>true</skipITs>
+        <legent.integration-tests.enabled>false</legent.integration-tests.enabled>
     </properties>
 
     <dependencyManagement>
@@ -159,11 +164,113 @@
         </dependencies>
     </dependencyManagement>
 
+    <profiles>
+        <profile>
+            <id>integration-tests</id>
+            <activation>
+                <property>
+                    <name>skipITs</name>
+                    <value>false</value>
+                </property>
+            </activation>
+            <properties>
+                <skipITs>false</skipITs>
+                <legent.integration-tests.enabled>true</legent.integration-tests.enabled>
+            </properties>
+        </profile>
+        <profile>
+            <id>coverage</id>
+            <properties>
+                <legent.coverage.minimum.instruction>0.01</legent.coverage.minimum.instruction>
+                <legent.coverage.minimum.line>0.01</legent.coverage.minimum.line>
+                <legent.coverage.minimum.branch>0.00</legent.coverage.minimum.branch>
+                <legent.coverage.minimum.method>0.01</legent.coverage.minimum.method>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jacoco</groupId>
+                        <artifactId>jacoco-maven-plugin</artifactId>
+                        <version>${jacoco-maven-plugin.version}</version>
+                        <configuration>
+                            <propertyName>jacocoArgLine</propertyName>
+                            <excludes>
+                                <exclude>**/*Application*</exclude>
+                                <exclude>**/*MapperImpl*</exclude>
+                                <exclude>**/dto/**</exclude>
+                                <exclude>**/*Dto*</exclude>
+                                <exclude>**/*DTO*</exclude>
+                                <exclude>**/*RequestDto*</exclude>
+                                <exclude>**/*ResponseDto*</exclude>
+                                <exclude>**/*Repository*</exclude>
+                            </excludes>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>prepare-agent</id>
+                                <goals>
+                                    <goal>prepare-agent</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>report</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>report</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>check</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>check</goal>
+                                </goals>
+                                <configuration>
+                                    <rules>
+                                        <rule>
+                                            <element>BUNDLE</element>
+                                            <limits>
+                                                <limit>
+                                                    <counter>INSTRUCTION</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>${legent.coverage.minimum.instruction}</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>LINE</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>${legent.coverage.minimum.line}</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>BRANCH</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>${legent.coverage.minimum.branch}</minimum>
+                                                </limit>
+                                                <limit>
+                                                    <counter>METHOD</counter>
+                                                    <value>COVEREDRATIO</value>
+                                                    <minimum>${legent.coverage.minimum.method}</minimum>
+                                                </limit>
+                                            </limits>
+                                        </rule>
+                                    </rules>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
     <build>
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
             </plugin>
         </plugins>
         <pluginManagement>
@@ -199,8 +306,42 @@
                     <artifactId>maven-surefire-plugin</artifactId>
                     <version>${maven-surefire-plugin.version}</version>
                     <configuration>
-                        <argLine>-XX:+EnableDynamicAgentLoading -Xshare:off</argLine>
+                        <argLine>@{jacocoArgLine} -XX:+EnableDynamicAgentLoading -Xshare:off</argLine>
+                        <excludes>
+                            <exclude>**/*IT.java</exclude>
+                            <exclude>**/*ITCase.java</exclude>
+                            <exclude>**/*IntegrationTest.java</exclude>
+                        </excludes>
+                        <systemPropertyVariables>
+                            <legent.integration-tests.enabled>false</legent.integration-tests.enabled>
+                        </systemPropertyVariables>
                     </configuration>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-failsafe-plugin</artifactId>
+                    <version>${maven-failsafe-plugin.version}</version>
+                    <configuration>
+                        <argLine>@{jacocoArgLine} -XX:+EnableDynamicAgentLoading -Xshare:off</argLine>
+                        <skipITs>${skipITs}</skipITs>
+                        <failIfNoTests>false</failIfNoTests>
+                        <includes>
+                            <include>**/*IT.java</include>
+                            <include>**/*ITCase.java</include>
+                            <include>**/*IntegrationTest.java</include>
+                        </includes>
+                        <systemPropertyVariables>
+                            <legent.integration-tests.enabled>${legent.integration-tests.enabled}</legent.integration-tests.enabled>
+                        </systemPropertyVariables>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>integration-test</goal>
+                                <goal>verify</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
             </plugins>
         </pluginManagement>

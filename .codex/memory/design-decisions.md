@@ -134,4 +134,48 @@ Decision: queue.json is the source of truth for actionable 100 percent readiness
 
 Rationale: verbose completed narratives made active memory stale and hid local READY/BACKLOG work behind external blockers. Compact memory keeps the autonomous loop selectable while preserving detailed history in durable artifacts.
 
-Impact: active memory now lists 15 READY, 20 BACKLOG, and 16 BLOCKED queue items, and stale DONE/IN_PROGRESS drift is removed from the queue. Production, high-volume, provider, AI, and parity claims remain evidence-bound.
+Impact: active memory tracks current queue counts, and stale DONE/IN_PROGRESS drift is removed from the queue. Production, high-volume, provider, AI, and parity claims remain evidence-bound.
+
+## 2026-05-23 AI Provider Contract Boundary
+
+Source: `AiProviderContractMeteringService.java`, `AiProviderContractRequest.java`, `AiProviderMeteringRequest.java`, `V18__ai_provider_contract_metering.sql`, `AiProviderContractMeteringServiceTest.java`, and focused foundation-service validation.
+
+Decision: Legent may persist tenant/workspace-scoped AI provider contracts and metering events with provider disclosure, model name, data-class policy, unit/cost fields, retention/cost policy, kill switch, and hash-only evidence policy, but this remains a control plane only.
+
+Rationale: provider-backed AI work must have policy, disclosure, metering, and fail-closed kill-switch behavior before any credentials, prompt assembly, or model calls are introduced.
+
+Impact: metering evaluation records `providerInvoked=false`, `modelInvocation=NOT_PERFORMED`, and denied decisions for missing/incomplete disclosure, disabled metering, kill switch, provider mismatch, data-class blocks, or unit-limit breaches. No live provider call or AI parity claim is supported by this local slice.
+
+## 2026-05-23 Automation Activity Lock Boundary
+
+Source: `AutomationActivityLockService.java`, `V9__automation_activity_lock_policy.sql`, `AutomationStudioService.java`, `AutomationStudioServiceTest.java`, `AutomationActivityLockServiceTest.java`, `frontend/src/app/(workspace)/automation/page.tsx`, and targeted backend/frontend validation.
+
+Decision: Automation Studio live activity runs must acquire a tenant/workspace/activity lock before side effects. Concurrent active locks return a persisted `LOCKED` run response with retry-after and owner metadata. Operator override requires an explicit reason and records the override in the lock ledger and UI payload.
+
+Rationale: live automation actions can move data, dispatch webhooks, or notify operators; concurrent execution without a visible lock policy can duplicate side effects and obscure operator accountability.
+
+Impact: dry runs and verification remain available for safe validation, live runs are gated by lock acquisition, the UI only enables override after a lock is visible, and production release still requires target audit/RBAC evidence before claiming operational readiness.
+
+## 2026-05-23 Segment Builder v2 Taxonomy Boundary
+
+Source: `docs/product/salesforce-parity-matrix.md`, `docs/product/competitor-research/2026-05-20-competitor-capability-scan.md`, `frontend/src/components/audience/SegmentRuleBuilder.tsx`, official Salesforce/Klaviyo/Mailchimp/Braze segmentation sources checked on 2026-05-23, and read-only subagent findings.
+
+Decision: Segment Builder v2 may define a docs-only taxonomy for static, membership, data-extension, behavioral, computed, consent/suppression/send-eligibility, geography/timezone, null/missing, and nested boolean rules. This taxonomy is not execution proof, UI proof, Salesforce parity, or production-scale segmentation evidence.
+
+Rationale: current UI exposes only a small scalar/list field set, stringified values, and first-level groups, while backend and market comparison need typed operators, safety precedence, relationship metadata, event aggregation, and explain semantics before broad implementation.
+
+Impact: execution, recompute scheduling, preview/explain, relationship indexes, governance locks, and mode-aware UI remain separate backlog items. Safety predicates must fail closed and override inclusion rules.
+
+## 2026-05-23 Audience Resolution Chunk Handoff Boundary
+
+Source: `AudienceResolutionConsumer.java`, `AudienceResolutionChunkService.java`, `AudienceResolutionChunkController.java`, `CampaignEventConsumer.java`, `AudienceResolutionClient.java`, `EventContractValidator.java`, `V20__audience_resolution_chunks.sql`, and Maven validation on 2026-05-23.
+
+Decision: `send.audience.resolved` schema v1 remains compatible with inline `subscribers`, while schema v2 is metadata-only and must reference audience-owned durable chunk storage through `chunkId`, `chunkReferenceType`, `subscriberStorage`, and `chunkUri`.
+
+Rationale: high-volume Kafka events should not carry full recipient lists. Campaign must hydrate recipients through an audience-owned internal API rather than reading the audience database directly, then continue persisting campaign-owned `send_batch_recipients` before delivery.
+
+Impact: audience-service persists bounded resolved chunks in `audience_resolution_chunks`, publishes schema-v2 references with chunk-aware partition keys, and exposes an internal token-protected chunk read API. Campaign-service reads referenced chunks through `AudienceResolutionClient` and keeps schema-v1 inline subscriber support for rolling compatibility.
+
+Follow-up: local tests prove the contract path only. Production/high-volume claims still require target broker/runtime/load evidence, chunk retention policy evidence, and provider-approved throughput proof.
+
+Decision update rule: add only durable decisions with source, rationale, impact, and validation or follow-up.

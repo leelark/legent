@@ -84,7 +84,7 @@ export function PerformanceIntelligencePanel() {
         policyKey: 'performance-revenue-consent-policy',
         name: 'Revenue and Consent Policy',
         optimizationType: 'REVENUE',
-        objective: 'Optimize revenue while consent guardrails win.',
+        objective: 'Evaluate revenue impact while consent guardrails remain enforced.',
         targetMetric: 'revenue_per_consenting_recipient',
         guardrails: { minConsentCoveragePercent: 95, maxOptOutRatePercent: 2 },
         rollbackPolicy: { snapshotRequired: true },
@@ -141,7 +141,7 @@ export function PerformanceIntelligencePanel() {
   return (
     <AdminPanel
       title="Performance Intelligence"
-      subtitle="Realtime personalization, closed-loop optimization, governed extensibility, operations assistance, and Salesforce workflow benchmarks."
+      subtitle="Evidence-led personalization reviews, governed optimization policy checks, extensibility validation, operations assistance, and Salesforce comparison baselines."
       action={(
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={load} loading={loading} icon={<RefreshCcw className="h-4 w-4" />}>
@@ -173,7 +173,7 @@ export function PerformanceIntelligencePanel() {
               lines={[
                 'Every evaluation writes tenant/workspace evidence',
                 'Approval and rollback flags included in optimization runs',
-                'Benchmarks compare against Salesforce MCE baseline',
+                'Demo benchmarks store Salesforce MCE comparison baselines when evidence is attached',
               ]}
             />
           </div>

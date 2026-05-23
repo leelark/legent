@@ -219,7 +219,7 @@ export function GlobalEnterprisePanel() {
   return (
     <AdminPanel
       title="Global Ops"
-      subtitle="Region topology, data residency, encryption policy, governance evidence, marketplace connectors, and autonomous optimization approvals."
+      subtitle="Region topology, data residency, encryption policy, governance evidence, marketplace connectors, and operator-approved optimization recommendations."
       action={
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={load} loading={loading} icon={<RefreshCcw className="h-4 w-4" />}>
@@ -295,7 +295,7 @@ export function GlobalEnterprisePanel() {
             />
             <SignalCard
               icon={Bot}
-              title="Autonomous Optimization"
+              title="Optimization Recommendations"
               status={latestRecommendation.status || 'SUGGEST_ONLY'}
               lines={[
                 `${summary.optimizationPolicies.length} policies`,
@@ -337,7 +337,7 @@ export function GlobalEnterprisePanel() {
               </div>
               <div className="mt-4 space-y-2">
                 <PolicyLine label="Default topology" value="ACTIVE_WARM" />
-                <PolicyLine label="Auto apply" value="guardrail gated" />
+                <PolicyLine label="Apply mode" value="guardrail gated" />
                 <PolicyLine label="Connector traffic" value="dry-run first" />
                 <PolicyLine label="Residency missing" value="fail closed" />
               </div>

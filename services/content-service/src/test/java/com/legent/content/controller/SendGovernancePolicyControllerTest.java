@@ -94,6 +94,7 @@ class SendGovernancePolicyControllerTest {
 
         assertThat(response.getData().getPolicyKey()).isEqualTo("promo.default");
         assertThat(response.getData().getCommercial()).isTrue();
+        assertThat(response.getData().getVersion()).isZero();
         verify(service).get("tenant-1", "workspace-1", "policy-1");
     }
 

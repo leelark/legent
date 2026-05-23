@@ -27,6 +27,8 @@ public class CorePlatformRepository {
             "ai_content_assistance_audits",
             "ai_content_assistance_policies",
             "ai_copilot_recommendations",
+            "ai_provider_contracts",
+            "ai_provider_metering_events",
             "autonomous_optimization_policies",
             "autonomous_optimization_recommendations",
             "autonomous_optimization_rollbacks",
@@ -86,6 +88,7 @@ public class CorePlatformRepository {
     private static final Set<String> ALLOWED_DYNAMIC_KEY_COLUMNS = Set.of(
             "app_key",
             "connector_key",
+            "contract_key",
             "flow_key",
             "hold_key",
             "instance_key",

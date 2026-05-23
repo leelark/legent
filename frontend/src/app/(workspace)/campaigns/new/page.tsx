@@ -12,6 +12,13 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { ArrowRight, ArrowLeft, CheckCircle, CircleNotch, PaperPlaneTilt } from '@phosphor-icons/react';
 import { get } from '@/lib/api-client';
+import { listDomains, type DeliverabilityDomain } from '@/lib/deliverability-api';
+import { listProviderHealth, listProviders, type Provider } from '@/lib/providers-api';
+import {
+  listSendGovernancePolicies,
+  sendGovernancePolicyItems,
+  type SendGovernancePolicy,
+} from '@/lib/send-governance-policy-api';
 import { CAMPAIGN_WORKFLOW_MODE_FEATURES, isModeFeatureVisible } from '@/lib/ui-mode-contract';
 import {
   type Campaign,
@@ -56,6 +63,43 @@ type AudienceApiItem = {
   name?: string;
 };
 
+type ProviderHealthItem = {
+  id: string;
+  healthStatus?: string;
+  isActive?: boolean;
+  active?: boolean;
+};
+
+type SenderDomainOption = {
+  id: string;
+  domainName: string;
+  status: string;
+  active: boolean;
+  spfVerified?: boolean;
+  dkimVerified?: boolean;
+  dmarcVerified?: boolean;
+};
+
+type SendGovernancePolicyApiItem = SendGovernancePolicy & {
+  policy_key?: string;
+  publication_policy?: string;
+  unsubscribe_policy?: string;
+  send_log_retention_days?: number;
+  provider_id?: string;
+  sending_domain?: string;
+  created_at?: string;
+  updated_at?: string;
+  is_active?: boolean;
+};
+
+type ReadinessTone = 'ready' | 'warning' | 'blocked';
+
+type ReadinessCheck = {
+  label: string;
+  tone: ReadinessTone;
+  message: string;
+};
+
 type CloneCampaign = Campaign & {
   contentId?: string;
 };
@@ -98,6 +142,203 @@ function getErrorMessage(error: unknown, fallback: string) {
   return typeof message === 'string' && message.trim() ? message : fallback;
 }
 
+function asText(value: unknown, fallback = '') {
+  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
+}
+
+function asBoolean(value: unknown, fallback = true) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    if (value.toLowerCase() === 'true') return true;
+    if (value.toLowerCase() === 'false') return false;
+  }
+  return fallback;
+}
+
+function asNumber(value: unknown, fallback = 0) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function normalizeProvider(provider: Provider): Provider {
+  const record = provider as Provider & { active?: boolean };
+  return {
+    ...provider,
+    isActive: asBoolean(record.isActive ?? record.active, true),
+    healthStatus: asText(record.healthStatus, 'UNKNOWN'),
+  };
+}
+
+function normalizeDomain(domain: DeliverabilityDomain): SenderDomainOption | null {
+  const id = asText(domain.id);
+  const domainName = asText(domain.domainName ?? domain.domain_name ?? domain.domain);
+  if (!domainName) {
+    return null;
+  }
+  return {
+    id: id || domainName,
+    domainName,
+    status: asText(domain.status, 'UNKNOWN').toUpperCase(),
+    active: asBoolean(domain.isActive ?? domain.active, true),
+    spfVerified: typeof domain.spfVerified === 'boolean' ? domain.spfVerified : undefined,
+    dkimVerified: typeof domain.dkimVerified === 'boolean' ? domain.dkimVerified : undefined,
+    dmarcVerified: typeof domain.dmarcVerified === 'boolean' ? domain.dmarcVerified : undefined,
+  };
+}
+
+function normalizeSendGovernancePolicy(policy: SendGovernancePolicy): SendGovernancePolicy {
+  const record = policy as SendGovernancePolicyApiItem;
+  const retentionDays = asNumber(policy.sendLogRetentionDays ?? record.send_log_retention_days);
+  const version = asNumber(policy.version);
+  return {
+    ...policy,
+    policyKey: asText(policy.policyKey ?? record.policy_key, policy.id),
+    name: asText(policy.name, policy.policyKey ?? record.policy_key ?? policy.id),
+    publicationPolicy: asText(policy.publicationPolicy ?? record.publication_policy, 'APPROVED_CONTENT_REQUIRED'),
+    unsubscribePolicy: asText(policy.unsubscribePolicy ?? record.unsubscribe_policy, 'REQUIRED'),
+    sendLogRetentionDays: retentionDays || undefined,
+    providerId: asText(policy.providerId ?? record.provider_id, ''),
+    sendingDomain: asText(policy.sendingDomain ?? record.sending_domain, ''),
+    active: asBoolean(policy.active ?? record.is_active, true),
+    trackingAllowed: asBoolean(policy.trackingAllowed, true),
+    suppressionRequired: asBoolean(policy.suppressionRequired, true),
+    consentRequired: asBoolean(policy.consentRequired, false),
+    version: version || undefined,
+    createdAt: asText(policy.createdAt ?? record.created_at, ''),
+    updatedAt: asText(policy.updatedAt ?? record.updated_at, ''),
+  };
+}
+
+function healthForProvider(provider: Provider | undefined, providerHealth: ProviderHealthItem[]) {
+  if (!provider) {
+    return undefined;
+  }
+  return providerHealth.find((item) => item.id === provider.id);
+}
+
+function evaluateProviderReadiness(providerId: string, provider: Provider | undefined, health: ProviderHealthItem | undefined, catalogDegraded: boolean): ReadinessCheck {
+  if (!providerId) {
+    return { label: 'Provider missing', tone: 'blocked', message: 'Choose an active provider before approval or launch.' };
+  }
+  if (!provider) {
+    return {
+      label: 'Provider unknown',
+      tone: catalogDegraded ? 'warning' : 'blocked',
+      message: catalogDegraded ? 'Provider catalog could not be refreshed; launch readiness must verify it.' : 'Selected provider is not in the current workspace catalog.',
+    };
+  }
+  if (!provider.isActive || health?.isActive === false || health?.active === false) {
+    return { label: 'Provider blocked', tone: 'blocked', message: 'Selected provider is inactive.' };
+  }
+  const status = String(health?.healthStatus ?? provider.healthStatus ?? 'UNKNOWN').toUpperCase();
+  if (status === 'HEALTHY') {
+    return { label: 'Provider ready', tone: 'ready', message: `${provider.name || provider.id} is active and healthy.` };
+  }
+  if (status === 'DEGRADED' || status === 'UNKNOWN') {
+    return { label: 'Provider warning', tone: 'warning', message: `${provider.name || provider.id} status is ${status.toLowerCase()}; launch preflight must pass.` };
+  }
+  return { label: 'Provider blocked', tone: 'blocked', message: `${provider.name || provider.id} health is ${status.toLowerCase()}.` };
+}
+
+function evaluateDomainReadiness(domainName: string, domain: SenderDomainOption | undefined, catalogDegraded: boolean): ReadinessCheck {
+  if (!domainName) {
+    return { label: 'Domain missing', tone: 'blocked', message: 'Choose a verified sending domain before approval or launch.' };
+  }
+  if (!domain) {
+    return {
+      label: 'Domain unknown',
+      tone: catalogDegraded ? 'warning' : 'blocked',
+      message: catalogDegraded ? 'Domain catalog could not be refreshed; launch readiness must verify it.' : 'Selected domain is not in the current deliverability catalog.',
+    };
+  }
+  if (!domain.active) {
+    return { label: 'Domain blocked', tone: 'blocked', message: `${domain.domainName} is inactive.` };
+  }
+  if (domain.status !== 'VERIFIED') {
+    return { label: 'Domain blocked', tone: 'blocked', message: `${domain.domainName} is ${domain.status.toLowerCase()}, not verified.` };
+  }
+  const dnsChecks = [domain.spfVerified, domain.dkimVerified, domain.dmarcVerified].filter((value) => value !== undefined);
+  if (dnsChecks.some((value) => value === false)) {
+    return { label: 'Domain warning', tone: 'warning', message: `${domain.domainName} is verified, but at least one DNS authentication check is incomplete.` };
+  }
+  return { label: 'Domain ready', tone: 'ready', message: `${domain.domainName} is verified for this workspace.` };
+}
+
+function senderAlignmentReadiness(senderEmail: string, sendingDomain: string): ReadinessCheck {
+  const senderDomain = senderEmail.includes('@') ? senderEmail.split('@').pop()?.toLowerCase() : '';
+  if (!senderEmail || !sendingDomain || !senderDomain) {
+    return { label: 'Sender alignment pending', tone: 'warning', message: 'Add a sender email using the selected sending domain before approval.' };
+  }
+  if (senderDomain === sendingDomain.toLowerCase()) {
+    return { label: 'Sender aligned', tone: 'ready', message: `Sender email aligns with ${sendingDomain}.` };
+  }
+  return { label: 'Sender warning', tone: 'warning', message: `Sender email domain ${senderDomain} does not match ${sendingDomain}.` };
+}
+
+function policyValueLabel(value: unknown, fallback = 'Not set') {
+  const text = asText(value, fallback);
+  return text.replaceAll('_', ' ');
+}
+
+function policyDisplayName(policy: SendGovernancePolicy | undefined) {
+  if (!policy) {
+    return '';
+  }
+  const label = asText(policy.name, policy.policyKey || policy.id);
+  return policy.version ? `${label} v${policy.version}` : label;
+}
+
+function evaluatePolicyReadiness(
+  policyId: string,
+  policy: SendGovernancePolicy | undefined,
+  catalogDegraded: boolean,
+  trackingEnabled: boolean,
+  complianceEnabled: boolean,
+  approvalRequired: boolean
+): ReadinessCheck {
+  if (!policyId) {
+    return { label: 'Policy missing', tone: 'blocked', message: 'Choose an active send-governance policy before approval or launch.' };
+  }
+  if (!policy) {
+    return {
+      label: 'Policy unknown',
+      tone: catalogDegraded ? 'warning' : 'blocked',
+      message: catalogDegraded ? 'Policy catalog could not be refreshed; launch readiness must verify it.' : 'Selected policy is not in the current workspace catalog.',
+    };
+  }
+  if (policy.active === false) {
+    return { label: 'Policy blocked', tone: 'blocked', message: `${policyDisplayName(policy)} is inactive.` };
+  }
+  if (policy.suppressionRequired && !complianceEnabled) {
+    return { label: 'Policy blocked', tone: 'blocked', message: 'Selected policy requires suppression checks, but campaign compliance checks are disabled.' };
+  }
+  if (policy.trackingAllowed === false && trackingEnabled) {
+    return { label: 'Policy blocked', tone: 'blocked', message: 'Selected policy disallows tracking, but campaign tracking is enabled.' };
+  }
+  if (asText(policy.publicationPolicy).includes('APPROVED') && !approvalRequired) {
+    return { label: 'Policy warning', tone: 'warning', message: `${policyDisplayName(policy)} expects approved content; approval is optional on this campaign.` };
+  }
+  return {
+    label: 'Policy ready',
+    tone: 'ready',
+    message: `${policyDisplayName(policy)} is active with ${policyValueLabel(policy.publicationPolicy, 'policy')} publication rules.`,
+  };
+}
+
+function readinessVariant(tone: ReadinessTone): 'success' | 'warning' | 'danger' {
+  if (tone === 'ready') return 'success';
+  if (tone === 'warning') return 'warning';
+  return 'danger';
+}
+
 export default function CampaignWizardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -111,6 +352,12 @@ export default function CampaignWizardPage() {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [audiences, setAudiences] = useState<AudienceItem[]>([]);
   const [selectedAudienceId, setSelectedAudienceId] = useState('');
+  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providerHealth, setProviderHealth] = useState<ProviderHealthItem[]>([]);
+  const [domains, setDomains] = useState<SenderDomainOption[]>([]);
+  const [policies, setPolicies] = useState<SendGovernancePolicy[]>([]);
+  const [readinessDegraded, setReadinessDegraded] = useState(false);
+  const [policyCatalogDegraded, setPolicyCatalogDegraded] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
@@ -122,6 +369,7 @@ export default function CampaignWizardPage() {
     templateId: '',
     providerId: '',
     sendingDomain: '',
+    sendGovernancePolicyId: '',
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
     frequencyCap: 0,
     approvalRequired: true,
@@ -163,6 +411,12 @@ export default function CampaignWizardPage() {
           get<PagedApiResponse<AudienceApiItem> | AudienceApiItem[]>('/lists?page=0&size=100'),
           get<PagedApiResponse<AudienceApiItem> | AudienceApiItem[]>('/segments?page=0&size=100'),
         ]);
+        const [providerRes, healthRes, domainRes, policyRes] = await Promise.allSettled([
+          listProviders(false),
+          listProviderHealth(),
+          listDomains(),
+          listSendGovernancePolicies(0, 100),
+        ]);
 
         const templateItems = asArray<TemplateApiItem>(templateRes).map((item) => ({
           id: item.id,
@@ -182,6 +436,23 @@ export default function CampaignWizardPage() {
           type: 'SEGMENT' as const,
         }));
         setAudiences([...listItems, ...segmentItems]);
+        const providerItems = providerRes.status === 'fulfilled' ? asArray<Provider>(providerRes.value).map(normalizeProvider) : [];
+        const healthItems = healthRes.status === 'fulfilled' ? asArray<ProviderHealthItem>(healthRes.value) : [];
+        const domainItems = domainRes.status === 'fulfilled'
+          ? asArray<DeliverabilityDomain>(domainRes.value).flatMap((item) => {
+            const domain = normalizeDomain(item);
+            return domain ? [domain] : [];
+          })
+          : [];
+        const policyItems = policyRes.status === 'fulfilled'
+          ? sendGovernancePolicyItems(policyRes.value).map(normalizeSendGovernancePolicy)
+          : [];
+        setProviders(providerItems);
+        setProviderHealth(healthItems);
+        setDomains(domainItems);
+        setPolicies(policyItems);
+        setReadinessDegraded([providerRes, healthRes, domainRes].some((result) => result.status === 'rejected'));
+        setPolicyCatalogDegraded(policyRes.status === 'rejected');
 
         if (cloneId) {
           const campaign = await getCampaign(cloneId);
@@ -196,6 +467,7 @@ export default function CampaignWizardPage() {
             templateId: campaign.templateId || (campaign as CloneCampaign).contentId || '',
             providerId: campaign.providerId || '',
             sendingDomain: campaign.sendingDomain || '',
+            sendGovernancePolicyId: campaign.sendGovernancePolicyId || '',
             timezone: campaign.timezone || current.timezone,
             frequencyCap: campaign.frequencyCap || 0,
             approvalRequired: campaign.approvalRequired ?? true,
@@ -226,6 +498,53 @@ export default function CampaignWizardPage() {
     const map = new Map(audiences.map((item) => [item.id, item]));
     return form.audiences.map((audience) => map.get(audience.audienceId)?.name || audience.audienceId);
   }, [audiences, form.audiences]);
+  const selectedProvider = useMemo(
+    () => providers.find((provider) => provider.id === form.providerId),
+    [providers, form.providerId]
+  );
+  const selectedProviderHealth = useMemo(
+    () => healthForProvider(selectedProvider, providerHealth),
+    [selectedProvider, providerHealth]
+  );
+  const selectedDomain = useMemo(
+    () => domains.find((domain) => domain.domainName === form.sendingDomain),
+    [domains, form.sendingDomain]
+  );
+  const selectedPolicy = useMemo(
+    () => policies.find((policy) => policy.id === form.sendGovernancePolicyId),
+    [form.sendGovernancePolicyId, policies]
+  );
+  const providerReadiness = useMemo(
+    () => evaluateProviderReadiness(form.providerId, selectedProvider, selectedProviderHealth, readinessDegraded),
+    [form.providerId, readinessDegraded, selectedProvider, selectedProviderHealth]
+  );
+  const domainReadiness = useMemo(
+    () => evaluateDomainReadiness(form.sendingDomain, selectedDomain, readinessDegraded),
+    [form.sendingDomain, readinessDegraded, selectedDomain]
+  );
+  const senderReadiness = useMemo(
+    () => senderAlignmentReadiness(form.senderEmail, form.sendingDomain),
+    [form.senderEmail, form.sendingDomain]
+  );
+  const policyReadiness = useMemo(
+    () => evaluatePolicyReadiness(
+      form.sendGovernancePolicyId,
+      selectedPolicy,
+      policyCatalogDegraded,
+      form.trackingEnabled,
+      form.complianceEnabled,
+      form.approvalRequired
+    ),
+    [
+      form.approvalRequired,
+      form.complianceEnabled,
+      form.sendGovernancePolicyId,
+      form.trackingEnabled,
+      policyCatalogDegraded,
+      selectedPolicy,
+    ]
+  );
+  const deliveryReadinessBlocked = [providerReadiness, domainReadiness, policyReadiness].some((check) => check.tone === 'blocked');
 
   const toggleAudience = (audience: AudienceItem, action: 'INCLUDE' | 'EXCLUDE') => {
     const exists = form.audiences.find((item) => item.audienceId === audience.id && item.action === action);
@@ -254,6 +573,7 @@ export default function CampaignWizardPage() {
         replyToEmail: form.replyToEmail || undefined,
         providerId: form.providerId || undefined,
         sendingDomain: form.sendingDomain || undefined,
+        sendGovernancePolicyId: form.sendGovernancePolicyId || undefined,
         timezone: form.timezone || 'UTC',
         frequencyCap: form.frequencyCap || 0,
         approvalRequired: form.approvalRequired,
@@ -469,24 +789,62 @@ export default function CampaignWizardPage() {
                 onChange={(event) => setForm((current) => ({ ...current, replyToEmail: event.target.value }))}
                 placeholder="support@company.com"
               />
-              <Input
-                label="Provider ID"
-                value={form.providerId}
-                onChange={(event) => setForm((current) => ({ ...current, providerId: event.target.value }))}
-                placeholder="primary-smtp-provider"
-              />
-              <Input
-                label="Sending Domain"
-                value={form.sendingDomain}
-                onChange={(event) => setForm((current) => ({ ...current, sendingDomain: event.target.value }))}
-                placeholder="mail.company.com"
-              />
+              <div>
+                <label className="mb-1 block text-sm font-medium text-content-primary">Delivery Provider</label>
+                <select
+                  aria-label="Delivery Provider"
+                  value={form.providerId}
+                  onChange={(event) => setForm((current) => ({ ...current, providerId: event.target.value }))}
+                  className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                >
+                  <option value="">Select active provider</option>
+                  {providers.map((provider) => (
+                    <option key={provider.id} value={provider.id}>
+                      {provider.name || provider.id} ({provider.type}{provider.healthStatus ? `, ${provider.healthStatus}` : ''})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-content-primary">Sending Domain</label>
+                <select
+                  aria-label="Sending Domain"
+                  value={form.sendingDomain}
+                  onChange={(event) => setForm((current) => ({ ...current, sendingDomain: event.target.value }))}
+                  className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                >
+                  <option value="">Select verified domain</option>
+                  {domains.map((domain) => (
+                    <option key={domain.id} value={domain.domainName}>
+                      {domain.domainName} ({domain.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
               <Input
                 label="Timezone"
                 value={form.timezone}
                 onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))}
                 placeholder="UTC"
               />
+            </div>
+            <div className="px-6 pb-6">
+              <div data-testid="campaign-delivery-readiness" className="grid gap-3 md:grid-cols-3">
+                {[providerReadiness, domainReadiness, senderReadiness].map((check) => (
+                  <div key={check.label} className="rounded-lg border border-border-default bg-surface-secondary/60 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-content-primary">{check.label}</p>
+                      <Badge variant={readinessVariant(check.tone)}>
+                        {check.tone === 'ready' ? 'READY' : check.tone === 'warning' ? 'CHECK' : 'BLOCKED'}
+                      </Badge>
+                    </div>
+                    <p className="mt-2 text-xs leading-5 text-content-secondary">{check.message}</p>
+                  </div>
+                ))}
+              </div>
+              {readinessDegraded && (
+                <p className="mt-3 text-xs text-warning">Provider or domain readiness data could not be fully refreshed. Launch preflight remains authoritative.</p>
+              )}
             </div>
           </div>
         )}
@@ -615,6 +973,56 @@ export default function CampaignWizardPage() {
                 />
                 Compliance checks enabled
               </label>
+              <div
+                data-testid="campaign-governance-policy"
+                className="space-y-3 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2"
+              >
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <label className="mb-1 block text-sm font-medium text-content-primary">Send Governance Policy</label>
+                    <select
+                      aria-label="Send Governance Policy"
+                      value={form.sendGovernancePolicyId}
+                      onChange={(event) => setForm((current) => ({ ...current, sendGovernancePolicyId: event.target.value }))}
+                      className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                    >
+                      <option value="">Select active policy</option>
+                      {policies.map((policy) => (
+                        <option key={policy.id} value={policy.id} disabled={policy.active === false}>
+                          {policyDisplayName(policy)} ({policyValueLabel(policy.publicationPolicy)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <Badge variant={readinessVariant(policyReadiness.tone)}>
+                    {policyReadiness.tone === 'ready' ? 'READY' : policyReadiness.tone === 'warning' ? 'CHECK' : 'BLOCKED'}
+                  </Badge>
+                </div>
+                <div className="grid gap-2 text-xs md:grid-cols-4">
+                  <div className="rounded-lg border border-border-default bg-surface-primary p-3">
+                    <p className="font-semibold uppercase tracking-[0.12em] text-content-muted">Version</p>
+                    <p className="mt-1 font-medium text-content-primary">{selectedPolicy?.version ? `v${selectedPolicy.version}` : 'Not selected'}</p>
+                  </div>
+                  <div className="rounded-lg border border-border-default bg-surface-primary p-3">
+                    <p className="font-semibold uppercase tracking-[0.12em] text-content-muted">Approval</p>
+                    <p className="mt-1 font-medium text-content-primary">{policyValueLabel(selectedPolicy?.publicationPolicy)}</p>
+                  </div>
+                  <div className="rounded-lg border border-border-default bg-surface-primary p-3">
+                    <p className="font-semibold uppercase tracking-[0.12em] text-content-muted">Retention</p>
+                    <p className="mt-1 font-medium text-content-primary">{selectedPolicy?.sendLogRetentionDays ? `${selectedPolicy.sendLogRetentionDays} days` : 'Not selected'}</p>
+                  </div>
+                  <div className="rounded-lg border border-border-default bg-surface-primary p-3">
+                    <p className="font-semibold uppercase tracking-[0.12em] text-content-muted">Updated</p>
+                    <p className="mt-1 font-medium text-content-primary">
+                      {selectedPolicy?.updatedAt ? new Date(selectedPolicy.updatedAt).toLocaleDateString() : 'Not selected'}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs leading-5 text-content-secondary">{policyReadiness.message}</p>
+                {policyCatalogDegraded && (
+                  <p className="text-xs text-warning">Policy catalog could not be fully refreshed. Launch preflight remains authoritative.</p>
+                )}
+              </div>
               {showBudgetGuard && (
                 <div
                   className="grid gap-4 rounded-lg border border-border-default bg-surface-secondary/50 p-4 md:col-span-2 md:grid-cols-3"
@@ -830,6 +1238,32 @@ export default function CampaignWizardPage() {
                 </span>
               </div>
               <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Provider</span>
+                <span className="font-medium text-content-primary">
+                  {selectedProvider?.name || form.providerId || 'Not selected'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Sending Domain</span>
+                <span className="font-medium text-content-primary">{form.sendingDomain || 'Not selected'}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-content-secondary">Governance Policy</span>
+                <span className="font-medium text-content-primary">
+                  {policyDisplayName(selectedPolicy) || 'Not selected'}
+                </span>
+              </div>
+              <div className="grid gap-2 rounded-lg border border-border-default bg-surface-secondary/50 p-3 md:grid-cols-4">
+                {[providerReadiness, domainReadiness, senderReadiness, policyReadiness].map((check) => (
+                  <div key={check.label} className="flex items-center justify-between gap-2">
+                    <span className="text-content-secondary">{check.label}</span>
+                    <Badge variant={readinessVariant(check.tone)}>
+                      {check.tone === 'ready' ? 'READY' : check.tone === 'warning' ? 'CHECK' : 'BLOCKED'}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between">
                 <span className="text-content-secondary">Approval Policy</span>
                 <span className="font-medium text-content-primary">{form.approvalRequired ? 'Required' : 'Optional'}</span>
               </div>
@@ -888,13 +1322,13 @@ export default function CampaignWizardPage() {
             <Button
               variant="secondary"
               onClick={() => void handleCreate('APPROVAL')}
-              disabled={loading}
+              disabled={loading || deliveryReadinessBlocked}
             >
               Submit Approval
             </Button>
             <Button
               onClick={() => void handleCreate('SEND')}
-              disabled={loading || form.approvalRequired || (form.scheduleType === 'LATER' && !form.scheduleTime)}
+              disabled={loading || deliveryReadinessBlocked || form.approvalRequired || (form.scheduleType === 'LATER' && !form.scheduleTime)}
               icon={loading ? <CircleNotch size={16} className="animate-spin" /> : <PaperPlaneTilt size={16} />}
             >
               Launch Campaign

@@ -48,6 +48,18 @@ export type TemplateApproval = {
   updatedAt?: string;
 };
 
+export type AiDraftApplication = {
+  auditId: string;
+  policyKey: string;
+  policyVersion: string;
+  decision: 'APPROVED_DRAFT_ONLY';
+  requestedAction: 'APPLY_TO_DRAFT';
+  promptHash?: string;
+  outputHash: string;
+  humanReviewed: true;
+  evidenceRefs: string[];
+};
+
 export type Asset = {
   id: string;
   name: string;
@@ -327,7 +339,7 @@ export const publishTemplateVersion = async (templateId: string, versionNumber: 
 
 export const saveTemplateDraft = async (
   templateId: string,
-  payload: { subject?: string; htmlContent?: string; textContent?: string }
+  payload: { subject?: string; htmlContent?: string; textContent?: string; aiAssistance?: AiDraftApplication }
 ) => post<{ templateId: string; status: string }>(`/templates/${templateId}/draft`, payload);
 
 export const submitTemplateApproval = async (templateId: string, comments?: string) =>

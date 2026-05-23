@@ -1,0 +1,45 @@
+{
+    "id":  "deployment-manager-evidence-attachment-workflow",
+    "createdAt":  "2026-05-23T18:01:02.2094445Z",
+    "objective":  "Add Deployment Manager evidence attachment and local-check workflow",
+    "status":  "DONE",
+    "owner":  "RELEASE_MANAGER",
+    "filesInScope":  [
+                         "frontend/src/components/settings/EnterpriseSettingsConsole.tsx",
+                         "frontend/tests/e2e/admin.spec.ts",
+                         "docs/operations/deployment-manager-provider-options.md",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "FRONTEND_OWNER",
+                   "DEVOPS_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/admin.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue coordinated READY backlog scan.",
+    "completedAt":  "2026-05-23T18:09:06.7871819Z",
+    "outcome":  "Deployment Manager now separates local validation attachments from strict production evidence refs, blocks production-readiness wording until strict evidence categories are covered, and documents validator/evidence mapping.",
+    "validationRun":  [
+                          "cd frontend; npm run lint",
+                          "cd frontend; npm run build:ci",
+                          "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/admin.spec.ts --project=chromium --reporter=line",
+                          "git diff --check -- frontend/src/components/settings/EnterpriseSettingsConsole.tsx frontend/tests/e2e/admin.spec.ts docs/operations/deployment-manager-provider-options.md",
+                          "rg -n '[ \\t]+$' frontend/src/components/settings/EnterpriseSettingsConsole.tsx frontend/tests/e2e/admin.spec.ts docs/operations/deployment-manager-provider-options.md"
+                      ],
+    "residualRisks":  [
+                          "Ledger stores evidence references only; strict production evidence, reviewed target artifacts, and strict release gate execution remain required before any production readiness decision."
+                      ]
+}

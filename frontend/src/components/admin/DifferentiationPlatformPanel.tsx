@@ -126,7 +126,7 @@ export function DifferentiationPlatformPanel() {
   return (
     <AdminPanel
       title="Differentiation Platform"
-      subtitle="AI approval workflow, real-time decisioning, omnichannel orchestration, developer packages, and SLO automation."
+      subtitle="AI-assisted recommendation review, deterministic decision policy checks, omnichannel orchestration, developer packages, and SLO response evidence."
       action={
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" onClick={load} loading={loading} icon={<RefreshCcw className="h-4 w-4" />}>
@@ -152,7 +152,7 @@ export function DifferentiationPlatformPanel() {
           <div className="grid gap-4 xl:grid-cols-3">
             <SignalCard
               icon={BrainCircuit}
-              title="AI Copilot"
+              title="AI Recommendation Review"
               status={summary.copilot[0]?.status || 'READY'}
               lines={[
                 `${summary.copilot.filter((item) => item.approval_required || item.approvalRequired).length} approvals pending`,
@@ -192,7 +192,7 @@ export function DifferentiationPlatformPanel() {
               status={summary.sloPolicies[0]?.status || 'ACTIVE'}
               lines={[
                 'Error budget burn, latency, queue, saturation checks',
-                'Self-healing action evidence created on incident',
+                'Operator-reviewed response action evidence created on incident',
               ]}
             />
             <SignalCard
@@ -201,7 +201,7 @@ export function DifferentiationPlatformPanel() {
               status="CONTROLLED"
               lines={[
                 'High-risk AI recommendations wait for approval',
-                'Auto-winner guarded by confidence and sample checks',
+                'Winner promotion requires configured confidence, sample checks, and approval',
               ]}
             />
           </div>

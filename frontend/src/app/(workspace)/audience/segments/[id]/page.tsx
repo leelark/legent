@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageChrome";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { useToast } from "@/components/ui/Toast";
 import { SegmentRuleBuilder, type SegmentRules } from "@/components/audience/SegmentRuleBuilder";
 import { get, put } from "@/lib/api-client";
 
@@ -29,6 +30,7 @@ const emptyRules = (): SegmentRules => ({
 
 export default function EditSegmentPage() {
   const router = useRouter();
+  const { addToast } = useToast();
   const params = useParams();
   const segmentId = params?.id as string;
   const [form, setForm] = useState<SegmentForm>({
@@ -38,6 +40,7 @@ export default function EditSegmentPage() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchSegment = async () => {
@@ -49,14 +52,16 @@ export default function EditSegmentPage() {
           description: segment?.description || "",
           rules: segment?.rules || emptyRules(),
         });
+        setError(null);
       } catch {
-        alert("Failed to load segment");
+        setError("Failed to load segment");
+        addToast({ type: "error", title: "Segment unavailable", message: "Unable to load segment details." });
         router.push("/app/audience/segments");
       }
       setLoading(false);
     };
     if (segmentId) fetchSegment();
-  }, [segmentId, router]);
+  }, [addToast, segmentId, router]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -66,9 +71,11 @@ export default function EditSegmentPage() {
         description: form.description,
         rules: form.rules,
       });
+      addToast({ type: "success", title: "Segment updated", message: form.name });
       router.push("/app/audience/segments");
     } catch {
-      alert("Failed to update segment");
+      setError("Failed to update segment");
+      addToast({ type: "error", title: "Segment update failed", message: "Unable to save segment rules." });
     }
     setSaving(false);
   };
@@ -94,6 +101,7 @@ export default function EditSegmentPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      {error && <div className="rounded-lg bg-red-100 px-4 py-2 text-sm text-red-700">{error}</div>}
       <PageHeader
         eyebrow="Audience rules"
         title="Edit Segment"

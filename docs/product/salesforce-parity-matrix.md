@@ -30,7 +30,7 @@ This 2026-05-23 reconciliation records backlog descriptions and seeds `.codex/ba
 
 | Broad Follow-Up | Completed Local Contract | Narrow Future Docs/Backlog Descriptions | Source Freshness |
 |---|---|---|---|
-| Segment Builder v2 | Core segment surfaces, data-extension governance metadata, predictive-segment guardrails, and preview governance are local contracts. | `segment-builder-v2-rule-taxonomy`: define static, dynamic, behavioral, computed, nested, null, timezone, and consent-aware rule semantics; `segment-builder-v2-execution-plan`: bounded compile/evaluate/recompute plan with indexes, explain output, and failure modes; `segment-builder-v2-governance-ui`: admin locks, PII classification constraints, preview/audit, and mode-specific UX. | Market comparison still uses 2026-05-20 source IDs; refresh required before current competitor claims. |
+| Segment Builder v2 | Core segment surfaces, data-extension governance metadata, predictive-segment guardrails, and preview governance are local contracts. | `segment-builder-v2-rule-taxonomy`: define static, dynamic, behavioral, computed, nested, null, timezone, consent, suppression, and send-eligibility rule semantics; `segment-builder-v2-execution-plan`: bounded compile/evaluate/recompute plan with indexes, explain output, and failure modes; `segment-builder-v2-governance-ui`: admin locks, PII classification constraints, preview/audit, and mode-specific UX. | Market comparison still uses 2026-05-20 source IDs except the 2026-05-23 taxonomy refresh below; full competitor claims require a complete source refresh. |
 | Automation Studio parity | Security design, dependency/run contract, capability UI, file/import artifact ownership, webhook/notification handoff, and governed send handoff are local contracts. | `automation-script-activity-security-sandbox`: signed artifact sandbox design before execution; `automation-live-file-movement-storage-adapter`: tenant-scoped file-drop/extract movement with object ownership proof; `automation-target-runtime-replay-evidence`: Kafka/outbox replay and production-style recovery proof; `automation-activity-lock-concurrency-policy`: explicit lock, retry, and operator override behavior. | Salesforce and competitor facts remain 2026-05-20 baseline; no new source refresh in this docs pass. |
 | AI parity | Policy/audit persistence, draft-only content governance, deterministic STO/frequency readiness checks, and predictive-segment guardrails are local contracts. | `ai-provider-contract-metering`: provider abstraction, disclosure, tenant policy, metering, and kill switch; `ai-content-draft-application-workflow`: generated draft review/apply/audit path in content workflows; `ai-sto-runtime-scheduler`: predictive send-time scheduling with fallback and evidence; `ai-frequency-decision-runtime`: live cap/cadence decisions with safety gates; `ai-segment-workflow-generation-preview`: generated segment/workflow drafts with non-executing preview and approval. | AI market claims must be refreshed from official sources before external parity language is used. |
 | Contact Builder parity | Subscribers, imports, suppressions, preferences, data extensions, local governance metadata, and preview governance are local contracts. | `contact-builder-relationship-cardinality`: modeled relationships, cardinality, and query preview; `contact-provenance-import-population`: import/contact provenance and classification population; `contact-retention-deletion-audit`: retention, deletion, and send eligibility audit trail; `contact-sendable-key-migration-proof`: target Flyway and historical sendable-key proof; `contact-indexed-relationship-execution`: indexed relationship execution evidence. | 2026-05-20 Salesforce and competitor source IDs remain the external baseline. |
@@ -44,3 +44,64 @@ Research rules:
 - Convert implementable gaps into `.codex/backlog/queue.json` work items.
 - For docs-only reconciliations, keep backlog descriptions in this matrix until a queue/state lease permits `.codex` edits.
 - Do not claim guaranteed inbox placement, full Salesforce parity, true model-backed AI, production readiness, or 10 lakh send readiness without direct evidence.
+
+## Segment Builder v2 Rule Taxonomy - 2026-05-23 Draft Contract
+
+This section defines a local product taxonomy only. It does not implement indexed execution, recompute scheduling, preview counts, UI governance locks, or Salesforce/competitor parity. Those remain split into `segment-builder-v2-execution-plan` and `segment-builder-v2-governance-ui`.
+
+Source refresh used for this taxonomy slice:
+
+- Salesforce Marketing Cloud Engagement Email PDF, Spring '26, last updated 2025-11-17: filtered data extensions can filter data-extension records by fields, measures, and filters; filtered data extensions inherit source characteristics and require refresh for new/modified records.
+- Salesforce Trailhead Journey Builder entry-source unit, accessed 2026-05-23: journey entry data is a snapshot at entry time, contact data can update during a journey, and entry/contact data can be used in entry filters or decision splits.
+- Klaviyo Segment Conditions Reference, updated 2026-03-19 and accessed 2026-05-23: segment conditions include events, profile properties, location/GDPR, list membership, marketing consent, and predictive analytics; event conditions include frequency/timeframe/filter dimensions and data-type-specific operators.
+- Mailchimp "All the Segmenting Options", accessed 2026-05-23: segmentation includes predicted purchase value, predicted demographics, location, language, tags/groups, campaign activity, and ecommerce-style conditions.
+- Braze flexible segmentation article, accessed 2026-05-23: segmentation is positioned around events, attributes, nested properties, dynamic updates, and Canvas audience-path decisions. This is a market signal only, not a parity claim.
+
+### Rule Family Taxonomy
+
+| Family | Definition | Example Inputs | Initial Support State | Follow-Up Boundary |
+|---|---|---|---|---|
+| Static profile attributes | Point-in-time subscriber/contact fields that change only when profile data is updated. | email, first name, last name, locale, source, status, custom profile fields | Existing UI supports a small scalar field set; v2 should type string/enum/boolean/date/number fields explicitly. | Field catalog, PII classification, and relationship-backed fields belong to governance UI and Contact Builder slices. |
+| List and static membership | Membership in explicit lists, static cohorts, imports, or manual selections. | list ID, import batch, static segment ID | Existing UI supports list membership operators only. | Segment-of-segment recursion rules and bulk membership materialization belong to execution plan. |
+| Dynamic data-extension fields | Tenant/workspace data-extension fields evaluated against related records or sendable rows. | data extension field, sendable key, relationship alias | Taxonomy only; relationship/cardinality behavior is not proven. | Contact Builder relationship cardinality, sendable-key migration proof, and indexed relationship execution remain separate. |
+| Behavioral events | Time-windowed event activity with frequency, recency, and optional event-property filters. | opened, clicked, purchased, visited, submitted form | Taxonomy only; no high-volume event aggregate execution claim. | Event rollups, dedupe keys, attribution windows, indexes, and bounded reads belong to execution plan. |
+| Computed scores and insights | Derived values produced by deterministic scoring, analytics jobs, or approved predictive governance. | engagement score, churn band, predicted CLV, lead score | Taxonomy only unless a local service already provides the score with provenance. | Refresh cadence, model/provider evidence, confidence, and fallback belong to AI/governance and execution slices. |
+| Consent, preference, suppression, and send eligibility | Required safety filters that determine whether a contact may receive a channel or send class. | email consent, unsubscribed, global suppression, send classification eligibility, frequency cap | Must fail closed and take precedence over inclusion rules. | UI locks, audit evidence, and policy override flows belong to governance UI and delivery-policy slices. |
+| Geography and timezone | Location and timezone fields used for targeting or local-time comparisons. | country, state, city, postal code, timezone, local date | Taxonomy only; local timezone source must be explicit. | Geocoding, distance search, daylight-saving handling, and local-time recompute belong to execution plan. |
+| Null, missing, empty, and malformed values | Explicit handling of unknown data states so operators do not silently include unsafe contacts. | null email, blank locale, missing birthdate, malformed timezone | Existing UI has `IS_NULL` and `IS_NOT_NULL`; v2 must distinguish null, missing, empty string, and parse failure. | Migration cleanup, preview warnings, and remediation UX belong to governance UI. |
+| Nested boolean groups | AND/OR precedence, group nesting, and unsupported-depth handling. | AND group of consent + OR group of behavior | Existing UI supports top-level groups with AND/OR inside each group. | Max depth, explain tree, compiler validation, and runtime failure modes belong to execution plan. |
+
+### Operator And Type Matrix
+
+| Data Type | Allowed Operators | Unsupported Until Later | Fail-Closed Rule |
+|---|---|---|---|
+| String | equals, not equals, contains, starts with, ends with, is empty, is not empty, in set, not in set | regex, fuzzy match, unbounded wildcard search | Unknown field type cannot be evaluated as string by default. |
+| Number | equals, not equals, greater than, greater than or equal, less than, less than or equal, between, is empty, is not empty | currency conversion, percentile ranking | Non-numeric values must be excluded and surfaced in explain output. |
+| Date/time | before, after, on, between, within last, not within last, anniversary/window, is empty, is not empty | natural-language date parsing, ambiguous local time | Missing timezone must use documented tenant default or fail closed for local-time rules. |
+| Boolean | is true, is false, is empty, is not empty | truthy string coercion without field metadata | Unknown boolean encoding cannot be coerced silently. |
+| Enum/status | is, is not, in set, not in set, is empty, is not empty | free-text enum creation during execution | Unknown enum value must remain visible in preview/explain output. |
+| Identity/contact key | equals, not equals, in set, not in set, exists, missing | cross-tenant joins, unverified sendable-key migration assumptions | Identity comparisons must require tenant/workspace scope and relationship metadata. |
+| List or segment membership | in, not in, was added within, was removed within | recursive self-reference, unbounded nested segment execution | Cycles and inaccessible segments must block publish/activation. |
+| Data-extension relationship | has related row, lacks related row, related field comparison, aggregate count | many-to-many traversal without declared cardinality | Missing cardinality or sendable-key metadata must block execution. |
+| Event aggregate | occurred at least, occurred zero times, count equals/range, last occurred before/after, event property filter | unindexed all-time scans, nested event arrays without top-level materialization | Missing event schema or dedupe key must block activation. |
+| Computed score | score equals/range, band is/in, confidence above threshold, fallback state is | model-backed scoring without provider/eval evidence | Stale score, missing provenance, or below-threshold confidence must use fallback or exclude. |
+
+### Precedence And Unsupported States
+
+- Safety precedence: suppression, unsubscribe, missing channel consent, send classification ineligibility, and hard frequency caps override inclusion rules. A segment may still be saved as a draft, but activation/send use must fail closed until eligibility is explicit.
+- Relationship precedence: Contact Builder relationship metadata controls whether a data-extension or related-object field is selectable. Segment Builder must not infer joins from matching names alone.
+- Timezone precedence: tenant default timezone may be used only when documented on the segment. Contact-local timezone rules require a validated timezone field and must surface records with missing or malformed timezone values.
+- Null handling: `null`, missing, empty string, and parse failure are separate states. `is empty` may include configured null-like states, but the explain output must list which states were included.
+- Behavioral dedupe: event rules must declare identity key, event timestamp, dedupe key, and aggregation window. Without those fields, behavior rules stay draft-only.
+- Computed-field provenance: computed and predictive fields require source job/model, last refresh time, input window, confidence or fallback state, and owner. Missing provenance blocks activation.
+- Unsupported nested logic: recursive segment references, cross-tenant references, unbounded relationship traversal, regex/fuzzy matching, and raw SQL fragments are not part of the v2 taxonomy and must be separate reviewed features.
+- Explain requirement: every family should compile to a human-readable rule summary, source metadata, safety precedence notes, and unsupported-state warnings before preview or activation.
+
+### Follow-Up Slices
+
+| Follow-Up | Scope |
+|---|---|
+| `segment-builder-v2-execution-plan` | Compiler schema, bounded reads, indexed execution, event rollups, recompute scheduling, explain output, preview count strategy, and failure modes. |
+| `segment-builder-v2-governance-ui` | Mode-aware presets, admin locks, PII classification warnings, consent/suppression lock indicators, draft-only unsupported-state UI, and audit trail. |
+| `contact-builder-relationship-cardinality` | Relationship model, cardinality, sendable-key relationship preview, and related-field selection rules. |
+| `contact-indexed-relationship-execution` | Target indexes and high-volume proof for relationship-backed segment execution. |

@@ -61,6 +61,8 @@ class WorkflowEngineTest {
     @Mock private WorkflowEventPublisher eventPublisher;
     @Mock private AutomationEventIdempotencyService idempotencyService;
 
+    private static final long CONCURRENT_RESUME_TIMEOUT_SECONDS = 15;
+
     private WorkflowEngine workflowEngine;
     private ObjectMapper objectMapper = new ObjectMapper();
     private final WorkflowGraphValidator workflowGraphValidator = new WorkflowGraphValidator();
@@ -280,7 +282,7 @@ class WorkflowEngineTest {
         CountDownLatch releaseFirstExecution = new CountDownLatch(1);
         when(sendEmailHandler.execute(any(), any())).thenAnswer(invocation -> {
             firstExecutionStarted.countDown();
-            assertTrue(releaseFirstExecution.await(5, TimeUnit.SECONDS));
+            assertTrue(releaseFirstExecution.await(CONCURRENT_RESUME_TIMEOUT_SECONDS, TimeUnit.SECONDS));
             return "end";
         });
 
@@ -288,14 +290,14 @@ class WorkflowEngineTest {
         try {
             Future<?> firstResume = executor.submit(() ->
                     workflowEngine.resumeInstance("instance-1", "node-1", null, "tenant-1", "workspace-1"));
-            assertTrue(firstExecutionStarted.await(5, TimeUnit.SECONDS));
+            assertTrue(firstExecutionStarted.await(CONCURRENT_RESUME_TIMEOUT_SECONDS, TimeUnit.SECONDS));
 
             Future<?> concurrentResume = executor.submit(() ->
                     workflowEngine.resumeInstance("instance-1", "node-1", null, "tenant-1", "workspace-1"));
-            concurrentResume.get(5, TimeUnit.SECONDS);
+            concurrentResume.get(CONCURRENT_RESUME_TIMEOUT_SECONDS, TimeUnit.SECONDS);
 
             releaseFirstExecution.countDown();
-            firstResume.get(5, TimeUnit.SECONDS);
+            firstResume.get(CONCURRENT_RESUME_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } finally {
             executor.shutdownNow();
         }

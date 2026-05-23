@@ -133,6 +133,7 @@ public class SendGovernancePolicyController {
         response.setSendLogRetentionDays(policy.getSendLogRetentionDays());
         response.setPublicationPolicy(policy.getPublicationPolicy());
         response.setActive(policy.getActive());
+        response.setVersion(policy.getVersion());
         response.setCreatedAt(policy.getCreatedAt() == null ? null : policy.getCreatedAt().toString());
         response.setUpdatedAt(policy.getUpdatedAt() == null ? null : policy.getUpdatedAt().toString());
         return response;

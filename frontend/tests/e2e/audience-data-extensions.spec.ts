@@ -26,6 +26,8 @@ function apiResponse(data: unknown, pagination?: Record<string, unknown>) {
 test('manages data extension governance metadata and audit', async ({ page }) => {
   let createPayload: DataExtensionPayload | null = null;
   let updatePayload: GovernancePayload | null = null;
+  let deleteCount = 0;
+  const nativeDialogs: string[] = [];
 
   const extension = {
     id: 'de-1',
@@ -47,6 +49,11 @@ test('manages data extension governance metadata and audit', async ({ page }) =>
   };
 
   await mockWorkspaceApis(page);
+  page.on('dialog', async (dialog) => {
+    nativeDialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
+
   await page.route('**/api/v1/data-extensions**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -100,6 +107,15 @@ test('manages data extension governance metadata and audit', async ({ page }) =>
       });
     }
 
+    if (request.method() === 'DELETE' && path === '/data-extensions/de-1') {
+      deleteCount += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: apiResponse({ deleted: true }),
+      });
+    }
+
     return route.fallback();
   });
 
@@ -134,4 +150,23 @@ test('manages data extension governance metadata and audit', async ({ page }) =>
 
   await expect.poll(() => updatePayload?.dataClassification).toBe('INTERNAL');
   await expect.poll(() => updatePayload?.governanceNotes).toBe('Reviewed by lifecycle data steward.');
+
+  await page.getByRole('dialog', { name: 'Governance: Orders' }).locator('button').filter({ hasText: 'Close' }).click();
+  await page.getByRole('button', { name: 'Delete Orders' }).click();
+
+  const deleteDialog = page.getByRole('dialog', { name: 'Delete data extension?' });
+  await expect(deleteDialog).toBeVisible();
+  await expect(page.getByText('Delete "Orders"?')).toBeVisible();
+  expect(nativeDialogs).toEqual([]);
+
+  await deleteDialog.getByRole('button', { name: 'Cancel' }).click();
+  await expect(deleteDialog).toBeHidden();
+  expect(deleteCount).toBe(0);
+
+  await page.getByRole('button', { name: 'Delete Orders' }).click();
+  await deleteDialog.getByRole('button', { name: 'Delete' }).click();
+
+  await expect.poll(() => deleteCount).toBe(1);
+  await expect(page.getByText('Data extension deleted')).toBeVisible();
+  expect(nativeDialogs).toEqual([]);
 });

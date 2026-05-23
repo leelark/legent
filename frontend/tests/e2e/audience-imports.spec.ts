@@ -42,6 +42,7 @@ async function uploadCsv(page: import('@playwright/test').Page, contents = 'emai
     mimeType: 'text/csv',
     buffer: Buffer.from(contents),
   });
+  await expect(page.getByRole('heading', { name: 'Map Fields' })).toBeVisible();
 }
 
 test('validates required email mapping before starting an import', async ({ page }) => {
@@ -54,6 +55,87 @@ test('validates required email mapping before starting an import', async ({ page
   await expect(page.getByText('Missing Required Fields')).toBeVisible();
   await expect(page.getByText('You must map Email.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Start Import' })).toBeDisabled();
+});
+
+test('parses quoted CSV headers and preview rows before upload', async ({ page }) => {
+  let fieldMapping: Record<string, string> | undefined;
+
+  await mockWorkspaceApis(page);
+  await page.route('**/api/v1/imports**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace('/api/v1', '');
+
+    if (request.method() === 'POST' && path === '/imports') {
+      const multipart = request.postData() ?? '';
+      const match = multipart.match(/name="request"[\s\S]*?\r?\n\r?\n([\s\S]*?)\r?\n--/);
+      if (match?.[1]) {
+        fieldMapping = JSON.parse(match[1]).fieldMapping;
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: apiResponse(importJob({ status: 'VALIDATING', progressPercent: 10 })),
+      });
+    }
+
+    return route.fallback();
+  });
+
+  await page.goto('/app/audience/imports/new');
+  await uploadCsv(page, '"E-mail Address","First Name","Last Name"\n"jane@example.com","Jane, A","Doe"');
+
+  await expect(page.getByText('CSV preview')).toBeVisible();
+  await expect(page.getByText('Jane, A')).toBeVisible();
+  await page.getByRole('button', { name: 'Next' }).click();
+  await expect(page.getByText('Mapping Valid')).toBeVisible();
+  await page.getByRole('button', { name: 'Start Import' }).click();
+
+  await expect.poll(() => fieldMapping).toEqual({
+    email: 'E-mail Address',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+  });
+});
+
+test('rejects invalid CSV headers and reports failed import starts without native dialogs', async ({ page }) => {
+  const dialogs: string[] = [];
+  page.on('dialog', async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
+
+  await mockWorkspaceApis(page);
+  await page.goto('/app/audience/imports/new');
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'bad.csv',
+    mimeType: 'text/csv',
+    buffer: Buffer.from('email,email\njane@example.com,jane2@example.com'),
+  });
+
+  await expect(page.getByText('CSV parse failed')).toBeVisible();
+  await expect(page.getByText('Duplicate CSV header: email')).toBeVisible();
+
+  await page.route('**/api/v1/imports**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    const path = url.pathname.replace('/api/v1', '');
+    if (request.method() === 'POST' && path === '/imports') {
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: apiResponse({ message: 'import failed' }),
+      });
+    }
+    return route.fallback();
+  });
+
+  await uploadCsv(page, 'email,firstName\njane@example.com,Jane');
+  await page.getByRole('button', { name: 'Next' }).click();
+  await page.getByRole('button', { name: 'Start Import' }).click();
+
+  await expect(page.getByText('Import start failed')).toBeVisible();
+  expect(dialogs).toEqual([]);
 });
 
 test('polls active import statuses until completion', async ({ page }) => {

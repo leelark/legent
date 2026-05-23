@@ -82,7 +82,7 @@ test('public pages are differentiated and contact submit succeeds', async ({ pag
   await expect(page.getByRole('heading', { name: /Select a module/i })).toBeVisible();
 
   await gotoPublic(page, '/about');
-  await expect(page.getByRole('heading', { name: /production infrastructure/i })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /operational system/i })).toBeVisible();
 
   await gotoPublic(page, '/blog');
   await expect(page.getByRole('heading', { name: /Operating essays/i })).toBeVisible();

@@ -29,6 +29,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +41,7 @@ class AutomationStudioServiceTest {
     @Mock private AudienceDataExtensionClient audienceDataExtensionClient;
     @Mock private AutomationArtifactService artifactService;
     @Mock private AutomationEventIdempotencyService idempotencyService;
+    @Mock private AutomationActivityLockService activityLockService;
     @Mock private WorkflowEventPublisher workflowEventPublisher;
 
     private AutomationStudioService service;
@@ -49,7 +51,14 @@ class AutomationStudioServiceTest {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
         service = new AutomationStudioService(activityRepository, runRepository, new ObjectMapper(), audienceDataExtensionClient,
-                artifactService, idempotencyService, workflowEventPublisher);
+                artifactService, idempotencyService, activityLockService, workflowEventPublisher);
+        lenient().when(activityLockService.acquire(any(), any(), any(), any(), any(Boolean.class), any(), any()))
+                .thenAnswer(invocation -> AutomationActivityLockService.LockLease.acquired(
+                        "lock-1",
+                        invocation.getArgument(3, String.class),
+                        java.time.Instant.now().plusSeconds(900),
+                        invocation.getArgument(4, Boolean.class),
+                        invocation.getArgument(5, String.class)));
     }
 
     @AfterEach
@@ -623,6 +632,51 @@ class AutomationStudioServiceTest {
     }
 
     @Test
+    void liveRunReturnsLockedBeforeIdempotencyOrSideEffects() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("Subscriber Import");
+        activity.setActivityType(AutomationStudioDto.ActivityType.IMPORT);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"artifactId\":\"artifact-1\",\"targetType\":\"SUBSCRIBER\",\"fieldMapping\":{\"email\":\"Email Address\"}}");
+        activity.setOutputConfig("{}");
+        stubImportArtifact("artifact-1");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(activityLockService.acquire(eq("tenant-1"), eq("workspace-1"), eq("activity-1"), any(), eq(false), eq(null), any()))
+                .thenReturn(AutomationActivityLockService.LockLease.locked(
+                        "lock-older",
+                        "run-older",
+                        java.time.Instant.now().plusSeconds(120),
+                        120L,
+                        "Automation activity is already locked by another live run."));
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> {
+            AutomationActivityRun run = invocation.getArgument(0);
+            run.setId("run-locked");
+            return run;
+        });
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("import-run-locked")
+                        .triggerSource("TEST")
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.LOCKED);
+        assertThat(response.getRetryAfterSeconds()).isEqualTo(120L);
+        assertThat(response.getLockOwnerRunId()).isEqualTo("run-older");
+        assertThat(response.getErrorCode()).isEqualTo("ACTIVITY_LOCKED");
+        verify(idempotencyService, never()).claimIfNew(any(), any(), any(), any(), any());
+        verify(audienceDataExtensionClient, never()).startImportActivity(any(), any(), any());
+        verify(activityLockService, never()).release(any(), any(), any(), any());
+    }
+
+    @Test
     void importActivityLiveRunStartsAudienceImportJob() {
         AutomationActivity activity = new AutomationActivity();
         activity.setId("activity-1");
@@ -656,6 +710,41 @@ class AutomationStudioServiceTest {
         verify(audienceDataExtensionClient).startImportActivity(eq("tenant-1"), eq("workspace-1"), bodyCaptor.capture());
         assertThat(bodyCaptor.getValue()).containsEntry("fileName", artifact.getObjectKey());
         assertThat(response.getResult()).doesNotContainKey("importJob");
+        assertThat(response.getResult()).containsEntry("operatorOverride", false);
+        verify(activityLockService).release(eq("tenant-1"), eq("workspace-1"), eq("activity-1"), any());
+    }
+
+    @Test
+    void liveRunOverridePassesReasonToActivityLock() {
+        AutomationActivity activity = sendEmailActivity();
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("send-run-override")))
+                .thenReturn(true);
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("send-run-override")
+                        .triggerSource("TEST")
+                        .operatorOverride(true)
+                        .overrideReason("Ops-approved rerun after stuck activity")
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
+        assertThat(response.getResult()).containsEntry("operatorOverride", true);
+        assertThat(response.getResult()).containsEntry("overrideReason", "Ops-approved rerun after stuck activity");
+        verify(activityLockService).acquire(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("activity-1"),
+                any(),
+                eq(true),
+                eq("Ops-approved rerun after stuck activity"),
+                any());
     }
 
     @Test

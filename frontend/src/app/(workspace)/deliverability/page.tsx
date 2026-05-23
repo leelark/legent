@@ -170,9 +170,9 @@ export default function DeliverabilityPage() {
     return (
       <div className="space-y-6">
         <PageHeader
-          eyebrow="Inbox operations"
+          eyebrow="Delivery operations"
           title="Delivery Studio"
-          description="Loading queue telemetry, replay state, warm-up readiness, and inbox health."
+          description="Loading queue telemetry, replay state, warm-up readiness, delivery health, reputation, and provider feedback telemetry."
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -186,9 +186,9 @@ export default function DeliverabilityPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Inbox operations"
+        eyebrow="Delivery operations"
         title="Delivery Studio"
-        description="Queue monitor, replay console, warm-up readiness, and inbox health telemetry."
+        description="Queue monitor, replay console, warm-up readiness, delivery health, reputation, and provider feedback telemetry."
         action={(
           <Button variant="outline" onClick={loadAll} icon={<ArrowClockwise size={14} />}>
             Refresh

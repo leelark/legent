@@ -21,6 +21,7 @@ public class EventContractValidator {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final Set<Integer> SCHEMA_V1 = Set.of(1);
+    private static final Set<Integer> SCHEMA_V1_V2 = Set.of(1, 2);
     private static final Map<String, EventContract> CONTRACTS = Map.of(
             AppConstants.TOPIC_EMAIL_SEND_REQUESTED,
             new EventContract(
@@ -41,7 +42,7 @@ public class EventContractValidator {
                     List.of()),
             AppConstants.TOPIC_AUDIENCE_RESOLVED,
             new EventContract(
-                    SCHEMA_V1,
+                    SCHEMA_V1_V2,
                     WorkspaceRequirement.ENVELOPE_ONLY,
                     List.of(
                             List.of("campaignId"),
@@ -51,8 +52,7 @@ public class EventContractValidator {
                             List.of("totalChunks"),
                             List.of("chunkSize"),
                             List.of("totalResolvedSubscribers"),
-                            List.of("isLastChunk"),
-                            List.of("subscribers")),
+                            List.of("isLastChunk")),
                     List.of()),
             AppConstants.TOPIC_TRACKING_INGESTED,
             new EventContract(
@@ -211,6 +211,27 @@ public class EventContractValidator {
     private void validateTopicSpecificContract(String topic, EventEnvelope<?> envelope, Map<String, Object> payload) {
         if (AppConstants.TOPIC_SEND_REQUESTED.equals(topic)) {
             validateCampaignSendRequested(topic, envelope, payload);
+        } else if (AppConstants.TOPIC_AUDIENCE_RESOLVED.equals(topic)) {
+            validateAudienceResolved(topic, envelope, payload);
+        }
+    }
+
+    private void validateAudienceResolved(String topic, EventEnvelope<?> envelope, Map<String, Object> payload) {
+        if (envelope.getSchemaVersion() == 1) {
+            if (!hasAnyValue(payload, List.of("subscribers"))) {
+                throw new IllegalArgumentException("payload for topic [" + topic + "] requires key [subscribers]");
+            }
+            return;
+        }
+        if (envelope.getSchemaVersion() == 2) {
+            for (String field : List.of("chunkReferenceType", "subscriberStorage", "chunkUri")) {
+                if (!hasAnyValue(payload, List.of(field))) {
+                    throw new IllegalArgumentException("payload for topic [" + topic + "] requires key [" + field + "]");
+                }
+            }
+            if (hasAnyValue(payload, List.of("subscribers"))) {
+                throw new IllegalArgumentException("schemaVersion [2] audience resolved events must not embed subscribers");
+            }
         }
     }
 

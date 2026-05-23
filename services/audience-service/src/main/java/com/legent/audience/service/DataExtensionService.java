@@ -42,6 +42,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DataExtensionService {
 
     private static final TypeReference<List<DataExtensionDto.RelationshipDefinition>> RELATIONSHIP_LIST_TYPE = new TypeReference<>() {};
+    private static final String IMPORT_SOURCE_SYSTEM = "AUDIENCE_IMPORT";
     private static final int MAX_PREVIEW_LIMIT = 500;
     private static final int MAX_PREVIEW_SCAN_ROWS = 5_000;
     private static final int MAX_RELATIONSHIPS = 20;
@@ -179,6 +180,22 @@ public class DataExtensionService {
                 .stream()
                 .map(this::mapGovernanceAudit)
                 .toList();
+    }
+
+    @Transactional
+    public void markImportProvenance(String deId, String importJobId, String fileName) {
+        DataExtension de = requireDataExtension(deId);
+        de.setSourceType("IMPORT");
+        de.setSourceSystem(IMPORT_SOURCE_SYSTEM);
+        de.setSourceReference(normalizeLength(importJobId, 255));
+        de.setGovernanceNotes(normalizeLength(importGovernanceNote(importJobId, fileName), 1000));
+        de.setGovernanceReviewedBy(TenantContext.getUserId());
+        de.setGovernanceReviewedAt(Instant.now());
+        DataExtension saved = deRepository.save(de);
+        writeGovernanceAudit(saved, "IMPORT_PROVENANCE_POPULATED", "Data extension populated from import",
+                Map.of("sourceType", saved.getSourceType(),
+                        "sourceSystem", saved.getSourceSystem(),
+                        "sourceReference", nullSafe(saved.getSourceReference())));
     }
 
     @Transactional
@@ -889,6 +906,17 @@ public class DataExtensionService {
             throw new ValidationException("governance", "Governance value exceeds max length " + maxLength);
         }
         return normalized;
+    }
+
+    private String importGovernanceNote(String importJobId, String fileName) {
+        String job = normalizeBlank(importJobId);
+        String file = normalizeBlank(fileName);
+        if (file == null) {
+            return job == null ? "Populated by audience import" : "Populated by audience import " + job;
+        }
+        return job == null
+                ? "Populated by audience import from " + file
+                : "Populated by audience import " + job + " from " + file;
     }
 
     private String nullSafe(String value) {

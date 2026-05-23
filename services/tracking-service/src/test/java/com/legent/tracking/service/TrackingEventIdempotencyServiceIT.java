@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(TrackingEventIdempotencyService.class)
-class TrackingEventIdempotencyServiceTest {
+class TrackingEventIdempotencyServiceIT {
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>(DockerImageName.parse("postgres:15-alpine"))

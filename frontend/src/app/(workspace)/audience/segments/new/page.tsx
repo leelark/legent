@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { PageHeader } from "@/components/ui/PageChrome";
+import { useToast } from "@/components/ui/Toast";
 import { SegmentRuleBuilder, type SegmentRules } from "@/components/audience/SegmentRuleBuilder";
 import { post } from "@/lib/api-client";
 
@@ -22,12 +23,14 @@ const emptyRules = (): SegmentRules => ({
 
 export default function NewSegmentPage() {
   const router = useRouter();
+  const { addToast } = useToast();
   const [form, setForm] = useState<SegmentForm>({
     name: "",
     description: "",
     rules: emptyRules(),
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
     setSaving(true);
@@ -37,15 +40,18 @@ export default function NewSegmentPage() {
         description: form.description,
         rules: form.rules,
       });
+      addToast({ type: "success", title: "Segment created", message: form.name });
       router.push("/app/audience/segments");
     } catch {
-      alert("Failed to create segment");
+      setError("Failed to create segment");
+      addToast({ type: "error", title: "Segment create failed", message: "Unable to save segment rules." });
     }
     setSaving(false);
   };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
+      {error && <div className="rounded-lg bg-red-100 px-4 py-2 text-sm text-red-700">{error}</div>}
       <PageHeader
         eyebrow="Audience rules"
         title="Create Segment"

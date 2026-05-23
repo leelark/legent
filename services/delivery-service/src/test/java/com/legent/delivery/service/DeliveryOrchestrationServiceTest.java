@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.ArgumentCaptor;
 import org.springframework.data.domain.Pageable;
@@ -39,7 +40,7 @@ class DeliveryOrchestrationServiceTest {
     @Mock private ContentProcessingService contentProcessingService;
     @Mock private CacheService cacheService;
     @Mock private ContentServiceClient contentServiceClient;
-    @Mock private ObjectMapper objectMapper;
+    @Spy private ObjectMapper objectMapper = new ObjectMapper();
     @Mock private InboxSafetyService inboxSafetyService;
     @Mock private SendRateControlService sendRateControlService;
     @Mock private WarmupService warmupService;
@@ -71,6 +72,7 @@ class DeliveryOrchestrationServiceTest {
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
+        payload = payloadWithPolicy(payload);
         
         MockProviderAdapter mockAdapter = mock(MockProviderAdapter.class);
         SmtpProvider mockProvider = new SmtpProvider();
@@ -107,6 +109,7 @@ class DeliveryOrchestrationServiceTest {
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
+        payload = payloadWithPolicy(payload);
 
         MockProviderAdapter mockAdapter = mock(MockProviderAdapter.class);
         SmtpProvider mockProvider = new SmtpProvider();
@@ -219,24 +222,14 @@ class DeliveryOrchestrationServiceTest {
                 "messageId", "msg-1",
                 "contentReference", "cr_1234567890abcdef1234567890abcdef"
         );
-        Map<String, String> cachedContent = Map.of(
-                "tenantId", "tenant-1",
-                "workspaceId", "workspace-1",
-                "campaignId", "camp-1",
-                "messageId", "msg-1",
-                "subject", "Cached subject",
-                "htmlBody", "<p>Cached body</p>"
-        );
-
+        payload = payloadWithPolicy(payload);
         MockProviderAdapter mockAdapter = mock(MockProviderAdapter.class);
         SmtpProvider mockProvider = new SmtpProvider();
         mockProvider.setId("prov-1");
         ProviderSelectionStrategy.ProviderSelectionResult result = new ProviderSelectionStrategy.ProviderSelectionResult(mockAdapter, mockProvider);
 
         when(cacheService.get("email:content:cr_1234567890abcdef1234567890abcdef", String.class))
-                .thenReturn(Optional.of("{\"subject\":\"Cached subject\"}"));
-        when(objectMapper.readValue(anyString(), any(com.fasterxml.jackson.core.type.TypeReference.class)))
-                .thenReturn(cachedContent);
+                .thenReturn(Optional.of("{\"tenantId\":\"tenant-1\",\"workspaceId\":\"workspace-1\",\"campaignId\":\"camp-1\",\"messageId\":\"msg-1\",\"subject\":\"Cached subject\",\"htmlBody\":\"<p>Cached body</p>\"}"));
         when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId("tenant-1", "workspace-1", "msg-1"))
                 .thenReturn(Optional.empty());
         when(messageLogRepository.saveAndFlush(any(MessageLog.class))).thenAnswer(invocation -> {
@@ -266,6 +259,7 @@ class DeliveryOrchestrationServiceTest {
                 "messageId", "msg-1",
                 "contentReference", "cr_1234567890abcdef1234567890abcdef"
         );
+        payload = payloadWithPolicy(payload);
         Map<String, String> serviceContent = Map.of(
                 "tenantId", "tenant-1",
                 "workspaceId", "workspace-1",
@@ -302,24 +296,79 @@ class DeliveryOrchestrationServiceTest {
     }
 
     @Test
+    void processSendRequest_MissingPolicySnapshotFailsBeforeSafetyOrAdapter() {
+        Map<String, Object> payload = Map.of(
+                "email", "test@example.com",
+                "subscriberId", "sub-1",
+                "campaignId", "camp-1",
+                "workspaceId", "workspace-1",
+                "messageId", "msg-1",
+                "contentReference", "cr_1234567890abcdef1234567890abcdef",
+                "htmlContent", "Hello",
+                "subject", "Hi"
+        );
+
+        stubNewLogClaim("tenant-1", "workspace-1", "msg-1");
+
+        orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
+
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).save(logCaptor.capture());
+        assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
+        assertEquals("SEND_GOVERNANCE_POLICY_BLOCKED", logCaptor.getValue().getFailureClass());
+        assertEquals("Send governance policy snapshot is required before delivery execution",
+                logCaptor.getValue().getProviderResponse());
+        verify(inboxSafetyService, never()).evaluate(any());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString(), anyString());
+        verify(feedbackOutboxService).enqueueEmailFailed(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("msg-1"),
+                eq("camp-1"),
+                isNull(),
+                isNull(),
+                eq("sub-1"),
+                contains("policy snapshot"),
+                anyMap());
+    }
+
+    @Test
+    void processSendRequest_StalePolicySnapshotHashFailsBeforeSafetyOrAdapter() {
+        Map<String, Object> payload = payloadWithPolicy(Map.of(
+                "email", "test@example.com",
+                "subscriberId", "sub-1",
+                "campaignId", "camp-1",
+                "workspaceId", "workspace-1",
+                "messageId", "msg-1",
+                "contentReference", "cr_1234567890abcdef1234567890abcdef",
+                "htmlContent", "Hello",
+                "subject", "Hi"
+        ));
+        payload.put("sendGovernancePolicySnapshotHash", "0000000000000000000000000000000000000000000000000000000000000000");
+
+        stubNewLogClaim("tenant-1", "workspace-1", "msg-1");
+
+        orchestrationService.processSendRequest(payload, "tenant-1", "evt-123");
+
+        ArgumentCaptor<MessageLog> logCaptor = ArgumentCaptor.forClass(MessageLog.class);
+        verify(messageLogRepository).save(logCaptor.capture());
+        assertEquals(MessageLog.DeliveryStatus.FAILED.name(), logCaptor.getValue().getStatus());
+        assertEquals("SEND_GOVERNANCE_POLICY_BLOCKED", logCaptor.getValue().getFailureClass());
+        assertEquals("Send governance policy snapshot hash does not match payload",
+                logCaptor.getValue().getProviderResponse());
+        verify(inboxSafetyService, never()).evaluate(any());
+        verify(providerStrategy, never()).selectProvider(anyString(), anyString(), anyString());
+    }
+
+    @Test
     void processScheduledRetries_ResolvesCrReferenceFromRedisContent() throws Exception {
         MessageLog retry = retryLog("cr_1234567890abcdef1234567890abcdef");
         DeliveryOrchestrationService self = mock(DeliveryOrchestrationService.class);
         ReflectionTestUtils.setField(orchestrationService, "self", self);
 
-        Map<String, String> cachedContent = Map.of(
-                "tenantId", "tenant-1",
-                "workspaceId", "workspace-1",
-                "campaignId", "camp-1",
-                "messageId", "msg-1",
-                "subject", "Cached subject",
-                "htmlBody", "<p>Cached body</p>"
-        );
         when(messageLogRepository.findEligibleForRetry(any(), any(Pageable.class))).thenReturn(List.of(retry));
         when(cacheService.get("email:content:cr_1234567890abcdef1234567890abcdef", String.class))
-                .thenReturn(Optional.of("{\"subject\":\"Cached subject\"}"));
-        when(objectMapper.readValue(anyString(), any(com.fasterxml.jackson.core.type.TypeReference.class)))
-                .thenReturn(cachedContent);
+                .thenReturn(Optional.of("{\"tenantId\":\"tenant-1\",\"workspaceId\":\"workspace-1\",\"campaignId\":\"camp-1\",\"messageId\":\"msg-1\",\"subject\":\"Cached subject\",\"htmlBody\":\"<p>Cached body</p>\"}"));
 
         orchestrationService.processScheduledRetries();
 
@@ -449,6 +498,7 @@ class DeliveryOrchestrationServiceTest {
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
+        payload = payloadWithPolicy(payload);
         
         SmtpProvider mockProvider = new SmtpProvider();
         mockProvider.setId("prov-1");
@@ -487,6 +537,7 @@ class DeliveryOrchestrationServiceTest {
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
+        payload = payloadWithPolicy(payload);
         
         SmtpProvider mockProvider = new SmtpProvider();
         mockProvider.setId("prov-1");
@@ -524,6 +575,7 @@ class DeliveryOrchestrationServiceTest {
                 "htmlContent", "Hello",
                 "subject", "Hi"
         );
+        payload = payloadWithPolicy(payload);
 
         when(messageLogRepository.findByTenantIdAndWorkspaceIdAndMessageId("tenant-1", "workspace-1", "evt-123")).thenReturn(Optional.empty());
         when(messageLogRepository.save(any(MessageLog.class))).thenAnswer(invocation -> invocation.getArgument(0, MessageLog.class));
@@ -570,7 +622,34 @@ class DeliveryOrchestrationServiceTest {
         log.setEmail("test@example.com");
         log.setFromEmail("sender@example.com");
         log.setContentReference(contentReference);
+        log.setSendGovernancePolicyId("policy-1");
+        log.setSendGovernancePolicyKey("promo.default");
+        log.setSendGovernancePolicyVersion(1L);
+        log.setSendGovernancePolicySnapshotHash(validPolicySnapshotHash());
+        log.setSendGovernancePolicySnapshot(validPolicySnapshotJson());
         return log;
+    }
+
+    private Map<String, Object> payloadWithPolicy(Map<String, Object> payload) {
+        Map<String, Object> enriched = new java.util.HashMap<>(payload);
+        enriched.put("sendGovernancePolicyId", "policy-1");
+        enriched.put("sendGovernancePolicyKey", "promo.default");
+        enriched.put("sendGovernancePolicyVersion", 1L);
+        enriched.put("sendGovernancePolicySnapshotHash", validPolicySnapshotHash());
+        enriched.put("sendGovernancePolicySnapshot", validPolicySnapshotJson());
+        return enriched;
+    }
+
+    private String validPolicySnapshotJson() {
+        return "{\"active\":true,\"classification\":\"COMMERCIAL\",\"commercial\":true,\"consentRequired\":false,"
+                + "\"deliveryProfileId\":\"delivery-1\",\"policyId\":\"policy-1\",\"policyKey\":\"promo.default\","
+                + "\"providerId\":\"provider-1\",\"publicationPolicy\":\"APPROVED_CONTENT_REQUIRED\","
+                + "\"sendLogRetentionDays\":365,\"senderProfileId\":\"sender-1\",\"sendingDomain\":\"example.com\","
+                + "\"suppressionRequired\":true,\"trackingAllowed\":true,\"unsubscribePolicy\":\"REQUIRED\",\"version\":1}";
+    }
+
+    private String validPolicySnapshotHash() {
+        return "6717da725a08e8a4d65050d8a76a7228d2661c40ad55e035520273cd972fc2f3";
     }
 
     private void stubNewLogClaim(String tenantId, String workspaceId, String messageId) {

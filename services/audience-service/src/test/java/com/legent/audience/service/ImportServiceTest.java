@@ -65,6 +65,7 @@ class ImportServiceTest {
     void startImportAllowsDataExtensionTargetWithoutEmailMapping() {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
+        TenantContext.setUserId("operator-1");
         try {
             ImportJobRepository repository = mock(ImportJobRepository.class);
             ImportProcessingService processingService = mock(ImportProcessingService.class);
@@ -84,6 +85,7 @@ class ImportServiceTest {
                     .build());
 
             assertEquals("DATA_EXTENSION", response.getTargetType());
+            verify(repository).save(org.mockito.ArgumentMatchers.argThat(job -> "operator-1".equals(job.getStartedBy())));
             verify(processingService).processImport("import-1", "tenant-1", "workspace-1");
         } finally {
             TenantContext.clear();

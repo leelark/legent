@@ -200,6 +200,7 @@ public class EmailStudioDto {
         private Integer sendLogRetentionDays;
         private String publicationPolicy;
         private Boolean active;
+        private Long version;
         private String createdAt;
         private String updatedAt;
     }

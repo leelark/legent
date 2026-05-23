@@ -153,7 +153,7 @@ export function MarketingShell({ children }: { children: React.ReactNode }) {
           <div>
             <p className="public-heading inline-flex items-center gap-2 text-lg font-semibold"><ShieldCheck size={18} className="text-[var(--public-accent)]" /> Legent Lifecycle Email OS</p>
             <p className="public-muted mt-2 max-w-xl text-sm leading-6">
-              A premium command system for lifecycle teams that need orchestration, governance, inbox safety, and measurable growth in one workspace.
+              A premium command system for lifecycle teams that need orchestration, governance, delivery safety, and measurable reviews in one workspace.
             </p>
           </div>
           <div className="public-muted grid gap-6 text-sm sm:grid-cols-3">

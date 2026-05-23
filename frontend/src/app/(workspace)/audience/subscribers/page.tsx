@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Table } from '@/components/ui/Table';
 import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageChrome';
+import { useToast } from '@/components/ui/Toast';
 import { useApi } from '@/hooks/useApi';
 import { useDebounce } from '@/hooks/useDebounce';
 import { post, put, del } from '@/lib/api-client';
@@ -28,6 +29,7 @@ const statusBadgeMap: Record<string, 'success' | 'warning' | 'danger' | 'default
 };
 
 export default function SubscribersPage() {
+  const { addToast } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(0);
@@ -44,6 +46,11 @@ export default function SubscribersPage() {
   });
   const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [deleteRequest, setDeleteRequest] = useState<{
+    mode: 'single' | 'bulk';
+    id?: string;
+    count: number;
+  } | null>(null);
 
   const queryParams = new URLSearchParams({
     page: String(page),
@@ -92,8 +99,8 @@ export default function SubscribersPage() {
       key: 'actions', header: '',
       render: (row: Subscriber) => (
         <div className="flex justify-end gap-2">
-          <button onClick={() => openEdit(row)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
-          <button onClick={() => handleDelete(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
+          <button aria-label={`Edit ${row.email}`} onClick={() => openEdit(row)} className="text-content-muted hover:text-accent p-1"><PencilSimple size={16} /></button>
+          <button aria-label={`Delete ${row.email}`} onClick={() => handleDelete(row.id)} className="text-content-muted hover:text-danger p-1"><Trash size={16} /></button>
         </div>
       )
     }
@@ -111,36 +118,45 @@ export default function SubscribersPage() {
         await post('/subscribers', payload);
       }
       setIsModalOpen(false);
+      addToast({ type: 'success', title: editingId ? 'Subscriber updated' : 'Subscriber added', message: payload.email });
       refetch();
     } catch {
       setError('Failed to save subscriber');
+      addToast({ type: 'error', title: 'Subscriber save failed', message: 'Unable to save subscriber.' });
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Are you sure you want to delete this subscriber?')) {
-      try {
-        await del(`/subscribers/${id}`);
-        refetch();
-      } catch {
-        setError('Failed to delete subscriber');
-      }
-    }
+    setDeleteRequest({ mode: 'single', id, count: 1 });
   };
 
   const handleBulkDelete = async () => {
     if (selected.length === 0) return;
-    if (confirm(`Delete ${selected.length} subscribers?`)) {
-      try {
+    setDeleteRequest({ mode: 'bulk', count: selected.length });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteRequest) return;
+    try {
+      if (deleteRequest.mode === 'single' && deleteRequest.id) {
+        await del(`/subscribers/${deleteRequest.id}`);
+      } else {
         await post('/subscribers/bulk-actions', {
           action: 'DELETE',
           subscriberIds: selected,
         });
         setSelected([]);
-        refetch();
-      } catch {
-        setError('Bulk delete failed');
       }
+      addToast({
+        type: 'success',
+        title: deleteRequest.count === 1 ? 'Subscriber deleted' : 'Subscribers deleted',
+        message: `${deleteRequest.count} record${deleteRequest.count === 1 ? '' : 's'} removed.`,
+      });
+      setDeleteRequest(null);
+      refetch();
+    } catch {
+      setError(deleteRequest.mode === 'single' ? 'Failed to delete subscriber' : 'Bulk delete failed');
+      addToast({ type: 'error', title: 'Delete failed', message: 'No subscriber records were removed.' });
     }
   };
 
@@ -245,6 +261,25 @@ export default function SubscribersPage() {
             <Button onClick={handleSave} disabled={!formData.email}>Save</Button>
           </div>
         </div>
+      </Modal>
+      <Modal
+        open={Boolean(deleteRequest)}
+        onClose={() => setDeleteRequest(null)}
+        title={deleteRequest?.count === 1 ? 'Delete subscriber?' : 'Delete selected subscribers?'}
+        description="This action removes the selected audience record references from the workspace."
+        size="sm"
+        footer={(
+          <>
+            <Button variant="secondary" onClick={() => setDeleteRequest(null)}>Cancel</Button>
+            <Button variant="danger" onClick={confirmDelete}>Delete</Button>
+          </>
+        )}
+      >
+        <p className="text-sm leading-6 text-content-secondary">
+          {deleteRequest?.count === 1
+            ? 'Delete this subscriber record?'
+            : `Delete ${deleteRequest?.count ?? 0} selected subscriber records?`}
+        </p>
       </Modal>
     </div>
   );

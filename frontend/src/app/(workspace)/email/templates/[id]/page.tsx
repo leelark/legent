@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { BrainCircuit, RotateCcw, ShieldCheck } from 'lucide-react';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -19,7 +20,9 @@ import { AssetUploader } from '@/components/content/AssetUploader';
 import { PersonalizationTester } from '@/components/content/PersonalizationTester';
 import { sanitizeEmailHtml } from '@/lib/sanitize-html';
 import { isModeFeatureVisible, TEMPLATE_STUDIO_MODE_FEATURES } from '@/lib/ui-mode-contract';
+import { performanceIntelligenceApi, type PerformanceRecord } from '@/lib/performance-intelligence-api';
 import {
+  AiDraftApplication,
   Asset,
   BrandKit,
   ContentSnippet,
@@ -224,6 +227,123 @@ const stripAdvancedBlockSettings = (block: ContentBlock): ContentBlock => {
 const normalizeBlocksForMode = (blocks: ContentBlock[], includeConditionalRules: boolean) =>
   includeConditionalRules ? blocks : blocks.map(stripAdvancedBlockSettings);
 
+type AiEvidenceOption = {
+  id: string;
+  policyKey: string;
+  policyVersion: string;
+  decision: string;
+  requestedAction: string;
+  promptHash?: string;
+  outputHash: string;
+  humanReviewed: boolean;
+  evidenceRefs: string[];
+  evaluatedAt?: string;
+  selectable: boolean;
+};
+
+const AI_METADATA_KEY = 'aiContentAssistance';
+const SHA_256_PATTERN = /^[a-f0-9]{64}$/i;
+
+const normalizeToken = (value: unknown) => String(value ?? '').trim().toUpperCase();
+
+const recordValue = (record: PerformanceRecord, ...keys: string[]) => {
+  for (const key of keys) {
+    if (record[key] !== undefined && record[key] !== null) {
+      return record[key];
+    }
+  }
+  return undefined;
+};
+
+const recordString = (record: PerformanceRecord, ...keys: string[]) => {
+  const value = recordValue(record, ...keys);
+  return typeof value === 'string' ? value.trim() : value == null ? '' : String(value).trim();
+};
+
+const recordBoolean = (record: PerformanceRecord, ...keys: string[]) => {
+  const value = recordValue(record, ...keys);
+  return value === true || String(value).toLowerCase() === 'true';
+};
+
+const parseStringArray = (value: unknown): string[] => {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed)
+      ? parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      : [];
+  } catch {
+    return value.split(',').map((item) => item.trim()).filter(Boolean);
+  }
+};
+
+const toAiEvidenceOption = (record: PerformanceRecord): AiEvidenceOption => {
+  const id = recordString(record, 'id', 'auditId');
+  const policyKey = recordString(record, 'policyKey', 'policy_key');
+  const policyVersion = recordString(record, 'policyVersion', 'policy_version');
+  const decision = recordString(record, 'decision');
+  const requestedAction = recordString(record, 'requestedAction', 'requested_action');
+  const promptHash = recordString(record, 'promptHash', 'prompt_hash') || undefined;
+  const outputHash = recordString(record, 'outputHash', 'output_hash');
+  const humanReviewed = recordBoolean(record, 'humanReviewed', 'human_reviewed');
+  const evidenceRefs = parseStringArray(recordValue(record, 'evidenceRefs', 'evidence_refs'));
+  const selectable =
+    Boolean(id && policyKey && policyVersion) &&
+    normalizeToken(decision) === 'APPROVED_DRAFT_ONLY' &&
+    normalizeToken(requestedAction || 'APPLY_TO_DRAFT') === 'APPLY_TO_DRAFT' &&
+    humanReviewed &&
+    SHA_256_PATTERN.test(outputHash) &&
+    evidenceRefs.length > 0 &&
+    (!promptHash || SHA_256_PATTERN.test(promptHash));
+  return {
+    id,
+    policyKey,
+    policyVersion,
+    decision,
+    requestedAction: requestedAction || 'APPLY_TO_DRAFT',
+    promptHash,
+    outputHash,
+    humanReviewed,
+    evidenceRefs,
+    evaluatedAt: recordString(record, 'evaluatedAt', 'created_at', 'updated_at') || undefined,
+    selectable,
+  };
+};
+
+const aiDraftApplicationFromEvidence = (evidence: AiEvidenceOption): AiDraftApplication => ({
+  auditId: evidence.id,
+  policyKey: evidence.policyKey,
+  policyVersion: evidence.policyVersion,
+  decision: 'APPROVED_DRAFT_ONLY',
+  requestedAction: 'APPLY_TO_DRAFT',
+  promptHash: evidence.promptHash,
+  outputHash: evidence.outputHash.toLowerCase(),
+  humanReviewed: true,
+  evidenceRefs: evidence.evidenceRefs,
+});
+
+const currentAiMetadata = (metadata: Record<string, unknown>) => {
+  const value = metadata[AI_METADATA_KEY];
+  return isRecord(value) ? value : null;
+};
+
+const aiMetadataResolved = (value: Record<string, unknown> | null) =>
+  !value ||
+  (
+    normalizeToken(value.status) === 'APPLIED_TO_DRAFT' &&
+    normalizeToken(value.decision) === 'APPROVED_DRAFT_ONLY' &&
+    String(value.humanReviewed).toLowerCase() === 'true' &&
+    typeof value.auditId === 'string' &&
+    value.auditId.trim().length > 0 &&
+    typeof value.outputHash === 'string' &&
+    SHA_256_PATTERN.test(value.outputHash)
+  );
+
 export default function TemplateStudioPage() {
   const params = useParams();
   const templateId = params?.id as string;
@@ -255,6 +375,13 @@ export default function TemplateStudioPage() {
   const [dynamicRules, setDynamicRules] = useState<DynamicContentRule[]>([]);
   const [brandKits, setBrandKits] = useState<BrandKit[]>([]);
   const [testSendRecords, setTestSendRecords] = useState<TestSendRecord[]>([]);
+  const [aiEvidenceOptions, setAiEvidenceOptions] = useState<AiEvidenceOption[]>([]);
+  const [selectedAiEvidenceId, setSelectedAiEvidenceId] = useState('');
+  const [aiDraftBaseline, setAiDraftBaseline] = useState<{
+    subject: string;
+    blocks: ContentBlock[];
+    metadata: Record<string, unknown>;
+  } | null>(null);
 
   const [previewHtml, setPreviewHtml] = useState('');
   const [previewSubject, setPreviewSubject] = useState('');
@@ -298,6 +425,52 @@ export default function TemplateStudioPage() {
     [blocks, showConditionalRules],
   );
   const htmlFromBlocks = useMemo(() => blocksToHtml(modeSafeBlocks), [modeSafeBlocks]);
+  const approvedAiEvidenceOptions = useMemo(
+    () => aiEvidenceOptions.filter((evidence) => evidence.selectable),
+    [aiEvidenceOptions],
+  );
+  const selectedAiEvidence = useMemo(
+    () => approvedAiEvidenceOptions.find((evidence) => evidence.id === selectedAiEvidenceId) ?? null,
+    [approvedAiEvidenceOptions, selectedAiEvidenceId],
+  );
+  const appliedAiMetadata = currentAiMetadata(metadata);
+  const unresolvedAiMetadata = !aiMetadataResolved(appliedAiMetadata);
+
+  const metadataWithBlocks = useCallback((sourceMetadata: Record<string, unknown>, sourceBlocks: ContentBlock[]) => JSON.stringify({
+    ...sourceMetadata,
+    builderBlocks: sourceBlocks,
+    updatedByStudioAt: new Date().toISOString(),
+  }), []);
+
+  const commitAiEvidenceOptions = useCallback((records: PerformanceRecord[]) => {
+    const options = records.map(toAiEvidenceOption);
+    setAiEvidenceOptions(options);
+    const selectable = options.filter((evidence) => evidence.selectable);
+    setSelectedAiEvidenceId((current) =>
+      current && selectable.some((evidence) => evidence.id === current)
+        ? current
+        : selectable[0]?.id ?? ''
+    );
+  }, []);
+
+  const refreshAiEvidence = useCallback(async () => {
+    if (!showAdvancedBlocks) {
+      setAiEvidenceOptions([]);
+      setSelectedAiEvidenceId('');
+      return;
+    }
+    try {
+      const audits = await performanceIntelligenceApi.listAiContentAudits({ limit: 50 });
+      commitAiEvidenceOptions(audits);
+      addToast({ type: 'success', title: 'AI evidence refreshed', message: 'Reviewed draft evidence list updated.' });
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'AI evidence unavailable',
+        message: getErrorMessage(error, 'Unable to load reviewed assisted draft evidence.'),
+      });
+    }
+  }, [addToast, commitAiEvidenceOptions, showAdvancedBlocks]);
 
   const loadTemplateStudio = useCallback(async () => {
     if (!templateId) return;
@@ -313,6 +486,7 @@ export default function TemplateStudioPage() {
         rulesResult,
         brandKitsResult,
         testSendsResult,
+        aiAuditsResult,
       ] = await Promise.allSettled([
         showVersionOperations ? listTemplateVersions(templateId) : Promise.resolve([] as TemplateVersion[]),
         showApprovalWorkflow ? getTemplateApprovals(templateId) : Promise.resolve([] as TemplateApproval[]),
@@ -322,6 +496,7 @@ export default function TemplateStudioPage() {
         showDynamicContent ? listDynamicContentRules(templateId) : Promise.resolve([] as DynamicContentRule[]),
         showBrandKit ? listBrandKits(0, 50) : Promise.resolve({ content: [] }),
         showTestSends ? listTemplateTestSends(templateId) : Promise.resolve([] as TestSendRecord[]),
+        showAdvancedBlocks ? performanceIntelligenceApi.listAiContentAudits({ limit: 50 }) : Promise.resolve([] as PerformanceRecord[]),
       ]);
 
       const optional = <T,>(result: PromiseSettledResult<T>, fallback: T, label: string) => {
@@ -344,6 +519,7 @@ export default function TemplateStudioPage() {
       const rulesRes = optional<DynamicContentRule[]>(rulesResult, [], 'Dynamic rules');
       const brandKitsRes = optional<unknown>(brandKitsResult, { content: [] }, 'Brand kits');
       const testSendsRes = optional<TestSendRecord[]>(testSendsResult, [], 'Test sends');
+      const aiAuditsRes = optional<PerformanceRecord[]>(aiAuditsResult, [], 'assisted draft evidence');
 
       const parsedMetadata = parseMetadata(templateRes.metadata);
       const builderBlocks = Array.isArray(parsedMetadata.builderBlocks) ? parsedMetadata.builderBlocks as ContentBlock[] : [];
@@ -365,6 +541,7 @@ export default function TemplateStudioPage() {
       setDynamicRules(Array.isArray(rulesRes) ? rulesRes : []);
       setBrandKits(asArray<BrandKit>(brandKitsRes));
       setTestSendRecords(Array.isArray(testSendsRes) ? testSendsRes : []);
+      commitAiEvidenceOptions(Array.isArray(aiAuditsRes) ? aiAuditsRes : []);
 
       if (versionsRes.length >= 2) {
         setCompareLeft(versionsRes[0].versionNumber);
@@ -384,8 +561,10 @@ export default function TemplateStudioPage() {
     }
   }, [
     addToast,
+    commitAiEvidenceOptions,
     showApprovalWorkflow,
     showAssetLibrary,
+    showAdvancedBlocks,
     showBrandKit,
     showDynamicContent,
     showPersonalizationTokens,
@@ -401,11 +580,7 @@ export default function TemplateStudioPage() {
 
   const persistTemplate = async () => {
     if (!template) return;
-    const mergedMetadata = JSON.stringify({
-      ...metadata,
-      builderBlocks: modeSafeBlocks,
-      updatedByStudioAt: new Date().toISOString(),
-    });
+    const mergedMetadata = metadataWithBlocks(metadata, modeSafeBlocks);
 
     await updateTemplate(template.id, {
       name,
@@ -442,6 +617,18 @@ export default function TemplateStudioPage() {
     return false;
   };
 
+  const requireResolvedAiEvidence = (operation: string) => {
+    if (!unresolvedAiMetadata) {
+      return true;
+    }
+    addToast({
+      type: 'warning',
+      title: 'AI evidence unresolved',
+      message: `${operation} requires approved, human-reviewed AI content evidence.`,
+    });
+    return false;
+  };
+
   const handleSaveDraft = async () => {
     if (!template) return;
     await withBusy(async () => {
@@ -451,9 +638,90 @@ export default function TemplateStudioPage() {
     });
   };
 
+  const handleApplyReviewedAiDraft = async () => {
+    if (!template || !selectedAiEvidence?.selectable) {
+      addToast({
+        type: 'warning',
+        title: 'Reviewed evidence required',
+        message: 'Select approved, human-reviewed, hash-backed assisted draft evidence first.',
+      });
+      return;
+    }
+    const baseline = {
+      subject,
+      blocks: modeSafeBlocks.map((block) => ({
+        ...block,
+        styles: { ...(block.styles ?? {}) },
+        settings: { ...(block.settings ?? {}) },
+      })),
+      metadata: { ...metadata },
+    };
+    setAiDraftBaseline(baseline);
+    try {
+      await withBusy(async () => {
+        await saveTemplateDraft(template.id, {
+          subject,
+          htmlContent: htmlFromBlocks,
+          textContent: toText(htmlFromBlocks),
+          aiAssistance: aiDraftApplicationFromEvidence(selectedAiEvidence),
+        });
+        const refreshed = await getTemplate(template.id);
+        const refreshedMetadata = parseMetadata(refreshed.metadata);
+        await updateTemplate(template.id, {
+          metadata: metadataWithBlocks(refreshedMetadata, modeSafeBlocks),
+        });
+        addToast({
+          type: 'success',
+          title: 'Reviewed assisted draft evidence attached',
+          message: `Evidence ${selectedAiEvidence.id} was attached to the saved draft.`,
+        });
+        await loadTemplateStudio();
+      });
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Assisted draft evidence attach failed',
+        message: getErrorMessage(error, 'Unable to attach reviewed assisted draft evidence.'),
+      });
+    }
+  };
+
+  const handleRevertReviewedAiDraft = async () => {
+    if (!template || !aiDraftBaseline) {
+      return;
+    }
+    const restoredBlocks = normalizeBlocksForMode(aiDraftBaseline.blocks, showConditionalRules);
+    const restoredHtml = blocksToHtml(restoredBlocks);
+    try {
+      await withBusy(async () => {
+        await saveTemplateDraft(template.id, {
+          subject: aiDraftBaseline.subject,
+          htmlContent: restoredHtml,
+          textContent: toText(restoredHtml),
+        });
+        await updateTemplate(template.id, {
+          metadata: metadataWithBlocks(aiDraftBaseline.metadata, restoredBlocks),
+        });
+        setSubject(aiDraftBaseline.subject);
+        setBlocks(restoredBlocks);
+        setMetadata(aiDraftBaseline.metadata);
+        setAiDraftBaseline(null);
+        addToast({ type: 'success', title: 'Assisted draft snapshot reverted', message: 'Previous draft snapshot restored.' });
+        await loadTemplateStudio();
+      });
+    } catch (error) {
+      addToast({
+        type: 'error',
+        title: 'Assisted draft revert failed',
+        message: getErrorMessage(error, 'Unable to restore the previous draft snapshot.'),
+      });
+    }
+  };
+
   const handlePublishLatest = async () => {
     if (!template) return;
     if (!requireAdvancedFeature(showPublishControls, TEMPLATE_STUDIO_MODE_FEATURES.publishControls.label)) return;
+    if (!requireResolvedAiEvidence('Publish')) return;
     await withBusy(async () => {
       await persistTemplate();
       await publishTemplate(template.id);
@@ -581,6 +849,7 @@ export default function TemplateStudioPage() {
   const handleTestSend = async () => {
     if (!template) return;
     if (!requireAdvancedFeature(showTestSends, TEMPLATE_STUDIO_MODE_FEATURES.testSends.label)) return;
+    if (!requireResolvedAiEvidence('Test send')) return;
     if (!testEmail.trim()) {
       addToast({ type: 'warning', title: 'Email required', message: 'Enter a test recipient email.' });
       return;
@@ -600,6 +869,7 @@ export default function TemplateStudioPage() {
   const handleTestMatrix = async () => {
     if (!template) return;
     if (!requireAdvancedFeature(showTestSends, TEMPLATE_STUDIO_MODE_FEATURES.testSends.label)) return;
+    if (!requireResolvedAiEvidence('Test send matrix')) return;
     const recipients = testMatrixEmails
       .split(/\r?\n|,/)
       .map((email) => email.trim())
@@ -889,6 +1159,120 @@ export default function TemplateStudioPage() {
         onSubmitApproval={handleSubmitApproval}
         onPublish={handlePublishLatest}
       />
+
+      {showAdvancedBlocks && (
+        <Card data-testid="reviewed-ai-draft-panel">
+          <CardHeader
+            title="Reviewed Assisted Draft Evidence"
+            subtitle="Attach hash-backed review evidence to the current draft."
+            action={(
+              <Badge
+                variant={
+                  normalizeToken(appliedAiMetadata?.status) === 'APPLIED_TO_DRAFT'
+                    && normalizeToken(appliedAiMetadata?.decision) === 'APPROVED_DRAFT_ONLY'
+                    ? 'success'
+                    : 'default'
+                }
+              >
+                {normalizeToken(appliedAiMetadata?.status) === 'APPLIED_TO_DRAFT' ? 'Applied' : 'Not applied'}
+              </Badge>
+            )}
+          />
+          <div className="grid gap-4 border-t border-border-default p-4 xl:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-content-primary" htmlFor="reviewed-ai-evidence">
+                    Evidence
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary"
+                    data-testid="reviewed-ai-draft-select"
+                    disabled={approvedAiEvidenceOptions.length === 0}
+                    id="reviewed-ai-evidence"
+                    onChange={(event) => setSelectedAiEvidenceId(event.target.value)}
+                    value={selectedAiEvidenceId}
+                  >
+                    {approvedAiEvidenceOptions.length === 0 ? (
+                      <option value="">No reviewed evidence</option>
+                    ) : approvedAiEvidenceOptions.map((evidence) => (
+                      <option key={evidence.id} value={evidence.id}>
+                        {evidence.policyKey} / {evidence.outputHash.slice(0, 12)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="rounded-lg border border-border-default bg-surface-secondary/70 p-3" data-testid="reviewed-ai-draft-status">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-content-secondary">Current</p>
+                  <p className="mt-1 truncate text-sm font-medium text-content-primary">
+                    {String(appliedAiMetadata?.auditId ?? 'No audit')}
+                  </p>
+                </div>
+              </div>
+
+              {selectedAiEvidence ? (
+                <div className="grid gap-3 rounded-lg border border-border-default bg-surface-secondary/70 p-3 text-sm md:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-content-muted">Policy</p>
+                    <p className="mt-1 truncate font-medium text-content-primary">{selectedAiEvidence.policyKey}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-content-muted">Output hash</p>
+                    <p className="mt-1 truncate font-mono text-xs text-content-primary">{selectedAiEvidence.outputHash}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-content-muted">Evidence refs</p>
+                    <p className="mt-1 truncate font-medium text-content-primary">{selectedAiEvidence.evidenceRefs.join(', ')}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border-default p-3 text-sm text-content-secondary">
+                  No approved, human-reviewed, hash-backed assisted draft evidence is available.
+                </div>
+              )}
+
+              {aiEvidenceOptions.length > approvedAiEvidenceOptions.length && (
+                <p className="text-xs text-content-muted">
+                  {aiEvidenceOptions.length - approvedAiEvidenceOptions.length} audit record{aiEvidenceOptions.length - approvedAiEvidenceOptions.length === 1 ? '' : 's'} hidden by review/hash checks.
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-start gap-2 xl:w-[340px]">
+              <Button
+                className="flex-1"
+                data-testid="reviewed-ai-draft-apply"
+                disabled={!selectedAiEvidence}
+                icon={<ShieldCheck size={16} />}
+                loading={isBusy}
+                onClick={handleApplyReviewedAiDraft}
+              >
+                Attach Reviewed Draft Evidence
+              </Button>
+              <Button
+                className="flex-1"
+                data-testid="reviewed-ai-draft-revert"
+                disabled={!aiDraftBaseline}
+                icon={<RotateCcw size={16} />}
+                loading={isBusy}
+                onClick={handleRevertReviewedAiDraft}
+                variant="secondary"
+              >
+                Revert Pending Assisted Draft
+              </Button>
+              <Button
+                className="w-full"
+                icon={<BrainCircuit size={16} />}
+                loading={isBusy}
+                onClick={refreshAiEvidence}
+                variant="ghost"
+              >
+                Refresh Evidence
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card>
         <Tabs

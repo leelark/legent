@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Clock3,
   DatabaseZap,
+  FileCheck2,
   FileDown,
   Fingerprint,
   Gauge,
@@ -69,6 +70,14 @@ import {
   type AdminUser,
 } from '@/lib/admin-api';
 import { coreApi } from '@/lib/core-api';
+import {
+  createSendGovernancePolicy,
+  listSendGovernancePolicies,
+  sendGovernancePolicyItems,
+  updateSendGovernancePolicy,
+  type SendGovernancePolicy,
+  type SendGovernancePolicyRequest,
+} from '@/lib/send-governance-policy-api';
 
 type SectionId = 'command' | 'users' | 'roles' | 'federation' | 'audit' | 'configuration' | 'operations' | 'differentiation' | 'global' | 'performance';
 
@@ -78,6 +87,22 @@ type UserDraft = {
   lastName: string;
   role: string;
   password: string;
+};
+
+type SendGovernancePolicyDraft = {
+  policyKey: string;
+  name: string;
+  description: string;
+  classification: string;
+  providerId: string;
+  sendingDomain: string;
+  unsubscribePolicy: string;
+  publicationPolicy: string;
+  sendLogRetentionDays: string;
+  suppressionRequired: boolean;
+  consentRequired: boolean;
+  trackingAllowed: boolean;
+  active: boolean;
 };
 
 const sections: Array<{
@@ -93,7 +118,7 @@ const sections: Array<{
   { id: 'audit', label: 'Audit Center', kicker: 'investigation, export, replay', icon: FileDown },
   { id: 'configuration', label: 'Configuration', kicker: 'validated runtime control', icon: SlidersHorizontal },
   { id: 'operations', label: 'Platform Ops', kicker: 'branding, webhooks, public ops', icon: ServerCog },
-  { id: 'differentiation', label: 'Differentiation', kicker: 'AI, omni, SLO, SDKs', icon: Sparkles },
+  { id: 'differentiation', label: 'Differentiation', kicker: 'AI review, omni, SLO, SDKs', icon: Sparkles },
   { id: 'global', label: 'Global Ops', kicker: 'regions, residency, governance', icon: Globe2 },
   { id: 'performance', label: 'Performance Intelligence', kicker: 'decisions, optimization, ops, benchmarks', icon: Trophy },
 ];
@@ -116,6 +141,31 @@ const defaultUserDraft: UserDraft = {
   role: 'USER',
   password: '',
 };
+
+const defaultPolicyDraft: SendGovernancePolicyDraft = {
+  policyKey: '',
+  name: '',
+  description: '',
+  classification: 'COMMERCIAL',
+  providerId: '',
+  sendingDomain: '',
+  unsubscribePolicy: 'REQUIRED',
+  publicationPolicy: 'APPROVED_CONTENT_REQUIRED',
+  sendLogRetentionDays: '365',
+  suppressionRequired: true,
+  consentRequired: false,
+  trackingAllowed: true,
+  active: true,
+};
+
+const publicationPolicyOptions = [
+  'APPROVED_CONTENT_REQUIRED',
+  'APPROVAL_REQUIRED',
+  'DRAFT_ALLOWED',
+  'NO_APPROVAL_REQUIRED',
+];
+
+const unsubscribePolicyOptions = ['REQUIRED', 'REQUIRED_FOR_COMMERCIAL', 'OPTIONAL'];
 
 const ADMIN_POLL_INTERVAL_MS = 15000;
 const OPERATOR_ROLE_KEY = 'OPERATIONS_GOVERNOR';
@@ -895,11 +945,217 @@ function AuditCenter({ syncEvents }: { syncEvents: Array<Record<string, unknown>
   );
 }
 
+function SendGovernancePolicyPanel() {
+  const { addToast } = useToast();
+  const [policies, setPolicies] = useState<SendGovernancePolicy[]>([]);
+  const [selectedPolicyId, setSelectedPolicyId] = useState('');
+  const [draft, setDraft] = useState<SendGovernancePolicyDraft>(defaultPolicyDraft);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const selectedPolicy = useMemo(
+    () => policies.find((policy) => policy.id === selectedPolicyId),
+    [policies, selectedPolicyId]
+  );
+  const activePolicies = policies.filter((policy) => policy.active !== false).length;
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await listSendGovernancePolicies(0, 100);
+      const items = sendGovernancePolicyItems(response).map(normalizeAdminPolicy);
+      setPolicies(items);
+      setSelectedPolicyId((current) => {
+        if (current || !items[0]) {
+          return current;
+        }
+        setDraft(policyDraftFromPolicy(items[0]));
+        return items[0].id;
+      });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Policy catalog unavailable', message: getErrorMessage(error, 'Unable to load send-governance policies.') });
+    } finally {
+      setLoading(false);
+    }
+  }, [addToast]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const selectPolicy = (policy: SendGovernancePolicy) => {
+    setSelectedPolicyId(policy.id);
+    setDraft(policyDraftFromPolicy(policy));
+  };
+
+  const startNewPolicy = () => {
+    setSelectedPolicyId('');
+    setDraft(defaultPolicyDraft);
+  };
+
+  const savePolicy = async () => {
+    const payload = policyPayloadFromDraft(draft);
+    if (!payload.policyKey || !payload.name) {
+      addToast({ type: 'error', title: 'Policy needs key and name' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = selectedPolicyId
+        ? await updateSendGovernancePolicy(selectedPolicyId, payload)
+        : await createSendGovernancePolicy(payload);
+      const normalized = normalizeAdminPolicy(saved);
+      setPolicies((current) => selectedPolicyId
+        ? current.map((policy) => (policy.id === normalized.id ? normalized : policy))
+        : [normalized, ...current]);
+      setSelectedPolicyId(normalized.id);
+      setDraft(policyDraftFromPolicy(normalized));
+      addToast({
+        type: 'success',
+        title: selectedPolicyId ? 'Policy updated' : 'Policy created',
+        message: `${policyDisplayName(normalized)} is available for campaign selection.`,
+      });
+    } catch (error: unknown) {
+      addToast({ type: 'error', title: 'Policy save failed', message: getErrorMessage(error, 'Unable to save send-governance policy.') });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section data-testid="send-governance-policy-panel" className="rounded-lg border border-border-default bg-surface-elevated p-5 shadow-sm">
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <SectionHeader icon={FileCheck2} title="Send Governance Policies" subtitle="Versioned delivery policy controls for campaign approval and launch." />
+        <div className="flex flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => void load()} loading={loading} icon={<RefreshCcw className="h-4 w-4" />}>
+            Refresh
+          </Button>
+          <Button variant="secondary" onClick={startNewPolicy} icon={<Plus className="h-4 w-4" />}>
+            New policy
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <MiniStat label="policies" value={policies.length} />
+        <MiniStat label="active" value={activePolicies} />
+        <MiniStat label="inactive" value={Math.max(0, policies.length - activePolicies)} />
+      </div>
+
+      <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="space-y-3">
+          {policies.map((policy) => (
+            <button
+              key={policy.id}
+              type="button"
+              aria-label={`Edit ${policyDisplayName(policy)}`}
+              onClick={() => selectPolicy(policy)}
+              className={clsx(
+                'w-full rounded-lg border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent',
+                policy.id === selectedPolicyId ? 'border-brand-400 bg-brand-50/70 dark:bg-brand-900/20' : 'border-border-default bg-surface-secondary hover:bg-surface-primary'
+              )}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-content-primary">{policyDisplayName(policy)}</p>
+                  <p className="mt-1 text-xs text-content-secondary">
+                    {policyValueLabel(policy.publicationPolicy)} · {policyValueLabel(policy.unsubscribePolicy)}
+                  </p>
+                </div>
+                <StatusBadge status={policy.active === false ? 'INACTIVE' : 'ACTIVE'} />
+              </div>
+              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-3">
+                <span className="rounded-lg border border-border-default bg-surface-primary px-2 py-1 text-content-secondary">
+                  Retention {policy.sendLogRetentionDays || 365}d
+                </span>
+                <span className="rounded-lg border border-border-default bg-surface-primary px-2 py-1 text-content-secondary">
+                  {policy.trackingAllowed === false ? 'Tracking blocked' : 'Tracking allowed'}
+                </span>
+                <span className="rounded-lg border border-border-default bg-surface-primary px-2 py-1 text-content-secondary">
+                  Updated {formatTime(policy.updatedAt)}
+                </span>
+              </div>
+            </button>
+          ))}
+          {!policies.length && !loading && (
+            <EmptyBlock title="No policies" detail="Create a workspace send-governance policy before approving campaign launches." compact />
+          )}
+        </div>
+
+        <aside className="space-y-3 rounded-lg border border-border-default bg-surface-secondary p-4">
+          <div className="space-y-3">
+            <Input label="Policy key" value={draft.policyKey} onChange={(value) => setDraft((current) => ({ ...current, policyKey: value }))} />
+            <Input label="Policy name" value={draft.name} onChange={(value) => setDraft((current) => ({ ...current, name: value }))} />
+            <Input label="Provider ID" value={draft.providerId} onChange={(value) => setDraft((current) => ({ ...current, providerId: value }))} />
+            <Input label="Sending domain" value={draft.sendingDomain} onChange={(value) => setDraft((current) => ({ ...current, sendingDomain: value }))} />
+            <Input label="Retention days" type="number" value={draft.sendLogRetentionDays} onChange={(value) => setDraft((current) => ({ ...current, sendLogRetentionDays: value }))} />
+            <label className="block text-xs font-semibold text-content-secondary">
+              Publication policy
+              <select
+                aria-label="Publication policy"
+                value={draft.publicationPolicy}
+                onChange={(event) => setDraft((current) => ({ ...current, publicationPolicy: event.target.value }))}
+                className="mt-1 w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900"
+              >
+                {publicationPolicyOptions.map((option) => (
+                  <option key={option} value={option}>{policyValueLabel(option)}</option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-xs font-semibold text-content-secondary">
+              Unsubscribe policy
+              <select
+                aria-label="Unsubscribe policy"
+                value={draft.unsubscribePolicy}
+                onChange={(event) => setDraft((current) => ({ ...current, unsubscribePolicy: event.target.value }))}
+                className="mt-1 w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-900"
+              >
+                {unsubscribePolicyOptions.map((option) => (
+                  <option key={option} value={option}>{policyValueLabel(option)}</option>
+                ))}
+              </select>
+            </label>
+            <div className="grid gap-2 text-sm text-content-primary">
+              {([
+                ['suppressionRequired', 'Suppression required'],
+                ['consentRequired', 'Consent required'],
+                ['trackingAllowed', 'Tracking allowed'],
+                ['active', 'Policy active'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    aria-label={label}
+                    checked={draft[key]}
+                    onChange={(event) => setDraft((current) => ({ ...current, [key]: event.target.checked }))}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-2">
+            <PolicyLine label="Policy version" value={selectedPolicy?.version ? `v${selectedPolicy.version}` : 'new draft'} />
+            <PolicyLine label="Approval state" value={policyValueLabel(selectedPolicy?.publicationPolicy ?? draft.publicationPolicy)} />
+            <PolicyLine label="Last updated" value={formatTime(selectedPolicy?.updatedAt)} />
+          </div>
+          <Button onClick={() => void savePolicy()} loading={saving} className="w-full">
+            {selectedPolicyId ? 'Update policy' : 'Create policy'}
+          </Button>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
 function ConfigurationCenter() {
   return (
     <>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <AdminConfigPanel />
+        <div className="space-y-4">
+          <SendGovernancePolicyPanel />
+          <AdminConfigPanel />
+        </div>
         <aside className="space-y-4">
           <BootstrapStatusPanel />
           <PlatformCorePanel />
@@ -1075,6 +1331,90 @@ function PolicyLine({ label, value }: { label: string; value: string }) {
   );
 }
 
+type SendGovernancePolicyAlias = SendGovernancePolicy & {
+  policy_key?: unknown;
+  publication_policy?: unknown;
+  unsubscribe_policy?: unknown;
+  send_log_retention_days?: unknown;
+  provider_id?: unknown;
+  sending_domain?: unknown;
+  created_at?: unknown;
+  updated_at?: unknown;
+  is_active?: unknown;
+};
+
+function normalizeAdminPolicy(policy: SendGovernancePolicy): SendGovernancePolicy {
+  const record = policy as SendGovernancePolicyAlias;
+  const version = asNumber(policy.version);
+  const retentionDays = asNumber(policy.sendLogRetentionDays ?? record.send_log_retention_days);
+  return {
+    ...policy,
+    policyKey: asText(policy.policyKey ?? record.policy_key, policy.id),
+    name: asText(policy.name, asText(policy.policyKey ?? record.policy_key, policy.id)),
+    publicationPolicy: asText(policy.publicationPolicy ?? record.publication_policy, 'APPROVED_CONTENT_REQUIRED'),
+    unsubscribePolicy: asText(policy.unsubscribePolicy ?? record.unsubscribe_policy, 'REQUIRED'),
+    sendLogRetentionDays: retentionDays || undefined,
+    providerId: asText(policy.providerId ?? record.provider_id),
+    sendingDomain: asText(policy.sendingDomain ?? record.sending_domain),
+    active: asBooleanValue(policy.active ?? record.is_active, true),
+    suppressionRequired: asBooleanValue(policy.suppressionRequired, true),
+    consentRequired: asBooleanValue(policy.consentRequired, false),
+    trackingAllowed: asBooleanValue(policy.trackingAllowed, true),
+    version: version || undefined,
+    createdAt: asText(policy.createdAt ?? record.created_at),
+    updatedAt: asText(policy.updatedAt ?? record.updated_at),
+  };
+}
+
+function policyDraftFromPolicy(policy: SendGovernancePolicy): SendGovernancePolicyDraft {
+  return {
+    policyKey: asText(policy.policyKey),
+    name: asText(policy.name),
+    description: asText(policy.description),
+    classification: asText(policy.classification, 'COMMERCIAL'),
+    providerId: asText(policy.providerId),
+    sendingDomain: asText(policy.sendingDomain),
+    unsubscribePolicy: asText(policy.unsubscribePolicy, 'REQUIRED'),
+    publicationPolicy: asText(policy.publicationPolicy, 'APPROVED_CONTENT_REQUIRED'),
+    sendLogRetentionDays: String(policy.sendLogRetentionDays || 365),
+    suppressionRequired: policy.suppressionRequired !== false,
+    consentRequired: policy.consentRequired === true,
+    trackingAllowed: policy.trackingAllowed !== false,
+    active: policy.active !== false,
+  };
+}
+
+function policyPayloadFromDraft(draft: SendGovernancePolicyDraft): SendGovernancePolicyRequest {
+  const retentionDays = Number(draft.sendLogRetentionDays || 365);
+  return {
+    policyKey: draft.policyKey.trim(),
+    name: draft.name.trim(),
+    description: draft.description.trim() || undefined,
+    classification: draft.classification || 'COMMERCIAL',
+    providerId: draft.providerId.trim() || undefined,
+    sendingDomain: draft.sendingDomain.trim() || undefined,
+    unsubscribePolicy: draft.unsubscribePolicy,
+    publicationPolicy: draft.publicationPolicy,
+    sendLogRetentionDays: Number.isFinite(retentionDays) ? Math.min(2555, Math.max(1, retentionDays)) : 365,
+    suppressionRequired: draft.suppressionRequired,
+    consentRequired: draft.consentRequired,
+    trackingAllowed: draft.trackingAllowed,
+    active: draft.active,
+  };
+}
+
+function policyValueLabel(value: unknown, fallback = 'Not set') {
+  return asText(value, fallback).replaceAll('_', ' ');
+}
+
+function policyDisplayName(policy: SendGovernancePolicy | undefined) {
+  if (!policy) {
+    return 'No policy selected';
+  }
+  const label = asText(policy.name, policy.policyKey || policy.id);
+  return policy.version ? `${label} v${policy.version}` : label;
+}
+
 function withOperatorRole(
   access: Record<string, Array<Record<string, unknown>>>,
   role: Record<string, unknown> = operatorRoleRecord()
@@ -1144,6 +1484,22 @@ function asText(value: unknown, fallback = '') {
     return fallback;
   }
   return String(value);
+}
+
+function asBooleanValue(value: unknown, fallback = false) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase();
+    if (normalized === 'true') {
+      return true;
+    }
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+  return fallback;
 }
 
 function formatTime(value: unknown) {

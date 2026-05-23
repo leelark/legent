@@ -1,0 +1,43 @@
+{
+    "id":  "campaign-provider-domain-selectors-readiness",
+    "createdAt":  "2026-05-23T18:32:06.8062949Z",
+    "objective":  "Add Campaign Wizard provider/domain selectors and inline readiness checks",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/campaigns/new/page.tsx",
+                         "frontend/tests/e2e/campaign-engine.spec.ts",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "DELIVERY_SERVICE_OWNER",
+                   "DELIVERABILITY_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/campaign-engine.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Continue coordinated READY backlog scan.",
+    "completedAt":  "2026-05-23T18:40:11.2349903Z",
+    "outcome":  "Campaign Wizard now loads tenant/workspace-scoped provider and sender-domain catalogs, replaces raw provider/domain text fields with selectors, shows inline provider/domain/sender readiness, blocks approval/send on blocked delivery readiness, and preserves selected provider/domain in create payloads.",
+    "validationRun":  [
+                          "cd frontend; npm run lint",
+                          "cd frontend; npm run build:ci",
+                          "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/campaign-engine.spec.ts --project=chromium --reporter=line",
+                          "git diff --check -- 'frontend/src/app/(workspace)/campaigns/new/page.tsx' frontend/tests/e2e/campaign-engine.spec.ts .codex/checkpoints/20260523T183206Z-campaign-provider-domain-selectors-readiness.json",
+                          "rg -n '[ \\t]+$' 'frontend/src/app/(workspace)/campaigns/new/page.tsx' frontend/tests/e2e/campaign-engine.spec.ts .codex/checkpoints/20260523T183206Z-campaign-provider-domain-selectors-readiness.json"
+                      ],
+    "residualRisks":  [
+                          "Wizard readiness uses provider health and sender-domain catalog data only; deeper deliverability auth-check evidence from /deliverability/auth/checks remains a future enhancement before production send claims."
+                      ]
+}

@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,10 +71,15 @@ public class AutomationStudioController {
 
     @PostMapping("/{id}/runs")
     @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
-    public ApiResponse<AutomationStudioDto.RunResponse> runActivity(
+    public ResponseEntity<ApiResponse<AutomationStudioDto.RunResponse>> runActivity(
             @PathVariable String id,
             @RequestBody(required = false) AutomationStudioDto.RunRequest request) {
-        return ApiResponse.ok(automationStudioService.runActivity(id, request));
+        AutomationStudioDto.RunResponse response = automationStudioService.runActivity(id, request);
+        ResponseEntity.BodyBuilder builder = ResponseEntity.ok();
+        if (response.getStatus() == AutomationStudioDto.RunStatus.LOCKED && response.getRetryAfterSeconds() != null) {
+            builder.header("Retry-After", String.valueOf(response.getRetryAfterSeconds()));
+        }
+        return builder.body(ApiResponse.ok(response));
     }
 
     @GetMapping("/{id}/runs")

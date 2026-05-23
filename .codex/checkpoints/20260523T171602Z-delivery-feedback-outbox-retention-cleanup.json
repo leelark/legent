@@ -1,0 +1,44 @@
+{
+    "id":  "delivery-feedback-outbox-retention-cleanup",
+    "createdAt":  "2026-05-23T17:16:02.6280706Z",
+    "objective":  "Add delivery feedback outbox retention and cleanup controls",
+    "status":  "DONE",
+    "completedAt":  "2026-05-23T17:24:00Z",
+    "summary":  "Added bounded delivery feedback outbox retention cleanup for terminal PUBLISHED and FAILED rows, preserving PENDING/PUBLISHING retry visibility, with retention indexes, metrics, scheduled guard, and focused regression tests.",
+    "owner":  "DELIVERY_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryFeedbackOutboxService.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/DeliveryFeedbackOutboxEventRepository.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryFeedbackOutboxServiceTest.java",
+                         "services/delivery-service/src/main/resources/db/migration/V15__delivery_feedback_outbox_events.sql",
+                         "services/delivery-service/src/main/resources/db/migration/V19__delivery_feedback_outbox_retention_cleanup.sql",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "SRE_MONITORING_ENGINEER",
+                   "TEST_ARCHITECT"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service \"-Dtest=DeliveryFeedbackOutboxServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/delivery-service -am \"-Dtest=DeliveryFeedbackOutboxServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl shared/legent-common -DskipTests install",
+                          ".\\mvnw.cmd -pl services/delivery-service \"-Dtest=DeliveryFeedbackOutboxServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          "git diff --check -- delivery feedback outbox retention files",
+                          "rg -n \"[ \\\\t]+$\" delivery feedback outbox retention files"
+                      ],
+    "residualRisks":  [
+                          "Local unit validation only; no production retention run, database bloat measurement, or live outbox lag transcript was introduced.",
+                          "Cleanup soft-deletes terminal rows from active indexes; physical table compaction still depends on database vacuum/maintenance."
+                      ],
+    "nextAction":  "Observe terminal outbox retention metrics during broader delivery/runtime validation."
+}

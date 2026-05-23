@@ -9,6 +9,9 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -24,6 +27,7 @@ class ContentServiceClientTest {
     private static final String INTERNAL_TOKEN = "internal-service-token-1234567890abcdef";
 
     private HttpServer server;
+    private ExecutorService serverExecutor;
     private ContentServiceClient client;
     private final AtomicReference<CapturedRequest> capturedRequest = new AtomicReference<>();
     private String responseBody;
@@ -34,10 +38,12 @@ class ContentServiceClientTest {
         responseBody = """
                 {"success":true,"data":{"subject":"Rendered","htmlBody":"<p>Hello</p>","textBody":"Hello"}}
                 """;
-        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         server.createContext("/", this::handleRequest);
+        serverExecutor = Executors.newSingleThreadExecutor();
+        server.setExecutor(serverExecutor);
         server.start();
-        client = new ContentServiceClient("http://localhost:" + server.getAddress().getPort(), INTERNAL_TOKEN);
+        client = new ContentServiceClient("http://127.0.0.1:" + server.getAddress().getPort(), INTERNAL_TOKEN);
     }
 
     @AfterEach
@@ -45,6 +51,14 @@ class ContentServiceClientTest {
         TenantContext.clear();
         if (server != null) {
             server.stop(0);
+        }
+        if (serverExecutor != null) {
+            serverExecutor.shutdownNow();
+            try {
+                serverExecutor.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -78,7 +92,7 @@ class ContentServiceClientTest {
     void constructorRejectsDocumentedPlaceholderInternalToken() {
         assertThrows(IllegalStateException.class, () ->
                 new ContentServiceClient(
-                        "http://localhost:" + server.getAddress().getPort(),
+                        "http://127.0.0.1:" + server.getAddress().getPort(),
                         "replace_with_32_plus_character_internal_api_token"));
     }
 

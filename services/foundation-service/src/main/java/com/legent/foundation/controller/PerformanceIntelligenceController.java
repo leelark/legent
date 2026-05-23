@@ -3,6 +3,8 @@ package com.legent.foundation.controller;
 import com.legent.common.dto.ApiResponse;
 import com.legent.foundation.dto.performance.AiContentAssistanceEvaluateRequest;
 import com.legent.foundation.dto.performance.AiContentAssistancePolicyRequest;
+import com.legent.foundation.dto.performance.AiProviderContractRequest;
+import com.legent.foundation.dto.performance.AiProviderMeteringRequest;
 import com.legent.foundation.dto.performance.ExtensionPackageRequest;
 import com.legent.foundation.dto.performance.ExtensionValidationRequest;
 import com.legent.foundation.dto.performance.OperationsAssistRequest;
@@ -11,6 +13,7 @@ import com.legent.foundation.dto.performance.OptimizationPolicyRequest;
 import com.legent.foundation.dto.performance.PersonalizationEvaluateRequest;
 import com.legent.foundation.dto.performance.WorkflowBenchmarkRequest;
 import com.legent.foundation.service.performance.AiContentAssistanceGovernanceService;
+import com.legent.foundation.service.performance.AiProviderContractMeteringService;
 import com.legent.foundation.service.performance.ClosedLoopOptimizationService;
 import com.legent.foundation.service.performance.ExtensionGovernanceService;
 import com.legent.foundation.service.performance.OperationsAssistanceService;
@@ -43,6 +46,7 @@ public class PerformanceIntelligenceController {
     private final OperationsAssistanceService operationsAssistanceService;
     private final WorkflowBenchmarkService workflowBenchmarkService;
     private final AiContentAssistanceGovernanceService aiContentAssistanceGovernanceService;
+    private final AiProviderContractMeteringService aiProviderContractMeteringService;
 
     @GetMapping("/summary")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
@@ -98,6 +102,32 @@ public class PerformanceIntelligenceController {
             @RequestParam(required = false) String workspaceId,
             @RequestParam(defaultValue = "100") int limit) {
         return ApiResponse.ok(aiContentAssistanceGovernanceService.listAudits(workspaceId, limit));
+    }
+
+    @PostMapping("/ai-provider/contracts")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> upsertAiProviderContract(@Valid @RequestBody AiProviderContractRequest request) {
+        return ApiResponse.ok(aiProviderContractMeteringService.upsertContract(request));
+    }
+
+    @GetMapping("/ai-provider/contracts")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listAiProviderContracts(@RequestParam(required = false) String workspaceId) {
+        return ApiResponse.ok(aiProviderContractMeteringService.listContracts(workspaceId));
+    }
+
+    @PostMapping("/ai-provider/metering/evaluate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> evaluateAiProviderMetering(@Valid @RequestBody AiProviderMeteringRequest request) {
+        return ApiResponse.ok(aiProviderContractMeteringService.evaluateMetering(request));
+    }
+
+    @GetMapping("/ai-provider/metering/events")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
+    public ApiResponse<List<Map<String, Object>>> listAiProviderMeteringEvents(
+            @RequestParam(required = false) String workspaceId,
+            @RequestParam(defaultValue = "100") int limit) {
+        return ApiResponse.ok(aiProviderContractMeteringService.listMeteringEvents(workspaceId, limit));
     }
 
     @PostMapping("/extensions/packages")

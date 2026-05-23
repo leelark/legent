@@ -19,8 +19,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - name: Backend tests
-        run: ./mvnw test -DskipITs
+      - name: Backend tests with coverage
+        run: ./mvnw -T1 -Pcoverage -DskipITs=true verify
+      - name: Backend coverage threshold summary
+        shell: pwsh
+        run: ./scripts/ops/validate-jacoco-coverage.ps1
+      - name: Backend integration tests
+        if: ${{ vars.LEGENT_RUN_BACKEND_ITS == 'true' }}
+        run: ./mvnw -T1 -Pcoverage,integration-tests -DskipITs=false verify
 
   frontend:
     runs-on: ubuntu-latest
@@ -36,6 +42,10 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint
+      - name: Frontend unit coverage
+        run: npm run test:coverage
+      - name: Install Playwright chromium
+        run: npx playwright install --with-deps chromium
       - name: Frontend sanitizer regression
         run: npm run test:e2e:sanitize
         env:
@@ -44,10 +54,8 @@ jobs:
         run: npm run build:ci
         env:
           LEGENT_BUILD_TIMEOUT_MS: "900000"
-      - name: Install Playwright smoke browser
-        run: npx playwright install --with-deps chromium
-      - name: Frontend E2E smoke
-        run: npm run test:e2e:smoke
+      - name: Frontend full Chromium E2E
+        run: npm run test:e2e:chromium
         env:
           CI: "true"
       - run: npm audit --omit=dev --audit-level=high

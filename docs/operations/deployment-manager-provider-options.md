@@ -38,6 +38,24 @@ Final interpretation: repository-only work can complete the local plan, configur
 
 Secrets must stay outside the repository. Runtime config may store non-secret mode and policy values; API keys, SMTP passwords, signing keys, and provider tokens belong in environment secrets or ExternalSecrets.
 
+## Deployment Manager Evidence Ledger
+
+The Settings Deployment Manager separates evidence attachments into two scopes:
+
+- Local validation evidence: lint/build/Playwright transcripts, local release validators, Docker Compose checks, and local-only release gate output.
+- Strict production evidence: target egress proof, image digest/SBOM/signature/provenance, live GA smoke/restore/CI-security/filesystem-SBOM/TLS/admission/monitoring evidence, and provider-approved capacity/load proof.
+
+The ledger is an operator workflow for recording evidence references and summaries. It does not upload secrets, accept credentials, or turn local validation into production readiness. Production readiness remains blocked until every strict production category has reviewed evidence and the strict release gate is run against those evidence paths.
+
+| UI category | Scope | Release gate or validator evidence |
+|---|---|---|
+| Local frontend gates | Local | `npm run lint`, `npm run build:ci`, focused Playwright/browser transcript |
+| Local release validators | Local | `validate-route-map.ps1`, `validate-repo-artifact-hygiene.ps1`, `validate-production-overlay.ps1`, `docker compose config --quiet`, `test-release-evidence-validators.ps1`, and `release-gate.ps1 -LocalOnly` |
+| Production egress evidence | Strict production | `validate-production-egress-evidence.ps1`, `validate-production-egress-policy-render.ps1`, and strict release gate egress input |
+| Image digest/SBOM/provenance | Strict production | `validate-image-evidence.ps1` for every production image digest, SBOM digest, signature, provenance, builder ID, predicate type, reviewer, and date |
+| GA smoke, restore, CI/security | Strict production | `validate-ga-evidence.ps1` fields for `syntheticSmoke`, `liveLoad`, `restoreDrill`, `ciSecurityTranscript`, `filesystemSbom`, `monitoringHandoff`, `tlsCertificate`, `restrictedAdmission`, and `registryImageEvidence` |
+| Provider capacity and load | Strict production | Provider-approved quota/capacity proof, warmed sender/domain evidence, DNS/FBL/bounce/complaint evidence, target-like load report, Kafka lag/retry/DLQ, and tracking/ClickHouse isolation proof |
+
 ## Free Validation Path
 
 Use this path to reach 100% local validation confidence, not production proof.

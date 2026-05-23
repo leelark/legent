@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -36,12 +37,12 @@ class DeliverabilityServiceClientTest {
         responseBody = """
                 {"success":true,"data":{"checkedCount":2,"suppressedCount":1,"suppressedEmails":["User@Example.COM"]}}
                 """;
-        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
         serverExecutor = Executors.newSingleThreadExecutor();
         server.setExecutor(serverExecutor);
         server.createContext("/", this::handleRequest);
         server.start();
-        client = new DeliverabilityServiceClient("http://localhost:" + server.getAddress().getPort(), INTERNAL_TOKEN);
+        client = new DeliverabilityServiceClient("http://127.0.0.1:" + server.getAddress().getPort(), INTERNAL_TOKEN);
     }
 
     @AfterEach
@@ -51,6 +52,11 @@ class DeliverabilityServiceClientTest {
         }
         if (serverExecutor != null) {
             serverExecutor.shutdownNow();
+            try {
+                serverExecutor.awaitTermination(1, TimeUnit.SECONDS);
+            } catch (InterruptedException exception) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -102,7 +108,7 @@ class DeliverabilityServiceClientTest {
     void constructorRejectsPlaceholderInternalToken() {
         assertThatThrownBy(() ->
                 new DeliverabilityServiceClient(
-                        "http://localhost:" + server.getAddress().getPort(),
+                        "http://127.0.0.1:" + server.getAddress().getPort(),
                         "replace_with_32_plus_character_internal_api_token"))
                 .isInstanceOf(IllegalStateException.class);
     }

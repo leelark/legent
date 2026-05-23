@@ -187,6 +187,8 @@ public class ContentServiceClient {
                     booleanValue(data.get("consentRequired")),
                     booleanValue(data.get("trackingAllowed")),
                     intValue(data.get("sendLogRetentionDays")),
+                    stringValue(data.get("publicationPolicy")),
+                    longValue(data.get("version")),
                     booleanValue(data.get("active")));
         } catch (Exception e) {
             throw new ContentServiceException("Failed to read send governance policy " + scopedPolicyId, e);
@@ -260,6 +262,16 @@ public class ContentServiceClient {
         return Integer.parseInt(value.toString());
     }
 
+    private Long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        return Long.parseLong(value.toString());
+    }
+
     private Boolean booleanValue(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -303,6 +315,8 @@ public class ContentServiceClient {
                                               Boolean consentRequired,
                                               Boolean trackingAllowed,
                                               Integer sendLogRetentionDays,
+                                              String publicationPolicy,
+                                              Long version,
                                               Boolean active) {}
 
     /**

@@ -167,7 +167,7 @@ export function TemplateStudioCommandCenter({
       label: 'Tests',
       detail: testSendRecords.length > 0
         ? `${successfulTests} queued/sent, ${failedTests} failed`
-        : 'Queue inbox checks before launch',
+        : 'Queue render and delivery checks before launch',
       state: failedTests > 0 ? 'blocked' : successfulTests > 0 ? 'done' : 'pending',
     });
   }

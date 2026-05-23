@@ -146,7 +146,7 @@ function HomePage() {
             <Pill icon={Network}>Signal to outcome</Pill>
             <h2 className="public-heading mt-4 text-balance text-3xl font-semibold md:text-5xl">One operating loop from customer signal to business outcome.</h2>
             <p className="public-muted mt-5 max-w-xl leading-7">
-              Customer behavior, AI guidance, approval evidence, provider risk, and revenue feedback move through one visible workflow instead of disconnected queues.
+              Customer behavior, policy guidance, approval evidence, provider risk, and revenue feedback move through one visible workflow instead of disconnected queues.
             </p>
           </div>
           <SignalRibbon steps={[...page.signalFlow]} />
@@ -237,7 +237,7 @@ function FeaturesPage() {
       <MarketingSection eyebrow="Process flow" title="Every feature lands inside a full operating lifecycle.">
         <ProcessFlow steps={[...page.process]} />
       </MarketingSection>
-      <FinalCta title="See how governed features become faster launches." body="Create a workspace, connect studios, and give every team a clearer path from idea to inbox." />
+      <FinalCta title="See how governed features become clearer launches." body="Create a workspace, connect studios, and give every team a clearer path from idea to delivery review." />
     </div>
   );
 }
@@ -374,7 +374,7 @@ function AboutPage() {
       <section className="public-border border-y bg-[var(--public-panel)]" data-gsap-reveal>
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6">
           <Pill icon={Clock3}>Story timeline</Pill>
-          <h2 className="public-heading mt-4 max-w-3xl text-balance text-3xl font-semibold md:text-5xl">From launch control to enterprise messaging infrastructure.</h2>
+          <h2 className="public-heading mt-4 max-w-3xl text-balance text-3xl font-semibold md:text-5xl">From launch control to governed messaging operations.</h2>
           <div className="mt-10 grid gap-5 lg:grid-cols-4">
             {page.timeline.map((item, index) => (
               <motion.div key={item.title} whileHover={{ y: -8 }} className="public-panel min-h-[250px] rounded-[1.4rem] p-5">

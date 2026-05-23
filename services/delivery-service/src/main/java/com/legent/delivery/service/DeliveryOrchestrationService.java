@@ -1,11 +1,18 @@
 package com.legent.delivery.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.cache.service.CacheService;
 import com.legent.delivery.client.ContentServiceClient;
 import com.legent.delivery.domain.MessageLog;
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 import java.util.Optional;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import java.util.Map;
@@ -32,8 +39,11 @@ import java.time.temporal.ChronoUnit;
 @RequiredArgsConstructor
 public class DeliveryOrchestrationService {
     private static final Pattern CONTENT_REFERENCE_PATTERN = Pattern.compile("^[A-Za-z0-9:_-]{1,160}$");
+    private static final Pattern SNAPSHOT_HASH_PATTERN = Pattern.compile("^[a-fA-F0-9]{64}$");
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
     private static final String RENDERED_CONTENT_REFERENCE_PREFIX = "cr_";
     private static final String CONTENT_UNAVAILABLE_FAILURE_CLASS = "CONTENT_UNAVAILABLE";
+    private static final String GOVERNANCE_POLICY_FAILURE_CLASS = "SEND_GOVERNANCE_POLICY_BLOCKED";
     private static final int SCHEDULED_RETRY_BATCH_SIZE = 500;
 
     private final ProviderSelectionStrategy providerStrategy;
@@ -96,6 +106,11 @@ public class DeliveryOrchestrationService {
         String fromName = normalize(payload.get("fromName"));
         String replyToEmail = normalize(payload.get("replyToEmail"));
         String contentReference = normalize(payload.get("contentReference"));
+        String sendGovernancePolicyId = normalize(payload.get("sendGovernancePolicyId"));
+        String sendGovernancePolicyKey = normalize(payload.get("sendGovernancePolicyKey"));
+        Long sendGovernancePolicyVersion = parseLong(payload.get("sendGovernancePolicyVersion"));
+        String sendGovernancePolicySnapshotHash = normalize(payload.get("sendGovernancePolicySnapshotHash"));
+        String sendGovernancePolicySnapshot = canonicalSnapshotJson(payload.get("sendGovernancePolicySnapshot"));
         // messageId could be passed or generated.
         // For idempotency we prefer payload messageId, then eventId, and finally generate a UUID.
         String messageId = normalize(payload.get("messageId"));
@@ -143,6 +158,11 @@ public class DeliveryOrchestrationService {
             newLog.setFromEmail(fromEmail);
             newLog.setFromName(fromName);
             newLog.setReplyToEmail(replyToEmail);
+            newLog.setSendGovernancePolicyId(sendGovernancePolicyId);
+            newLog.setSendGovernancePolicyKey(sendGovernancePolicyKey);
+            newLog.setSendGovernancePolicyVersion(sendGovernancePolicyVersion);
+            newLog.setSendGovernancePolicySnapshotHash(sendGovernancePolicySnapshotHash);
+            newLog.setSendGovernancePolicySnapshot(sendGovernancePolicySnapshot);
             // Fix 31: Don't store full HTML body in message_logs - only store references
             // Content is fetched from content-service at retry time if needed
             newLog.setContentReference(contentReference);
@@ -217,6 +237,21 @@ public class DeliveryOrchestrationService {
         if ((logEntry.getContentReference() == null || logEntry.getContentReference().isBlank()) && contentReference != null) {
             logEntry.setContentReference(contentReference);
         }
+        if ((logEntry.getSendGovernancePolicyId() == null || logEntry.getSendGovernancePolicyId().isBlank()) && sendGovernancePolicyId != null) {
+            logEntry.setSendGovernancePolicyId(sendGovernancePolicyId);
+        }
+        if ((logEntry.getSendGovernancePolicyKey() == null || logEntry.getSendGovernancePolicyKey().isBlank()) && sendGovernancePolicyKey != null) {
+            logEntry.setSendGovernancePolicyKey(sendGovernancePolicyKey);
+        }
+        if (logEntry.getSendGovernancePolicyVersion() == null && sendGovernancePolicyVersion != null) {
+            logEntry.setSendGovernancePolicyVersion(sendGovernancePolicyVersion);
+        }
+        if ((logEntry.getSendGovernancePolicySnapshotHash() == null || logEntry.getSendGovernancePolicySnapshotHash().isBlank()) && sendGovernancePolicySnapshotHash != null) {
+            logEntry.setSendGovernancePolicySnapshotHash(sendGovernancePolicySnapshotHash);
+        }
+        if ((logEntry.getSendGovernancePolicySnapshot() == null || logEntry.getSendGovernancePolicySnapshot().isBlank()) && sendGovernancePolicySnapshot != null) {
+            logEntry.setSendGovernancePolicySnapshot(sendGovernancePolicySnapshot);
+        }
         if (contentReference == null) {
             contentReference = normalize(logEntry.getContentReference());
         }
@@ -252,6 +287,20 @@ public class DeliveryOrchestrationService {
             subject = deliveryContent.subject();
             htmlBody = deliveryContent.htmlBody();
             contentReference = deliveryContent.contentReference();
+            String policySnapshotFailure = validateSendGovernancePolicySnapshot(logEntry);
+            if (policySnapshotFailure != null) {
+                failSendForInvalidPolicySnapshot(
+                        logEntry,
+                        normalizedTenantId,
+                        workspaceId,
+                        messageId,
+                        campaignId,
+                        jobId,
+                        batchId,
+                        subscriberId,
+                        policySnapshotFailure);
+                return;
+            }
 
             String recipientDomain = extractDomain(email);
             String senderDomain = extractDomain(fromEmail);
@@ -501,6 +550,83 @@ public class DeliveryOrchestrationService {
                 safetyMetadata(logEntry));
     }
 
+    private void failSendForInvalidPolicySnapshot(MessageLog logEntry,
+                                                  String tenantId,
+                                                  String workspaceId,
+                                                  String messageId,
+                                                  String campaignId,
+                                                  String jobId,
+                                                  String batchId,
+                                                  String subscriberId,
+                                                  String reason) {
+        String failureReason = markPolicySnapshotUnavailable(logEntry, reason);
+        log.warn("Failing delivery for message {}: {}", messageId, failureReason);
+        feedbackOutboxService.enqueueEmailFailed(
+                tenantId,
+                workspaceId,
+                messageId,
+                campaignId,
+                jobId,
+                batchId,
+                subscriberId,
+                failureReason,
+                safetyMetadata(logEntry));
+    }
+
+    private String validateSendGovernancePolicySnapshot(MessageLog logEntry) {
+        String policyId = normalize(logEntry.getSendGovernancePolicyId());
+        String policyKey = normalize(logEntry.getSendGovernancePolicyKey());
+        Long policyVersion = logEntry.getSendGovernancePolicyVersion();
+        String snapshotHash = normalize(logEntry.getSendGovernancePolicySnapshotHash());
+        String snapshotJson = normalize(logEntry.getSendGovernancePolicySnapshot());
+        if (policyId == null || policyKey == null || policyVersion == null || snapshotHash == null || snapshotJson == null) {
+            return "Send governance policy snapshot is required before delivery execution";
+        }
+        if (policyVersion < 0) {
+            return "Send governance policy version is invalid";
+        }
+        if (!SNAPSHOT_HASH_PATTERN.matcher(snapshotHash).matches()) {
+            return "Send governance policy snapshot hash is invalid";
+        }
+        SortedMap<String, Object> snapshot;
+        try {
+            snapshot = readSnapshotMap(snapshotJson);
+        } catch (RuntimeException e) {
+            return "Send governance policy snapshot is malformed";
+        }
+        String canonicalJson = writeSnapshotJson(snapshot);
+        if (!snapshotHash.equalsIgnoreCase(sha256Hex(canonicalJson))) {
+            return "Send governance policy snapshot hash does not match payload";
+        }
+        if (!policyId.equals(normalize(snapshot.get("policyId")))) {
+            return "Send governance policy snapshot policyId does not match delivery payload";
+        }
+        if (!policyKey.equals(normalize(snapshot.get("policyKey")))) {
+            return "Send governance policy snapshot policyKey does not match delivery payload";
+        }
+        if (!policyVersion.equals(parseLong(snapshot.get("version")))) {
+            return "Send governance policy snapshot version does not match delivery payload";
+        }
+        if (!Boolean.TRUE.equals(booleanValue(snapshot.get("active")))) {
+            return "Send governance policy snapshot is inactive";
+        }
+        boolean commercial = Boolean.TRUE.equals(booleanValue(snapshot.get("commercial")))
+                || "COMMERCIAL".equalsIgnoreCase(defaultString(snapshot.get("classification")));
+        if (commercial) {
+            if (!Boolean.TRUE.equals(booleanValue(snapshot.get("suppressionRequired")))) {
+                return "Commercial send governance policy snapshot must require suppression checks";
+            }
+            if (!"REQUIRED".equalsIgnoreCase(defaultString(snapshot.get("unsubscribePolicy")))) {
+                return "Commercial send governance policy snapshot must require unsubscribe handling";
+            }
+        }
+        Integer retentionDays = parseInteger(snapshot.get("sendLogRetentionDays"));
+        if (retentionDays == null || retentionDays < 1) {
+            return "Send governance policy snapshot must define positive send-log retention days";
+        }
+        return null;
+    }
+
     private void applySafetyResult(MessageLog logEntry,
                                    InboxSafetyService.InboxSafetyResult safety,
                                    String rateLimitKey,
@@ -602,6 +728,18 @@ public class DeliveryOrchestrationService {
         if (logEntry.getWarmupStage() != null) {
             metadata.put("warmupStage", logEntry.getWarmupStage());
         }
+        if (logEntry.getSendGovernancePolicyId() != null) {
+            metadata.put("sendGovernancePolicyId", logEntry.getSendGovernancePolicyId());
+        }
+        if (logEntry.getSendGovernancePolicyKey() != null) {
+            metadata.put("sendGovernancePolicyKey", logEntry.getSendGovernancePolicyKey());
+        }
+        if (logEntry.getSendGovernancePolicyVersion() != null) {
+            metadata.put("sendGovernancePolicyVersion", String.valueOf(logEntry.getSendGovernancePolicyVersion()));
+        }
+        if (logEntry.getSendGovernancePolicySnapshotHash() != null) {
+            metadata.put("sendGovernancePolicySnapshotHash", logEntry.getSendGovernancePolicySnapshotHash());
+        }
         if (logEntry.getFailureClass() != null) {
             metadata.put("failureClass", logEntry.getFailureClass());
         }
@@ -651,6 +789,35 @@ public class DeliveryOrchestrationService {
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private Long parseLong(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private Boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value == null) {
+            return null;
+        }
+        return Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private String defaultString(Object value) {
+        String normalized = normalize(value);
+        return normalized == null ? "" : normalized;
     }
 
     private BigDecimal parseMoney(Object value) {
@@ -713,6 +880,11 @@ public class DeliveryOrchestrationService {
                 payload.put("costReserved", logEntry.getCostReserved() != null ? logEntry.getCostReserved() : BigDecimal.ZERO);
                 payload.put("messageId", logEntry.getMessageId());
                 payload.put("contentReference", logEntry.getContentReference());
+                payload.put("sendGovernancePolicyId", logEntry.getSendGovernancePolicyId());
+                payload.put("sendGovernancePolicyKey", logEntry.getSendGovernancePolicyKey());
+                payload.put("sendGovernancePolicyVersion", logEntry.getSendGovernancePolicyVersion());
+                payload.put("sendGovernancePolicySnapshotHash", logEntry.getSendGovernancePolicySnapshotHash());
+                payload.put("sendGovernancePolicySnapshot", logEntry.getSendGovernancePolicySnapshot());
                 payload.put("fromEmail", logEntry.getFromEmail() != null ? logEntry.getFromEmail() : "");
                 payload.put("fromName", logEntry.getFromName() != null ? logEntry.getFromName() : "");
                 payload.put("replyToEmail", logEntry.getReplyToEmail() != null ? logEntry.getReplyToEmail() : "");
@@ -759,6 +931,75 @@ public class DeliveryOrchestrationService {
         logEntry.setProviderResponse(failureReason);
         logEntry.setNextRetryAt(null);
         return failureReason;
+    }
+
+    private String markPolicySnapshotUnavailable(MessageLog logEntry, String reason) {
+        String failureReason = normalize(reason);
+        if (failureReason == null) {
+            failureReason = "Send governance policy snapshot is unavailable";
+        }
+        logEntry.setStatus(MessageLog.DeliveryStatus.FAILED.name());
+        logEntry.setFailureClass(GOVERNANCE_POLICY_FAILURE_CLASS);
+        logEntry.setProviderResponse(failureReason);
+        logEntry.setNextRetryAt(null);
+        return failureReason;
+    }
+
+    private String canonicalSnapshotJson(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof CharSequence text) {
+            String raw = text.toString().trim();
+            return raw.isEmpty() ? null : raw;
+        }
+        if (value instanceof Map<?, ?> map) {
+            return writeSnapshotJson(normalizeSnapshotMap(map));
+        }
+        try {
+            Map<String, Object> converted = objectMapper.convertValue(value, MAP_TYPE);
+            return writeSnapshotJson(new TreeMap<>(converted));
+        } catch (IllegalArgumentException e) {
+            String raw = String.valueOf(value).trim();
+            return raw.isEmpty() ? null : raw;
+        }
+    }
+
+    private SortedMap<String, Object> readSnapshotMap(String snapshotJson) {
+        try {
+            return normalizeSnapshotMap(objectMapper.readValue(snapshotJson, MAP_TYPE));
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Unable to read send governance policy snapshot", e);
+        }
+    }
+
+    private SortedMap<String, Object> normalizeSnapshotMap(Map<?, ?> raw) {
+        TreeMap<String, Object> normalized = new TreeMap<>();
+        if (raw != null) {
+            raw.forEach((key, value) -> {
+                if (key != null) {
+                    normalized.put(String.valueOf(key), value);
+                }
+            });
+        }
+        return normalized;
+    }
+
+    private String writeSnapshotJson(SortedMap<String, Object> snapshot) {
+        try {
+            return objectMapper.writeValueAsString(snapshot);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("Unable to serialize send governance policy snapshot", e);
+        }
+    }
+
+    private String sha256Hex(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("Unable to hash send governance policy snapshot", e);
+        }
     }
 
     private String extractDomain(String email) {

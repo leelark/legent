@@ -36,7 +36,8 @@ public class AutomationStudioDto {
     public enum RunStatus {
         VERIFIED,
         SUCCEEDED,
-        FAILED
+        FAILED,
+        LOCKED
     }
 
     public enum FailurePolicy {
@@ -103,6 +104,8 @@ public class AutomationStudioDto {
         private Boolean confirmLiveRun;
         private String idempotencyKey;
         private String triggerSource;
+        private Boolean operatorOverride;
+        private String overrideReason;
         private Map<String, Object> overrides;
 
         public boolean isDryRun() {
@@ -111,6 +114,10 @@ public class AutomationStudioDto {
 
         public boolean isLiveRunConfirmed() {
             return Boolean.TRUE.equals(confirmLiveRun);
+        }
+
+        public boolean isOperatorOverride() {
+            return Boolean.TRUE.equals(operatorOverride);
         }
     }
 
@@ -130,6 +137,11 @@ public class AutomationStudioDto {
         private String errorCode;
         private String errorMessage;
         private String idempotencyKey;
+        private Long retryAfterSeconds;
+        private Instant lockedUntil;
+        private String lockOwnerRunId;
+        private Boolean operatorOverride;
+        private String overrideReason;
         private Map<String, Object> dependencyTrace;
         private Map<String, Object> result;
         private Instant startedAt;

@@ -1,0 +1,35 @@
+{
+    "id":  "qa-ci-coverage-threshold-gate",
+    "createdAt":  "2026-05-23T19:00:23.6524286Z",
+    "objective":  "Add measurable backend and frontend coverage gates",
+    "status":  "DONE",
+    "owner":  "QA_ENGINEER",
+    "filesInScope":  [
+                         "pom.xml",
+                         "frontend/package.json",
+                         "frontend/package-lock.json",
+                         ".github/workflows/ci-security.yml",
+                         ".codex/workflows/validation-gates.md",
+                         ".codex/memory/test-impact-map.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "TEST_ARCHITECT",
+                   "FRONTEND_OWNER",
+                   "BACKEND_PLATFORM_OWNER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd test",
+                           "cd frontend; npm run test:coverage"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Proceed to the next highest-score READY item: frontend-ai-claim-boundary-copy."
+}

@@ -15,6 +15,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Duration;
@@ -57,6 +58,10 @@ class DeliveryFeedbackOutboxServiceTest {
         service.registerBacklogMetrics();
         ReflectionTestUtils.setField(service, "maxAttempts", 3);
         ReflectionTestUtils.setField(service, "immediatePublishEnabled", true);
+        ReflectionTestUtils.setField(service, "retentionCleanupEnabled", true);
+        ReflectionTestUtils.setField(service, "publishedRetentionDays", 14);
+        ReflectionTestUtils.setField(service, "failedRetentionDays", 90);
+        ReflectionTestUtils.setField(service, "retentionCleanupBatchSize", 250_000);
     }
 
     @Test
@@ -249,6 +254,99 @@ class DeliveryFeedbackOutboxServiceTest {
                             || tag.getKey().equalsIgnoreCase("workspaceId")
                             || tag.getKey().equalsIgnoreCase("email")));
         });
+    }
+
+    @Test
+    void cleanupTerminalEvents_SoftDeletesOnlyTerminalRowsWithinBoundedRetention() {
+        when(outboxRepository.findPublishedIdsEligibleForRetention(
+                eq(DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED),
+                any(Instant.class),
+                any(Pageable.class)))
+                .thenReturn(List.of("published-1", "published-2"));
+        when(outboxRepository.findFailedIdsEligibleForRetention(
+                eq(DeliveryFeedbackOutboxEvent.STATUS_FAILED),
+                any(Instant.class),
+                any(Pageable.class)))
+                .thenReturn(List.of("failed-1"));
+        when(outboxRepository.softDeleteTerminalIds(
+                eq(List.of("published-1", "published-2")),
+                eq(DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED),
+                any(Instant.class)))
+                .thenReturn(2);
+        when(outboxRepository.softDeleteTerminalIds(
+                eq(List.of("failed-1")),
+                eq(DeliveryFeedbackOutboxEvent.STATUS_FAILED),
+                any(Instant.class)))
+                .thenReturn(1);
+
+        DeliveryFeedbackOutboxService.RetentionCleanupResult result = service.cleanupTerminalEvents();
+
+        assertEquals(2, result.publishedDeleted());
+        assertEquals(1, result.failedDeleted());
+        assertEquals(3, result.totalDeleted());
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(outboxRepository).findPublishedIdsEligibleForRetention(
+                eq(DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED),
+                any(Instant.class),
+                pageableCaptor.capture());
+        verify(outboxRepository).findFailedIdsEligibleForRetention(
+                eq(DeliveryFeedbackOutboxEvent.STATUS_FAILED),
+                any(Instant.class),
+                pageableCaptor.capture());
+        assertEquals(DeliveryFeedbackOutboxService.MAX_RETENTION_CLEANUP_BATCH_SIZE, pageableCaptor.getAllValues().get(0).getPageSize());
+        assertEquals(DeliveryFeedbackOutboxService.MAX_RETENTION_CLEANUP_BATCH_SIZE, pageableCaptor.getAllValues().get(1).getPageSize());
+        verify(outboxRepository, never()).softDeleteTerminalIds(
+                anyCollection(),
+                eq(DeliveryFeedbackOutboxEvent.STATUS_PENDING),
+                any(Instant.class));
+        verify(outboxRepository, never()).softDeleteTerminalIds(
+                anyCollection(),
+                eq(DeliveryFeedbackOutboxEvent.STATUS_PUBLISHING),
+                any(Instant.class));
+        assertEquals(1, meterRegistry.get("legent.delivery.feedback.outbox.retention.cleanup.duration")
+                .tag("outcome", "success")
+                .timer()
+                .count());
+        assertEquals(2.0, meterRegistry.get("legent.delivery.feedback.outbox.retention.cleanup.rows")
+                .tag("status", DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED)
+                .tag("outcome", "success")
+                .summary()
+                .totalAmount());
+        assertEquals(1.0, meterRegistry.get("legent.delivery.feedback.outbox.retention.cleanup.rows")
+                .tag("status", DeliveryFeedbackOutboxEvent.STATUS_FAILED)
+                .tag("outcome", "success")
+                .summary()
+                .totalAmount());
+    }
+
+    @Test
+    void cleanupTerminalEvents_WhenNoTerminalRowsMatch_DoesNotMutateOutbox() {
+        when(outboxRepository.findPublishedIdsEligibleForRetention(
+                eq(DeliveryFeedbackOutboxEvent.STATUS_PUBLISHED),
+                any(Instant.class),
+                any(Pageable.class)))
+                .thenReturn(List.of());
+        when(outboxRepository.findFailedIdsEligibleForRetention(
+                eq(DeliveryFeedbackOutboxEvent.STATUS_FAILED),
+                any(Instant.class),
+                any(Pageable.class)))
+                .thenReturn(List.of());
+
+        DeliveryFeedbackOutboxService.RetentionCleanupResult result = service.cleanupTerminalEvents();
+
+        assertEquals(0, result.totalDeleted());
+        verify(outboxRepository, never()).softDeleteTerminalIds(anyCollection(), anyString(), any(Instant.class));
+    }
+
+    @Test
+    void cleanupTerminalEventsOnSchedule_WhenDisabled_DoesNotQueryRetentionCandidates() {
+        ReflectionTestUtils.setField(service, "retentionCleanupEnabled", false);
+
+        service.cleanupTerminalEventsOnSchedule();
+
+        verify(outboxRepository, never()).findPublishedIdsEligibleForRetention(anyString(), any(Instant.class), any(Pageable.class));
+        verify(outboxRepository, never()).findFailedIdsEligibleForRetention(anyString(), any(Instant.class), any(Pageable.class));
+        verify(outboxRepository, never()).softDeleteTerminalIds(anyCollection(), anyString(), any(Instant.class));
     }
 
     private DeliveryFeedbackMessage message(String id) {

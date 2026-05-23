@@ -14,9 +14,11 @@ import org.apache.commons.csv.CSVRecord;
 
 import com.legent.audience.domain.ImportJob;
 import com.legent.audience.domain.Subscriber;
+import com.legent.audience.domain.SubscriberIdentityProvenance;
 import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.event.ImportEventPublisher;
 import com.legent.audience.repository.ImportJobRepository;
+import com.legent.audience.repository.SubscriberIdentityProvenanceRepository;
 import com.legent.audience.repository.SubscriberRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -45,8 +47,13 @@ import java.util.Locale;
 
 public class ImportProcessingService {
 
+    private static final String IMPORT_SOURCE = "IMPORT";
+    private static final String IMPORT_LEAD_SOURCE = "AUDIENCE_IMPORT";
+    private static final String IMPORT_ACQUISITION_CHANNEL = "CSV_IMPORT";
+
     private final ImportJobRepository importJobRepository;
     private final SubscriberRepository subscriberRepository;
+    private final SubscriberIdentityProvenanceRepository subscriberIdentityProvenanceRepository;
     private final DataExtensionService dataExtensionService;
     private final ImportEventPublisher eventPublisher;
     private final PlatformTransactionManager transactionManager;
@@ -76,6 +83,10 @@ public class ImportProcessingService {
                 return;
             }
             job = startedJob;
+            if (!isBlank(job.getStartedBy())) {
+                TenantContext.setUserId(job.getStartedBy());
+            }
+            populateTargetProvenance(job);
 
             long successCount = 0;
             long errorCount = 0;
@@ -111,7 +122,7 @@ public class ImportProcessingService {
                         successCount += result.successCount;
                         errorCount += result.errorCount;
                         appendErrorSamples(errors, result.errors);
-                        
+
                         if (!updateJobProgress(jobId, tenantId, workspaceId, currentRow, successCount, errorCount)) {
                             log.info("Import job disappeared during progress update: id={}, tenant={}, workspace={}",
                                     jobId, tenantId, workspaceId);
@@ -260,13 +271,14 @@ public class ImportProcessingService {
         if ("DATA_EXTENSION".equals(targetType)) {
             return processDataExtensionChunk(chunk, job.getTargetId(), job.getFieldMapping(), remainingErrorSamples);
         }
-        return processSubscriberChunk(tenantId, workspaceId, chunk, job.getFieldMapping(), remainingErrorSamples);
+        return processSubscriberChunk(tenantId, workspaceId, chunk, job, remainingErrorSamples);
     }
 
     private ChunkResult processSubscriberChunk(String tenantId, String workspaceId, List<Map<String, String>> chunk,
-                                               Map<String, String> mapping, int remainingErrorSamples) {
+                                               ImportJob job, int remainingErrorSamples) {
         ChunkResult result = new ChunkResult(remainingErrorSamples);
         List<Subscriber> toSave = new ArrayList<>();
+        Map<String, String> mapping = job.getFieldMapping();
 
         for (Map<String, String> row : chunk) {
             try {
@@ -276,7 +288,7 @@ public class ImportProcessingService {
                 final String subKey = (subKeyRaw == null || subKeyRaw.isBlank())
                         ? generateDeterministicSubscriberKey(normalizedEmail, workspaceId)
                         : subKeyRaw.trim();
-                
+
                 if (normalizedEmail == null || !EMAIL_PATTERN.matcher(normalizedEmail).matches()) {
                     throw new IllegalArgumentException("Invalid email: " + email);
                 }
@@ -296,6 +308,7 @@ public class ImportProcessingService {
                 });
 
                 applyMappedFields(sub, row, mapping);
+                applyImportProvenance(sub, job);
                 toSave.add(sub);
                 result.successCount++;
             } catch (Exception e) {
@@ -307,7 +320,14 @@ public class ImportProcessingService {
             new TransactionTemplate(transactionManager).execute(new TransactionCallbackWithoutResult() {
                 @Override
                 protected void doInTransactionWithoutResult(TransactionStatus status) {
-                    subscriberRepository.saveAll(toSave);
+                    List<Subscriber> savedSubscribers = subscriberRepository.saveAll(toSave);
+                    List<SubscriberIdentityProvenance> provenanceRows = savedSubscribers.stream()
+                            .filter(subscriber -> !isBlank(subscriber.getId()))
+                            .map(subscriber -> subscriberProvenance(subscriber, job))
+                            .toList();
+                    if (!provenanceRows.isEmpty()) {
+                        subscriberIdentityProvenanceRepository.saveAll(provenanceRows);
+                    }
                 }
             });
         }
@@ -336,6 +356,45 @@ public class ImportProcessingService {
             }
         }
         return result;
+    }
+
+    private void populateTargetProvenance(ImportJob job) {
+        String targetType = job.getTargetType() == null ? "SUBSCRIBER" : job.getTargetType().trim().toUpperCase(Locale.ROOT);
+        if ("DATA_EXTENSION".equals(targetType) && !isBlank(job.getTargetId())) {
+            dataExtensionService.markImportProvenance(job.getTargetId(), job.getId(), job.getFileName());
+        }
+    }
+
+    private void applyImportProvenance(Subscriber sub, ImportJob job) {
+        sub.setSource(IMPORT_SOURCE);
+        sub.setLeadSource(IMPORT_LEAD_SOURCE);
+        sub.setAcquisitionChannel(IMPORT_ACQUISITION_CHANNEL);
+        sub.setCampaignSource(importReference(job));
+    }
+
+    private String importReference(ImportJob job) {
+        String id = job == null ? null : job.getId();
+        if (id == null || id.isBlank()) {
+            return IMPORT_LEAD_SOURCE;
+        }
+        String reference = "import:" + id.trim();
+        return reference.length() <= 128 ? reference : reference.substring(0, 128);
+    }
+
+    private SubscriberIdentityProvenance subscriberProvenance(Subscriber subscriber, ImportJob job) {
+        SubscriberIdentityProvenance provenance = new SubscriberIdentityProvenance();
+        provenance.setTenantId(subscriber.getTenantId());
+        provenance.setWorkspaceId(subscriber.getWorkspaceId());
+        provenance.setSubscriberId(subscriber.getId());
+        provenance.setSourceType(IMPORT_SOURCE);
+        provenance.setSourceRef(job.getId());
+        provenance.setCapturedAt(Instant.now());
+        provenance.setCreatedBy(job.getStartedBy());
+        provenance.setMetadata(Map.of(
+                "importJobId", nullSafe(job.getId()),
+                "fileName", nullSafe(job.getFileName()),
+                "targetType", nullSafe(job.getTargetType() == null ? "SUBSCRIBER" : job.getTargetType())));
+        return provenance;
     }
 
     private int remainingErrorSampleCapacity(List<Map<String, Object>> errors) {
@@ -380,7 +439,8 @@ public class ImportProcessingService {
     }
 
     private boolean isStandardField(String field) {
-        return List.of("email", "subscriberKey", "firstName", "lastName", "phone", "locale", "timezone").contains(field);
+        return List.of("email", "subscriberKey", "firstName", "lastName", "phone", "locale", "timezone",
+                "source", "leadSource", "acquisitionChannel", "campaignSource").contains(field);
     }
 
     private String getMappedField(Map<String, String> row, Map<String, String> mapping, String targetField) {
@@ -403,5 +463,9 @@ public class ImportProcessingService {
         } catch (Exception e) {
             throw new IllegalStateException("Failed to generate subscriber key", e);
         }
+    }
+
+    private String nullSafe(String value) {
+        return value == null ? "" : value;
     }
 }

@@ -36,8 +36,12 @@ test('encodes subscriber search and uses bulk-action endpoint for selected delet
   let latestListUrl: URL | undefined;
   let bulkPayload: unknown;
   let singleDeleteCalls = 0;
+  const dialogs: string[] = [];
 
-  page.on('dialog', async (dialog) => dialog.accept());
+  page.on('dialog', async (dialog) => {
+    dialogs.push(dialog.message());
+    await dialog.dismiss();
+  });
 
   await mockWorkspaceApis(page);
   await page.route('**/api/v1/subscribers**', async (route) => {
@@ -85,10 +89,14 @@ test('encodes subscriber search and uses bulk-action endpoint for selected delet
 
   await page.getByLabel('Select all rows').check();
   await page.getByRole('button', { name: 'Delete Selected' }).click();
+  const deleteDialog = page.getByRole('dialog', { name: 'Delete selected subscribers?' });
+  await expect(deleteDialog).toBeVisible();
+  await deleteDialog.getByRole('button', { name: 'Delete' }).click();
 
   await expect.poll(() => bulkPayload).toEqual({
     action: 'DELETE',
     subscriberIds: ['sub-1', 'sub-2'],
   });
   expect(singleDeleteCalls).toBe(0);
+  expect(dialogs).toEqual([]);
 });

@@ -20,6 +20,7 @@ const eslintConfig = [
       'out/**',
       'build/**',
       'next-env.d.ts',
+      'coverage/**',
       'test-results/**',
       'public-smoke-*.png',
     ],

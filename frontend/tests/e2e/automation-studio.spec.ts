@@ -95,6 +95,7 @@ async function mockAutomationStudioApis(
   options: { uiMode?: 'BASIC' | 'ADVANCED'; failVerifyActivityId?: string } = {}
 ) {
   let dryRunPosted = false;
+  let latestRun: Record<string, unknown> | null = null;
   const uiMode = options.uiMode ?? 'ADVANCED';
 
   await page.addInitScript(() => {
@@ -138,26 +139,73 @@ async function mockAutomationStudioApis(
       return fulfill(route, ok(activities));
     }
     if (path === '/automation-studio/activities/activity-1/runs' && method === 'POST') {
-      dryRunPosted = true;
-      seen.dryRunPayload = JSON.parse(request.postData() || '{}');
-      return fulfill(route, ok({
-        id: 'run-after-dry-run',
+      const runPayload = JSON.parse(request.postData() || '{}') as Record<string, unknown>;
+      const runPayloads = Array.isArray(seen.runPayloads) ? seen.runPayloads : [];
+      seen.runPayloads = [...runPayloads, runPayload];
+      if (runPayload.dryRun !== false) {
+        dryRunPosted = true;
+        seen.dryRunPayload = runPayload;
+        latestRun = {
+          id: 'run-after-dry-run',
+          activityId: 'activity-1',
+          status: 'SUCCEEDED',
+          dryRun: true,
+          triggerSource: 'MANUAL',
+          rowsRead: 9,
+          rowsWritten: 8,
+          traceId: 'trace-after-dry-run',
+          errorCode: null,
+          dependencyTrace: { dependencyCount: 0, failurePolicy: 'STOP_ON_FAILURE' },
+          startedAt: '2026-05-20T08:30:00Z',
+          completedAt: '2026-05-20T08:31:00Z',
+        };
+        return fulfill(route, ok(latestRun));
+      }
+      if (runPayload.operatorOverride === true) {
+        seen.overridePayload = runPayload;
+        latestRun = {
+          id: 'run-after-override',
+          activityId: 'activity-1',
+          status: 'SUCCEEDED',
+          dryRun: false,
+          triggerSource: 'MANUAL',
+          rowsRead: 20,
+          rowsWritten: 20,
+          traceId: 'trace-after-override',
+          errorCode: null,
+          operatorOverride: true,
+          overrideReason: runPayload.overrideReason,
+          dependencyTrace: { dependencyCount: 0, failurePolicy: 'STOP_ON_FAILURE' },
+          startedAt: '2026-05-20T08:40:00Z',
+          completedAt: '2026-05-20T08:41:00Z',
+        };
+        return fulfill(route, ok(latestRun));
+      }
+      seen.liveRunPayload = runPayload;
+      latestRun = {
+        id: 'run-locked',
         activityId: 'activity-1',
-        status: 'SUCCEEDED',
-        dryRun: true,
+        status: 'LOCKED',
+        dryRun: false,
         triggerSource: 'MANUAL',
-        rowsRead: 9,
-        rowsWritten: 8,
-        traceId: 'trace-after-dry-run',
-        errorCode: null,
+        rowsRead: 0,
+        rowsWritten: 0,
+        traceId: 'trace-locked',
+        errorCode: 'ACTIVITY_LOCKED',
+        errorMessage: 'Another live run is active for this activity.',
+        retryAfterSeconds: 420,
+        lockedUntil: '2026-05-20T08:37:00Z',
+        lockOwnerRunId: 'run-owner-1',
+        operatorOverride: false,
         dependencyTrace: { dependencyCount: 0, failurePolicy: 'STOP_ON_FAILURE' },
         startedAt: '2026-05-20T08:30:00Z',
-        completedAt: '2026-05-20T08:31:00Z',
-      }));
+        completedAt: '2026-05-20T08:30:01Z',
+      };
+      return fulfill(route, ok(latestRun));
     }
     if (path === '/automation-studio/activities/activity-1/runs') {
-      return fulfill(route, ok(dryRunPosted ? [
-        {
+      return fulfill(route, ok(latestRun || dryRunPosted ? [
+        latestRun ?? {
           id: 'run-after-dry-run',
           activityId: 'activity-1',
           status: 'SUCCEEDED',
@@ -260,6 +308,36 @@ test('automation studio shows recent activity runs and refreshes after dry run',
   await expect(runList).toContainText('Rows: 9 read, 8 written');
   expect(seen.dryRunPayload).toMatchObject({ dryRun: true, triggerSource: 'MANUAL' });
   await expect(runList).not.toContainText('SMTP connection failed');
+});
+
+test('automation studio surfaces live activity locks and explicit operator override', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen);
+
+  await page.goto('/app/automation');
+
+  const sqlRow = page.locator('div.p-4').filter({ hasText: 'Nightly SQL sync' });
+  await sqlRow.getByRole('button', { name: 'Run Live' }).click();
+
+  await expect(sqlRow.getByLabel('Latest run result for Nightly SQL sync')).toContainText('LOCKED');
+  await expect(sqlRow.getByLabel('Latest run result for Nightly SQL sync')).toContainText('Lock owner: run-owner-1');
+  await expect(sqlRow.getByLabel('Latest run result for Nightly SQL sync')).toContainText('retry after 7 minutes');
+  expect(seen.liveRunPayload).toMatchObject({
+    dryRun: false,
+    confirmLiveRun: true,
+    triggerSource: 'MANUAL',
+  });
+
+  await sqlRow.getByLabel('Override reason for Nightly SQL sync').fill('Ops approved after checking active owner run');
+  await sqlRow.getByRole('button', { name: 'Override lock' }).click();
+
+  await expect(sqlRow.getByLabel('Latest run result for Nightly SQL sync')).toContainText('Operator override recorded');
+  expect(seen.overridePayload).toMatchObject({
+    dryRun: false,
+    confirmLiveRun: true,
+    operatorOverride: true,
+    overrideReason: 'Ops approved after checking active owner run',
+  });
 });
 
 test('automation studio surfaces capability and verification results per activity', async ({ page }) => {

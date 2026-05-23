@@ -1,6 +1,7 @@
 package com.legent.campaign.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.legent.campaign.client.AudienceResolutionClient;
 import com.legent.campaign.domain.SendBatch;
 import com.legent.campaign.domain.SendJob;
 import com.legent.campaign.dto.CampaignDto;
@@ -34,6 +35,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -58,6 +60,7 @@ class CampaignEventConsumerTest {
     @Mock private CampaignStateMachineService stateMachine;
     @Mock private CampaignSendSafetyService sendSafetyService;
     @Mock private CampaignMetricsService metricsService;
+    @Mock private AudienceResolutionClient audienceResolutionClient;
 
     private CampaignEventConsumer consumer;
 
@@ -75,7 +78,8 @@ class CampaignEventConsumerTest {
                 campaignRepository,
                 stateMachine,
                 sendSafetyService,
-                metricsService);
+                metricsService,
+                audienceResolutionClient);
     }
 
     @AfterEach
@@ -279,6 +283,79 @@ class CampaignEventConsumerTest {
                 AppConstants.TOPIC_AUDIENCE_RESOLVED,
                 "chunk-job-1-0",
                 "chunk-job-1-0");
+    }
+
+    @Test
+    void handleAudienceResolvedFetchesMetadataOnlyChunkBeforeBatching() {
+        EventEnvelope<Map<String, Object>> event = audienceResolvedReferenceEvent();
+        when(idempotencyService.registerIfNew(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_AUDIENCE_RESOLVED,
+                "job-1:audience:0",
+                "job-1:audience:0")).thenReturn(true);
+        when(audienceResolutionClient.readChunk("tenant-1", "workspace-1", "job-1", "job-1:audience:0"))
+                .thenReturn(new AudienceResolutionClient.ResolvedAudienceChunk(
+                        "job-1",
+                        "job-1:audience:0",
+                        0,
+                        1,
+                        true,
+                        List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1"))));
+
+        consumer.handleAudienceResolved(event);
+
+        verify(audienceResolutionClient).readChunk("tenant-1", "workspace-1", "job-1", "job-1:audience:0");
+        verify(batchingService).processResolvedAudienceChunk(
+                "tenant-1",
+                "workspace-1",
+                "job-1",
+                List.of(Map.of("email", "one@example.com", "subscriberId", "sub-1")),
+                true);
+        verify(idempotencyService).markProcessed(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_AUDIENCE_RESOLVED,
+                "job-1:audience:0",
+                "job-1:audience:0");
+    }
+
+    @Test
+    void handleAudienceResolvedRejectsMissingSubscribersAndChunkReference() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workspaceId", "workspace-1");
+        payload.put("campaignId", "campaign-1");
+        payload.put("jobId", "job-1");
+        payload.put("isLastChunk", true);
+        EventEnvelope<Map<String, Object>> event = EventEnvelope.<Map<String, Object>>builder()
+                .eventId("audience-missing-reference")
+                .eventType(AppConstants.TOPIC_AUDIENCE_RESOLVED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-audience-missing-reference")
+                .payload(payload)
+                .build();
+        when(idempotencyService.registerIfNew(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_AUDIENCE_RESOLVED,
+                "audience-missing-reference",
+                "audience-missing-reference")).thenReturn(true);
+
+        IllegalStateException thrown = assertThrows(IllegalStateException.class, () -> consumer.handleAudienceResolved(event));
+
+        assertEquals("Failed handling TOPIC_AUDIENCE_RESOLVED", thrown.getMessage());
+        assertEquals(
+                "chunkId is required for " + AppConstants.TOPIC_AUDIENCE_RESOLVED + " event audience-missing-reference",
+                thrown.getCause().getMessage());
+        verify(audienceResolutionClient, never()).readChunk(any(), any(), any(), any());
+        verify(batchingService, never()).processResolvedAudienceChunk(any(), any(), any(), anyList(), anyBoolean());
+        verify(idempotencyService).releaseClaim(
+                "tenant-1",
+                "workspace-1",
+                AppConstants.TOPIC_AUDIENCE_RESOLVED,
+                "audience-missing-reference",
+                "audience-missing-reference");
     }
 
     @Test
@@ -892,6 +969,30 @@ class CampaignEventConsumerTest {
                 .build();
     }
 
+    private EventEnvelope<Map<String, Object>> audienceResolvedReferenceEvent() {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workspaceId", "workspace-1");
+        payload.put("campaignId", "campaign-1");
+        payload.put("jobId", "job-1");
+        payload.put("chunkId", "job-1:audience:0");
+        payload.put("chunkIndex", 0);
+        payload.put("totalChunks", 1);
+        payload.put("chunkSize", 1);
+        payload.put("totalResolvedSubscribers", 1);
+        payload.put("isLastChunk", true);
+        payload.put("chunkReferenceType", "AUDIENCE_SERVICE_CHUNK");
+        payload.put("subscriberStorage", "audience_resolution_chunks");
+        payload.put("chunkUri", "/api/v1/audience-resolution-chunks/job-1:audience:0/internal");
+        return EventEnvelope.<Map<String, Object>>builder()
+                .eventId("audience-reference-event")
+                .eventType(AppConstants.TOPIC_AUDIENCE_RESOLVED)
+                .tenantId("tenant-1")
+                .workspaceId("workspace-1")
+                .idempotencyKey("idem-audience-reference-event")
+                .payload(payload)
+                .build();
+    }
+
     private EventEnvelope<Map<String, Object>> deliveryFeedbackEvent(
             String eventType,
             String eventId,
@@ -936,6 +1037,7 @@ class CampaignEventConsumerTest {
                 campaignRepository,
                 stateMachine,
                 sendSafetyService,
-                metricsService);
+                metricsService,
+                audienceResolutionClient);
     }
 }

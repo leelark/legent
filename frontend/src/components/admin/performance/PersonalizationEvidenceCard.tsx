@@ -7,7 +7,7 @@ export function PersonalizationEvidenceCard({ latest }: { latest: PerformanceRec
   return (
     <PerformanceSignalCard
       icon={Zap}
-      title="Realtime Personalization"
+      title="Personalization Evidence"
       status={boolValue(latest.slo_pass ?? latest.sloPass) ? 'SLO_PASS' : 'WATCH'}
       lines={[
         `${asText(latest.latency_ms ?? latest.latencyMs, '0')}ms latest evaluation`,

@@ -1,0 +1,33 @@
+{
+    "id":  "contact-provenance-import-population",
+    "createdAt":  "2026-05-23T17:29:02.3575836Z",
+    "objective":  "Populate contact and data-extension provenance during imports",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/service/ImportProcessingService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/DataExtensionService.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/ImportProcessingServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "DATA_ARCHITECT",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=DataExtensionServiceTest",
+                           "DataExtensionControllerTest",
+                           "DataExtensionGovernanceMigrationTest",
+                           "DataExtensionWorkspaceMigrationTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed; continue coordinated backlog scan."
+}

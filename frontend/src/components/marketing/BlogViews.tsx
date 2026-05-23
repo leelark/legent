@@ -103,7 +103,7 @@ export function BlogPostView({ slug }: { slug: string }) {
 }
 
 function BlogHeroVisual({ post }: { post: (typeof blogPosts)[number] }) {
-  const signals = ['Audience model', 'Inbox route', 'Approval state', 'Revenue loop'];
+  const signals = ['Audience model', 'Provider route', 'Approval state', 'Revenue loop'];
   return (
     <Link href={`/blog/${post.slug}`} className="public-panel public-hero-visual public-art-glow group relative rounded-[1.6rem] p-6 transition hover:-translate-y-2 focus:outline-none focus:ring-2 focus:ring-[var(--public-accent)]">
       <div className="public-visual-clip"><div className="public-mock-bitmap" aria-hidden="true" /></div>

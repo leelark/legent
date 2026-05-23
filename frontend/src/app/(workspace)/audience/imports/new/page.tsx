@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import Papa, { type ParseResult } from 'papaparse';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageChrome';
+import { useToast } from '@/components/ui/Toast';
 import { Upload, ArrowRight, ArrowLeft, CheckCircle, WarningCircle } from '@phosphor-icons/react';
 import { get, post } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
@@ -19,6 +21,75 @@ const TARGET_FIELDS = [
   { key: 'lastName', label: 'Last Name' },
   { key: 'phone', label: 'Phone' }
 ];
+
+type CsvPreview = {
+  headers: string[];
+  rows: Record<string, string>[];
+};
+
+const headerAliases: Record<string, string[]> = {
+  email: ['email', 'emailaddress', 'subscriberemail'],
+  subscriberKey: ['subscriberkey', 'subscriberid', 'contactkey', 'customerkey'],
+  firstName: ['firstname', 'first'],
+  lastName: ['lastname', 'last', 'surname'],
+  phone: ['phone', 'phonenumber', 'mobile', 'mobilephone'],
+};
+
+function normalizeHeader(value: string) {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function autoMapHeaders(headers: string[]) {
+  const normalized = new Map(headers.map((header) => [normalizeHeader(header), header]));
+  const initialMap: Record<string, string> = {};
+  TARGET_FIELDS.forEach((targetField) => {
+    const aliases = headerAliases[targetField.key] ?? [targetField.key];
+    const matched = aliases.map((alias) => normalized.get(alias)).find(Boolean);
+    if (matched) initialMap[targetField.key] = matched;
+  });
+  return initialMap;
+}
+
+function readCsvPreview(selectedFile: File): Promise<CsvPreview> {
+  return new Promise((resolve, reject) => {
+    Papa.parse<string[]>(selectedFile, {
+      header: false,
+      preview: 6,
+      skipEmptyLines: 'greedy',
+      complete: (results: ParseResult<string[]>) => {
+        const fatalError = results.errors.find((error) => error.type !== 'Delimiter');
+        if (fatalError) {
+          reject(new Error(fatalError.message));
+          return;
+        }
+        const [rawHeaders = [], ...previewRows] = results.data;
+        const headers = rawHeaders.map((header) => String(header ?? '').trim());
+        if (headers.some((header) => !header)) {
+          reject(new Error('CSV headers must not be blank.'));
+          return;
+        }
+        const duplicateHeader = headers.find((header, index) =>
+          headers.findIndex((candidate) => candidate.toLowerCase() === header.toLowerCase()) !== index
+        );
+        if (duplicateHeader) {
+          reject(new Error(`Duplicate CSV header: ${duplicateHeader}`));
+          return;
+        }
+        if (headers.length === 0) {
+          reject(new Error('No CSV headers found.'));
+          return;
+        }
+        resolve({
+          headers,
+          rows: previewRows.slice(0, 5).map((row) => Object.fromEntries(
+            headers.map((header, index) => [header, String(row[index] ?? '')])
+          )),
+        });
+      },
+      error: (error) => reject(new Error(error.message)),
+    });
+  });
+}
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
   return (
@@ -110,9 +181,11 @@ function ImportResult({ jobStatus }: { jobStatus: ImportJob }) {
 
 export default function ImportWizardPage() {
   const router = useRouter();
+  const { addToast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const [file, setFile] = useState<File | null>(null);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
+  const [csvPreviewRows, setCsvPreviewRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<ImportJob | null>(null);
@@ -148,27 +221,30 @@ export default function ImportWizardPage() {
     }
   };
 
-  const processFile = (selectedFile: File) => {
+  const processFile = async (selectedFile: File) => {
     setFile(selectedFile);
-    // Read headers
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const firstLine = text.split('\n')[0];
-      if (firstLine) {
-        const headers = firstLine.split(',').map(h => h.trim());
-        setCsvHeaders(headers);
-        // Auto-map where lowercase matches
-        const initialMap: Record<string, string> = {};
-        TARGET_FIELDS.forEach(tf => {
-          const matched = headers.find(h => h.toLowerCase() === tf.key.toLowerCase());
-          if (matched) initialMap[tf.key] = matched;
-        });
-        setMapping(initialMap);
-      }
+    try {
+      const preview = await readCsvPreview(selectedFile);
+      setCsvHeaders(preview.headers);
+      setCsvPreviewRows(preview.rows);
+      setMapping(autoMapHeaders(preview.headers));
       setCurrentStep(1);
-    };
-    reader.readAsText(selectedFile.slice(0, 1024));
+      addToast({
+        type: 'success',
+        title: 'CSV parsed',
+        message: `${preview.headers.length} columns found from ${selectedFile.name}.`,
+      });
+    } catch (error) {
+      setFile(null);
+      setCsvHeaders([]);
+      setCsvPreviewRows([]);
+      setMapping({});
+      addToast({
+        type: 'error',
+        title: 'CSV parse failed',
+        message: error instanceof Error ? error.message : 'Unable to read CSV headers.',
+      });
+    }
   };
 
 
@@ -190,15 +266,20 @@ export default function ImportWizardPage() {
       const res = await post<ImportJob>('/imports', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      if (res?.id) {
-        setJobId(res.id);
-        setJobStatus(res);
-        setCurrentStep(3);
-      } else {
-        alert('Failed to start import');
+      if (!res?.id) {
+        throw new Error('Import service did not return a job id.');
       }
-    } catch {
-      alert('Failed to start import');
+      setJobId(res.id);
+      setJobStatus(res);
+      setCurrentStep(3);
+      addToast({ type: 'success', title: 'Import started', message: file.name });
+    } catch (error) {
+      setCurrentStep(2);
+      addToast({
+        type: 'error',
+        title: 'Import start failed',
+        message: error instanceof Error ? error.message : 'Failed to start import.',
+      });
     }
   };
 
@@ -206,8 +287,7 @@ export default function ImportWizardPage() {
     if (currentStep === 1) { // mapping to Validate
       setCurrentStep(2);
     } else if (currentStep === 2) { // Validate to Import
-      setCurrentStep(3);
-      handleUpload();
+      void handleUpload();
     }
   };
 
@@ -247,6 +327,33 @@ export default function ImportWizardPage() {
         {currentStep === 1 && (
           <div className="space-y-6">
             <CardHeader title="Map Fields" subtitle="Match your CSV columns to subscriber fields" />
+            {csvPreviewRows.length > 0 && (
+              <div className="overflow-hidden rounded-lg border border-border-default">
+                <div className="border-b border-border-default bg-surface-secondary px-3 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-content-muted">
+                  CSV preview
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-border-default text-left text-xs">
+                    <thead className="bg-surface-secondary/70 text-content-secondary">
+                      <tr>
+                        {csvHeaders.slice(0, 6).map((header) => (
+                          <th key={header} className="max-w-[180px] truncate px-3 py-2 font-semibold">{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border-default">
+                      {csvPreviewRows.map((row, index) => (
+                        <tr key={`${file?.name ?? 'csv'}-${index}`}>
+                          {csvHeaders.slice(0, 6).map((header) => (
+                            <td key={header} className="max-w-[180px] truncate px-3 py-2 text-content-secondary">{row[header] || '-'}</td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
             <div className="space-y-3">
               {TARGET_FIELDS.map((field) => (
                 <div key={field.key} className="flex items-center gap-4">

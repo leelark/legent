@@ -16,7 +16,7 @@ class EventContractValidatorTest {
     private final EventContractValidator validator = new EventContractValidator();
 
     @Test
-    void validate_allowsCanonicalManagedEvent() {
+    void validate_allowsAudienceResolvedSchemaV1InlineSubscribers() {
         EventEnvelope<Map<String, Object>> envelope = envelope(
                 AppConstants.TOPIC_AUDIENCE_RESOLVED,
                 Map.of(
@@ -33,6 +33,71 @@ class EventContractValidatorTest {
         );
 
         assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_AUDIENCE_RESOLVED, envelope));
+    }
+
+    @Test
+    void validate_allowsAudienceResolvedSchemaV2MetadataOnlyPayload() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_AUDIENCE_RESOLVED,
+                Map.ofEntries(
+                        Map.entry("campaignId", "campaign-1"),
+                        Map.entry("jobId", "job-1"),
+                        Map.entry("chunkId", "job-1:audience:0"),
+                        Map.entry("chunkIndex", 0),
+                        Map.entry("totalChunks", 1),
+                        Map.entry("chunkSize", 100),
+                        Map.entry("totalResolvedSubscribers", 100),
+                        Map.entry("isLastChunk", true),
+                        Map.entry("chunkReferenceType", "AUDIENCE_SERVICE_CHUNK"),
+                        Map.entry("subscriberStorage", "audience_resolution_chunks"),
+                        Map.entry("chunkUri", "/api/v1/audience-resolution-chunks/job-1:audience:0/internal"))
+        );
+        envelope.setSchemaVersion(2);
+
+        assertDoesNotThrow(() -> validator.validate(AppConstants.TOPIC_AUDIENCE_RESOLVED, envelope));
+    }
+
+    @Test
+    void validate_rejectsAudienceResolvedSchemaV1WithoutSubscribers() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_AUDIENCE_RESOLVED,
+                Map.of(
+                        "campaignId", "campaign-1",
+                        "jobId", "job-1",
+                        "chunkId", "job-1:chunk:0",
+                        "chunkIndex", 0,
+                        "totalChunks", 1,
+                        "chunkSize", 0,
+                        "totalResolvedSubscribers", 0,
+                        "isLastChunk", true)
+        );
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_AUDIENCE_RESOLVED, envelope));
+    }
+
+    @Test
+    void validate_rejectsAudienceResolvedSchemaV2WithInlineSubscribers() {
+        EventEnvelope<Map<String, Object>> envelope = envelope(
+                AppConstants.TOPIC_AUDIENCE_RESOLVED,
+                Map.ofEntries(
+                        Map.entry("campaignId", "campaign-1"),
+                        Map.entry("jobId", "job-1"),
+                        Map.entry("chunkId", "job-1:audience:0"),
+                        Map.entry("chunkIndex", 0),
+                        Map.entry("totalChunks", 1),
+                        Map.entry("chunkSize", 0),
+                        Map.entry("totalResolvedSubscribers", 0),
+                        Map.entry("isLastChunk", true),
+                        Map.entry("chunkReferenceType", "AUDIENCE_SERVICE_CHUNK"),
+                        Map.entry("subscriberStorage", "audience_resolution_chunks"),
+                        Map.entry("chunkUri", "/api/v1/audience-resolution-chunks/job-1:audience:0/internal"),
+                        Map.entry("subscribers", List.of()))
+        );
+        envelope.setSchemaVersion(2);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> validator.validate(AppConstants.TOPIC_AUDIENCE_RESOLVED, envelope));
     }
 
     @Test

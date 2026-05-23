@@ -5,6 +5,7 @@ import com.legent.audience.dto.ImportDto;
 import com.legent.audience.event.ImportEventPublisher;
 import com.legent.audience.repository.ImportJobRepository;
 import com.legent.common.exception.NotFoundException;
+import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -88,6 +89,7 @@ public class ImportService {
         job.setFileSize(request.getFileSize());
         job.setTargetType(normalizeTargetType(request.getTargetType()));
         job.setTargetId(request.getTargetId());
+        job.setStartedBy(normalizeBlank(TenantContext.getUserId()));
         job.setFieldMapping(request.getFieldMapping());
         job.setErrors(Collections.emptyList());
 
@@ -216,6 +218,10 @@ public class ImportService {
                 || lower.startsWith("s3://")
                 || lower.startsWith("gs://")
                 || lower.startsWith("file:");
+    }
+
+    private String normalizeBlank(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private String normalizeTargetType(String targetType) {
