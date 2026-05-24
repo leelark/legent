@@ -5,11 +5,13 @@ import com.legent.audience.domain.DataExtension;
 import com.legent.audience.domain.DataExtensionField;
 import com.legent.audience.domain.DataExtensionGovernanceAudit;
 import com.legent.audience.domain.DataExtensionRecord;
+import com.legent.audience.domain.DataExtensionRelationship;
 import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.repository.DataExtensionFieldRepository;
 import com.legent.audience.repository.DataExtensionGovernanceAuditRepository;
 import com.legent.audience.repository.DataExtensionRecordRepository;
 import com.legent.audience.repository.DataExtensionRepository;
+import com.legent.audience.repository.DataExtensionRelationshipRepository;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
 import com.legent.security.TenantContext;
@@ -33,6 +35,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,7 +45,9 @@ class DataExtensionServiceTest {
     @Mock private DataExtensionRepository deRepository;
     @Mock private DataExtensionFieldRepository fieldRepository;
     @Mock private DataExtensionRecordRepository recordRepository;
+    @Mock private DataExtensionRelationshipRepository relationshipRepository;
     @Mock private DataExtensionGovernanceAuditRepository governanceAuditRepository;
+    @Mock private ContactLifecycleAuditService lifecycleAuditService;
 
     private DataExtensionService service;
 
@@ -50,7 +56,8 @@ class DataExtensionServiceTest {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
         TenantContext.setUserId("user-1");
-        service = new DataExtensionService(deRepository, fieldRepository, recordRepository, governanceAuditRepository, new ObjectMapper());
+        service = new DataExtensionService(deRepository, fieldRepository, recordRepository, relationshipRepository,
+                governanceAuditRepository, lifecycleAuditService, new ObjectMapper());
     }
 
     @AfterEach
@@ -257,10 +264,37 @@ class DataExtensionServiceTest {
         assertThat(response.getRelationships()).hasSize(1);
         assertThat(source.getRelationshipJson()).contains("customer_profile");
         verify(deRepository).findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-target");
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<DataExtensionRelationship>> relationshipCaptor = ArgumentCaptor.forClass(List.class);
+        verify(relationshipRepository).saveAll(relationshipCaptor.capture());
+        DataExtensionRelationship savedRelationship = relationshipCaptor.getValue().get(0);
+        assertThat(savedRelationship.getTenantId()).isEqualTo("tenant-1");
+        assertThat(savedRelationship.getWorkspaceId()).isEqualTo("workspace-1");
+        assertThat(savedRelationship.getSourceDataExtensionId()).isEqualTo("de-1");
+        assertThat(savedRelationship.getTargetDataExtensionId()).isEqualTo("de-target");
+        assertThat(savedRelationship.getName()).isEqualTo("customer_profile");
+        assertThat(savedRelationship.getCardinality()).isEqualTo("MANY_TO_ONE");
+        assertThat(savedRelationship.isActive()).isTrue();
         ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
         verify(governanceAuditRepository).save(auditCaptor.capture());
         assertThat(auditCaptor.getValue().getAction()).isEqualTo("RELATIONSHIPS_UPDATED");
         assertThat(auditCaptor.getValue().getMetadata()).containsEntry("relationshipCount", 1);
+    }
+
+    @Test
+    void updateRelationshipsRequiresWorkspaceContextBeforeRepositoryAccess() {
+        TenantContext.clear();
+        TenantContext.setTenantId("tenant-1");
+
+        DataExtensionDto.RelationshipRequest request = DataExtensionDto.RelationshipRequest.builder()
+                .relationships(List.of())
+                .build();
+
+        assertThatThrownBy(() -> service.updateRelationships("de-1", request))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Workspace context is not set");
+
+        verifyNoInteractions(deRepository, fieldRepository, relationshipRepository);
     }
 
     @Test
@@ -653,6 +687,51 @@ class DataExtensionServiceTest {
         ArgumentCaptor<DataExtensionGovernanceAudit> auditCaptor = ArgumentCaptor.forClass(DataExtensionGovernanceAudit.class);
         verify(governanceAuditRepository).save(auditCaptor.capture());
         assertThat(auditCaptor.getValue().getAction()).isEqualTo("DELETED");
+        verify(lifecycleAuditService).dataExtensionDeleted(de);
+    }
+
+    @Test
+    void deleteDataExtensionRejectsForeignIdWithoutLifecycleAudit() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "foreign-de"))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.deleteDataExtension("foreign-de"))
+                .isInstanceOf(NotFoundException.class);
+
+        verify(lifecycleAuditService, never()).dataExtensionDeleted(any());
+    }
+
+    @Test
+    void updateRetentionPolicyWritesLifecycleAudit() {
+        DataExtension de = dataExtension();
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(de));
+        when(deRepository.save(de)).thenReturn(de);
+        when(fieldRepository.findByDataExtensionIdOrderByOrdinalAsc("de-1")).thenReturn(fields());
+
+        DataExtensionDto.Response response = service.updateRetentionPolicy("de-1",
+                DataExtensionDto.RetentionPolicyRequest.builder()
+                        .retentionAction("DELETE_RECORDS")
+                        .retentionDays(90)
+                        .build());
+
+        assertThat(response.getRetentionAction()).isEqualTo("DELETE_RECORDS");
+        assertThat(response.getRetentionDays()).isEqualTo(90);
+        verify(lifecycleAuditService).dataExtensionRetentionUpdated(de);
+    }
+
+    @Test
+    void updateRetentionPolicyValidationFailureDoesNotWriteLifecycleAudit() {
+        when(deRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull("tenant-1", "workspace-1", "de-1"))
+                .thenReturn(Optional.of(dataExtension()));
+
+        assertThatThrownBy(() -> service.updateRetentionPolicy("de-1",
+                DataExtensionDto.RetentionPolicyRequest.builder()
+                        .retentionAction("DELETE_RECORDS")
+                        .build()))
+                .isInstanceOf(ValidationException.class);
+
+        verify(lifecycleAuditService, never()).dataExtensionRetentionUpdated(any());
     }
 
     private DataExtension dataExtension() {

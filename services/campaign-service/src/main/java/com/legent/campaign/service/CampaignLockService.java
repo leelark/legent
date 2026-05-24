@@ -100,6 +100,41 @@ public class CampaignLockService {
             root.put("sendingDomain", campaign.getSendingDomain());
             root.put("frequencyCap", campaign.getFrequencyCap());
             root.put("scheduledAt", campaign.getScheduledAt() != null ? campaign.getScheduledAt().toString() : null);
+            if (hasSendTimeOptimizationEvidence(campaign)) {
+                root.put("sendTimeOptimization", Map.ofEntries(
+                        Map.entry("policyKey", campaign.getSendTimeOptimizationPolicyKey() == null ? "" : campaign.getSendTimeOptimizationPolicyKey()),
+                        Map.entry("optimizationType", campaign.getSendTimeOptimizationType() == null ? "" : campaign.getSendTimeOptimizationType()),
+                        Map.entry("optimizationRunId", campaign.getSendTimeOptimizationRunId() == null ? "" : campaign.getSendTimeOptimizationRunId()),
+                        Map.entry("snapshotHash", campaign.getSendTimeOptimizationSnapshotHash() == null ? "" : campaign.getSendTimeOptimizationSnapshotHash()),
+                        Map.entry("originalScheduledAt", campaign.getSendTimeOptimizationOriginalScheduledAt() == null ? "" : campaign.getSendTimeOptimizationOriginalScheduledAt().toString()),
+                        Map.entry("recommendedScheduledAt", campaign.getSendTimeOptimizationRecommendedScheduledAt() == null ? "" : campaign.getSendTimeOptimizationRecommendedScheduledAt().toString()),
+                        Map.entry("timezone", campaign.getSendTimeOptimizationTimezone() == null ? "" : campaign.getSendTimeOptimizationTimezone()),
+                        Map.entry("campaignTimezone", campaign.getTimezone() == null ? "" : campaign.getTimezone()),
+                        Map.entry("quietHoursStart", campaign.getQuietHoursStart() == null ? "" : campaign.getQuietHoursStart().toString()),
+                        Map.entry("quietHoursEnd", campaign.getQuietHoursEnd() == null ? "" : campaign.getQuietHoursEnd().toString()),
+                        Map.entry("sendWindowStart", campaign.getSendWindowStart() == null ? "" : campaign.getSendWindowStart().toString()),
+                        Map.entry("sendWindowEnd", campaign.getSendWindowEnd() == null ? "" : campaign.getSendWindowEnd().toString()),
+                        Map.entry("confidenceBand", campaign.getSendTimeOptimizationConfidenceBand() == null ? "" : campaign.getSendTimeOptimizationConfidenceBand()),
+                        Map.entry("fallbackMode", campaign.getSendTimeOptimizationFallbackMode() == null ? "" : campaign.getSendTimeOptimizationFallbackMode()),
+                        Map.entry("blockedReasons", campaign.getSendTimeOptimizationBlockedReasons() == null ? java.util.List.of() : campaign.getSendTimeOptimizationBlockedReasons()),
+                        Map.entry("dataQualityReasons", campaign.getSendTimeOptimizationDataQualityReasons() == null ? java.util.List.of() : campaign.getSendTimeOptimizationDataQualityReasons()),
+                        Map.entry("reasonCodes", campaign.getSendTimeOptimizationReasonCodes() == null ? java.util.List.of() : campaign.getSendTimeOptimizationReasonCodes()),
+                        Map.entry("approvalRequired", campaign.isSendTimeOptimizationApprovalRequired()),
+                        Map.entry("rollbackRequired", campaign.isSendTimeOptimizationRollbackRequired()),
+                        Map.entry("approved", campaign.isSendTimeOptimizationApproved()),
+                        Map.entry("approvalId", campaign.getSendTimeOptimizationApprovalId() == null ? "" : campaign.getSendTimeOptimizationApprovalId()),
+                        Map.entry("approvedBy", campaign.getSendTimeOptimizationApprovedBy() == null ? "" : campaign.getSendTimeOptimizationApprovedBy()),
+                        Map.entry("approvedAt", campaign.getSendTimeOptimizationApprovedAt() == null ? "" : campaign.getSendTimeOptimizationApprovedAt().toString()),
+                        Map.entry("rollbackSnapshotId", campaign.getSendTimeOptimizationRollbackSnapshotId() == null ? "" : campaign.getSendTimeOptimizationRollbackSnapshotId()),
+                        Map.entry("quietHoursGatePassed", campaign.isSendTimeOptimizationQuietHoursGatePassed()),
+                        Map.entry("approvalGatePassed", campaign.isSendTimeOptimizationApprovalGatePassed()),
+                        Map.entry("suppressionGatePassed", campaign.isSendTimeOptimizationSuppressionGatePassed()),
+                        Map.entry("warmupGatePassed", campaign.isSendTimeOptimizationWarmupGatePassed()),
+                        Map.entry("rateLimitGatePassed", campaign.isSendTimeOptimizationRateLimitGatePassed()),
+                        Map.entry("providerCapacityGatePassed", campaign.isSendTimeOptimizationProviderCapacityGatePassed()),
+                        Map.entry("deliverabilityGatePassed", campaign.isSendTimeOptimizationDeliverabilityGatePassed())
+                ));
+            }
             root.put("audiences", campaign.getAudiences() == null ? java.util.List.of() : campaign.getAudiences().stream()
                     .sorted(Comparator.comparing(a -> a.getAudienceType().name() + ":" + a.getAudienceId() + ":" + a.getAction().name()))
                     .map(a -> Map.of(
@@ -156,5 +191,12 @@ public class CampaignLockService {
         } catch (Exception e) {
             throw new ValidationException("campaign.lock", "Unable to hash campaign lock snapshot");
         }
+    }
+
+    private boolean hasSendTimeOptimizationEvidence(Campaign campaign) {
+        return campaign.getSendTimeOptimizationRecommendedScheduledAt() != null
+                || campaign.isSendTimeOptimizationApproved()
+                || campaign.getSendTimeOptimizationRunId() != null
+                || campaign.getSendTimeOptimizationSnapshotHash() != null;
     }
 }

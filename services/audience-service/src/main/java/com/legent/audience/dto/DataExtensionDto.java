@@ -76,6 +76,7 @@ public class DataExtensionDto {
         @NotBlank @Size(max = 128) private String targetField;
         @NotBlank @Pattern(regexp = "^(ONE_TO_ONE|ONE_TO_MANY|MANY_TO_ONE|MANY_TO_MANY)$") private String cardinality;
         private Boolean required;
+        private Boolean active;
     }
 
     @Data @Builder @NoArgsConstructor @AllArgsConstructor

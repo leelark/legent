@@ -105,6 +105,8 @@ public class TrackingDto {
     public static class RollupResponse {
         private String campaignId;
         private String grain;
+        private String querySemantics;
+        private List<String> dedupeKey;
         private List<Map<String, Object>> rows;
     }
 
@@ -127,7 +129,10 @@ public class TrackingDto {
     public static class ReconciliationResponse {
         private String campaignId;
         private Map<String, Object> summaryCounts;
+        private Map<String, Object> canonicalEventCounts;
         private Map<String, Object> rawEventCounts;
+        private String querySemantics;
+        private List<String> dedupeKey;
         private List<String> mismatches;
         private boolean reconciled;
     }

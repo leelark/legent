@@ -57,6 +57,7 @@ public class SubscriberService {
     private final ConsentRecordRepository consentRecordRepository;
     private final DoubleOptInTokenRepository doubleOptInTokenRepository;
     private final JdbcTemplate jdbcTemplate;
+    private final ContactLifecycleAuditService lifecycleAuditService;
 
     private static final Duration CACHE_TTL = Duration.ofSeconds(AppConstants.CACHE_SUBSCRIBER_TTL_SECONDS);
     private static final int BULK_CHUNK_SIZE = 100; // LEGENT-HIGH-001: Process in chunks to avoid all-or-nothing rollback
@@ -187,6 +188,7 @@ public class SubscriberService {
 
         existing.softDelete();
         subscriberRepository.save(existing);
+        lifecycleAuditService.subscriberDeleted(existing, "SUBSCRIBER_DELETE");
         invalidateCache(id);
         eventPublisher.publishDeleted(existing);
         log.info("Subscriber deleted: id={}", id);
@@ -324,6 +326,7 @@ public class SubscriberService {
 
             merged.softDelete();
             subscriberRepository.save(merged);
+            lifecycleAuditService.subscriberDeleted(merged, "SUBSCRIBER_MERGE");
             writeMergeLog(tenantId, workspaceId, winner.getId(), merged.getId(), request.getReason());
         }
 
@@ -343,9 +346,13 @@ public class SubscriberService {
                 tenantId, workspaceId, request.getSubscriberIds());
         String action = request.getAction().toUpperCase(Locale.ROOT);
         long affected = 0;
+        long deletedCount = 0;
         for (Subscriber subscriber : subscribers) {
             switch (action) {
-                case "DELETE" -> subscriber.softDelete();
+                case "DELETE" -> {
+                    subscriber.softDelete();
+                    deletedCount++;
+                }
                 case "BLOCK" -> subscriber.setStatus(Subscriber.SubscriberStatus.BLOCKED);
                 case "UNBLOCK", "ACTIVATE" -> subscriber.setStatus(Subscriber.SubscriberStatus.ACTIVE);
                 case "INACTIVE" -> subscriber.setStatus(Subscriber.SubscriberStatus.INACTIVE);
@@ -356,6 +363,9 @@ public class SubscriberService {
             appendTimeline(subscriber, "BULK_ACTION", Map.of("action", action));
             subscriberRepository.save(subscriber);
             affected++;
+        }
+        if ("DELETE".equals(action) && deletedCount > 0) {
+            lifecycleAuditService.subscribersBulkDeleted(tenantId, workspaceId, deletedCount, request.getSubscriberIds().size());
         }
         return affected;
     }

@@ -194,13 +194,17 @@ public class CampaignService {
     @Transactional
     public CampaignDto.Response schedule(String id, CampaignDto.ScheduleRequest request) {
         Campaign campaign = findScoped(id);
-        if (request == null || request.getScheduledAt() == null) {
+        if (request == null) {
             throw new ValidationException("scheduledAt", "scheduledAt is required");
         }
+        java.time.Instant effectiveScheduledAt = CampaignSendTimeOptimizationGuard.resolveRequiredSchedule(
+                campaign,
+                request.getScheduledAt(),
+                request.getSendTimeOptimization());
         if (campaign.isApprovalRequired() && campaign.getStatus() != Campaign.CampaignStatus.APPROVED) {
             throw new ValidationException("campaign.status", "Campaign must be APPROVED before scheduling");
         }
-        campaign.setScheduledAt(request.getScheduledAt());
+        campaign.setScheduledAt(effectiveScheduledAt);
         stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.SCHEDULED, "Campaign scheduled");
         campaignLockService.lockCampaign(campaign);
         return campaignMapper.toResponse(campaignRepository.save(campaign));

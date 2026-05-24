@@ -154,6 +154,49 @@ class SegmentServiceTest {
     }
 
     @Test
+    @DisplayName("create rejects comparison rules without explicit values")
+    void create_rejectsComparisonRuleWithoutValue() {
+        SegmentDto.CreateRequest request = createRequest(Map.of("operator", "AND", "conditions", List.of(
+                Map.of("field", "email", "op", "EQUALS")
+        )));
+
+        when(segmentRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "High value"))
+                .thenReturn(false);
+        when(segmentMapper.toEntity(request)).thenReturn(segmentFrom(request));
+
+        assertThatThrownBy(() -> segmentService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("rules.conditions[0].value is required");
+
+        verify(segmentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishCreated(any());
+    }
+
+    @Test
+    @DisplayName("create rejects unsupported nested rule depth")
+    void create_rejectsUnsupportedNestedRuleDepth() {
+        Map<String, Object> rules = emptyGroup();
+        Map<String, Object> current = rules;
+        for (int i = 0; i <= SegmentRuleExecutionPlanCompiler.MAX_GROUP_DEPTH; i++) {
+            Map<String, Object> child = emptyGroup();
+            current.put("groups", List.of(child));
+            current = child;
+        }
+        SegmentDto.CreateRequest request = createRequest(rules);
+
+        when(segmentRepository.existsByTenantIdAndWorkspaceIdAndNameAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "High value"))
+                .thenReturn(false);
+        when(segmentMapper.toEntity(request)).thenReturn(segmentFrom(request));
+
+        assertThatThrownBy(() -> segmentService.create(request))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("exceeds maximum segment rule depth");
+
+        verify(segmentRepository, never()).save(any());
+        verify(eventPublisher, never()).publishCreated(any());
+    }
+
+    @Test
     @DisplayName("create rejects unsupported data extension relationship fields")
     void create_rejectsUnsupportedDataExtensionRelationshipField() {
         SegmentDto.CreateRequest request = createRequest(Map.of("operator", "AND", "conditions", List.of(
@@ -328,6 +371,12 @@ class SegmentServiceTest {
         return Map.of("operator", "AND", "conditions", List.of(
                 Map.of("field", "email", "op", "EQUALS", "value", "person@example.com")
         ));
+    }
+
+    private Map<String, Object> emptyGroup() {
+        return new LinkedHashMap<>(Map.of(
+                "operator", "AND",
+                "conditions", List.of()));
     }
 
     private Map<String, Object> predictiveRules(Map<String, Object> governance) {

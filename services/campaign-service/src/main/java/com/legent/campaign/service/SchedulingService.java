@@ -70,12 +70,15 @@ public class SchedulingService {
                         java.util.Objects.requireNonNull(job.getCampaignId())
                 ).orElse(null);
                 if (campaign != null) {
-                    if (campaign.isApprovalRequired() && campaign.getStatus() != Campaign.CampaignStatus.APPROVED) {
+                    if (campaign.isApprovalRequired()
+                            && campaign.getStatus() != Campaign.CampaignStatus.APPROVED
+                            && campaign.getStatus() != Campaign.CampaignStatus.SCHEDULED) {
                         throw new ValidationException("campaign.status", "Scheduled campaign requires approval before send");
                     }
                     if (campaign.isApprovalRequired()) {
                         campaignLockService.validateActiveLock(campaign);
                     }
+                    CampaignSendTimeOptimizationGuard.validatePendingJobDispatch(campaign, job);
                     stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.SENDING, "Scheduled send started");
                     campaignRepository.save(campaign);
 

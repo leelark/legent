@@ -3,6 +3,7 @@ package com.legent.kafka.config;
 import com.legent.common.constant.AppConstants;
 import com.legent.kafka.producer.EventPublisher;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.config.TopicConfig;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -46,6 +47,10 @@ class KafkaTopicConfigTest {
         assertEquals(KafkaConsumerConfig.DEFAULT_DLQ_PARTITIONS, topic.numPartitions());
         assertTrue(topic.numPartitions() > 1);
         assertEquals(LOCAL_REPLICATION_FACTOR, topic.replicationFactor());
+        assertEquals(String.valueOf(KafkaTopicConfig.DEFAULT_DLQ_RETENTION_MS),
+                topic.configs().get(TopicConfig.RETENTION_MS_CONFIG));
+        assertEquals(KafkaTopicConfig.DEFAULT_DLQ_CLEANUP_POLICY,
+                topic.configs().get(TopicConfig.CLEANUP_POLICY_CONFIG));
     }
 
     @Test

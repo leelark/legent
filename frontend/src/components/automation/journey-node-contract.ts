@@ -52,6 +52,7 @@ export const RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES: readonly JourneyNodeType[] = 
   'ENTRY_TRIGGER',
   'SEND_EMAIL',
   'DELAY',
+  'WAIT_UNTIL',
   'CONDITION',
   'END',
 ];

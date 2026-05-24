@@ -1,7 +1,9 @@
 package com.legent.kafka.config;
 
 import com.legent.common.constant.AppConstants;
+import java.time.Duration;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.config.TopicConfig;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
@@ -13,11 +15,16 @@ import org.springframework.kafka.config.TopicBuilder;
 @Configuration
 public class KafkaTopicConfig {
 
+    static final long DEFAULT_DLQ_RETENTION_MS = Duration.ofDays(14).toMillis();
+    static final String DEFAULT_DLQ_CLEANUP_POLICY = TopicConfig.CLEANUP_POLICY_DELETE;
+
     @Bean
     public NewTopic kafkaDeadLetterTopic() {
         return TopicBuilder.name(AppConstants.TOPIC_KAFKA_DLQ)
                 .partitions(KafkaConsumerConfig.DEFAULT_DLQ_PARTITIONS)
                 .replicas(1)
+                .config(TopicConfig.RETENTION_MS_CONFIG, String.valueOf(DEFAULT_DLQ_RETENTION_MS))
+                .config(TopicConfig.CLEANUP_POLICY_CONFIG, DEFAULT_DLQ_CLEANUP_POLICY)
                 .build();
     }
 

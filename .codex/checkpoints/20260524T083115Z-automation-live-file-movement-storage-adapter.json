@@ -1,0 +1,47 @@
+{
+    "id":  "automation-live-file-movement-storage-adapter",
+    "createdAt":  "2026-05-24T08:31:15.0738013Z",
+    "objective":  "Enable governed live file movement for Automation Studio",
+    "status":  "DONE",
+    "owner":  "AUTOMATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationStudioService.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationArtifactService.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationObjectStorageAdapter.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/AutomationObjectStorageException.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/MinioAutomationObjectStorageAdapter.java",
+                         "services/automation-service/src/main/resources/application.yml",
+                         "services/automation-service/pom.xml",
+                         "services/automation-service/src/test/java/com/legent/automation/service/AutomationStudioServiceTest.java",
+                         "services/automation-service/src/test/java/com/legent/automation/service/AutomationArtifactServiceTest.java",
+                         "docs/product/automation-studio-activity-orchestration-plan.md",
+                         "docs/product/automation-studio-activity-security-contract.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-24.jsonl"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "DEVOPS_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/automation-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Local storage-adapter slice complete. Continue autonomous loop with next safe backlog item or external evidence collection."
+}

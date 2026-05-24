@@ -104,6 +104,79 @@
         },
         "overrides": []
       }
+    },
+    {
+      "type": "timeseries",
+      "title": "Retry ready depth",
+      "targets": [
+        {
+          "expr": "max(legent_retry_ready_depth{queue=~\"campaign_partial_batches|campaign_stale_processing_batches|delivery_scheduled_messages\"}) by (queue)",
+          "legendFormat": "{{queue}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "Retry oldest ready age",
+      "targets": [
+        {
+          "expr": "max(legent_retry_oldest_ready_age_seconds{queue=~\"campaign_partial_batches|campaign_stale_processing_batches|delivery_scheduled_messages\"}) by (queue)",
+          "legendFormat": "{{queue}}"
+        }
+      ],
+      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "DLQ depth",
+      "targets": [
+        {
+          "expr": "max(legent_dlq_depth{source=~\"campaign_dead_letters|delivery_failed_messages\"}) by (source)",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "gridPos": { "x": 0, "y": 40, "w": 8, "h": 8 }
+    },
+    {
+      "type": "timeseries",
+      "title": "DLQ oldest age",
+      "targets": [
+        {
+          "expr": "max(legent_dlq_oldest_age_seconds{source=~\"campaign_dead_letters|delivery_failed_messages\"}) by (source)",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "gridPos": { "x": 8, "y": 40, "w": 8, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "DLQ skew",
+      "targets": [
+        {
+          "expr": "max(legent_dlq_skew_ratio{source=~\"campaign_dead_letters|delivery_failed_messages\"}) by (source)",
+          "legendFormat": "{{source}}"
+        }
+      ],
+      "gridPos": { "x": 16, "y": 40, "w": 8, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit"
+        },
+        "overrides": []
+      }
     }
   ]
 }

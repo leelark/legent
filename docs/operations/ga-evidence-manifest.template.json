@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "syntheticSmoke": "replace-with-synthetic-smoke-transcript",
+  "liveLoad": "replace-with-live-load-report",
+  "restoreDrill": "replace-with-restore-drill-report",
+  "ciSecurityTranscript": "replace-with-ci-security-transcript",
+  "filesystemSbom": "replace-with-filesystem-sbom",
+  "monitoringHandoff": "replace-with-monitoring-handoff",
+  "tlsCertificate": "replace-with-tls-certificate-evidence",
+  "restrictedAdmission": "replace-with-restricted-admission-evidence",
+  "registryImageEvidence": "replace-with-image-evidence-manifest",
+  "kafkaBrokerTopology": "replace-with-kafka-broker-topology-evidence"
+}

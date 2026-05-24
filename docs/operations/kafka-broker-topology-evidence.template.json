@@ -1,0 +1,120 @@
+{
+  "schemaVersion": 1,
+  "reviewedBy": "replace-with-release-reviewer",
+  "reviewedAt": "replace-with-review-date",
+  "clusterName": "replace-with-production-kafka-cluster",
+  "provider": "replace-with-managed-kafka-provider",
+  "brokerCount": 3,
+  "availabilityZones": [
+    "replace-with-az-a",
+    "replace-with-az-b",
+    "replace-with-az-c"
+  ],
+  "defaultReplicationFactor": 3,
+  "minInSyncReplicas": 2,
+  "producerAcks": "all",
+  "uncleanLeaderElectionEnable": false,
+  "autoCreateTopicsEnable": false,
+  "underReplicatedPartitions": 0,
+  "offlinePartitions": 0,
+  "consumerLagEvidence": "replace-with-consumer-lag-dashboard-or-query-proof",
+  "alertRoutingEvidence": "replace-with-alert-route-proof",
+  "topics": [
+    {
+      "name": "kafka.dead-letter",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 336,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "email.failed.dlq",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 168,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "email.retry.scheduled",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "email.send.requested",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "send.audience.resolution.requested",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "send.audience.resolved",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "send.batch.created",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "send.processing",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "tracking.ingested",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "email.open",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "email.click",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    },
+    {
+      "name": "conversion.event",
+      "partitions": 6,
+      "replicationFactor": 3,
+      "minInSyncReplicas": 2,
+      "retentionHours": 24,
+      "cleanupPolicy": "delete"
+    }
+  ]
+}

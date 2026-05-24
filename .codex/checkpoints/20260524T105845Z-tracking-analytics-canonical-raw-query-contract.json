@@ -1,0 +1,37 @@
+{
+    "id":  "tracking-analytics-canonical-raw-query-contract",
+    "createdAt":  "2026-05-24T10:58:45.8397576Z",
+    "objective":  "Define canonical raw-event analytics query semantics",
+    "status":  "DONE",
+    "owner":  "TRACKING_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/controller/AnalyticsController.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/dto/TrackingDto.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/AnalyticsServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/ClickHouseRollupServiceTest.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/controller/AnalyticsControllerTest.java",
+                         "docs/product/salesforce-parity-matrix.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/unresolved-risks.md"
+                     ],
+    "agents":  [
+                   "DATA_ARCHITECT",
+                   "QA_ENGINEER",
+                   "PERFORMANCE_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service \"-Dtest=AnalyticsServiceTest",
+                           "ClickHouseRollupServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed locally; continue with the next highest-score safe backlog item or external tracking runtime evidence."
+}

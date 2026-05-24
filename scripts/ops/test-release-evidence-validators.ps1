@@ -246,6 +246,7 @@ function New-GaManifest([hashtable]$Overrides = @{}) {
         tlsCertificate = "tls-certificate.txt"
         restrictedAdmission = "restricted-admission.txt"
         registryImageEvidence = "registry-image-evidence.json"
+        kafkaBrokerTopology = "kafka-broker-topology.json"
     }
     foreach ($key in $Overrides.Keys) {
         if ($null -eq $Overrides[$key]) {
@@ -255,6 +256,61 @@ function New-GaManifest([hashtable]$Overrides = @{}) {
         }
     }
     return $manifest
+}
+
+function New-KafkaTopicEvidence([string]$Name, [int]$RetentionHours = 24) {
+    return [ordered]@{
+        name = $Name
+        partitions = 6
+        replicationFactor = 3
+        minInSyncReplicas = 2
+        retentionHours = $RetentionHours
+        cleanupPolicy = "delete"
+    }
+}
+
+function New-KafkaTopologyEvidence([hashtable]$Overrides = @{}) {
+    $topics = @(
+        New-KafkaTopicEvidence "kafka.dead-letter" 336
+        New-KafkaTopicEvidence "email.failed.dlq" 168
+        New-KafkaTopicEvidence "email.retry.scheduled"
+        New-KafkaTopicEvidence "email.send.requested"
+        New-KafkaTopicEvidence "send.audience.resolution.requested"
+        New-KafkaTopicEvidence "send.audience.resolved"
+        New-KafkaTopicEvidence "send.batch.created"
+        New-KafkaTopicEvidence "send.processing"
+        New-KafkaTopicEvidence "tracking.ingested"
+        New-KafkaTopicEvidence "email.open"
+        New-KafkaTopicEvidence "email.click"
+        New-KafkaTopicEvidence "conversion.event"
+    )
+    $evidence = [ordered]@{
+        schemaVersion = 1
+        reviewedBy = "release-reviewer"
+        reviewedAt = "2026-05-20"
+        clusterName = "legent-prod-kafka"
+        provider = "managed-kafka-provider"
+        brokerCount = 3
+        availabilityZones = @("az-a", "az-b", "az-c")
+        defaultReplicationFactor = 3
+        minInSyncReplicas = 2
+        producerAcks = "all"
+        uncleanLeaderElectionEnable = $false
+        autoCreateTopicsEnable = $false
+        underReplicatedPartitions = 0
+        offlinePartitions = 0
+        consumerLagEvidence = "reviewed-consumer-lag-dashboard"
+        alertRoutingEvidence = "reviewed-alertmanager-route-proof"
+        topics = $topics
+    }
+    foreach ($key in $Overrides.Keys) {
+        if ($null -eq $Overrides[$key]) {
+            $evidence.Remove($key)
+        } else {
+            $evidence[$key] = $Overrides[$key]
+        }
+    }
+    return $evidence
 }
 
 function New-ImageManifest([string]$Image, [string]$Digest, [string]$SignatureEvidence = "signature.txt", [string]$ProvenanceEvidence = "signature.txt", [object[]]$ExtraImages = @()) {
@@ -535,6 +591,7 @@ images:
     foreach ($artifact in @($validGaManifest.GetEnumerator() | Where-Object { $_.Key -ne "schemaVersion" } | ForEach-Object { $_.Value })) {
         Set-Content -Path (Join-Path $gaRoot ([string]$artifact)) -Value "reviewed evidence" -Encoding UTF8
     }
+    Write-JsonFile (Join-Path $gaRoot "kafka-broker-topology.json") (New-KafkaTopologyEvidence)
     Assert-GaPasses "valid-ga-evidence" `
         $gaRoot `
         $validGaManifest `
@@ -574,6 +631,12 @@ images:
         $gaRoot `
         (New-GaManifest @{ tlsCertificate = $null }) `
         "GA evidence missing required fields should fail validation."
+
+    Write-JsonFile (Join-Path $gaRoot "bad-kafka-broker-topology.json") (New-KafkaTopologyEvidence @{ brokerCount = 1 })
+    Assert-GaFails "bad-kafka-broker-topology" `
+        $gaRoot `
+        (New-GaManifest @{ kafkaBrokerTopology = "bad-kafka-broker-topology.json" }) `
+        "GA evidence with unsafe Kafka broker topology should fail validation."
 
     Assert-EgressPasses "reviewed-public-egress" `
         (New-EgressEvidence "release-reviewer" "2026-05-20" "managed-database-provider" @("8.8.8.8/32")) `

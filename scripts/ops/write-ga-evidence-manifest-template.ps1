@@ -19,6 +19,7 @@ $manifest = [ordered]@{
     tlsCertificate = "replace-with-tls-certificate-evidence"
     restrictedAdmission = "replace-with-restricted-admission-evidence"
     registryImageEvidence = "replace-with-image-evidence-manifest"
+    kafkaBrokerTopology = "replace-with-kafka-broker-topology-evidence"
 }
 
 $manifest | ConvertTo-Json -Depth 4 | Set-Content -Path $OutputPath -Encoding UTF8

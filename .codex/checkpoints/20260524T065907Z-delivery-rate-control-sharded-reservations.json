@@ -1,0 +1,28 @@
+{
+    "id":  "delivery-rate-control-sharded-reservations",
+    "createdAt":  "2026-05-24T06:59:07.5649200Z",
+    "objective":  "Shard or batch provider-domain send-rate reservations",
+    "status":  "DONE",
+    "owner":  "DELIVERY_SERVICE_OWNER",
+    "filesInScope":  [
+                         ".codex\\memory\\performance-bottlenecks.md",
+                         "services\\delivery-service\\src\\main\\java\\com\\legent\\delivery\\service\\SendRateControlService.java",
+                         "services\\delivery-service\\src\\main\\java\\com\\legent\\delivery\\domain",
+                         "services\\delivery-service\\src\\main\\java\\com\\legent\\delivery\\repository",
+                         "services\\delivery-service\\src\\main\\resources\\db\\migration",
+                         "services\\delivery-service\\src\\test\\java\\com\\legent\\delivery\\service\\SendRateControlServiceTest.java"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "DATA_ARCHITECT",
+                   "SRE_MONITORING_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/delivery-service \"-Dtest=SendRateControlServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Local implementation complete; continue overall-team loop with next highest-value safe backlog item."
+}

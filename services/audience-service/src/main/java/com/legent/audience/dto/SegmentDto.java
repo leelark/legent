@@ -55,12 +55,41 @@ public class SegmentDto {
         private String segmentId;
         private long count;
         private long evaluationMs;
+        private ExecutionPlanSummary executionPlan;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class ExecutionPlanPreview {
+        private String segmentId;
+        private ExecutionPlanSummary executionPlan;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class ExecutionPlanSummary {
+        private String executionMode;
+        private boolean bounded;
+        private int conditionCount;
+        private int maxDepth;
+        private List<String> requiredIndexes;
+        private List<String> warnings;
+        private List<ExecutionPlanStep> steps;
+    }
+
+    @Data @Builder @NoArgsConstructor @AllArgsConstructor
+    public static class ExecutionPlanStep {
+        private String path;
+        private String family;
+        private String field;
+        private String operator;
+        private String strategy;
+        private boolean tenantWorkspaceScoped;
+        private boolean indexedLookup;
     }
 
     /** Rule definition for the segmentation engine */
     @Data @Builder @NoArgsConstructor @AllArgsConstructor
     public static class RuleGroup {
-        private String operator; // AND, OR, NOT
+        private String operator; // AND, OR
         private List<RuleCondition> conditions;
         private List<RuleGroup> groups; // nested groups
     }

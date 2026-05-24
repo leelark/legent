@@ -1,24 +1,24 @@
 ﻿# Autonomous Team Dashboard
 
-Generated: 2026-05-23T21:38:58.4838825Z
+Generated: 2026-05-24T11:33:03.5992029Z
 
 ## Summary
 
 - Registered module teams: 15
-- Registered threads: 18
-- Active threads: 1
+- Registered threads: 20
+- Active threads: 0
 - Active leases: 0
 - Active worktrees: 0
 - Ready work: 0
-- Backlog work: 19
+- Backlog work: 5
 - Blocked work: 16
-- Done work: 188
+- Done work: 203
 
 ## Threads
 
 | Thread | Role | Module | Status | Heartbeat | Stale | Next Action |
 |---|---|---|---|---|---|---|
-| overall-24x7 | OVERALL | overall | ARCHIVED | 2026-05-20T11:52:30.5885789Z | True | Archived stale safe-stopped coordinator; superseded by multi-module-coordinator-20260520T113233Z. |
+| overall-24x7 | OVERALL | overall | ARCHIVED | 2026-05-24T11:18:23.4124516Z | False | Archived stale safe-stopped coordinator; superseded by multi-module-coordinator-20260520T113233Z. |
 | deliverability-service-20260520T100626Z | MODULE | deliverability-service | ARCHIVED | 2026-05-20T10:21:30.3925579Z | True | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
 | content-service-20260520T100625Z | MODULE | content-service | ARCHIVED | 2026-05-20T10:21:30.6208978Z | True | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
 | audience-service-20260520T100624Z | MODULE | audience-service | ARCHIVED | 2026-05-20T10:21:30.6609071Z | True | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
@@ -35,7 +35,9 @@ Generated: 2026-05-23T21:38:58.4838825Z
 | overall-20260521T210913Z | OVERALL | overall | PAUSED | 2026-05-22T03:51:12.9629255Z | True | Safe-stopped per user request after completing latest-audit-safe-local-followups-20260522; resume only on new user direction. |
 | overall-20260522T121051Z | OVERALL | overall | PAUSED | 2026-05-22T21:45:41.5721230Z | True | Safe-stopped after completing all unblocked local work from the latest audit. Resume only on new user direction or after blocked evidence and policy decisions are available. |
 | overall-20260523T094000Z | OVERALL | overall | PAUSED | 2026-05-23T10:40:31.5242917Z | True | Safe-stopped after completing all unblocked local work; resume from .codex/threads/overall-20260523T094000Z-handoff.md or after blocked evidence/policy decisions are available. |
-| overall-20260523T104219Z | OVERALL | overall | ACTIVE | 2026-05-23T21:12:02.4574207Z | False | Start overall autonomous loop. |
+| overall-20260523T104219Z | OVERALL | overall | PAUSED | 2026-05-23T21:12:02.4574207Z | True | Safe-stopped after completing segment-builder-v2-governance-ui. Automation legent-24x7-overall-team is paused; resume with automation-artifact-selector-ux or external evidence collection only on user direction. |
+| overall-20260524T | OVERALL | overall | ARCHIVED | 2026-05-24T06:19:11.6618024Z | True | Malformed restart record archived; superseded by timestamped 2026-05-24 overall coordinator. |
+| overall-20260524T061909Z | OVERALL | overall | PAUSED | 2026-05-24T10:23:52.5790499Z | True | Safe-stopped after completing segment-builder-v2-governance-ui. Automation legent-24x7-overall-team is paused; resume with automation-artifact-selector-ux or external evidence collection only on user direction. |
 
 ## Next Work
 

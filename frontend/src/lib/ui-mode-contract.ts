@@ -69,6 +69,19 @@ export const AUTOMATION_WORKFLOW_MODE_FEATURES = {
   },
 } as const satisfies Record<string, ModeFeature>;
 
+export const SEGMENT_BUILDER_MODE_FEATURES = {
+  governanceDetail: {
+    id: 'segment.builder.governance-detail',
+    label: 'Segment Governance Detail',
+    visibility: 'ADVANCED_ONLY',
+  },
+  unsupportedFamilies: {
+    id: 'segment.builder.unsupported-families',
+    label: 'Draft Segment Families',
+    visibility: 'ADVANCED_ONLY',
+  },
+} as const satisfies Record<string, ModeFeature>;
+
 export const TEMPLATE_STUDIO_MODE_FEATURES = {
   advancedBlocks: {
     id: 'template.studio.advanced-blocks',

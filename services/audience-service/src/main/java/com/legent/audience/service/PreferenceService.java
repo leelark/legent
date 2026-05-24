@@ -20,6 +20,7 @@ public class PreferenceService {
 
     private final SubscriberRepository subscriberRepository;
     private final SuppressionRepository suppressionRepository;
+    private final ContactLifecycleAuditService lifecycleAuditService;
 
     @Transactional(readOnly = true)
     public PreferenceDto.Response get(String subscriberId) {
@@ -52,6 +53,12 @@ public class PreferenceService {
         if (request.getPreferredBrand() != null) prefs.put("preferredBrand", request.getPreferredBrand());
         subscriber.setChannelPreferences(prefs);
         subscriberRepository.save(subscriber);
+        lifecycleAuditService.preferenceUpdated(subscriber, "PREFERENCE_UPDATED", Map.of(
+                "topicSubscriptionsChanged", request.getTopicSubscriptions() != null,
+                "channelsChanged", request.getChannelPreferences() != null,
+                "frequencyChanged", request.getCommunicationFrequency() != null,
+                "preferredLanguageChanged", request.getPreferredLanguage() != null,
+                "preferredBrandChanged", request.getPreferredBrand() != null));
         return get(subscriberId);
     }
 
@@ -65,6 +72,9 @@ public class PreferenceService {
         prefs.put("pauseReason", request.getReason());
         subscriber.setChannelPreferences(prefs);
         subscriberRepository.save(subscriber);
+        lifecycleAuditService.preferenceUpdated(subscriber, "PREFERENCE_PAUSED", Map.of(
+                "pausedUntil", prefs.get("pausedUntil"),
+                "reasonPresent", request.getReason() != null && !request.getReason().isBlank()));
         return get(subscriberId);
     }
 
@@ -74,6 +84,8 @@ public class PreferenceService {
         subscriber.setStatus(Subscriber.SubscriberStatus.UNSUBSCRIBED);
         subscriber.setUnsubscribedAt(Instant.now());
         subscriberRepository.save(subscriber);
+        lifecycleAuditService.preferenceUpdated(subscriber, "PREFERENCE_UNSUBSCRIBED", Map.of(
+                "reasonPresent", request.getReason() != null && !request.getReason().isBlank()));
 
         String tenantId = AudienceScope.tenantId();
         String workspaceId = AudienceScope.workspaceId();
@@ -88,7 +100,8 @@ public class PreferenceService {
             suppression.setSuppressionType(Suppression.SuppressionType.UNSUBSCRIBE);
             suppression.setReason(request.getReason());
             suppression.setSource("PREFERENCE_CENTER");
-            suppressionRepository.save(suppression);
+            Suppression savedSuppression = suppressionRepository.save(suppression);
+            lifecycleAuditService.suppressionCreated(savedSuppression, "PREFERENCE_CENTER");
         }
         return get(subscriberId);
     }
@@ -99,6 +112,7 @@ public class PreferenceService {
         subscriber.setStatus(Subscriber.SubscriberStatus.ACTIVE);
         subscriber.setUnsubscribedAt(null);
         subscriberRepository.save(subscriber);
+        lifecycleAuditService.preferenceUpdated(subscriber, "PREFERENCE_RESUBSCRIBED", Map.of("status", subscriber.getStatus().name()));
 
         String tenantId = AudienceScope.tenantId();
         String workspaceId = AudienceScope.workspaceId();
@@ -110,6 +124,7 @@ public class PreferenceService {
                     suppression.setRecoveredAt(Instant.now());
                     suppression.softDelete();
                     suppressionRepository.save(suppression);
+                    lifecycleAuditService.suppressionRecovered(suppression, "PREFERENCE_CENTER");
                 });
 
         return get(subscriberId);

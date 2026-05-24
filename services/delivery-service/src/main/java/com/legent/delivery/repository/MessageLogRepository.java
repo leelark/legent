@@ -1,6 +1,8 @@
 package com.legent.delivery.repository;
 
 import com.legent.delivery.domain.MessageLog;
+import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -16,8 +18,29 @@ public interface MessageLogRepository extends JpaRepository<MessageLog, String> 
     Optional<MessageLog> findByTenantIdAndMessageId(String tenantId, String messageId);
     Optional<MessageLog> findByTenantIdAndWorkspaceIdAndMessageId(String tenantId, String workspaceId, String messageId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT m FROM MessageLog m WHERE m.status = 'PENDING' AND m.nextRetryAt <= :now ORDER BY m.nextRetryAt ASC, m.createdAt ASC")
+    @org.springframework.data.jpa.repository.Query("SELECT m FROM MessageLog m WHERE m.status = 'PENDING' AND m.nextRetryAt <= :now AND m.deletedAt IS NULL ORDER BY m.nextRetryAt ASC, m.createdAt ASC")
     java.util.List<MessageLog> findEligibleForRetry(@org.springframework.data.repository.query.Param("now") java.time.Instant now, Pageable pageable);
+
+    @Query("SELECT COUNT(m) FROM MessageLog m WHERE m.status = 'PENDING' AND m.nextRetryAt <= :now AND m.deletedAt IS NULL")
+    long countEligibleForRetry(@Param("now") Instant now);
+
+    @Query("SELECT MIN(m.nextRetryAt) FROM MessageLog m WHERE m.status = 'PENDING' AND m.nextRetryAt <= :now AND m.deletedAt IS NULL")
+    Optional<Instant> findOldestEligibleRetryAt(@Param("now") Instant now);
+
+    long countByStatusAndDeletedAtIsNull(String status);
+
+    @Query("SELECT MIN(m.createdAt) FROM MessageLog m WHERE m.status = :status AND m.deletedAt IS NULL")
+    Optional<Instant> findOldestCreatedAtByStatus(@Param("status") String status);
+
+    @Query("""
+            SELECT COUNT(m)
+            FROM MessageLog m
+            WHERE m.status = :status
+              AND m.deletedAt IS NULL
+            GROUP BY m.jobId
+            ORDER BY COUNT(m) DESC
+            """)
+    List<Long> findCountsByJobForStatus(@Param("status") String status, Pageable pageable);
 
     java.util.List<MessageLog> findByTenantIdAndWorkspaceIdAndDeletedAtIsNullOrderByCreatedAtDesc(String tenantId, String workspaceId, Pageable pageable);
 

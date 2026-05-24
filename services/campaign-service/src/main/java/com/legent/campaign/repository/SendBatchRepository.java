@@ -1,6 +1,7 @@
 package com.legent.campaign.repository;
 
 import java.util.List;
+import java.util.Optional;
 import java.time.Instant;
 
 import com.legent.campaign.domain.SendBatch;
@@ -113,6 +114,28 @@ public interface SendBatchRepository extends JpaRepository<SendBatch, String> {
                                          @Param("claimedAt") Instant claimedAt);
 
     List<SendBatch> findByStatus(SendBatch.BatchStatus status);
+
+    long countByStatusAndDeletedAtIsNull(SendBatch.BatchStatus status);
+
+    long countByStatusAndUpdatedAtBeforeAndDeletedAtIsNull(SendBatch.BatchStatus status, Instant updatedBefore);
+
+    @Query("""
+            SELECT MIN(b.updatedAt)
+            FROM SendBatch b
+            WHERE b.status = :status
+              AND b.deletedAt IS NULL
+            """)
+    Optional<Instant> findOldestUpdatedAtByStatus(@Param("status") SendBatch.BatchStatus status);
+
+    @Query("""
+            SELECT MIN(b.updatedAt)
+            FROM SendBatch b
+            WHERE b.status = :status
+              AND b.updatedAt < :updatedBefore
+              AND b.deletedAt IS NULL
+            """)
+    Optional<Instant> findOldestUpdatedAtByStatusBefore(@Param("status") SendBatch.BatchStatus status,
+                                                        @Param("updatedBefore") Instant updatedBefore);
 
     List<SendBatch> findByStatusAndDeletedAtIsNullOrderByUpdatedAtAscCreatedAtAsc(SendBatch.BatchStatus status, Pageable pageable);
 

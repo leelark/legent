@@ -133,3 +133,63 @@ groups:
           runbook_url: "docs/operations/production-hardening-runbook.md#outbox-backlog"
           dashboard_uid: "legent-overview"
           dashboard_panel: "Outbox oldest ready age"
+      - alert: LegentRetryReadyDepthHigh
+        expr: max(legent_retry_ready_depth{queue=~"campaign_partial_batches|campaign_stale_processing_batches|delivery_scheduled_messages"}) by (queue) > 1000
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Retry ready depth high for {{ $labels.queue }}"
+          description: "{{ $labels.queue }} has more than 1000 ready retry items for 10 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#retry-and-dlq-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Retry ready depth"
+      - alert: LegentRetryOldestReadyAgeHigh
+        expr: max(legent_retry_oldest_ready_age_seconds{queue=~"campaign_partial_batches|campaign_stale_processing_batches|delivery_scheduled_messages"}) by (queue) > 900
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Oldest retry item is aging for {{ $labels.queue }}"
+          description: "{{ $labels.queue }} oldest ready retry item is older than 15 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#retry-and-dlq-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "Retry oldest ready age"
+      - alert: LegentDlqDepthHigh
+        expr: max(legent_dlq_depth{source=~"campaign_dead_letters|delivery_failed_messages"}) by (source) > 100
+        for: 10m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "DLQ depth high for {{ $labels.source }}"
+          description: "{{ $labels.source }} has more than 100 open or failed items for 10 minutes."
+          runbook_url: "docs/operations/production-hardening-runbook.md#retry-and-dlq-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "DLQ depth"
+      - alert: LegentDlqOldestAgeHigh
+        expr: max(legent_dlq_oldest_age_seconds{source=~"campaign_dead_letters|delivery_failed_messages"}) by (source) > 3600
+        for: 15m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "Oldest DLQ item is aging for {{ $labels.source }}"
+          description: "{{ $labels.source }} oldest open or failed item is older than one hour."
+          runbook_url: "docs/operations/production-hardening-runbook.md#retry-and-dlq-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "DLQ oldest age"
+      - alert: LegentDlqSkewHigh
+        expr: max(legent_dlq_skew_ratio{source=~"campaign_dead_letters|delivery_failed_messages"}) by (source) > 0.8
+        for: 15m
+        labels:
+          severity: warning
+          team: sre
+        annotations:
+          summary: "DLQ backlog skew high for {{ $labels.source }}"
+          description: "{{ $labels.source }} has more than 80% of backlog concentrated in one job."
+          runbook_url: "docs/operations/production-hardening-runbook.md#retry-and-dlq-backlog"
+          dashboard_uid: "legent-overview"
+          dashboard_panel: "DLQ skew"

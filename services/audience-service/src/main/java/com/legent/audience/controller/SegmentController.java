@@ -72,6 +72,12 @@ public class SegmentController {
         return ApiResponse.ok(evaluationService.evaluateCount(id));
     }
 
+    @GetMapping("/{id}/execution-plan")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:read', principal.roles)")
+    public ApiResponse<SegmentDto.ExecutionPlanPreview> executionPlan(@PathVariable String id) {
+        return ApiResponse.ok(evaluationService.explainExecutionPlan(id));
+    }
+
     @PostMapping("/{id}/recompute")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")

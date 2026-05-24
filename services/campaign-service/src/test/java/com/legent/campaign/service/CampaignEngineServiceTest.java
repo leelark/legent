@@ -1,8 +1,13 @@
 package com.legent.campaign.service;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
 import com.legent.campaign.domain.Campaign;
 import com.legent.campaign.domain.CampaignDeadLetter;
 import com.legent.campaign.domain.CampaignExperiment;
+import com.legent.campaign.domain.CampaignFrequencyPolicy;
 import com.legent.campaign.dto.CampaignEngineDto;
 import com.legent.campaign.event.CampaignEventPublisher;
 import com.legent.campaign.repository.CampaignBudgetRepository;
@@ -12,6 +17,7 @@ import com.legent.campaign.repository.CampaignFrequencyPolicyRepository;
 import com.legent.campaign.repository.CampaignRepository;
 import com.legent.campaign.repository.CampaignSendLedgerRepository;
 import com.legent.campaign.repository.CampaignVariantRepository;
+import com.legent.common.exception.ValidationException;
 import com.legent.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,10 +32,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.SliceImpl;
 
-import java.util.List;
-import java.util.Optional;
-
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -156,6 +160,60 @@ class CampaignEngineServiceTest {
                 eq("tenant-1"), eq("workspace-1"), eq("job-1"), pageable.capture());
         assertThat(pageable.getValue().getPageNumber()).isZero();
         assertThat(pageable.getValue().getPageSize()).isEqualTo(CampaignEngineService.MAX_DEAD_LETTER_LIMIT);
+    }
+
+    @Test
+    void updateFrequencyPolicyPersistsApprovedOptimizationReductionEvidence() {
+        Campaign campaign = completeCampaign();
+        mockCampaign(campaign);
+        when(frequencyPolicyRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        Instant approvedAt = Instant.parse("2026-05-24T00:00:00Z");
+
+        CampaignEngineDto.FrequencyPolicyRequest request = new CampaignEngineDto.FrequencyPolicyRequest();
+        request.setEnabled(true);
+        request.setMaxSends(3);
+        request.setWindowHours(24);
+        request.setIncludeJourneys(true);
+        request.setOptimizationPolicyKey("frequency-commercial");
+        request.setOptimizationRunId("run-1");
+        request.setOptimizationSnapshotHash("hash-1");
+        request.setOptimizationRecommendedMaxSends(2);
+        request.setOptimizationApproved(true);
+        request.setOptimizationApprovedAt(approvedAt);
+
+        CampaignEngineDto.FrequencyPolicyResponse response = service.updateFrequencyPolicy("campaign-1", request);
+
+        assertThat(response.isOptimizationApproved()).isTrue();
+        assertThat(response.getOptimizationRecommendedMaxSends()).isEqualTo(2);
+        assertThat(response.getOptimizationApprovedAt()).isEqualTo(approvedAt);
+
+        ArgumentCaptor<CampaignFrequencyPolicy> captor = ArgumentCaptor.forClass(CampaignFrequencyPolicy.class);
+        verify(frequencyPolicyRepository).save(captor.capture());
+        assertThat(captor.getValue().getOptimizationPolicyKey()).isEqualTo("frequency-commercial");
+        assertThat(captor.getValue().getOptimizationRunId()).isEqualTo("run-1");
+        assertThat(captor.getValue().getOptimizationSnapshotHash()).isEqualTo("hash-1");
+    }
+
+    @Test
+    void updateFrequencyPolicyRejectsApprovedOptimizationCapIncrease() {
+        Campaign campaign = completeCampaign();
+        mockCampaign(campaign);
+
+        CampaignEngineDto.FrequencyPolicyRequest request = new CampaignEngineDto.FrequencyPolicyRequest();
+        request.setEnabled(true);
+        request.setMaxSends(3);
+        request.setWindowHours(24);
+        request.setOptimizationPolicyKey("frequency-commercial");
+        request.setOptimizationRunId("run-1");
+        request.setOptimizationSnapshotHash("hash-1");
+        request.setOptimizationRecommendedMaxSends(4);
+        request.setOptimizationApproved(true);
+        request.setOptimizationApprovedAt(Instant.parse("2026-05-24T00:00:00Z"));
+
+        assertThatThrownBy(() -> service.updateFrequencyPolicy("campaign-1", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("cap increases require a separate approved runtime slice");
+        verify(frequencyPolicyRepository, never()).save(any());
     }
 
     @Test

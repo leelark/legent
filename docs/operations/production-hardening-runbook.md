@@ -14,6 +14,22 @@ Expected local artifacts:
 - Alert routing: `infrastructure/kubernetes/observability/alertmanager.yml`
 - Dashboard: `infrastructure/kubernetes/observability/grafana-legent-overview.json`
 
+## Internal Service Identity
+
+Local service-to-service HTTP calls still use `LEGENT_INTERNAL_API_TOKEN` and public-edge `/internal` deny rules. That control is now incrementally strengthened for the audience-resolution chunk read path: campaign-service must send `X-Internal-Service`, `X-Internal-Signature-Timestamp`, and `X-Internal-Signature` along with the existing internal credential. Audience-service validates the caller allowlist, tenant/workspace, action, job/chunk scope, and a short timestamp window before serving the chunk.
+
+Triage:
+- Confirm public access to `/internal` routes is still denied by Nginx and Kubernetes ingress via `scripts/ops/validate-route-map.ps1`.
+- Confirm the caller service name matches the route allowlist and the signature action matches the intended route scope.
+- Treat repeated signature failures as possible clock skew, stale deploy, misrouted service traffic, or credential drift. Do not log raw credentials, signatures, or payload contents in incident notes.
+- Remember that production NetworkPolicy still allows broad backend-to-backend traffic; this application-layer signature is not mTLS, SPIFFE, or platform identity proof.
+
+Recovery:
+- Fix clock synchronization, service configuration, or rollout skew before widening allowlists.
+- Keep `X-Internal-Token` validation enabled while signed headers roll out; do not remove edge denies.
+- Broaden signed service identity to other internal routes only with route-specific allowlists and tests.
+- Do not claim production service identity hardening is complete until target mTLS/service identity, NetworkPolicy, and signed-route evidence are available.
+
 ## Service Errors
 
 Alert: `LegentServiceHighErrorRate`
@@ -123,3 +139,27 @@ Recovery:
 - For poison payloads or schema failures, fix the publisher or event contract first; do not drop, bulk-publish, or mark events published without product-owner and incident-commander approval.
 - Keep suppression, signed tracking, idempotency, and retry behavior intact while draining backlog.
 - Close the incident only after ready depth returns near baseline, oldest-ready age stays below the warning threshold for one full alert window, and failed/exhausted events have an owner.
+
+## Retry and DLQ Backlog
+
+Alerts: `LegentRetryReadyDepthHigh`, `LegentRetryOldestReadyAgeHigh`, `LegentDlqDepthHigh`, `LegentDlqOldestAgeHigh`, `LegentDlqSkewHigh`
+
+Metrics:
+- `legent_retry_ready_depth{queue=...}` reports ready retry backlog for campaign partial batches, campaign stale processing batches, and delivery scheduled messages.
+- `legent_retry_oldest_ready_age_seconds{queue=...}` reports the age of the oldest ready retry item.
+- `legent_dlq_depth{source=...}` reports terminal/open DLQ-style backlog for campaign dead letters and delivery failed messages.
+- `legent_dlq_oldest_age_seconds{source=...}` reports the oldest DLQ-style backlog age.
+- `legent_dlq_skew_ratio{source=...}` reports how concentrated DLQ backlog is in the largest job. These metrics intentionally expose only `queue` or `source`.
+
+Triage:
+- Identify the `queue` or `source` label, then compare depth, oldest age, Kafka lag, outbox backlog, database latency, provider throttling, and executor saturation.
+- For campaign partial/stale-processing queues, confirm atomic retry claims are moving batches without duplicate batch-created events.
+- For delivery scheduled retries, confirm retry content references are resolvable before increasing retry drain.
+- For DLQ skew, inspect whether one job or campaign is poisoning retries. Keep incident notes tenant-safe and do not export raw payloads, emails, or subscriber IDs.
+- Confirm production Kafka evidence remains current: broker count, AZs, replication factor, min ISR, `acks=all`, disabled auto-topic creation, topic retention, under-replicated/offline partitions, consumer lag, and alert routing.
+
+Recovery:
+- Fix poison payload, schema, content-reference, provider, or policy failures before raising concurrency.
+- Replay or ignore DLQ entries only through documented operator workflows with product-owner and incident-commander approval.
+- Scale consumers only after downstream stores, provider limits, warmup, suppression, unsubscribe, and idempotency controls are confirmed healthy.
+- Close the incident after retry/DLQ depth and oldest age return near baseline for one full alert window and skew has an owner.

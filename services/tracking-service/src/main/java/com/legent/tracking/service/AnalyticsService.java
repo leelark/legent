@@ -27,6 +27,10 @@ public class AnalyticsService {
     static final int DEFAULT_DAY_ROLLUP_BUCKET_LIMIT = 90;
     static final int MAX_HOUR_ROLLUP_BUCKET_LIMIT = 744;
     static final int MAX_DAY_ROLLUP_BUCKET_LIMIT = 366;
+    public static final String QUERY_SEMANTICS_CANONICAL_EVENT_ID = "CANONICAL_EVENT_ID";
+    public static final String QUERY_SEMANTICS_PHYSICAL_RAW_ROW = "PHYSICAL_RAW_ROW";
+    public static final String SOURCE_DATASET_RAW_EVENTS = "raw_events";
+    public static final List<String> CANONICAL_DEDUPE_KEY = List.of("tenant_id", "workspace_id", "event_type", "id");
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -50,11 +54,12 @@ public class AnalyticsService {
         try {
             return jdbcTemplate.queryForList("""
                 SELECT event_type, COALESCE(count(*), 0) AS count
-                FROM raw_events
-                WHERE tenant_id = ? AND workspace_id = ?
-                  AND "timestamp" >= ? AND "timestamp" <= ?
+                %s
                 GROUP BY event_type
-            """, tenantId, workspaceId, timeWindow.startAt(), timeWindow.endAt());
+            """.formatted(canonicalRawEventsSource("""
+                    tenant_id = ? AND workspace_id = ?
+                      AND "timestamp" >= ? AND "timestamp" <= ?
+                    """)), tenantId, workspaceId, timeWindow.startAt(), timeWindow.endAt());
         } catch (DataAccessException e) {
             log.error("Failed to query event counts for tenant {} workspace {}", tenantId, workspaceId, e);
             return new ArrayList<>();
@@ -88,13 +93,14 @@ public class AnalyticsService {
         try {
             return jdbcTemplate.queryForList("""
                 SELECT date_trunc('hour', "timestamp") AS hour, COALESCE(count(*), 0) AS count
-                FROM raw_events
-                WHERE tenant_id = ? AND workspace_id = ? AND event_type = ?
-                  AND "timestamp" >= ? AND "timestamp" <= ?
+                %s
                 GROUP BY hour
                 ORDER BY hour
                 LIMIT ?
-            """, tenantId, workspaceId, normalizedEventType, timeWindow.startAt(), timeWindow.endAt(), bucketLimit);
+            """.formatted(canonicalRawEventsSource("""
+                    tenant_id = ? AND workspace_id = ? AND event_type = ?
+                      AND "timestamp" >= ? AND "timestamp" <= ?
+                    """)), tenantId, workspaceId, normalizedEventType, timeWindow.startAt(), timeWindow.endAt(), bucketLimit);
         } catch (DataAccessException e) {
             log.error("Failed to query event timeline for tenant {} workspace {} and eventType {}",
                     tenantId, workspaceId, eventType, e);
@@ -124,14 +130,15 @@ public class AnalyticsService {
                         ELSE 0
                     END), 0) AS revenue,
                     COUNT(*) FILTER (WHERE metadata ? 'customMetricName') AS custom_metric_count
-                FROM raw_events
-                WHERE tenant_id = ?
-                  AND workspace_id = ?
-                  AND campaign_id = ?
-                  AND experiment_id = ?
+                %s
                 GROUP BY COALESCE(variant_id, 'HOLDOUT')
                 ORDER BY variant_id
-            """, tenantId, workspaceId, campaignId, experimentId);
+            """.formatted(canonicalRawEventsSource("""
+                    tenant_id = ?
+                      AND workspace_id = ?
+                      AND campaign_id = ?
+                      AND experiment_id = ?
+                    """)), tenantId, workspaceId, campaignId, experimentId);
         } catch (DataAccessException e) {
             log.error("Failed to query experiment metrics for tenant {} workspace {} campaign {} experiment {}",
                     tenantId, workspaceId, campaignId, experimentId, e);
@@ -160,15 +167,16 @@ public class AnalyticsService {
                         THEN (metadata->>'value')::numeric
                         ELSE 0
                     END), 0) AS revenue
-                FROM raw_events
-                WHERE tenant_id = ?
-                  AND workspace_id = ?
-                  AND workflow_id = ?
-                  AND event_type = 'CONVERSION'
+                %s
                 GROUP BY COALESCE(goal_id, 'UNSPECIFIED'), step_id, path_id, COALESCE(experiment_scope, 'JOURNEY')
                 ORDER BY conversions DESC, goal_id
                 LIMIT 100
-            """, tenantId, workspaceId, workflowId);
+            """.formatted(canonicalRawEventsSource("""
+                    tenant_id = ?
+                      AND workspace_id = ?
+                      AND workflow_id = ?
+                      AND event_type = 'CONVERSION'
+                    """)), tenantId, workspaceId, workflowId);
         } catch (DataAccessException e) {
             log.error("Failed to query journey goal metrics for tenant {} workspace {} workflow {}",
                     tenantId, workspaceId, workflowId, e);
@@ -198,6 +206,14 @@ public class AnalyticsService {
             return new ArrayList<>();
         }
         List<Object> params = new ArrayList<>(List.of(tenantId, workspaceId, timeWindow.startAt(), timeWindow.endAt()));
+        StringBuilder sourceWhere = new StringBuilder("""
+                tenant_id = ? AND workspace_id = ?
+                  AND "timestamp" >= ? AND "timestamp" <= ?
+                """);
+        if (campaignId != null && !campaignId.isBlank()) {
+            sourceWhere.append(" AND campaign_id = ?");
+            params.add(campaignId);
+        }
         StringBuilder sql = new StringBuilder("""
                 SELECT campaign_id,
                        date_trunc('%s', "timestamp") AS bucket,
@@ -209,14 +225,8 @@ public class AnalyticsService {
                        COUNT(*) FILTER (WHERE event_type = 'COMPLAINT') AS complaints,
                        COUNT(*) FILTER (WHERE event_type = 'UNSUBSCRIBE') AS unsubscribes,
                        COUNT(*) FILTER (WHERE event_type = 'CONVERSION') AS conversions
-                FROM raw_events
-                WHERE tenant_id = ? AND workspace_id = ?
-                  AND "timestamp" >= ? AND "timestamp" <= ?
-                """.formatted(normalizedGrain));
-        if (campaignId != null && !campaignId.isBlank()) {
-            sql.append(" AND campaign_id = ?");
-            params.add(campaignId);
-        }
+                %s
+                """.formatted(normalizedGrain, canonicalRawEventsSource(sourceWhere.toString())));
         sql.append(" GROUP BY campaign_id, bucket ORDER BY bucket DESC, campaign_id LIMIT ?");
         params.add(bucketLimit);
         try {
@@ -306,22 +316,66 @@ public class AnalyticsService {
         );
     }
 
-    public Map<String, Object> rawCountsForCampaign(String tenantId, String workspaceId, String campaignId) {
+    public Map<String, Object> rawPhysicalCountsForCampaign(String tenantId, String workspaceId, String campaignId) {
         List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
                 SELECT event_type, COUNT(*) AS count
-                FROM (
-                    SELECT event_type, id
-                    FROM raw_events
-                    WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?
-                    GROUP BY tenant_id, workspace_id, event_type, id
-                ) AS canonical_raw_events
+                FROM raw_events
+                WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?
                 GROUP BY event_type
                 """, tenantId, workspaceId, campaignId);
+        return countMap(rows);
+    }
+
+    public Map<String, Object> canonicalCountsForCampaign(String tenantId, String workspaceId, String campaignId) {
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT event_type, COUNT(*) AS count
+                %s
+                GROUP BY event_type
+                """.formatted(canonicalRawEventsSource("tenant_id = ? AND workspace_id = ? AND campaign_id = ?")),
+                tenantId, workspaceId, campaignId);
+        return countMap(rows);
+    }
+
+    public Map<String, Object> rawCountsForCampaign(String tenantId, String workspaceId, String campaignId) {
+        return canonicalCountsForCampaign(tenantId, workspaceId, campaignId);
+    }
+
+    private Map<String, Object> countMap(List<Map<String, Object>> rows) {
         Map<String, Object> counts = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
             counts.put(String.valueOf(row.get("event_type")), row.get("count"));
         }
         return counts;
+    }
+
+    private String canonicalRawEventsSource(String whereClause) {
+        return """
+                FROM (
+                    SELECT tenant_id,
+                           workspace_id,
+                           event_type,
+                           id,
+                           MIN(campaign_id) AS campaign_id,
+                           MIN(subscriber_id) AS subscriber_id,
+                           MIN(message_id) AS message_id,
+                           MIN(experiment_id) AS experiment_id,
+                           MIN(variant_id) AS variant_id,
+                           BOOL_OR(COALESCE(holdout, false)) AS holdout,
+                           MIN(experiment_scope) AS experiment_scope,
+                           MIN(workflow_id) AS workflow_id,
+                           MIN(workflow_version) AS workflow_version,
+                           MIN(workflow_run_id) AS workflow_run_id,
+                           MIN(step_id) AS step_id,
+                           MIN(path_id) AS path_id,
+                           MIN(goal_id) AS goal_id,
+                           MIN(link_url) AS link_url,
+                           MIN("timestamp") AS "timestamp",
+                           MIN(metadata::text)::jsonb AS metadata
+                    FROM raw_events
+                    WHERE %s
+                    GROUP BY tenant_id, workspace_id, event_type, id
+                ) AS canonical_raw_events
+                """.formatted(whereClause.strip());
     }
 
     private Map<String, Object> taxonomy(String eventType,

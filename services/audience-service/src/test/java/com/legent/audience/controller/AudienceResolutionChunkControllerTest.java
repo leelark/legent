@@ -1,6 +1,8 @@
 package com.legent.audience.controller;
 
 import com.legent.audience.service.AudienceResolutionChunkService;
+import com.legent.common.security.InternalServiceIdentity;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -45,6 +47,44 @@ class AudienceResolutionChunkControllerTest {
     void getInternalChunkRejectsInvalidTokenBeforeServiceLookup() {
         assertThatThrownBy(() -> controller.getInternalChunk(
                 "bad-token",
+                "campaign-service",
+                Instant.now().toString(),
+                "bad-signature",
+                "tenant-1",
+                "workspace-1",
+                "chunk-1",
+                "job-1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(403));
+
+        verify(service, never()).getChunk("tenant-1", "workspace-1", "job-1", "chunk-1");
+    }
+
+    @Test
+    void getInternalChunkRejectsMissingServiceSignatureBeforeServiceLookup() {
+        assertThatThrownBy(() -> controller.getInternalChunk(
+                INTERNAL_TOKEN,
+                "campaign-service",
+                null,
+                null,
+                "tenant-1",
+                "workspace-1",
+                "chunk-1",
+                "job-1"))
+                .isInstanceOf(ResponseStatusException.class)
+                .satisfies(error -> assertThat(((ResponseStatusException) error).getStatusCode().value()).isEqualTo(403));
+
+        verify(service, never()).getChunk("tenant-1", "workspace-1", "job-1", "chunk-1");
+    }
+
+    @Test
+    void getInternalChunkRejectsUnauthorizedServiceBeforeServiceLookup() {
+        Instant timestamp = Instant.now();
+        assertThatThrownBy(() -> controller.getInternalChunk(
+                INTERNAL_TOKEN,
+                "automation-service",
+                timestamp.toString(),
+                sign("automation-service", "tenant-1", "workspace-1", "job-1", "chunk-1", timestamp),
                 "tenant-1",
                 "workspace-1",
                 "chunk-1",
@@ -71,9 +111,13 @@ class AudienceResolutionChunkControllerTest {
                 List.of(Map.of("email", "one@example.com")));
         org.mockito.Mockito.when(service.getChunk("tenant-1", "workspace-1", "job-1", "chunk-1"))
                 .thenReturn(response);
+        Instant timestamp = Instant.now();
 
         var result = controller.getInternalChunk(
                 "  " + INTERNAL_TOKEN + "  ",
+                "campaign-service",
+                timestamp.toString(),
+                sign("campaign-service", "tenant-1", "workspace-1", "job-1", "chunk-1", timestamp),
                 "tenant-1",
                 "workspace-1",
                 "chunk-1",
@@ -81,5 +125,23 @@ class AudienceResolutionChunkControllerTest {
 
         assertThat(result.getData()).isSameAs(response);
         verify(service).getChunk("tenant-1", "workspace-1", "job-1", "chunk-1");
+    }
+
+    private String sign(String serviceName,
+                        String tenantId,
+                        String workspaceId,
+                        String jobId,
+                        String chunkId,
+                        Instant timestamp) {
+        return InternalServiceIdentity.sign(
+                INTERNAL_TOKEN,
+                serviceName,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_AUDIENCE_RESOLUTION_CHUNK_READ,
+                        jobId,
+                        chunkId),
+                timestamp);
     }
 }

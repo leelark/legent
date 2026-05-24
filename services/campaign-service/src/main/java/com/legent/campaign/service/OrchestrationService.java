@@ -75,10 +75,8 @@ public class OrchestrationService {
         if (!preflight.isSendAllowed()) {
             throw new ValidationException("campaign.preflight", String.join("; ", preflight.getErrors()));
         }
-        if (request.getIdempotencyKey() == null || request.getIdempotencyKey().isBlank()) {
-            request.setIdempotencyKey(defaultSendIdempotencyKey(campaignId, request));
-        }
-        if (request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank()) {
+        boolean providedIdempotencyKey = request.getIdempotencyKey() != null && !request.getIdempotencyKey().isBlank();
+        if (providedIdempotencyKey) {
             var existing = sendJobRepository.findByTenantIdAndWorkspaceIdAndIdempotencyKeyAndDeletedAtIsNull(
                     tenantId, workspaceId, request.getIdempotencyKey().trim());
             if (existing.isPresent()) {
@@ -86,18 +84,35 @@ public class OrchestrationService {
             }
         }
 
+        Instant effectiveScheduledAt = CampaignSendTimeOptimizationGuard.previewOptionalSchedule(
+                campaign,
+                request.getScheduledAt(),
+                request.getSendTimeOptimization());
+        if (!providedIdempotencyKey) {
+            request.setIdempotencyKey(defaultSendIdempotencyKey(campaignId, request, effectiveScheduledAt));
+            var existing = sendJobRepository.findByTenantIdAndWorkspaceIdAndIdempotencyKeyAndDeletedAtIsNull(
+                    tenantId, workspaceId, request.getIdempotencyKey().trim());
+            if (existing.isPresent()) {
+                return sendJobMapper.toJobResponse(existing.get());
+            }
+        }
+        effectiveScheduledAt = CampaignSendTimeOptimizationGuard.resolveOptionalSchedule(
+                campaign,
+                request.getScheduledAt(),
+                request.getSendTimeOptimization());
+
         SendJob job = new SendJob();
         job.setTenantId(tenantId);
         job.setWorkspaceId(workspaceId);
         job.setTeamId(campaign.getTeamId());
         job.setOwnershipScope(campaign.getOwnershipScope());
         job.setCampaignId(campaignId);
-        job.setScheduledAt(request.getScheduledAt());
+        job.setScheduledAt(effectiveScheduledAt);
         job.setTriggerSource(request.getTriggerSource());
         job.setTriggerReference(request.getTriggerReference());
         job.setIdempotencyKey(request.getIdempotencyKey());
         
-        if (request.getScheduledAt() == null || request.getScheduledAt().isBefore(Instant.now())) {
+        if (effectiveScheduledAt == null || effectiveScheduledAt.isBefore(Instant.now())) {
             job.setStatus(SendJob.JobStatus.RESOLVING);
             job.setStartedAt(Instant.now());
             stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.SENDING, "Immediate send triggered");
@@ -105,7 +120,7 @@ public class OrchestrationService {
         } else {
             job.setStatus(SendJob.JobStatus.PENDING);
             stateMachine.transitionCampaign(campaign, Campaign.CampaignStatus.SCHEDULED, "Scheduled send configured");
-            campaign.setScheduledAt(request.getScheduledAt());
+            campaign.setScheduledAt(effectiveScheduledAt);
         }
         if (request.getTriggerSource() != null && !request.getTriggerSource().isBlank()) {
             campaign.setTriggerSource(request.getTriggerSource());
@@ -262,14 +277,16 @@ public class OrchestrationService {
         return triggerSend(campaignId, request);
     }
 
-    private String defaultSendIdempotencyKey(String campaignId, SendJobDto.TriggerRequest request) {
+    private String defaultSendIdempotencyKey(String campaignId,
+                                             SendJobDto.TriggerRequest request,
+                                             Instant effectiveScheduledAt) {
         String requestId = TenantContext.getRequestId();
         if (requestId != null && !requestId.isBlank()) {
             return "send:" + campaignId + ":" + requestId;
         }
         String source = request.getTriggerSource() == null ? "MANUAL" : request.getTriggerSource();
         String reference = request.getTriggerReference() == null ? "" : request.getTriggerReference();
-        String scheduled = request.getScheduledAt() == null ? "immediate" : request.getScheduledAt().toString();
+        String scheduled = effectiveScheduledAt == null ? "immediate" : effectiveScheduledAt.toString();
         return "send:" + campaignId + ":" + source + ":" + reference + ":" + scheduled;
     }
 

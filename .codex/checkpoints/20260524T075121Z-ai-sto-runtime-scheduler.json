@@ -1,0 +1,40 @@
+{
+    "id":  "ai-sto-runtime-scheduler",
+    "createdAt":  "2026-05-24T07:51:21.6222200Z",
+    "objective":  "Integrate send-time optimization into campaign scheduling runtime",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "docs/product/ai-governance-optimization-foundation.md",
+                         ".codex/memory/design-decisions.md",
+                         "services/foundation-service/src/main/java/com/legent/foundation",
+                         "services/foundation-service/src/test/java/com/legent/foundation",
+                         "services/campaign-service/src/main/java/com/legent/campaign",
+                         "services/campaign-service/src/test/java/com/legent/campaign"
+                     ],
+    "agents":  [
+                   "FOUNDATION_SERVICE_OWNER",
+                   "DELIVERABILITY_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service,services/campaign-service -am \"-Dtest=OptimizationPerformanceServiceTest,CampaignServiceScheduleTest,SchedulingServiceTest,OrchestrationServiceTest,CampaignLaunchReadinessGateTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/campaign-service -am test",
+                           "git diff --check"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "completedAt":  "2026-05-24T08:16:35.0000000Z",
+    "outcome":  "Campaign scheduling now stores approved deterministic SEND_TIME decision snapshots, validates STO evidence before applying recommended launch times, passes Launch Command Center and send-job creation through the same guard, and revalidates due scheduled jobs before publishing audience resolution.",
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/foundation-service,services/campaign-service -am \"-Dtest=OptimizationPerformanceServiceTest,CampaignServiceScheduleTest,SchedulingServiceTest,OrchestrationServiceTest,CampaignLaunchReadinessGateTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/campaign-service -am test",
+                          "git diff --check"
+                      ],
+    "residualRisks":  [
+                          "No model-backed, per-recipient, journey-level, provider-capacity, production-load, or Salesforce parity evidence was added."
+                      ],
+    "nextAction":  "Continue overall-team loop with the next highest-value safe backlog item."
+}

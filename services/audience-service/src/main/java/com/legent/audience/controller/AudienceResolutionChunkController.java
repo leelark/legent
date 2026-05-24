@@ -4,6 +4,7 @@ import com.legent.audience.service.AudienceResolutionChunkService;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,10 +18,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Set;
+
 @RestController
 @RequestMapping("/api/v1/audience-resolution-chunks")
 @RequiredArgsConstructor
 public class AudienceResolutionChunkController {
+
+    private static final Set<String> ALLOWED_CHUNK_READER_SERVICES = Set.of("campaign-service");
 
     private final AudienceResolutionChunkService chunkService;
 
@@ -36,12 +41,27 @@ public class AudienceResolutionChunkController {
     @PreAuthorize("permitAll()")
     public ApiResponse<AudienceResolutionChunkService.ChunkResponse> getInternalChunk(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature,
             @RequestHeader(name = AppConstants.HEADER_TENANT_ID) String tenantId,
             @RequestHeader(name = AppConstants.HEADER_WORKSPACE_ID) String workspaceId,
             @PathVariable String chunkId,
             @RequestParam String jobId) {
-        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+        if (!InternalServiceIdentity.matches(
+                internalApiToken,
+                token,
+                internalService,
+                ALLOWED_CHUNK_READER_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_AUDIENCE_RESOLUTION_CHUNK_READ,
+                        jobId,
+                        chunkId),
+                signatureTimestamp,
+                signature)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal service identity");
         }
         return ApiResponse.ok(chunkService.getChunk(tenantId, workspaceId, jobId, chunkId));
     }

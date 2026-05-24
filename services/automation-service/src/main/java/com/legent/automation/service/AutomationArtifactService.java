@@ -86,6 +86,31 @@ public class AutomationArtifactService {
         return artifact;
     }
 
+    @Transactional(readOnly = true)
+    public AutomationArtifact requireMovementSourceArtifact(String artifactId) {
+        AutomationArtifact artifact = requireCurrentWorkspaceArtifact(artifactId);
+        validateReadableMovementArtifact(artifact);
+        return artifact;
+    }
+
+    @Transactional(readOnly = true)
+    public AutomationArtifact requireMovementTargetArtifact(String artifactId) {
+        AutomationArtifact artifact = requireCurrentWorkspaceArtifact(artifactId);
+        validateReadableMovementArtifact(artifact);
+        return artifact;
+    }
+
+    @Transactional
+    public AutomationArtifact markGenerated(AutomationArtifact artifact) {
+        AutomationArtifact scopedArtifact = requireCurrentWorkspaceArtifact(artifact.getId());
+        if (!scopedArtifact.getTenantId().equals(artifact.getTenantId())
+                || !scopedArtifact.getWorkspaceId().equals(artifact.getWorkspaceId())) {
+            throw new ValidationException("artifactId", "Automation artifact must exist in the current workspace");
+        }
+        scopedArtifact.setStatus(AutomationArtifact.ArtifactStatus.GENERATED);
+        return artifactRepository.save(scopedArtifact);
+    }
+
     public Map<String, Object> summary(AutomationArtifact artifact) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("artifactId", artifact.getId());
@@ -119,6 +144,20 @@ public class AutomationArtifactService {
         if (artifact.getExpiresAt() != null && artifact.getExpiresAt().isBefore(Instant.now())) {
             throw new ValidationException("artifactId", "Automation artifact has expired");
         }
+        requireSize(artifact.getSizeBytes());
+        requireSha256(artifact.getSha256());
+    }
+
+    private void validateReadableMovementArtifact(AutomationArtifact artifact) {
+        if (artifact.getStatus() != AutomationArtifact.ArtifactStatus.READY
+                && artifact.getStatus() != AutomationArtifact.ArtifactStatus.GENERATED) {
+            throw new ValidationException("artifactId", "Automation movement artifacts must be READY or GENERATED");
+        }
+        if (artifact.getExpiresAt() != null && artifact.getExpiresAt().isBefore(Instant.now())) {
+            throw new ValidationException("artifactId", "Automation artifact has expired");
+        }
+        requireAllowedCsvContentType(artifact.getContentType());
+        requireSafeGeneratedObjectKey(artifact);
         requireSize(artifact.getSizeBytes());
         requireSha256(artifact.getSha256());
     }

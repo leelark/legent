@@ -1,5 +1,7 @@
 package com.legent.campaign.domain;
 
+import java.time.Instant;
+
 import com.legent.common.model.TenantAwareEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -30,4 +32,22 @@ public class CampaignFrequencyPolicy extends TenantAwareEntity {
 
     @Column(name = "include_journeys", nullable = false)
     private boolean includeJourneys = true;
+
+    @Column(name = "optimization_policy_key", length = 128)
+    private String optimizationPolicyKey;
+
+    @Column(name = "optimization_run_id", length = 64)
+    private String optimizationRunId;
+
+    @Column(name = "optimization_snapshot_hash", length = 128)
+    private String optimizationSnapshotHash;
+
+    @Column(name = "optimization_recommended_max_sends")
+    private Integer optimizationRecommendedMaxSends;
+
+    @Column(name = "optimization_approved", nullable = false)
+    private boolean optimizationApproved = false;
+
+    @Column(name = "optimization_approved_at")
+    private Instant optimizationApprovedAt;
 }

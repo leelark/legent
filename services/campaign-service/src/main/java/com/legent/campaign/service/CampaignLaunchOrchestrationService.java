@@ -149,10 +149,15 @@ public class CampaignLaunchOrchestrationService {
             }
             case SCHEDULE -> {
                 if (request.getScheduledAt() == null) {
-                    throw new ValidationException("scheduledAt", "scheduledAt is required for launch scheduling");
+                    if (request.getSendTimeOptimization() == null) {
+                        throw new ValidationException("scheduledAt", "scheduledAt is required for launch scheduling");
+                    }
                 }
                 CampaignDto.Response scheduled = campaignService.schedule(campaign.getId(),
-                        CampaignDto.ScheduleRequest.builder().scheduledAt(request.getScheduledAt()).build());
+                        CampaignDto.ScheduleRequest.builder()
+                                .scheduledAt(request.getScheduledAt())
+                                .sendTimeOptimization(request.getSendTimeOptimization())
+                                .build());
                 affected.put("scheduledCampaignId", scheduled.getId());
                 message = "Campaign scheduled.";
                 executed = true;
@@ -166,6 +171,7 @@ public class CampaignLaunchOrchestrationService {
                 }
                 SendJobDto.TriggerRequest trigger = new SendJobDto.TriggerRequest();
                 trigger.setScheduledAt(request.getScheduledAt());
+                trigger.setSendTimeOptimization(request.getSendTimeOptimization());
                 trigger.setTriggerSource("LAUNCH_COMMAND_CENTER");
                 trigger.setTriggerReference(plan.getId());
                 trigger.setIdempotencyKey("launch:" + request.getIdempotencyKey().trim());
@@ -184,9 +190,13 @@ public class CampaignLaunchOrchestrationService {
                     } catch (ConflictException conflict) {
                         message = "Campaign already has a pending approval.";
                     }
-                } else if (request.getScheduledAt() != null && campaign.getStatus() == Campaign.CampaignStatus.APPROVED) {
+                } else if ((request.getScheduledAt() != null || request.getSendTimeOptimization() != null)
+                        && campaign.getStatus() == Campaign.CampaignStatus.APPROVED) {
                     CampaignDto.Response scheduled = campaignService.schedule(campaign.getId(),
-                            CampaignDto.ScheduleRequest.builder().scheduledAt(request.getScheduledAt()).build());
+                            CampaignDto.ScheduleRequest.builder()
+                                    .scheduledAt(request.getScheduledAt())
+                                    .sendTimeOptimization(request.getSendTimeOptimization())
+                                    .build());
                     affected.put("scheduledCampaignId", scheduled.getId());
                     message = "Campaign scheduled.";
                     executed = true;
@@ -419,6 +429,22 @@ public class CampaignLaunchOrchestrationService {
                                         List<CampaignLaunchDto.LaunchStepResult> steps) {
         List<String> controlIssues = new ArrayList<>();
         Instant effectiveLaunchTime = request.getScheduledAt() == null ? Instant.now() : request.getScheduledAt();
+        try {
+            Instant optimizedLaunchTime = CampaignSendTimeOptimizationGuard.previewOptionalSchedule(
+                    campaign,
+                    request.getScheduledAt(),
+                    request.getSendTimeOptimization());
+            if (optimizedLaunchTime != null) {
+                effectiveLaunchTime = optimizedLaunchTime;
+            }
+        } catch (ValidationException validationException) {
+            blockers.add(validationException.getMessage());
+            controlIssues.add("BLOCKER:send_time_optimization");
+            recommendations.add(recommend("send_time_optimization.evidence", "BLOCKER",
+                    "Review send-time optimization evidence",
+                    "Approved send-time optimization evidence is required before it can change launch timing.",
+                    false));
+        }
 
         evaluatePublicationCalendar(request.getPublicationCalendar(), effectiveLaunchTime, blockers, warnings, recommendations, controlIssues);
         evaluateBlackoutWindows(request.getBlackoutWindows(), effectiveLaunchTime, blockers, recommendations, controlIssues);
@@ -830,7 +856,8 @@ public class CampaignLaunchOrchestrationService {
                 "dependencies", controlValue(requestMap, "dependencies", List.of()),
                 "sendClassification", controlValue(requestMap, "sendClassification", Map.of()),
                 "budgetGuard", controlValue(requestMap, "budgetGuard", Map.of()),
-                "frequencyGuard", controlValue(requestMap, "frequencyGuard", Map.of())
+                "frequencyGuard", controlValue(requestMap, "frequencyGuard", Map.of()),
+                "sendTimeOptimization", controlValue(requestMap, "sendTimeOptimization", Map.of())
         );
     }
 
@@ -848,6 +875,7 @@ public class CampaignLaunchOrchestrationService {
         controls.put("sendGovernancePolicyId", campaign.getSendGovernancePolicyId());
         controls.put("budgetGuard", request.getBudgetGuard());
         controls.put("frequencyGuard", request.getFrequencyGuard());
+        controls.put("sendTimeOptimization", request.getSendTimeOptimization());
         return controls;
     }
 

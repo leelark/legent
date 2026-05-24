@@ -93,6 +93,29 @@ class AutomationArtifactServiceTest {
                 .hasMessageContaining("expired");
     }
 
+    @Test
+    void requireMovementSourceArtifactAllowsGeneratedScopedCsvArtifact() {
+        AutomationArtifact artifact = validArtifact("artifact-generated");
+        artifact.setStatus(AutomationArtifact.ArtifactStatus.GENERATED);
+        when(artifactRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("artifact-generated", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(artifact));
+
+        AutomationArtifact response = service.requireMovementSourceArtifact("artifact-generated");
+
+        assertThat(response.getId()).isEqualTo("artifact-generated");
+    }
+
+    @Test
+    void requireMovementTargetArtifactRejectsExpiredArtifact() {
+        AutomationArtifact artifact = validArtifact("artifact-target");
+        artifact.setExpiresAt(Instant.now().minusSeconds(60));
+        when(artifactRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("artifact-target", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(artifact));
+
+        assertThatThrownBy(() -> service.requireMovementTargetArtifact("artifact-target"))
+                .hasMessageContaining("expired");
+    }
+
     private AutomationArtifact validArtifact(String artifactId) {
         AutomationArtifact artifact = new AutomationArtifact();
         artifact.setId(artifactId);

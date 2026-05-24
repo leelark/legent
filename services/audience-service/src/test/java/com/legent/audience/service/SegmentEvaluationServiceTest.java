@@ -71,6 +71,8 @@ class SegmentEvaluationServiceTest {
         SegmentDto.CountPreview result = evaluationService.evaluateCount("seg-1");
 
         assertThat(result.getCount()).isEqualTo(42);
+        assertThat(result.getExecutionPlan()).isNotNull();
+        assertThat(result.getExecutionPlan().isBounded()).isTrue();
         verify(entityManager, never()).createNativeQuery(anyString());
     }
 
@@ -95,6 +97,15 @@ class SegmentEvaluationServiceTest {
         SegmentDto.CountPreview result = evaluationService.evaluateCount("seg-2");
 
         assertThat(result.getCount()).isEqualTo(100);
+        assertThat(result.getExecutionPlan()).isNotNull();
+        assertThat(result.getExecutionPlan().getExecutionMode()).isEqualTo("BOUNDED_SQL");
+        assertThat(result.getExecutionPlan().isBounded()).isTrue();
+        assertThat(result.getExecutionPlan().getConditionCount()).isEqualTo(1);
+        assertThat(result.getExecutionPlan().getRequiredIndexes())
+                .contains("idx_subscribers_candidate_keyset");
+        assertThat(result.getExecutionPlan().getSteps())
+                .extracting(SegmentDto.ExecutionPlanStep::getFamily)
+                .containsExactly("SUBSCRIBER_FIELD");
         verify(cacheService).set(anyString(), any(), any());
     }
 
@@ -169,12 +180,11 @@ class SegmentEvaluationServiceTest {
 
         when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-bad-op"))
                 .thenReturn(Optional.of(segment));
-        when(cacheService.get(anyString(), eq(SegmentDto.CountPreview.class)))
-                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> evaluationService.evaluateCount("seg-bad-op"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Unsupported segment operator");
+        verify(cacheService, never()).get(anyString(), eq(SegmentDto.CountPreview.class));
         verify(entityManager, never()).createNativeQuery(anyString());
     }
 
@@ -187,12 +197,11 @@ class SegmentEvaluationServiceTest {
 
         when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-bad-list"))
                 .thenReturn(Optional.of(segment));
-        when(cacheService.get(anyString(), eq(SegmentDto.CountPreview.class)))
-                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> evaluationService.evaluateCount("seg-bad-list"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("list_membership only supports");
+        verify(cacheService, never()).get(anyString(), eq(SegmentDto.CountPreview.class));
         verify(entityManager, never()).createNativeQuery(anyString());
     }
 
@@ -205,12 +214,57 @@ class SegmentEvaluationServiceTest {
 
         when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-wrong-field"))
                 .thenReturn(Optional.of(segment));
-        when(cacheService.get(anyString(), eq(SegmentDto.CountPreview.class)))
-                .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> evaluationService.evaluateCount("seg-wrong-field"))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("List membership operators require");
+        verify(cacheService, never()).get(anyString(), eq(SegmentDto.CountPreview.class));
+        verify(entityManager, never()).createNativeQuery(anyString());
+    }
+
+    @Test
+    @DisplayName("evaluateCount rejects relationship traversal before cache lookup")
+    void evaluateCount_rejectsRelationshipTraversalBeforeCacheLookup() {
+        Segment segment = segmentWithRules(Map.of("operator", "AND", "conditions", List.of(
+                Map.of(
+                        "field", "email",
+                        "op", "EQUALS",
+                        "value", "person@example.com",
+                        "relationshipPath", "profile.email")
+        )));
+
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-relationship"))
+                .thenReturn(Optional.of(segment));
+
+        assertThatThrownBy(() -> evaluationService.evaluateCount("seg-relationship"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("data extension relationships");
+        verify(cacheService, never()).get(anyString(), eq(SegmentDto.CountPreview.class));
+        verify(entityManager, never()).createNativeQuery(anyString());
+    }
+
+    @Test
+    @DisplayName("explainExecutionPlan returns bounded metadata without query execution")
+    void explainExecutionPlan_returnsBoundedMetadataWithoutQueryExecution() {
+        Segment segment = segmentWithRules(Map.of("operator", "AND", "conditions", List.of(
+                Map.of("field", "status", "op", "EQUALS", "value", "ACTIVE"),
+                Map.of("field", "list_membership", "op", "IN_LIST", "value", "list-1")
+        )));
+
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-plan"))
+                .thenReturn(Optional.of(segment));
+
+        SegmentDto.ExecutionPlanPreview preview = evaluationService.explainExecutionPlan("seg-plan");
+
+        assertThat(preview.getSegmentId()).isEqualTo("seg-plan");
+        assertThat(preview.getExecutionPlan().getExecutionMode()).isEqualTo("BOUNDED_SQL");
+        assertThat(preview.getExecutionPlan().isBounded()).isTrue();
+        assertThat(preview.getExecutionPlan().getRequiredIndexes())
+                .contains("idx_subscribers_candidate_keyset", "idx_list_memberships_candidate_active");
+        assertThat(preview.getExecutionPlan().getSteps())
+                .extracting(SegmentDto.ExecutionPlanStep::getStrategy)
+                .containsExactly("SUBSCRIBER_FILTER", "SCOPED_EXISTS");
+        verify(cacheService, never()).get(anyString(), eq(SegmentDto.CountPreview.class));
         verify(entityManager, never()).createNativeQuery(anyString());
     }
 
@@ -245,6 +299,32 @@ class SegmentEvaluationServiceTest {
                 .hasMessageContaining("Predictive segment governance is not approved");
         verify(membershipRepository, never()).deleteAllByTenantIdAndWorkspaceIdAndSegmentId(anyString(), anyString(), anyString());
         verify(eventPublisher, never()).publishRecomputed(any());
+        assertThat(TenantContext.getTenantId()).isNull();
+        assertThat(TenantContext.getWorkspaceId()).isNull();
+    }
+
+    @Test
+    @DisplayName("recompute rejects unsupported relationship rules before membership deletion")
+    void recompute_rejectsRelationshipRulesBeforeMembershipDeletion() {
+        Segment segment = segmentWithRules(Map.of("operator", "AND", "conditions", List.of(
+                Map.of(
+                        "field", "email",
+                        "op", "EQUALS",
+                        "value", "person@example.com",
+                        "relationshipPath", "profile.email")
+        )));
+        segment.setId("seg-relationship");
+
+        when(segmentRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, "seg-relationship"))
+                .thenReturn(Optional.of(segment));
+
+        assertThatThrownBy(() -> evaluationService.recompute("seg-relationship", TENANT_ID, WORKSPACE_ID))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("data extension relationships");
+        verify(membershipRepository, never()).deleteAllByTenantIdAndWorkspaceIdAndSegmentId(anyString(), anyString(), anyString());
+        verify(jdbcTemplate, never()).batchUpdate(anyString(), anyList());
+        verify(eventPublisher, never()).publishRecomputed(any());
+        assertThat(segment.getStatus()).isEqualTo(Segment.SegmentStatus.ERROR);
         assertThat(TenantContext.getTenantId()).isNull();
         assertThat(TenantContext.getWorkspaceId()).isNull();
     }

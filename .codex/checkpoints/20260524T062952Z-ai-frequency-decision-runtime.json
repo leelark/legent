@@ -1,0 +1,34 @@
+{
+    "id":  "ai-frequency-decision-runtime",
+    "createdAt":  "2026-05-24T06:29:52.3599764Z",
+    "objective":  "Integrate approved frequency optimization into send safety runtime",
+    "status":  "DONE",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "docs\\product\\ai-governance-optimization-foundation.md",
+                         ".codex\\memory\\design-decisions.md",
+                         "services\\campaign-service",
+                         "services\\delivery-service",
+                         "services\\deliverability-service",
+                         "services\\foundation-service"
+                     ],
+    "agents":  [
+                   "DELIVERABILITY_ENGINEER",
+                   "FOUNDATION_SERVICE_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service",
+                           "services/campaign-service",
+                           "services/delivery-service",
+                           "services/deliverability-service -am \"-Dtest=OptimizationPerformanceServiceTest",
+                           "CampaignSendSafetyServiceTest",
+                           "SendRateControlServiceTest",
+                           "ReputationEngineTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Local implementation complete; continue overall-team loop with next highest-value safe backlog item."
+}

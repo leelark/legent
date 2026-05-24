@@ -1,0 +1,26 @@
+{
+    "id":  "contact-builder-relationship-cardinality",
+    "createdAt":  "2026-05-24T06:46:40.4485017Z",
+    "objective":  "Model Contact Builder relationships and cardinality",
+    "status":  "DONE",
+    "owner":  "DATA_ARCHITECT",
+    "filesInScope":  [
+                         "docs\\product\\salesforce-parity-matrix.md",
+                         "docs\\product\\competitor-research\\2026-05-20-competitor-capability-scan.md",
+                         "services\\audience-service",
+                         ".codex\\memory"
+                     ],
+    "agents":  [
+                   "AUDIENCE_SERVICE_OWNER",
+                   "PRODUCT_MANAGER_AGENT",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Local implementation complete; continue overall-team loop with next highest-value safe backlog item."
+}

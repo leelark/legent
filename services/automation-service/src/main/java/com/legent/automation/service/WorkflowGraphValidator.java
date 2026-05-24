@@ -3,6 +3,9 @@ package com.legent.automation.service;
 import com.legent.automation.dto.WorkflowGraphDto;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -37,9 +40,11 @@ public class WorkflowGraphValidator {
             "ENTRY_TRIGGER",
             "SEND_EMAIL",
             "DELAY",
+            "WAIT_UNTIL",
             "CONDITION",
             "END"
     );
+    private static final Duration MAX_WAIT_UNTIL_FUTURE = Duration.ofMinutes(10080);
     private static final Set<String> SEND_EMAIL_FORBIDDEN_NORMALIZED_CONFIG_KEYS = Set.of(
             "recipientemail",
             "email",
@@ -196,6 +201,9 @@ public class WorkflowGraphValidator {
             if ("DELAY".equals(type) && !validDelayMinutes(node.getConfiguration().get("minutes"))) {
                 errors.add("node " + node.getId() + " type DELAY requires configuration.minutes between 1 and 10080");
             }
+            if ("WAIT_UNTIL".equals(type) && !validWaitUntilInstant(node.getConfiguration())) {
+                errors.add("node " + node.getId() + " type WAIT_UNTIL requires configuration.at or configuration.until as an ISO-8601 instant no more than 10080 minutes in the future");
+            }
             if ("CONDITION".equals(type) && (node.getBranches() == null || node.getBranches().isEmpty())) {
                 errors.add("node " + node.getId() + " type CONDITION requires at least one branch");
             }
@@ -226,5 +234,22 @@ public class WorkflowGraphValidator {
             }
         }
         return minutes >= 1 && minutes <= 10080;
+    }
+
+    private boolean validWaitUntilInstant(Map<String, Object> configuration) {
+        Object value = configuration.get("at");
+        if (value == null) {
+            value = configuration.get("until");
+        }
+        if (isBlank(value)) {
+            return false;
+        }
+        try {
+            Instant waitUntil = Instant.parse(String.valueOf(value).trim());
+            Instant maxFuture = Instant.now().plus(MAX_WAIT_UNTIL_FUTURE);
+            return !waitUntil.isAfter(maxFuture);
+        } catch (DateTimeParseException ex) {
+            return false;
+        }
     }
 }

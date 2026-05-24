@@ -2,6 +2,7 @@ package com.legent.foundation.controller;
 
 import com.legent.common.dto.ApiResponse;
 import com.legent.foundation.dto.GlobalEnterpriseDto;
+import com.legent.foundation.service.EnterprisePackageService;
 import com.legent.foundation.service.GlobalEnterpriseService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import java.util.Map;
 public class GlobalEnterpriseController {
 
     private final GlobalEnterpriseService globalEnterpriseService;
+    private final EnterprisePackageService enterprisePackageService;
 
     @PostMapping("/operating-models")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
@@ -139,6 +141,18 @@ public class GlobalEnterpriseController {
             @RequestParam(required = false) String workspaceId,
             @RequestParam(defaultValue = "100") int limit) {
         return ApiResponse.ok(globalEnterpriseService.listEvidencePacks(workspaceId, limit));
+    }
+
+    @PostMapping("/packages/export")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> exportEnterprisePackage(@Valid @RequestBody GlobalEnterpriseDto.EnterprisePackageExportRequest request) {
+        return ApiResponse.ok(enterprisePackageService.exportPackage(request));
+    }
+
+    @PostMapping("/packages/import/validate")
+    @PreAuthorize("@rbacEvaluator.hasPermission('tenant:*', principal.roles)")
+    public ApiResponse<Map<String, Object>> validateEnterprisePackageImport(@Valid @RequestBody GlobalEnterpriseDto.EnterprisePackageImportValidateRequest request) {
+        return ApiResponse.ok(enterprisePackageService.validateImport(request));
     }
 
     @PostMapping("/marketplace/templates")

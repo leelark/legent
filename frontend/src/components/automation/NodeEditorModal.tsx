@@ -34,12 +34,16 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
   const [delayMinutes, setDelayMinutes] = React.useState<string>(
     node?.config?.minutes ? String(node.config.minutes) : ''
   );
+  const [waitUntilAt, setWaitUntilAt] = React.useState<string>(
+    ((node?.config?.at || node?.config?.until) as string) || ''
+  );
 
   React.useEffect(() => {
     setLabel(node?.label || '');
     setType(node?.type || 'SEND_EMAIL');
     setCampaignId((node?.config?.campaignId as string) || '');
     setDelayMinutes(node?.config?.minutes ? String(node.config.minutes) : '');
+    setWaitUntilAt(((node?.config?.at || node?.config?.until) as string) || '');
   }, [node]);
 
   if (!node) return null;
@@ -64,6 +68,13 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
       }
     } else if (type !== 'DELAY') {
       delete nextConfig.minutes;
+    }
+    if (type === 'WAIT_UNTIL' && waitUntilAt.trim()) {
+      nextConfig.at = waitUntilAt.trim();
+      delete nextConfig.until;
+    } else if (type !== 'WAIT_UNTIL') {
+      delete nextConfig.at;
+      delete nextConfig.until;
     }
     onSave({ ...node, label, type, config: nextConfig });
   };
@@ -119,6 +130,15 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
             onChange={(e) => setDelayMinutes(e.target.value)}
             label="Delay Minutes"
             placeholder="60"
+          />
+        )}
+        {type === 'WAIT_UNTIL' && (
+          <Input
+            value={waitUntilAt}
+            onChange={(e) => setWaitUntilAt(e.target.value)}
+            label="Wait Until"
+            placeholder="2026-05-24T12:00:00Z"
+            hint="Use an ISO-8601 UTC instant within seven days."
           />
         )}
       </div>

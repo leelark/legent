@@ -1,0 +1,45 @@
+{
+    "id":  "ai-segment-workflow-generation-preview",
+    "createdAt":  "2026-05-24T09:42:24.5617975Z",
+    "objective":  "Add governed AI segment and workflow generation preview",
+    "status":  "DONE",
+    "owner":  "PRODUCT_MANAGER_AGENT",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/dto/performance/AiGenerationPreviewRequest.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/performance/AiGenerationPreviewService.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/AiGenerationPreviewServiceTest.java",
+                         "docs/product/ai-governance-optimization-foundation.md",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "FRONTEND_OWNER",
+                   "AUTOMATION_SERVICE_OWNER",
+                   "AUDIENCE_SERVICE_OWNER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                       ],
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=AiGenerationPreviewServiceTest,AiContentAssistanceGovernanceServiceTest,AiProviderContractMeteringServiceTest,PerformanceIntelligenceControllerSecurityTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/foundation-service -am test",
+                          ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=SegmentRuleExecutionPlanCompilerTest,SegmentEvaluationServiceTest,PredictiveSegmentGovernanceServiceTest,SegmentServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=WorkflowGraphValidatorTest,WorkflowStudioServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "git diff --check -- services/foundation-service/src/main/java/com/legent/foundation/controller/PerformanceIntelligenceController.java services/foundation-service/src/main/java/com/legent/foundation/dto/performance/AiGenerationPreviewRequest.java services/foundation-service/src/main/java/com/legent/foundation/service/performance/AiGenerationPreviewService.java services/foundation-service/src/test/java/com/legent/foundation/service/AiGenerationPreviewServiceTest.java services/foundation-service/src/test/java/com/legent/foundation/controller/PerformanceIntelligenceControllerSecurityTest.java docs/product/ai-governance-optimization-foundation.md .codex/memory/active-work-items.md .codex/memory/design-decisions.md .codex/memory/successful-fixes.md .codex/memory/root-cause-history.md .codex/memory/release-history.md .codex/memory/technical-debt.md .codex/memory/unresolved-risks.md .codex/memory/enhancement-log.md"
+                      ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "outcome":  "Provider-free AI segment and workflow preview endpoints now return non-executing, non-activating drafts behind audience/workflow RBAC, existing governance/metering audits, hash evidence, and no provider invocation.",
+    "nextAction":  "Close work item and continue with the next highest-value safe backlog item."
+}

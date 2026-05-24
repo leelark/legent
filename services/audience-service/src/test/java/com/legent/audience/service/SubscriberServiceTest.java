@@ -30,6 +30,7 @@ class SubscriberServiceTest {
     @Mock private SubscriberMapper subscriberMapper;
     @Mock private CacheService cacheService;
     @Mock private SubscriberEventPublisher eventPublisher;
+    @Mock private ContactLifecycleAuditService lifecycleAuditService;
     @InjectMocks private SubscriberService subscriberService;
 
     private static final String TENANT_ID = "tenant-001";
@@ -194,6 +195,7 @@ class SubscriberServiceTest {
         assertThat(entity.isDeleted()).isTrue();
         verify(subscriberRepository).findByTenantIdAndWorkspaceIdAndId(TENANT_ID, WORKSPACE_ID, "id-1");
         verify(subscriberRepository, never()).findById(any());
+        verify(lifecycleAuditService).subscriberDeleted(entity, "SUBSCRIBER_DELETE");
         verify(eventPublisher).publishDeleted(entity);
     }
 
@@ -226,6 +228,7 @@ class SubscriberServiceTest {
         verify(subscriberRepository, never()).findById(any());
         verify(subscriberRepository, never()).save(any());
         verify(cacheService, never()).delete(anyString());
+        verify(lifecycleAuditService, never()).subscriberDeleted(any(), anyString());
         verify(eventPublisher, never()).publishDeleted(any());
     }
 }

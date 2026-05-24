@@ -47,6 +47,7 @@ public class DataExtensionQueryActivityService {
     private final DataExtensionRepository deRepository;
     private final DataExtensionFieldRepository fieldRepository;
     private final DataExtensionRecordRepository recordRepository;
+    private final ContactLifecycleAuditService lifecycleAuditService;
 
     @Transactional
     public DataExtensionDto.SqlQueryActivityResponse execute(DataExtensionDto.SqlQueryActivityRequest request) {
@@ -239,8 +240,10 @@ public class DataExtensionQueryActivityService {
         long rowsWritten = switch (writeMode) {
             case "APPEND" -> appendRows(tenantId, workspaceId, target.getId(), rows);
             case "OVERWRITE" -> {
-                recordRepository.deleteByTenantIdAndWorkspaceIdAndDataExtensionId(tenantId, workspaceId, target.getId());
-                yield appendRows(tenantId, workspaceId, target.getId(), rows);
+                long rowsDeleted = recordRepository.deleteByTenantIdAndWorkspaceIdAndDataExtensionId(tenantId, workspaceId, target.getId());
+                long written = appendRows(tenantId, workspaceId, target.getId(), rows);
+                lifecycleAuditService.dataExtensionRecordsOverwritten(target, rowsDeleted, written);
+                yield written;
             }
             case "UPDATE", "UPSERT" -> updateRows(tenantId, workspaceId, target, rows, writeMode, warnings);
             default -> throw new ValidationException("writeMode", "Unsupported write mode: " + writeMode);

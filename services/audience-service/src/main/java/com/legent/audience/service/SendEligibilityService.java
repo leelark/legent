@@ -22,8 +22,9 @@ public class SendEligibilityService {
 
     private final SubscriberRepository subscriberRepository;
     private final SuppressionRepository suppressionRepository;
+    private final ContactLifecycleAuditService lifecycleAuditService;
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<EligibilityResult> check(String tenantId, String workspaceId, List<String> emails, List<String> subscriberIds) {
         List<EligibilityResult> results = new ArrayList<>();
         if (emails != null) {
@@ -39,6 +40,12 @@ public class SendEligibilityService {
                     tenantId, workspaceId, subscriberIds);
             results.addAll(evaluateAll(tenantId, workspaceId, subscribers));
         }
+        lifecycleAuditService.sendEligibilityChecked(
+                tenantId,
+                workspaceId,
+                results,
+                emails == null ? 0 : emails.size(),
+                subscriberIds == null ? 0 : subscriberIds.size());
         return results;
     }
 

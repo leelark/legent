@@ -15,7 +15,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -27,12 +29,28 @@ class SendEligibilityServiceTest {
 
     @Mock private SubscriberRepository subscriberRepository;
     @Mock private SuppressionRepository suppressionRepository;
+    @Mock private ContactLifecycleAuditService lifecycleAuditService;
 
     private SendEligibilityService service;
 
     @BeforeEach
     void setUp() {
-        service = new SendEligibilityService(subscriberRepository, suppressionRepository);
+        service = new SendEligibilityService(subscriberRepository, suppressionRepository, lifecycleAuditService);
+    }
+
+    @Test
+    void checkAuditsExplicitEligibilityRequestAsAggregate() {
+        Subscriber subscriber = subscriber("subscriber-1", "user@example.com");
+        when(subscriberRepository.findByTenantIdAndWorkspaceIdAndEmailIgnoreCaseAndDeletedAtIsNull(
+                TENANT_ID, WORKSPACE_ID, "user@example.com")).thenReturn(java.util.Optional.of(subscriber));
+        when(suppressionRepository.findActiveSuppression(TENANT_ID, WORKSPACE_ID, "user@example.com"))
+                .thenReturn(List.of());
+
+        List<SendEligibilityService.EligibilityResult> results = service.check(
+                TENANT_ID, WORKSPACE_ID, List.of("user@example.com"), List.of());
+
+        assertThat(results).singleElement().satisfies(result -> assertThat(result.eligible()).isTrue());
+        verify(lifecycleAuditService).sendEligibilityChecked(eq(TENANT_ID), eq(WORKSPACE_ID), anyList(), eq(1), eq(0));
     }
 
     @Test

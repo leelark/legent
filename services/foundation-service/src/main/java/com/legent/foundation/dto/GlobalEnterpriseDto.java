@@ -190,6 +190,32 @@ public class GlobalEnterpriseDto {
 
     @Getter
     @Setter
+    public static class EnterprisePackageExportRequest {
+        private String workspaceId;
+        @NotBlank
+        private String sourceEnvironmentId;
+        @NotBlank
+        private String packageKey;
+        @NotBlank
+        private String name;
+        private List<String> objectTypes;
+        private List<String> requiredValidationGates;
+        private Map<String, Object> metadata;
+    }
+
+    @Getter
+    @Setter
+    public static class EnterprisePackageImportValidateRequest {
+        private String workspaceId;
+        @NotBlank
+        private String targetEnvironmentId;
+        private Map<String, Object> manifest;
+        private Boolean confirmLiveApply;
+        private String idempotencyKey;
+    }
+
+    @Getter
+    @Setter
     public static class ConnectorTemplateRequest {
         @NotBlank
         private String connectorKey;

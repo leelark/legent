@@ -15,7 +15,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -25,6 +31,7 @@ public class SendRateControlService {
     private static final int DEFAULT_STATE_LIST_LIMIT = 50;
     private static final int MAX_STATE_LIST_LIMIT = 200;
     private static final int EXPIRED_RECLAIM_BATCH_SIZE = 25;
+    private static final int MAX_RESERVATION_BATCH_SIZE = 100;
 
     private final SendRateStateRepository sendRateStateRepository;
     private final DeliverySendReservationRepository reservationRepository;
@@ -178,6 +185,160 @@ public class SendRateControlService {
                 state,
                 normalizedReservationId,
                 warmupState.getStage());
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public List<RateLimitDecision> reserveBatch(String tenantId,
+                                                String workspaceId,
+                                                String senderDomain,
+                                                String providerId,
+                                                String recipientDomain,
+                                                Integer providerMaxSendRatePerSecond,
+                                                int riskScore,
+                                                List<String> reservationIds) {
+        List<String> normalizedReservationIds = normalizeReservationIds(reservationIds);
+        if (normalizedReservationIds.isEmpty()) {
+            return List.of();
+        }
+
+        String rateLimitKey = rateLimitKey(tenantId, workspaceId, senderDomain, providerId, recipientDomain);
+        Instant now = Instant.now();
+        Map<String, DeliverySendReservation> existingById = new HashMap<>();
+        for (DeliverySendReservation existing : reservationRepository.findActiveBatchForUpdate(
+                tenantId, workspaceId, Set.copyOf(normalizedReservationIds))) {
+            existingById.put(existing.getReservationId(), existing);
+        }
+
+        Map<String, RateLimitDecision> immediateDecisions = new HashMap<>();
+        List<String> candidates = new ArrayList<>();
+        List<DeliverySendReservation> expiredSameScope = new ArrayList<>();
+        for (String reservationId : normalizedReservationIds) {
+            DeliverySendReservation existing = existingById.get(reservationId);
+            if (isSettled(existing)) {
+                immediateDecisions.put(reservationId, sameRateScope(existing, rateLimitKey)
+                        ? existingAllowedDecision(existing, "reservation already settled")
+                        : rejectedForReservationScope(rateLimitKey, reservationId, now));
+                continue;
+            }
+            if (isReserved(existing) && existing.getLeaseExpiresAt().isAfter(now)) {
+                immediateDecisions.put(reservationId, sameRateScope(existing, rateLimitKey)
+                        ? existingAllowedDecision(existing, "reservation already active")
+                        : rejectedForReservationScope(rateLimitKey, reservationId, now));
+                continue;
+            }
+            if (isReserved(existing) && sameRateScope(existing, rateLimitKey)) {
+                expiredSameScope.add(existing);
+            } else if (existing != null) {
+                immediateDecisions.put(reservationId, rejectedForReservationScope(rateLimitKey, reservationId, now));
+                continue;
+            }
+            candidates.add(reservationId);
+        }
+
+        Map<String, RateLimitDecision> allocatedDecisions = new LinkedHashMap<>();
+        if (!candidates.isEmpty() || !expiredSameScope.isEmpty()) {
+            WarmupState warmupState = warmupService.getOrCreateForUpdate(tenantId, workspaceId, senderDomain, providerId);
+            SendRateState state = getOrCreateRateStateForUpdate(
+                    tenantId, workspaceId, rateLimitKey, senderDomain, providerId, recipientDomain);
+            rollWindow(state);
+
+            Map<String, DeliverySendReservation> changedReservations = new LinkedHashMap<>();
+            for (DeliverySendReservation expired : expiredSameScope) {
+                releaseLocked(expired, state, warmupState, now, "LEASE_EXPIRED");
+                changedReservations.put(expired.getReservationId(), expired);
+            }
+
+            WarmupService.WarmupDecision warmup = warmupService.evaluateCapacity(warmupState, now);
+            int maxPerMinute = calculateMaxPerMinute(providerMaxSendRatePerSecond, riskScore, warmupState);
+            state.setMaxPerMinute(maxPerMinute);
+            state.setRiskScore(riskScore);
+
+            if (!warmup.allowed() || state.getUsedThisMinute() >= maxPerMinute) {
+                int reclaimed = expireLeasesForCurrentRate(tenantId, workspaceId, rateLimitKey, state, warmupState, now);
+                if (reclaimed > 0) {
+                    warmup = warmupService.evaluateCapacity(warmupState, now);
+                }
+            }
+
+            for (String reservationId : candidates) {
+                warmup = warmupService.evaluateCapacity(warmupState, now);
+                if (!warmup.allowed()) {
+                    state.setThrottleState("WARMUP_DEFER");
+                    allocatedDecisions.put(reservationId, new RateLimitDecision(
+                            false,
+                            rateLimitKey,
+                            0,
+                            warmup.retryAfter(),
+                            warmup.reason(),
+                            state,
+                            reservationId,
+                            warmupState.getStage()));
+                    continue;
+                }
+                if (state.getUsedThisMinute() >= maxPerMinute) {
+                    Instant retryAfter = state.getWindowStartedAt().plus(1, ChronoUnit.MINUTES);
+                    state.setThrottleState("THROTTLED");
+                    allocatedDecisions.put(reservationId, new RateLimitDecision(
+                            false,
+                            rateLimitKey,
+                            maxPerMinute,
+                            retryAfter,
+                            "rate cap reached",
+                            state,
+                            reservationId,
+                            warmupState.getStage()));
+                    continue;
+                }
+
+                state.setUsedThisMinute(state.getUsedThisMinute() + 1);
+                state.setThrottleState(riskScore >= 40 ? "CAUTIOUS" : "OPEN");
+                state.setLastAdjustedAt(now);
+                warmupService.reserveLocked(warmupState);
+
+                DeliverySendReservation reservation = existingById.getOrDefault(reservationId, new DeliverySendReservation());
+                writeReservation(
+                        reservation,
+                        tenantId,
+                        workspaceId,
+                        reservationId,
+                        rateLimitKey,
+                        senderDomain,
+                        providerId,
+                        recipientDomain,
+                        maxPerMinute,
+                        riskScore,
+                        state,
+                        warmupState,
+                        now);
+                changedReservations.put(reservationId, reservation);
+                allocatedDecisions.put(reservationId, new RateLimitDecision(
+                        true,
+                        rateLimitKey,
+                        maxPerMinute,
+                        null,
+                        "capacity reserved",
+                        state,
+                        reservationId,
+                        warmupState.getStage()));
+            }
+            sendRateStateRepository.save(state);
+            if (!changedReservations.isEmpty()) {
+                reservationRepository.saveAll(changedReservations.values());
+            }
+        }
+
+        List<RateLimitDecision> decisions = new ArrayList<>();
+        for (String reservationId : normalizedReservationIds) {
+            RateLimitDecision decision = immediateDecisions.get(reservationId);
+            if (decision == null) {
+                decision = allocatedDecisions.get(reservationId);
+            }
+            if (decision == null) {
+                decision = rejectedForReservationScope(rateLimitKey, reservationId, now);
+            }
+            decisions.add(decision);
+        }
+        return decisions;
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -458,6 +619,22 @@ public class SendRateControlService {
             return UUID.randomUUID().toString();
         }
         return reservationId.trim();
+    }
+
+    private List<String> normalizeReservationIds(List<String> reservationIds) {
+        if (reservationIds == null || reservationIds.isEmpty()) {
+            return List.of();
+        }
+        if (reservationIds.size() > MAX_RESERVATION_BATCH_SIZE) {
+            throw new IllegalArgumentException("reservation batch size must be <= " + MAX_RESERVATION_BATCH_SIZE);
+        }
+        List<String> normalizedIds = reservationIds.stream()
+                .map(this::normalizeReservationId)
+                .toList();
+        if (new HashSet<>(normalizedIds).size() != normalizedIds.size()) {
+            throw new IllegalArgumentException("reservation batch contains duplicate reservation id");
+        }
+        return normalizedIds;
     }
 
     private int stateListLimit(int limit) {

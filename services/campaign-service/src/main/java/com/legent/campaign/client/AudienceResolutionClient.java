@@ -1,9 +1,11 @@
 package com.legent.campaign.client;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.common.security.InternalApiTokenValidator;
 import com.legent.security.TenantContext;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ import reactor.util.retry.Retry;
 @Component
 public class AudienceResolutionClient {
 
+    private static final String SERVICE_NAME = "campaign-service";
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE = new ParameterizedTypeReference<>() {};
 
@@ -54,7 +57,7 @@ public class AudienceResolutionClient {
                             .path("/api/v1/audience-resolution-chunks/{chunkId}/internal")
                             .queryParam("jobId", scopedJobId)
                             .build(scopedChunkId))
-                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId))
+                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, scopedJobId, scopedChunkId))
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
                     .timeout(READ_TIMEOUT)
@@ -110,13 +113,31 @@ public class AudienceResolutionClient {
                 .toList();
     }
 
-    private void scopedHeaders(HttpHeaders headers, String tenantId, String workspaceId) {
+    private void scopedHeaders(HttpHeaders headers, String tenantId, String workspaceId, String jobId, String chunkId) {
         headers.set(AppConstants.HEADER_TENANT_ID, tenantId);
         headers.set(AppConstants.HEADER_WORKSPACE_ID, workspaceId);
         setOptionalHeader(headers, AppConstants.HEADER_ENVIRONMENT_ID, TenantContext.getEnvironmentId());
         setOptionalHeader(headers, AppConstants.HEADER_REQUEST_ID, TenantContext.getRequestId());
         setOptionalHeader(headers, AppConstants.HEADER_CORRELATION_ID, TenantContext.getCorrelationId());
         headers.set("X-Internal-Token", internalApiToken);
+        Instant timestamp = Instant.now();
+        String action = chunkReadAction(jobId, chunkId);
+        headers.set(InternalServiceIdentity.HEADER_SERVICE, SERVICE_NAME);
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, timestamp.toString());
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE, InternalServiceIdentity.sign(
+                internalApiToken,
+                SERVICE_NAME,
+                tenantId,
+                workspaceId,
+                action,
+                timestamp));
+    }
+
+    public static String chunkReadAction(String jobId, String chunkId) {
+        return InternalServiceIdentity.scopedAction(
+                InternalServiceIdentity.ACTION_AUDIENCE_RESOLUTION_CHUNK_READ,
+                jobId,
+                chunkId);
     }
 
     private void setOptionalHeader(HttpHeaders headers, String name, String value) {

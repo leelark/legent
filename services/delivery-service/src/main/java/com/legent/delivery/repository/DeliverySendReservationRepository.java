@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +31,18 @@ public interface DeliverySendReservationRepository extends JpaRepository<Deliver
     Optional<DeliverySendReservation> findActiveForUpdate(@Param("tenantId") String tenantId,
                                                           @Param("workspaceId") String workspaceId,
                                                           @Param("reservationId") String reservationId);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT r FROM DeliverySendReservation r
+            WHERE r.tenantId = :tenantId
+              AND r.workspaceId = :workspaceId
+              AND r.reservationId IN :reservationIds
+              AND r.deletedAt IS NULL
+            """)
+    List<DeliverySendReservation> findActiveBatchForUpdate(@Param("tenantId") String tenantId,
+                                                           @Param("workspaceId") String workspaceId,
+                                                           @Param("reservationIds") Collection<String> reservationIds);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

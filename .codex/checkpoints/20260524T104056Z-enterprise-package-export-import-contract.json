@@ -1,0 +1,53 @@
+{
+    "id":  "enterprise-package-export-import-contract",
+    "createdAt":  "2026-05-24T10:40:56.8919017Z",
+    "objective":  "Add enterprise package export/import contract",
+    "status":  "DONE",
+    "owner":  "FOUNDATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/foundation-service/src/main/java/com/legent/foundation/controller/GlobalEnterpriseController.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/dto/GlobalEnterpriseDto.java",
+                         "services/foundation-service/src/main/java/com/legent/foundation/service/EnterprisePackageService.java",
+                         "services/foundation-service/src/test/java/com/legent/foundation/service/EnterprisePackageServiceTest.java",
+                         "docs/product/salesforce-parity-matrix.md",
+                         "docs/product/enterprise-package-export-import-contract.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/audit/events/2026-05-24.jsonl"
+                     ],
+    "agents":  [
+                   "DATA_ARCHITECT",
+                   "SECURITY_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=GlobalEnterpriseServiceTest",
+                           "ComplianceEvidenceServiceTest",
+                           "AdminSettingsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "validationRun":  [
+                          ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=EnterprisePackageServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=EnterprisePackageServiceTest,GlobalEnterpriseServiceTest,ComplianceEvidenceServiceTest,AdminSettingsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                          ".\\mvnw.cmd -pl services/foundation-service -am test",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                          "git diff --check -- scoped foundation package files"
+                      ],
+    "completedAt":  "2026-05-24T10:52:14.1641505Z",
+    "nextAction":  "Continue with tracking-analytics-canonical-raw-query-contract or collect external evidence for blocked work."
+}

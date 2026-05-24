@@ -45,6 +45,9 @@ class AnalyticsServiceTest {
         assertThat(result).isEqualTo(expected);
         verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("\"timestamp\" >= ?")
                         && sql.contains("\"timestamp\" <= ?")
+                        && sql.contains("FROM raw_events")
+                        && sql.contains("GROUP BY tenant_id, workspace_id, event_type, id")
+                        && sql.contains(") AS canonical_raw_events")
                         && sql.contains("GROUP BY event_type")),
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -97,6 +100,8 @@ class AnalyticsServiceTest {
         verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("date_trunc('hour'")
                         && sql.contains("\"timestamp\" >= ?")
                         && sql.contains("\"timestamp\" <= ?")
+                        && sql.contains("GROUP BY tenant_id, workspace_id, event_type, id")
+                        && sql.contains(") AS canonical_raw_events")
                         && sql.contains("LIMIT ?")),
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -131,6 +136,7 @@ class AnalyticsServiceTest {
         verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("date_trunc('hour'")
                         && sql.contains("\"timestamp\" >= ?")
                         && sql.contains("\"timestamp\" <= ?")
+                        && sql.contains(") AS canonical_raw_events")
                         && sql.contains("LIMIT ?")),
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -164,6 +170,8 @@ class AnalyticsServiceTest {
         verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("date_trunc('day'")
                         && sql.contains("tenant_id = ? AND workspace_id = ?")
                         && sql.contains("campaign_id = ?")
+                        && sql.contains("GROUP BY tenant_id, workspace_id, event_type, id")
+                        && sql.contains(") AS canonical_raw_events")
                         && sql.contains("LIMIT ?")),
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -202,7 +210,10 @@ class AnalyticsServiceTest {
         List<Map<String, Object>> result = service.getJourneyGoalMetrics("tenant-1", "workspace-1", "workflow-1");
 
         assertThat(result).isEqualTo(expected);
-        verify(jdbcTemplate).queryForList(org.mockito.ArgumentMatchers.contains("workflow_id = ?"),
+        verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("workflow_id = ?")
+                        && sql.contains("event_type = 'CONVERSION'")
+                        && sql.contains("GROUP BY tenant_id, workspace_id, event_type, id")
+                        && sql.contains(") AS canonical_raw_events")),
                 eq("tenant-1"),
                 eq("workspace-1"),
                 eq("workflow-1"));
@@ -214,14 +225,14 @@ class AnalyticsServiceTest {
     }
 
     @Test
-    void rawCountsForCampaign_deduplicatesRawRowsByEventTypeAndEventId() {
+    void canonicalCountsForCampaign_deduplicatesRawRowsByEventTypeAndEventId() {
         when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"), eq("campaign-1")))
                 .thenReturn(List.of(
                         Map.of("event_type", "OPEN", "count", 2L),
                         Map.of("event_type", "CLICK", "count", 1L)
                 ));
 
-        Map<String, Object> counts = service.rawCountsForCampaign("tenant-1", "workspace-1", "campaign-1");
+        Map<String, Object> counts = service.canonicalCountsForCampaign("tenant-1", "workspace-1", "campaign-1");
 
         assertThat(counts)
                 .containsEntry("OPEN", 2L)
@@ -231,6 +242,23 @@ class AnalyticsServiceTest {
                         && sql.contains("WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?")
                         && sql.contains("GROUP BY tenant_id, workspace_id, event_type, id")
                         && sql.contains(") AS canonical_raw_events")
+                        && sql.contains("GROUP BY event_type")),
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("campaign-1"));
+    }
+
+    @Test
+    void rawPhysicalCountsForCampaign_countsPhysicalRowsWithoutCanonicalDedupe() {
+        when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"), eq("campaign-1")))
+                .thenReturn(List.of(Map.of("event_type", "OPEN", "count", 3L)));
+
+        Map<String, Object> counts = service.rawPhysicalCountsForCampaign("tenant-1", "workspace-1", "campaign-1");
+
+        assertThat(counts).containsEntry("OPEN", 3L);
+        verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("FROM raw_events")
+                        && sql.contains("WHERE tenant_id = ? AND workspace_id = ? AND campaign_id = ?")
+                        && !sql.contains("canonical_raw_events")
                         && sql.contains("GROUP BY event_type")),
                 eq("tenant-1"),
                 eq("workspace-1"),

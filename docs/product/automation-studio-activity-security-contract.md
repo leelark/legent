@@ -8,7 +8,7 @@ Backlog item: `automation-activity-security-design`.
 
 - `AutomationActivity.inputConfig`, `outputConfig`, and `verificationJson` are persisted as JSON and returned by activity responses.
 - `AutomationActivityRun.resultJson` and `errorMessage` are persisted and returned by run-history responses.
-- `AutomationStudioService` currently supports live execution for `SQL_QUERY`, `IMPORT`, `WEBHOOK`, `NOTIFICATION`, and `SEND_EMAIL`; file-drop/extract remain validation-only and script execution remains blocked.
+- `AutomationStudioService` currently supports live execution for `SQL_QUERY`, `FILE_DROP`, `IMPORT`, artifact-backed `EXTRACT`, `WEBHOOK`, `NOTIFICATION`, and `SEND_EMAIL`; data-extension extract generation and script execution remain blocked.
 - `AudienceDataExtensionClient` calls audience-service internal SQL/import routes with tenant/workspace headers and an internal service credential.
 - `OutboundUrlGuard` already blocks non-public resolved addresses, localhost-style hosts, reserved IPv4/IPv6 ranges, user-info URLs, and non-HTTPS URLs when required.
 - `SendEmailNodeHandler` and Automation Studio `SEND_EMAIL` activities publish confirmed campaign send requests with `campaignId`, workspace/environment context, source workflow/node or activity/run identity, deterministic idempotency, and campaign-service lifecycle ownership.
@@ -69,7 +69,7 @@ Rules:
 |---|---|
 | SQL query | Keep SELECT-only/comment-free validation, row caps, dry-run support, target data extension ownership checks, and bounded result metadata. Do not store query result rows in run history. |
 | Import | Require scoped artifact IDs, target ownership checks, mapping validation, explicit live confirmation, idempotency, and import job ID/status only in run results. |
-| File drop and extract | Start as detection/validation plus run-history events. Live file movement requires scoped artifacts, checksums, retention, failure policy, and storage adapter tests. |
+| File drop and extract | Live file movement must use scoped source and output artifacts, checksums, content-type and size checks, retention policy, idempotency, activity locks, and storage adapter tests. Data-extension extract generation remains blocked until a provider handoff is implemented and tested. |
 | Webhook | Automation Studio must publish platform-owned `automation.*` events only. Platform webhook config owns endpoints, `OutboundUrlGuard.requirePublicHttpsUri`, resolved-address blocking, reference-based auth, timeout/retry policy, idempotency keys, response-size limits, and redacted terminal response storage. |
 | Notification | Notify only terminal states or configured thresholds, require explicit recipient/title/message/severity/link fields, keep links app-relative, rate-limit duplicate notifications through idempotent platform events, redact PII, and record notification failure without masking the activity failure. |
 | Send | Use campaign-service ownership, explicit governed launch semantics, campaign/workspace ownership checks, send policy/preflight proof, suppression, warmup, rate, provider health, inbox-safety checks, and idempotency. Do not turn a contact-level journey action into a broad campaign launch without an explicit governed flag. |
@@ -111,7 +111,7 @@ Every new service-to-service route used by Automation Studio must have:
 
 ## Residual Risks
 
-- Local import execution now resolves `inputConfig.artifactId` to automation-owned artifact metadata and passes the service-generated object key only to the internal audience-service handoff. Target storage adapter evidence is still absent, so file-transfer parity and live file movement remain unclaimed.
+- Local import execution now resolves `inputConfig.artifactId` to automation-owned artifact metadata and passes the service-generated object key only to the internal audience-service handoff. File-drop and artifact-backed extract execution now use a local storage adapter that verifies scoped object keys, size, SHA-256, and CSV-compatible content type without persisting raw object keys. Target object-store drills, cleanup/retention proof, and data-extension extract provider handoff remain unclaimed.
 - Local webhook/notification execution now uses platform event handoff, explicit live confirmation, idempotency keys, terminal notification policy, and bounded/redacted platform webhook response persistence. Target platform migration, Kafka replay, provider egress, and real endpoint behavior still require environment evidence before release claims.
 - Local send activity execution now uses campaign-service handoff only, requires explicit live confirmation and idempotency, rejects unsafe send overrides, and enforces `send.requested` confirmation/idempotency contracts. Delivery-owned immutable policy snapshots, target Kafka replay, provider capacity, deliverability evidence, and live send-path proof remain required before release or parity claims.
 - Current workflow send publication happens inside the workflow transaction. Broader orchestration fan-out should be paired with outbox or after-commit publication.

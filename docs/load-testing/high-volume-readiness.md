@@ -11,11 +11,13 @@ The 10 lakh email triggers in 10 hours target requires about 27.8 accepted send 
 - Warmup, suppressions, unsubscribe, bounce/complaint, signed tracking, and inbox safety remain enabled.
 - Tracking ingestion and ClickHouse rollups handle generated event volume.
 - Retry/DLQ, stuck-job, replay, and backpressure behavior are observable.
+- Production Kafka broker evidence covers broker count, availability zones, replication factor, min ISR, `acks=all`, disabled auto-topic creation, topic partitions, DLQ retention, under-replicated/offline partitions, consumer lag, and alert routing.
 
 ## Evidence Metrics
 
 - Sends per second and accepted provider handoffs.
 - Kafka lag by topic/partition.
+- Retry depth, oldest retry age, DLQ depth, oldest DLQ age, and DLQ skew by low-cardinality queue/source label.
 - DB CPU, locks, slow queries, connection pool saturation.
 - Redis latency and token reservation contention.
 - ClickHouse insert latency, partitions, TTL.

@@ -1,7 +1,9 @@
 package com.legent.audience.service;
 
 import com.legent.audience.domain.Suppression;
+import com.legent.audience.dto.SuppressionDto;
 import com.legent.audience.repository.SuppressionRepository;
+import com.legent.common.exception.ConflictException;
 import com.legent.common.exception.NotFoundException;
 import com.legent.security.TenantContext;
 import org.junit.jupiter.api.AfterEach;
@@ -31,6 +33,9 @@ class SuppressionServiceTest {
     @Mock
     private SuppressionRepository suppressionRepository;
 
+    @Mock
+    private ContactLifecycleAuditService lifecycleAuditService;
+
     @InjectMocks
     private SuppressionService suppressionService;
 
@@ -43,6 +48,45 @@ class SuppressionServiceTest {
     @AfterEach
     void tearDown() {
         TenantContext.clear();
+    }
+
+    @Test
+    @DisplayName("create writes suppression lifecycle audit after scoped save")
+    void createWritesSuppressionLifecycleAudit() {
+        SuppressionDto.CreateRequest request = SuppressionDto.CreateRequest.builder()
+                .email(" Blocked@Example.com ")
+                .suppressionType("MANUAL")
+                .reason("Manual block")
+                .source("ADMIN")
+                .build();
+        when(suppressionRepository.existsByTenantIdAndWorkspaceIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(
+                TENANT_ID, WORKSPACE_ID, "blocked@example.com", Suppression.SuppressionType.MANUAL))
+                .thenReturn(false);
+        when(suppressionRepository.save(org.mockito.ArgumentMatchers.any(Suppression.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        suppressionService.create(request);
+
+        verify(lifecycleAuditService).suppressionCreated(
+                org.mockito.ArgumentMatchers.any(Suppression.class), org.mockito.ArgumentMatchers.eq("SUPPRESSION_SERVICE"));
+    }
+
+    @Test
+    @DisplayName("create conflict does not write suppression lifecycle audit")
+    void createConflictDoesNotWriteSuppressionLifecycleAudit() {
+        SuppressionDto.CreateRequest request = SuppressionDto.CreateRequest.builder()
+                .email("blocked@example.com")
+                .suppressionType("MANUAL")
+                .build();
+        when(suppressionRepository.existsByTenantIdAndWorkspaceIdAndEmailAndSuppressionTypeAndDeletedAtIsNull(
+                TENANT_ID, WORKSPACE_ID, "blocked@example.com", Suppression.SuppressionType.MANUAL))
+                .thenReturn(true);
+
+        assertThatThrownBy(() -> suppressionService.create(request))
+                .isInstanceOf(ConflictException.class);
+
+        verify(lifecycleAuditService, never()).suppressionCreated(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test
@@ -61,6 +105,7 @@ class SuppressionServiceTest {
 
         assertThat(suppression.isDeleted()).isTrue();
         verify(suppressionRepository).save(suppression);
+        verify(lifecycleAuditService).suppressionDeleted(suppression, "SUPPRESSION_SERVICE");
     }
 
     @Test
@@ -74,5 +119,7 @@ class SuppressionServiceTest {
 
         verify(suppressionRepository, never()).findById("foreign-suppression");
         verify(suppressionRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(lifecycleAuditService, never()).suppressionDeleted(
+                org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.anyString());
     }
 }

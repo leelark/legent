@@ -123,6 +123,61 @@ class SchedulingServiceTest {
         verify(eventPublisher, never()).publishAudienceResolutionRequested(anyString(), anyString(), anyString(), any());
     }
 
+    @Test
+    void processScheduledJobsPublishesWhenStoredSendTimeOptimizationMatchesJob() {
+        SendJob job = dueJob();
+        Campaign campaign = campaign();
+        applyStoredSendTimeOptimization(campaign, job.getScheduledAt());
+        when(sendJobRepository.findByStatusAndScheduledAtBeforeAndDeletedAtIsNullOrderByScheduledAtAscCreatedAtAsc(
+                eq(SendJob.JobStatus.PENDING), any(Instant.class), any(Pageable.class)))
+                .thenReturn(List.of(job));
+        when(sendJobRepository.claimDueScheduledJob(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq(SendJob.JobStatus.PENDING),
+                eq(SendJob.JobStatus.RESOLVING),
+                any(Instant.class),
+                any(Instant.class)))
+                .thenReturn(1);
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1")).thenReturn(Optional.of(campaign));
+
+        service.processScheduledJobs();
+
+        verify(eventPublisher).publishAudienceResolutionRequested(
+                eq("tenant-1"),
+                eq("campaign-1"),
+                eq("job-1"),
+                any());
+    }
+
+    @Test
+    void processScheduledJobsFailsWhenStoredSendTimeOptimizationMismatchesJobSchedule() {
+        SendJob job = dueJob();
+        Campaign campaign = campaign();
+        applyStoredSendTimeOptimization(campaign, job.getScheduledAt().plusSeconds(300));
+        when(sendJobRepository.findByStatusAndScheduledAtBeforeAndDeletedAtIsNullOrderByScheduledAtAscCreatedAtAsc(
+                eq(SendJob.JobStatus.PENDING), any(Instant.class), any(Pageable.class)))
+                .thenReturn(List.of(job));
+        when(sendJobRepository.claimDueScheduledJob(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("job-1"),
+                eq(SendJob.JobStatus.PENDING),
+                eq(SendJob.JobStatus.RESOLVING),
+                any(Instant.class),
+                any(Instant.class)))
+                .thenReturn(1);
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(
+                "tenant-1", "workspace-1", "campaign-1")).thenReturn(Optional.of(campaign));
+
+        service.processScheduledJobs();
+
+        verify(eventPublisher, never()).publishAudienceResolutionRequested(anyString(), anyString(), anyString(), any());
+        verify(sendJobRepository).save(job);
+    }
+
     private SendJob dueJob() {
         SendJob job = new SendJob();
         job.setId("job-1");
@@ -139,8 +194,38 @@ class SchedulingServiceTest {
         campaign.setId("campaign-1");
         campaign.setTenantId("tenant-1");
         campaign.setWorkspaceId("workspace-1");
+        campaign.setTimezone("UTC");
         campaign.setStatus(Campaign.CampaignStatus.APPROVED);
         campaign.addAudience(CampaignAudience.AudienceType.LIST, "list-1", CampaignAudience.AudienceAction.INCLUDE);
         return campaign;
+    }
+
+    private void applyStoredSendTimeOptimization(Campaign campaign, Instant recommendedAt) {
+        campaign.setSendTimeOptimizationType("SEND_TIME");
+        campaign.setSendTimeOptimizationPolicyKey("sto-commercial");
+        campaign.setSendTimeOptimizationRunId("sto-run-1");
+        campaign.setSendTimeOptimizationSnapshotHash("snapshot-1");
+        campaign.setSendTimeOptimizationOriginalScheduledAt(recommendedAt.minusSeconds(600));
+        campaign.setSendTimeOptimizationRecommendedScheduledAt(recommendedAt);
+        campaign.setSendTimeOptimizationTimezone("UTC");
+        campaign.setSendTimeOptimizationConfidenceBand("HIGH");
+        campaign.setSendTimeOptimizationFallbackMode("NONE");
+        campaign.setSendTimeOptimizationBlockedReasons(List.of());
+        campaign.setSendTimeOptimizationDataQualityReasons(List.of("coverage:ok"));
+        campaign.setSendTimeOptimizationReasonCodes(List.of("BEST_ENGAGEMENT_WINDOW"));
+        campaign.setSendTimeOptimizationApprovalRequired(true);
+        campaign.setSendTimeOptimizationRollbackRequired(true);
+        campaign.setSendTimeOptimizationApproved(true);
+        campaign.setSendTimeOptimizationApprovalId("approval-1");
+        campaign.setSendTimeOptimizationApprovedBy("user-1");
+        campaign.setSendTimeOptimizationApprovedAt(Instant.now().minusSeconds(900));
+        campaign.setSendTimeOptimizationRollbackSnapshotId("rollback-1");
+        campaign.setSendTimeOptimizationQuietHoursGatePassed(true);
+        campaign.setSendTimeOptimizationApprovalGatePassed(true);
+        campaign.setSendTimeOptimizationSuppressionGatePassed(true);
+        campaign.setSendTimeOptimizationWarmupGatePassed(true);
+        campaign.setSendTimeOptimizationRateLimitGatePassed(true);
+        campaign.setSendTimeOptimizationProviderCapacityGatePassed(true);
+        campaign.setSendTimeOptimizationDeliverabilityGatePassed(true);
     }
 }

@@ -74,6 +74,12 @@ spring:
           threadPool:
             threadCount: 20
 
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://minio:9000}
+  access-key: ${MINIO_ACCESS_KEY:}
+  secret-key: ${MINIO_SECRET_KEY:}
+  bucket: ${MINIO_BUCKET:legent-assets}
+
 logging:
   level:
     root: INFO
@@ -93,6 +99,10 @@ legent:
     api-token: ${LEGENT_INTERNAL_API_TOKEN}
   audience-service:
     url: ${LEGENT_AUDIENCE_SERVICE_URL:${AUDIENCE_SERVICE_URL:http://audience-service:8082}}
+  automation:
+    storage:
+      enabled: ${LEGENT_AUTOMATION_STORAGE_ENABLED:true}
+      bucket: ${LEGENT_AUTOMATION_STORAGE_BUCKET:${MINIO_BUCKET:legent-assets}}
   security:
     jwt:
       secret: ${LEGENT_SECURITY_JWT_SECRET}

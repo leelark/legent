@@ -122,6 +122,12 @@ public class CampaignEngineDto {
         private Integer maxSends;
         private Integer windowHours;
         private boolean includeJourneys;
+        private String optimizationPolicyKey;
+        private String optimizationRunId;
+        private String optimizationSnapshotHash;
+        private Integer optimizationRecommendedMaxSends;
+        private boolean optimizationApproved;
+        private Instant optimizationApprovedAt;
     }
 
     @Data
@@ -135,6 +141,13 @@ public class CampaignEngineDto {
         @Min(1)
         private Integer windowHours;
         private Boolean includeJourneys;
+        private String optimizationPolicyKey;
+        private String optimizationRunId;
+        private String optimizationSnapshotHash;
+        @Min(0)
+        private Integer optimizationRecommendedMaxSends;
+        private Boolean optimizationApproved;
+        private Instant optimizationApprovedAt;
     }
 
     @Data

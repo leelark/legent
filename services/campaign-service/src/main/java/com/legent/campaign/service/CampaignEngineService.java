@@ -188,6 +188,30 @@ public class CampaignEngineService {
         if (request.getIncludeJourneys() != null) {
             policy.setIncludeJourneys(request.getIncludeJourneys());
         }
+        if (request.getOptimizationPolicyKey() != null) {
+            policy.setOptimizationPolicyKey(blankToNull(request.getOptimizationPolicyKey()));
+        }
+        if (request.getOptimizationRunId() != null) {
+            policy.setOptimizationRunId(blankToNull(request.getOptimizationRunId()));
+        }
+        if (request.getOptimizationSnapshotHash() != null) {
+            policy.setOptimizationSnapshotHash(blankToNull(request.getOptimizationSnapshotHash()));
+        }
+        if (request.getOptimizationRecommendedMaxSends() != null) {
+            policy.setOptimizationRecommendedMaxSends(request.getOptimizationRecommendedMaxSends());
+        }
+        if (request.getOptimizationApproved() != null) {
+            policy.setOptimizationApproved(request.getOptimizationApproved());
+            if (request.getOptimizationApproved()
+                    && request.getOptimizationApprovedAt() == null
+                    && policy.getOptimizationApprovedAt() == null) {
+                policy.setOptimizationApprovedAt(Instant.now());
+            }
+        }
+        if (request.getOptimizationApprovedAt() != null) {
+            policy.setOptimizationApprovedAt(request.getOptimizationApprovedAt());
+        }
+        validateFrequencyOptimizationDecision(policy);
         return toFrequencyResponse(frequencyPolicyRepository.save(policy));
     }
 
@@ -528,6 +552,33 @@ public class CampaignEngineService {
         return policy;
     }
 
+    private void validateFrequencyOptimizationDecision(CampaignFrequencyPolicy policy) {
+        if (!policy.isOptimizationApproved()) {
+            return;
+        }
+        if (isBlank(policy.getOptimizationPolicyKey())) {
+            throw new ValidationException("optimizationPolicyKey", "Approved frequency optimization requires policy evidence");
+        }
+        if (isBlank(policy.getOptimizationRunId())) {
+            throw new ValidationException("optimizationRunId", "Approved frequency optimization requires run evidence");
+        }
+        if (isBlank(policy.getOptimizationSnapshotHash())) {
+            throw new ValidationException("optimizationSnapshotHash", "Approved frequency optimization requires snapshot hash evidence");
+        }
+        if (policy.getOptimizationRecommendedMaxSends() == null || policy.getOptimizationRecommendedMaxSends() <= 0) {
+            throw new ValidationException("optimizationRecommendedMaxSends", "Approved frequency optimization requires a positive recommended cap");
+        }
+        if (policy.getMaxSends() == null || policy.getMaxSends() <= 0) {
+            throw new ValidationException("maxSends", "Approved frequency optimization cannot enable a disabled frequency cap");
+        }
+        if (policy.getOptimizationRecommendedMaxSends() > policy.getMaxSends()) {
+            throw new ValidationException("optimizationRecommendedMaxSends", "Frequency optimization cap increases require a separate approved runtime slice");
+        }
+        if (policy.getOptimizationApprovedAt() == null) {
+            throw new ValidationException("optimizationApprovedAt", "Approved frequency optimization requires approval timestamp evidence");
+        }
+    }
+
     private CampaignEngineDto.ExperimentResponse toExperimentResponse(CampaignExperiment experiment) {
         return CampaignEngineDto.ExperimentResponse.builder()
                 .id(experiment.getId())
@@ -593,7 +644,25 @@ public class CampaignEngineService {
                 .maxSends(policy.getMaxSends())
                 .windowHours(policy.getWindowHours())
                 .includeJourneys(policy.isIncludeJourneys())
+                .optimizationPolicyKey(policy.getOptimizationPolicyKey())
+                .optimizationRunId(policy.getOptimizationRunId())
+                .optimizationSnapshotHash(policy.getOptimizationSnapshotHash())
+                .optimizationRecommendedMaxSends(policy.getOptimizationRecommendedMaxSends())
+                .optimizationApproved(policy.isOptimizationApproved())
+                .optimizationApprovedAt(policy.getOptimizationApprovedAt())
                 .build();
+    }
+
+    private String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.isEmpty() ? null : normalized;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private CampaignEngineDto.DeadLetterResponse toDeadLetterResponse(CampaignDeadLetter letter) {

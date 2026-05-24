@@ -1,0 +1,56 @@
+{
+    "id":  "journey-advanced-node-handlers-contract",
+    "createdAt":  "2026-05-24T10:07:05.2343049Z",
+    "objective":  "Expand journey runtime node handler contract",
+    "status":  "DONE",
+    "owner":  "AUTOMATION_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java",
+                         "services/automation-service/src/main/java/com/legent/automation/service/node/WaitUntilNodeHandler.java",
+                         "services/automation-service/src/test/java/com/legent/automation/service/WorkflowGraphValidatorTest.java",
+                         "services/automation-service/src/test/java/com/legent/automation/service/node/WaitUntilNodeHandlerTest.java",
+                         "frontend/src/components/automation/journey-node-contract.ts",
+                         "frontend/src/components/automation/NodeEditorModal.tsx",
+                         "frontend/tests/e2e/automation-builder.spec.ts",
+                         "docs/product/automation-studio-activity-orchestration-plan.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/design-decisions.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/worktrees/leases/active-leases.json"
+                     ],
+    "agents":  [
+                   "PRODUCT_MANAGER_AGENT",
+                   "FRONTEND_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=WorkflowGraphValidatorTest,WorkflowEngineTest,WorkflowStudioServiceTest,WorkflowTriggerConsumerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                           ".\\mvnw.cmd -pl services/automation-service -am test",
+                           "frontend npm run lint",
+                           "frontend npm run build:ci",
+                           "frontend Playwright automation-builder chromium",
+                           "validate-route-map.ps1",
+                           "validate-repo-artifact-hygiene.ps1",
+                           "git diff --check scoped files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "completedAt":  "2026-05-24T10:17:00Z",
+    "outcome":  "Added WAIT_UNTIL live journey runtime support with bounded Quartz resume scheduling, validator checks, scoped wake metadata, Journey Builder timestamp editing, and regression coverage.",
+    "residualRisks":  [
+                          "Branch and split runtime aliases remain a follow-up.",
+                          "Webhook, contact mutation, event listener, and reentry nodes remain draft-only until execution contracts exist.",
+                          "Target runtime replay and production evidence remain unproven."
+                      ],
+    "nextAction":  "Promote the next highest-value safe backlog item after scope refinement."
+}

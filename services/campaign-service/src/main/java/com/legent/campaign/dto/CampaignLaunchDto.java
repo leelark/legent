@@ -36,6 +36,7 @@ public class CampaignLaunchDto {
         private LaunchAction action = LaunchAction.PREVIEW;
 
         private Instant scheduledAt;
+        private CampaignDto.SendTimeOptimizationDecision sendTimeOptimization;
         private Boolean confirmLaunch;
         private PublicationCalendar publicationCalendar;
         private List<BlackoutWindow> blackoutWindows;

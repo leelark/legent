@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.legent.common.dto.ApiResponse;
 import com.legent.tracking.domain.CampaignSummary;
 import com.legent.tracking.dto.TrackingDto;
+import com.legent.tracking.service.AnalyticsService;
 import com.legent.tracking.repository.CampaignSummaryRepository;
 import com.legent.security.TenantContext;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +28,7 @@ public class AnalyticsController {
     static final int MAX_CAMPAIGN_SUMMARY_LIMIT = 500;
 
     private final CampaignSummaryRepository campaignSummaryRepository;
-    private final com.legent.tracking.service.AnalyticsService analyticsService;
+    private final AnalyticsService analyticsService;
 
     @GetMapping("/campaigns")
     @PreAuthorize("@rbacEvaluator.hasPermission('tracking:read', principal.roles) or @rbacEvaluator.hasPermission('analytics:read', principal.roles)")
@@ -107,7 +108,11 @@ public class AnalyticsController {
                 .format(format)
                 .rowCount(rows.size())
                 .content("JSON".equals(format) ? writeJson(rows) : analyticsService.toCsv(rows))
-                .metadata(Map.of("cappedLimit", Math.max(1, Math.min(limit, 10_000))))
+                .metadata(Map.of(
+                        "cappedLimit", Math.max(1, Math.min(limit, 10_000)),
+                        "sourceDataset", AnalyticsService.SOURCE_DATASET_RAW_EVENTS,
+                        "querySemantics", AnalyticsService.QUERY_SEMANTICS_PHYSICAL_RAW_ROW,
+                        "canonicalOperationalDefault", AnalyticsService.QUERY_SEMANTICS_CANONICAL_EVENT_ID))
                 .build());
     }
 
@@ -123,6 +128,8 @@ public class AnalyticsController {
         return ApiResponse.ok(TrackingDto.RollupResponse.builder()
                 .campaignId(campaignId)
                 .grain("day".equalsIgnoreCase(grain) ? "day" : "hour")
+                .querySemantics(AnalyticsService.QUERY_SEMANTICS_CANONICAL_EVENT_ID)
+                .dedupeKey(AnalyticsService.CANONICAL_DEDUPE_KEY)
                 .rows(analyticsService.getRollups(tenantId, workspaceId, campaignId, grain, startAt, endAt, buckets))
                 .build());
     }
@@ -146,16 +153,20 @@ public class AnalyticsController {
         summaryCounts.put("CLICK", summary.getTotalClicks());
         summaryCounts.put("CONVERSION", summary.getTotalConversions());
         summaryCounts.put("BOUNCE", summary.getTotalBounces());
-        Map<String, Object> rawCounts = analyticsService.rawCountsForCampaign(tenantId, workspaceId, id);
+        Map<String, Object> canonicalCounts = analyticsService.canonicalCountsForCampaign(tenantId, workspaceId, id);
+        Map<String, Object> rawCounts = analyticsService.rawPhysicalCountsForCampaign(tenantId, workspaceId, id);
         List<String> mismatches = summaryCounts.entrySet().stream()
                 .filter(entry -> !String.valueOf(entry.getValue() == null ? 0L : entry.getValue())
-                        .equals(String.valueOf(rawCounts.getOrDefault(entry.getKey(), 0L))))
-                .map(entry -> entry.getKey() + " summary=" + entry.getValue() + " raw=" + rawCounts.getOrDefault(entry.getKey(), 0L))
+                        .equals(String.valueOf(canonicalCounts.getOrDefault(entry.getKey(), 0L))))
+                .map(entry -> entry.getKey() + " summary=" + entry.getValue() + " canonical=" + canonicalCounts.getOrDefault(entry.getKey(), 0L))
                 .toList();
         return ApiResponse.ok(TrackingDto.ReconciliationResponse.builder()
                 .campaignId(id)
                 .summaryCounts(summaryCounts)
+                .canonicalEventCounts(canonicalCounts)
                 .rawEventCounts(rawCounts)
+                .querySemantics(AnalyticsService.QUERY_SEMANTICS_CANONICAL_EVENT_ID)
+                .dedupeKey(AnalyticsService.CANONICAL_DEDUPE_KEY)
                 .mismatches(mismatches)
                 .reconciled(mismatches.isEmpty())
                 .build());

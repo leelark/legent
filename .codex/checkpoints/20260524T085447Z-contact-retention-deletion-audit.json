@@ -1,0 +1,54 @@
+{
+    "id":  "contact-retention-deletion-audit",
+    "createdAt":  "2026-05-24T08:54:47.8734219Z",
+    "objective":  "Add contact retention and deletion audit workflows",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/domain/ContactLifecycleAudit.java",
+                         "services/audience-service/src/main/java/com/legent/audience/repository/ContactLifecycleAuditRepository.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/ContactLifecycleAuditService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SubscriberService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SuppressionService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/PreferenceService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/DataExtensionService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SendEligibilityService.java",
+                         "services/audience-service/src/main/resources/db/migration/V22__contact_lifecycle_audit.sql",
+                         "services/audience-service/src/test/java/com/legent/audience/service/ContactLifecycleAuditServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SubscriberServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SuppressionServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/PreferenceServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/DataExtensionServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SendEligibilityServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/repository/ContactLifecycleAuditMigrationTest.java",
+                         "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                         "docs/product/salesforce-parity-matrix.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/worktrees/leases/active-leases.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events/2026-05-24.jsonl"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "COMPLIANCE_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Completed locally after focused and full audience-service validation; continue autonomous loop with next safe backlog item."
+}

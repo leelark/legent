@@ -36,6 +36,7 @@ class DataExtensionQueryActivityServiceTest {
     @Mock private DataExtensionRepository deRepository;
     @Mock private DataExtensionFieldRepository fieldRepository;
     @Mock private DataExtensionRecordRepository recordRepository;
+    @Mock private ContactLifecycleAuditService lifecycleAuditService;
 
     private DataExtensionQueryActivityService service;
 
@@ -43,7 +44,7 @@ class DataExtensionQueryActivityServiceTest {
     void setUp() {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
-        service = new DataExtensionQueryActivityService(deRepository, fieldRepository, recordRepository);
+        service = new DataExtensionQueryActivityService(deRepository, fieldRepository, recordRepository, lifecycleAuditService);
     }
 
     @AfterEach
@@ -119,6 +120,8 @@ class DataExtensionQueryActivityServiceTest {
                         "subscriberKey", "A",
                         "email", "A@EXAMPLE.COM",
                         "score", 12L))), PageRequest.of(0, 500), 1));
+        when(recordRepository.deleteByTenantIdAndWorkspaceIdAndDataExtensionId("tenant-1", "workspace-1", "de-target"))
+                .thenReturn(3L);
         when(recordRepository.countByTenantWorkspaceAndDataExtension("tenant-1", "workspace-1", "de-target")).thenReturn(1L);
 
         DataExtensionDto.SqlQueryActivityResponse response = service.execute(DataExtensionDto.SqlQueryActivityRequest.builder()
@@ -135,6 +138,7 @@ class DataExtensionQueryActivityServiceTest {
         verify(recordRepository).saveAll(captor.capture());
         assertThat(captor.getValue()).hasSize(1);
         assertThat(captor.getValue().get(0).getRecordData()).containsEntry("email", "a@example.com");
+        verify(lifecycleAuditService).dataExtensionRecordsOverwritten(target, 3L, 1L);
         verify(deRepository).save(target);
     }
 
@@ -146,6 +150,18 @@ class DataExtensionQueryActivityServiceTest {
                 .build()))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("forbidden token");
+    }
+
+    @Test
+    void relationshipPathProjectionIsRejectedBeforeRecordScan() {
+        assertThatThrownBy(() -> service.execute(DataExtensionDto.SqlQueryActivityRequest.builder()
+                .sql("SELECT profile.email FROM Customers")
+                .dryRun(true)
+                .build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Invalid SQL identifier");
+
+        verify(recordRepository, never()).findByTenantIdAndWorkspaceIdAndDataExtensionId(any(), any(), any(), any());
     }
 
     private DataExtension dataExtension(String id, String name, String primaryKeyField) {

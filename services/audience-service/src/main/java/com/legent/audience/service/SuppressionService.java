@@ -24,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class SuppressionService {
 
     private final SuppressionRepository suppressionRepository;
+    private final ContactLifecycleAuditService lifecycleAuditService;
 
     @Transactional(readOnly = true)
     public Page<SuppressionDto.Response> list(Pageable pageable) {
@@ -35,6 +36,10 @@ public class SuppressionService {
 
     @Transactional
     public SuppressionDto.Response create(SuppressionDto.CreateRequest request) {
+        return create(request, true);
+    }
+
+    private SuppressionDto.Response create(SuppressionDto.CreateRequest request, boolean auditLifecycle) {
         String tenantId = AudienceScope.tenantId();
         String workspaceId = AudienceScope.workspaceId();
         Suppression.SuppressionType type = Suppression.SuppressionType.valueOf(request.getSuppressionType().toUpperCase());
@@ -54,19 +59,27 @@ public class SuppressionService {
         if (request.getExpiresAt() != null) entity.setExpiresAt(request.getExpiresAt());
 
         Suppression saved = suppressionRepository.save(entity);
+        if (auditLifecycle) {
+            lifecycleAuditService.suppressionCreated(saved, "SUPPRESSION_SERVICE");
+        }
         log.info("Suppression created: email={}, type={}", saved.getEmail(), saved.getSuppressionType());
         return toResponse(saved);
     }
 
     @Transactional
     public List<SuppressionDto.Response> bulkCreate(SuppressionDto.BulkRequest request) {
+        String tenantId = AudienceScope.tenantId();
+        String workspaceId = AudienceScope.workspaceId();
         List<SuppressionDto.Response> results = new ArrayList<>();
         for (SuppressionDto.CreateRequest item : request.getSuppressions()) {
             try {
-                results.add(create(item));
+                results.add(create(item, false));
             } catch (ConflictException e) {
                 log.debug("Suppression already exists: {}", item.getEmail());
             }
+        }
+        if (!results.isEmpty()) {
+            lifecycleAuditService.suppressionsBulkCreated(tenantId, workspaceId, results.size(), request.getSuppressions().size());
         }
         log.info("Bulk suppression: {} added", results.size());
         return results;
@@ -101,6 +114,7 @@ public class SuppressionService {
                 .orElseThrow(() -> new NotFoundException("Suppression", id));
         existing.softDelete();
         suppressionRepository.save(existing);
+        lifecycleAuditService.suppressionDeleted(existing, "SUPPRESSION_SERVICE");
         log.info("Suppression deleted: id={}", id);
     }
 

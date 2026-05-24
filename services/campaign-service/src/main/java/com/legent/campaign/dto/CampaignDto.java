@@ -61,6 +61,32 @@ public class CampaignDto {
         private CampaignStatus status;
         private CampaignType type;
         private Instant scheduledAt;
+        private String sendTimeOptimizationPolicyKey;
+        private String sendTimeOptimizationType;
+        private String sendTimeOptimizationRunId;
+        private String sendTimeOptimizationSnapshotHash;
+        private Instant sendTimeOptimizationOriginalScheduledAt;
+        private Instant sendTimeOptimizationRecommendedScheduledAt;
+        private String sendTimeOptimizationTimezone;
+        private String sendTimeOptimizationConfidenceBand;
+        private String sendTimeOptimizationFallbackMode;
+        private List<String> sendTimeOptimizationBlockedReasons;
+        private List<String> sendTimeOptimizationDataQualityReasons;
+        private List<String> sendTimeOptimizationReasonCodes;
+        private Boolean sendTimeOptimizationApprovalRequired;
+        private Boolean sendTimeOptimizationRollbackRequired;
+        private Boolean sendTimeOptimizationApproved;
+        private String sendTimeOptimizationApprovalId;
+        private String sendTimeOptimizationApprovedBy;
+        private Instant sendTimeOptimizationApprovedAt;
+        private String sendTimeOptimizationRollbackSnapshotId;
+        private Boolean sendTimeOptimizationQuietHoursGatePassed;
+        private Boolean sendTimeOptimizationApprovalGatePassed;
+        private Boolean sendTimeOptimizationSuppressionGatePassed;
+        private Boolean sendTimeOptimizationWarmupGatePassed;
+        private Boolean sendTimeOptimizationRateLimitGatePassed;
+        private Boolean sendTimeOptimizationProviderCapacityGatePassed;
+        private Boolean sendTimeOptimizationDeliverabilityGatePassed;
         private List<AudienceResponse> audiences;
         private Instant createdAt;
         private Instant updatedAt;
@@ -187,6 +213,40 @@ public class CampaignDto {
     public static class ScheduleRequest {
         private Instant scheduledAt;
         private RecurrenceRequest recurrence;
+        private SendTimeOptimizationDecision sendTimeOptimization;
+    }
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SendTimeOptimizationDecision {
+        private String optimizationType;
+        private String policyKey;
+        private String optimizationRunId;
+        private String snapshotHash;
+        private Instant originalScheduledAt;
+        private Instant recommendedScheduledAt;
+        private String timezone;
+        private String confidenceBand;
+        private String fallbackMode;
+        private List<String> blockedReasons;
+        private List<String> dataQualityReasons;
+        private List<String> reasonCodes;
+        private Boolean approvalRequired;
+        private Boolean rollbackRequired;
+        private Boolean approved;
+        private String approvalId;
+        private String approvedBy;
+        private Instant approvedAt;
+        private String rollbackSnapshotId;
+        private Boolean quietHoursGatePassed;
+        private Boolean approvalGatePassed;
+        private Boolean suppressionGatePassed;
+        private Boolean warmupGatePassed;
+        private Boolean rateLimitGatePassed;
+        private Boolean providerCapacityGatePassed;
+        private Boolean deliverabilityGatePassed;
     }
 
     @Data

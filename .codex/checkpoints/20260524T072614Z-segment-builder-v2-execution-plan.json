@@ -1,0 +1,32 @@
+{
+    "id":  "segment-builder-v2-execution-plan",
+    "createdAt":  "2026-05-24T07:26:14.1917282Z",
+    "objective":  "Implement Segment Builder v2 execution plan",
+    "status":  "DONE",
+    "owner":  "AUDIENCE_SERVICE_OWNER",
+    "filesInScope":  [
+                         "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                         ".codex/memory/unresolved-risks.md",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SegmentService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/service/SegmentEvaluationService.java",
+                         "services/audience-service/src/main/java/com/legent/audience/dto/SegmentDto.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SegmentServiceTest.java",
+                         "services/audience-service/src/test/java/com/legent/audience/service/SegmentEvaluationServiceTest.java"
+                     ],
+    "agents":  [
+                   "DATA_ARCHITECT",
+                   "PRODUCT_MANAGER_AGENT",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=SegmentServiceTest",
+                           "SegmentEvaluationServiceTest",
+                           "DataExtensionServiceTest",
+                           "DataExtensionQueryActivityServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Segment execution-plan slice complete locally; continue overall loop with next highest-value safe backlog item."
+}

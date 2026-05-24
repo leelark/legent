@@ -1,6 +1,7 @@
 package com.legent.campaign.client;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.security.TenantContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -88,6 +89,17 @@ class AudienceResolutionClientTest {
         assertEquals("request-1", request.header(AppConstants.HEADER_REQUEST_ID));
         assertEquals("correlation-1", request.header(AppConstants.HEADER_CORRELATION_ID));
         assertEquals(INTERNAL_TOKEN, request.header("X-Internal-Token"));
+        assertEquals("campaign-service", request.header(InternalServiceIdentity.HEADER_SERVICE));
+        assertTrue(InternalServiceIdentity.matches(
+                INTERNAL_TOKEN,
+                request.header("X-Internal-Token"),
+                request.header(InternalServiceIdentity.HEADER_SERVICE),
+                java.util.Set.of("campaign-service"),
+                "tenant-1",
+                "workspace-1",
+                AudienceResolutionClient.chunkReadAction("job-1", "job-1:audience:0"),
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP),
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE)));
     }
 
     @Test

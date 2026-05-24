@@ -1,0 +1,63 @@
+{
+    "id":  "segment-builder-v2-governance-ui",
+    "createdAt":  "2026-05-24T11:18:24.4233850Z",
+    "objective":  "Add Segment Builder v2 governance UI",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/components/audience/SegmentRuleBuilder.tsx",
+                         "frontend/src/lib/ui-mode-contract.ts",
+                         "frontend/tests/e2e/audience-segments.spec.ts",
+                         "docs/product/salesforce-parity-matrix.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/worktrees/leases/active-leases.json"
+                     ],
+    "agents":  [
+                   "AUDIENCE_SERVICE_OWNER",
+                   "UX_STRATEGIST",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-segments.spec.ts tests/e2e/audience-data-extensions.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Safe stop requested. Resume with automation-artifact-selector-ux or collect external evidence for blocked release/provider/high-volume items.",
+    "completedAt":  "2026-05-24T11:30:00.9009981Z",
+    "outcome":  "Added a mode-aware Segment Builder governance panel with local built-in field classifications, PII/incomplete/index review warnings, advanced tenant/workspace/suppression/execution lock indicators, draft-only unsupported family states, responsive rule rows, E2E coverage, and parity-matrix notes that keep backend governance/audit and parity claims unproven.",
+    "validationRun":  [
+                          "cd frontend; npm run lint (PASS)",
+                          "cd frontend; npm run build:ci (PASS)",
+                          "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-segments.spec.ts tests/e2e/audience-data-extensions.spec.ts --project=chromium --reporter=line (PASS, 4 tests)",
+                          "git diff --check -- frontend/src/components/audience/SegmentRuleBuilder.tsx frontend/src/lib/ui-mode-contract.ts frontend/tests/e2e/audience-segments.spec.ts docs/product/salesforce-parity-matrix.md (PASS; CRLF warnings only)"
+                      ],
+    "residualRisks":  [
+                          "Segment governance locks are local UI indicators only; no persisted segment lock/audit API exists yet.",
+                          "Draft segment count and execution-plan preview still require a persisted segment ID; no unsaved draft preview endpoint exists.",
+                          "Relationship traversal, behavioral event rollups, recursive segment nesting, target performance evidence, and parity claims remain out of scope."
+                      ],
+    "safeStop":  {
+                     "requested":  true,
+                     "automationId":  "legent-24x7-overall-team",
+                     "automationStatus":  "PAUSED",
+                     "activeLeases":  0,
+                     "activeAgents":  0,
+                     "queueState":  "READY 0, BACKLOG 5, IN_PROGRESS 0, BLOCKED 16, DONE 203",
+                     "nextResumeItem":  "automation-artifact-selector-ux",
+                     "validation":  [
+                                        "validate-codex-system PASS",
+                                        "monitor-autonomous-org PASS"
+                                    ]
+                 }
+}

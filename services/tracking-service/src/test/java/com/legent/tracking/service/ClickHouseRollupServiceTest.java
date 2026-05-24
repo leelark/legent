@@ -26,10 +26,23 @@ class ClickHouseRollupServiceTest {
                 .extracting(row -> row.get("name"))
                 .contains("campaign_day_rollups", "raw_events");
         assertThat(service.datasets())
+                .filteredOn(row -> "campaign_day_rollups".equals(row.get("name")))
+                .singleElement()
+                .satisfies(row -> {
+                    assertThat(row.get("description")).isEqualTo("Canonical deduped campaign performance by day");
+                    assertThat(row.get("querySemantics")).isEqualTo(AnalyticsService.QUERY_SEMANTICS_CANONICAL_EVENT_ID);
+                    assertThat((java.util.List<String>) row.get("dedupeKey"))
+                            .containsExactlyElementsOf(AnalyticsService.CANONICAL_DEDUPE_KEY);
+                });
+        assertThat(service.datasets())
                 .filteredOn(row -> "raw_events".equals(row.get("name")))
                 .singleElement()
-                .satisfies(row -> assertThat((java.util.List<String>) row.get("dimensions"))
-                        .contains("workspace_id", "experiment_id", "variant_id", "holdout", "workflow_id", "step_id", "goal_id"));
+                .satisfies(row -> {
+                    assertThat(row.get("description")).isEqualTo("Physical raw tracking stream in ClickHouse");
+                    assertThat(row.get("querySemantics")).isEqualTo(AnalyticsService.QUERY_SEMANTICS_PHYSICAL_RAW_ROW);
+                    assertThat((java.util.List<String>) row.get("dimensions"))
+                            .contains("workspace_id", "experiment_id", "variant_id", "holdout", "workflow_id", "step_id", "goal_id");
+                });
     }
 
     @Test

@@ -164,6 +164,72 @@ class OrchestrationServiceTest {
     }
 
     @Test
+    void triggerSend_WithApprovedSendTimeOptimizationSchedulesAtRecommendation() {
+        String campaignId = "camp-1";
+        Instant originalAt = Instant.now().plusSeconds(1_800);
+        Instant recommendedAt = Instant.now().plusSeconds(3_600);
+        Campaign campaign = new Campaign();
+        campaign.setId(campaignId);
+        campaign.setTenantId(TENANT_ID);
+        campaign.setWorkspaceId(WORKSPACE_ID);
+        campaign.setStatus(Campaign.CampaignStatus.APPROVED);
+        campaign.addAudience("LIST", "audience-1");
+
+        SendJobDto.TriggerRequest request = new SendJobDto.TriggerRequest();
+        request.setSendTimeOptimization(validDecision(originalAt, recommendedAt));
+
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, campaignId))
+                .thenReturn(Optional.of(campaign));
+        when(sendJobRepository.save(any(SendJob.class))).thenAnswer(invocation -> {
+            SendJob job = invocation.getArgument(0);
+            job.setId("job-1");
+            return job;
+        });
+        when(sendJobMapper.toJobResponse(any(SendJob.class))).thenAnswer(invocation -> {
+            SendJob job = invocation.getArgument(0);
+            SendJobDto.Response response = new SendJobDto.Response();
+            response.setId(job.getId());
+            response.setStatus(job.getStatus());
+            response.setScheduledAt(job.getScheduledAt());
+            return response;
+        });
+
+        SendJobDto.Response response = orchestrationService.triggerSend(campaignId, request);
+
+        assertThat(response.getStatus()).isEqualTo(SendJob.JobStatus.PENDING);
+        assertThat(response.getScheduledAt()).isEqualTo(recommendedAt);
+        assertThat(campaign.getScheduledAt()).isEqualTo(recommendedAt);
+        assertThat(campaign.getSendTimeOptimizationRunId()).isEqualTo("sto-run-1");
+        verify(eventPublisher, never()).publishAudienceResolutionRequested(anyString(), anyString(), anyString(), anyList());
+    }
+
+    @Test
+    void triggerSend_RejectsStoredSendTimeOptimizationScheduleMismatch() {
+        String campaignId = "camp-1";
+        Instant recommendedAt = Instant.now().plusSeconds(3_600);
+        Campaign campaign = new Campaign();
+        campaign.setId(campaignId);
+        campaign.setTenantId(TENANT_ID);
+        campaign.setWorkspaceId(WORKSPACE_ID);
+        campaign.setStatus(Campaign.CampaignStatus.APPROVED);
+        campaign.addAudience("LIST", "audience-1");
+        applyStoredSendTimeOptimization(campaign, recommendedAt);
+
+        SendJobDto.TriggerRequest request = new SendJobDto.TriggerRequest();
+        request.setScheduledAt(recommendedAt.plusSeconds(600));
+
+        when(campaignRepository.findByTenantIdAndWorkspaceIdAndIdAndDeletedAtIsNull(TENANT_ID, WORKSPACE_ID, campaignId))
+                .thenReturn(Optional.of(campaign));
+
+        assertThatThrownBy(() -> orchestrationService.triggerSend(campaignId, request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("must match the approved send-time optimization decision");
+        verify(sendJobRepository, never()).save(any(SendJob.class));
+        verify(campaignRepository, never()).save(any(Campaign.class));
+        verify(eventPublisher, never()).publishAudienceResolutionRequested(anyString(), anyString(), anyString(), anyList());
+    }
+
+    @Test
     void triggerSend_InvalidStatus_ThrowsException() {
         String campaignId = "camp-1";
         Campaign campaign = new Campaign();
@@ -406,5 +472,66 @@ class OrchestrationServiceTest {
                 .hasMessageContaining("No retryable batches found");
 
         verify(eventPublisher, never()).publishBatchCreated(anyString(), anyString(), anyString());
+    }
+
+    private CampaignDto.SendTimeOptimizationDecision validDecision(Instant originalAt, Instant recommendedAt) {
+        return CampaignDto.SendTimeOptimizationDecision.builder()
+                .optimizationType("SEND_TIME")
+                .policyKey("sto-commercial")
+                .optimizationRunId("sto-run-1")
+                .snapshotHash("snapshot-1")
+                .originalScheduledAt(originalAt)
+                .recommendedScheduledAt(recommendedAt)
+                .timezone("UTC")
+                .confidenceBand("HIGH")
+                .fallbackMode("NONE")
+                .blockedReasons(List.of())
+                .dataQualityReasons(List.of("coverage:ok"))
+                .reasonCodes(List.of("BEST_ENGAGEMENT_WINDOW"))
+                .approvalRequired(true)
+                .rollbackRequired(true)
+                .approved(true)
+                .approvalId("approval-1")
+                .approvedBy("user-1")
+                .approvedAt(Instant.now())
+                .rollbackSnapshotId("rollback-1")
+                .quietHoursGatePassed(true)
+                .approvalGatePassed(true)
+                .suppressionGatePassed(true)
+                .warmupGatePassed(true)
+                .rateLimitGatePassed(true)
+                .providerCapacityGatePassed(true)
+                .deliverabilityGatePassed(true)
+                .build();
+    }
+
+    private void applyStoredSendTimeOptimization(Campaign campaign, Instant recommendedAt) {
+        campaign.setTimezone("UTC");
+        campaign.setSendTimeOptimizationType("SEND_TIME");
+        campaign.setSendTimeOptimizationPolicyKey("sto-commercial");
+        campaign.setSendTimeOptimizationRunId("sto-run-1");
+        campaign.setSendTimeOptimizationSnapshotHash("snapshot-1");
+        campaign.setSendTimeOptimizationOriginalScheduledAt(recommendedAt.minusSeconds(600));
+        campaign.setSendTimeOptimizationRecommendedScheduledAt(recommendedAt);
+        campaign.setSendTimeOptimizationTimezone("UTC");
+        campaign.setSendTimeOptimizationConfidenceBand("HIGH");
+        campaign.setSendTimeOptimizationFallbackMode("NONE");
+        campaign.setSendTimeOptimizationBlockedReasons(List.of());
+        campaign.setSendTimeOptimizationDataQualityReasons(List.of("coverage:ok"));
+        campaign.setSendTimeOptimizationReasonCodes(List.of("BEST_ENGAGEMENT_WINDOW"));
+        campaign.setSendTimeOptimizationApprovalRequired(true);
+        campaign.setSendTimeOptimizationRollbackRequired(true);
+        campaign.setSendTimeOptimizationApproved(true);
+        campaign.setSendTimeOptimizationApprovalId("approval-1");
+        campaign.setSendTimeOptimizationApprovedBy("user-1");
+        campaign.setSendTimeOptimizationApprovedAt(Instant.now());
+        campaign.setSendTimeOptimizationRollbackSnapshotId("rollback-1");
+        campaign.setSendTimeOptimizationQuietHoursGatePassed(true);
+        campaign.setSendTimeOptimizationApprovalGatePassed(true);
+        campaign.setSendTimeOptimizationSuppressionGatePassed(true);
+        campaign.setSendTimeOptimizationWarmupGatePassed(true);
+        campaign.setSendTimeOptimizationRateLimitGatePassed(true);
+        campaign.setSendTimeOptimizationProviderCapacityGatePassed(true);
+        campaign.setSendTimeOptimizationDeliverabilityGatePassed(true);
     }
 }

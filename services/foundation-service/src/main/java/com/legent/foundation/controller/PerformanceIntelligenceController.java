@@ -3,6 +3,7 @@ package com.legent.foundation.controller;
 import com.legent.common.dto.ApiResponse;
 import com.legent.foundation.dto.performance.AiContentAssistanceEvaluateRequest;
 import com.legent.foundation.dto.performance.AiContentAssistancePolicyRequest;
+import com.legent.foundation.dto.performance.AiGenerationPreviewRequest;
 import com.legent.foundation.dto.performance.AiProviderContractRequest;
 import com.legent.foundation.dto.performance.AiProviderMeteringRequest;
 import com.legent.foundation.dto.performance.ExtensionPackageRequest;
@@ -13,6 +14,7 @@ import com.legent.foundation.dto.performance.OptimizationPolicyRequest;
 import com.legent.foundation.dto.performance.PersonalizationEvaluateRequest;
 import com.legent.foundation.dto.performance.WorkflowBenchmarkRequest;
 import com.legent.foundation.service.performance.AiContentAssistanceGovernanceService;
+import com.legent.foundation.service.performance.AiGenerationPreviewService;
 import com.legent.foundation.service.performance.AiProviderContractMeteringService;
 import com.legent.foundation.service.performance.ClosedLoopOptimizationService;
 import com.legent.foundation.service.performance.ExtensionGovernanceService;
@@ -47,6 +49,7 @@ public class PerformanceIntelligenceController {
     private final WorkflowBenchmarkService workflowBenchmarkService;
     private final AiContentAssistanceGovernanceService aiContentAssistanceGovernanceService;
     private final AiProviderContractMeteringService aiProviderContractMeteringService;
+    private final AiGenerationPreviewService aiGenerationPreviewService;
 
     @GetMapping("/summary")
     @PreAuthorize("@rbacEvaluator.hasPermission('tenant:read', principal.roles)")
@@ -128,6 +131,18 @@ public class PerformanceIntelligenceController {
             @RequestParam(required = false) String workspaceId,
             @RequestParam(defaultValue = "100") int limit) {
         return ApiResponse.ok(aiProviderContractMeteringService.listMeteringEvents(workspaceId, limit));
+    }
+
+    @PostMapping("/ai-segments/preview")
+    @PreAuthorize("@rbacEvaluator.hasPermission('audience:write', principal.roles)")
+    public ApiResponse<Map<String, Object>> previewAiSegmentGeneration(@Valid @RequestBody AiGenerationPreviewRequest request) {
+        return ApiResponse.ok(aiGenerationPreviewService.previewForTargets(request, List.of("SEGMENT")));
+    }
+
+    @PostMapping("/ai-workflows/preview")
+    @PreAuthorize("@rbacEvaluator.hasPermission('workflow:write', principal.roles)")
+    public ApiResponse<Map<String, Object>> previewAiWorkflowGeneration(@Valid @RequestBody AiGenerationPreviewRequest request) {
+        return ApiResponse.ok(aiGenerationPreviewService.previewForTargets(request, List.of("WORKFLOW")));
     }
 
     @PostMapping("/extensions/packages")

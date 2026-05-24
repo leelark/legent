@@ -115,14 +115,18 @@ public class ClickHouseRollupService {
         List<Map<String, Object>> datasets = new ArrayList<>();
         datasets.add(dataset(
                 "campaign_day_rollups",
-                "BI-grade campaign performance by day",
+                "Canonical deduped campaign performance by day",
                 List.of("tenant_id", "workspace_id", "campaign_id", "bucket_date"),
-                List.of("sends", "delivered", "opens", "clicks", "bounces", "complaints", "unsubscribes", "conversions", "revenue")));
+                List.of("sends", "delivered", "opens", "clicks", "bounces", "complaints", "unsubscribes", "conversions", "revenue"),
+                AnalyticsService.QUERY_SEMANTICS_CANONICAL_EVENT_ID,
+                AnalyticsService.CANONICAL_DEDUPE_KEY));
         datasets.add(dataset(
                 "raw_events",
-                "Raw immutable tracking stream in ClickHouse",
+                "Physical raw tracking stream in ClickHouse",
                 List.of("tenant_id", "workspace_id", "event_type", "campaign_id", "experiment_id", "variant_id", "holdout", "experiment_scope", "workflow_id", "workflow_run_id", "step_id", "path_id", "goal_id", "message_id"),
-                List.of("timestamp", "metadata")));
+                List.of("timestamp", "metadata"),
+                AnalyticsService.QUERY_SEMANTICS_PHYSICAL_RAW_ROW,
+                List.of()));
         return datasets;
     }
 
@@ -250,12 +254,19 @@ public class ClickHouseRollupService {
                 """;
     }
 
-    private Map<String, Object> dataset(String name, String description, List<String> dimensions, List<String> measures) {
+    private Map<String, Object> dataset(String name,
+                                        String description,
+                                        List<String> dimensions,
+                                        List<String> measures,
+                                        String querySemantics,
+                                        List<String> dedupeKey) {
         Map<String, Object> dataset = new LinkedHashMap<>();
         dataset.put("name", name);
         dataset.put("description", description);
         dataset.put("dimensions", dimensions);
         dataset.put("measures", measures);
+        dataset.put("querySemantics", querySemantics);
+        dataset.put("dedupeKey", dedupeKey);
         return dataset;
     }
 }

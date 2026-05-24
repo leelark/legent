@@ -102,9 +102,12 @@ public class CampaignSendSafetyService {
             return PreparedRecipient.skipped(messageId, assignment.experimentId(), assignment.variantId(), null, null, "HOLDOUT");
         }
 
-        if (!passesFrequency(campaign, plan.frequencyPolicy(), email)) {
-            saveLedger(campaign, batch, subscriber, messageId, assignment, CampaignSendLedger.SendState.SUPPRESSED, "FREQUENCY_CAP", BigDecimal.ZERO);
-            return PreparedRecipient.skipped(messageId, assignment.experimentId(), assignment.variantId(), null, null, "FREQUENCY_CAP");
+        Optional<String> frequencyBlock = frequencyBlockReason(campaign, plan.frequencyPolicy(), email);
+        if (frequencyBlock.isPresent()) {
+            saveLedger(campaign, batch, subscriber, messageId, assignment,
+                    CampaignSendLedger.SendState.SUPPRESSED, frequencyBlock.get(), BigDecimal.ZERO);
+            return PreparedRecipient.skipped(messageId, assignment.experimentId(), assignment.variantId(),
+                    null, null, frequencyBlock.get());
         }
 
         BigDecimal cost = plan.budget() == null || plan.budget().getCostPerSend() == null
@@ -176,18 +179,44 @@ public class CampaignSendSafetyService {
         deadLetterRepository.save(letter);
     }
 
-    private boolean passesFrequency(Campaign campaign, CampaignFrequencyPolicy policy, String email) {
+    private Optional<String> frequencyBlockReason(Campaign campaign, CampaignFrequencyPolicy policy, String email) {
         if (policy == null || !policy.isEnabled() || policy.getMaxSends() == null || policy.getMaxSends() <= 0) {
-            return true;
+            return Optional.empty();
         }
         int windowHours = policy.getWindowHours() == null || policy.getWindowHours() <= 0 ? 24 : policy.getWindowHours();
+        int maxSends = policy.getMaxSends();
+        int effectiveMaxSends = effectiveFrequencyCap(policy);
         long touches = ledgerRepository.countRecipientTouchesSince(
                 campaign.getTenantId(),
                 campaign.getWorkspaceId(),
                 email,
                 Instant.now().minusSeconds(windowHours * 3600L),
                 FREQUENCY_STATES);
-        return touches < policy.getMaxSends();
+        if (touches < effectiveMaxSends) {
+            return Optional.empty();
+        }
+        return Optional.of(effectiveMaxSends < maxSends ? "FREQUENCY_OPTIMIZATION_CAP" : "FREQUENCY_CAP");
+    }
+
+    private int effectiveFrequencyCap(CampaignFrequencyPolicy policy) {
+        if (hasApprovedOptimizationDecision(policy)) {
+            return Math.min(policy.getMaxSends(), policy.getOptimizationRecommendedMaxSends());
+        }
+        return policy.getMaxSends();
+    }
+
+    private boolean hasApprovedOptimizationDecision(CampaignFrequencyPolicy policy) {
+        return policy.isOptimizationApproved()
+                && policy.getOptimizationRecommendedMaxSends() != null
+                && policy.getOptimizationRecommendedMaxSends() > 0
+                && notBlank(policy.getOptimizationPolicyKey())
+                && notBlank(policy.getOptimizationRunId())
+                && notBlank(policy.getOptimizationSnapshotHash())
+                && policy.getOptimizationApprovedAt() != null;
+    }
+
+    private boolean notBlank(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     private boolean reserveBudget(CampaignBudget budget, BigDecimal cost) {

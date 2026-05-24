@@ -19,11 +19,13 @@ import com.legent.audience.domain.DataExtension;
 import com.legent.audience.domain.DataExtensionField;
 import com.legent.audience.domain.DataExtensionGovernanceAudit;
 import com.legent.audience.domain.DataExtensionRecord;
+import com.legent.audience.domain.DataExtensionRelationship;
 import com.legent.audience.dto.DataExtensionDto;
 import com.legent.audience.repository.DataExtensionFieldRepository;
 import com.legent.audience.repository.DataExtensionGovernanceAuditRepository;
 import com.legent.audience.repository.DataExtensionRecordRepository;
 import com.legent.audience.repository.DataExtensionRepository;
+import com.legent.audience.repository.DataExtensionRelationshipRepository;
 import com.legent.common.exception.ConflictException;
 import com.legent.common.exception.NotFoundException;
 import com.legent.common.exception.ValidationException;
@@ -56,7 +58,9 @@ public class DataExtensionService {
     private final DataExtensionRepository deRepository;
     private final DataExtensionFieldRepository fieldRepository;
     private final DataExtensionRecordRepository recordRepository;
+    private final DataExtensionRelationshipRepository relationshipRepository;
     private final DataExtensionGovernanceAuditRepository governanceAuditRepository;
+    private final ContactLifecycleAuditService lifecycleAuditService;
     private final ObjectMapper objectMapper;
 
     @Transactional(readOnly = true)
@@ -157,6 +161,7 @@ public class DataExtensionService {
         writeGovernanceAudit(saved, "RETENTION_UPDATED", "Retention policy updated",
                 Map.of("retentionAction", nullSafe(saved.getRetentionAction()),
                         "retentionDays", saved.getRetentionDays() == null ? "" : saved.getRetentionDays()));
+        lifecycleAuditService.dataExtensionRetentionUpdated(saved);
         return toResponse(saved);
     }
 
@@ -207,6 +212,7 @@ public class DataExtensionService {
         validateRelationships(de, relationships);
         de.setRelationshipJson(writeRelationships(relationships));
         DataExtension saved = deRepository.save(de);
+        replaceRelationshipRows(saved, relationships);
         writeGovernanceAudit(saved, "RELATIONSHIPS_UPDATED", "Relationship metadata updated",
                 Map.of("relationshipCount", relationships.size()));
         return toResponse(saved);
@@ -378,9 +384,11 @@ public class DataExtensionService {
     @Transactional
     public void deleteDataExtension(String id) {
         DataExtension de = requireDataExtension(id);
+        softDeleteRelationshipRows(de);
         de.softDelete();
         deRepository.save(de);
         writeGovernanceAudit(de, "DELETED", "Data extension soft-deleted", governanceSnapshot(de));
+        lifecycleAuditService.dataExtensionDeleted(de);
         log.info("Data extension deleted: tenant={}, id={}", TenantContext.requireTenantId(), id);
     }
 
@@ -778,7 +786,7 @@ public class DataExtensionService {
                 .governance(toGovernanceMetadata(de))
                 .retentionDays(de.getRetentionDays())
                 .retentionAction(de.getRetentionAction())
-                .relationships(readRelationships(de.getRelationshipJson()))
+                .relationships(readRelationshipDefinitions(de))
                 .recordCount(de.getRecordCount())
                 .fields(fieldDtos)
                 .createdAt(de.getCreatedAt()).updatedAt(de.getUpdatedAt()).build();
@@ -843,6 +851,82 @@ public class DataExtensionService {
         } catch (Exception ex) {
             return List.of();
         }
+    }
+
+    private void replaceRelationshipRows(DataExtension source,
+                                         List<DataExtensionDto.RelationshipDefinition> relationships) {
+        List<DataExtensionRelationship> existing = relationshipRepository
+                .findByTenantIdAndWorkspaceIdAndSourceDataExtensionIdAndDeletedAtIsNullOrderByOrdinalAscNameAsc(
+                        source.getTenantId(), source.getWorkspaceId(), source.getId());
+        existing.forEach(DataExtensionRelationship::softDelete);
+        if (!existing.isEmpty()) {
+            relationshipRepository.saveAll(existing);
+        }
+        List<DataExtensionRelationship> rows = new ArrayList<>();
+        int ordinal = 0;
+        for (DataExtensionDto.RelationshipDefinition relationship : relationships) {
+            rows.add(toRelationshipEntity(source, relationship, ordinal++));
+        }
+        if (!rows.isEmpty()) {
+            relationshipRepository.saveAll(rows);
+        }
+    }
+
+    private void softDeleteRelationshipRows(DataExtension de) {
+        List<DataExtensionRelationship> relationships = new ArrayList<>();
+        relationships.addAll(relationshipRepository
+                .findByTenantIdAndWorkspaceIdAndSourceDataExtensionIdAndDeletedAtIsNullOrderByOrdinalAscNameAsc(
+                        de.getTenantId(), de.getWorkspaceId(), de.getId()));
+        relationships.addAll(relationshipRepository
+                .findByTenantIdAndWorkspaceIdAndTargetDataExtensionIdAndDeletedAtIsNullOrderByOrdinalAscNameAsc(
+                        de.getTenantId(), de.getWorkspaceId(), de.getId()));
+        relationships.forEach(DataExtensionRelationship::softDelete);
+        if (!relationships.isEmpty()) {
+            relationshipRepository.saveAll(relationships);
+        }
+    }
+
+    private DataExtensionRelationship toRelationshipEntity(DataExtension source,
+                                                           DataExtensionDto.RelationshipDefinition definition,
+                                                           int ordinal) {
+        DataExtensionRelationship relationship = new DataExtensionRelationship();
+        relationship.setTenantId(source.getTenantId());
+        relationship.setWorkspaceId(source.getWorkspaceId());
+        relationship.setSourceDataExtensionId(source.getId());
+        relationship.setTargetDataExtensionId(definition.getTargetDataExtensionId().trim());
+        relationship.setName(definition.getName().trim());
+        relationship.setSourceField(definition.getSourceField().trim());
+        relationship.setTargetField(definition.getTargetField().trim());
+        relationship.setCardinality(normalizeCardinality(definition.getCardinality()));
+        relationship.setRequired(Boolean.TRUE.equals(definition.getRequired()));
+        relationship.setActive(!Boolean.FALSE.equals(definition.getActive()));
+        relationship.setOrdinal(ordinal);
+        relationship.setCreatedBy(TenantContext.getUserId());
+        return relationship;
+    }
+
+    private List<DataExtensionDto.RelationshipDefinition> readRelationshipDefinitions(DataExtension de) {
+        List<DataExtensionRelationship> rows = relationshipRepository
+                .findByTenantIdAndWorkspaceIdAndSourceDataExtensionIdAndDeletedAtIsNullOrderByOrdinalAscNameAsc(
+                        de.getTenantId(), de.getWorkspaceId(), de.getId());
+        if (!rows.isEmpty()) {
+            return rows.stream()
+                    .map(this::toRelationshipDefinition)
+                    .toList();
+        }
+        return readRelationships(de.getRelationshipJson());
+    }
+
+    private DataExtensionDto.RelationshipDefinition toRelationshipDefinition(DataExtensionRelationship relationship) {
+        return DataExtensionDto.RelationshipDefinition.builder()
+                .name(relationship.getName())
+                .targetDataExtensionId(relationship.getTargetDataExtensionId())
+                .sourceField(relationship.getSourceField())
+                .targetField(relationship.getTargetField())
+                .cardinality(relationship.getCardinality())
+                .required(relationship.isRequired())
+                .active(relationship.isActive())
+                .build();
     }
 
     private void applyGovernanceMetadata(DataExtension de, DataExtensionDto.GovernanceMetadata governance) {

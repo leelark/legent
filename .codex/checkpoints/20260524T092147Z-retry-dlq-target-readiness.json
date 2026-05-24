@@ -1,0 +1,51 @@
+{
+    "id":  "retry-dlq-target-readiness",
+    "createdAt":  "2026-05-24T09:21:47.5009109Z",
+    "objective":  "Add retry/DLQ sharding, alerts, and production broker evidence plan",
+    "status":  "DONE",
+    "owner":  "KAFKA_CONTRACTS_OWNER",
+    "filesInScope":  [
+                         "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java",
+                         "shared/legent-kafka/src/test/java/com/legent/kafka/config/KafkaTopicConfigTest.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/CampaignDeadLetterRepository.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/repository/SendBatchRepository.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignDeadLetterMetricsService.java",
+                         "services/campaign-service/src/main/java/com/legent/campaign/service/CampaignRetryMetricsService.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/CampaignDeadLetterMetricsServiceTest.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/service/CampaignRetryMetricsServiceTest.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/repository/MessageLogRepository.java",
+                         "services/delivery-service/src/main/java/com/legent/delivery/service/DeliveryRetryMetricsService.java",
+                         "services/delivery-service/src/test/java/com/legent/delivery/service/DeliveryRetryMetricsServiceTest.java",
+                         "infrastructure/kubernetes/observability/prometheus-alerts.yml",
+                         "infrastructure/kubernetes/observability/grafana-legent-overview.json",
+                         "docs/operations/production-hardening-runbook.md",
+                         "docs/load-testing/high-volume-readiness.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/worktrees/leases/active-leases.json"
+                     ],
+    "agents":  [
+                   "SRE_MONITORING_ENGINEER",
+                   "CAMPAIGN_SERVICE_OWNER",
+                   "DELIVERY_SERVICE_OWNER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl shared/legent-kafka",
+                           "services/campaign-service",
+                           "services/delivery-service -am test"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "retry-dlq-target-readiness complete locally; select the next highest-value safe backlog item or collect target Kafka/release evidence."
+}

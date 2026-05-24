@@ -155,6 +155,69 @@ class CampaignSendSafetyServiceTest {
         assertThat(saved.getReason()).isEqualTo("FREQUENCY_CAP");
     }
 
+    @Test
+    void approvedOptimizationDecisionReducesEffectiveFrequencyCap() {
+        CampaignFrequencyPolicy policy = enabledPolicy(3, 24);
+        policy.setOptimizationPolicyKey("frequency-commercial");
+        policy.setOptimizationRunId("run-1");
+        policy.setOptimizationSnapshotHash("hash-1");
+        policy.setOptimizationRecommendedMaxSends(1);
+        policy.setOptimizationApproved(true);
+        policy.setOptimizationApprovedAt(Instant.parse("2026-05-24T00:00:00Z"));
+        when(ledgerRepository.findByTenantIdAndWorkspaceIdAndMessageIdAndDeletedAtIsNull(anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(ledgerRepository.countRecipientTouchesSince(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("person@example.com"),
+                any(Instant.class),
+                anyCollectionOfSendStates())).thenReturn(1L);
+        when(ledgerRepository.save(any(CampaignSendLedger.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var prepared = safetyService.prepareRecipient(
+                campaign(),
+                batch(),
+                new CampaignSendSafetyService.SendPlan(null, List.of(), null, policy),
+                Map.of("email", "person@example.com", "subscriberId", "sub-1"),
+                "msg-1");
+
+        assertThat(prepared.send()).isFalse();
+        assertThat(prepared.skipReason()).isEqualTo("FREQUENCY_OPTIMIZATION_CAP");
+
+        ArgumentCaptor<CampaignSendLedger> ledgerCaptor = ArgumentCaptor.forClass(CampaignSendLedger.class);
+        verify(ledgerRepository).save(ledgerCaptor.capture());
+        assertThat(ledgerCaptor.getValue().getReason()).isEqualTo("FREQUENCY_OPTIMIZATION_CAP");
+    }
+
+    @Test
+    void unapprovedOptimizationDecisionDoesNotReduceRuntimeCap() {
+        CampaignFrequencyPolicy policy = enabledPolicy(3, 24);
+        policy.setOptimizationPolicyKey("frequency-commercial");
+        policy.setOptimizationRunId("run-1");
+        policy.setOptimizationSnapshotHash("hash-1");
+        policy.setOptimizationRecommendedMaxSends(1);
+        policy.setOptimizationApproved(false);
+        when(ledgerRepository.findByTenantIdAndWorkspaceIdAndMessageIdAndDeletedAtIsNull(anyString(), anyString(), anyString()))
+                .thenReturn(Optional.empty());
+        when(ledgerRepository.countRecipientTouchesSince(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("person@example.com"),
+                any(Instant.class),
+                anyCollectionOfSendStates())).thenReturn(1L);
+        when(ledgerRepository.save(any(CampaignSendLedger.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var prepared = safetyService.prepareRecipient(
+                campaign(),
+                batch(),
+                new CampaignSendSafetyService.SendPlan(null, List.of(), null, policy),
+                Map.of("email", "person@example.com", "subscriberId", "sub-1"),
+                "msg-1");
+
+        assertThat(prepared.send()).isTrue();
+        assertThat(prepared.skipReason()).isNull();
+    }
+
     private Campaign campaign() {
         Campaign campaign = new Campaign();
         campaign.setId("campaign-1");

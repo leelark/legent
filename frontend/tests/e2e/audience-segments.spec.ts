@@ -41,6 +41,14 @@ test('filters segment rule operators by selected field type', async ({ page }) =
   await page.goto('/app/audience/segments/new');
   await page.getByLabel('Name *').fill('List membership segment');
 
+  const governance = page.getByTestId('segment-governance-panel');
+  await expect(governance).toBeVisible();
+  await expect(governance).toContainText('ADVANCED');
+  await expect(page.getByTestId('segment-advanced-governance')).toBeVisible();
+  await expect(page.getByTestId('segment-governance-classification')).toHaveText('CONFIDENTIAL');
+  await expect(page.getByTestId('segment-governance-warning').filter({ hasText: 'PII review' })).toBeVisible();
+  await expect(page.getByTestId('segment-governance-lock').filter({ hasText: 'Tenant/workspace scope' })).toBeVisible();
+
   const condition = page.getByTestId('segment-rule-condition').first();
   const field = condition.getByLabel('Rule field');
   const operator = condition.getByLabel('Rule operator');
@@ -58,6 +66,8 @@ test('filters segment rule operators by selected field type', async ({ page }) =
   await field.selectOption('list_membership');
   await expect(operator).toHaveValue('IN_LIST');
   await expect.poll(() => operatorValues(operator)).toEqual(['IN_LIST', 'NOT_IN_LIST']);
+  await expect(page.getByTestId('segment-governance-classification')).toHaveText('INTERNAL');
+  await expect(page.getByTestId('segment-governance-warning').filter({ hasText: 'PII review' })).toHaveCount(0);
 
   await operator.selectOption('NOT_IN_LIST');
   await field.selectOption('email');
@@ -74,11 +84,25 @@ test('filters segment rule operators by selected field type', async ({ page }) =
 
   await field.selectOption('list_membership');
   await condition.getByLabel('Rule value').fill('list-123');
+  await expect(governance).toContainText('Clear');
   await page.getByRole('button', { name: 'Save' }).click();
 
   await expect.poll(() => postedPayload?.rules?.groups?.[0]?.conditions?.[0]?.field).toBe('list_membership');
   await expect.poll(() => postedPayload?.rules?.groups?.[0]?.conditions?.[0]?.op).toBe('IN_LIST');
   await expect.poll(() => postedPayload?.rules?.groups?.[0]?.conditions?.[0]?.value).toBe('list-123');
+});
+
+test('keeps segment governance compact in basic mode', async ({ page }) => {
+  await mockWorkspaceApis(page, { uiMode: 'BASIC' });
+
+  await page.goto('/app/audience/segments/new');
+
+  const governance = page.getByTestId('segment-governance-panel');
+  await expect(governance).toBeVisible();
+  await expect(governance).toContainText('BASIC');
+  await expect(governance).toContainText('CONFIDENTIAL');
+  await expect(page.getByTestId('segment-advanced-governance')).toHaveCount(0);
+  await expect(page.getByTestId('segment-draft-only-families')).toHaveCount(0);
 });
 
 test('deletes a segment with app modal and no native dialog', async ({ page }) => {

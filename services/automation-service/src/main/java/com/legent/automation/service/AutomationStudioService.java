@@ -47,13 +47,13 @@ public class AutomationStudioService {
     private static final Duration ACTIVITY_LOCK_TTL = Duration.ofMinutes(15);
     private static final Set<AutomationStudioDto.ActivityType> LIVE_EXECUTION_SUPPORTED_TYPES = EnumSet.of(
             AutomationStudioDto.ActivityType.SQL_QUERY,
+            AutomationStudioDto.ActivityType.FILE_DROP,
             AutomationStudioDto.ActivityType.IMPORT,
+            AutomationStudioDto.ActivityType.EXTRACT,
             AutomationStudioDto.ActivityType.WEBHOOK,
             AutomationStudioDto.ActivityType.NOTIFICATION,
             AutomationStudioDto.ActivityType.SEND_EMAIL);
-    private static final Set<AutomationStudioDto.ActivityType> VALIDATION_ONLY_ACTIVITY_TYPES = EnumSet.of(
-            AutomationStudioDto.ActivityType.FILE_DROP,
-            AutomationStudioDto.ActivityType.EXTRACT);
+    private static final Set<AutomationStudioDto.ActivityType> VALIDATION_ONLY_ACTIVITY_TYPES = EnumSet.noneOf(AutomationStudioDto.ActivityType.class);
     private static final int MAX_WEBHOOK_DATA_KEYS = 20;
     private static final int MAX_WEBHOOK_DATA_VALUE_CHARS = 512;
     private static final int MAX_NOTIFICATION_TITLE_CHARS = 120;
@@ -99,6 +99,7 @@ public class AutomationStudioService {
     private final ObjectMapper objectMapper;
     private final AudienceDataExtensionClient audienceDataExtensionClient;
     private final AutomationArtifactService artifactService;
+    private final AutomationObjectStorageAdapter objectStorageAdapter;
     private final AutomationEventIdempotencyService idempotencyService;
     private final AutomationActivityLockService activityLockService;
     private final WorkflowEventPublisher workflowEventPublisher;
@@ -477,9 +478,9 @@ public class AutomationStudioService {
             }
             switch (type) {
                 case SQL_QUERY -> verifySql(input, output, errors, warnings);
-                case FILE_DROP -> verifyFileDrop(input, errors, normalized);
+                case FILE_DROP -> verifyFileDrop(input, output, errors, warnings, normalized);
                 case IMPORT -> verifyImport(input, errors, normalized);
-                case EXTRACT -> verifyExtract(input, output, errors, normalized);
+                case EXTRACT -> verifyExtract(input, output, errors, warnings, normalized);
                 case SCRIPT -> verifyScript(input, errors, warnings);
                 case WEBHOOK -> verifyWebhook(input, errors, normalized);
                 case NOTIFICATION -> verifyNotification(input, errors, normalized);
@@ -526,11 +527,21 @@ public class AutomationStudioService {
         }
     }
 
-    private void verifyFileDrop(Map<String, Object> input, List<String> errors, Map<String, Object> normalized) {
+    private void verifyFileDrop(Map<String, Object> input,
+                                Map<String, Object> output,
+                                List<String> errors,
+                                List<String> warnings,
+                                Map<String, Object> normalized) {
         if (asString(input.get("locationPattern")) != null || asString(input.get("sourceLocation")) != null) {
             errors.add("File drop activities require inputConfig.artifactId; raw locations and object keys are not accepted");
         }
         resolveArtifactSummary(input, "artifactId", true, errors, normalized, "artifact");
+        String outputArtifactId = asString(output.get("artifactId"));
+        if (outputArtifactId == null) {
+            warnings.add("Live file drop movement requires outputConfig.artifactId; dry-run validation can run without movement.");
+        } else {
+            resolveArtifactSummary(output, "artifactId", false, errors, normalized, "outputArtifact");
+        }
     }
 
     private void verifyImport(Map<String, Object> input, List<String> errors, Map<String, Object> normalized) {
@@ -560,6 +571,7 @@ public class AutomationStudioService {
     private void verifyExtract(Map<String, Object> input,
                                Map<String, Object> output,
                                List<String> errors,
+                               List<String> warnings,
                                Map<String, Object> normalized) {
         String sourceType = asString(input.get("sourceType"));
         if (sourceType == null) {
@@ -570,8 +582,13 @@ public class AutomationStudioService {
         if ("DATA_EXTENSION".equalsIgnoreCase(sourceType) && asString(input.get("sourceId")) == null) {
             errors.add("Extract activity requires inputConfig.sourceId for data extension extracts");
         }
-        if ("IMPORT_ARTIFACT".equalsIgnoreCase(sourceType) || "GENERATED_EXTRACT".equalsIgnoreCase(sourceType)) {
+        if ("DATA_EXTENSION".equalsIgnoreCase(sourceType)) {
+            warnings.add("Live DATA_EXTENSION extracts require an extract provider handoff; local live movement supports artifact-backed sources only.");
+        }
+        if ("IMPORT_ARTIFACT".equalsIgnoreCase(sourceType)) {
             resolveArtifactSummary(input, "sourceArtifactId", true, errors, normalized, "sourceArtifact");
+        } else if ("GENERATED_EXTRACT".equalsIgnoreCase(sourceType)) {
+            resolveArtifactSummary(input, "sourceArtifactId", false, errors, normalized, "sourceArtifact");
         }
         if (asString(output.get("destination")) != null) {
             errors.add("Extract activity requires outputConfig.artifactId; raw destinations are not accepted");
@@ -716,10 +733,10 @@ public class AutomationStudioService {
             return runImportActivity(activity, request);
         }
         if (activity.getActivityType() == AutomationStudioDto.ActivityType.FILE_DROP) {
-            return runFileDropActivity(activity, request);
+            return runFileDropActivity(activity, request, run);
         }
         if (activity.getActivityType() == AutomationStudioDto.ActivityType.EXTRACT) {
-            return runExtractActivity(activity, request);
+            return runExtractActivity(activity, request, run);
         }
         if (activity.getActivityType() == AutomationStudioDto.ActivityType.WEBHOOK) {
             return runWebhookActivity(activity, request, run);
@@ -743,39 +760,111 @@ public class AutomationStudioService {
         return result;
     }
 
-    private Map<String, Object> runFileDropActivity(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
-        if (!request.isDryRun()) {
-            throw new UnsupportedOperationException("FILE_DROP activity execution is not supported");
-        }
-        AutomationArtifact artifact = artifactService.requireImportArtifact(asString(readMap(activity.getInputConfig()).get("artifactId")));
+    private Map<String, Object> runFileDropActivity(AutomationActivity activity,
+                                                    AutomationStudioDto.RunRequest request,
+                                                    AutomationActivityRun run) {
+        Map<String, Object> input = readMap(activity.getInputConfig());
+        Map<String, Object> output = readMap(activity.getOutputConfig());
+        AutomationArtifact artifact = artifactService.requireImportArtifact(asString(input.get("artifactId")));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("activityType", activity.getActivityType().name());
-        result.put("dryRun", true);
+        result.put("dryRun", request.isDryRun());
         result.put("rowsRead", 0L);
         result.put("rowsWritten", 0L);
         result.put("checkedAt", Instant.now().toString());
         result.put("artifact", artifactService.summary(artifact));
-        result.put("message", "File drop artifact validation completed; no file movement applied.");
+        String outputArtifactId = asString(output.get("artifactId"));
+        if (request.isDryRun()) {
+            if (outputArtifactId != null) {
+                AutomationArtifact outputArtifact = artifactService.requireExtractArtifact(outputArtifactId);
+                result.put("outputArtifact", artifactService.summary(outputArtifact));
+            }
+            result.put("message", "File drop artifact validation completed; no file movement applied.");
+            return result;
+        }
+
+        if (outputArtifactId == null) {
+            throw new ValidationException("outputConfig.artifactId", "Live file drop movement requires outputConfig.artifactId");
+        }
+        AutomationArtifact targetArtifact = artifactService.requireMovementTargetArtifact(outputArtifactId);
+        AutomationObjectStorageAdapter.MovementResult movement = objectStorageAdapter.copyArtifact(
+                artifact,
+                targetArtifact,
+                movementRequest(activity, run, "FILE_DROP_COPY"));
+        AutomationArtifact generatedArtifact = artifactService.markGenerated(targetArtifact);
+        result.put("outputArtifact", artifactService.summary(generatedArtifact));
+        result.put("storageMovement", movementSummary(movement));
+        result.put("message", "File drop artifact moved through governed automation storage.");
         return result;
     }
 
-    private Map<String, Object> runExtractActivity(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
-        if (!request.isDryRun()) {
-            throw new UnsupportedOperationException("EXTRACT activity execution is not supported");
-        }
+    private Map<String, Object> runExtractActivity(AutomationActivity activity,
+                                                   AutomationStudioDto.RunRequest request,
+                                                   AutomationActivityRun run) {
         Map<String, Object> input = readMap(activity.getInputConfig());
         Map<String, Object> output = readMap(activity.getOutputConfig());
         AutomationArtifact outputArtifact = artifactService.requireExtractArtifact(asString(output.get("artifactId")));
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("activityType", activity.getActivityType().name());
-        result.put("dryRun", true);
+        result.put("dryRun", request.isDryRun());
         result.put("rowsRead", 0L);
         result.put("rowsWritten", 0L);
         result.put("checkedAt", Instant.now().toString());
         result.put("sourceType", asString(input.get("sourceType")));
         result.put("outputArtifact", artifactService.summary(outputArtifact));
-        result.put("message", "Extract artifact validation completed; no file movement applied.");
+        if (request.isDryRun()) {
+            result.put("message", "Extract artifact validation completed; no file movement applied.");
+            return result;
+        }
+
+        AutomationArtifact sourceArtifact = liveExtractSourceArtifact(input);
+        AutomationObjectStorageAdapter.MovementResult movement = objectStorageAdapter.copyArtifact(
+                sourceArtifact,
+                outputArtifact,
+                movementRequest(activity, run, "EXTRACT_ARTIFACT_COPY"));
+        AutomationArtifact generatedArtifact = artifactService.markGenerated(outputArtifact);
+        result.put("sourceArtifact", artifactService.summary(sourceArtifact));
+        result.put("outputArtifact", artifactService.summary(generatedArtifact));
+        result.put("storageMovement", movementSummary(movement));
+        result.put("message", "Artifact-backed extract moved through governed automation storage.");
         return result;
+    }
+
+    private AutomationArtifact liveExtractSourceArtifact(Map<String, Object> input) {
+        String sourceType = asString(input.get("sourceType"));
+        if ("DATA_EXTENSION".equalsIgnoreCase(sourceType)) {
+            throw new ValidationException("inputConfig.sourceType",
+                    "Live DATA_EXTENSION extracts require an extract provider handoff; artifact-backed movement is enabled locally.");
+        }
+        if (!"IMPORT_ARTIFACT".equalsIgnoreCase(sourceType) && !"GENERATED_EXTRACT".equalsIgnoreCase(sourceType)) {
+            throw new ValidationException("inputConfig.sourceType",
+                    "Live extract movement requires sourceType IMPORT_ARTIFACT or GENERATED_EXTRACT");
+        }
+        return artifactService.requireMovementSourceArtifact(asString(input.get("sourceArtifactId")));
+    }
+
+    private AutomationObjectStorageAdapter.MovementRequest movementRequest(AutomationActivity activity,
+                                                                           AutomationActivityRun run,
+                                                                           String operation) {
+        return new AutomationObjectStorageAdapter.MovementRequest(
+                activity.getTenantId(),
+                activity.getWorkspaceId(),
+                activity.getId(),
+                run.getId(),
+                activity.getActivityType().name(),
+                operation);
+    }
+
+    private Map<String, Object> movementSummary(AutomationObjectStorageAdapter.MovementResult movement) {
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("operation", movement.operation());
+        summary.put("sourceArtifactId", movement.sourceArtifactId());
+        summary.put("targetArtifactId", movement.targetArtifactId());
+        summary.put("bytesMoved", movement.bytesMoved());
+        summary.put("sha256", movement.sha256());
+        summary.put("contentType", movement.contentType());
+        summary.put("completedAt", movement.completedAt().toString());
+        return summary;
     }
 
     private Map<String, Object> runImportActivity(AutomationActivity activity, AutomationStudioDto.RunRequest request) {
@@ -1015,11 +1104,16 @@ public class AutomationStudioService {
         if (ex instanceof ValidationException) {
             return "VALIDATION_FAILED";
         }
+        if (ex instanceof AutomationObjectStorageException) {
+            return "STORAGE_MOVEMENT_FAILED";
+        }
         return "ACTIVITY_EXECUTION_FAILED";
     }
 
     private String safeErrorMessage(RuntimeException ex) {
-        if (ex instanceof UnsupportedOperationException || ex instanceof ValidationException) {
+        if (ex instanceof UnsupportedOperationException
+                || ex instanceof ValidationException
+                || ex instanceof AutomationObjectStorageException) {
             return ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
         }
         return "Activity execution failed; see run trace.";

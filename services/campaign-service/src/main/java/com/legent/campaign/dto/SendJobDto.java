@@ -51,6 +51,7 @@ public class SendJobDto {
         private String triggerSource;
         private String triggerReference;
         private String idempotencyKey;
+        private CampaignDto.SendTimeOptimizationDecision sendTimeOptimization;
     }
 
     @Data

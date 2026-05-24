@@ -144,6 +144,52 @@ class SendRateControlServiceTest {
     }
 
     @Test
+    void reserveBatch_AllocatesMultipleReservationsInOneScope() {
+        seedWarmup(300, 1000, 0, 0);
+        seedRateState(0);
+
+        List<SendRateControlService.RateLimitDecision> decisions = reserveBatch("msg-1", "msg-2", "msg-3");
+
+        assertEquals(3, decisions.size());
+        assertTrue(decisions.stream().allMatch(SendRateControlService.RateLimitDecision::allowed));
+        assertTrue(decisions.stream().allMatch(decision -> rateLimitKey().equals(decision.rateLimitKey())));
+        assertEquals(3, currentRateState().getUsedThisMinute());
+        assertEquals(3, currentWarmup().getSentThisHour());
+        assertEquals(3, reservationRepository.countByTenantIdAndWorkspaceIdAndStatus(
+                TENANT_ID, WORKSPACE_ID, DeliverySendReservation.STATUS_RESERVED));
+    }
+
+    @Test
+    void reserveBatch_StopsAtWarmupCapacityWithoutOverAllocating() {
+        seedWarmup(300, 1000, 299, 299);
+        seedRateState(0);
+
+        List<SendRateControlService.RateLimitDecision> decisions = reserveBatch("msg-1", "msg-2", "msg-3");
+
+        assertEquals(3, decisions.size());
+        assertEquals(1, decisions.stream().filter(SendRateControlService.RateLimitDecision::allowed).count());
+        assertEquals("hourly warm-up cap reached", decisions.get(1).reason());
+        assertEquals("hourly warm-up cap reached", decisions.get(2).reason());
+        assertEquals(1, currentRateState().getUsedThisMinute());
+        assertEquals(300, currentWarmup().getSentThisHour());
+        assertEquals(1, reservationRepository.countByTenantIdAndWorkspaceIdAndStatus(
+                TENANT_ID, WORKSPACE_ID, DeliverySendReservation.STATUS_RESERVED));
+    }
+
+    @Test
+    void reserveBatch_RejectsDuplicateReservationIdsBeforeAllocation() {
+        seedWarmup(300, 1000, 0, 0);
+        seedRateState(0);
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> reserveBatch("msg-1", "msg-1"));
+
+        assertEquals(0, currentRateState().getUsedThisMinute());
+        assertEquals(0, currentWarmup().getSentThisHour());
+        assertEquals(0, reservationRepository.count());
+    }
+
+    @Test
     void reserve_RejectionDoesNotAllocateReservationOrAdditionalWarmup() {
         seedWarmup(1, 10, 1, 1);
         seedRateState(0);
@@ -336,6 +382,18 @@ class SendRateControlServiceTest {
                 10,
                 0,
                 reservationId);
+    }
+
+    private List<SendRateControlService.RateLimitDecision> reserveBatch(String... reservationIds) {
+        return service.reserveBatch(
+                TENANT_ID,
+                WORKSPACE_ID,
+                SENDER_DOMAIN,
+                PROVIDER_ID,
+                RECIPIENT_DOMAIN,
+                10,
+                0,
+                List.of(reservationIds));
     }
 
     private void seedWarmup(int hourlyLimit, int dailyLimit, int sentThisHour, int sentToday) {

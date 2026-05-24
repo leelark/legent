@@ -39,7 +39,12 @@ async function fulfill(route: Route, data: unknown) {
 async function mockAutomationApis(
   page: Page,
   seen: Record<string, unknown> = {},
-  options: { definition?: unknown; validationResponse?: unknown; uiMode?: 'BASIC' | 'ADVANCED' } = {}
+  options: {
+    definition?: unknown;
+    runtimeSupportedNodeTypes?: string[];
+    validationResponse?: unknown;
+    uiMode?: 'BASIC' | 'ADVANCED';
+  } = {}
 ) {
   await page.addInitScript(() => {
     localStorage.setItem('legent_user_id', 'automation-user');
@@ -78,7 +83,7 @@ async function mockAutomationApis(
         activeDefinitionVersion: 1,
         graphVersion: 2,
         capabilities: {
-          runtimeSupportedNodeTypes: ['ENTRY_TRIGGER', 'SEND_EMAIL', 'DELAY', 'CONDITION', 'END'],
+          runtimeSupportedNodeTypes: options.runtimeSupportedNodeTypes ?? ['ENTRY_TRIGGER', 'SEND_EMAIL', 'DELAY', 'CONDITION', 'END'],
           runtimeUnsupportedNodes: [],
         },
       }));
@@ -193,6 +198,36 @@ test('activate saves supported current graph as published after validation', asy
       entry: { id: 'entry', type: 'ENTRY_TRIGGER', nextNodeId: 'send' },
       send: { id: 'send', type: 'SEND_EMAIL', nextNodeId: 'end' },
       end: { id: 'end', type: 'END' },
+    },
+  });
+});
+
+test('wait-until runtime support enables timestamp editing and save', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  const nextTimestamp = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  await mockAutomationApis(page, seen, {
+    runtimeSupportedNodeTypes: ['ENTRY_TRIGGER', 'SEND_EMAIL', 'DELAY', 'WAIT_UNTIL', 'CONDITION', 'END'],
+  });
+  await page.goto('/app/automations/builder?id=workflow-1');
+
+  await page.getByRole('button', { name: 'Load' }).click();
+  await expect(page.getByText('WAIT_UNTIL')).toBeVisible();
+  await expect(page.getByText('Draft only')).toHaveCount(0);
+
+  await page.getByLabel('Edit journey step Wait Until').click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Wait Until').fill(nextTimestamp);
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  expect(seen.definition).toMatchObject({
+    graphVersion: 2,
+    nodes: {
+      wait: {
+        id: 'wait',
+        type: 'WAIT_UNTIL',
+        configuration: { at: nextTimestamp },
+      },
     },
   });
 });

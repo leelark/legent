@@ -1,7 +1,7 @@
 package com.legent.campaign.domain;
 
+import java.time.Instant;
 import java.util.ArrayList;
-
 import java.util.List;
 
 import com.legent.common.model.TenantAwareEntity;
@@ -51,7 +51,88 @@ public class Campaign extends TenantAwareEntity {
     private String contentId;
 
     @Column(name = "scheduled_at")
-    private java.time.Instant scheduledAt;
+    private Instant scheduledAt;
+
+    @Column(name = "send_time_optimization_policy_key", length = 128)
+    private String sendTimeOptimizationPolicyKey;
+
+    @Column(name = "send_time_optimization_type", length = 32)
+    private String sendTimeOptimizationType;
+
+    @Column(name = "send_time_optimization_run_id", length = 64)
+    private String sendTimeOptimizationRunId;
+
+    @Column(name = "send_time_optimization_snapshot_hash", length = 128)
+    private String sendTimeOptimizationSnapshotHash;
+
+    @Column(name = "send_time_optimization_original_scheduled_at")
+    private Instant sendTimeOptimizationOriginalScheduledAt;
+
+    @Column(name = "send_time_optimization_recommended_scheduled_at")
+    private Instant sendTimeOptimizationRecommendedScheduledAt;
+
+    @Column(name = "send_time_optimization_timezone", length = 64)
+    private String sendTimeOptimizationTimezone;
+
+    @Column(name = "send_time_optimization_confidence_band", length = 32)
+    private String sendTimeOptimizationConfidenceBand;
+
+    @Column(name = "send_time_optimization_fallback_mode", length = 64)
+    private String sendTimeOptimizationFallbackMode;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "send_time_optimization_blocked_reasons", columnDefinition = "jsonb")
+    private List<String> sendTimeOptimizationBlockedReasons = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "send_time_optimization_data_quality_reasons", columnDefinition = "jsonb")
+    private List<String> sendTimeOptimizationDataQualityReasons = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "send_time_optimization_reason_codes", columnDefinition = "jsonb")
+    private List<String> sendTimeOptimizationReasonCodes = new ArrayList<>();
+
+    @Column(name = "send_time_optimization_approval_required", nullable = false)
+    private boolean sendTimeOptimizationApprovalRequired = false;
+
+    @Column(name = "send_time_optimization_rollback_required", nullable = false)
+    private boolean sendTimeOptimizationRollbackRequired = false;
+
+    @Column(name = "send_time_optimization_approved", nullable = false)
+    private boolean sendTimeOptimizationApproved = false;
+
+    @Column(name = "send_time_optimization_approval_id", length = 128)
+    private String sendTimeOptimizationApprovalId;
+
+    @Column(name = "send_time_optimization_approved_by", length = 128)
+    private String sendTimeOptimizationApprovedBy;
+
+    @Column(name = "send_time_optimization_approved_at")
+    private Instant sendTimeOptimizationApprovedAt;
+
+    @Column(name = "send_time_optimization_rollback_snapshot_id", length = 128)
+    private String sendTimeOptimizationRollbackSnapshotId;
+
+    @Column(name = "send_time_optimization_quiet_hours_gate_passed", nullable = false)
+    private boolean sendTimeOptimizationQuietHoursGatePassed = false;
+
+    @Column(name = "send_time_optimization_approval_gate_passed", nullable = false)
+    private boolean sendTimeOptimizationApprovalGatePassed = false;
+
+    @Column(name = "send_time_optimization_suppression_gate_passed", nullable = false)
+    private boolean sendTimeOptimizationSuppressionGatePassed = false;
+
+    @Column(name = "send_time_optimization_warmup_gate_passed", nullable = false)
+    private boolean sendTimeOptimizationWarmupGatePassed = false;
+
+    @Column(name = "send_time_optimization_rate_limit_gate_passed", nullable = false)
+    private boolean sendTimeOptimizationRateLimitGatePassed = false;
+
+    @Column(name = "send_time_optimization_provider_capacity_gate_passed", nullable = false)
+    private boolean sendTimeOptimizationProviderCapacityGatePassed = false;
+
+    @Column(name = "send_time_optimization_deliverability_gate_passed", nullable = false)
+    private boolean sendTimeOptimizationDeliverabilityGatePassed = false;
 
     @Column(name = "workspace_id", nullable = false, length = 64)
     private String workspaceId;
@@ -105,7 +186,7 @@ public class Campaign extends TenantAwareEntity {
     private Integer frequencyCap = 0;
 
     @Column(name = "archived_at")
-    private java.time.Instant archivedAt;
+    private Instant archivedAt;
 
     @Column(name = "lifecycle_note")
     private String lifecycleNote;
@@ -139,7 +220,7 @@ public class Campaign extends TenantAwareEntity {
     private String approvedBy;
 
     @Column(name = "approved_at")
-    private java.time.Instant approvedAt;
+    private Instant approvedAt;
 
     @Column(name = "current_approver", length = 36)
     private String currentApprover;

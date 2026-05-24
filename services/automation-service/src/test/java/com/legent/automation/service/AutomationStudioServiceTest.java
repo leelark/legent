@@ -20,6 +20,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Pageable;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +41,7 @@ class AutomationStudioServiceTest {
     @Mock private AutomationActivityRunRepository runRepository;
     @Mock private AudienceDataExtensionClient audienceDataExtensionClient;
     @Mock private AutomationArtifactService artifactService;
+    @Mock private AutomationObjectStorageAdapter objectStorageAdapter;
     @Mock private AutomationEventIdempotencyService idempotencyService;
     @Mock private AutomationActivityLockService activityLockService;
     @Mock private WorkflowEventPublisher workflowEventPublisher;
@@ -51,7 +53,7 @@ class AutomationStudioServiceTest {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
         service = new AutomationStudioService(activityRepository, runRepository, new ObjectMapper(), audienceDataExtensionClient,
-                artifactService, idempotencyService, activityLockService, workflowEventPublisher);
+                artifactService, objectStorageAdapter, idempotencyService, activityLockService, workflowEventPublisher);
         lenient().when(activityLockService.acquire(any(), any(), any(), any(), any(Boolean.class), any(), any()))
                 .thenAnswer(invocation -> AutomationActivityLockService.LockLease.acquired(
                         "lock-1",
@@ -76,6 +78,28 @@ class AutomationStudioServiceTest {
     private AutomationArtifact stubExtractArtifact(String artifactId) {
         AutomationArtifact artifact = artifact(artifactId, AutomationArtifact.ArtifactStatus.GENERATED, AutomationArtifact.SourceKind.GENERATED_EXTRACT);
         when(artifactService.requireExtractArtifact(artifactId)).thenReturn(artifact);
+        when(artifactService.summary(artifact)).thenReturn(artifactSummary(artifactId));
+        return artifact;
+    }
+
+    private AutomationArtifact stubMovementSourceArtifact(String artifactId) {
+        AutomationArtifact artifact = artifact(artifactId, AutomationArtifact.ArtifactStatus.READY, AutomationArtifact.SourceKind.UPLOAD);
+        lenient().when(artifactService.requireImportArtifact(artifactId)).thenReturn(artifact);
+        lenient().when(artifactService.requireExtractArtifact(artifactId)).thenReturn(artifact);
+        when(artifactService.requireMovementSourceArtifact(artifactId)).thenReturn(artifact);
+        when(artifactService.summary(artifact)).thenReturn(artifactSummary(artifactId));
+        return artifact;
+    }
+
+    private AutomationArtifact stubMovementTargetArtifact(String artifactId) {
+        AutomationArtifact artifact = artifact(artifactId, AutomationArtifact.ArtifactStatus.READY, AutomationArtifact.SourceKind.GENERATED_EXTRACT);
+        when(artifactService.requireExtractArtifact(artifactId)).thenReturn(artifact);
+        lenient().when(artifactService.requireMovementTargetArtifact(artifactId)).thenReturn(artifact);
+        lenient().when(artifactService.markGenerated(artifact)).thenAnswer(invocation -> {
+            AutomationArtifact target = invocation.getArgument(0);
+            target.setStatus(AutomationArtifact.ArtifactStatus.GENERATED);
+            return target;
+        });
         when(artifactService.summary(artifact)).thenReturn(artifactSummary(artifactId));
         return artifact;
     }
@@ -1047,7 +1071,170 @@ class AutomationStudioServiceTest {
     }
 
     @Test
-    void unsupportedLiveActivityRecordsFailedRunInsteadOfSyntheticSuccess() {
+    void fileDropLiveRunMovesScopedArtifactThroughStorageAdapter() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("File Drop");
+        activity.setActivityType(AutomationStudioDto.ActivityType.FILE_DROP);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"artifactId\":\"artifact-1\"}");
+        activity.setOutputConfig("{\"artifactId\":\"artifact-output\"}");
+        AutomationArtifact sourceArtifact = stubImportArtifact("artifact-1");
+        AutomationArtifact targetArtifact = stubMovementTargetArtifact("artifact-output");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("file-drop-run-1")))
+                .thenReturn(true);
+        when(objectStorageAdapter.copyArtifact(eq(sourceArtifact), eq(targetArtifact), any()))
+                .thenReturn(new AutomationObjectStorageAdapter.MovementResult(
+                        "FILE_DROP_COPY",
+                        "artifact-1",
+                        "artifact-output",
+                        128L,
+                        "a".repeat(64),
+                        "text/csv",
+                        Instant.parse("2026-05-24T08:00:00Z")));
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("file-drop-run-1")
+                        .triggerSource("TEST")
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
+        assertThat(response.getResult()).containsEntry("message", "File drop artifact moved through governed automation storage.");
+        assertThat(response.getResult().get("storageMovement").toString())
+                .contains("FILE_DROP_COPY")
+                .contains("artifact-output")
+                .doesNotContain("objectKey")
+                .doesNotContain("tenants/");
+        verify(objectStorageAdapter).copyArtifact(eq(sourceArtifact), eq(targetArtifact), any());
+        verify(idempotencyService).markProcessed("tenant-1", "workspace-1", "automation.activity.run", null, "file-drop-run-1");
+        verify(activityLockService).release(eq("tenant-1"), eq("workspace-1"), eq("activity-1"), any());
+        verify(audienceDataExtensionClient, never()).startImportActivity(any(), any(), any());
+    }
+
+    @Test
+    void duplicateLiveFileDropRunSkipsStorageMovement() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("File Drop");
+        activity.setActivityType(AutomationStudioDto.ActivityType.FILE_DROP);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"artifactId\":\"artifact-1\"}");
+        activity.setOutputConfig("{\"artifactId\":\"artifact-output\"}");
+        stubImportArtifact("artifact-1");
+        stubMovementTargetArtifact("artifact-output");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("file-drop-run-1")))
+                .thenReturn(false);
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("file-drop-run-1")
+                        .triggerSource("TEST")
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
+        assertThat(response.getResult()).containsEntry("duplicateSkipped", true);
+        verify(objectStorageAdapter, never()).copyArtifact(any(), any(), any());
+    }
+
+    @Test
+    void storageFailureRecordsNormalizedFileMovementError() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("File Drop");
+        activity.setActivityType(AutomationStudioDto.ActivityType.FILE_DROP);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"artifactId\":\"artifact-1\"}");
+        activity.setOutputConfig("{\"artifactId\":\"artifact-output\"}");
+        AutomationArtifact sourceArtifact = stubImportArtifact("artifact-1");
+        AutomationArtifact targetArtifact = stubMovementTargetArtifact("artifact-output");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("file-drop-run-1")))
+                .thenReturn(true);
+        when(objectStorageAdapter.copyArtifact(eq(sourceArtifact), eq(targetArtifact), any()))
+                .thenThrow(new AutomationObjectStorageException("Automation file movement failed storage integrity verification"));
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("file-drop-run-1")
+                        .triggerSource("TEST")
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.FAILED);
+        assertThat(response.getErrorCode()).isEqualTo("STORAGE_MOVEMENT_FAILED");
+        assertThat(response.getErrorMessage()).contains("storage integrity verification");
+        assertThat(response.getResult().toString()).doesNotContain("objectKey").doesNotContain("tenants/");
+        verify(idempotencyService).releaseClaim("tenant-1", "workspace-1", "automation.activity.run", null, "file-drop-run-1");
+    }
+
+    @Test
+    void extractLiveRunMovesArtifactBackedSourceThroughStorageAdapter() {
+        AutomationActivity activity = new AutomationActivity();
+        activity.setId("activity-1");
+        activity.setTenantId("tenant-1");
+        activity.setWorkspaceId("workspace-1");
+        activity.setName("Extract");
+        activity.setActivityType(AutomationStudioDto.ActivityType.EXTRACT);
+        activity.setStatus(AutomationStudioDto.ActivityStatus.ACTIVE);
+        activity.setInputConfig("{\"sourceType\":\"IMPORT_ARTIFACT\",\"sourceArtifactId\":\"artifact-source\"}");
+        activity.setOutputConfig("{\"artifactId\":\"artifact-extract\"}");
+        AutomationArtifact sourceArtifact = stubMovementSourceArtifact("artifact-source");
+        AutomationArtifact outputArtifact = stubMovementTargetArtifact("artifact-extract");
+        when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("extract-run-1")))
+                .thenReturn(true);
+        when(objectStorageAdapter.copyArtifact(eq(sourceArtifact), eq(outputArtifact), any()))
+                .thenReturn(new AutomationObjectStorageAdapter.MovementResult(
+                        "EXTRACT_ARTIFACT_COPY",
+                        "artifact-source",
+                        "artifact-extract",
+                        128L,
+                        "a".repeat(64),
+                        "text/csv",
+                        Instant.parse("2026-05-24T08:00:00Z")));
+        when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("extract-run-1")
+                        .triggerSource("TEST")
+                        .build());
+
+        assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.SUCCEEDED);
+        assertThat(response.getResult()).containsEntry("message", "Artifact-backed extract moved through governed automation storage.");
+        assertThat(response.getResult().get("storageMovement").toString()).contains("EXTRACT_ARTIFACT_COPY");
+        verify(objectStorageAdapter).copyArtifact(eq(sourceArtifact), eq(outputArtifact), any());
+    }
+
+    @Test
+    void dataExtensionExtractLiveRunRecordsFailedRunWithoutStorageMovement() {
         AutomationActivity activity = new AutomationActivity();
         activity.setId("activity-1");
         activity.setTenantId("tenant-1");
@@ -1060,6 +1247,8 @@ class AutomationStudioServiceTest {
         stubExtractArtifact("artifact-extract");
         when(activityRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("activity-1", "tenant-1", "workspace-1"))
                 .thenReturn(Optional.of(activity));
+        when(idempotencyService.claimIfNew(eq("tenant-1"), eq("workspace-1"), eq("automation.activity.run"), any(), eq("extract-run-unsupported")))
+                .thenReturn(true);
         when(runRepository.save(any(AutomationActivityRun.class))).thenAnswer(invocation -> {
             AutomationActivityRun run = invocation.getArgument(0);
             run.setId("run-1");
@@ -1068,12 +1257,18 @@ class AutomationStudioServiceTest {
         when(activityRepository.save(any(AutomationActivity.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         AutomationStudioDto.RunResponse response = service.runActivity("activity-1",
-                AutomationStudioDto.RunRequest.builder().dryRun(false).confirmLiveRun(true).triggerSource("TEST").build());
+                AutomationStudioDto.RunRequest.builder()
+                        .dryRun(false)
+                        .confirmLiveRun(true)
+                        .idempotencyKey("extract-run-unsupported")
+                        .triggerSource("TEST")
+                        .build());
 
         assertThat(response.getStatus()).isEqualTo(AutomationStudioDto.RunStatus.FAILED);
-        assertThat(response.getErrorMessage()).contains("EXTRACT activity execution is not supported");
+        assertThat(response.getErrorMessage()).contains("Live DATA_EXTENSION extracts require an extract provider handoff");
         verify(audienceDataExtensionClient, never()).runSqlQueryActivity(any(), any(), any());
         verify(audienceDataExtensionClient, never()).startImportActivity(any(), any(), any());
+        verify(objectStorageAdapter, never()).copyArtifact(any(), any(), any());
     }
 
     @Test

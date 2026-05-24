@@ -79,6 +79,7 @@ public class SegmentService {
         }
         normalizeForPersist(entity);
         validateRules(entity.getRules());
+        SegmentRuleExecutionPlanCompiler.compile(entity.getRules());
         PredictiveSegmentGovernanceService.validateForPersist(entity);
 
         Segment saved = segmentRepository.save(entity);
@@ -101,6 +102,7 @@ public class SegmentService {
         if (request.getStatus() != null) existing.setStatus(Segment.SegmentStatus.valueOf(request.getStatus().toUpperCase()));
         normalizeForPersist(existing);
         validateRules(existing.getRules());
+        SegmentRuleExecutionPlanCompiler.compile(existing.getRules());
         PredictiveSegmentGovernanceService.validateForPersist(existing);
 
         Segment saved = segmentRepository.save(existing);
