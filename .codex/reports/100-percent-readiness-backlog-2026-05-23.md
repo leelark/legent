@@ -2,9 +2,11 @@
 
 Date: 2026-05-23
 
+Historical snapshot notice: this report is preserved for audit/history only. It is no longer the current source of truth for queue counts or next work selection. Use `.codex/backlog/queue.json`, `.codex/state/team-state.json`, and `.codex/memory/active-work-items.md` for current state.
+
 Purpose: source-of-truth backlog for the work required to move Legent toward 100 percent local quality, product parity, production readiness, high-volume evidence, AI safety, and operational maturity. Percent-complete claims remain evidence-bound.
 
-Queue counts: READY 15, BACKLOG 20, BLOCKED 16, DONE 172.
+Queue counts below are the 2026-05-23 snapshot: READY 15, BACKLOG 20, BLOCKED 16, DONE 172.
 
 ## READY
 

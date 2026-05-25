@@ -1,0 +1,41 @@
+{
+    "id":  "qa-ci-live-compose-health-evidence",
+    "createdAt":  "2026-05-24T13:11:39.0675515Z",
+    "objective":  "Collect local runtime Compose health evidence transcript",
+    "status":  "BLOCKED",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         ".github/workflows/ci-security.yml",
+                         ".codex/workflows/validation-gates.md",
+                         "scripts/ops/validate-compose-health.ps1",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/blocked-items.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/release-history.md"
+                     ],
+    "agents":  [
+                   "QA_ENGINEER",
+                   "SRE_MONITORING_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "docker compose --env-file .env.example config --quiet",
+                           "docker compose up -d --build",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+                     "Docker Desktop daemon is unavailable in this session; `docker version` reports no server, and `Start-Service com.docker.service` cannot start the service."
+                 ],
+    "outcome":  "Compose config parsing passed, but live Compose health evidence cannot be collected until the local Docker runtime is available.",
+    "validationRun":  [
+                          "docker compose --env-file .env.example config --quiet (PASS)",
+                          "docker version --format '{{json .}}' (FAIL: Docker server unavailable)",
+                          "Start-Service -Name com.docker.service; docker version --format '{{json .}}' (FAIL: service cannot be started from this session)"
+                      ],
+    "residualRisks":  [
+                          "No live container build/startup or health transcript was collected."
+                      ],
+    "nextAction":  "Start Docker Desktop locally, then rerun docker compose up and validate-compose-health."
+}

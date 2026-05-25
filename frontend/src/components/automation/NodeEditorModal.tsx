@@ -1,8 +1,10 @@
 'use client';
 import React from 'react';
 import { Modal } from '@/components/ui/Modal';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { listCampaigns, type Campaign } from '@/lib/campaign-studio-api';
 import {
   JOURNEY_NODE_TYPES,
   RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES,
@@ -10,6 +12,8 @@ import {
   type JourneyNode,
   type JourneyNodeType,
 } from './journey-node-contract';
+
+const SELECT_CLASS = 'w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent/30 transition-all';
 
 interface NodeEditorModalProps {
   open: boolean;
@@ -37,6 +41,9 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
   const [waitUntilAt, setWaitUntilAt] = React.useState<string>(
     ((node?.config?.at || node?.config?.until) as string) || ''
   );
+  const [campaigns, setCampaigns] = React.useState<Campaign[]>([]);
+  const [campaignsLoading, setCampaignsLoading] = React.useState(false);
+  const [campaignError, setCampaignError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setLabel(node?.label || '');
@@ -46,6 +53,38 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
     setWaitUntilAt(((node?.config?.at || node?.config?.until) as string) || '');
   }, [node]);
 
+  React.useEffect(() => {
+    if (!open || type !== 'SEND_EMAIL') {
+      return;
+    }
+    let cancelled = false;
+    setCampaignsLoading(true);
+    setCampaignError(null);
+    listCampaigns({ page: 0, size: 100 })
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        const items = Array.isArray(response as unknown)
+          ? (response as unknown as Campaign[])
+          : response.content ?? [];
+        setCampaigns(items);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCampaignError('Campaign catalog could not be loaded.');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setCampaignsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, type]);
+
   if (!node) return null;
 
   const runtimeSupportedTypeSet = new Set(runtimeSupportedTypes);
@@ -53,6 +92,10 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
   const nodeTypeOptions = showDraftNodeTypes
     ? JOURNEY_NODE_TYPES
     : JOURNEY_NODE_TYPES.filter((option) => runtimeSupportedTypeSet.has(option) || option === type);
+  const selectedCampaign = campaigns.find((campaign) => campaign.id === campaignId);
+  const campaignOptions = campaignId && !selectedCampaign
+    ? [{ id: campaignId, name: `Current campaign (${campaignId})`, status: 'DRAFT' as const }, ...campaigns]
+    : campaigns;
 
   const handleSave = () => {
     const nextConfig: Record<string, unknown> = { ...(node.config || {}) };
@@ -117,12 +160,33 @@ export const NodeEditorModal: React.FC<NodeEditorModalProps> = ({
           )}
         </div>
         {type === 'SEND_EMAIL' && (
-          <Input
-            value={campaignId}
-            onChange={(e) => setCampaignId(e.target.value)}
-            label="Campaign ID"
-            placeholder="campaign-123"
-          />
+          <div className="space-y-1.5">
+            <label htmlFor="journey-node-campaign" className="block text-sm font-medium text-content-primary">Campaign</label>
+            <select
+              id="journey-node-campaign"
+              aria-label="Campaign"
+              value={campaignId}
+              onChange={(event) => setCampaignId(event.target.value)}
+              className={SELECT_CLASS}
+              disabled={campaignsLoading}
+            >
+              <option value="">{campaignsLoading ? 'Loading campaigns...' : 'Select campaign'}</option>
+              {campaignOptions.map((campaign) => (
+                <option key={campaign.id} value={campaign.id}>
+                  {campaign.name} ({campaign.id})
+                </option>
+              ))}
+            </select>
+            {selectedCampaign && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-content-secondary">
+                <span>{selectedCampaign.subject || selectedCampaign.type || 'Campaign send'}</span>
+                <Badge variant={selectedCampaign.status === 'APPROVED' || selectedCampaign.status === 'SCHEDULED' ? 'success' : 'info'}>
+                  {selectedCampaign.status}
+                </Badge>
+              </div>
+            )}
+            {campaignError && <p className="text-xs text-danger">{campaignError}</p>}
+          </div>
         )}
         {type === 'DELAY' && (
           <Input

@@ -173,6 +173,12 @@ function Assert-ProductionOverlayFails([string]$Name, [string]$OverlayPath, [str
     $global:LASTEXITCODE = 0
 }
 
+function Assert-SourceMatches([string]$Name, [string]$Source, [string]$Pattern, [string]$FailureMessage) {
+    if ($Source -notmatch $Pattern) {
+        Fail "$Name failed. $FailureMessage"
+    }
+}
+
 function Assert-EgressFails([string]$Name, $Evidence, [string]$FailureMessage) {
     $path = Join-Path $tempRoot "$Name.json"
     Write-JsonFile $path $Evidence
@@ -365,6 +371,7 @@ foreach ($script in $requiredScripts) {
 }
 
 $releaseGateSource = Get-Content -Path "scripts/ops/release-gate.ps1" -Raw
+Write-Host "Checking release gate source wiring..."
 if ($releaseGateSource -notmatch 'docker\s+compose\s+--env-file\s+\$ComposeEnvFile\s+config\s+--quiet') {
     Fail "release-gate.ps1 must run docker compose config with the reviewed ComposeEnvFile instead of ambient environment discovery."
 }
@@ -374,6 +381,52 @@ if ($releaseGateSource -notmatch 'validate-compose-safety\.ps1\s+-ComposeEnvFile
 if ($releaseGateSource -match 'if\s*\(\$LocalOnly\)\s*\{[\s\S]*validate-compose-safety\.ps1') {
     Fail "release-gate.ps1 must not limit compose safety validation to LocalOnly mode."
 }
+Assert-SourceMatches "release-gate frontend visual smoke wiring" `
+    $releaseGateSource `
+    'Run-Step\s+"frontend visual smoke"\s*\{\s*npm\s+run\s+test:e2e:visual\s*\}' `
+    "release-gate.ps1 must keep npm run test:e2e:visual in frontend release runs."
+Assert-SourceMatches "release-gate frontend full Chromium wiring" `
+    $releaseGateSource `
+    'Run-Step\s+"frontend full Chromium"\s*\{\s*npm\s+run\s+test:e2e:chromium\s*\}' `
+    "release-gate.ps1 must keep npm run test:e2e:chromium in frontend release runs."
+Assert-SourceMatches "release-gate frontend smoke wiring" `
+    $releaseGateSource `
+    'Run-Step\s+"frontend smoke"\s*\{\s*npm\s+run\s+test:e2e:smoke\s*\}' `
+    "release-gate.ps1 must keep npm run test:e2e:smoke in frontend release runs."
+
+$validationRegistryPath = ".codex/state/validation-registry.json"
+if (-not (Test-Path $validationRegistryPath)) {
+    Fail "Missing validation registry: $validationRegistryPath"
+}
+$validationRegistry = Get-Content -Path $validationRegistryPath -Raw | ConvertFrom-Json
+$frontendFocusedProfile = @($validationRegistry.profiles | Where-Object { $_.id -eq "frontend-focused" } | Select-Object -First 1)
+if (-not $frontendFocusedProfile) {
+    Fail "validation-registry.json must define a frontend-focused profile."
+}
+$frontendFocusedCommands = @($frontendFocusedProfile.commands)
+foreach ($requiredFrontendCommand in @("npm run test:e2e:visual", "npm run test:e2e:chromium", "npm run test:e2e:smoke")) {
+    if ($frontendFocusedCommands -notcontains $requiredFrontendCommand) {
+        Fail "frontend-focused validation profile must include $requiredFrontendCommand."
+    }
+}
+
+$releasePassPath = ".codex/commands/release-pass.md"
+if (-not (Test-Path $releasePassPath)) {
+    Fail "Missing release-pass docs: $releasePassPath"
+}
+$releasePassSource = Get-Content -Path $releasePassPath -Raw
+Assert-SourceMatches "release-pass visual smoke docs" `
+    $releasePassSource `
+    'npm\s+run\s+test:e2e:visual' `
+    "release-pass docs must include the visual smoke gate."
+Assert-SourceMatches "release-pass full Chromium docs" `
+    $releasePassSource `
+    'npm\s+run\s+test:e2e:chromium' `
+    "release-pass docs must include the full Chromium gate."
+Assert-SourceMatches "release-pass explicit compose env docs" `
+    $releasePassSource `
+    'docker\s+compose\s+--env-file\s+\.env\.example\s+config\s+--quiet' `
+    "release-pass docs must use .env.example for Docker Compose config."
 
 $ciSecurityWorkflowPath = ".github/workflows/ci-security.yml"
 if (-not (Test-Path $ciSecurityWorkflowPath)) {
@@ -515,6 +568,23 @@ $patch: delete
         $unsafeSidecarOverlay `
         "containers/unsafe-sidecar missing safety fragment" `
         "Production overlay validation should fail when any rendered container lacks required security and resources."
+
+    $missingAlertmanagerBackingOverlay = Copy-ProductionOverlayFixture "missing-alertmanager-backing-overlay"
+    $missingAlertmanagerExternalSecrets = Join-Path $missingAlertmanagerBackingOverlay "external-secrets.yml"
+    $missingAlertmanagerSource = Get-Content -Path $missingAlertmanagerExternalSecrets -Raw
+    $missingAlertmanagerSourceWithoutPager = [regex]::Replace(
+        $missingAlertmanagerSource,
+        '(?m)^\s*-\s*secretKey:\s*ALERTMANAGER_SRE_PAGER_URL\s*\r?\n\s*remoteRef:\s*\r?\n\s*key:\s*legent/production/alerting\s*\r?\n\s*property:\s*sre_pager_url\s*(?:\r?\n)?',
+        ""
+    )
+    if ($missingAlertmanagerSourceWithoutPager -eq $missingAlertmanagerSource) {
+        Fail "Alertmanager backing fixture could not remove the SRE pager handoff key."
+    }
+    Set-Content -Path $missingAlertmanagerExternalSecrets -Value $missingAlertmanagerSourceWithoutPager -Encoding UTF8
+    Assert-ProductionOverlayFails "missing-alertmanager-backing" `
+        $missingAlertmanagerBackingOverlay `
+        "Alertmanager placeholder ALERTMANAGER_SRE_PAGER_URL is not backed by production ExternalSecret data." `
+        "Production overlay validation should fail when an Alertmanager handoff key is not backed."
 
     $missingImageSchemaManifest = New-ImageManifest "legent/frontend" $digest
     $missingImageSchemaManifest.Remove("schemaVersion")

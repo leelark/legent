@@ -2,6 +2,7 @@ package com.legent.audience.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -10,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -28,6 +30,7 @@ public class DeliverabilityServiceClient {
 
     private final WebClient webClient;
     private final String internalApiToken;
+    private static final String SERVICE_NAME = "audience-service";
 
     public DeliverabilityServiceClient(
             // LEGENT-HIGH-005: Fixed port from 8085 (tracking-service) to 8087 (deliverability-service)
@@ -54,12 +57,22 @@ public class DeliverabilityServiceClient {
         }
 
         try {
+            Instant timestamp = Instant.now();
             JsonNode response = webClient.post()
                     .uri("/api/v1/deliverability/suppressions/internal/check")
                     .header("X-Tenant-Id", tenantId)
                     .header("X-Workspace-Id", workspaceId)
                     .header("X-Request-Id", java.util.UUID.randomUUID().toString())
                     .header("X-Internal-Token", internalApiToken)
+                    .header(InternalServiceIdentity.HEADER_SERVICE, SERVICE_NAME)
+                    .header(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, timestamp.toString())
+                    .header(InternalServiceIdentity.HEADER_SIGNATURE, InternalServiceIdentity.sign(
+                            internalApiToken,
+                            SERVICE_NAME,
+                            tenantId,
+                            workspaceId,
+                            InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK,
+                            timestamp))
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(Map.of("emails", normalizedEmails))
                     .retrieve()

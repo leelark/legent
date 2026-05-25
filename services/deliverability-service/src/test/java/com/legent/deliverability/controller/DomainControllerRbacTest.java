@@ -80,12 +80,25 @@ class DomainControllerRbacTest {
         assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod(
                 "listSuppressionsInternal",
                 String.class,
+                String.class,
+                String.class,
+                String.class,
                 Integer.class)))
                 .isNull();
         assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod(
                 "checkSuppressionsInternal",
                 String.class,
+                String.class,
+                String.class,
+                String.class,
                 SuppressionController.SuppressionCheckRequest.class)))
+                .isNull();
+        assertThat(preAuthorize(SuppressionController.class.getDeclaredMethod(
+                "suppressionHistoryInternal",
+                String.class,
+                String.class,
+                String.class,
+                String.class)))
                 .isNull();
     }
 
@@ -138,7 +151,8 @@ class DomainControllerRbacTest {
 
     private static boolean isInternalSuppressionEndpoint(Class<?> controller, Method method) {
         return controller.equals(SuppressionController.class)
-                && Set.of("listSuppressionsInternal", "checkSuppressionsInternal").contains(method.getName());
+                && Set.of("listSuppressionsInternal", "checkSuppressionsInternal", "suppressionHistoryInternal")
+                .contains(method.getName());
     }
 
     private static String expression(String methodName) {

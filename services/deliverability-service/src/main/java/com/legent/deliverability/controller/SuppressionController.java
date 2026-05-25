@@ -11,6 +11,7 @@ import java.util.Set;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.deliverability.domain.SuppressionList;
 import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.security.TenantContext;
@@ -35,6 +36,9 @@ import org.springframework.web.server.ResponseStatusException;
 @RequiredArgsConstructor
 public class SuppressionController {
 
+    private static final Set<String> ALLOWED_SUPPRESSION_LIST_SERVICES = Set.of("campaign-service");
+    private static final Set<String> ALLOWED_SUPPRESSION_HISTORY_SERVICES = Set.of("campaign-service");
+    private static final Set<String> ALLOWED_SUPPRESSION_CHECK_SERVICES = Set.of("audience-service");
     private static final int DEFAULT_SUPPRESSION_LIST_LIMIT = AppConstants.DEFAULT_PAGE_SIZE;
     private static final int MAX_SUPPRESSION_LIST_LIMIT = AppConstants.MAX_PAGE_SIZE;
     private static final int MAX_BULK_CHECK_EMAILS = AppConstants.SEND_BATCH_SIZE;
@@ -62,23 +66,65 @@ public class SuppressionController {
     @GetMapping("/internal")
     public ApiResponse<List<SuppressionList>> listSuppressionsInternal(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature,
             @RequestParam(required = false) Integer limit) {
-        requireInternalToken(token);
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
+        requireInternalIdentity(
+                token,
+                internalService,
+                signatureTimestamp,
+                signature,
+                ALLOWED_SUPPRESSION_LIST_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_LIST_READ);
         return ApiResponse.ok(suppressionRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
                 tenantId,
                 workspaceId,
                 PageRequest.of(0, boundedListLimit(limit))));
     }
 
+    @GetMapping("/internal/history")
+    public ApiResponse<Map<String, Object>> suppressionHistoryInternal(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        requireInternalIdentity(
+                token,
+                internalService,
+                signatureTimestamp,
+                signature,
+                ALLOWED_SUPPRESSION_HISTORY_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ);
+        return ApiResponse.ok(suppressionHistoryData());
+    }
+
     @PostMapping("/internal/check")
     public ApiResponse<SuppressionCheckResponse> checkSuppressionsInternal(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature,
             @RequestBody(required = false) SuppressionCheckRequest request) {
-        requireInternalToken(token);
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
+        requireInternalIdentity(
+                token,
+                internalService,
+                signatureTimestamp,
+                signature,
+                ALLOWED_SUPPRESSION_CHECK_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
         List<String> normalizedEmails = normalizeEmailCandidates(request == null ? null : request.emails());
         if (normalizedEmails.size() > MAX_BULK_CHECK_EMAILS) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Too many emails in suppression check");
@@ -99,6 +145,10 @@ public class SuppressionController {
     @GetMapping("/history")
     @PreAuthorize("@rbacEvaluator.hasPermission('deliverability:read', principal.roles)")
     public ApiResponse<Map<String, Object>> suppressionHistory() {
+        return ApiResponse.ok(suppressionHistoryData());
+    }
+
+    private Map<String, Object> suppressionHistoryData() {
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
         long complaints = suppressionRepository.countByTenantIdAndWorkspaceIdAndReason(tenantId, workspaceId, "COMPLAINT");
@@ -112,12 +162,28 @@ public class SuppressionController {
         result.put("hardBounces", hardBounces);
         result.put("unsubscribes", unsubscribes);
         result.put("generatedAt", Instant.now());
-        return ApiResponse.ok(result);
+        return result;
     }
 
-    private void requireInternalToken(String token) {
-        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+    private void requireInternalIdentity(String token,
+                                         String internalService,
+                                         String signatureTimestamp,
+                                         String signature,
+                                         Set<String> allowedServices,
+                                         String tenantId,
+                                         String workspaceId,
+                                         String action) {
+        if (!InternalServiceIdentity.matches(
+                internalApiToken,
+                token,
+                internalService,
+                allowedServices,
+                tenantId,
+                workspaceId,
+                action,
+                signatureTimestamp,
+                signature)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal service identity");
         }
     }
 

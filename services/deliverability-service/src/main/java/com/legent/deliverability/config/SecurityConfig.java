@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .requestMatchers(ActuatorAccess.ADMIN_ENDPOINTS).hasRole(ActuatorAccess.ADMIN_ROLE)
                 .requestMatchers("/api/v1/health/**").permitAll()
                 .requestMatchers("/api/v1/deliverability/suppressions/internal").permitAll()
+                .requestMatchers("/api/v1/deliverability/suppressions/internal/history").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/deliverability/suppressions/internal/check").permitAll()
                 .anyRequest().authenticated()
             )

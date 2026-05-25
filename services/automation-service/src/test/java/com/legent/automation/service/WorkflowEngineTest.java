@@ -24,6 +24,7 @@ import com.legent.automation.repository.InstanceHistoryRepository;
 import com.legent.automation.repository.WorkflowDefinitionRepository;
 import com.legent.automation.repository.WorkflowInstanceRepository;
 import com.legent.automation.repository.WorkflowRepository;
+import com.legent.automation.service.node.ConditionNodeHandler;
 import com.legent.automation.service.node.DelayNodeHandler;
 import com.legent.automation.service.node.EntryTriggerNodeHandler;
 import com.legent.automation.service.node.GenericNodeHandler;
@@ -73,7 +74,7 @@ class WorkflowEngineTest {
         when(sendEmailHandler.getType()).thenReturn("SEND_EMAIL");
         when(delayHandler.getType()).thenReturn("DELAY");
         
-        List<NodeHandler> handlers = List.of(new EntryTriggerNodeHandler(), sendEmailHandler, delayHandler, new GenericNodeHandler());
+        List<NodeHandler> handlers = List.of(new EntryTriggerNodeHandler(), new ConditionNodeHandler(objectMapper), sendEmailHandler, delayHandler, new GenericNodeHandler());
         workflowEngine = new WorkflowEngine(instanceRepository, definitionRepository, workflowRepository, historyRepository, objectMapper, handlers, cacheService, eventPublisher, idempotencyService, workflowGraphValidator);
     }
 
@@ -209,6 +210,92 @@ class WorkflowEngineTest {
 
         verify(sendEmailHandler).execute(any(), argThat(node ->
                 "send".equals(node.getId()) && "SEND_EMAIL".equals(node.getType())));
+        ArgumentCaptor<WorkflowInstance> captor = ArgumentCaptor.forClass(WorkflowInstance.class);
+        verify(instanceRepository, atLeast(2)).save(captor.capture());
+        assertEquals("COMPLETED", captor.getValue().getStatus());
+    }
+
+    @Test
+    void startWorkflow_executesBranchAliasThroughConditionHandler() throws Exception {
+        WorkflowGraphDto graph = new WorkflowGraphDto();
+        graph.setInitialNodeId("decision");
+
+        WorkflowGraphDto.WorkflowNode decision = new WorkflowGraphDto.WorkflowNode();
+        decision.setId("decision");
+        decision.setType("BRANCH");
+        decision.setNextNodeId("end");
+        decision.setBranches(List.of(new WorkflowGraphDto.ConditionEdge("segment == 'vip'", "send")));
+
+        WorkflowGraphDto.WorkflowNode send = new WorkflowGraphDto.WorkflowNode();
+        send.setId("send");
+        send.setType("SEND_EMAIL");
+        send.setConfiguration(Map.of("campaignId", "campaign-1"));
+        send.setNextNodeId("end");
+
+        WorkflowGraphDto.WorkflowNode end = new WorkflowGraphDto.WorkflowNode();
+        end.setId("end");
+        end.setType("END");
+
+        graph.setNodes(Map.of("decision", decision, "send", send, "end", end));
+
+        WorkflowDefinition def = new WorkflowDefinition();
+        def.setDefinition(objectMapper.writeValueAsString(graph));
+
+        com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
+        workflow.setStatus("ACTIVE");
+        workflow.setWorkspaceId("workspace-1");
+        when(workflowRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("flow-1", "tenant-1", "workspace-1")).thenReturn(Optional.of(workflow));
+        when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(def));
+        when(instanceRepository.save(any(WorkflowInstance.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(sendEmailHandler.execute(any(), any())).thenReturn("end");
+
+        workflowEngine.startWorkflow("tenant-1", "workspace-1", "flow-1", 1, "sub-1", Map.of("segment", "vip"), "prod", "user-1", "req-1", "corr-1");
+
+        verify(sendEmailHandler).execute(any(), argThat(node ->
+                "send".equals(node.getId()) && "SEND_EMAIL".equals(node.getType())));
+        ArgumentCaptor<WorkflowInstance> captor = ArgumentCaptor.forClass(WorkflowInstance.class);
+        verify(instanceRepository, atLeast(2)).save(captor.capture());
+        assertEquals("COMPLETED", captor.getValue().getStatus());
+    }
+
+    @Test
+    void startWorkflow_executesSplitAliasFallbackPathThroughConditionHandler() throws Exception {
+        WorkflowGraphDto graph = new WorkflowGraphDto();
+        graph.setInitialNodeId("split");
+
+        WorkflowGraphDto.WorkflowNode split = new WorkflowGraphDto.WorkflowNode();
+        split.setId("split");
+        split.setType("SPLIT");
+        split.setNextNodeId("end");
+        split.setBranches(List.of(new WorkflowGraphDto.ConditionEdge("score > 100", "send")));
+
+        WorkflowGraphDto.WorkflowNode send = new WorkflowGraphDto.WorkflowNode();
+        send.setId("send");
+        send.setType("SEND_EMAIL");
+        send.setConfiguration(Map.of("campaignId", "campaign-1"));
+        send.setNextNodeId("end");
+
+        WorkflowGraphDto.WorkflowNode end = new WorkflowGraphDto.WorkflowNode();
+        end.setId("end");
+        end.setType("END");
+
+        graph.setNodes(Map.of("split", split, "send", send, "end", end));
+
+        WorkflowDefinition def = new WorkflowDefinition();
+        def.setDefinition(objectMapper.writeValueAsString(graph));
+
+        com.legent.automation.domain.Workflow workflow = new com.legent.automation.domain.Workflow();
+        workflow.setStatus("ACTIVE");
+        workflow.setWorkspaceId("workspace-1");
+        when(workflowRepository.findByIdAndTenantIdAndWorkspaceIdAndDeletedAtIsNull("flow-1", "tenant-1", "workspace-1")).thenReturn(Optional.of(workflow));
+        when(definitionRepository.findByWorkflowIdAndVersionAndTenantIdAndWorkspaceId("flow-1", 1, "tenant-1", "workspace-1"))
+                .thenReturn(Optional.of(def));
+        when(instanceRepository.save(any(WorkflowInstance.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        workflowEngine.startWorkflow("tenant-1", "workspace-1", "flow-1", 1, "sub-1", Map.of("score", 5), "prod", "user-1", "req-1", "corr-1");
+
+        verify(sendEmailHandler, never()).execute(any(), any());
         ArgumentCaptor<WorkflowInstance> captor = ArgumentCaptor.forClass(WorkflowInstance.class);
         verify(instanceRepository, atLeast(2)).save(captor.capture());
         assertEquals("COMPLETED", captor.getValue().getStatus());

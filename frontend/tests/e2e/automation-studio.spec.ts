@@ -41,8 +41,8 @@ const activities = [
     verification: {
       valid: true,
       errors: [],
-      warnings: ['EXTRACT activity supports dry-run validation only; live file movement is not enabled.'],
-      normalizedConfig: { liveExecutionSupported: false, validationOnly: true },
+      warnings: [],
+      normalizedConfig: { liveExecutionSupported: true, validationOnly: false, sourceType: 'IMPORT_ARTIFACT' },
     },
   },
   {
@@ -55,8 +55,8 @@ const activities = [
     verification: {
       valid: true,
       errors: [],
-      warnings: ['FILE_DROP activity supports dry-run validation only; live file movement is not enabled.'],
-      normalizedConfig: { liveExecutionSupported: false, validationOnly: true },
+      warnings: [],
+      normalizedConfig: { liveExecutionSupported: true, validationOnly: false },
     },
   },
   {
@@ -88,6 +88,68 @@ const activities = [
     },
   },
 ];
+
+const dataExtensions = [
+  {
+    id: 'de-loyalty',
+    name: 'Loyalty members',
+    sendable: true,
+    recordCount: 1200,
+    governance: { dataClassification: 'INTERNAL', sourceType: 'AUTOMATION' },
+  },
+  {
+    id: 'de-dormant',
+    name: 'Dormant subscribers',
+    sendable: false,
+    recordCount: 320,
+    governance: { dataClassification: 'RESTRICTED', sourceType: 'QUERY' },
+  },
+];
+
+const users = [
+  {
+    id: 'user-ops-1',
+    email: 'ops@example.com',
+    firstName: 'Ops',
+    lastName: 'Owner',
+    role: 'ADMIN',
+    isActive: true,
+  },
+];
+
+const campaigns = [
+  {
+    id: 'campaign-approved-1',
+    name: 'Approved spring campaign',
+    subject: 'Spring release',
+    status: 'APPROVED',
+  },
+  {
+    id: 'campaign-draft-1',
+    name: 'Draft nurture campaign',
+    subject: 'Nurture update',
+    status: 'DRAFT',
+  },
+];
+
+const artifacts: Record<string, Record<string, unknown>> = {
+  'artifact-import-1': {
+    artifactId: 'artifact-import-1',
+    sourceKind: 'UPLOAD',
+    status: 'READY',
+    displayName: 'Ready CSV import',
+    contentType: 'text/csv',
+    sizeBytes: 4096,
+  },
+  'artifact-output-1': {
+    artifactId: 'artifact-output-1',
+    sourceKind: 'GENERATED',
+    status: 'GENERATED',
+    displayName: 'Dormant extract output',
+    contentType: 'text/csv',
+    sizeBytes: 2048,
+  },
+};
 
 async function mockAutomationStudioApis(
   page: Page,
@@ -123,6 +185,29 @@ async function mockAutomationStudioApis(
     }
     if (path === '/workflows') {
       return fulfill(route, ok([]));
+    }
+    if (path === '/data-extensions') {
+      return fulfill(route, ok({ content: dataExtensions, page: 0, size: 100, totalElements: dataExtensions.length, totalPages: 1 }));
+    }
+    if (path === '/users') {
+      return fulfill(route, ok(users));
+    }
+    if (path === '/campaigns') {
+      return fulfill(route, ok({
+        content: campaigns,
+        page: 0,
+        size: 100,
+        totalElements: campaigns.length,
+        totalPages: 1,
+      }));
+    }
+    const artifactMatch = path.match(/^\/automation-studio\/artifacts\/([^/]+)$/);
+    if (artifactMatch) {
+      const artifact = artifacts[decodeURIComponent(artifactMatch[1])];
+      if (!artifact) {
+        return fulfill(route, { success: false, error: { message: 'Artifact not found' } }, 404);
+      }
+      return fulfill(route, ok(artifact));
     }
     if (path === '/automation-studio/activities' && method === 'POST') {
       seen.createdActivity = JSON.parse(request.postData() || '{}');
@@ -359,9 +444,13 @@ test('automation studio surfaces capability and verification results per activit
   await expect(notificationRow).toContainText('Live execution');
   await expect(notificationRow).toContainText('Verified');
 
+  const extractRow = page.locator('div.p-4').filter({ hasText: 'Dormant audience extract' });
+  await expect(extractRow).toContainText('Live execution');
+  await expect(extractRow.getByRole('button', { name: 'Dry Run' })).toBeEnabled();
+
   const fileDropRow = page.locator('div.p-4').filter({ hasText: 'Inbound import artifact' });
-  await expect(fileDropRow).toContainText('Design only');
-  await expect(fileDropRow.getByRole('button', { name: 'Dry Run' })).toBeDisabled();
+  await expect(fileDropRow).toContainText('Live execution');
+  await expect(fileDropRow.getByRole('button', { name: 'Dry Run' })).toBeEnabled();
 
   await sqlRow.getByRole('button', { name: 'Verify' }).click();
   await expect(page.getByLabel('Verification result for Nightly SQL sync')).toContainText('Verified');
@@ -415,7 +504,14 @@ test('advanced mode exposes automation activity controls and creates explicit pa
   await page.getByRole('button', { name: 'New Activity' }).click();
   await page.getByLabel('Activity Name').fill('Subscriber import');
   await page.getByLabel('Activity Type').selectOption('IMPORT');
-  await page.getByLabel('Scoped Artifact ID').fill('artifact-1');
+  await page.getByRole('textbox', { name: 'Import Artifact', exact: true }).fill('artifact-import-1');
+  await page.getByRole('button', { name: 'Verify Import Artifact' }).click();
+  await expect(page.getByText('Ready CSV import')).toBeVisible();
+  await page.getByLabel('Import Target Type').selectOption('DATA_EXTENSION');
+  await page.getByLabel('Target Data Extension').selectOption('de-loyalty');
+  await expect(page.getByText('Loyalty members', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Scoped Artifact ID')).toHaveCount(0);
+  await expect(page.getByLabel('Target Data Extension ID')).toHaveCount(0);
   await page.getByLabel('Email Field Mapping').fill('Email');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
 
@@ -426,10 +522,94 @@ test('advanced mode exposes automation activity controls and creates explicit pa
     status: 'DRAFT',
     failurePolicy: 'STOP_ON_FAILURE',
     inputConfig: {
-      artifactId: 'artifact-1',
-      targetType: 'SUBSCRIBER',
+      artifactId: 'artifact-import-1',
+      targetType: 'DATA_EXTENSION',
+      targetId: 'de-loyalty',
       fieldMapping: { email: 'Email' },
     },
+  });
+});
+
+test('advanced mode selects extract source data extension and output artifact', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Dormant extract');
+  await page.getByLabel('Activity Type').selectOption('EXTRACT');
+  await page.getByLabel('Source Type').selectOption('DATA_EXTENSION');
+  await page.getByLabel('Source Data Extension').selectOption('de-loyalty');
+  await page.getByRole('textbox', { name: 'Output Artifact' }).fill('artifact-output-1');
+  await page.getByRole('button', { name: 'Verify Output Artifact' }).click();
+  await expect(page.getByText('Dormant extract output')).toBeVisible();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect.poll(() => seen.createdActivity).toBeTruthy();
+  expect(seen.createdActivity).toMatchObject({
+    name: 'Dormant extract',
+    activityType: 'EXTRACT',
+    inputConfig: {
+      sourceType: 'DATA_EXTENSION',
+      sourceId: 'de-loyalty',
+    },
+    outputConfig: { artifactId: 'artifact-output-1' },
+  });
+});
+
+test('advanced mode creates artifact-backed extract payloads with backend source types', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Artifact extract');
+  await page.getByLabel('Activity Type').selectOption('EXTRACT');
+
+  const sourceType = page.getByLabel('Source Type');
+  await expect(sourceType.locator('option[value="ARTIFACT"]')).toHaveCount(0);
+  await expect(sourceType.locator('option[value="IMPORT_ARTIFACT"]')).toHaveCount(1);
+  await expect(sourceType.locator('option[value="GENERATED_EXTRACT"]')).toHaveCount(1);
+
+  await sourceType.selectOption('IMPORT_ARTIFACT');
+  await page.getByRole('textbox', { name: 'Source Artifact' }).fill('artifact-import-1');
+  await page.getByRole('button', { name: 'Verify Source Artifact' }).click();
+  await expect(page.getByText('Ready CSV import')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Output Artifact' }).fill('artifact-output-1');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect.poll(() => seen.createdActivity).toBeTruthy();
+  expect(seen.createdActivity).toMatchObject({
+    name: 'Artifact extract',
+    activityType: 'EXTRACT',
+    inputConfig: {
+      sourceType: 'IMPORT_ARTIFACT',
+      sourceArtifactId: 'artifact-import-1',
+    },
+    outputConfig: { artifactId: 'artifact-output-1' },
+  });
+});
+
+test('advanced mode creates file-drop movement payloads with output artifacts', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Inbound file movement');
+  await page.getByLabel('Activity Type').selectOption('FILE_DROP');
+  await page.getByRole('textbox', { name: 'File-drop Artifact' }).fill('artifact-import-1');
+  await page.getByRole('button', { name: 'Verify File-drop Artifact' }).click();
+  await expect(page.getByText('Ready CSV import')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Output Artifact' }).fill('artifact-output-1');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect.poll(() => seen.createdActivity).toBeTruthy();
+  expect(seen.createdActivity).toMatchObject({
+    name: 'Inbound file movement',
+    activityType: 'FILE_DROP',
+    inputConfig: { artifactId: 'artifact-import-1' },
+    outputConfig: { artifactId: 'artifact-output-1' },
   });
 });
 
@@ -467,7 +647,9 @@ test('advanced mode creates terminal notification activity payloads', async ({ p
   await page.getByRole('button', { name: 'New Activity' }).click();
   await page.getByLabel('Activity Name').fill('Notify operator');
   await page.getByLabel('Activity Type').selectOption('NOTIFICATION');
-  await page.getByLabel('Recipient User ID').fill('user-1');
+  await page.getByLabel('Recipient User').selectOption('user-ops-1');
+  await expect(page.getByText('ops@example.com', { exact: true })).toBeVisible();
+  await expect(page.getByLabel('Recipient User ID')).toHaveCount(0);
   await page.getByLabel('Title').fill('Automation failed');
   await page.getByLabel('Message').fill('Run failed');
   await page.getByLabel('Notification Severity').selectOption('ERROR');
@@ -479,13 +661,35 @@ test('advanced mode creates terminal notification activity payloads', async ({ p
     name: 'Notify operator',
     activityType: 'NOTIFICATION',
     inputConfig: {
-      userId: 'user-1',
+      userId: 'user-ops-1',
       title: 'Automation failed',
       message: 'Run failed',
       severity: 'ERROR',
       terminalStatus: 'FAILED',
     },
   });
+});
+
+test('advanced mode creates send-email campaign handoff payloads', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationStudioApis(page, seen, { uiMode: 'ADVANCED' });
+
+  await page.goto('/app/automation');
+  await page.getByRole('button', { name: 'New Activity' }).click();
+  await page.getByLabel('Activity Name').fill('Send approved campaign');
+  await page.getByLabel('Activity Type').selectOption('SEND_EMAIL');
+  await page.getByLabel('Campaign').selectOption('campaign-approved-1');
+  await expect(page.getByText('Spring release')).toBeVisible();
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+
+  await expect.poll(() => seen.createdActivity).toBeTruthy();
+  expect(seen.createdActivity).toMatchObject({
+    name: 'Send approved campaign',
+    activityType: 'SEND_EMAIL',
+    inputConfig: { campaignId: 'campaign-approved-1' },
+    outputConfig: {},
+  });
+  expect(JSON.stringify(seen.createdActivity)).not.toContain('recipients');
 });
 
 test('advanced mode blocks unsafe file activity references before posting', async ({ page }) => {
@@ -496,7 +700,7 @@ test('advanced mode blocks unsafe file activity references before posting', asyn
   await page.getByRole('button', { name: 'New Activity' }).click();
   await page.getByLabel('Activity Name').fill('Unsafe import');
   await page.getByLabel('Activity Type').selectOption('IMPORT');
-  await page.getByLabel('Scoped Artifact ID').fill('https://storage.example.com/import.csv');
+  await page.getByRole('textbox', { name: 'Import Artifact', exact: true }).fill('https://storage.example.com/import.csv');
   await page.getByLabel('Email Field Mapping').fill('Email');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
 

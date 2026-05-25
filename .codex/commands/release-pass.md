@@ -10,13 +10,15 @@ git status --short --branch
 cd frontend
 npm run lint
 npm run build:ci
+npm run test:e2e:visual
+npm run test:e2e:chromium
 npm run test:e2e:smoke
 cd ..
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-repo-artifact-hygiene.ps1
 powershell -ExecutionPolicy Bypass -File scripts\ops\test-release-evidence-validators.ps1
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-production-overlay.ps1
-docker compose config --quiet
+docker compose --env-file .env.example config --quiet
 kubectl kustomize infrastructure/kubernetes/overlays/production
 ```
 

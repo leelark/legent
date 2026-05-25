@@ -91,6 +91,21 @@ class WorkflowGraphValidatorTest {
     }
 
     @Test
+    void validateRuntimeSupportedRejectsConditionAliasesWithoutBranches() {
+        for (String type : List.of("BRANCH", "SPLIT")) {
+            WorkflowGraphDto graph = graph(
+                    "decision",
+                    Map.of(
+                            "decision", node("decision", type, Map.of(), "end", List.of()),
+                            "end", node("end", "END", Map.of(), null, List.of())
+                    ));
+
+            assertThat(validator.runtimeSupportErrors(graph))
+                    .containsExactly("node decision type " + type + " requires at least one branch");
+        }
+    }
+
+    @Test
     void validateRuntimeSupportedRejectsFarFutureWaitUntilTimestamp() {
         WorkflowGraphDto graph = graph(
                 "wait",
@@ -117,6 +132,22 @@ class WorkflowGraphValidatorTest {
                         "end", node("end", "END", Map.of(), null, List.of())
                 ));
 
+        assertThat(validator.runtimeSupportErrors(graph)).isEmpty();
+    }
+
+    @Test
+    void validateRuntimeSupportedAcceptsBranchAndSplitConditionAliases() {
+        WorkflowGraphDto graph = graph(
+                "branch",
+                Map.of(
+                        "branch", node("branch", "BRANCH", Map.of(), "end",
+                                List.of(new WorkflowGraphDto.ConditionEdge("hasOpened == true", "split"))),
+                        "split", node("split", "SPLIT", Map.of(), "end",
+                                List.of(new WorkflowGraphDto.ConditionEdge("score >= 50", "end"))),
+                        "end", node("end", "END", Map.of(), null, List.of())
+                ));
+
+        assertThat(validator.runtimeSupportedNodeTypes()).contains("BRANCH", "SPLIT");
         assertThat(validator.runtimeSupportErrors(graph)).isEmpty();
     }
 

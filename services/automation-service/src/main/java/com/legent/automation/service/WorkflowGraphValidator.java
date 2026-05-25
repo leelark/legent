@@ -42,6 +42,8 @@ public class WorkflowGraphValidator {
             "DELAY",
             "WAIT_UNTIL",
             "CONDITION",
+            "BRANCH",
+            "SPLIT",
             "END"
     );
     private static final Duration MAX_WAIT_UNTIL_FUTURE = Duration.ofMinutes(10080);
@@ -126,7 +128,7 @@ public class WorkflowGraphValidator {
 
                 String condition = edge.getCondition();
                 String edgeType = edge.getEdgeType() == null ? "DEFAULT" : edge.getEdgeType().trim().toUpperCase();
-                if ("CONDITION".equals(edgeType) || "TRUE".equals(edgeType) || "FALSE".equals(edgeType) || (condition != null && !condition.isBlank())) {
+                if ("CONDITION".equals(edgeType) || "TRUE".equals(edgeType) || "FALSE".equals(edgeType) || "SPLIT".equals(edgeType) || (condition != null && !condition.isBlank())) {
                     List<WorkflowGraphDto.ConditionEdge> branches = source.getBranches();
                     if (branches == null) {
                         branches = new ArrayList<>();
@@ -204,11 +206,15 @@ public class WorkflowGraphValidator {
             if ("WAIT_UNTIL".equals(type) && !validWaitUntilInstant(node.getConfiguration())) {
                 errors.add("node " + node.getId() + " type WAIT_UNTIL requires configuration.at or configuration.until as an ISO-8601 instant no more than 10080 minutes in the future");
             }
-            if ("CONDITION".equals(type) && (node.getBranches() == null || node.getBranches().isEmpty())) {
-                errors.add("node " + node.getId() + " type CONDITION requires at least one branch");
+            if (isConditionLikeNode(type) && (node.getBranches() == null || node.getBranches().isEmpty())) {
+                errors.add("node " + node.getId() + " type " + type + " requires at least one branch");
             }
         }
         return errors;
+    }
+
+    private boolean isConditionLikeNode(String type) {
+        return "CONDITION".equals(type) || "BRANCH".equals(type) || "SPLIT".equals(type);
     }
 
     private boolean isBlank(Object value) {

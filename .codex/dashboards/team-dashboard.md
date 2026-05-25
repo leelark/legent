@@ -1,24 +1,24 @@
 ﻿# Autonomous Team Dashboard
 
-Generated: 2026-05-24T11:33:03.5992029Z
+Generated: 2026-05-24T15:09:24.7081131Z
 
 ## Summary
 
 - Registered module teams: 15
-- Registered threads: 20
-- Active threads: 0
+- Registered threads: 21
+- Active threads: 1
 - Active leases: 0
 - Active worktrees: 0
 - Ready work: 0
-- Backlog work: 5
-- Blocked work: 16
-- Done work: 203
+- Backlog work: 0
+- Blocked work: 17
+- Done work: 214
 
 ## Threads
 
 | Thread | Role | Module | Status | Heartbeat | Stale | Next Action |
 |---|---|---|---|---|---|---|
-| overall-24x7 | OVERALL | overall | ARCHIVED | 2026-05-24T11:18:23.4124516Z | False | Archived stale safe-stopped coordinator; superseded by multi-module-coordinator-20260520T113233Z. |
+| overall-24x7 | OVERALL | overall | ARCHIVED | 2026-05-24T11:18:23.4124516Z | True | Archived stale safe-stopped coordinator; superseded by multi-module-coordinator-20260520T113233Z. |
 | deliverability-service-20260520T100626Z | MODULE | deliverability-service | ARCHIVED | 2026-05-20T10:21:30.3925579Z | True | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
 | content-service-20260520T100625Z | MODULE | content-service | ARCHIVED | 2026-05-20T10:21:30.6208978Z | True | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
 | audience-service-20260520T100624Z | MODULE | audience-service | ARCHIVED | 2026-05-20T10:21:30.6609071Z | True | Archived duplicate scout registration; active module ownership is coordinated through existing frontend/foundation threads. |
@@ -38,6 +38,7 @@ Generated: 2026-05-24T11:33:03.5992029Z
 | overall-20260523T104219Z | OVERALL | overall | PAUSED | 2026-05-23T21:12:02.4574207Z | True | Safe-stopped after completing segment-builder-v2-governance-ui. Automation legent-24x7-overall-team is paused; resume with automation-artifact-selector-ux or external evidence collection only on user direction. |
 | overall-20260524T | OVERALL | overall | ARCHIVED | 2026-05-24T06:19:11.6618024Z | True | Malformed restart record archived; superseded by timestamped 2026-05-24 overall coordinator. |
 | overall-20260524T061909Z | OVERALL | overall | PAUSED | 2026-05-24T10:23:52.5790499Z | True | Safe-stopped after completing segment-builder-v2-governance-ui. Automation legent-24x7-overall-team is paused; resume with automation-artifact-selector-ux or external evidence collection only on user direction. |
+| overall-20260524T123415Z | OVERALL | overall | ACTIVE | 2026-05-24T15:00:22.2020916Z | False | No unblocked READY local work remains; remaining work is blocked by external evidence, credentials, production access, or human decisions. |
 
 ## Next Work
 

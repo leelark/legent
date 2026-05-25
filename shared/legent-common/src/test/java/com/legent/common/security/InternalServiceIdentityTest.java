@@ -121,6 +121,16 @@ class InternalServiceIdentityTest {
                 .hasMessageContaining("serviceName");
     }
 
+    @Test
+    void exposesDeliverabilitySuppressionActionConstants() {
+        assertThat(InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_LIST_READ)
+                .isEqualTo("deliverability-suppression.list");
+        assertThat(InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ)
+                .isEqualTo("deliverability-suppression.history");
+        assertThat(InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK)
+                .isEqualTo("deliverability-suppression.bulk-check");
+    }
+
     private String chunkAction(String jobId, String chunkId) {
         return InternalServiceIdentity.scopedAction(
                 InternalServiceIdentity.ACTION_AUDIENCE_RESOLUTION_CHUNK_READ,

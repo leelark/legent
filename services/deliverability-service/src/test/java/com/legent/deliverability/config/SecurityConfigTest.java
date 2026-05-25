@@ -68,6 +68,14 @@ class SecurityConfigTest {
     }
 
     @Test
+    void internalSuppressionHistoryRouteReachesControllerWithoutJwt() throws Exception {
+        mockMvc.perform(get("/api/v1/deliverability/suppressions/internal/history")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(content().json("{\"route\":\"suppression-history-internal\"}"));
+    }
+
+    @Test
     void workspaceDeliverabilityRoutesStillRequireAuthentication() throws Exception {
         mockMvc.perform(get("/api/v1/deliverability/suppressions")
                         .accept(MediaType.APPLICATION_JSON))
@@ -146,6 +154,11 @@ class SecurityConfigTest {
         @PostMapping("/api/v1/deliverability/suppressions/internal/check")
         Map<String, String> internalSuppressionCheck() {
             return Map.of("route", "suppression-check-internal");
+        }
+
+        @GetMapping("/api/v1/deliverability/suppressions/internal/history")
+        Map<String, String> internalSuppressionHistory() {
+            return Map.of("route", "suppression-history-internal");
         }
 
         @GetMapping("/api/v1/deliverability/suppressions")

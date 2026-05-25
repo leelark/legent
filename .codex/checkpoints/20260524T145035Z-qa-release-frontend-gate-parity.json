@@ -1,0 +1,35 @@
+{
+    "id":  "qa-release-frontend-gate-parity",
+    "createdAt":  "2026-05-24T14:50:35.1517810Z",
+    "objective":  "Align release frontend gate wiring with documented visual and Chromium coverage",
+    "status":  "IN_PROGRESS",
+    "owner":  "QA_ENGINEER",
+    "filesInScope":  [
+                         "scripts/ops/release-gate.ps1",
+                         "scripts/ops/test-release-evidence-validators.ps1",
+                         ".codex/state/validation-registry.json",
+                         ".codex/commands/release-pass.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/test-impact-map.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "FRONTEND_OWNER",
+                   "RELEASE_MANAGER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Patch release gate/docs/registry parity and make the validator self-test diagnosable."
+}

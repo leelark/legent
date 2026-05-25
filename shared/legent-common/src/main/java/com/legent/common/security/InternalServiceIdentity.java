@@ -17,6 +17,9 @@ public final class InternalServiceIdentity {
     public static final String HEADER_SIGNATURE_TIMESTAMP = "X-Internal-Signature-Timestamp";
     public static final String HEADER_SIGNATURE = "X-Internal-Signature";
     public static final String ACTION_AUDIENCE_RESOLUTION_CHUNK_READ = "audience-resolution-chunk.read";
+    public static final String ACTION_DELIVERABILITY_SUPPRESSION_LIST_READ = "deliverability-suppression.list";
+    public static final String ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ = "deliverability-suppression.history";
+    public static final String ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK = "deliverability-suppression.bulk-check";
 
     private static final String HMAC_ALGORITHM = "HmacSHA256";
     private static final String SIGNATURE_VERSION = "v1";

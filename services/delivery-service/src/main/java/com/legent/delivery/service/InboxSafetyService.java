@@ -250,7 +250,7 @@ public class InboxSafetyService {
             count = countObject("""
                     SELECT COUNT(*) FROM suppression_signals
                     WHERE tenant_id = ? AND workspace_id = ? AND lower(email) = lower(?)
-                      AND type IN ('HARD_BOUNCE', 'SOFT_BOUNCE', 'COMPLAINT')
+                      AND type IN ('HARD_BOUNCE', 'SOFT_BOUNCE', 'COMPLAINT', 'UNSUBSCRIBE')
                       AND deleted_at IS NULL
                     """, tenantId, workspaceId, email);
         } catch (Exception ignored) {

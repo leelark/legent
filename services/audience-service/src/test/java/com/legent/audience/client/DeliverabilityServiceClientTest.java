@@ -1,5 +1,6 @@
 package com.legent.audience.client;
 
+import com.legent.common.security.InternalServiceIdentity;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -74,6 +75,17 @@ class DeliverabilityServiceClientTest {
         assertThat(request.header("X-Tenant-Id")).isEqualTo("tenant-1");
         assertThat(request.header("X-Workspace-Id")).isEqualTo("workspace-1");
         assertThat(request.header("X-Internal-Token")).isEqualTo(INTERNAL_TOKEN);
+        assertThat(request.header(InternalServiceIdentity.HEADER_SERVICE)).isEqualTo("audience-service");
+        assertThat(InternalServiceIdentity.matches(
+                INTERNAL_TOKEN,
+                request.header("X-Internal-Token"),
+                request.header(InternalServiceIdentity.HEADER_SERVICE),
+                java.util.Set.of("audience-service"),
+                "tenant-1",
+                "workspace-1",
+                InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK,
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP),
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE))).isTrue();
         assertThat(request.body()).contains("\"emails\":[\"user@example.com\",\"other@example.com\"]");
     }
 

@@ -46,11 +46,14 @@ Artifacts: backend reports are under `services/*/target/site/jacoco/` and `share
 cd frontend
 npm run lint
 npm run build:ci
+npm run test:e2e:visual
 npm run test:e2e:chromium
 npm run test:e2e:smoke
 ```
 
-Use `npm run test:e2e:chromium` as the full Chromium suite gate for frontend release/CI readiness. Keep `npm run test:e2e:smoke`, `npm run test:e2e:sanitize`, `npm run test:e2e:visual`, or targeted specs for fast local feedback on sanitizer, auth/context, shell, admin/settings, and visible UI changes.
+Use `npm run test:e2e:chromium` as the full Chromium suite gate for frontend release/CI readiness. `npm run test:e2e:visual` is the required visual shell gate for CI and release-gate frontend runs; it captures desktop and mobile screenshots under Playwright output for review while asserting headings and no horizontal overflow. Refresh the visual baseline by reviewing those screenshots after intentional layout changes and updating `frontend/tests/e2e/visual-smoke.spec.ts` route, heading, viewport, or landmark expectations in the same change. Do not weaken the overflow or visibility assertions to pass a transient render issue.
+
+Keep `npm run test:e2e:smoke`, `npm run test:e2e:sanitize`, or targeted specs for fast local feedback on sanitizer, auth/context, shell, admin/settings, and visible UI changes.
 
 ## Route Runtime
 

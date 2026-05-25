@@ -1,0 +1,29 @@
+{
+    "id":  "codex-coordination-drift-refresh",
+    "createdAt":  "2026-05-24T14:57:42.7463040Z",
+    "objective":  "Reconcile Codex active thread, dashboard, and stale readiness report pointers",
+    "status":  "IN_PROGRESS",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         ".codex/memory/active-work-items.md",
+                         ".codex/state/team-state.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/reports/100-percent-readiness-backlog-2026-05-23.md",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/design-decisions.md"
+                     ],
+    "agents":  [
+                   "DOCUMENTATION_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                           "git diff --check -- .codex"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Reconcile state/dashboard after selecting the next work item."
+}

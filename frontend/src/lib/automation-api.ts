@@ -181,6 +181,52 @@ export interface AutomationActivityRun {
   completedAt?: string;
 }
 
+export interface AutomationDataExtensionOption {
+  id: string;
+  name?: string;
+  sendable?: boolean;
+  recordCount?: number;
+  governance?: {
+    sourceType?: string;
+    dataClassification?: string;
+  };
+}
+
+export interface AutomationUserOption {
+  id: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  role?: string;
+  roles?: string[];
+  isActive?: boolean;
+}
+
+export interface AutomationArtifactResponse {
+  artifactId: string;
+  activityId?: string;
+  sourceKind?: string;
+  status?: string;
+  displayName?: string;
+  contentType?: string;
+  sizeBytes?: number;
+  retentionPolicy?: string;
+  expiresAt?: string;
+  createdAt?: string;
+}
+
+type PagedResponse<T> = {
+  content?: T[];
+  data?: T[];
+};
+
+const pageItems = <T>(response: PagedResponse<T> | T[] | null | undefined) => {
+  if (!response) {
+    return [];
+  }
+  return Array.isArray(response) ? response : response.content ?? response.data ?? [];
+};
+
 export const listWorkflows = async () => get<Workflow[]>('/workflows');
 export const createWorkflow = async (payload: { name: string; description?: string; status?: string }) =>
   post<Workflow>('/workflows', payload);
@@ -237,6 +283,11 @@ export const deleteWorkflowSchedule = async (id: string, scheduleId: string) =>
   del<{ deleted: boolean }>(`/workflows/${id}/schedules/${scheduleId}`);
 
 export const listAutomationActivities = async () => get<AutomationActivity[]>('/automation-studio/activities');
+export const listAutomationDataExtensions = async () =>
+  pageItems(await get<PagedResponse<AutomationDataExtensionOption> | AutomationDataExtensionOption[]>('/data-extensions?page=0&size=100'));
+export const listAutomationUsers = async () => pageItems(await get<PagedResponse<AutomationUserOption> | AutomationUserOption[]>('/users'));
+export const getAutomationArtifact = async (artifactId: string) =>
+  get<AutomationArtifactResponse>(`/automation-studio/artifacts/${encodeURIComponent(artifactId)}`);
 export const createAutomationActivity = async (payload: {
   name: string;
   activityType: AutomationActivityType;

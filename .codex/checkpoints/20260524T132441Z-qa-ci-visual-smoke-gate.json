@@ -1,0 +1,46 @@
+{
+    "id":  "qa-ci-visual-smoke-gate",
+    "createdAt":  "2026-05-24T13:24:41.2779049Z",
+    "objective":  "Add visual smoke to CI/manual release gate",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         ".github/workflows/ci-security.yml",
+                         "scripts/ops/release-gate.ps1",
+                         ".codex/workflows/validation-gates.md",
+                         "frontend/package.json",
+                         "frontend/playwright.config.ts",
+                         "frontend/tests/e2e/visual-smoke.spec.ts",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/enhancement-log.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/test-impact-map.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/release-history.md"
+                     ],
+    "agents":  [
+                   "QA_ENGINEER",
+                   "UX_STRATEGIST"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run test:e2e:visual"
+                       ],
+    "validationRun":  [
+                          "git diff --check -- .github/workflows/ci-security.yml scripts/ops/release-gate.ps1 .codex/workflows/validation-gates.md",
+                          "cd frontend; npm run test:e2e:visual",
+                          "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipCompose -SkipKustomize"
+                      ],
+    "outcome":  "Visual shell smoke now runs in CI and local frontend release-gate paths, CI retains screenshot artifacts, and validation gates document screenshot review plus baseline refresh policy.",
+    "residualRisks":  [
+                          "This is local UI regression evidence only and does not satisfy strict production release evidence.",
+                          "Docker-backed runtime and target login evidence remain blocked outside this item."
+                      ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "No unblocked local backlog remains; collect Docker runtime or target-environment evidence for blocked items."
+}

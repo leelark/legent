@@ -20,6 +20,21 @@ const supportedDefinition = {
   },
 };
 
+const campaigns = [
+  {
+    id: 'campaign-1',
+    name: 'Welcome launch',
+    subject: 'Welcome',
+    status: 'APPROVED',
+  },
+  {
+    id: 'campaign-2',
+    name: 'Ops nurture',
+    subject: 'Operational update',
+    status: 'SCHEDULED',
+  },
+];
+
 function ok(data: unknown) {
   return {
     success: true,
@@ -69,6 +84,9 @@ async function mockAutomationApis(
     if (path === '/users/preferences') {
       return fulfill(route, ok({ tenantId: 'tenant-1', userId: 'automation-user', theme: 'light', uiMode: options.uiMode ?? 'ADVANCED', density: 'comfortable', metadata: {} }));
     }
+    if (path === '/campaigns') {
+      return fulfill(route, ok({ content: campaigns, totalElements: campaigns.length, totalPages: 1, page: 0, size: 100 }));
+    }
     if (path === '/workflow-definitions/workflow-1/latest') {
       return fulfill(route, ok({
         workflowId: 'workflow-1',
@@ -83,7 +101,7 @@ async function mockAutomationApis(
         activeDefinitionVersion: 1,
         graphVersion: 2,
         capabilities: {
-          runtimeSupportedNodeTypes: options.runtimeSupportedNodeTypes ?? ['ENTRY_TRIGGER', 'SEND_EMAIL', 'DELAY', 'CONDITION', 'END'],
+          runtimeSupportedNodeTypes: options.runtimeSupportedNodeTypes ?? ['ENTRY_TRIGGER', 'SEND_EMAIL', 'DELAY', 'CONDITION', 'BRANCH', 'SPLIT', 'END'],
           runtimeUnsupportedNodes: [],
         },
       }));
@@ -129,8 +147,33 @@ test('node editor disables unsupported runtime node choices', async ({ page }) =
 
   const nodeType = page.getByLabel('Node Type');
   await expect(nodeType.locator('option[value="SEND_EMAIL"]')).toBeEnabled();
+  await expect(nodeType.locator('option[value="BRANCH"]')).toBeEnabled();
+  await expect(nodeType.locator('option[value="SPLIT"]')).toBeEnabled();
   await expect(nodeType.locator('option[value="WAIT_UNTIL"]')).toBeDisabled();
   await expect(nodeType.locator('option[value="WEBHOOK"]')).toBeDisabled();
+});
+
+test('node editor selects campaign catalog entry for send email config', async ({ page }) => {
+  const seen: Record<string, unknown> = {};
+  await mockAutomationApis(page, seen);
+  await page.goto('/app/automations/builder?id=workflow-1');
+
+  await page.getByRole('button', { name: /add step/i }).click();
+  await page.getByLabel('Delete journey step').waitFor();
+  await page.getByLabel('Edit journey step Send Email').click();
+
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Campaign').selectOption('campaign-2');
+  await expect(dialog.getByText('Operational update')).toBeVisible();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+
+  await expect.poll(() => seen.definition).toBeTruthy();
+  const nodes = Object.values((seen.definition as { nodes: Record<string, { type?: string; configuration?: Record<string, unknown> }> }).nodes);
+  expect(nodes).toContainEqual(expect.objectContaining({
+    type: 'SEND_EMAIL',
+    configuration: { campaignId: 'campaign-2' },
+  }));
 });
 
 test('activate blocks unsupported draft-only nodes before published save', async ({ page }) => {
@@ -220,6 +263,7 @@ test('wait-until runtime support enables timestamp editing and save', async ({ p
   await dialog.getByRole('button', { name: 'Save' }).click();
   await page.getByRole('button', { name: 'Save' }).click();
 
+  await expect.poll(() => seen.definition).toBeTruthy();
   expect(seen.definition).toMatchObject({
     graphVersion: 2,
     nodes: {

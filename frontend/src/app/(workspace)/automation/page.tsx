@@ -11,15 +11,21 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import {
   AutomationActivity,
   AutomationActivityRun,
+  AutomationArtifactResponse,
+  AutomationDataExtensionOption,
   AutomationActivityType,
   AutomationFailurePolicy,
+  AutomationUserOption,
   AutomationVerificationResponse,
   archiveWorkflow,
   cloneWorkflow,
   createAutomationActivity,
   createWorkflow,
+  getAutomationArtifact,
   listAutomationActivities,
   listAutomationActivityRuns,
+  listAutomationDataExtensions,
+  listAutomationUsers,
   listWorkflows,
   pauseWorkflow,
   publishWorkflow,
@@ -29,6 +35,7 @@ import {
   verifyAutomationActivity,
   Workflow,
 } from '@/lib/automation-api';
+import { listCampaigns, type Campaign } from '@/lib/campaign-studio-api';
 import { Plus } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { AUTOMATION_WORKFLOW_MODE_FEATURES, isModeFeatureVisible } from '@/lib/ui-mode-contract';
@@ -88,9 +95,10 @@ const formatRetryAfter = (seconds?: number) => {
   return `${minutes} minute${minutes === 1 ? '' : 's'}`;
 };
 
-const ACTIVITY_TYPES: AutomationActivityType[] = ['SQL_QUERY', 'IMPORT', 'WEBHOOK', 'NOTIFICATION', 'FILE_DROP', 'EXTRACT', 'SCRIPT'];
-const LIVE_SUPPORTED_ACTIVITY_TYPES = new Set<AutomationActivityType>(['SQL_QUERY', 'IMPORT', 'WEBHOOK', 'NOTIFICATION', 'SEND_EMAIL']);
+const ACTIVITY_TYPES: AutomationActivityType[] = ['SQL_QUERY', 'IMPORT', 'FILE_DROP', 'EXTRACT', 'WEBHOOK', 'NOTIFICATION', 'SEND_EMAIL', 'SCRIPT'];
+const LIVE_SUPPORTED_ACTIVITY_TYPES = new Set<AutomationActivityType>(['SQL_QUERY', 'IMPORT', 'FILE_DROP', 'EXTRACT', 'WEBHOOK', 'NOTIFICATION', 'SEND_EMAIL']);
 const UNSAFE_ARTIFACT_REFERENCE_TOKENS = ['http://', 'https://', 's3://', 'gs://', 'file:'];
+const SELECT_CLASS = 'w-full rounded-lg border border-border-default bg-surface-primary px-3 py-2 text-sm text-content-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30 focus:ring-offset-1';
 
 const isUnsafeArtifactReference = (value: string) => {
   const normalized = value.trim().toLowerCase();
@@ -133,14 +141,14 @@ const ACTIVITY_CAPABILITY: Record<AutomationActivityType, { label: string; descr
     liveSupported: true,
   },
   FILE_DROP: {
-    label: 'Design only',
-    description: 'File-drop detection is pending scoped artifact ownership and storage safety work.',
-    liveSupported: false,
+    label: 'Live execution',
+    description: 'Moves scoped import artifacts into governed automation output artifacts.',
+    liveSupported: true,
   },
   EXTRACT: {
-    label: 'Design only',
-    description: 'Extract and file-transfer work is pending artifact, retention, and adapter controls.',
-    liveSupported: false,
+    label: 'Live execution',
+    description: 'Runs artifact-backed extract movement; data extension sources validate for provider handoff.',
+    liveSupported: true,
   },
   SCRIPT: {
     label: 'Blocked',
@@ -195,6 +203,244 @@ const toDisplayValue = (value: unknown) => {
   return String(value);
 };
 
+const fieldId = (label: string, suffix?: string) =>
+  `${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}${suffix ? `-${suffix}` : ''}`.replace(/^-|-$/g, '');
+
+const dataExtensionLabel = (option: AutomationDataExtensionOption) =>
+  option.name?.trim() ? `${option.name} (${option.id})` : option.id;
+
+const campaignLabel = (option: Campaign) =>
+  option.name?.trim() ? `${option.name} (${option.id})` : option.id;
+
+const userLabel = (option: AutomationUserOption) => {
+  const name = [option.firstName, option.lastName].filter(Boolean).join(' ').trim();
+  return name ? `${name} - ${option.email}` : option.email;
+};
+
+const formatBytes = (value?: number) => {
+  if (!value || value <= 0) {
+    return 'size not recorded';
+  }
+  if (value < 1024) {
+    return `${value} B`;
+  }
+  const kb = value / 1024;
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
+  return `${(kb / 1024).toFixed(1)} MB`;
+};
+
+function DataExtensionSelect({
+  label,
+  value,
+  options,
+  loading,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: AutomationDataExtensionOption[];
+  loading: boolean;
+  onChange: (value: string) => void;
+}) {
+  const id = fieldId(label);
+  const selected = options.find((option) => option.id === value);
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium text-content-primary">{label}</label>
+      <select
+        id={id}
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={SELECT_CLASS}
+        disabled={loading}
+      >
+        <option value="">{loading ? 'Loading data extensions...' : 'Select data extension'}</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {dataExtensionLabel(option)}
+          </option>
+        ))}
+      </select>
+      {selected && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-content-secondary">
+          <span>{selected.name || selected.id}</span>
+          <span>{selected.recordCount?.toLocaleString() ?? 'No'} records</span>
+          <Badge variant={selected.sendable ? 'success' : 'warning'}>{selected.sendable ? 'Sendable' : 'Not sendable'}</Badge>
+          {selected.governance?.dataClassification && (
+            <Badge variant={selected.governance.dataClassification === 'RESTRICTED' ? 'danger' : 'info'}>
+              {selected.governance.dataClassification}
+            </Badge>
+          )}
+        </div>
+      )}
+      {!loading && options.length === 0 && (
+        <p className="text-xs text-content-muted">No governed data extensions are available in this workspace.</p>
+      )}
+    </div>
+  );
+}
+
+function CampaignSelect({
+  label,
+  value,
+  options,
+  loading,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: Campaign[];
+  loading: boolean;
+  onChange: (value: string) => void;
+}) {
+  const id = fieldId(label);
+  const selected = options.find((option) => option.id === value);
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium text-content-primary">{label}</label>
+      <select
+        id={id}
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={SELECT_CLASS}
+        disabled={loading}
+      >
+        <option value="">{loading ? 'Loading campaigns...' : 'Select campaign'}</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {campaignLabel(option)}
+          </option>
+        ))}
+      </select>
+      {selected && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-content-secondary">
+          <span>{selected.subject || selected.type || 'Campaign send'}</span>
+          <Badge variant={selected.status === 'APPROVED' || selected.status === 'SCHEDULED' ? 'success' : 'info'}>
+            {selected.status}
+          </Badge>
+        </div>
+      )}
+      {!loading && options.length === 0 && (
+        <p className="text-xs text-content-muted">No campaigns are available for automation handoff.</p>
+      )}
+    </div>
+  );
+}
+
+function UserSelect({
+  label,
+  value,
+  options,
+  loading,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: AutomationUserOption[];
+  loading: boolean;
+  onChange: (value: string) => void;
+}) {
+  const id = fieldId(label);
+  const selected = options.find((option) => option.id === value);
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium text-content-primary">{label}</label>
+      <select
+        id={id}
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={SELECT_CLASS}
+        disabled={loading}
+      >
+        <option value="">{loading ? 'Loading users...' : 'Select user'}</option>
+        {options.map((option) => (
+          <option key={option.id} value={option.id}>
+            {userLabel(option)}
+          </option>
+        ))}
+      </select>
+      {selected && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-content-secondary">
+          <span>{selected.email}</span>
+          <Badge variant={selected.isActive === false ? 'warning' : 'success'}>
+            {selected.isActive === false ? 'Inactive' : 'Active'}
+          </Badge>
+          {(selected.role || selected.roles?.[0]) && <Badge variant="info">{selected.role ?? selected.roles?.[0]}</Badge>}
+        </div>
+      )}
+      {!loading && options.length === 0 && (
+        <p className="text-xs text-content-muted">No tenant users are available for notification routing.</p>
+      )}
+    </div>
+  );
+}
+
+function ArtifactReferenceField({
+  label,
+  value,
+  artifact,
+  loading,
+  error,
+  onChange,
+  onVerify,
+}: {
+  label: string;
+  value: string;
+  artifact?: AutomationArtifactResponse;
+  loading: boolean;
+  error?: string;
+  onChange: (value: string) => void;
+  onVerify: () => void;
+}) {
+  const id = fieldId(label);
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium text-content-primary">{label}</label>
+      <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <input
+          id={id}
+          aria-label={label}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="artifact-import-1"
+          className={SELECT_CLASS}
+        />
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onVerify}
+          loading={loading}
+          disabled={!value.trim() || loading}
+          aria-label={`Verify ${label}`}
+        >
+          Verify
+        </Button>
+      </div>
+      {artifact && (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-content-secondary">
+          <span>{artifact.displayName || artifact.artifactId}</span>
+          {artifact.status && <Badge variant={artifact.status === 'READY' || artifact.status === 'GENERATED' ? 'success' : 'warning'}>{artifact.status}</Badge>}
+          {artifact.sourceKind && <Badge variant="info">{artifact.sourceKind}</Badge>}
+          <span>{formatBytes(artifact.sizeBytes)}</span>
+        </div>
+      )}
+      {error && <p className="text-xs text-danger">{error}</p>}
+      {!artifact && !error && (
+        <p className="text-xs text-content-muted">Use a scoped automation artifact ID. Full artifact search needs a backend list endpoint.</p>
+      )}
+    </div>
+  );
+}
+
 export default function AutomationPage() {
   const uiMode = useUIStore((state) => state.uiMode);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
@@ -212,9 +458,11 @@ export default function AutomationPage() {
   const [activityImportTargetType, setActivityImportTargetType] = useState<'SUBSCRIBER' | 'DATA_EXTENSION'>('SUBSCRIBER');
   const [activityImportTargetId, setActivityImportTargetId] = useState('');
   const [activityImportEmailField, setActivityImportEmailField] = useState('Email Address');
+  const [activityFileDropOutputArtifact, setActivityFileDropOutputArtifact] = useState('');
   const [activityExtractSourceType, setActivityExtractSourceType] = useState('');
   const [activityExtractSourceId, setActivityExtractSourceId] = useState('');
   const [activityExtractDestination, setActivityExtractDestination] = useState('');
+  const [activityCampaignId, setActivityCampaignId] = useState('');
   const [activityWebhookEventType, setActivityWebhookEventType] = useState('automation.activity.completed');
   const [activityWebhookAuthRef, setActivityWebhookAuthRef] = useState('');
   const [activityWebhookPayloadJson, setActivityWebhookPayloadJson] = useState('');
@@ -236,6 +484,14 @@ export default function AutomationPage() {
   const [activityRuns, setActivityRuns] = useState<Record<string, AutomationActivityRun[]>>({});
   const [runHistoryLoading, setRunHistoryLoading] = useState<Record<string, boolean>>({});
   const [runHistoryError, setRunHistoryError] = useState<Record<string, string | undefined>>({});
+  const [dataExtensions, setDataExtensions] = useState<AutomationDataExtensionOption[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [users, setUsers] = useState<AutomationUserOption[]>([]);
+  const [selectorLoading, setSelectorLoading] = useState(true);
+  const [selectorError, setSelectorError] = useState<string | null>(null);
+  const [artifactDetails, setArtifactDetails] = useState<Record<string, AutomationArtifactResponse | undefined>>({});
+  const [artifactLookupBusy, setArtifactLookupBusy] = useState<string | null>(null);
+  const [artifactLookupErrors, setArtifactLookupErrors] = useState<Record<string, string | undefined>>({});
   const activeCount = workflows.filter((workflow) => workflow.status === 'ACTIVE').length;
   const draftCount = workflows.filter((workflow) => workflow.status === 'DRAFT').length;
   const pausedCount = workflows.filter((workflow) => workflow.status === 'PAUSED' || workflow.status === 'SCHEDULED').length;
@@ -260,9 +516,55 @@ export default function AutomationPage() {
     }
   };
 
+  const loadSelectorCatalogs = async () => {
+    setSelectorLoading(true);
+    setSelectorError(null);
+    try {
+      const [dataExtensionData, userData, campaignData] = await Promise.all([
+        listAutomationDataExtensions(),
+        listAutomationUsers(),
+        listCampaigns({ page: 0, size: 100 }),
+      ]);
+      setDataExtensions(dataExtensionData);
+      setUsers(userData);
+      setCampaigns(Array.isArray(campaignData as unknown) ? campaignData as unknown as Campaign[] : campaignData.content ?? []);
+    } catch (e: unknown) {
+      setSelectorError(getAutomationErrorMessage(e, 'Failed to load automation selector catalogs'));
+    } finally {
+      setSelectorLoading(false);
+    }
+  };
+
   useEffect(() => {
     loadWorkflows();
+    loadSelectorCatalogs();
   }, []);
+
+  const verifyArtifactReference = async (field: string, artifactId: string) => {
+    const normalizedId = artifactId.trim();
+    if (!normalizedId) {
+      setArtifactLookupErrors((current) => ({ ...current, [field]: 'Artifact ID is required before verification.' }));
+      return;
+    }
+    if (isUnsafeArtifactReference(normalizedId)) {
+      setArtifactLookupErrors((current) => ({ ...current, [field]: 'Artifact reference must be an opaque scoped ID.' }));
+      return;
+    }
+    setArtifactLookupBusy(field);
+    setArtifactLookupErrors((current) => ({ ...current, [field]: undefined }));
+    try {
+      const artifact = await getAutomationArtifact(normalizedId);
+      setArtifactDetails((current) => ({ ...current, [field]: artifact }));
+    } catch (e: unknown) {
+      setArtifactLookupErrors((current) => ({
+        ...current,
+        [field]: getAutomationErrorMessage(e, 'Artifact lookup failed'),
+      }));
+      setArtifactDetails((current) => ({ ...current, [field]: undefined }));
+    } finally {
+      setArtifactLookupBusy(null);
+    }
+  };
 
   const loadActivityRuns = async (activityId: string) => {
     setRunHistoryLoading((current) => ({ ...current, [activityId]: true }));
@@ -394,9 +696,17 @@ export default function AutomationPage() {
         setError('File-drop activity requires an opaque scoped artifact ID');
         return null;
       }
+      if (!activityFileDropOutputArtifact.trim()) {
+        setError('File-drop activity requires an output artifact ID');
+        return null;
+      }
+      if (isUnsafeArtifactReference(activityFileDropOutputArtifact)) {
+        setError('File-drop activity requires an opaque output artifact ID');
+        return null;
+      }
       return {
         inputConfig: { artifactId: activityImportSource.trim() },
-        outputConfig: {},
+        outputConfig: { artifactId: activityFileDropOutputArtifact.trim() },
       };
     }
     if (activityType === 'EXTRACT') {
@@ -470,6 +780,20 @@ export default function AutomationPage() {
           terminalStatus: activityNotificationTerminalStatus,
           ...(activityNotificationLinkUrl.trim() ? { linkUrl: activityNotificationLinkUrl.trim() } : {}),
         },
+        outputConfig: {},
+      };
+    }
+    if (activityType === 'SEND_EMAIL') {
+      if (!activityCampaignId.trim()) {
+        setError('Send email activity requires a campaign');
+        return null;
+      }
+      if (isUnsafeArtifactReference(activityCampaignId)) {
+        setError('Send email activity requires an opaque campaign ID');
+        return null;
+      }
+      return {
+        inputConfig: { campaignId: activityCampaignId.trim() },
         outputConfig: {},
       };
     }
@@ -641,42 +965,163 @@ export default function AutomationPage() {
                 </Badge>
                 <span className="text-xs leading-5 text-content-secondary">{selectedActivityCapability.description}</span>
               </div>
+              {selectorError && <p className="text-xs text-danger">{selectorError}</p>}
               {activityType === 'SQL_QUERY' && (
                 <div className="grid gap-3 md:grid-cols-[1fr_220px]">
                   <Input label="SQL" value={activitySql} onChange={(event) => setActivitySql(event.target.value)} />
-                  <Input label="Target Data Extension ID" value={activityTargetDataExtensionId} onChange={(event) => setActivityTargetDataExtensionId(event.target.value)} />
+                  <DataExtensionSelect
+                    label="Target Data Extension"
+                    value={activityTargetDataExtensionId}
+                    options={dataExtensions}
+                    loading={selectorLoading}
+                    onChange={setActivityTargetDataExtensionId}
+                  />
                 </div>
               )}
               {activityType === 'IMPORT' && (
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Input label="Scoped Artifact ID" value={activityImportSource} onChange={(event) => setActivityImportSource(event.target.value)} />
+                  <ArtifactReferenceField
+                    label="Import Artifact"
+                    value={activityImportSource}
+                    artifact={artifactDetails.importSource}
+                    loading={artifactLookupBusy === 'importSource'}
+                    error={artifactLookupErrors.importSource}
+                    onChange={(value) => {
+                      setActivityImportSource(value);
+                      setArtifactDetails((current) => ({ ...current, importSource: undefined }));
+                      setArtifactLookupErrors((current) => ({ ...current, importSource: undefined }));
+                    }}
+                    onVerify={() => verifyArtifactReference('importSource', activityImportSource)}
+                  />
                   <div>
                     <label className="mb-1 block text-sm font-medium text-content-primary">Target Type</label>
                     <select
                       aria-label="Import Target Type"
                       value={activityImportTargetType}
-                      onChange={(event) => setActivityImportTargetType(event.target.value as 'SUBSCRIBER' | 'DATA_EXTENSION')}
-                      className="w-full rounded-lg border border-border-default bg-surface-secondary px-3 py-2 text-sm text-content-primary"
+                      onChange={(event) => {
+                        const nextType = event.target.value as 'SUBSCRIBER' | 'DATA_EXTENSION';
+                        setActivityImportTargetType(nextType);
+                        if (nextType === 'SUBSCRIBER') {
+                          setActivityImportTargetId('');
+                        }
+                      }}
+                      className={SELECT_CLASS}
                     >
                       <option value="SUBSCRIBER">SUBSCRIBER</option>
                       <option value="DATA_EXTENSION">DATA_EXTENSION</option>
                     </select>
                   </div>
                   {activityImportTargetType === 'DATA_EXTENSION' && (
-                    <Input label="Target Data Extension ID" value={activityImportTargetId} onChange={(event) => setActivityImportTargetId(event.target.value)} />
+                    <DataExtensionSelect
+                      label="Target Data Extension"
+                      value={activityImportTargetId}
+                      options={dataExtensions}
+                      loading={selectorLoading}
+                      onChange={setActivityImportTargetId}
+                    />
                   )}
                   <Input label="Email Field Mapping" value={activityImportEmailField} onChange={(event) => setActivityImportEmailField(event.target.value)} />
                 </div>
               )}
               {activityType === 'FILE_DROP' && (
-                <Input label="Scoped Artifact ID" value={activityImportSource} onChange={(event) => setActivityImportSource(event.target.value)} />
+                <div className="grid gap-3 md:grid-cols-2">
+                  <ArtifactReferenceField
+                    label="File-drop Artifact"
+                    value={activityImportSource}
+                    artifact={artifactDetails.fileDropSource}
+                    loading={artifactLookupBusy === 'fileDropSource'}
+                    error={artifactLookupErrors.fileDropSource}
+                    onChange={(value) => {
+                      setActivityImportSource(value);
+                      setArtifactDetails((current) => ({ ...current, fileDropSource: undefined }));
+                      setArtifactLookupErrors((current) => ({ ...current, fileDropSource: undefined }));
+                    }}
+                    onVerify={() => verifyArtifactReference('fileDropSource', activityImportSource)}
+                  />
+                  <ArtifactReferenceField
+                    label="Output Artifact"
+                    value={activityFileDropOutputArtifact}
+                    artifact={artifactDetails.fileDropOutput}
+                    loading={artifactLookupBusy === 'fileDropOutput'}
+                    error={artifactLookupErrors.fileDropOutput}
+                    onChange={(value) => {
+                      setActivityFileDropOutputArtifact(value);
+                      setArtifactDetails((current) => ({ ...current, fileDropOutput: undefined }));
+                      setArtifactLookupErrors((current) => ({ ...current, fileDropOutput: undefined }));
+                    }}
+                    onVerify={() => verifyArtifactReference('fileDropOutput', activityFileDropOutputArtifact)}
+                  />
+                </div>
               )}
               {activityType === 'EXTRACT' && (
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Input label="Source Type" value={activityExtractSourceType} onChange={(event) => setActivityExtractSourceType(event.target.value)} />
-                  <Input label="Source ID or Artifact ID" value={activityExtractSourceId} onChange={(event) => setActivityExtractSourceId(event.target.value)} />
-                  <Input label="Output Artifact ID" value={activityExtractDestination} onChange={(event) => setActivityExtractDestination(event.target.value)} />
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-content-primary">Source Type</label>
+                    <select
+                      aria-label="Source Type"
+                      value={activityExtractSourceType}
+                      onChange={(event) => {
+                        setActivityExtractSourceType(event.target.value);
+                        setActivityExtractSourceId('');
+                        setArtifactDetails((current) => ({ ...current, extractSource: undefined }));
+                        setArtifactLookupErrors((current) => ({ ...current, extractSource: undefined }));
+                      }}
+                      className={SELECT_CLASS}
+                    >
+                      <option value="">Select source type</option>
+                      <option value="DATA_EXTENSION">DATA_EXTENSION</option>
+                      <option value="IMPORT_ARTIFACT">IMPORT_ARTIFACT</option>
+                      <option value="GENERATED_EXTRACT">GENERATED_EXTRACT</option>
+                    </select>
+                  </div>
+                  {activityExtractSourceType === 'DATA_EXTENSION' ? (
+                    <DataExtensionSelect
+                      label="Source Data Extension"
+                      value={activityExtractSourceId}
+                      options={dataExtensions}
+                      loading={selectorLoading}
+                      onChange={setActivityExtractSourceId}
+                    />
+                  ) : activityExtractSourceType ? (
+                    <ArtifactReferenceField
+                      label="Source Artifact"
+                      value={activityExtractSourceId}
+                      artifact={artifactDetails.extractSource}
+                      loading={artifactLookupBusy === 'extractSource'}
+                      error={artifactLookupErrors.extractSource}
+                      onChange={(value) => {
+                        setActivityExtractSourceId(value);
+                        setArtifactDetails((current) => ({ ...current, extractSource: undefined }));
+                        setArtifactLookupErrors((current) => ({ ...current, extractSource: undefined }));
+                      }}
+                      onVerify={() => verifyArtifactReference('extractSource', activityExtractSourceId)}
+                    />
+                  ) : (
+                    <p className="self-end text-xs text-content-muted">Select a source type before choosing a source artifact.</p>
+                  )}
+                  <ArtifactReferenceField
+                    label="Output Artifact"
+                    value={activityExtractDestination}
+                    artifact={artifactDetails.extractDestination}
+                    loading={artifactLookupBusy === 'extractDestination'}
+                    error={artifactLookupErrors.extractDestination}
+                    onChange={(value) => {
+                      setActivityExtractDestination(value);
+                      setArtifactDetails((current) => ({ ...current, extractDestination: undefined }));
+                      setArtifactLookupErrors((current) => ({ ...current, extractDestination: undefined }));
+                    }}
+                    onVerify={() => verifyArtifactReference('extractDestination', activityExtractDestination)}
+                  />
                 </div>
+              )}
+              {activityType === 'SEND_EMAIL' && (
+                <CampaignSelect
+                  label="Campaign"
+                  value={activityCampaignId}
+                  options={campaigns}
+                  loading={selectorLoading}
+                  onChange={setActivityCampaignId}
+                />
               )}
               {activityType === 'WEBHOOK' && (
                 <div className="grid gap-3 md:grid-cols-2">
@@ -696,7 +1141,13 @@ export default function AutomationPage() {
               )}
               {activityType === 'NOTIFICATION' && (
                 <div className="grid gap-3 md:grid-cols-2">
-                  <Input label="Recipient User ID" value={activityNotificationUserId} onChange={(event) => setActivityNotificationUserId(event.target.value)} />
+                  <UserSelect
+                    label="Recipient User"
+                    value={activityNotificationUserId}
+                    options={users}
+                    loading={selectorLoading}
+                    onChange={setActivityNotificationUserId}
+                  />
                   <Input label="Title" value={activityNotificationTitle} onChange={(event) => setActivityNotificationTitle(event.target.value)} />
                   <Input label="Message" value={activityNotificationMessage} onChange={(event) => setActivityNotificationMessage(event.target.value)} />
                   <div>
@@ -728,7 +1179,19 @@ export default function AutomationPage() {
                 </div>
               )}
               {activityType === 'SCRIPT' && (
-                <Input label="Signed Artifact Reference" value={activityScriptRef} onChange={(event) => setActivityScriptRef(event.target.value)} />
+                <ArtifactReferenceField
+                  label="Signed Artifact Reference"
+                  value={activityScriptRef}
+                  artifact={artifactDetails.scriptRef}
+                  loading={artifactLookupBusy === 'scriptRef'}
+                  error={artifactLookupErrors.scriptRef}
+                  onChange={(value) => {
+                    setActivityScriptRef(value);
+                    setArtifactDetails((current) => ({ ...current, scriptRef: undefined }));
+                    setArtifactLookupErrors((current) => ({ ...current, scriptRef: undefined }));
+                  }}
+                  onVerify={() => verifyArtifactReference('scriptRef', activityScriptRef)}
+                />
               )}
             </div>
             <Button className="mt-6" onClick={handleCreateActivity} loading={creating}>Create</Button>

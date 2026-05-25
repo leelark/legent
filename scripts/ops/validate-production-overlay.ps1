@@ -524,7 +524,18 @@ function Get-GrafanaDashboardHandoff([string]$Path) {
     return [pscustomobject]@{ Uid = $uid; PanelTitles = $panelTitles }
 }
 
-function Test-AlertmanagerRouting([string]$Path, [object[]]$Alerts) {
+function Get-ExternalSecretKeys([string]$ExternalSecretsSource) {
+    $keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($match in [regex]::Matches($ExternalSecretsSource, '(?m)^\s*-\s*secretKey:\s*(?<key>.+?)\s*$')) {
+        $key = ConvertFrom-YamlScalar $match.Groups["key"].Value
+        if (-not [string]::IsNullOrWhiteSpace($key)) {
+            [void]$keys.Add($key)
+        }
+    }
+    return $keys
+}
+
+function Test-AlertmanagerRouting([string]$Path, [object[]]$Alerts, [System.Collections.Generic.HashSet[string]]$ExternalSecretKeys) {
     if (-not (Test-Path $Path)) {
         $errors.Add("Missing Alertmanager routing config: $Path")
         return
@@ -563,10 +574,18 @@ function Test-AlertmanagerRouting([string]$Path, [object[]]$Alerts) {
     if ($webhookUrls.Count -lt $receiverNames.Count) {
         $errors.Add("Alertmanager receivers must have webhook handoff URLs.")
     }
+    $alertmanagerPlaceholders = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($match in $webhookUrls) {
         $url = ConvertFrom-YamlScalar $match.Groups["url"].Value
-        if ($url -notmatch '^\$\{ALERTMANAGER_[A-Z0-9_]+\}$') {
+        if ($url -notmatch '^\$\{(?<name>ALERTMANAGER_[A-Z0-9_]+)\}$') {
             $errors.Add("Alertmanager webhook URL must use an ALERTMANAGER_* environment placeholder, not a literal target: $url")
+        } else {
+            [void]$alertmanagerPlaceholders.Add($Matches["name"])
+        }
+    }
+    foreach ($placeholder in $alertmanagerPlaceholders) {
+        if (-not $ExternalSecretKeys.Contains($placeholder)) {
+            $errors.Add("Alertmanager placeholder $placeholder is not backed by production ExternalSecret data.")
         }
     }
 
@@ -589,7 +608,7 @@ function Test-AlertmanagerRouting([string]$Path, [object[]]$Alerts) {
     }
 }
 
-function Test-ObservabilityHandoff([string]$PrometheusPath, [string]$AlertmanagerPath, [string]$GrafanaPath) {
+function Test-ObservabilityHandoff([string]$PrometheusPath, [string]$AlertmanagerPath, [string]$GrafanaPath, [System.Collections.Generic.HashSet[string]]$ExternalSecretKeys) {
     $alerts = @(Get-PrometheusAlerts $PrometheusPath)
     if ($alerts.Count -eq 0) {
         $errors.Add("Prometheus alert rules contain no alerts: $PrometheusPath")
@@ -628,7 +647,7 @@ function Test-ObservabilityHandoff([string]$PrometheusPath, [string]$Alertmanage
         }
     }
 
-    Test-AlertmanagerRouting $AlertmanagerPath $alerts
+    Test-AlertmanagerRouting $AlertmanagerPath $alerts $ExternalSecretKeys
 }
 
 foreach ($required in @(
@@ -690,7 +709,8 @@ if ($renderedOverlay) {
     Test-RenderedProductionOverlay $renderedOverlay $renderedObjects -StrictDigests:$RequireImageDigests
 }
 
-Test-ObservabilityHandoff $prometheusAlerts $AlertmanagerConfigPath $GrafanaDashboardPath
+$externalSecretKeys = Get-ExternalSecretKeys $es
+Test-ObservabilityHandoff $prometheusAlerts $AlertmanagerConfigPath $GrafanaDashboardPath $externalSecretKeys
 
 if ($errors.Count -gt 0) {
     foreach ($errorMessage in $errors) {

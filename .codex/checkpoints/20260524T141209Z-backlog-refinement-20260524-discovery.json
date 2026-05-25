@@ -1,0 +1,32 @@
+{
+    "id":  "backlog-refinement-20260524-discovery",
+    "createdAt":  "2026-05-24T14:12:09.5558338Z",
+    "objective":  "Record read-only audit findings as scored backlog items and align active state/dashboard after suppression-health completion.",
+    "status":  "IN_PROGRESS",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/state/team-state.json",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "QA_ENGINEER",
+                   "SECURITY_ENGINEER",
+                   "FRONTEND_OWNER",
+                   "DEVOPS_ENGINEER",
+                   "PRODUCT_MANAGER_AGENT"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Add discovered local candidates to queue, update active memory, validate Codex system, and select next ready item."
+}

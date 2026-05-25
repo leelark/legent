@@ -1,0 +1,36 @@
+{
+    "id":  "campaign-suppression-health-aggregate",
+    "createdAt":  "2026-05-24T14:06:36.4222880Z",
+    "objective":  "Use aggregate deliverability suppression counts for campaign launch readiness instead of a bounded suppression-list sample.",
+    "status":  "IN_PROGRESS",
+    "owner":  "CAMPAIGN_SERVICE_OWNER",
+    "filesInScope":  [
+                         "services/campaign-service/src/main/java/com/legent/campaign/client/DeliverabilityReadinessClient.java",
+                         "services/campaign-service/src/test/java/com/legent/campaign/client",
+                         "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                         "services/deliverability-service/src/test/java/com/legent/deliverability/controller/SuppressionControllerTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md"
+                     ],
+    "agents":  [
+                   "DELIVERABILITY_ENGINEER",
+                   "QA_ENGINEER",
+                   "SECURITY_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/deliverability-service",
+                           "services/campaign-service -am -Dtest=SuppressionControllerTest",
+                           "DeliverabilityReadinessClientTest",
+                           "CampaignLaunchReadinessGateTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Implement aggregate suppression-health endpoint and campaign client parser, then run focused tests."
+}

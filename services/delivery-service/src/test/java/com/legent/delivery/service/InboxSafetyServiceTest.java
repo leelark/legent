@@ -85,6 +85,16 @@ class InboxSafetyServiceTest {
     }
 
     @Test
+    void evaluate_blocksActiveUnsubscribeSuppression() {
+        insertSuppression("tenant-1", "workspace-a", "user@example.com", "UNSUBSCRIBE", false);
+
+        InboxSafetyService.InboxSafetyResult result = service.evaluate(request("tenant-1", "workspace-a", "user@example.com"));
+
+        assertThat(result.decision()).isEqualTo(InboxSafetyService.SafetyDecision.BLOCK);
+        assertThat(result.reasonCodes()).contains("RECIPIENT_SUPPRESSED");
+    }
+
+    @Test
     void evaluate_blocksWhenSuppressionSqlFails() {
         JdbcTemplate failingJdbcTemplate = mock(JdbcTemplate.class);
         service = new InboxSafetyService(inboxSafetyEvaluationRepository, failingJdbcTemplate);

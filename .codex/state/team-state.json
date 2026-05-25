@@ -22,8 +22,8 @@
     "inProgressWork":  [
 
                        ],
-    "lastActivity":  "2026-05-24T11:29:38.6124148Z",
-    "nextAction":  "Safe stop requested after segment-builder-v2-governance-ui completed locally; automation paused. Resume with automation-artifact-selector-ux or collect external evidence for blocked release/provider/high-volume work.",
+    "lastActivity":  "2026-05-24T15:00:21.9634539Z",
+    "nextAction":  "No unblocked READY local work remains; wait for external evidence, credentials, production access, human decisions, or new audit findings.",
     "activeAgents":  [
 
                      ],
@@ -34,250 +34,7 @@
 
                   ],
     "backlogWork":  [
-                        {
-                            "id":  "automation-artifact-selector-ux",
-                            "title":  "Add Automation Studio artifact/data-extension/user selector UX",
-                            "status":  "BACKLOG",
-                            "priorityScore":  43,
-                            "scoring":  {
-                                            "productionReadinessImpact":  2,
-                                            "securityRisk":  3,
-                                            "userImpact":  5,
-                                            "performanceImpact":  1,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "FRONTEND_OWNER",
-                            "partnerAgents":  [
-                                                  "AUTOMATION_SERVICE_OWNER",
-                                                  "AUDIENCE_SERVICE_OWNER",
-                                                  "QA_ENGINEER"
-                                              ],
-                            "scope":  "Replace raw artifact IDs and JSON-heavy fields in Automation Studio with governed selectors for artifacts, data extensions, and users.",
-                            "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
-                            "sourceFiles":  [
-                                                "frontend/src/app/(workspace)/automation/page.tsx",
-                                                "frontend/src/components/automation/JourneyBuilder.tsx",
-                                                "services/automation-service"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Scope is implemented with tenant/workspace safety.",
-                                                       "Focused tests cover the changed workflow.",
-                                                       "Residual production/evidence risks remain explicit."
-                                                   ],
-                            "validationProfile":  "audit",
-                            "validationCommands":  [
-                                                       "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts --project=chromium --reporter=line"
-                                                   ],
-                            "dependencies":  [
 
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "technical-debt.md",
-                                                  "enhancement-log.md",
-                                                  "unresolved-risks.md"
-                                              ],
-                            "nextAction":  "Promote when it is the highest-score compatible READY/BACKLOG item.",
-                            "discoveredAt":  "2026-05-23T13:51:29.185Z",
-                            "lastUpdated":  "2026-05-23T13:51:29.185Z"
-                        },
-                        {
-                            "id":  "alertmanager-placeholder-secret-coverage",
-                            "title":  "Prove Alertmanager receiver placeholders are backed or target-managed",
-                            "status":  "BACKLOG",
-                            "priorityScore":  39,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  3,
-                                            "userImpact":  2,
-                                            "performanceImpact":  1,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "SRE_MONITORING_ENGINEER",
-                            "partnerAgents":  [
-                                                  "DEVOPS_ENGINEER",
-                                                  "RELEASE_MANAGER"
-                                              ],
-                            "scope":  "Decide and validate whether Alertmanager receiver placeholders are in-cluster ExternalSecret-managed values or managed-provider handoff values.",
-                            "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
-                            "sourceFiles":  [
-                                                "infrastructure/kubernetes/observability/alertmanager.yml",
-                                                "infrastructure/kubernetes/overlays/production/external-secrets.yml",
-                                                "scripts/ops/validate-production-overlay.ps1"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Scope is refined before implementation.",
-                                                       "Validation gates are run or explicitly blocked.",
-                                                       "No release/parity claims are made without evidence."
-                                                   ],
-                            "validationProfile":  "audit",
-                            "validationCommands":  [
-                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
-                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1"
-                                                   ],
-                            "dependencies":  [
-
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "technical-debt.md",
-                                                  "enhancement-log.md",
-                                                  "unresolved-risks.md"
-                                              ],
-                            "nextAction":  "Refine and promote when dependencies are clear.",
-                            "discoveredAt":  "2026-05-23T13:50:00.149Z",
-                            "lastUpdated":  "2026-05-23T13:50:00.149Z"
-                        },
-                        {
-                            "id":  "qa-ci-live-compose-health-evidence",
-                            "title":  "Collect local runtime Compose health evidence transcript",
-                            "status":  "BACKLOG",
-                            "priorityScore":  36,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  2,
-                                            "userImpact":  2,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  3
-                                        },
-                            "owner":  "DEVOPS_ENGINEER",
-                            "partnerAgents":  [
-                                                  "QA_ENGINEER",
-                                                  "SRE_MONITORING_ENGINEER"
-                                              ],
-                            "scope":  "Run and record local Docker Compose health evidence outside parser self-tests to improve runtime confidence.",
-                            "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
-                            "sourceFiles":  [
-                                                ".github/workflows/ci-security.yml",
-                                                ".codex/workflows/validation-gates.md",
-                                                "scripts/ops/validate-compose-health.ps1"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Scope is refined before implementation.",
-                                                       "Validation gates are run or explicitly blocked.",
-                                                       "No release/parity claims are made without evidence."
-                                                   ],
-                            "validationProfile":  "audit",
-                            "validationCommands":  [
-                                                       "docker compose --env-file .env.example config --quiet",
-                                                       "docker compose up -d --build",
-                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1"
-                                                   ],
-                            "dependencies":  [
-
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "technical-debt.md",
-                                                  "enhancement-log.md",
-                                                  "unresolved-risks.md"
-                                              ],
-                            "nextAction":  "Refine and promote when dependencies are clear.",
-                            "discoveredAt":  "2026-05-23T13:50:00.149Z",
-                            "lastUpdated":  "2026-05-23T13:50:00.149Z"
-                        },
-                        {
-                            "id":  "product-parity-source-refresh-current",
-                            "title":  "Refresh Salesforce and competitor parity sources",
-                            "status":  "BACKLOG",
-                            "priorityScore":  34,
-                            "scoring":  {
-                                            "productionReadinessImpact":  2,
-                                            "securityRisk":  2,
-                                            "userImpact":  4,
-                                            "performanceImpact":  0,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "SALESFORCE_PARITY_RESEARCHER",
-                            "partnerAgents":  [
-                                                  "PRODUCT_MANAGER_AGENT",
-                                                  "DOCUMENTATION_ENGINEER"
-                                              ],
-                            "scope":  "Refresh official/current sources for Salesforce Marketing Cloud, Adobe, Braze, Klaviyo, HubSpot, and relevant deliverability/AI capabilities before new parity claims.",
-                            "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
-                            "sourceFiles":  [
-                                                "docs/product/salesforce-parity-matrix.md",
-                                                "docs/product/competitor-research",
-                                                ".codex/memory/design-decisions.md"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Scope is refined before implementation.",
-                                                       "Validation gates are run or explicitly blocked.",
-                                                       "No release/parity claims are made without evidence."
-                                                   ],
-                            "validationProfile":  "audit",
-                            "validationCommands":  [
-                                                       "git diff --check -- docs/product .codex/backlog/queue.json"
-                                                   ],
-                            "dependencies":  [
-
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "technical-debt.md",
-                                                  "enhancement-log.md",
-                                                  "unresolved-risks.md"
-                                              ],
-                            "nextAction":  "Refine and promote when dependencies are clear.",
-                            "discoveredAt":  "2026-05-23T13:50:00.149Z",
-                            "lastUpdated":  "2026-05-23T13:50:00.149Z"
-                        },
-                        {
-                            "id":  "qa-ci-visual-smoke-gate",
-                            "title":  "Add visual smoke to CI/manual release gate",
-                            "status":  "BACKLOG",
-                            "priorityScore":  29,
-                            "scoring":  {
-                                            "productionReadinessImpact":  2,
-                                            "securityRisk":  1,
-                                            "userImpact":  3,
-                                            "performanceImpact":  1,
-                                            "technicalDebtImpact":  4
-                                        },
-                            "owner":  "FRONTEND_OWNER",
-                            "partnerAgents":  [
-                                                  "QA_ENGINEER",
-                                                  "UX_STRATEGIST"
-                                              ],
-                            "scope":  "Add visual smoke checks as a nonblocking-to-required frontend gate with documented baseline refresh policy.",
-                            "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
-                            "sourceFiles":  [
-                                                "frontend/package.json",
-                                                "frontend/playwright.config.ts",
-                                                "frontend/tests/e2e"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Scope is refined before implementation.",
-                                                       "Validation gates are run or explicitly blocked.",
-                                                       "No release/parity claims are made without evidence."
-                                                   ],
-                            "validationProfile":  "audit",
-                            "validationCommands":  [
-                                                       "cd frontend; npm run test:e2e:visual"
-                                                   ],
-                            "dependencies":  [
-
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "technical-debt.md",
-                                                  "enhancement-log.md",
-                                                  "unresolved-risks.md"
-                                              ],
-                            "nextAction":  "Refine and promote when dependencies are clear.",
-                            "discoveredAt":  "2026-05-23T13:50:00.149Z",
-                            "lastUpdated":  "2026-05-23T13:50:00.149Z"
-                        }
                     ],
     "blockedWork":  [
                         {
@@ -1105,6 +862,65 @@
                             "discoveredAt":  "2026-05-23T13:50:00.149Z",
                             "lastUpdated":  "2026-05-23T13:50:00.149Z",
                             "parentId":  "live-high-volume-proof"
+                        },
+                        {
+                            "id":  "qa-ci-live-compose-health-evidence",
+                            "title":  "Collect local runtime Compose health evidence transcript",
+                            "status":  "BLOCKED",
+                            "priorityScore":  36,
+                            "scoring":  {
+                                            "productionReadinessImpact":  3,
+                                            "securityRisk":  2,
+                                            "userImpact":  2,
+                                            "performanceImpact":  2,
+                                            "technicalDebtImpact":  3
+                                        },
+                            "owner":  "DEVOPS_ENGINEER",
+                            "partnerAgents":  [
+                                                  "QA_ENGINEER",
+                                                  "SRE_MONITORING_ENGINEER"
+                                              ],
+                            "scope":  "Run and record local Docker Compose health evidence outside parser self-tests to improve runtime confidence.",
+                            "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                            "sourceFiles":  [
+                                                ".github/workflows/ci-security.yml",
+                                                ".codex/workflows/validation-gates.md",
+                                                "scripts/ops/validate-compose-health.ps1"
+                                            ],
+                            "acceptanceCriteria":  [
+                                                       "Scope is refined before implementation.",
+                                                       "Validation gates are run or explicitly blocked.",
+                                                       "No release/parity claims are made without evidence."
+                                                   ],
+                            "validationProfile":  "audit",
+                            "validationCommands":  [
+                                                       "docker compose --env-file .env.example config --quiet",
+                                                       "docker compose up -d --build",
+                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1"
+                                                   ],
+                            "dependencies":  [
+
+                                             ],
+                            "blockers":  [
+
+                                         ],
+                            "memoryTargets":  [
+                                                  "technical-debt.md",
+                                                  "enhancement-log.md",
+                                                  "unresolved-risks.md"
+                                              ],
+                            "nextAction":  "Start Docker Desktop locally, then rerun docker compose up and validate-compose-health.",
+                            "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                            "lastUpdated":  "2026-05-24T13:12:27.9882127Z",
+                            "startedAt":  "2026-05-24T13:11:39.1746783Z",
+                            "completedAt":  "2026-05-24T13:12:27.9882127Z",
+                            "outcome":  "Compose config parsing passed, but live Compose health evidence is blocked because Docker Desktop daemon is unavailable in this session.",
+                            "validationRun":  [
+                                                  "docker compose --env-file .env.example config --quiet (PASS),docker version --format {{json .}} (FAIL: Docker server unavailable),Start-Service -Name com.docker.service; docker version --format {{json .}} (FAIL: service cannot be started from this session)"
+                                              ],
+                            "residualRisks":  [
+                                                  "No live container build/startup or health transcript was collected."
+                                              ]
                         }
                     ],
     "doneWork":  [
@@ -13571,7 +13387,1615 @@
                                                "Local implementation evidence only; high-volume 10 lakh/10h readiness still needs provider-approved target load proof, Kafka broker/runtime evidence, and production telemetry.",
                                                "Durable chunk rows store bounded JSONB subscriber payloads; future hardening can page chunk recipients row-by-row if chunk sizes grow beyond SEND_BATCH_SIZE or retention requirements demand per-recipient lifecycle controls."
                                            ]
+                     },
+                     {
+                         "id":  "route-edge-deny-audience-resolution-chunks",
+                         "title":  "Deny public edge access to audience resolution chunk internal route",
+                         "status":  "DONE",
+                         "priorityScore":  49,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "API_ARCHITECT",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "SECURITY_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Add Nginx and Kubernetes ingress public-edge denies for the audience resolution chunk internal API discovered by validate-route-map.ps1.",
+                         "nonGoals":  "Do not expose the internal chunk route publicly, change service ownership, or alter the internal API contract.",
+                         "sourceFiles":  [
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/AudienceResolutionChunkController.java",
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes/ingress/ingress.yml",
+                                             "scripts/ops/validate-route-map.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Nginx returns 404 for ^/api/v1/audience-resolution-chunks/[^/]+/internal$ before proxying to audience-service.",
+                                                    "Kubernetes ingress server snippet returns 404 for the same internal route pattern.",
+                                                    "Route-map validator passes without weakening route ownership or public endpoint rules."
+                                                ],
+                         "validationProfile":  "route-runtime",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "kubectl kustomize infrastructure/kubernetes/overlays/production",
+                                                    "git diff --check -- config/nginx/nginx.conf infrastructure/kubernetes/ingress/ingress.yml"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "technical-debt.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue autonomous loop by selecting the next highest-score safe backlog item.",
+                         "discoveredAt":  "2026-05-24T06:23:39.1661754Z",
+                         "lastUpdated":  "2026-05-24T06:26:00.6017214Z",
+                         "startedAt":  "2026-05-24T06:24:01.6756684Z",
+                         "completedAt":  "2026-05-24T06:26:00.6017214Z",
+                         "outcome":  "Added Nginx and Kubernetes ingress 404 guards for the audience resolution chunk internal route so public edge validation no longer exposes or drifts on the internal API.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1 (passed: 49 routes, 9 source-discovered internal routes),kubectl kustomize infrastructure\\kubernetes\\overlays\\production (passed),git diff --check -- config\\nginx\\nginx.conf infrastructure\\kubernetes\\ingress\\ingress.yml (passed with CRLF normalization warnings only),powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1 (passed after queue/team-state sync)"
+                                           ],
+                         "residualRisks":  [
+                                               "No production readiness claim; strict release remains blocked on external evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "ai-frequency-decision-runtime",
+                         "title":  "Integrate approved frequency optimization into send safety runtime",
+                         "status":  "DONE",
+                         "priorityScore":  63,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DELIVERABILITY_ENGINEER",
+                                               "FOUNDATION_SERVICE_OWNER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Apply approved deterministic frequency decisions during campaign/journey sends while preserving suppressions, warmup, provider capacity, and rollback controls.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             ".codex/memory/design-decisions.md",
+                                             "services/campaign-service",
+                                             "services/delivery-service",
+                                             "services/deliverability-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service,services/campaign-service,services/delivery-service,services/deliverability-service -am \"-Dtest=OptimizationPerformanceServiceTest,CampaignSendSafetyServiceTest,SendRateControlServiceTest,ReputationEngineTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue overall-team loop with next highest-value safe backlog item.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T06:42:57.4806480Z",
+                         "startedAt":  "2026-05-24T06:29:52.8306081Z",
+                         "completedAt":  "2026-05-24T06:42:57.4806480Z",
+                         "outcome":  "Campaign-owned approved frequency optimization evidence now reduces send-safety frequency caps only when complete and conservative.",
+                         "validationRun":  [
+                                               "focused campaign engine/send safety tests",
+                                               "cross-service optimization/rate/reputation test set",
+                                               "git diff whitespace check"
+                                           ],
+                         "residualRisks":  [
+                                               "AI provider runtime, STO scheduling, and delivery-side policy snapshot propagation remain future evidence-gated slices."
+                                           ]
+                     },
+                     {
+                         "id":  "contact-builder-relationship-cardinality",
+                         "title":  "Model Contact Builder relationships and cardinality",
+                         "status":  "DONE",
+                         "priorityScore":  62,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  5,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "DATA_ARCHITECT",
+                         "partnerAgents":  [
+                                               "AUDIENCE_SERVICE_OWNER",
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Add first-class relationship/cardinality schema and query-preview contracts for Contact Builder style data extensions.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             "services/audience-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue overall-team loop with next highest-value safe backlog item.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T06:56:46.3628351Z",
+                         "startedAt":  "2026-05-24T06:46:40.5314654Z",
+                         "completedAt":  "2026-05-24T06:56:46.3628351Z",
+                         "outcome":  "Audience-service now persists first-class tenant/workspace-scoped data-extension relationship and cardinality contracts while keeping relationship traversal fail-closed.",
+                         "validationRun":  [
+                                               "focused audience relationship/query/segment/migration tests",
+                                               "full services/audience-service reactor tests",
+                                               "git diff whitespace check"
+                                           ],
+                         "residualRisks":  [
+                                               "Relationship query preview/explain UX, indexed relationship execution, provenance/deletion audit depth, sendable-key migration proof, and production/parity evidence remain future work."
+                                           ]
+                     },
+                     {
+                         "id":  "delivery-rate-control-sharded-reservations",
+                         "title":  "Shard or batch provider-domain send-rate reservations",
+                         "status":  "DONE",
+                         "priorityScore":  61,
+                         "scoring":  {
+                                         "productionReadinessImpact":  5,
+                                         "securityRisk":  3,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PERFORMANCE_ENGINEER",
+                                               "DATA_ARCHITECT",
+                                               "SRE_MONITORING_ENGINEER"
+                                           ],
+                         "scope":  "Reduce per-message pessimistic warmup/rate-state contention using sharded or batched provider/domain reservations.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             ".codex/memory/performance-bottlenecks.md",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/SendRateControlService.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service \"-Dtest=SendRateControlServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue overall-team loop with next highest-value safe backlog item.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T07:05:20.1712892Z",
+                         "startedAt":  "2026-05-24T06:59:07.6630181Z",
+                         "completedAt":  "2026-05-24T07:05:20.1712892Z",
+                         "outcome":  "Delivery rate control now supports bounded batch reservations for one provider/domain scope, reducing per-message lock round trips while preserving warmup and rate caps.",
+                         "validationRun":  [
+                                               "focused SendRateControlServiceTest",
+                                               "full services/delivery-service reactor tests",
+                                               "git diff whitespace check"
+                                           ],
+                         "residualRisks":  [
+                                               "This is local code/test evidence only; target DB lock metrics, provider capacity, warmed sender proof, and high-volume load evidence remain required before throughput claims."
+                                           ]
+                     },
+                     {
+                         "id":  "segment-builder-v2-execution-plan",
+                         "title":  "Implement Segment Builder v2 execution plan",
+                         "status":  "DONE",
+                         "priorityScore":  60,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  3,
+                                         "userImpact":  5,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATA_ARCHITECT",
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Implement backend execution support for approved v2 segment rule families with bounded query planning and tenant/workspace isolation.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             ".codex/memory/unresolved-risks.md",
+                                             "services/audience-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=SegmentServiceTest,SegmentEvaluationServiceTest,DataExtensionServiceTest,DataExtensionQueryActivityServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue overall-team loop with the next highest-value safe backlog item.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T07:48:37.0327304Z",
+                         "startedAt":  "2026-05-24T07:26:14.2741994Z",
+                         "completedAt":  "2026-05-24T07:48:37.0327304Z",
+                         "outcome":  "Audience Segment Builder v2 now compiles existing subscriber, custom-field, list-membership, and segment-membership rules through a bounded execution plan before persistence, count cache lookup, and recompute membership deletion; count preview and a read-only execution-plan endpoint expose non-value metadata, while unsupported relationship traversal remains fail-closed.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/audience-service -am -Dtest=SegmentRuleExecutionPlanCompilerTest,SegmentServiceTest,SegmentEvaluationServiceTest,DataExtensionServiceTest,DataExtensionQueryActivityServiceTest -Dsurefire.failIfNoSpecifiedTests=false test,.\\mvnw.cmd -pl services/audience-service -am test,git diff --check -- scoped segment/audience docs and memory files"
+                                           ],
+                         "residualRisks":  [
+                                               "Relationship-backed segment fields, behavioral event rollups, recursion governance, target performance evidence, and Salesforce/competitor parity remain unproven and require separate slices."
+                                           ]
+                     },
+                     {
+                         "id":  "ai-sto-runtime-scheduler",
+                         "title":  "Integrate send-time optimization into campaign scheduling runtime",
+                         "status":  "DONE",
+                         "priorityScore":  59,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "FOUNDATION_SERVICE_OWNER",
+                                               "DELIVERABILITY_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Use approved STO policy outputs in campaign scheduling with quiet hours, timezone, approval, warmup, suppression, and rollback evidence.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             ".codex/memory/design-decisions.md",
+                                             "services/foundation-service",
+                                             "services/campaign-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Campaign-owned STO evidence is persisted as an approved SEND_TIME snapshot before affecting schedule.",
+                                                    "Campaign schedule, Launch Command Center handoff, send-job creation, and due-job dispatch fail closed on incomplete, fallback, low-confidence, unsafe, or mismatched STO evidence.",
+                                                    "Validation gates are run and docs avoid model-backed, parity, deliverability, throughput, or production readiness claims."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service,services/campaign-service -am \"-Dtest=OptimizationPerformanceServiceTest,CampaignServiceScheduleTest,SchedulingServiceTest,OrchestrationServiceTest,CampaignLaunchReadinessGateTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                                    ".\\mvnw.cmd -pl services/campaign-service -am test",
+                                                    "git diff --check"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "release-history.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "design-decisions.md"
+                                           ],
+                         "nextAction":  "Continue overall-team loop with the next highest-value safe backlog item.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T08:20:18.1607379Z",
+                         "startedAt":  "2026-05-24T07:51:21.7175900Z",
+                         "completedAt":  "2026-05-24T08:20:18.1607379Z",
+                         "outcome":  "Campaign scheduling now accepts complete approved deterministic SEND_TIME snapshots, stores campaign-owned STO evidence, routes Launch Command Center and send-job creation through the same guard, and revalidates due scheduled jobs before audience resolution.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/foundation-service,services/campaign-service -am \"-Dtest=OptimizationPerformanceServiceTest,CampaignServiceScheduleTest,SchedulingServiceTest,OrchestrationServiceTest,CampaignLaunchReadinessGateTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/campaign-service -am test",
+                                               "git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Deterministic approved schedule evidence only; model-backed, per-recipient, journey-level, provider-capacity, production-load, and parity evidence remain separate."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-live-file-movement-storage-adapter",
+                         "title":  "Enable governed live file movement for Automation Studio",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "DEVOPS_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Promote file-drop/extract from validation-only behavior to governed live object movement through a reviewed storage adapter.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/automation-studio-activity-orchestration-plan.md",
+                                             "docs/product/automation-studio-activity-security-contract.md",
+                                             "services/automation-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with the highest-score safe backlog item or collect external release/provider/runtime evidence.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T08:46:56.1996422Z",
+                         "startedAt":  "2026-05-24T08:31:15.1738932Z",
+                         "completedAt":  "2026-05-24T08:46:56.1996422Z",
+                         "outcome":  "Automation Studio now supports governed local live file-drop and artifact-backed extract movement through a scoped MinIO storage adapter. Live runs require ACTIVE status, confirmLiveRun, idempotency, and activity locks; storage copy verifies tenant/workspace object-key prefixes, size, SHA-256, and CSV-compatible content type before recording redacted artifact/checksum run history. DATA_EXTENSION extracts still fail closed pending a provider handoff and target evidence.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/automation-service -am -Dtest=AutomationStudioServiceTest,AutomationArtifactServiceTest -Dsurefire.failIfNoSpecifiedTests=false test; .\\mvnw.cmd -pl services/automation-service -am test; powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1; docker compose --env-file .env.example config --quiet; git diff --check"
+                                           ],
+                         "residualRisks":  [
+                                               "Target object-store drills, cleanup/retention proof, data-extension extract provider handoff, replay evidence, and production parity remain unproven.; No production readiness, Salesforce parity, model-backed AI, deliverability, or throughput claims are made."
+                                           ]
+                     },
+                     {
+                         "id":  "contact-retention-deletion-audit",
+                         "title":  "Add contact retention and deletion audit workflows",
+                         "status":  "DONE",
+                         "priorityScore":  58,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "AUDIENCE_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "COMPLIANCE_OWNER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Add retention/deletion audit lifecycle for audience records and data extensions.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md",
+                                             "services/audience-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/audience-service -am test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue the autonomous loop with the highest-score safe backlog item, or collect blocked target/release evidence.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T09:08:08.8021869Z",
+                         "startedAt":  "2026-05-24T08:54:47.9742928Z",
+                         "completedAt":  "2026-05-24T09:08:08.8021869Z",
+                         "outcome":  "Implemented tenant/workspace-scoped contact lifecycle audit for subscriber deletion/merge/bulk deletion, suppression create/delete/recover/bulk create, preference update/pause/unsubscribe/resubscribe, data-extension retention/delete/overwrite aggregates, and explicit send-eligibility checks using hashed email and bounded metadata.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/audience-service -am \"-Dtest=ContactLifecycleAuditServiceTest,SubscriberServiceTest,SuppressionServiceTest,PreferenceServiceTest,DataExtensionServiceTest,SendEligibilityServiceTest,DataExtensionQueryActivityServiceTest,ContactLifecycleAuditMigrationTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/audience-service -am test",
+                                               "rg -n \"ddl-auto|SPRING_JPA_HIBERNATE_DDL_AUTO\" services shared config -g \"*.yml\" -g \"*.yaml\" -g \"*.properties\"",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check -- services/audience-service"
+                                           ],
+                         "residualRisks":  [
+                                               "Local implementation evidence only; target audit retention policy, target DB scale/BRIN/index behavior, production runtime evidence, and Salesforce/competitor parity remain unproven."
+                                           ]
+                     },
+                     {
+                         "id":  "retry-dlq-target-readiness",
+                         "title":  "Add retry/DLQ sharding, alerts, and production broker evidence plan",
+                         "status":  "DONE",
+                         "priorityScore":  56,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  3,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "KAFKA_CONTRACTS_OWNER",
+                         "partnerAgents":  [
+                                               "SRE_MONITORING_ENGINEER",
+                                               "CAMPAIGN_SERVICE_OWNER",
+                                               "DELIVERY_SERVICE_OWNER"
+                                           ],
+                         "scope":  "Add retry scan sharding/paging evidence, DLQ volume/age/skew alerts, and production broker topology evidence requirements.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             ".codex/memory/performance-bottlenecks.md",
+                                             "shared/legent-kafka/src/main/java/com/legent/kafka/config/KafkaTopicConfig.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl shared/legent-kafka,services/campaign-service,services/delivery-service -am test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Select the next highest-score safe backlog item, currently ai-segment-workflow-generation-preview if kept preview-only, or continue collecting target evidence for blocked release/load items.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T09:35:55.4996560Z",
+                         "startedAt":  "2026-05-24T09:21:47.5900724Z",
+                         "completedAt":  "2026-05-24T09:35:55.4996560Z",
+                         "outcome":  "Added local retry/DLQ readiness metrics, shared DLQ topic retention metadata, Prometheus/Grafana/runbook coverage, and GA Kafka broker topology evidence validation without claiming production readiness.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl shared/legent-kafka,services/campaign-service,services/delivery-service -am \"-Dtest=KafkaTopicConfigTest,CampaignRetryMetricsServiceTest,CampaignDeadLetterMetricsServiceTest,DeliveryRetryMetricsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl shared/legent-kafka,services/campaign-service,services/delivery-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check -- shared/legent-kafka services/campaign-service services/delivery-service scripts/ops docs/operations docs/load-testing infrastructure/kubernetes/observability"
+                                           ],
+                         "residualRisks":  [
+                                               "Local metrics and manifests do not prove target Prometheus/Alertmanager/Grafana delivery.",
+                                               "Production Kafka topology, live lag/DLQ, replay/backpressure, provider capacity, and high-volume evidence remain required before release or throughput claims."
+                                           ]
+                     },
+                     {
+                         "id":  "ai-segment-workflow-generation-preview",
+                         "title":  "Add governed AI segment and workflow generation preview",
+                         "status":  "DONE",
+                         "priorityScore":  57,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  5,
+                                         "userImpact":  5,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "PRODUCT_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "SECURITY_ENGINEER",
+                                               "FRONTEND_OWNER",
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "AUDIENCE_SERVICE_OWNER"
+                                           ],
+                         "scope":  "Add preview-only AI-assisted segment/workflow generation behind governance, metering, data-class, and human-review controls.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/ai-governance-optimization-foundation.md",
+                                             "docs/product/competitor-research/2026-05-20-competitor-capability-scan.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with the next highest-score safe backlog item, currently journey-advanced-node-handlers-contract unless a new READY item is selected.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T09:58:53.6087532Z",
+                         "startedAt":  "2026-05-24T09:42:24.7697417Z",
+                         "completedAt":  "2026-05-24T09:58:53.6087532Z",
+                         "outcome":  "Foundation-service now exposes provider-free AI segment and workflow generation previews behind audience/workflow RBAC, existing AI content governance and provider metering decisions, bounded draft shapes, hash evidence, no secret-like context, and no model/provider invocation or executable artifact creation.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/foundation-service -am -Dtest=AiGenerationPreviewServiceTest,AiContentAssistanceGovernanceServiceTest,AiProviderContractMeteringServiceTest,PerformanceIntelligenceControllerSecurityTest -Dsurefire.failIfNoSpecifiedTests=false test | .\\mvnw.cmd -pl services/foundation-service -am test | .\\mvnw.cmd -pl services/audience-service -am -Dtest=SegmentRuleExecutionPlanCompilerTest,SegmentEvaluationServiceTest,PredictiveSegmentGovernanceServiceTest,SegmentServiceTest -Dsurefire.failIfNoSpecifiedTests=false test | .\\mvnw.cmd -pl services/automation-service -am -Dtest=WorkflowGraphValidatorTest,WorkflowStudioServiceTest -Dsurefire.failIfNoSpecifiedTests=false test | powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1 | powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1 | git diff --check -- foundation AI preview scope"
+                                           ],
+                         "residualRisks":  [
+                                               "Local contract only; model-backed generation, frontend apply UX, cross-service audience/automation persistence, target runtime proof, and parity/release claims remain blocked. Provider metering is recorded with providerInvoked=false and modelInvocation=NOT_PERFORMED; no external model/provider was called."
+                                           ]
+                     },
+                     {
+                         "id":  "journey-advanced-node-handlers-contract",
+                         "title":  "Expand journey runtime node handler contract",
+                         "status":  "DONE",
+                         "priorityScore":  53,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  3,
+                                         "userImpact":  5,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "FRONTEND_OWNER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Add advanced journey runtime node families beyond ENTRY_TRIGGER, SEND_EMAIL, DELAY, CONDITION, END with capability-aware UI and backend fail-closed semantics.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "PROJECT_CONTEXT.md",
+                                             "services/automation-service",
+                                             "frontend/src/components/automation"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=WorkflowGraphValidatorTest,WorkflowEngineTest,WorkflowStudioServiceTest,WorkflowTriggerConsumerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe backlog item; likely service-to-service identity hardening or branch/split journey alias follow-up after scope refinement.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T10:19:20.0991744Z",
+                         "startedAt":  "2026-05-24T10:07:05.3352227Z",
+                         "completedAt":  "2026-05-24T10:19:20.0991744Z",
+                         "outcome":  "Added WAIT_UNTIL live journey runtime support with bounded Quartz resume scheduling, validator checks, scoped wake metadata, Journey Builder timestamp editing, and regression coverage.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/automation-service -am test",
+                                               ".\\mvnw.cmd -pl services/automation-service -am focused workflow tests",
+                                               "frontend npm run lint",
+                                               "frontend npm run build:ci",
+                                               "frontend Playwright automation-builder chromium",
+                                               "validate-route-map.ps1",
+                                               "validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check scoped files"
+                                           ],
+                         "residualRisks":  [
+                                               "Branch and split runtime aliases remain a follow-up.",
+                                               "Webhook, contact mutation, event listener, and reentry nodes remain draft-only until execution contracts exist.",
+                                               "Target runtime replay and production evidence remain unproven."
+                                           ]
+                     },
+                     {
+                         "id":  "service-to-service-identity-hardening",
+                         "title":  "Harden service-to-service identity beyond shared internal token guards",
+                         "status":  "DONE",
+                         "priorityScore":  52,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "SECURITY_ENGINEER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "BACKEND_PLATFORM_OWNER",
+                                               "SRE_MONITORING_ENGINEER"
+                                           ],
+                         "scope":  "Design and implement stronger service identity controls such as mTLS or service JWT evidence for internal routes while preserving current internal-token guards.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "shared/legent-common/src/main/java/com/legent/common/security/InternalApiTokenValidator.java",
+                                             "config/nginx/nginx.conf",
+                                             "infrastructure/kubernetes"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is implemented with tenant/workspace safety.",
+                                                    "Focused tests cover the changed workflow.",
+                                                    "Residual production/evidence risks remain explicit."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    ".\\mvnw.cmd test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-value safe backlog item after scope refinement; keep broader platform identity evidence blocked until target proof exists.",
+                         "discoveredAt":  "2026-05-23T13:51:29.185Z",
+                         "lastUpdated":  "2026-05-24T10:34:41.9942737Z",
+                         "startedAt":  "2026-05-24T10:23:53.8124807Z",
+                         "completedAt":  "2026-05-24T10:34:41.9942737Z",
+                         "outcome":  "Added signed internal service identity for campaign audience chunk reads with caller allowlist, scoped HMAC headers, and fail-closed audience validation.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl shared/legent-common,services/audience-service,services/campaign-service -am focused identity tests",
+                                               ".\\mvnw.cmd -pl shared/legent-common,services/audience-service,services/campaign-service -am test",
+                                               ".\\mvnw.cmd -pl shared/legent-common -am focused identity tests",
+                                               "validate-route-map.ps1",
+                                               "validate-repo-artifact-hygiene.ps1",
+                                               "validate-env.ps1 .env.example",
+                                               "docker compose config quiet",
+                                               "validate-production-overlay.ps1",
+                                               "kubectl kustomize production",
+                                               "git diff --check scoped files"
+                                           ],
+                         "residualRisks":  [
+                                               "Only the audience-resolution chunk read internal route is signed in this slice.",
+                                               "Other internal routes still need route-specific signed identity or service JWT coverage.",
+                                               "mTLS, service mesh identity, and target NetworkPolicy evidence remain unproven."
+                                           ]
+                     },
+                     {
+                         "id":  "enterprise-package-export-import-contract",
+                         "title":  "Add enterprise package export/import contract",
+                         "status":  "DONE",
+                         "priorityScore":  47,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "FOUNDATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATA_ARCHITECT",
+                                               "SECURITY_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Design and implement package/export-import for enterprise configuration promotion across environments.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research/2026-05-20-salesforce-marketing-cloud.md",
+                                             "services/foundation-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=GlobalEnterpriseServiceTest,ComplianceEvidenceServiceTest,AdminSettingsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with tracking analytics canonical query work or collect external evidence.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T10:52:14.1641505Z",
+                         "startedAt":  "2026-05-24T10:40:56.9796097Z",
+                         "completedAt":  "2026-05-24T10:52:14.1641505Z",
+                         "outcome":  "Foundation package export and dry-run import validation contract added with checksum, object hashes, scoped environment checks, locked-target blocking, denied object family scan, and local tests.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=EnterprisePackageServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/foundation-service -am \"-Dtest=EnterprisePackageServiceTest,GlobalEnterpriseServiceTest,ComplianceEvidenceServiceTest,AdminSettingsServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/foundation-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "git diff --check -- scoped foundation package files"
+                                           ],
+                         "residualRisks":  [
+                                               "Live package apply remains unsupported.",
+                                               "Broader object-family coverage and production evidence remain future work."
+                                           ]
+                     },
+                     {
+                         "id":  "tracking-analytics-canonical-raw-query-contract",
+                         "title":  "Define canonical raw-event analytics query semantics",
+                         "status":  "DONE",
+                         "priorityScore":  45,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  4,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "TRACKING_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DATA_ARCHITECT",
+                                               "QA_ENGINEER",
+                                               "PERFORMANCE_ENGINEER"
+                                           ],
+                         "scope":  "Separate physical raw-row analytics from canonical deduped operational analytics across tracking APIs, exports, and reconciliation.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             ".codex/memory/unresolved-risks.md",
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/AnalyticsService.java",
+                                             "services/tracking-service/src/main/java/com/legent/tracking/service/ClickHouseRollupService.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/tracking-service \"-Dtest=AnalyticsServiceTest,ClickHouseRollupServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with the next highest-score safe backlog item or collect external tracking runtime evidence.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T11:09:56.6362617Z",
+                         "startedAt":  "2026-05-24T10:58:45.9844724Z",
+                         "completedAt":  "2026-05-24T11:09:56.6362617Z",
+                         "outcome":  "Tracking analytics raw/canonical contract implemented locally with canonical operational counts, physical raw-row exports, reconciliation diagnostics, dataset metadata, docs, and tests.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/tracking-service -am \"-Dtest=AnalyticsServiceTest,ClickHouseRollupServiceTest,AnalyticsControllerTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               ".\\mvnw.cmd -pl services/tracking-service -am test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- scoped tracking analytics files"
+                                           ],
+                         "residualRisks":  [
+                                               "Funnel and segment analytics endpoint semantics remain a separate follow-up.",
+                                               "Target PostgreSQL/ClickHouse runtime, load, ingestion lag, rollup freshness, and replay evidence remain absent."
+                                           ]
+                     },
+                     {
+                         "id":  "segment-builder-v2-governance-ui",
+                         "title":  "Add Segment Builder v2 governance UI",
+                         "status":  "DONE",
+                         "priorityScore":  44,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  3,
+                                         "userImpact":  5,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "AUDIENCE_SERVICE_OWNER",
+                                               "UX_STRATEGIST",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Add mode-aware Segment Builder governance UI with locks, PII constraints, preview warnings, and audit states.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "frontend/src/components/audience/SegmentRuleBuilder.tsx",
+                                             "frontend/tests/e2e/audience-segments.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-segments.spec.ts tests/e2e/audience-data-extensions.spec.ts --project=chromium --reporter=line"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Safe stop requested after completion. Resume with automation-artifact-selector-ux or collect external evidence for blocked release/provider/high-volume items.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T11:27:59.5656404Z",
+                         "startedAt":  "2026-05-24T11:18:24.5736950Z",
+                         "completedAt":  "2026-05-24T11:27:59.5656404Z",
+                         "outcome":  "Added a mode-aware Segment Builder governance panel with built-in field classifications, PII/incomplete/index review warnings, advanced tenant/workspace/suppression/execution locks, draft-only unsupported family states, responsive rule rows, focused Playwright coverage, and parity-matrix closeout notes.",
+                         "validationRun":  [
+                                               "cd frontend; npm run lint (PASS)",
+                                               "cd frontend; npm run build:ci (PASS)",
+                                               "cd frontend; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/audience-segments.spec.ts tests/e2e/audience-data-extensions.spec.ts --project=chromium --reporter=line (PASS, 4 tests)",
+                                               "git diff --check -- frontend/src/components/audience/SegmentRuleBuilder.tsx frontend/src/lib/ui-mode-contract.ts frontend/tests/e2e/audience-segments.spec.ts docs/product/salesforce-parity-matrix.md (PASS; CRLF warnings only)"
+                                           ],
+                         "residualRisks":  [
+                                               "Segment governance locks are local UI indicators only; no persisted segment lock/audit API exists yet.",
+                                               "Draft segment count and execution-plan preview still require a persisted segment ID; no unsaved draft preview endpoint exists.",
+                                               "Relationship traversal, behavioral event rollups, recursive segment nesting, target performance evidence, and parity claims remain out of scope."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-artifact-selector-ux",
+                         "title":  "Add Automation Studio artifact/data-extension/user selector UX",
+                         "status":  "DONE",
+                         "priorityScore":  43,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  3,
+                                         "userImpact":  5,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "AUDIENCE_SERVICE_OWNER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Replace raw artifact IDs and JSON-heavy fields in Automation Studio with governed selectors for artifacts, data extensions, and users.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "frontend/src/app/(workspace)/automation/page.tsx",
+                                             "frontend/src/components/automation/JourneyBuilder.tsx",
+                                             "services/automation-service"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is implemented with tenant/workspace safety.",
+                                                    "Focused tests cover the changed workflow.",
+                                                    "Residual production/evidence risks remain explicit."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts --project=chromium --reporter=line"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with alertmanager-placeholder-secret-coverage if it remains the highest-score safe local backlog item, or collect external evidence for blocked release/provider/high-volume work.",
+                         "discoveredAt":  "2026-05-23T13:51:29.185Z",
+                         "lastUpdated":  "2026-05-24T12:55:01.7102046Z",
+                         "startedAt":  "2026-05-24T12:37:39.2121351Z",
+                         "completedAt":  "2026-05-24T12:55:01.7102046Z",
+                         "outcome":  "Automation Studio authoring now uses governed data-extension/user selectors, scoped artifact get-by-id verification, and campaign catalog selection for journey send nodes while preserving existing backend activity input/output contracts.",
+                         "validationRun":  [
+                                               "npm run lint,npm run build:ci,.\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts --project=chromium --reporter=line,git diff --check -- frontend/src/app/(workspace)/automation/page.tsx frontend/src/components/automation/NodeEditorModal.tsx frontend/src/lib/automation-api.ts frontend/tests/e2e/automation-studio.spec.ts frontend/tests/e2e/automation-builder.spec.ts"
+                                           ],
+                         "residualRisks":  [
+                                               "Local frontend validation only; true artifact browse/search still needs an automation-service list/search endpoint.,Target runtime replay, object-store drills, cleanup/retention proof, and production/parity evidence remain separate blocked release concerns."
+                                           ]
+                     },
+                     {
+                         "id":  "alertmanager-placeholder-secret-coverage",
+                         "title":  "Prove Alertmanager receiver placeholders are backed or target-managed",
+                         "status":  "DONE",
+                         "priorityScore":  39,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  3,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "SRE_MONITORING_ENGINEER",
+                         "partnerAgents":  [
+                                               "DEVOPS_ENGINEER",
+                                               "RELEASE_MANAGER"
+                                           ],
+                         "scope":  "Decide and validate whether Alertmanager receiver placeholders are in-cluster ExternalSecret-managed values or managed-provider handoff values.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "infrastructure/kubernetes/observability/alertmanager.yml",
+                                             "infrastructure/kubernetes/overlays/production/external-secrets.yml",
+                                             "scripts/ops/validate-production-overlay.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with the next safe local backlog item, or collect target alert-delivery evidence for strict release gates.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T13:07:48.5820955Z",
+                         "startedAt":  "2026-05-24T12:57:20.5326319Z",
+                         "completedAt":  "2026-05-24T13:07:48.5820955Z",
+                         "outcome":  "Alertmanager receiver handoff coverage now maps platform and SRE webhook/pager placeholders in the production material map, and production overlay validation fails when an Alertmanager handoff key is missing.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-production-overlay.ps1,powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1,git diff --check -- infrastructure/kubernetes/overlays/production/external-secrets.yml scripts/ops/validate-production-overlay.ps1 scripts/ops/test-release-evidence-validators.ps1"
+                                           ],
+                         "residualRisks":  [
+                                               "Local manifest validation only; no target Alertmanager delivery, runtime substitution, or monitoring handoff evidence was collected."
+                                           ]
+                     },
+                     {
+                         "id":  "product-parity-source-refresh-current",
+                         "title":  "Refresh Salesforce and competitor parity sources",
+                         "status":  "DONE",
+                         "priorityScore":  34,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  2,
+                                         "userImpact":  4,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "SALESFORCE_PARITY_RESEARCHER",
+                         "partnerAgents":  [
+                                               "PRODUCT_MANAGER_AGENT",
+                                               "DOCUMENTATION_ENGINEER"
+                                           ],
+                         "scope":  "Refresh official/current sources for Salesforce Marketing Cloud, Adobe, Braze, Klaviyo, HubSpot, and relevant deliverability/AI capabilities before new parity claims.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "docs/product/salesforce-parity-matrix.md",
+                                             "docs/product/competitor-research",
+                                             ".codex/memory/design-decisions.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "git diff --check -- docs/product .codex/backlog/queue.json"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with the next safe local backlog item or collect external release/runtime/provider evidence.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T13:21:03.5137813Z",
+                         "startedAt":  "2026-05-24T13:14:29.8080948Z",
+                         "completedAt":  "2026-05-24T13:21:03.5137813Z",
+                         "outcome":  "Official Salesforce, Adobe, Braze, Klaviyo, and HubSpot source freshness was refreshed for 2026-05-24 with a new research note and parity matrix updates that preserve local-contract and evidence-bound wording.",
+                         "validationRun":  [
+                                               "git diff --check -- docs/product/salesforce-parity-matrix.md docs/product/competitor-research/2026-05-24-source-refresh.md .codex/backlog/queue.json .codex/memory/active-work-items.md .codex/memory/technical-debt.md .codex/memory/enhancement-log.md .codex/memory/unresolved-risks.md .codex/memory/design-decisions.md .codex/checkpoints/20260524T131429Z-product-parity-source-refresh-current.json"
+                                           ],
+                         "residualRisks":  [
+                                               "Source freshness only; no new local implementation, target runtime evidence, or production release evidence was created."
+                                           ]
+                     },
+                     {
+                         "id":  "qa-ci-visual-smoke-gate",
+                         "title":  "Add visual smoke to CI/manual release gate",
+                         "status":  "DONE",
+                         "priorityScore":  29,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  1,
+                                         "userImpact":  3,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  4
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "QA_ENGINEER",
+                                               "UX_STRATEGIST"
+                                           ],
+                         "scope":  "Add visual smoke checks as a nonblocking-to-required frontend gate with documented baseline refresh policy.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             "frontend/package.json",
+                                             "frontend/playwright.config.ts",
+                                             "frontend/tests/e2e"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Scope is refined before implementation.",
+                                                    "Validation gates are run or explicitly blocked.",
+                                                    "No release/parity claims are made without evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run test:e2e:visual"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "No unblocked local backlog remains; collect Docker runtime or target-environment evidence for blocked items.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-24T13:32:24.5433054Z",
+                         "startedAt":  "2026-05-24T13:24:41.3957347Z",
+                         "completedAt":  "2026-05-24T13:32:24.5433054Z",
+                         "outcome":  "Visual shell smoke now runs in CI and local frontend release-gate paths with CI screenshot artifacts and documented baseline refresh policy.",
+                         "validationRun":  [
+                                               "git diff --check -- .github/workflows/ci-security.yml scripts/ops/release-gate.ps1 .codex/workflows/validation-gates.md",
+                                               "cd frontend; npm run test:e2e:visual",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipCompose -SkipKustomize"
+                                           ],
+                         "residualRisks":  [
+                                               "Strict production evidence remains required.",
+                                               "Docker runtime and target login evidence remain blocked outside this item."
+                                           ]
+                     },
+                     {
+                         "id":  "campaign-suppression-health-aggregate",
+                         "title":  "Use aggregate suppression counts for campaign launch readiness",
+                         "status":  "DONE",
+                         "priorityScore":  57,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "CAMPAIGN_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DELIVERABILITY_ENGINEER",
+                                               "QA_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Replace campaign launch readiness suppression-health sampling with aggregate tenant/workspace counts from deliverability service.",
+                         "nonGoals":  "Do not claim live provider, target runtime, production release, inbox placement, or high-volume proof.",
+                         "sourceFiles":  [
+                                             "services/campaign-service/src/main/java/com/legent/campaign/client/DeliverabilityReadinessClient.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                                             ".codex/memory/unresolved-risks.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Campaign readiness consumes aggregate complaint, hard-bounce, unsubscribe, and total suppression counts.",
+                                                    "Suppression counts are tenant/workspace scoped and still fail closed when the dependency is unavailable.",
+                                                    "Focused tests prove high aggregate counts block even when a bounded list sample would not include them."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/deliverability-service,services/campaign-service -am -Dtest=SuppressionControllerTest,DeliverabilityReadinessClientTest,CampaignLaunchReadinessGateTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md",
+                                               "unresolved-risks.md",
+                                               "active-work-items.md"
+                                           ],
+                         "nextAction":  "Promote the next highest-score safe local discovery item from the audit findings.",
+                         "discoveredAt":  "2026-05-24T14:06:00.0000000Z",
+                         "startedAt":  "2026-05-24T14:06:24.0000000Z",
+                         "lastUpdated":  "2026-05-24T14:11:51.1938439Z",
+                         "completedAt":  "2026-05-24T14:11:51.1938439Z",
+                         "outcome":  "Campaign launch readiness now reads tenant/workspace aggregate suppression health from deliverability-service internal history, so complaints and hard bounces are not undercounted by bounded suppression-list pagination.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/deliverability-service,services/campaign-service -am \"-Dtest=SuppressionControllerTest,DomainControllerRbacTest,SecurityConfigTest,DeliverabilityReadinessClientTest,CampaignLaunchReadinessGateTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                           ],
+                         "residualRisks":  [
+                                               "Live provider capacity, target runtime, Docker Compose health, strict production evidence, and delivery-side suppression-signal population remain separate blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "delivery-inbox-safety-suppression-sync",
+                         "title":  "Back delivery inbox-safety suppression signals with production writer",
+                         "status":  "DONE",
+                         "priorityScore":  59,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  4,
+                                         "userImpact":  4,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "DELIVERY_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "DELIVERABILITY_ENGINEER",
+                                               "QA_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Add a production path that writes or synchronizes delivery-service suppression_signals used by InboxSafetyService before dispatch and retry decisions.",
+                         "nonGoals":  "Do not read another service database directly, bypass deliverability suppression ownership, or claim target provider evidence.",
+                         "sourceFiles":  [
+                                             "services/delivery-service/src/main/java/com/legent/delivery/service/InboxSafetyService.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/domain/SuppressionSignal.java",
+                                             "services/delivery-service/src/test/java/com/legent/delivery/service/InboxSafetyServiceTest.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Delivery has a tenant/workspace-scoped production writer or sync path for active hard-bounce, complaint, and unsubscribe suppression signals.",
+                                                    "Dispatch/retry paths block suppressed recipients and fail closed when suppression signal storage is unavailable.",
+                                                    "Focused tests cover late suppression before retry and deleted/recovered suppression behavior."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/delivery-service -am -Dtest=InboxSafetyServiceTest,DeliveryOrchestrationServiceTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with service-to-service-internal-route-identity-expansion as the next highest-score READY item.",
+                         "discoveredAt":  "2026-05-24T14:12:00.0000000Z",
+                         "lastUpdated":  "2026-05-24T14:21:07.4206653Z",
+                         "startedAt":  "2026-05-24T14:16:32.6353704Z",
+                         "completedAt":  "2026-05-24T14:21:07.4206653Z",
+                         "outcome":  "Delivery-service now consumes bounced, complaint, and unsubscribe feedback events into delivery-owned suppression_signals through an idempotent writer, and InboxSafety blocks active unsubscribe signals before dispatch/retry.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/delivery-service -am \"-Dtest=SuppressionSignalServiceTest,DeliverySuppressionSignalConsumerTest,InboxSafetyServiceTest,DeliveryOrchestrationServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test"
+                                           ],
+                         "residualRisks":  [
+                                               "Target provider/load evidence, live Kafka replay evidence, strict production evidence, and broader external deliverability evidence remain separate blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "service-to-service-internal-route-identity-expansion",
+                         "title":  "Expand signed internal service identity to remaining internal routes",
+                         "status":  "DONE",
+                         "priorityScore":  59,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  4,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "SECURITY_ENGINEER",
+                         "partnerAgents":  [
+                                               "BACKEND_PLATFORM_OWNER",
+                                               "AUDIENCE_SERVICE_OWNER",
+                                               "CONTENT_SERVICE_OWNER",
+                                               "DELIVERABILITY_ENGINEER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Extend route-scoped signed internal service identity beyond audience chunk reads to remaining permitAll internal routes that currently rely only on the shared internal token.",
+                         "nonGoals":  "Do not introduce new public routes, change external authentication, claim mTLS/service-mesh identity, or weaken existing internal-token checks.",
+                         "sourceFiles":  [
+                                             "shared/legent-common/src/main/java/com/legent/common/security/InternalServiceIdentity.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/ImportController.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                                             "services/deliverability-service/src/main/java/com/legent/deliverability/controller/SuppressionController.java",
+                                             "services/content-service/src/main/java/com/legent/content/controller/ContentController.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Selected internal routes require caller service, tenant, workspace, action, timestamp, and signature in addition to the internal token.",
+                                                    "Allowed caller services and action scopes are explicit per route.",
+                                                    "Controller/client tests cover missing, stale, wrong-service, wrong-action, and valid signatures."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl shared/legent-common,services/audience-service,services/content-service,services/deliverability-service,services/campaign-service,services/automation-service -am -Dtest=InternalServiceIdentityTest,AudienceResolutionChunkControllerTest,SecurityConfigTest,ContentControllerRbacTest,SuppressionControllerTest,AudienceResolutionClientTest,ContentServiceClientTest,AudienceDataExtensionClientTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "security-findings.md",
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Continue with frontend-automation-activity-capability-drift as the next highest-score READY item.",
+                         "discoveredAt":  "2026-05-24T14:12:00.0000000Z",
+                         "lastUpdated":  "2026-05-24T14:27:34.9130329Z",
+                         "startedAt":  "2026-05-24T14:21:53.8092867Z",
+                         "completedAt":  "2026-05-24T14:27:34.9130329Z",
+                         "outcome":  "Deliverability suppression internal history and bulk-check routes now require route-scoped signed internal service identity in addition to the internal token; campaign and audience clients sign the calls and controller tests cover fail-closed and valid cases.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl shared/legent-common,services/deliverability-service,services/campaign-service,services/audience-service -am \"-Dtest=InternalServiceIdentityTest,SuppressionControllerTest,DomainControllerRbacTest,SecurityConfigTest,DeliverabilityReadinessClientTest,DeliverabilityServiceClientTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1"
+                                           ],
+                         "residualRisks":  [
+                                               "Remaining content/import/data-extension internal routes still need signed identity expansion; target mTLS/service-mesh and production evidence remain separate blockers."
+                                           ]
+                     },
+                     {
+                         "id":  "frontend-automation-activity-capability-drift",
+                         "title":  "Align Automation Studio activity capabilities with live backend contracts",
+                         "status":  "DONE",
+                         "priorityScore":  41,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  1,
+                                         "userImpact":  5,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "AUTOMATION_SERVICE_OWNER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Update Automation Studio FILE_DROP, EXTRACT, and SEND_EMAIL authoring state to match completed backend/file-movement and campaign handoff contracts.",
+                         "nonGoals":  "Do not implement backend artifact list/search or new side-effect node runtimes in this slice.",
+                         "sourceFiles":  [
+                                             "frontend/src/app/(workspace)/automation/page.tsx",
+                                             "frontend/tests/e2e/automation-studio.spec.ts"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "FILE_DROP and EXTRACT are no longer presented as design-only when their configured backend-backed modes are available.",
+                                                    "EXTRACT options use backend-recognized artifact source values.",
+                                                    "SEND_EMAIL authoring is available with campaign selection and Playwright coverage."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts --project=chromium --reporter=line"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "successful-fixes.md",
+                                               "technical-debt.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Select the next READY backlog item.",
+                         "discoveredAt":  "2026-05-24T14:12:00.0000000Z",
+                         "lastUpdated":  "2026-05-24T14:39:50.4994348Z",
+                         "startedAt":  "2026-05-24T14:28:31.1776227Z",
+                         "completedAt":  "2026-05-24T14:39:50.4994348Z",
+                         "outcome":  "Aligned Automation Studio activity authoring with live backend contracts: FILE_DROP and EXTRACT show live support, file-drop output artifacts and backend-recognized extract source types are posted, and SEND_EMAIL uses campaign handoff selection.",
+                         "validationRun":  [
+                                               "npm run lint",
+                                               "npm run build:ci",
+                                               ".\\node_modules\\.bin\\playwright.cmd test automation-studio.spec.ts --project=chromium --reporter=line"
+                                           ],
+                         "residualRisks":  [
+                                               "Artifact browse/search still waits for a backend list endpoint.",
+                                               "DATA_EXTENSION extract live movement remains provider-handoff gated.",
+                                               "Target runtime replay evidence remains blocked by external environment evidence."
+                                           ]
+                     },
+                     {
+                         "id":  "automation-branch-split-runtime-aliases",
+                         "title":  "Run deterministic BRANCH and SPLIT journey nodes as condition aliases",
+                         "status":  "DONE",
+                         "priorityScore":  40,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  1,
+                                         "userImpact":  4,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "AUTOMATION_SERVICE_OWNER",
+                         "partnerAgents":  [
+                                               "QA_ENGINEER",
+                                               "FRONTEND_OWNER"
+                                           ],
+                         "scope":  "Map deterministic BRANCH and SPLIT node types to existing condition validation and runtime handling where their semantics are equivalent.",
+                         "nonGoals":  "Do not add webhook/contact side-effect nodes, model-backed branching, or target replay evidence.",
+                         "sourceFiles":  [
+                                             "services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/node/ConditionNodeHandler.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/service/WorkflowEngine.java"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "BRANCH and SPLIT validate with the same deterministic condition constraints as CONDITION where supported.",
+                                                    "Runtime dispatch uses the existing condition handler for deterministic branch/split nodes.",
+                                                    "Focused automation tests cover valid and invalid branch/split execution paths."
+                                                ],
+                         "validationProfile":  "backend-focused",
+                         "validationCommands":  [
+                                                    ".\\mvnw.cmd -pl services/automation-service -am -Dtest=WorkflowGraphValidatorTest,WorkflowEngineTest,AutomationStudioServiceTest -Dsurefire.failIfNoSpecifiedTests=false test"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "technical-debt.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Select the next READY backlog item.",
+                         "discoveredAt":  "2026-05-24T14:12:00.0000000Z",
+                         "lastUpdated":  "2026-05-24T14:48:32.7759399Z",
+                         "startedAt":  "2026-05-24T14:41:41.5165504Z",
+                         "completedAt":  "2026-05-24T14:48:32.7759399Z",
+                         "outcome":  "Implemented deterministic BRANCH and SPLIT journey aliases using the existing condition semantics, runtime dispatch, backend capability exposure, and frontend fallback capability coverage.",
+                         "validationRun":  [
+                                               ".\\mvnw.cmd -pl services/automation-service -am \"-Dtest=WorkflowGraphValidatorTest,WorkflowEngineTest,WorkflowStudioServiceTest,AutomationStudioServiceTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" test",
+                                               "npm run lint",
+                                               "npm run build:ci",
+                                               ".\\node_modules\\.bin\\playwright.cmd test automation-builder.spec.ts --project=chromium --reporter=line",
+                                               "git diff --check -- scoped branch/split files"
+                                           ],
+                         "residualRisks":  [
+                                               "Webhook/contact side-effect journey nodes remain out of scope.",
+                                               "Target runtime replay evidence remains blocked by external environment evidence.",
+                                               "Advanced data-extension extract provider handoff remains separate work."
+                                           ]
+                     },
+                     {
+                         "id":  "qa-release-frontend-gate-parity",
+                         "title":  "Align release frontend gate wiring with documented visual and Chromium coverage",
+                         "status":  "DONE",
+                         "priorityScore":  37,
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  1,
+                                         "userImpact":  2,
+                                         "performanceImpact":  1,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "QA_ENGINEER",
+                         "partnerAgents":  [
+                                               "FRONTEND_OWNER",
+                                               "RELEASE_MANAGER"
+                                           ],
+                         "scope":  "Keep release-gate, validation registry, release-pass docs, and release evidence validator tests aligned with current frontend visual smoke and full Chromium expectations.",
+                         "nonGoals":  "Do not weaken frontend gates or treat local-only gates as production evidence.",
+                         "sourceFiles":  [
+                                             "scripts/ops/release-gate.ps1",
+                                             "scripts/ops/test-release-evidence-validators.ps1",
+                                             ".codex/state/validation-registry.json",
+                                             ".codex/commands/release-pass.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Release-gate and validation registry agree with validation-gates.md for visual smoke and full Chromium coverage.",
+                                                    "Release evidence validator self-tests catch accidental removal of required frontend gate steps.",
+                                                    "release-pass docs use .env.example for Compose config and include visual smoke."
+                                                ],
+                         "validationProfile":  "release",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "root-cause-history.md",
+                                               "successful-fixes.md",
+                                               "test-impact-map.md",
+                                               "release-history.md"
+                                           ],
+                         "nextAction":  "Select the next READY backlog item.",
+                         "discoveredAt":  "2026-05-24T14:12:00.0000000Z",
+                         "lastUpdated":  "2026-05-24T14:55:34.0995186Z",
+                         "startedAt":  "2026-05-24T14:50:35.2514007Z",
+                         "completedAt":  "2026-05-24T14:55:34.0995186Z",
+                         "outcome":  "Aligned release frontend gate wiring, validation registry, release-pass docs, and release evidence self-tests with required visual smoke and full Chromium coverage.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly -SkipBackend -SkipFrontend -SkipCompose -SkipKustomize",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "git diff --check -- scoped release parity files"
+                                           ],
+                         "residualRisks":  [
+                                               "Local-only release-gate success is not production promotion evidence.",
+                                               "Strict production evidence remains blocked by target egress, image, GA, load, restore, monitoring, and CI/security artifacts.",
+                                               "Production overlay still emits the existing ExternalSecret placeholder-like warning for operator review."
+                                           ]
+                     },
+                     {
+                         "id":  "codex-coordination-drift-refresh",
+                         "title":  "Reconcile Codex active thread, dashboard, and stale readiness report pointers",
+                         "status":  "DONE",
+                         "priorityScore":  18,
+                         "scoring":  {
+                                         "productionReadinessImpact":  2,
+                                         "securityRisk":  0,
+                                         "userImpact":  1,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "PROGRAM_MANAGER_AGENT",
+                         "partnerAgents":  [
+                                               "DOCUMENTATION_ENGINEER"
+                                           ],
+                         "scope":  "Align active-work memory, team-state, thread registry next action, dashboard, and stale readiness-report reference with current queue state.",
+                         "nonGoals":  "Do not delete historical reports or hide blocked evidence requirements.",
+                         "sourceFiles":  [
+                                             ".codex/memory/active-work-items.md",
+                                             ".codex/state/team-state.json",
+                                             ".codex/threads/thread-registry.json",
+                                             ".codex/dashboards/team-dashboard.md",
+                                             ".codex/reports/100-percent-readiness-backlog-2026-05-23.md"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Active state reflects current READY/BLOCKED/DONE counts and next selected item.",
+                                                    "Dashboard no longer points to completed work as next action.",
+                                                    "Stale readiness report is referenced as historical instead of current."
+                                                ],
+                         "validationProfile":  "docs-memory",
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                                                    "git diff --check -- .codex"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "design-decisions.md"
+                                           ],
+                         "nextAction":  "No unblocked READY work remains; continue only after external evidence or new local candidates are available.",
+                         "discoveredAt":  "2026-05-24T14:12:00.0000000Z",
+                         "lastUpdated":  "2026-05-24T14:59:40.4332928Z",
+                         "startedAt":  "2026-05-24T14:57:42.8243366Z",
+                         "completedAt":  "2026-05-24T14:59:40.4332928Z",
+                         "outcome":  "Reconciled active coordinator metadata, dashboard source pointers, active memory, and the historical readiness report label with the current queue source of truth.",
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                                               "git diff --check -- .codex"
+                                           ],
+                         "residualRisks":  [
+                                               "Historical reports remain preserved and may contain old counts by design.",
+                                               "All remaining queue items are blocked by external evidence, credentials, production access, or human decisions."
+                                           ]
                      }
                  ],
-    "lastUpdated":  "2026-05-23T21:06:20.1043523Z"
+    "lastUpdated":  "2026-05-24"
 }

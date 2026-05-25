@@ -136,6 +136,16 @@ Rationale: verbose completed narratives made active memory stale and hid local R
 
 Impact: active memory tracks current queue counts, and stale DONE/IN_PROGRESS drift is removed from the queue. Production, high-volume, provider, AI, and parity claims remain evidence-bound.
 
+## 2026-05-24 Current Queue Source Boundary
+
+Source: `.codex/backlog/queue.json`, `.codex/state/team-state.json`, `.codex/memory/active-work-items.md`, `.codex/dashboards/team-dashboard.md`, `.codex/threads/thread-registry.json`, and `.codex/reports/100-percent-readiness-backlog-2026-05-23.md`.
+
+Decision: dated readiness reports are historical snapshots unless explicitly regenerated from the current queue. The current actionable source of truth is `queue.json` synchronized into team-state, dashboard, active-work memory, and the active thread registry.
+
+Rationale: the 2026-05-23 readiness report preserved useful backlog history but its READY/BACKLOG/DONE counts became stale after the 2026-05-24 autonomous loop completed additional local work. Treating it as current caused dashboard and next-action drift.
+
+Impact: the 2026-05-23 report now carries a historical snapshot notice, and the active coordinator points to current queue state rather than completed work. Future readiness summaries should either be regenerated from `queue.json` or clearly labeled historical.
+
 ## 2026-05-23 AI Provider Contract Boundary
 
 Source: `AiProviderContractMeteringService.java`, `AiProviderContractRequest.java`, `AiProviderMeteringRequest.java`, `V18__ai_provider_contract_metering.sql`, `AiProviderContractMeteringServiceTest.java`, and focused foundation-service validation.
@@ -267,5 +277,15 @@ Decision: enterprise package movement starts as a Foundation-owned metadata/conf
 Rationale: environment promotion can expose sensitive configuration or cross-workspace state if treated as generic JSON movement. The first slice must bind manifests to current tenant/workspace/environment context, checksum the manifest, hash each object, deny customer/payload object families, and block unsafe payload indicators before any live apply path exists.
 
 Impact: `/api/v1/global/packages/export` returns a local manifest only after scope and redaction checks; `/api/v1/global/packages/import/validate` verifies scope, target environment lock state, checksum, object hashes, supported types, and returns a no-mutation diff. Live apply, rollback/compensation, approval/audit workflow, broader object-family support, production promotion evidence, and parity claims remain separate work.
+
+## 2026-05-24 Product Parity Source Freshness Boundary
+
+Source: `docs/product/competitor-research/2026-05-24-source-refresh.md`, `docs/product/salesforce-parity-matrix.md`, official Salesforce Help, Adobe Experience League, Braze, Klaviyo, and HubSpot sources accessed on 2026-05-24.
+
+Decision: 2026-05-24 is the current official-source baseline for Salesforce and competitor parity research, but refreshed market sources must be treated separately from Legent implementation evidence and target runtime evidence.
+
+Rationale: vendor product surfaces change quickly, especially AI, journey orchestration, deliverability diagnostics, and segmentation. Keeping source freshness explicit prevents stale roadmap assumptions while avoiding unsupported parity, deliverability, AI, or production-readiness claims.
+
+Impact: the parity matrix now points to a 2026-05-24 source-refresh note and preserves local-contract wording. Remaining gaps stay evidence-bound: model-backed AI, broader executable journey/automation depth, persisted segment governance, relationship/event execution, provider capacity, target runtime proof, and production release evidence.
 
 Decision update rule: add only durable decisions with source, rationale, impact, and validation or follow-up.

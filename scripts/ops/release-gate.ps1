@@ -107,6 +107,8 @@ if (-not $SkipFrontend) {
     try {
         Run-Step "frontend lint" { npm run lint }
         Run-Step "frontend build" { npm run build:ci }
+        Run-Step "frontend visual smoke" { npm run test:e2e:visual }
+        Run-Step "frontend full Chromium" { npm run test:e2e:chromium }
         Run-Step "frontend smoke" { npm run test:e2e:smoke }
     } finally {
         Pop-Location

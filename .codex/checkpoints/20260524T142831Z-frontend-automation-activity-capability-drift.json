@@ -1,0 +1,31 @@
+{
+    "id":  "frontend-automation-activity-capability-drift",
+    "createdAt":  "2026-05-24T14:28:31.0619789Z",
+    "objective":  "Align Automation Studio activity capabilities with live backend contracts",
+    "status":  "IN_PROGRESS",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/automation/page.tsx",
+                         "frontend/tests/e2e/automation-studio.spec.ts",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/state/team-state.json",
+                         ".codex/dashboards/team-dashboard.md"
+                     ],
+    "agents":  [
+                   "AUTOMATION_SERVICE_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Implement frontend capability/state alignment and targeted Playwright coverage."
+}

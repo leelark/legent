@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.util.List;
 
 import java.util.Map;
+import java.util.Set;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.legent.automation.domain.InstanceHistory;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public class WorkflowEngine {
 
     private static final Duration RESUME_LOCK_TTL = Duration.ofMinutes(5);
+    private static final Set<String> CONDITION_ALIAS_NODE_TYPES = Set.of("BRANCH", "SPLIT");
 
     private final WorkflowInstanceRepository instanceRepository;
     private final WorkflowDefinitionRepository definitionRepository;
@@ -276,6 +278,9 @@ public class WorkflowEngine {
             try {
                 // Execute Step
                 NodeHandler handler = nodeHandlers.get(node.getType());
+                if (handler == null && CONDITION_ALIAS_NODE_TYPES.contains(node.getType())) {
+                    handler = nodeHandlers.get("CONDITION");
+                }
                 if (handler == null) {
                     handler = nodeHandlers.get("*");
                 }

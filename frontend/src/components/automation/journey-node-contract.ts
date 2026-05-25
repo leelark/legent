@@ -54,6 +54,8 @@ export const RUNTIME_SUPPORTED_JOURNEY_NODE_TYPES: readonly JourneyNodeType[] = 
   'DELAY',
   'WAIT_UNTIL',
   'CONDITION',
+  'BRANCH',
+  'SPLIT',
   'END',
 ];
 

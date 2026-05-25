@@ -54,6 +54,18 @@ jobs:
         run: npm run build:ci
         env:
           LEGENT_BUILD_TIMEOUT_MS: "900000"
+      - name: Frontend visual smoke
+        run: npm run test:e2e:visual
+        env:
+          CI: "true"
+      - name: Upload frontend visual smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-visual-smoke
+          path: frontend/test-results/test-e2e-visual-*
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Frontend full Chromium E2E
         run: npm run test:e2e:chromium
         env:

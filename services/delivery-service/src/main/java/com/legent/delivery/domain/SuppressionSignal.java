@@ -14,7 +14,7 @@ import lombok.Setter;
 public class SuppressionSignal extends BaseEntity {
 
     public enum SignalType {
-        HARD_BOUNCE, SOFT_BOUNCE, COMPLAINT
+        HARD_BOUNCE, SOFT_BOUNCE, COMPLAINT, UNSUBSCRIBE
     }
 
     @Column(name = "tenant_id", nullable = false)

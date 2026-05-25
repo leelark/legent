@@ -2,9 +2,11 @@ package com.legent.deliverability.controller;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.deliverability.domain.SuppressionList;
 import com.legent.deliverability.repository.SuppressionListRepository;
 import com.legent.security.TenantContext;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
@@ -51,7 +53,14 @@ class SuppressionControllerTest {
 
     @Test
     void missingInternalTokenFailsClosedBeforeRepositoryLookup() {
-        assertThatThrownBy(() -> controller.checkSuppressionsInternal(null, new SuppressionController.SuppressionCheckRequest(List.of("a@example.com"))))
+        InternalHeaders headers = headers("audience-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
+
+        assertThatThrownBy(() -> controller.checkSuppressionsInternal(
+                null,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
+                new SuppressionController.SuppressionCheckRequest(List.of("a@example.com"))))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
 
@@ -60,7 +69,14 @@ class SuppressionControllerTest {
 
     @Test
     void invalidInternalTokenFailsClosedBeforeRepositoryLookup() {
-        assertThatThrownBy(() -> controller.checkSuppressionsInternal("wrong-token", new SuppressionController.SuppressionCheckRequest(List.of("a@example.com"))))
+        InternalHeaders headers = headers("audience-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
+
+        assertThatThrownBy(() -> controller.checkSuppressionsInternal(
+                "wrong-token",
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
+                new SuppressionController.SuppressionCheckRequest(List.of("a@example.com"))))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
 
@@ -104,6 +120,7 @@ class SuppressionControllerTest {
 
     @Test
     void internalListUsesTenantWorkspaceScopedBoundedFirstPage() {
+        InternalHeaders headers = headers("campaign-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_LIST_READ);
         SuppressionList suppression = suppression("suppression-1", "user@example.com");
         when(suppressionRepository.findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
                 "tenant-1",
@@ -111,7 +128,12 @@ class SuppressionControllerTest {
                 PageRequest.of(0, 5)))
                 .thenReturn(List.of(suppression));
 
-        ApiResponse<List<SuppressionList>> response = controller.listSuppressionsInternal(INTERNAL_TOKEN, 5);
+        ApiResponse<List<SuppressionList>> response = controller.listSuppressionsInternal(
+                INTERNAL_TOKEN,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
+                5);
 
         assertThat(response.isSuccess()).isTrue();
         assertThat(response.getData()).containsExactly(suppression);
@@ -123,7 +145,29 @@ class SuppressionControllerTest {
 
     @Test
     void internalListInvalidTokenFailsClosedBeforeRepositoryLookup() {
-        assertThatThrownBy(() -> controller.listSuppressionsInternal("wrong-token", 5))
+        InternalHeaders headers = headers("campaign-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_LIST_READ);
+
+        assertThatThrownBy(() -> controller.listSuppressionsInternal(
+                "wrong-token",
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
+                5))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("403 FORBIDDEN");
+
+        verifyNoInteractions(suppressionRepository);
+    }
+
+    @Test
+    void internalHistoryInvalidTokenFailsClosedBeforeRepositoryLookup() {
+        InternalHeaders headers = headers("campaign-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ);
+
+        assertThatThrownBy(() -> controller.suppressionHistoryInternal(
+                "wrong-token",
+                headers.service(),
+                headers.timestamp(),
+                headers.signature()))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("403 FORBIDDEN");
 
@@ -132,6 +176,7 @@ class SuppressionControllerTest {
 
     @Test
     void validTokenReturnsOnlyTenantWorkspaceScopedCandidateMatches() {
+        InternalHeaders headers = headers("audience-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
         when(suppressionRepository.findActiveEmailsByTenantIdAndWorkspaceIdAndNormalizedEmailIn(
                 eq("tenant-1"),
                 eq("workspace-1"),
@@ -140,6 +185,9 @@ class SuppressionControllerTest {
 
         ApiResponse<SuppressionController.SuppressionCheckResponse> response = controller.checkSuppressionsInternal(
                 INTERNAL_TOKEN,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
                 new SuppressionController.SuppressionCheckRequest(List.of(" Mixed@Example.com ", "other@example.com", "mixed@example.com")));
 
         assertThat(response.isSuccess()).isTrue();
@@ -150,8 +198,13 @@ class SuppressionControllerTest {
 
     @Test
     void emptyCandidateListDoesNotQueryRepository() {
+        InternalHeaders headers = headers("audience-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
+
         ApiResponse<SuppressionController.SuppressionCheckResponse> response = controller.checkSuppressionsInternal(
                 INTERNAL_TOKEN,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
                 new SuppressionController.SuppressionCheckRequest(List.of(" ", "")));
 
         assertThat(response.getData().checkedCount()).isZero();
@@ -162,10 +215,14 @@ class SuppressionControllerTest {
 
     @Test
     void missingWorkspaceContextFailsClosed() {
+        InternalHeaders headers = headers("audience-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
         TenantContext.setWorkspaceId(null);
 
         assertThatThrownBy(() -> controller.checkSuppressionsInternal(
                 INTERNAL_TOKEN,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
                 new SuppressionController.SuppressionCheckRequest(List.of("a@example.com"))))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Workspace context is not set");
@@ -175,12 +232,16 @@ class SuppressionControllerTest {
 
     @Test
     void oversizedCandidateListFailsBeforeRepositoryLookup() {
+        InternalHeaders headers = headers("audience-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
         List<String> emails = IntStream.rangeClosed(0, AppConstants.SEND_BATCH_SIZE)
                 .mapToObj(index -> "user" + index + "@example.com")
                 .toList();
 
         assertThatThrownBy(() -> controller.checkSuppressionsInternal(
                 INTERNAL_TOKEN,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
                 new SuppressionController.SuppressionCheckRequest(emails)))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("400 BAD_REQUEST");
@@ -190,12 +251,16 @@ class SuppressionControllerTest {
 
     @Test
     void normalizesAndDeduplicatesCandidatesBeforeRepositoryLookup() {
+        InternalHeaders headers = headers("audience-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK);
         when(suppressionRepository.findActiveEmailsByTenantIdAndWorkspaceIdAndNormalizedEmailIn(
                 eq("tenant-1"), eq("workspace-1"), org.mockito.ArgumentMatchers.anyList()))
                 .thenReturn(List.of());
 
         controller.checkSuppressionsInternal(
                 INTERNAL_TOKEN,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature(),
                 new SuppressionController.SuppressionCheckRequest(List.of(" A@Example.com ", "a@example.com", "B@example.com")));
 
         ArgumentCaptor<List<String>> captor = ArgumentCaptor.forClass(List.class);
@@ -235,6 +300,41 @@ class SuppressionControllerTest {
     }
 
     @Test
+    void internalSuppressionHistoryUsesScopedCountQueriesWithoutLoadingRows() {
+        InternalHeaders headers = headers("campaign-service", InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ);
+        when(suppressionRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "COMPLAINT"))
+                .thenReturn(10L);
+        when(suppressionRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "HARD_BOUNCE"))
+                .thenReturn(50L);
+        when(suppressionRepository.countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "UNSUBSCRIBE"))
+                .thenReturn(4L);
+        when(suppressionRepository.countByTenantIdAndWorkspaceId("tenant-1", "workspace-1"))
+                .thenReturn(64L);
+
+        ApiResponse<Map<String, Object>> response = controller.suppressionHistoryInternal(
+                INTERNAL_TOKEN,
+                headers.service(),
+                headers.timestamp(),
+                headers.signature());
+
+        assertThat(response.isSuccess()).isTrue();
+        assertThat(response.getData())
+                .containsEntry("total", 64L)
+                .containsEntry("complaints", 10L)
+                .containsEntry("hardBounces", 50L)
+                .containsEntry("unsubscribes", 4L)
+                .containsKey("generatedAt");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceId("tenant-1", "workspace-1");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "COMPLAINT");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "HARD_BOUNCE");
+        verify(suppressionRepository).countByTenantIdAndWorkspaceIdAndReason("tenant-1", "workspace-1", "UNSUBSCRIBE");
+        verify(suppressionRepository, never()).findByTenantIdAndWorkspaceIdOrderByCreatedAtDesc(
+                eq("tenant-1"),
+                eq("workspace-1"),
+                org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
     void suppressionHistoryMissingWorkspaceContextFailsClosedBeforeRepositoryLookup() {
         TenantContext.setWorkspaceId(null);
 
@@ -253,5 +353,16 @@ class SuppressionControllerTest {
         suppression.setEmail(email);
         suppression.setReason("UNSUBSCRIBE");
         return suppression;
+    }
+
+    private InternalHeaders headers(String service, String action) {
+        Instant timestamp = Instant.now();
+        return new InternalHeaders(
+                service,
+                timestamp.toString(),
+                InternalServiceIdentity.sign(INTERNAL_TOKEN, service, "tenant-1", "workspace-1", action, timestamp));
+    }
+
+    private record InternalHeaders(String service, String timestamp, String signature) {
     }
 }

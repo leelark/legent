@@ -1,0 +1,45 @@
+{
+    "id":  "automation-artifact-selector-ux",
+    "createdAt":  "2026-05-24T12:37:39.0453491Z",
+    "objective":  "Add Automation Studio artifact/data-extension/user selector UX",
+    "status":  "DONE",
+    "owner":  "FRONTEND_OWNER",
+    "filesInScope":  [
+                         "frontend/src/app/(workspace)/automation/page.tsx",
+                         "frontend/src/components/automation/JourneyBuilder.tsx",
+                         "frontend/src/components/automation/NodeEditorModal.tsx",
+                         "frontend/src/lib/automation-api.ts",
+                         "frontend/tests/e2e/automation-studio.spec.ts",
+                         "frontend/tests/e2e/automation-builder.spec.ts",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/technical-debt.md",
+                         ".codex/memory/enhancement-log.md"
+                     ],
+    "agents":  [
+                   "AUTOMATION_SERVICE_OWNER",
+                   "AUDIENCE_SERVICE_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "cd frontend; npm run lint; npm run build:ci; .\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts --project=chromium --reporter=line"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "outcome":  "Automation Studio authoring now uses governed data-extension/user selectors, scoped artifact get-by-id verification, and campaign catalog selection for journey send nodes while preserving existing backend activity input/output contracts.",
+    "validationRun":  [
+                          "npm run lint",
+                          "npm run build:ci",
+                          ".\\node_modules\\.bin\\playwright.cmd test tests/e2e/automation-studio.spec.ts tests/e2e/automation-builder.spec.ts --project=chromium --reporter=line",
+                          "git diff --check -- frontend/src/app/(workspace)/automation/page.tsx frontend/src/components/automation/NodeEditorModal.tsx frontend/src/lib/automation-api.ts frontend/tests/e2e/automation-studio.spec.ts frontend/tests/e2e/automation-builder.spec.ts"
+                      ],
+    "residualRisks":  [
+                          "Local frontend validation only; true artifact browse/search still needs an automation-service list/search endpoint.",
+                          "Target runtime replay, object-store drills, cleanup/retention proof, and production/parity evidence remain separate blocked release concerns."
+                      ],
+    "nextAction":  "Continue with alertmanager-placeholder-secret-coverage if it remains the highest-score safe local backlog item, or collect external evidence for blocked release/provider/high-volume work."
+}

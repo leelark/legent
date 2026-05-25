@@ -2,6 +2,7 @@ package com.legent.campaign.client;
 
 import com.legent.common.constant.AppConstants;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +29,7 @@ public class DeliverabilityReadinessClient {
 
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(5);
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE = new ParameterizedTypeReference<>() {};
+    private static final String SERVICE_NAME = "campaign-service";
 
     private final WebClient webClient;
     private final String baseUrl;
@@ -81,33 +83,24 @@ public class DeliverabilityReadinessClient {
         requireInternalApiToken("suppression health checks");
         try {
             Map<String, Object> response = webClient.get()
-                    .uri("/api/v1/deliverability/suppressions/internal")
+                    .uri("/api/v1/deliverability/suppressions/internal/history")
                     .headers(headers -> {
                         tenantHeaders(headers, tenantId, workspaceId);
                         headers.set("X-Internal-Token", internalApiToken);
+                        signInternal(headers, tenantId, workspaceId,
+                                InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ);
                     })
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
                     .timeout(READ_TIMEOUT)
                     .block();
-            List<Object> suppressions = listData(response, "suppression list");
-            long complaints = 0;
-            long hardBounces = 0;
-            long unsubscribes = 0;
-            for (Object item : suppressions) {
-                if (!(item instanceof Map<?, ?> raw)) {
-                    continue;
-                }
-                String reason = stringValue(raw.get("reason"));
-                if ("COMPLAINT".equalsIgnoreCase(reason)) {
-                    complaints++;
-                } else if ("HARD_BOUNCE".equalsIgnoreCase(reason)) {
-                    hardBounces++;
-                } else if ("UNSUBSCRIBE".equalsIgnoreCase(reason)) {
-                    unsubscribes++;
-                }
-            }
-            return new SuppressionHealth(suppressions.size(), complaints, hardBounces, unsubscribes, Instant.now());
+            Map<String, Object> history = mapData(response, "suppression health");
+            return new SuppressionHealth(
+                    longValue(history.get("total")),
+                    longValue(history.get("complaints")),
+                    longValue(history.get("hardBounces")),
+                    longValue(history.get("unsubscribes")),
+                    instantValue(history.get("generatedAt")));
         } catch (WebClientResponseException e) {
             throw new ReadinessDependencyException("suppression health endpoint returned " + e.getStatusCode(), e);
         } catch (ReadinessDependencyException e) {
@@ -131,6 +124,19 @@ public class DeliverabilityReadinessClient {
         headers.setBearerAuth(serviceAuthTokenProvider.tokenFor(tenantId, workspaceId));
     }
 
+    private void signInternal(HttpHeaders headers, String tenantId, String workspaceId, String action) {
+        Instant timestamp = Instant.now();
+        headers.set(InternalServiceIdentity.HEADER_SERVICE, SERVICE_NAME);
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, timestamp.toString());
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE, InternalServiceIdentity.sign(
+                internalApiToken,
+                SERVICE_NAME,
+                tenantId,
+                workspaceId,
+                action,
+                timestamp));
+    }
+
     private void requireWebClient(String message) {
         if (webClient == null || baseUrl == null) {
             throw new ReadinessDependencyException(message);
@@ -151,6 +157,14 @@ public class DeliverabilityReadinessClient {
             return new ArrayList<>(list);
         }
         throw new ReadinessDependencyException("invalid " + label + " response: data is not a list");
+    }
+
+    private Map<String, Object> mapData(Map<String, Object> response, String label) {
+        Object data = data(response, label);
+        if (data instanceof Map<?, ?> map) {
+            return castMap(map);
+        }
+        throw new ReadinessDependencyException("invalid " + label + " response: data is not an object");
     }
 
     private Object data(Map<String, Object> response, String label) {
@@ -215,6 +229,20 @@ public class DeliverabilityReadinessClient {
             return bool;
         }
         return value != null && Boolean.parseBoolean(value.toString());
+    }
+
+    private long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value == null) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(value.toString());
+        } catch (NumberFormatException ex) {
+            throw new ReadinessDependencyException("invalid suppression health response: count is not numeric", ex);
+        }
     }
 
     private Instant instantValue(Object value) {
