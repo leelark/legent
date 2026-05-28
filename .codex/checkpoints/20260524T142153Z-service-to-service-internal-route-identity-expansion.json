@@ -1,8 +1,8 @@
-{
+﻿{
     "id":  "service-to-service-internal-route-identity-expansion",
     "createdAt":  "2026-05-24T14:21:53.7293622Z",
     "objective":  "Expand signed internal service identity to remaining internal routes",
-    "status":  "IN_PROGRESS",
+    "status":  "DONE",
     "owner":  "SECURITY_ENGINEER",
     "filesInScope":  [
                          "shared/legent-common/src/main/java/com/legent/common/security/InternalServiceIdentity.java",
@@ -49,5 +49,5 @@
     "blockers":  [
 
                  ],
-    "nextAction":  "Implement the smallest coherent signed-identity expansion slice across internal routes."
+    "nextAction":  "Closed from 2026-05-24 audit DONE event; additional 2026-05-26 route coverage is tracked separately."
 }

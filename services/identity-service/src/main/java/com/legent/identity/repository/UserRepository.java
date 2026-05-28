@@ -14,7 +14,7 @@ public interface UserRepository extends JpaRepository<User, String> {
     
     List<User> findByTenantId(String tenantId);
 
-    List<User> findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+    List<User> findByTenantIdAndIdentityProviderIdAndIsActiveTrueOrderByEmailAsc(
             String tenantId,
             String identityProviderId,
             Pageable pageable);
@@ -29,7 +29,7 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByTenantIdAndIdentityProviderIdAndExternalId(String tenantId, String identityProviderId, String externalId);
 
-    Optional<User> findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndActiveTrue(
+    Optional<User> findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndIsActiveTrue(
             String tenantId,
             String identityProviderId,
             String email);

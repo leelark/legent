@@ -45,21 +45,39 @@ Artifacts: backend reports are under `services/*/target/site/jacoco/` and `share
 ```powershell
 cd frontend
 npm run lint
+npm run test:coverage
 npm run build:ci
 npm run test:e2e:visual
 npm run test:e2e:chromium
 npm run test:e2e:smoke
+npm audit --omit=dev --audit-level=high
 ```
 
 Use `npm run test:e2e:chromium` as the full Chromium suite gate for frontend release/CI readiness. `npm run test:e2e:visual` is the required visual shell gate for CI and release-gate frontend runs; it captures desktop and mobile screenshots under Playwright output for review while asserting headings and no horizontal overflow. Refresh the visual baseline by reviewing those screenshots after intentional layout changes and updating `frontend/tests/e2e/visual-smoke.spec.ts` route, heading, viewport, or landmark expectations in the same change. Do not weaken the overflow or visibility assertions to pass a transient render issue.
 
 Keep `npm run test:e2e:smoke`, `npm run test:e2e:sanitize`, or targeted specs for fast local feedback on sanitizer, auth/context, shell, admin/settings, and visible UI changes.
 
+## Backend And Frontend Focused
+
+Run the backend module gate plus the full frontend-focused gate for changes crossing service/API contracts and visible workspace behavior.
+
+```powershell
+.\mvnw.cmd -pl <module> -am test
+cd frontend
+npm run lint
+npm run test:coverage
+npm run build:ci
+npm run test:e2e:visual
+npm run test:e2e:chromium
+npm run test:e2e:smoke
+npm audit --omit=dev --audit-level=high
+```
+
 ## Route Runtime
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1
-docker compose config --quiet
+docker compose --env-file .env.example config --quiet
 kubectl kustomize infrastructure/kubernetes/overlays/production
 ```
 
@@ -84,6 +102,8 @@ powershell -ExecutionPolicy Bypass -File scripts\ops\validate-production-overlay
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -LocalOnly
 ```
+
+The local release gate runs Codex validation, route validation, artifact hygiene, release-evidence validator self-tests, production overlay validation, Compose safety/config, production Kustomize render, backend unit/service tests, frontend lint, frontend unit coverage, frontend production build, visual smoke, full Chromium E2E, smoke E2E, and production dependency audit. Passing this gate is local evidence only.
 
 Strict promotion requires real evidence flags:
 

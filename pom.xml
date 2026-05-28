@@ -54,7 +54,7 @@
         <jackson.version>2.17.0</jackson.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <micrometer.version>1.12.5</micrometer.version>
-        <testcontainers.version>1.19.7</testcontainers.version>
+        <testcontainers.version>1.21.4</testcontainers.version>
         <opensearch-client.version>2.12.0</opensearch-client.version>
         <minio.version>8.6.0</minio.version>
         <jsoup.version>1.22.2</jsoup.version>

@@ -2,9 +2,11 @@ package com.legent.audience.controller;
 
 import com.legent.audience.dto.ImportDto;
 import com.legent.audience.service.ImportService;
+import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/imports")
 @RequiredArgsConstructor
 public class ImportController {
+
+    private static final java.util.Set<String> ALLOWED_INTERNAL_IMPORT_SERVICES = java.util.Set.of("automation-service");
 
     private final ImportService importService;
 
@@ -45,9 +49,23 @@ public class ImportController {
     @PreAuthorize("permitAll()")
     public ApiResponse<ImportDto.StatusResponse> startInternalImport(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature,
+            @RequestHeader(name = AppConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(name = AppConstants.HEADER_WORKSPACE_ID) String workspaceId,
             @Valid @RequestBody ImportDto.StartRequest request) {
-        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+        if (!InternalServiceIdentity.matches(
+                internalApiToken,
+                token,
+                internalService,
+                ALLOWED_INTERNAL_IMPORT_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.ACTION_AUDIENCE_IMPORT_START,
+                signatureTimestamp,
+                signature)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal service identity");
         }
         return ApiResponse.ok(importService.startImport(request));
     }

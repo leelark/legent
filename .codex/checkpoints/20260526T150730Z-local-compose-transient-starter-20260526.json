@@ -1,0 +1,28 @@
+{
+    "id":  "local-compose-transient-starter-20260526",
+    "createdAt":  "2026-05-26T15:07:30.0800960Z",
+    "objective":  "Add and validate repeatable local Compose startup helper for placeholder recovery",
+    "status":  "DONE",
+    "owner":  "DEVOPS_ENGINEER",
+    "filesInScope":  [
+                         "scripts/ops/start-local-compose.ps1",
+                         "README.md"
+                     ],
+    "agents":  [
+                   "DEVOPS_ENGINEER",
+                   "QA_ENGINEER",
+                   "DOCUMENTATION_ENGINEER"
+               ],
+    "validationPlan":  [
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\start-local-compose.ps1 -SelfTest",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\start-local-compose.ps1 -EnvFile .env.example -NoBuild -WaitSeconds 300 -PollSeconds 10",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "HTTP health smoke for frontend gateway and Spring services",
+                           "git diff --check for touched files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Use helper for local startup; keep target environments on managed configuration and strict evidence."
+}

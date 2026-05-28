@@ -9,6 +9,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ public class CampaignRetryMetricsService {
     private final Clock clock;
     private final Duration processingLeaseTimeout;
 
+    @Autowired
     public CampaignRetryMetricsService(MeterRegistry meterRegistry,
                                        SendBatchRepository batchRepository,
                                        @Value("${legent.campaign.send.processing-lease-timeout:PT15M}")

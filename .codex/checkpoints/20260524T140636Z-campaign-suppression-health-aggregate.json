@@ -1,8 +1,8 @@
-{
+﻿{
     "id":  "campaign-suppression-health-aggregate",
     "createdAt":  "2026-05-24T14:06:36.4222880Z",
     "objective":  "Use aggregate deliverability suppression counts for campaign launch readiness instead of a bounded suppression-list sample.",
-    "status":  "IN_PROGRESS",
+    "status":  "DONE",
     "owner":  "CAMPAIGN_SERVICE_OWNER",
     "filesInScope":  [
                          "services/campaign-service/src/main/java/com/legent/campaign/client/DeliverabilityReadinessClient.java",
@@ -32,5 +32,5 @@
     "blockers":  [
 
                  ],
-    "nextAction":  "Implement aggregate suppression-health endpoint and campaign client parser, then run focused tests."
+    "nextAction":  "Closed from 2026-05-24 audit DONE event; no action remains."
 }

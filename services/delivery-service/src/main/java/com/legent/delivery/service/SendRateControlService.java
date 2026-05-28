@@ -558,7 +558,7 @@ public class SendRateControlService {
     private SendRateState rollWindow(SendRateState state) {
         Instant now = Instant.now();
         if (state.getWindowStartedAt().plus(1, ChronoUnit.MINUTES).isBefore(now)) {
-            state.setWindowStartedAt(now.truncatedTo(ChronoUnit.MINUTES));
+            state.setWindowStartedAt(now);
             state.setUsedThisMinute(0);
         }
         return state;
@@ -580,7 +580,7 @@ public class SendRateControlService {
         state.setIspDomain(recipientDomain);
         state.setMaxPerMinute(1);
         state.setUsedThisMinute(0);
-        state.setWindowStartedAt(now.truncatedTo(ChronoUnit.MINUTES));
+        state.setWindowStartedAt(now);
         state.setThrottleState("OPEN");
         state.setRiskScore(0);
         state.setLastAdjustedAt(now);

@@ -1,0 +1,38 @@
+{
+    "id":  "tracking-outbox-drain-batch-config-20260526",
+    "createdAt":  "2026-05-26T15:53:12.1600185Z",
+    "objective":  "Make tracking outbox scheduled drain bounded and configurable without changing idempotency semantics",
+    "status":  "IN_PROGRESS",
+    "owner":  "PERFORMANCE_ENGINEER",
+    "filesInScope":  [
+                         "services/tracking-service/src/main/java/com/legent/tracking/service/TrackingOutboxService.java",
+                         "services/tracking-service/src/main/java/com/legent/tracking/repository/TrackingOutboxEventRepository.java",
+                         "services/tracking-service/src/test/java/com/legent/tracking/service/TrackingOutboxServiceTest.java",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/performance-bottlenecks.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events"
+                     ],
+    "agents":  [
+                   "PERFORMANCE_ENGINEER",
+                   "TRACKING_SERVICE_OWNER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl services/tracking-service -am -Dtest=TrackingOutboxServiceTest -Dsurefire.failIfNoSpecifiedTests=false test",
+                           ".\\mvnw.cmd -pl services/tracking-service -am test",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                           "git diff --check -- scoped files"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Patch configurable outbox drain and focused tests, then validate."
+}

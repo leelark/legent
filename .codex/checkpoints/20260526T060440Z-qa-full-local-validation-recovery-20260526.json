@@ -1,0 +1,45 @@
+{
+    "id":  "qa-full-local-validation-recovery-20260526",
+    "createdAt":  "2026-05-26T06:04:40.7074552Z",
+    "objective":  "Resume ONE_OVERALL_TEAM full local validation after Maven/frontend passes; continue Docker-dependent integration and Compose health, then update blockers and memory.",
+    "status":  "COMPLETED",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         ".codex/checkpoints",
+                         ".codex/threads/thread-registry.json",
+                         ".codex/state/team-state.json",
+                         ".codex/backlog/queue.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/blocked-items.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/failed-fixes.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/audit/events"
+                     ],
+    "agents":  [
+                   "backend-audit",
+                   "frontend-audit",
+                   "docker-audit",
+                   "blocked-triage",
+                   "release-infra-audit",
+                   "codex-hygiene-audit"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd test",
+                           ".\\mvnw.cmd -DskipTests install",
+                           "frontend lint/unit/coverage/build/e2e/audit",
+                           ".\\mvnw.cmd -DskipITs=false verify",
+                           "docker compose up -d --build",
+                           "validate-compose-health",
+                           "release-gate local"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "No unblocked local READY work remains; strict release and target evidence items remain blocked externally.",
+    "completedAt":  "2026-05-26T07:00:00.0000000Z",
+    "outcome":  "Cleared stale local Compose-health blocker, ran full backend/frontend/runtime validation, verified local-only release gate, and preserved production evidence blockers."
+}

@@ -2,7 +2,7 @@
   "id": "full-qa-clean-build-validation-20260525",
   "createdAt": "2026-05-25T05:11:09Z",
   "objective": "Run fresh Maven, Docker, backend, frontend, API, SIT, UAT, and release-style validation against the current Legent workspace; log discovered issues in .codex memory before fixing.",
-  "status": "IN_PROGRESS",
+  "status": "COMPLETED_LOCAL",
   "owner": "QA_ENGINEER",
   "filesInScope": [
     ".codex/memory/bug-history.md",
@@ -33,5 +33,69 @@
   ],
   "rollbackNotes": "This checkpoint is a test-run record only. Revert only this checkpoint and subsequent QA/fix memory entries if the whole run must be abandoned; do not revert unrelated pre-existing dirty files.",
   "blockers": [],
-  "nextAction": "Clean generated build artifacts and unused Docker cache, then run validation commands and capture failures."
+  "validationResults": [
+    {
+      "command": ".\\mvnw.cmd test",
+      "status": "PASS",
+      "summary": "All 16 Maven reactor modules completed successfully after focused fixes."
+    },
+    {
+      "command": ".\\mvnw.cmd -DskipTests install",
+      "status": "PASS",
+      "summary": "Fresh Maven install completed successfully."
+    },
+    {
+      "command": ".\\mvnw.cmd \"-Dtest=NoSuchTest\" \"-Dsurefire.failIfNoSpecifiedTests=false\" \"-DskipITs=false\" verify",
+      "status": "PASS",
+      "summary": "Failsafe/Testcontainers path completed, including TrackingEventIdempotencyServiceIT."
+    },
+    {
+      "command": "frontend npm ci/lint/test:unit/test:coverage/build:ci/test:e2e:visual/test:e2e:sanitize/test:e2e:chromium/test:e2e:smoke",
+      "status": "PASS",
+      "summary": "Frontend dependency install, static checks, build, unit coverage, visual, sanitize, full Chromium, and smoke suites passed; credentialed target login smoke remains skipped without target credentials."
+    },
+    {
+      "command": "scripts/ops validation gates and production overlay render",
+      "status": "PASS",
+      "summary": "Codex validation, environment placeholder validation, route map, repo artifact hygiene, release evidence validator self-tests, production overlay validation, Compose config, and Kustomize render passed locally."
+    },
+    {
+      "command": "docker compose --env-file .env.example build --no-cache; targeted no-cache rebuilds for foundation-service and delivery-service after final fixes; docker compose down -v --remove-orphans; docker compose up -d; scripts\\ops\\validate-compose-health.ps1",
+      "status": "PASS",
+      "summary": "Fresh local images and volumes started successfully with non-secret local runtime overrides for required placeholder secrets; Compose health validation passed for 23 services."
+    },
+    {
+      "command": "API/SIT checks and docker compose log scan",
+      "status": "PASS",
+      "summary": "Frontend health, direct service actuators, gateway health, expected 401/403/404 API responses, and final actionable error/exception log scan passed."
+    },
+    {
+      "command": "docker container/image/builder prune",
+      "status": "PASS",
+      "summary": "Stopped containers, dangling images, and unused build cache were pruned after validation."
+    }
+  ],
+  "fixedIssues": [
+    "qa-20260525-campaign-delayed-publish-unit-failure",
+    "qa-20260525-clickhouse-nullable-sort-key",
+    "qa-20260525-compose-placeholder-runtime-secrets",
+    "qa-20260525-identity-active-query-startup",
+    "qa-20260525-audience-char-varchar-schema-validation",
+    "qa-20260525-foundation-audit-event-length",
+    "qa-20260525-compose-health-validator-blind-spot",
+    "qa-20260525-compose-health-validator-completed-job-false-negative",
+    "qa-20260525-testcontainers-docker-skip",
+    "qa-20260525-delivery-rate-reclaim-test-failure",
+    "qa-20260525-delivery-open-capacity-expired-reservation-test-failure",
+    "qa-20260525-delivery-h2-jsonb-ddl-warning",
+    "qa-20260525-runtime-metrics-service-constructor-injection",
+    "qa-20260525-public-missing-route-500",
+    "qa-20260525-foundation-bootstrap-status-duplicate"
+  ],
+  "residualRisks": [
+    "Credentialed target login smoke remains skipped until E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD are supplied.",
+    "Frontend coverage remains very low despite passing conservative thresholds.",
+    "Production readiness remains blocked pending target egress, image provenance, live smoke/load/restore, monitoring, TLS/admission, CI/security transcript, and provider-approved high-volume evidence."
+  ],
+  "nextAction": "Keep production readiness blocked pending target evidence; expand credentialed UAT and frontend coverage in follow-up work."
 }

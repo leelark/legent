@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -39,7 +40,8 @@ class DeliveryRetryMetricsServiceTest {
                 MessageLog.DeliveryStatus.FAILED.name(),
                 PageRequest.of(0, 1))).thenReturn(List.of(6L));
 
-        new DeliveryRetryMetricsService(registry, messageLogRepository, clock);
+        DeliveryRetryMetricsService service = new DeliveryRetryMetricsService(registry, messageLogRepository, clock);
+        assertNotNull(service);
 
         assertEquals(5.0, registry.get("legent.retry.ready.depth")
                 .tag("queue", "delivery_scheduled_messages")

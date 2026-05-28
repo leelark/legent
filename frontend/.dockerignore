@@ -1,7 +1,12 @@
 node_modules
 .next
+coverage
+test-results
+playwright-report
 .env*.local
 *.log
+*.tsbuildinfo
+public-smoke-*.png
 .git
 .github
 .vscode

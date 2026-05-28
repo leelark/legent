@@ -1,6 +1,7 @@
 package com.legent.delivery.client;
 
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import io.netty.channel.ChannelOption;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ContentServiceClient {
 
     private final WebClient webClient;
+    private static final String SERVICE_NAME = "delivery-service";
     private final Duration cacheTtl;
     private final Duration requestTimeout;
     private final String internalApiToken;
@@ -98,6 +100,13 @@ public class ContentServiceClient {
                     .header("X-Internal-Token", internalApiToken)
                     .header("X-Tenant-Id", scopedTenantId)
                     .header("X-Workspace-Id", scopedWorkspaceId)
+                    .headers(headers -> addInternalSignatureHeaders(
+                            headers,
+                            scopedTenantId,
+                            scopedWorkspaceId,
+                            InternalServiceIdentity.scopedAction(
+                                    InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_READ,
+                                    scopedReferenceId)))
                     .retrieve()
                     .onStatus(HttpStatusCode::is4xxClientError, response -> {
                         log.warn("Content-service returned 4xx for rendered reference {}: {}",
@@ -187,6 +196,22 @@ public class ContentServiceClient {
 
     private void validateInternalApiToken(String token) {
         InternalApiTokenValidator.requireConfigured("legent.internal.api-token", token);
+    }
+
+    private void addInternalSignatureHeaders(org.springframework.http.HttpHeaders headers,
+                                             String tenantId,
+                                             String workspaceId,
+                                             String action) {
+        Instant timestamp = Instant.now();
+        headers.set(InternalServiceIdentity.HEADER_SERVICE, SERVICE_NAME);
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, timestamp.toString());
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE, InternalServiceIdentity.sign(
+                internalApiToken,
+                SERVICE_NAME,
+                tenantId,
+                workspaceId,
+                action,
+                timestamp));
     }
 
     private void putCached(String cacheKey, Map<String, String> result) {

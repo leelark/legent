@@ -1,8 +1,8 @@
-{
+﻿{
     "id":  "backlog-refinement-20260524-discovery",
     "createdAt":  "2026-05-24T14:12:09.5558338Z",
     "objective":  "Record read-only audit findings as scored backlog items and align active state/dashboard after suppression-health completion.",
-    "status":  "IN_PROGRESS",
+    "status":  "DONE",
     "owner":  "PROGRAM_MANAGER_AGENT",
     "filesInScope":  [
                          ".codex/backlog/queue.json",
@@ -28,5 +28,5 @@
     "blockers":  [
 
                  ],
-    "nextAction":  "Add discovered local candidates to queue, update active memory, validate Codex system, and select next ready item."
+    "nextAction":  "Closed from 2026-05-24 lease release; backlog findings were recorded and state synchronized."
 }

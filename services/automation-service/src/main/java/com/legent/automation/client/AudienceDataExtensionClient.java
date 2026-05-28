@@ -3,6 +3,7 @@ package com.legent.automation.client;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
@@ -11,6 +12,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.time.Instant;
 
 @Component
 public class AudienceDataExtensionClient {
@@ -18,6 +20,7 @@ public class AudienceDataExtensionClient {
     private static final ParameterizedTypeReference<ApiResponse<Map<String, Object>>> MAP_RESPONSE_TYPE =
             new ParameterizedTypeReference<>() {
             };
+    private static final String SERVICE_NAME = "automation-service";
 
     private final RestClient restClient;
     private final String internalApiToken;
@@ -42,6 +45,12 @@ public class AudienceDataExtensionClient {
                     .header(AppConstants.HEADER_TENANT_ID, tenantId)
                     .header(AppConstants.HEADER_WORKSPACE_ID, workspaceId)
                     .header("X-Internal-Token", token)
+                    .headers(headers -> addInternalSignatureHeaders(
+                            headers,
+                            token,
+                            tenantId,
+                            workspaceId,
+                            InternalServiceIdentity.ACTION_DATA_EXTENSION_QUERY_ACTIVITY))
                     .body(request)
                     .retrieve()
                     .body(MAP_RESPONSE_TYPE);
@@ -70,6 +79,12 @@ public class AudienceDataExtensionClient {
                     .header(AppConstants.HEADER_TENANT_ID, tenantId)
                     .header(AppConstants.HEADER_WORKSPACE_ID, workspaceId)
                     .header("X-Internal-Token", token)
+                    .headers(headers -> addInternalSignatureHeaders(
+                            headers,
+                            token,
+                            tenantId,
+                            workspaceId,
+                            InternalServiceIdentity.ACTION_AUDIENCE_IMPORT_START))
                     .body(request)
                     .retrieve()
                     .body(MAP_RESPONSE_TYPE);
@@ -91,5 +106,22 @@ public class AudienceDataExtensionClient {
         }
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void addInternalSignatureHeaders(org.springframework.http.HttpHeaders headers,
+                                             String token,
+                                             String tenantId,
+                                             String workspaceId,
+                                             String action) {
+        Instant timestamp = Instant.now();
+        headers.set(InternalServiceIdentity.HEADER_SERVICE, SERVICE_NAME);
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, timestamp.toString());
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE, InternalServiceIdentity.sign(
+                token,
+                SERVICE_NAME,
+                tenantId,
+                workspaceId,
+                action,
+                timestamp));
     }
 }

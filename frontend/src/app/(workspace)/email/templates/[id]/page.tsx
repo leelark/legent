@@ -665,11 +665,6 @@ export default function TemplateStudioPage() {
           textContent: toText(htmlFromBlocks),
           aiAssistance: aiDraftApplicationFromEvidence(selectedAiEvidence),
         });
-        const refreshed = await getTemplate(template.id);
-        const refreshedMetadata = parseMetadata(refreshed.metadata);
-        await updateTemplate(template.id, {
-          metadata: metadataWithBlocks(refreshedMetadata, modeSafeBlocks),
-        });
         addToast({
           type: 'success',
           title: 'Reviewed assisted draft evidence attached',

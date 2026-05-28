@@ -3,6 +3,7 @@ package com.legent.content.controller;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.content.domain.TemplateVersion;
 import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.service.EmailRenderService;
@@ -29,6 +30,10 @@ import java.util.Map;
 @RequestMapping(AppConstants.API_BASE_PATH + "/content")
 @RequiredArgsConstructor
 public class ContentController {
+
+    private static final java.util.Set<String> ALLOWED_TEMPLATE_RENDER_SERVICES = java.util.Set.of("campaign-service");
+    private static final java.util.Set<String> ALLOWED_SNAPSHOT_CREATE_SERVICES = java.util.Set.of("campaign-service");
+    private static final java.util.Set<String> ALLOWED_SNAPSHOT_READ_SERVICES = java.util.Set.of("campaign-service", "delivery-service");
 
     private final EmailRenderService renderService;
     private final TemplateVersionService versionService;
@@ -59,19 +64,47 @@ public class ContentController {
     public ApiResponse<RenderedContent> renderTemplateInternal(
             @PathVariable String templateId,
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature,
             @RequestBody Map<String, Object> variables) {
-        requireInternalToken(token);
-        return renderTemplateForTenant(TenantContext.requireTenantId(), TenantContext.requireWorkspaceId(), templateId, variables);
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        requireInternalIdentity(
+                token,
+                internalService,
+                signatureTimestamp,
+                signature,
+                ALLOWED_TEMPLATE_RENDER_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_CONTENT_TEMPLATE_RENDER,
+                        templateId));
+        return renderTemplateForTenant(tenantId, workspaceId, templateId, variables);
     }
 
     @PostMapping("/rendered-content/internal")
     @PreAuthorize("permitAll()")
     public ApiResponse<com.legent.common.event.EmailContentReference> createRenderedContentSnapshot(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature,
             @RequestBody RenderedContentSnapshotCreateRequest request) {
-        requireInternalToken(token);
         String tenantId = TenantContext.requireTenantId();
         String workspaceId = TenantContext.requireWorkspaceId();
+        requireInternalIdentity(
+                token,
+                internalService,
+                signatureTimestamp,
+                signature,
+                ALLOWED_SNAPSHOT_CREATE_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_CREATE,
+                        request == null ? "" : request.messageId()));
         RenderedContentSnapshotService.SnapshotRequest snapshotRequest =
                 new RenderedContentSnapshotService.SnapshotRequest(
                         request.tenantId(),
@@ -92,11 +125,26 @@ public class ContentController {
     @PreAuthorize("permitAll()")
     public ApiResponse<RenderedContentSnapshotService.StoredRenderedContent> getRenderedContentSnapshot(
             @PathVariable String referenceId,
-            @RequestHeader(name = "X-Internal-Token", required = false) String token) {
-        requireInternalToken(token);
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        requireInternalIdentity(
+                token,
+                internalService,
+                signatureTimestamp,
+                signature,
+                ALLOWED_SNAPSHOT_READ_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_READ,
+                        referenceId));
         return ApiResponse.ok(snapshotService.read(
-                TenantContext.requireTenantId(),
-                TenantContext.requireWorkspaceId(),
+                tenantId,
+                workspaceId,
                 referenceId));
     }
 
@@ -139,9 +187,25 @@ public class ContentController {
                                                        String textBody,
                                                        Boolean inlineFallbackIncluded) {}
 
-    private void requireInternalToken(String token) {
-        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+    private void requireInternalIdentity(String token,
+                                         String internalService,
+                                         String signatureTimestamp,
+                                         String signature,
+                                         java.util.Set<String> allowedServices,
+                                         String tenantId,
+                                         String workspaceId,
+                                         String action) {
+        if (!InternalServiceIdentity.matches(
+                internalApiToken,
+                token,
+                internalService,
+                allowedServices,
+                tenantId,
+                workspaceId,
+                action,
+                signatureTimestamp,
+                signature)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal service identity");
         }
     }
 }

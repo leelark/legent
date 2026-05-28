@@ -75,6 +75,7 @@ if ($RequireImageEvidence) {
 Run-Step "codex autonomous system" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File .codex/utilities/validate-codex-system.ps1 }
 Run-Step "route map" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-route-map.ps1 }
 Run-Step "repo artifact hygiene" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-repo-artifact-hygiene.ps1 }
+Run-Step "release evidence validator self-tests" { & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/test-release-evidence-validators.ps1 }
 Run-Step "production overlay" {
     if ($RequireImageDigests) {
         & $script:PowerShellExecutable -ExecutionPolicy Bypass -File scripts/ops/validate-production-overlay.ps1 -RequireImageDigests
@@ -96,9 +97,9 @@ if (-not $SkipBackend) {
         $isWindowsVariable = Get-Variable -Name IsWindows -ErrorAction SilentlyContinue
         $isWindowsHost = ($env:OS -eq "Windows_NT") -or ($isWindowsVariable -and [bool]$isWindowsVariable.Value)
         if ($isWindowsHost) {
-            .\mvnw.cmd test
+            .\mvnw.cmd -T1 test
         } else {
-            ./mvnw test
+            ./mvnw -T1 test
         }
     }
 }
@@ -106,10 +107,12 @@ if (-not $SkipFrontend) {
     Push-Location frontend
     try {
         Run-Step "frontend lint" { npm run lint }
+        Run-Step "frontend unit coverage" { npm run test:coverage }
         Run-Step "frontend build" { npm run build:ci }
         Run-Step "frontend visual smoke" { npm run test:e2e:visual }
         Run-Step "frontend full Chromium" { npm run test:e2e:chromium }
         Run-Step "frontend smoke" { npm run test:e2e:smoke }
+        Run-Step "frontend production dependency audit" { npm audit --omit=dev --audit-level=high }
     } finally {
         Pop-Location
     }

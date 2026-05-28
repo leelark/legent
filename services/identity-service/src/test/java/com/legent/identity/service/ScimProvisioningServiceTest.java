@@ -64,7 +64,7 @@ class ScimProvisioningServiceTest {
                 .thenReturn(tokenRow);
 
         User active = user("user-1", "active@example.com", true);
-        when(userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndIsActiveTrueOrderByEmailAsc(
                 eq("tenant-1"),
                 eq("provider-1"),
                 argThat(pageable -> pageable.getOffset() == 0L && pageable.getPageSize() == 100)))
@@ -84,7 +84,7 @@ class ScimProvisioningServiceTest {
     void listUsers_boundsPageRequestBeforeRepositoryQuery() throws Exception {
         String rawToken = "legent_scim_test";
         stubToken(rawToken);
-        when(userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndIsActiveTrueOrderByEmailAsc(
                 eq("tenant-1"),
                 eq("provider-1"),
                 argThat(pageable -> pageable.getOffset() == 4L && pageable.getPageSize() == 200)))
@@ -101,7 +101,7 @@ class ScimProvisioningServiceTest {
     void listUsers_normalizesInvalidBoundsBeforeRepositoryQuery() throws Exception {
         String rawToken = "legent_scim_test";
         stubToken(rawToken);
-        when(userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndIsActiveTrueOrderByEmailAsc(
                 eq("tenant-1"),
                 eq("provider-1"),
                 argThat(pageable -> pageable.getOffset() == 0L && pageable.getPageSize() == 1)))
@@ -119,7 +119,7 @@ class ScimProvisioningServiceTest {
         String rawToken = "legent_scim_test";
         stubToken(rawToken);
         User active = user("user-1", "active@example.com", true);
-        when(userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndActiveTrue(
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndIsActiveTrue(
                 "tenant-1",
                 "provider-1",
                 "active@example.com"))
@@ -142,7 +142,7 @@ class ScimProvisioningServiceTest {
     void listUsers_emailFilterRejectsUserOwnedByAnotherProvider() throws Exception {
         String rawToken = "legent_scim_test";
         stubToken(rawToken);
-        when(userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndActiveTrue(
+        when(userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndIsActiveTrue(
                 "tenant-1",
                 "provider-1",
                 "other@example.com"))

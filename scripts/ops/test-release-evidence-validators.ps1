@@ -1,5 +1,5 @@
 param(
-    [ValidateRange(1, 3600)][int]$ChildProcessTimeoutSeconds = 60
+    [ValidateRange(1, 3600)][int]$ChildProcessTimeoutSeconds = 180
 )
 
 Set-StrictMode -Version Latest
@@ -385,6 +385,10 @@ Assert-SourceMatches "release-gate frontend visual smoke wiring" `
     $releaseGateSource `
     'Run-Step\s+"frontend visual smoke"\s*\{\s*npm\s+run\s+test:e2e:visual\s*\}' `
     "release-gate.ps1 must keep npm run test:e2e:visual in frontend release runs."
+Assert-SourceMatches "release-gate frontend coverage wiring" `
+    $releaseGateSource `
+    'Run-Step\s+"frontend unit coverage"\s*\{\s*npm\s+run\s+test:coverage\s*\}' `
+    "release-gate.ps1 must keep npm run test:coverage in frontend release runs."
 Assert-SourceMatches "release-gate frontend full Chromium wiring" `
     $releaseGateSource `
     'Run-Step\s+"frontend full Chromium"\s*\{\s*npm\s+run\s+test:e2e:chromium\s*\}' `
@@ -393,6 +397,10 @@ Assert-SourceMatches "release-gate frontend smoke wiring" `
     $releaseGateSource `
     'Run-Step\s+"frontend smoke"\s*\{\s*npm\s+run\s+test:e2e:smoke\s*\}' `
     "release-gate.ps1 must keep npm run test:e2e:smoke in frontend release runs."
+Assert-SourceMatches "release-gate frontend production dependency audit wiring" `
+    $releaseGateSource `
+    'Run-Step\s+"frontend production dependency audit"\s*\{\s*npm\s+audit\s+--omit=dev\s+--audit-level=high\s*\}' `
+    "release-gate.ps1 must keep npm audit --omit=dev --audit-level=high in frontend release runs."
 
 $validationRegistryPath = ".codex/state/validation-registry.json"
 if (-not (Test-Path $validationRegistryPath)) {
@@ -404,9 +412,19 @@ if (-not $frontendFocusedProfile) {
     Fail "validation-registry.json must define a frontend-focused profile."
 }
 $frontendFocusedCommands = @($frontendFocusedProfile.commands)
-foreach ($requiredFrontendCommand in @("npm run test:e2e:visual", "npm run test:e2e:chromium", "npm run test:e2e:smoke")) {
+foreach ($requiredFrontendCommand in @("npm run test:coverage", "npm run test:e2e:visual", "npm run test:e2e:chromium", "npm run test:e2e:smoke", "npm audit --omit=dev --audit-level=high")) {
     if ($frontendFocusedCommands -notcontains $requiredFrontendCommand) {
         Fail "frontend-focused validation profile must include $requiredFrontendCommand."
+    }
+}
+$backendFrontendFocusedProfile = @($validationRegistry.profiles | Where-Object { $_.id -eq "backend-frontend-focused" } | Select-Object -First 1)
+if (-not $backendFrontendFocusedProfile) {
+    Fail "validation-registry.json must define a backend-frontend-focused profile."
+}
+$backendFrontendFocusedCommands = @($backendFrontendFocusedProfile.commands)
+foreach ($requiredBackendFrontendCommand in @("npm run test:coverage", "npm run test:e2e:visual", "npm run test:e2e:chromium", "npm run test:e2e:smoke", "npm audit --omit=dev --audit-level=high")) {
+    if ($backendFrontendFocusedCommands -notcontains $requiredBackendFrontendCommand) {
+        Fail "backend-frontend-focused validation profile must include $requiredBackendFrontendCommand."
     }
 }
 
@@ -423,10 +441,22 @@ Assert-SourceMatches "release-pass full Chromium docs" `
     $releasePassSource `
     'npm\s+run\s+test:e2e:chromium' `
     "release-pass docs must include the full Chromium gate."
+Assert-SourceMatches "release-pass frontend coverage docs" `
+    $releasePassSource `
+    'npm\s+run\s+test:coverage' `
+    "release-pass docs must include the frontend coverage gate."
+Assert-SourceMatches "release-pass frontend production dependency audit docs" `
+    $releasePassSource `
+    'npm\s+audit\s+--omit=dev\s+--audit-level=high' `
+    "release-pass docs must include the frontend production dependency audit gate."
 Assert-SourceMatches "release-pass explicit compose env docs" `
     $releasePassSource `
     'docker\s+compose\s+--env-file\s+\.env\.example\s+config\s+--quiet' `
     "release-pass docs must use .env.example for Docker Compose config."
+Assert-SourceMatches "release-pass canonical local gate docs" `
+    $releasePassSource `
+    'scripts\\ops\\release-gate\.ps1\s+-LocalOnly' `
+    "release-pass docs must point to release-gate.ps1 -LocalOnly as the canonical local gate."
 
 $ciSecurityWorkflowPath = ".github/workflows/ci-security.yml"
 if (-not (Test-Path $ciSecurityWorkflowPath)) {

@@ -1,8 +1,8 @@
-{
+﻿{
     "id":  "automation-branch-split-runtime-aliases",
     "createdAt":  "2026-05-24T14:41:41.4303218Z",
     "objective":  "Run deterministic BRANCH and SPLIT journey nodes as condition aliases",
-    "status":  "IN_PROGRESS",
+    "status":  "DONE",
     "owner":  "AUTOMATION_SERVICE_OWNER",
     "filesInScope":  [
                          "services/automation-service/src/main/java/com/legent/automation/service/WorkflowGraphValidator.java",
@@ -33,5 +33,5 @@
     "blockers":  [
 
                  ],
-    "nextAction":  "Implement deterministic branch/split aliases and focused runtime tests."
+    "nextAction":  "Closed from 2026-05-24 audit DONE event; no action remains."
 }

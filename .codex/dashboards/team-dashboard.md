@@ -1,18 +1,18 @@
 ﻿# Autonomous Team Dashboard
 
-Generated: 2026-05-24T15:09:24.7081131Z
+Generated: 2026-05-26T15:47:34.2580321Z
 
 ## Summary
 
 - Registered module teams: 15
-- Registered threads: 21
-- Active threads: 1
+- Registered threads: 23
+- Active threads: 0
 - Active leases: 0
 - Active worktrees: 0
 - Ready work: 0
 - Backlog work: 0
-- Blocked work: 17
-- Done work: 214
+- Blocked work: 16
+- Done work: 218
 
 ## Threads
 
@@ -38,7 +38,9 @@ Generated: 2026-05-24T15:09:24.7081131Z
 | overall-20260523T104219Z | OVERALL | overall | PAUSED | 2026-05-23T21:12:02.4574207Z | True | Safe-stopped after completing segment-builder-v2-governance-ui. Automation legent-24x7-overall-team is paused; resume with automation-artifact-selector-ux or external evidence collection only on user direction. |
 | overall-20260524T | OVERALL | overall | ARCHIVED | 2026-05-24T06:19:11.6618024Z | True | Malformed restart record archived; superseded by timestamped 2026-05-24 overall coordinator. |
 | overall-20260524T061909Z | OVERALL | overall | PAUSED | 2026-05-24T10:23:52.5790499Z | True | Safe-stopped after completing segment-builder-v2-governance-ui. Automation legent-24x7-overall-team is paused; resume with automation-artifact-selector-ux or external evidence collection only on user direction. |
-| overall-20260524T123415Z | OVERALL | overall | ACTIVE | 2026-05-24T15:00:22.2020916Z | False | No unblocked READY local work remains; remaining work is blocked by external evidence, credentials, production access, or human decisions. |
+| overall-20260524T123415Z | OVERALL | overall | PAUSED | 2026-05-24T15:00:22.2020916Z | True | Heartbeat stale; inspect thread before resuming. |
+| overall-20260526T060436Z | OVERALL | overall | BLOCKED | 2026-05-26T07:02:10.7907951Z | True | No unblocked local READY work remains; resume after external target evidence, provider/load proof, credentials, or human policy decisions are available. |
+| overall-20260526T080000Z | OVERALL | overall | BLOCKED | 2026-05-26T15:16:28.1198597Z | False | No unblocked local READY work remains after local validation closeout; resume after external target evidence, provider/load proof, target credentials, or human decisions are available. |
 
 ## Next Work
 

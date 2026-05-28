@@ -29,6 +29,38 @@ foreach ($thread in @($registry.threads)) {
     }
 }
 
+$expiredLeases = @()
+foreach ($lease in @($leases.leases)) {
+    $leaseStatus = if ($lease.PSObject.Properties.Name -contains "status") { [string]$lease.status } else { "" }
+    if ($leaseStatus -and $leaseStatus -ne "ACTIVE") {
+        continue
+    }
+    if (-not $lease.expiresAt) {
+        continue
+    }
+
+    $expiresAt = [datetime]::Parse([string]$lease.expiresAt).ToUniversalTime()
+    if ($expiresAt -lt $now) {
+        $expiredLeases += $lease
+        if (-not $DryRun) {
+            $lease.status = "EXPIRED"
+            $lease.heartbeatAt = $now.ToString("o")
+            $thread = @($registry.threads) | Where-Object { $_.threadId -eq $lease.threadId } | Select-Object -First 1
+            if ($thread) {
+                $thread.leaseIds = @($thread.leaseIds | Where-Object { $_ -ne $lease.leaseId })
+                $thread.lastUpdated = $now.ToString("o")
+            }
+            $leaseModule = "overall"
+            if ($thread -and ($thread.PSObject.Properties.Name -contains "module") -and -not [string]::IsNullOrWhiteSpace([string]$thread.module)) {
+                $leaseModule = [string]$thread.module
+            } elseif (($lease.PSObject.Properties.Name -contains "module") -and -not [string]::IsNullOrWhiteSpace([string]$lease.module)) {
+                $leaseModule = [string]$lease.module
+            }
+            & .codex/utilities/write-audit-event.ps1 -EventType LEASE_EXPIRED -Actor $lease.owner -ThreadId $lease.threadId -WorkItemId $lease.workItemId -Module $leaseModule -Files @($lease.filesInScope) -Summary "Marked expired active lease as EXPIRED during cleanup." -NextAction "Continue with release validation after lease reconciliation."
+        }
+    }
+}
+
 if (-not $DryRun) {
     $leases.leases = @($leases.leases | Where-Object { $staleThreads -notcontains $_.threadId })
     $registry | ConvertTo-Json -Depth 12 | Set-Content -Path $threadPath -Encoding UTF8
@@ -36,4 +68,5 @@ if (-not $DryRun) {
 }
 
 Write-Host "Stale threads: $($staleThreads.Count)"
+Write-Host "Expired active leases: $($expiredLeases.Count)"
 if ($DryRun) { Write-Host "Dry run only; no changes written." }

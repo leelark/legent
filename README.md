@@ -79,6 +79,12 @@ Validate environment:
 .\scripts\ops\validate-env.ps1 -EnvFile .env
 ```
 
+For a throwaway local stack when `.env` is not ready yet, use the local starter. It defaults to `.env.example` and generates process-scoped local overrides for the internal service token and delivery credential encryption settings without writing a secrets file:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-compose.ps1
+```
+
 Install backend/frontend dependencies:
 
 ```powershell
@@ -92,7 +98,15 @@ npm ci
 Run full local stack:
 
 ```powershell
-docker compose up -d --build
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-compose.ps1
+```
+
+If you already have a validated `.env` and want to run Compose directly, `docker compose up -d --build` is still supported.
+
+To run the helper with a real local env file:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\ops\start-local-compose.ps1 -EnvFile .env
 ```
 
 Main local URLs:

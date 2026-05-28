@@ -77,11 +77,11 @@ public class ScimProvisioningService {
         int safeStartIndex = Math.max(1, startIndex);
         int pageSize = boundedCount(count);
         List<User> users = emailFilter == null
-                ? userRepository.findByTenantIdAndIdentityProviderIdAndActiveTrueOrderByEmailAsc(
+                ? userRepository.findByTenantIdAndIdentityProviderIdAndIsActiveTrueOrderByEmailAsc(
                         context.tenantId(),
                         providerId,
                         new OffsetLimitPageable(safeStartIndex - 1L, pageSize, Sort.by("email").ascending()))
-                : userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndActiveTrue(
+                : userRepository.findByTenantIdAndIdentityProviderIdAndEmailIgnoreCaseAndIsActiveTrue(
                         context.tenantId(),
                         providerId,
                         emailFilter).map(List::of).orElse(List.of());

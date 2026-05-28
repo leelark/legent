@@ -2,6 +2,8 @@ param(
     [switch]$AllowNotRunning,
     [string]$ComposeEnvFile,
     [string[]]$ComposeFile = @(),
+    [int]$WaitSeconds = 180,
+    [int]$PollSeconds = 5,
     [switch]$SelfTest
 )
 
@@ -28,7 +30,7 @@ function New-ComposePsArguments {
             $arguments += @("-f", $file)
         }
     }
-    $arguments += @("ps", "--format", "json")
+    $arguments += @("ps", "-a", "--format", "json")
     return $arguments
 }
 
@@ -60,20 +62,45 @@ function Get-UnhealthyComposeRows {
         [object[]]$Rows
     )
 
+    $completedSetupServices = @("postgres-init", "kafka-setup")
     $bad = @()
     foreach ($row in @($Rows)) {
+        $service = [string]$row.Service
         $state = [string]$row.State
         $health = ""
         if ($row.PSObject.Properties.Name -contains "Health") { $health = [string]$row.Health }
-        if ($state -notmatch "running" -or ($health -and $health -notmatch "healthy|starting")) {
+        $exitCode = $null
+        if ($row.PSObject.Properties.Name -contains "ExitCode") { $exitCode = [int]$row.ExitCode }
+        if ($completedSetupServices -contains $service -and $state -eq "exited" -and $exitCode -eq 0) {
+            continue
+        }
+        if ($state -ne "running" -or ($health -and $health -ne "healthy")) {
             $bad += "$($row.Service): state=$state health=$health"
         }
     }
     return $bad
 }
 
+function Invoke-DockerComposePs {
+    param(
+        [string[]]$ComposeArgs
+    )
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = & docker @ComposeArgs 2>&1
+        return [pscustomobject]@{
+            ExitCode = $LASTEXITCODE
+            Output = $output
+        }
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 function Invoke-ComposeHealthSelfTest {
-    $expectedArgs = @("compose", "--env-file", ".env.example", "-f", "docker-compose.yml", "-f", "docker-compose.override.yml", "ps", "--format", "json")
+    $expectedArgs = @("compose", "--env-file", ".env.example", "-f", "docker-compose.yml", "-f", "docker-compose.override.yml", "ps", "-a", "--format", "json")
     $actualArgs = New-ComposePsArguments -EnvFile ".env.example" -Files @("docker-compose.yml", "docker-compose.override.yml")
     if (($actualArgs -join "|") -ne ($expectedArgs -join "|")) {
         throw "env-file/compose-file argument wiring failed. Actual: $($actualArgs -join ' ')"
@@ -86,13 +113,33 @@ function Invoke-ComposeHealthSelfTest {
 
     $healthyLines = @(
         '{"Service":"postgres","State":"running","Health":"healthy"}',
-        '{"Service":"kafka","State":"running","Health":"starting"}',
         '{"Service":"nginx","State":"running"}'
     )
     $healthyRows = @(Convert-ComposePsOutput -Output $healthyLines)
     $healthyFailures = @(Get-UnhealthyComposeRows -Rows $healthyRows)
-    if ($healthyRows.Count -ne 3 -or $healthyFailures.Count -ne 0) {
-        throw "healthy/starting fixture should pass."
+    if ($healthyRows.Count -ne 2 -or $healthyFailures.Count -ne 0) {
+        throw "healthy/no-health fixture should pass."
+    }
+
+    $startingRows = @(Convert-ComposePsOutput -Output '{"Service":"kafka","State":"running","Health":"starting"}')
+    $startingFailures = @(Get-UnhealthyComposeRows -Rows $startingRows)
+    if ($startingFailures.Count -ne 1 -or $startingFailures[0] -notmatch "kafka: state=running health=starting") {
+        throw "starting fixture should fail with service details."
+    }
+
+    $completedSetupRows = @(Convert-ComposePsOutput -Output @(
+        '{"Service":"postgres-init","State":"exited","ExitCode":0,"Health":""}',
+        '{"Service":"kafka-setup","State":"exited","ExitCode":0,"Health":""}'
+    ))
+    $completedSetupFailures = @(Get-UnhealthyComposeRows -Rows $completedSetupRows)
+    if ($completedSetupFailures.Count -ne 0) {
+        throw "successful setup jobs should pass."
+    }
+
+    $unexpectedExitedRows = @(Convert-ComposePsOutput -Output '{"Service":"api","State":"exited","ExitCode":0,"Health":""}')
+    $unexpectedExitedFailures = @(Get-UnhealthyComposeRows -Rows $unexpectedExitedRows)
+    if ($unexpectedExitedFailures.Count -ne 1 -or $unexpectedExitedFailures[0] -notmatch "api: state=exited health=") {
+        throw "unexpected exited service should fail."
     }
 
     $jsonArrayRows = @(Convert-ComposePsOutput -Output '[{"Service":"redis","State":"running","Health":"healthy"}]')
@@ -115,36 +162,40 @@ if ($SelfTest) {
 }
 
 $composeArgs = New-ComposePsArguments -EnvFile $ComposeEnvFile -Files $ComposeFile
-$previousErrorActionPreference = $ErrorActionPreference
-try {
-    $ErrorActionPreference = "Continue"
-    $output = & docker @composeArgs 2>&1
-    $dockerExitCode = $LASTEXITCODE
-} finally {
-    $ErrorActionPreference = $previousErrorActionPreference
-}
+$deadline = (Get-Date).AddSeconds([Math]::Max(0, $WaitSeconds))
+$sleepSeconds = [Math]::Max(1, $PollSeconds)
+$lastRows = @()
+$lastBad = @()
 
-if ($dockerExitCode -ne 0) {
-    if ($AllowNotRunning) {
-        Write-Warning "docker $($composeArgs -join ' ') failed, but AllowNotRunning was set."
-        exit 0
+do {
+    $result = Invoke-DockerComposePs -ComposeArgs $composeArgs
+    if ($result.ExitCode -ne 0) {
+        if ($AllowNotRunning) {
+            Write-Warning "docker $($composeArgs -join ' ') failed, but AllowNotRunning was set."
+            exit 0
+        }
+        Fail "docker $($composeArgs -join ' ') failed."
     }
-    Fail "docker $($composeArgs -join ' ') failed."
-}
 
-$rows = @(Convert-ComposePsOutput -Output $output)
-if ($rows.Count -eq 0) {
-    if ($AllowNotRunning) {
-        Write-Warning "No compose services are running."
-        exit 0
+    $lastRows = @(Convert-ComposePsOutput -Output $result.Output)
+    if ($lastRows.Count -eq 0) {
+        if ($AllowNotRunning) {
+            Write-Warning "No compose services are running."
+            exit 0
+        }
+        $lastBad = @("No compose services are present.")
+    } else {
+        $lastBad = @(Get-UnhealthyComposeRows -Rows $lastRows)
+        if ($lastBad.Count -eq 0) {
+            Write-Host "Compose health validation passed for $($lastRows.Count) services."
+            exit 0
+        }
     }
-    Fail "No compose services are running."
-}
 
-$bad = @(Get-UnhealthyComposeRows -Rows $rows)
-if ($bad.Count -gt 0) {
-    $bad | ForEach-Object { Write-Error $_ }
-    exit 1
-}
+    if ((Get-Date) -lt $deadline) {
+        Start-Sleep -Seconds $sleepSeconds
+    }
+} while ((Get-Date) -lt $deadline)
 
-Write-Host "Compose health validation passed for $($rows.Count) services."
+$lastBad | ForEach-Object { Write-Error $_ }
+exit 1

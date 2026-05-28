@@ -13,6 +13,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.util.LinkedHashMap;
@@ -61,7 +63,7 @@ public class TenantBootstrapService {
                 "foundation-service",
                 payload
         );
-        publishAndAwait(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED, envelope);
+        publishAfterCommitOrNow(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED, envelope);
     }
 
     @Transactional
@@ -348,6 +350,19 @@ public class TenantBootstrapService {
         } catch (CompletionException e) {
             throw publishFailure(topic, e);
         }
+    }
+
+    private <T> void publishAfterCommitOrNow(String topic, EventEnvelope<T> envelope) {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            publishAndAwait(topic, envelope);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                publishAndAwait(topic, envelope);
+            }
+        });
     }
 
     private RuntimeException publishFailure(String topic, CompletionException e) {

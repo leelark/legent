@@ -23,12 +23,11 @@ Only live blockers are listed here. Completed local fixes and stale historical n
 | `external-provider-capacity` | DELIVERABILITY_ENGINEER | 52 | Collect provider, DNS, feedback-loop, warmup, and reputation evidence before production send claims. |
 | `automation-script-activity-security-sandbox` | SECURITY_ENGINEER | 52 | Blocked until sandbox/signing model and runtime isolation evidence exist. |
 | `campaign-content-reference-target-proof` | CAMPAIGN_SERVICE_OWNER | 51 | Target load evidence missing |
-| `qa-ci-live-compose-health-evidence` | DEVOPS_ENGINEER | 36 | Docker Desktop daemon unavailable in this session; start Docker Desktop, then rerun Compose startup and health validation. |
 
 ## Blocking Rules
 
 - Production readiness requires strict release evidence, not local-only gates.
 - Local release-gate wiring now includes visual smoke, full Chromium, and smoke checks when frontend gates are enabled, but this remains local gate hygiene and not production evidence.
 - 10 lakh / 10h send readiness requires warmed senders, provider-approved capacity, load evidence, queue metrics, retry/DLQ proof, and tracking isolation.
-- Provider capacity, sender reputation, DNS/FBL, production egress, image provenance, restore, monitoring, and target runtime proof remain external evidence.
+- Provider capacity, sender reputation, DNS/FBL, production egress, image provenance, restore, monitoring, target runtime proof, and credentialed target login smoke remain external evidence.
 - Policy/schema items require human product/security/data decisions before implementation.

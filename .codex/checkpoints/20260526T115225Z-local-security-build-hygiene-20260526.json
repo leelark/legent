@@ -1,0 +1,52 @@
+{
+    "id":  "local-security-build-hygiene-20260526",
+    "createdAt":  "2026-05-26T11:52:25.7684666Z",
+    "objective":  "Close locally actionable security identity and build hygiene findings from 2026-05-26 scouts",
+    "status":  "DONE",
+    "owner":  "PROGRAM_MANAGER_AGENT",
+    "filesInScope":  [
+                         "services/audience-service/src/main/java/com/legent/audience/controller/ImportController.java",
+                         "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                         "services/content-service/src/main/java/com/legent/content/controller/ContentController.java",
+                         "services/content-service/src/main/java/com/legent/content/controller/SendGovernancePolicyController.java",
+                         "services/audience-service/src/test/java",
+                         "services/content-service/src/test/java",
+                         "frontend/.dockerignore",
+                         "scripts/ops/test-release-evidence-validators.ps1",
+                         ".codex/backlog/queue.json",
+                         ".codex/state/team-state.json",
+                         ".codex/memory/active-work-items.md",
+                         ".codex/memory/security-findings.md",
+                         ".codex/memory/successful-fixes.md",
+                         ".codex/memory/root-cause-history.md",
+                         ".codex/memory/release-history.md",
+                         ".codex/memory/unresolved-risks.md",
+                         ".codex/dashboards/team-dashboard.md",
+                         ".codex/checkpoints",
+                         ".codex/audit/events"
+                     ],
+    "agents":  [
+                   "SECURITY_ENGINEER",
+                   "FRONTEND_OWNER",
+                   "DEVOPS_ENGINEER",
+                   "QA_ENGINEER"
+               ],
+    "validationPlan":  [
+                           ".\\mvnw.cmd -pl shared/legent-common",
+                           "services/audience-service",
+                           "services/content-service",
+                           "services/campaign-service",
+                           "services/delivery-service -am test",
+                           "cd frontend; npm run lint",
+                           "docker compose --env-file .env.example config --quiet",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1 -ChildProcessTimeoutSeconds 180",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                           "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                           "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1"
+                       ],
+    "rollbackNotes":  "Preserve unrelated user changes; revert only this checkpoint scope if explicitly approved.",
+    "blockers":  [
+
+                 ],
+    "nextAction":  "Closed locally; remaining release work requires target evidence or credentials."
+}

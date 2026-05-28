@@ -47,7 +47,7 @@ RUN echo '<?xml version="1.0" encoding="UTF-8"?>' > pom.xml.tmp && \
     echo '        <lombok.version>1.18.32</lombok.version>' >> pom.xml.tmp && \
     echo '        <jackson.version>2.17.0</jackson.version>' >> pom.xml.tmp && \
     echo '        <ulid.version>5.1.0</ulid.version>' >> pom.xml.tmp && \
-    echo '        <testcontainers.version>1.19.7</testcontainers.version>' >> pom.xml.tmp && \
+    echo '        <testcontainers.version>1.21.4</testcontainers.version>' >> pom.xml.tmp && \
     echo '    </properties>' >> pom.xml.tmp && \
     echo '    <dependencyManagement>' >> pom.xml.tmp && \
     echo '        <dependencies>' >> pom.xml.tmp && \

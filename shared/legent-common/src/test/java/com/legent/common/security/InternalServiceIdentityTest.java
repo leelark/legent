@@ -123,6 +123,18 @@ class InternalServiceIdentityTest {
 
     @Test
     void exposesDeliverabilitySuppressionActionConstants() {
+        assertThat(InternalServiceIdentity.ACTION_AUDIENCE_IMPORT_START)
+                .isEqualTo("audience-import.start");
+        assertThat(InternalServiceIdentity.ACTION_DATA_EXTENSION_QUERY_ACTIVITY)
+                .isEqualTo("data-extension.query-activity");
+        assertThat(InternalServiceIdentity.ACTION_CONTENT_TEMPLATE_RENDER)
+                .isEqualTo("content-template.render");
+        assertThat(InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_CREATE)
+                .isEqualTo("content-rendered-snapshot.create");
+        assertThat(InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_READ)
+                .isEqualTo("content-rendered-snapshot.read");
+        assertThat(InternalServiceIdentity.ACTION_CONTENT_SEND_GOVERNANCE_POLICY_READ)
+                .isEqualTo("content-send-governance-policy.read");
         assertThat(InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_LIST_READ)
                 .isEqualTo("deliverability-suppression.list");
         assertThat(InternalServiceIdentity.ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ)

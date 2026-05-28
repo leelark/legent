@@ -4,6 +4,7 @@ import com.legent.common.constant.AppConstants;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.content.domain.SendGovernancePolicy;
 import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.service.SendGovernancePolicyService;
@@ -33,6 +34,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping(AppConstants.API_BASE_PATH + "/content/send-governance-policies")
 @RequiredArgsConstructor
 public class SendGovernancePolicyController {
+
+    private static final java.util.Set<String> ALLOWED_INTERNAL_POLICY_SERVICES = java.util.Set.of("campaign-service");
 
     private final SendGovernancePolicyService service;
 
@@ -106,11 +109,25 @@ public class SendGovernancePolicyController {
     @PreAuthorize("permitAll()")
     public ApiResponse<EmailStudioDto.SendGovernancePolicyResponse> getInternal(
             @PathVariable String id,
-            @RequestHeader(name = "X-Internal-Token", required = false) String token) {
-        requireInternalToken(token);
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature) {
+        String tenantId = TenantContext.requireTenantId();
+        String workspaceId = TenantContext.requireWorkspaceId();
+        requireInternalIdentity(
+                token,
+                internalService,
+                signatureTimestamp,
+                signature,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_CONTENT_SEND_GOVERNANCE_POLICY_READ,
+                        id));
         return ApiResponse.ok(map(service.get(
-                TenantContext.requireTenantId(),
-                TenantContext.requireWorkspaceId(),
+                tenantId,
+                workspaceId,
                 id)));
     }
 
@@ -139,9 +156,24 @@ public class SendGovernancePolicyController {
         return response;
     }
 
-    private void requireInternalToken(String token) {
-        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+    private void requireInternalIdentity(String token,
+                                         String internalService,
+                                         String signatureTimestamp,
+                                         String signature,
+                                         String tenantId,
+                                         String workspaceId,
+                                         String action) {
+        if (!InternalServiceIdentity.matches(
+                internalApiToken,
+                token,
+                internalService,
+                ALLOWED_INTERNAL_POLICY_SERVICES,
+                tenantId,
+                workspaceId,
+                action,
+                signatureTimestamp,
+                signature)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal service identity");
         }
     }
 

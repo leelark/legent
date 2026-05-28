@@ -4,11 +4,13 @@ import com.legent.content.dto.EmailStudioDto;
 import com.legent.content.service.EmailRenderService;
 import com.legent.content.service.RenderedContentSnapshotService;
 import com.legent.content.service.TemplateVersionService;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.security.TenantContext;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.Map;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,10 +41,21 @@ class ContentControllerInternalTokenTest {
 
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
+        Instant timestamp = Instant.now();
         try {
             var response = controller.renderTemplateInternal(
                     "template-1",
                     "  " + INTERNAL_TOKEN + "  ",
+                    "campaign-service",
+                    timestamp.toString(),
+                    signature(
+                            "campaign-service",
+                            "tenant-1",
+                            "workspace-1",
+                            InternalServiceIdentity.scopedAction(
+                                    InternalServiceIdentity.ACTION_CONTENT_TEMPLATE_RENDER,
+                                    "template-1"),
+                            timestamp),
                     Map.of("firstName", "Ada"));
 
             assertThat(response.getData().subject()).isEqualTo("Subject");
@@ -50,5 +63,13 @@ class ContentControllerInternalTokenTest {
         } finally {
             TenantContext.clear();
         }
+    }
+
+    private String signature(String serviceName,
+                             String tenantId,
+                             String workspaceId,
+                             String action,
+                             Instant timestamp) {
+        return InternalServiceIdentity.sign(INTERNAL_TOKEN, serviceName, tenantId, workspaceId, action, timestamp);
     }
 }

@@ -10,10 +10,13 @@ import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Pageable;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,6 +43,7 @@ import static org.mockito.Mockito.verify;
         "spring.jpa.hibernate.ddl-auto=create-drop",
         "legent.delivery.reservation-lease-seconds=300"
 })
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({SendRateControlService.class, WarmupService.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 class SendRateControlServiceTest {
@@ -55,6 +59,16 @@ class SendRateControlServiceTest {
     @Autowired private SendRateStateRepository sendRateStateRepository;
     @Autowired private WarmupStateRepository warmupStateRepository;
     @SpyBean private DeliverySendReservationRepository reservationRepository;
+
+    @DynamicPropertySource
+    static void databaseProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:delivery_rate_control;"
+                + "MODE=PostgreSQL;"
+                + "DATABASE_TO_LOWER=TRUE;"
+                + "DEFAULT_NULL_ORDERING=HIGH;"
+                + "INIT=CREATE DOMAIN IF NOT EXISTS JSONB AS JSON");
+        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+    }
 
     @BeforeEach
     void cleanDatabase() {
@@ -455,7 +469,7 @@ class SendRateControlServiceTest {
         state.setIspDomain(recipientDomain);
         state.setMaxPerMinute(1);
         state.setUsedThisMinute(usedThisMinute);
-        state.setWindowStartedAt(now.truncatedTo(ChronoUnit.MINUTES));
+        state.setWindowStartedAt(now);
         state.setThrottleState("OPEN");
         state.setRiskScore(0);
         state.setLastAdjustedAt(now);

@@ -4,7 +4,10 @@ import com.legent.delivery.domain.SmtpProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 
 import java.util.List;
 
@@ -15,10 +18,21 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "spring.flyway.enabled=false",
         "spring.jpa.hibernate.ddl-auto=create-drop"
 })
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 class SmtpProviderRepositoryWorkspaceTest {
 
     @Autowired
     private SmtpProviderRepository repository;
+
+    @DynamicPropertySource
+    static void databaseProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", () -> "jdbc:h2:mem:delivery_provider_repository;"
+                + "MODE=PostgreSQL;"
+                + "DATABASE_TO_LOWER=TRUE;"
+                + "DEFAULT_NULL_ORDERING=HIGH;"
+                + "INIT=CREATE DOMAIN IF NOT EXISTS JSONB AS JSON");
+        registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+    }
 
     @BeforeEach
     void cleanDatabase() {

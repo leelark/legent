@@ -1,8 +1,8 @@
-{
+﻿{
     "id":  "delivery-inbox-safety-suppression-sync",
     "createdAt":  "2026-05-24T14:16:32.5421293Z",
     "objective":  "Back delivery inbox-safety suppression signals with production writer",
-    "status":  "IN_PROGRESS",
+    "status":  "DONE",
     "owner":  "DELIVERY_SERVICE_OWNER",
     "filesInScope":  [
                          "services/delivery-service/src/main/java/com/legent/delivery/domain/SuppressionSignal.java",
@@ -34,5 +34,5 @@
     "blockers":  [
 
                  ],
-    "nextAction":  "Design and implement the smallest delivery-owned suppression signal ingestion/sync path."
+    "nextAction":  "Closed from 2026-05-24 audit DONE event; no action remains."
 }

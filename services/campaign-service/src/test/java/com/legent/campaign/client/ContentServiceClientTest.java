@@ -1,6 +1,7 @@
 package com.legent.campaign.client;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.security.TenantContext;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
@@ -85,6 +86,19 @@ class ContentServiceClientTest {
         assertEquals("request-1", request.header(AppConstants.HEADER_REQUEST_ID));
         assertEquals("correlation-1", request.header(AppConstants.HEADER_CORRELATION_ID));
         assertEquals(INTERNAL_TOKEN, request.header("X-Internal-Token"));
+        assertEquals("campaign-service", request.header(InternalServiceIdentity.HEADER_SERVICE));
+        assertTrue(InternalServiceIdentity.matches(
+                INTERNAL_TOKEN,
+                request.header("X-Internal-Token"),
+                request.header(InternalServiceIdentity.HEADER_SERVICE),
+                java.util.Set.of("campaign-service"),
+                "tenant-1",
+                "workspace-1",
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_CONTENT_TEMPLATE_RENDER,
+                        "template-1"),
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP),
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE)));
         assertTrue(request.body().contains("Asha"));
     }
 
@@ -126,6 +140,19 @@ class ContentServiceClientTest {
         assertEquals("tenant-1", request.header(AppConstants.HEADER_TENANT_ID));
         assertEquals("workspace-1", request.header(AppConstants.HEADER_WORKSPACE_ID));
         assertEquals(INTERNAL_TOKEN, request.header("X-Internal-Token"));
+        assertEquals("campaign-service", request.header(InternalServiceIdentity.HEADER_SERVICE));
+        assertTrue(InternalServiceIdentity.matches(
+                INTERNAL_TOKEN,
+                request.header("X-Internal-Token"),
+                request.header(InternalServiceIdentity.HEADER_SERVICE),
+                java.util.Set.of("campaign-service"),
+                "tenant-1",
+                "workspace-1",
+                InternalServiceIdentity.scopedAction(
+                        InternalServiceIdentity.ACTION_CONTENT_SEND_GOVERNANCE_POLICY_READ,
+                        "policy-1"),
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP),
+                request.header(InternalServiceIdentity.HEADER_SIGNATURE)));
     }
 
     @Test

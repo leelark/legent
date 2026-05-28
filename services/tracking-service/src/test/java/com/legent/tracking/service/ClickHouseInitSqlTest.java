@@ -28,6 +28,7 @@ class ClickHouseInitSqlTest {
                 .contains("ALTER TABLE legent_analytics.raw_events ADD COLUMN IF NOT EXISTS workspace_id")
                 .contains("ALTER TABLE legent_analytics.raw_events ADD COLUMN IF NOT EXISTS goal_id")
                 .contains("ORDER BY (tenant_id, workspace_id, campaign_id, workflow_id, step_id, experiment_id, variant_id, event_type, timestamp, id)")
+                .contains("allow_nullable_key = 1")
                 .contains("ORDER BY (tenant_id, workspace_id, campaign_id, event_date, event_type)")
                 .contains("ORDER BY (tenant_id, workspace_id, subscriber_id, event_date, event_type)");
     }

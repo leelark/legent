@@ -44,6 +44,13 @@ class ContactLifecycleAuditMigrationTest {
         assertThat(sql).doesNotContain("email_address");
     }
 
+    @Test
+    void contactLifecycleAuditEmailHashTypeMigrationMatchesHibernateStringMapping() throws IOException {
+        String sql = migrationSql("V23__normalize_contact_lifecycle_audit_email_hash_type.sql");
+
+        assertThat(sql).contains("ALTER COLUMN email_sha256 TYPE VARCHAR(64)");
+    }
+
     private String migrationSql(String fileName) throws IOException {
         Path repoRootPath = Path.of("services", "audience-service", "src", "main", "resources", "db", "migration", fileName);
         if (Files.exists(repoRootPath)) {

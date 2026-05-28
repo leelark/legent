@@ -3,6 +3,7 @@ package com.legent.campaign.client;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.event.EmailContentReference;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.security.TenantContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,6 +17,7 @@ import reactor.netty.http.client.HttpClient;
 import reactor.util.retry.Retry;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
 /**
@@ -27,6 +29,7 @@ import java.util.Map;
 public class ContentServiceClient {
 
     private static final Duration READ_TIMEOUT = Duration.ofSeconds(10);
+    private static final String SERVICE_NAME = "campaign-service";
     private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE = new ParameterizedTypeReference<>() {};
 
     private final WebClient webClient;
@@ -64,7 +67,13 @@ public class ContentServiceClient {
         try {
             java.util.Map<String, Object> response = webClient.post()
                     .uri("/api/v1/content/{templateId}/render/internal", scopedTemplateId)
-                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, true))
+                    .headers(headers -> scopedHeaders(
+                            headers,
+                            scopedTenantId,
+                            scopedWorkspaceId,
+                            InternalServiceIdentity.scopedAction(
+                                    InternalServiceIdentity.ACTION_CONTENT_TEMPLATE_RENDER,
+                                    scopedTemplateId)))
                     .bodyValue(variables != null ? variables : Map.of())
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
@@ -113,7 +122,13 @@ public class ContentServiceClient {
             payload.put("inlineFallbackIncluded", inlineFallbackIncluded);
             Map<String, Object> response = webClient.post()
                     .uri("/api/v1/content/rendered-content/internal")
-                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, true))
+                    .headers(headers -> scopedHeaders(
+                            headers,
+                            scopedTenantId,
+                            scopedWorkspaceId,
+                            InternalServiceIdentity.scopedAction(
+                                    InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_CREATE,
+                                    request.messageId())))
                     .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
@@ -142,7 +157,13 @@ public class ContentServiceClient {
         try {
             Map<String, Object> response = webClient.get()
                     .uri("/api/v1/content/rendered-content/{referenceId}/internal", scopedReferenceId)
-                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, true))
+                    .headers(headers -> scopedHeaders(
+                            headers,
+                            scopedTenantId,
+                            scopedWorkspaceId,
+                            InternalServiceIdentity.scopedAction(
+                                    InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_READ,
+                                    scopedReferenceId)))
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
                     .timeout(READ_TIMEOUT)
@@ -167,7 +188,13 @@ public class ContentServiceClient {
         try {
             Map<String, Object> response = webClient.get()
                     .uri("/api/v1/content/send-governance-policies/{policyId}/internal", scopedPolicyId)
-                    .headers(headers -> scopedHeaders(headers, scopedTenantId, scopedWorkspaceId, true))
+                    .headers(headers -> scopedHeaders(
+                            headers,
+                            scopedTenantId,
+                            scopedWorkspaceId,
+                            InternalServiceIdentity.scopedAction(
+                                    InternalServiceIdentity.ACTION_CONTENT_SEND_GOVERNANCE_POLICY_READ,
+                                    scopedPolicyId)))
                     .retrieve()
                     .bodyToMono(MAP_TYPE)
                     .timeout(READ_TIMEOUT)
@@ -335,15 +362,23 @@ public class ContentServiceClient {
         InternalApiTokenValidator.requireConfigured("legent.internal.api-token", token);
     }
 
-    private void scopedHeaders(HttpHeaders headers, String tenantId, String workspaceId, boolean internal) {
+    private void scopedHeaders(HttpHeaders headers, String tenantId, String workspaceId, String internalAction) {
         headers.set(AppConstants.HEADER_TENANT_ID, tenantId);
         headers.set(AppConstants.HEADER_WORKSPACE_ID, workspaceId);
         setOptionalHeader(headers, AppConstants.HEADER_ENVIRONMENT_ID, TenantContext.getEnvironmentId());
         setOptionalHeader(headers, AppConstants.HEADER_REQUEST_ID, TenantContext.getRequestId());
         setOptionalHeader(headers, AppConstants.HEADER_CORRELATION_ID, TenantContext.getCorrelationId());
-        if (internal) {
-            headers.set("X-Internal-Token", internalApiToken);
-        }
+        Instant timestamp = Instant.now();
+        headers.set("X-Internal-Token", internalApiToken);
+        headers.set(InternalServiceIdentity.HEADER_SERVICE, SERVICE_NAME);
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, timestamp.toString());
+        headers.set(InternalServiceIdentity.HEADER_SIGNATURE, InternalServiceIdentity.sign(
+                internalApiToken,
+                SERVICE_NAME,
+                tenantId,
+                workspaceId,
+                internalAction,
+                timestamp));
     }
 
     private void setOptionalHeader(HttpHeaders headers, String name, String value) {

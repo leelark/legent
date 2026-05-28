@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +23,7 @@ public class DeliveryRetryMetricsService {
     private final MessageLogRepository messageLogRepository;
     private final Clock clock;
 
+    @Autowired
     public DeliveryRetryMetricsService(MeterRegistry meterRegistry,
                                        MessageLogRepository messageLogRepository) {
         this(meterRegistry, messageLogRepository, Clock.systemUTC());

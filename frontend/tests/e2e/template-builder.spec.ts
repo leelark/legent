@@ -439,7 +439,7 @@ test('template studio applies only reviewed AI draft evidence through hash contr
     evidenceRefs: ['review-ticket-1'],
   });
   expect(JSON.stringify(firstAiDraftPayload)).not.toContain('review-ticket-2');
-  expect(seen.updatePayloads?.[0]?.metadata).toBeUndefined();
+  expect((seen.updatePayloads ?? []).some((payload) => payload.metadata !== undefined)).toBe(false);
 
   await expect(aiPanel.getByText('audit-approved')).toBeVisible();
   await aiPanel.getByTestId('reviewed-ai-draft-revert').click();

@@ -1,6 +1,7 @@
 package com.legent.content.controller;
 
 import com.legent.common.constant.AppConstants;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.content.domain.SendGovernancePolicy;
 import com.legent.content.service.SendGovernancePolicyService;
 import com.legent.security.TenantContext;
@@ -13,6 +14,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -90,7 +92,20 @@ class SendGovernancePolicyControllerTest {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
 
-        var response = controller.getInternal("policy-1", "  " + INTERNAL_TOKEN + "  ");
+        Instant timestamp = Instant.now();
+        var response = controller.getInternal(
+                "policy-1",
+                "  " + INTERNAL_TOKEN + "  ",
+                "campaign-service",
+                timestamp.toString(),
+                signature(
+                        "campaign-service",
+                        "tenant-1",
+                        "workspace-1",
+                        InternalServiceIdentity.scopedAction(
+                                InternalServiceIdentity.ACTION_CONTENT_SEND_GOVERNANCE_POLICY_READ,
+                                "policy-1"),
+                        timestamp));
 
         assertThat(response.getData().getPolicyKey()).isEqualTo("promo.default");
         assertThat(response.getData().getCommercial()).isTrue();
@@ -107,10 +122,31 @@ class SendGovernancePolicyControllerTest {
         TenantContext.setTenantId("tenant-1");
         TenantContext.setWorkspaceId("workspace-1");
 
-        assertThatThrownBy(() -> controller.getInternal("policy-1", "wrong-token"))
+        Instant timestamp = Instant.now();
+        assertThatThrownBy(() -> controller.getInternal(
+                "policy-1",
+                "wrong-token",
+                "campaign-service",
+                timestamp.toString(),
+                signature(
+                        "campaign-service",
+                        "tenant-1",
+                        "workspace-1",
+                        InternalServiceIdentity.scopedAction(
+                                InternalServiceIdentity.ACTION_CONTENT_SEND_GOVERNANCE_POLICY_READ,
+                                "policy-1"),
+                        timestamp)))
                 .isInstanceOf(ResponseStatusException.class)
                 .extracting(error -> ((ResponseStatusException) error).getStatusCode())
                 .isEqualTo(HttpStatus.FORBIDDEN);
         verifyNoInteractions(service);
+    }
+
+    private String signature(String serviceName,
+                             String tenantId,
+                             String workspaceId,
+                             String action,
+                             Instant timestamp) {
+        return InternalServiceIdentity.sign(INTERNAL_TOKEN, serviceName, tenantId, workspaceId, action, timestamp);
     }
 }

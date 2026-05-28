@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,7 +36,9 @@ class CampaignDeadLetterMetricsServiceTest {
         when(deadLetterRepository.findOpenCountsByJob(CampaignDeadLetter.STATUS_OPEN, PageRequest.of(0, 1)))
                 .thenReturn(List.of(7L));
 
-        new CampaignDeadLetterMetricsService(registry, deadLetterRepository, clock);
+        CampaignDeadLetterMetricsService service =
+                new CampaignDeadLetterMetricsService(registry, deadLetterRepository, clock);
+        assertNotNull(service);
 
         assertEquals(10.0, registry.get("legent.dlq.depth")
                 .tag("source", "campaign_dead_letters")

@@ -1,8 +1,8 @@
-{
+﻿{
     "id":  "qa-release-frontend-gate-parity",
     "createdAt":  "2026-05-24T14:50:35.1517810Z",
     "objective":  "Align release frontend gate wiring with documented visual and Chromium coverage",
-    "status":  "IN_PROGRESS",
+    "status":  "DONE",
     "owner":  "QA_ENGINEER",
     "filesInScope":  [
                          "scripts/ops/release-gate.ps1",
@@ -31,5 +31,5 @@
     "blockers":  [
 
                  ],
-    "nextAction":  "Patch release gate/docs/registry parity and make the validator self-test diagnosable."
+    "nextAction":  "Closed from 2026-05-24 audit DONE event; no action remains."
 }

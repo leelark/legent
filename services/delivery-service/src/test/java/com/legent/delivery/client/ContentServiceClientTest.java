@@ -1,5 +1,6 @@
 package com.legent.delivery.client;
 
+import com.legent.common.security.InternalServiceIdentity;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -41,6 +42,19 @@ class ContentServiceClientTest {
             assertEquals("tenant-1", exchange.getRequestHeaders().getFirst("X-Tenant-Id"));
             assertEquals("workspace-1", exchange.getRequestHeaders().getFirst("X-Workspace-Id"));
             assertEquals(INTERNAL_TOKEN, exchange.getRequestHeaders().getFirst("X-Internal-Token"));
+            assertEquals("delivery-service", exchange.getRequestHeaders().getFirst(InternalServiceIdentity.HEADER_SERVICE));
+            assertTrue(InternalServiceIdentity.matches(
+                    INTERNAL_TOKEN,
+                    exchange.getRequestHeaders().getFirst("X-Internal-Token"),
+                    exchange.getRequestHeaders().getFirst(InternalServiceIdentity.HEADER_SERVICE),
+                    java.util.Set.of("delivery-service"),
+                    "tenant-1",
+                    "workspace-1",
+                    InternalServiceIdentity.scopedAction(
+                            InternalServiceIdentity.ACTION_CONTENT_RENDERED_SNAPSHOT_READ,
+                            "cr_ref"),
+                    exchange.getRequestHeaders().getFirst(InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP),
+                    exchange.getRequestHeaders().getFirst(InternalServiceIdentity.HEADER_SIGNATURE)));
             writeJson(exchange, 200, """
                     {"data":{"tenantId":"tenant-1","workspaceId":"workspace-1","campaignId":"campaign-1","messageId":"message-1","referenceId":"cr_ref","subject":"Launch","htmlBody":"<p>Hello</p>","textBody":"Hello"}}
                     """);

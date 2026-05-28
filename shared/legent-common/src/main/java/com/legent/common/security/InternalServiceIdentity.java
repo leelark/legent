@@ -17,6 +17,12 @@ public final class InternalServiceIdentity {
     public static final String HEADER_SIGNATURE_TIMESTAMP = "X-Internal-Signature-Timestamp";
     public static final String HEADER_SIGNATURE = "X-Internal-Signature";
     public static final String ACTION_AUDIENCE_RESOLUTION_CHUNK_READ = "audience-resolution-chunk.read";
+    public static final String ACTION_AUDIENCE_IMPORT_START = "audience-import.start";
+    public static final String ACTION_DATA_EXTENSION_QUERY_ACTIVITY = "data-extension.query-activity";
+    public static final String ACTION_CONTENT_TEMPLATE_RENDER = "content-template.render";
+    public static final String ACTION_CONTENT_RENDERED_SNAPSHOT_CREATE = "content-rendered-snapshot.create";
+    public static final String ACTION_CONTENT_RENDERED_SNAPSHOT_READ = "content-rendered-snapshot.read";
+    public static final String ACTION_CONTENT_SEND_GOVERNANCE_POLICY_READ = "content-send-governance-policy.read";
     public static final String ACTION_DELIVERABILITY_SUPPRESSION_LIST_READ = "deliverability-suppression.list";
     public static final String ACTION_DELIVERABILITY_SUPPRESSION_HISTORY_READ = "deliverability-suppression.history";
     public static final String ACTION_DELIVERABILITY_SUPPRESSION_BULK_CHECK = "deliverability-suppression.bulk-check";

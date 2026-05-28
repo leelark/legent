@@ -2,24 +2,34 @@
 
 Purpose: determine release posture. This command can produce `GO`, `NO-GO`, or `BLOCKED-PENDING-EVIDENCE`.
 
-Local checks:
+Canonical local gate:
 
 ```powershell
 git status --short --branch
-.\mvnw.cmd test
-cd frontend
-npm run lint
-npm run build:ci
-npm run test:e2e:visual
-npm run test:e2e:chromium
-npm run test:e2e:smoke
-cd ..
+powershell -ExecutionPolicy Bypass -File scripts\ops\release-gate.ps1 -LocalOnly
+```
+
+Manual equivalent for diagnosing a failed step:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .codex\utilities\validate-codex-system.ps1
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-route-map.ps1
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-repo-artifact-hygiene.ps1
 powershell -ExecutionPolicy Bypass -File scripts\ops\test-release-evidence-validators.ps1
 powershell -ExecutionPolicy Bypass -File scripts\ops\validate-production-overlay.ps1
+powershell -ExecutionPolicy Bypass -File scripts\ops\validate-compose-safety.ps1 -ComposeEnvFile .env.example
 docker compose --env-file .env.example config --quiet
 kubectl kustomize infrastructure/kubernetes/overlays/production
+.\mvnw.cmd -T1 test
+cd frontend
+npm run lint
+npm run test:coverage
+npm run build:ci
+npm run test:e2e:visual
+npm run test:e2e:chromium
+npm run test:e2e:smoke
+npm audit --omit=dev --audit-level=high
+cd ..
 ```
 
 Strict promotion checks:

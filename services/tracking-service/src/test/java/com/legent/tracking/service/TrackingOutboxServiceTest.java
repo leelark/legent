@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
@@ -25,9 +26,11 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -51,6 +54,8 @@ class TrackingOutboxServiceTest {
         service = new TrackingOutboxService(outboxRepository, eventPublisher, objectMapper, meterRegistry);
         service.registerBacklogMetrics();
         ReflectionTestUtils.setField(service, "maxAttempts", 3);
+        ReflectionTestUtils.setField(service, "pollBatchSize", 100);
+        ReflectionTestUtils.setField(service, "pollMaxPages", 1);
     }
 
     @Test
@@ -179,6 +184,38 @@ class TrackingOutboxServiceTest {
 
         verifyClaimAttempted("outbox-inline");
         verify(eventPublisher).publishIngestedEventOrThrow(any(TrackingDto.RawEventPayload.class));
+    }
+
+    @Test
+    void publishReadyEvents_UsesConfiguredBatchSizeAndPageLimit() throws Exception {
+        ReflectionTestUtils.setField(service, "pollBatchSize", 2);
+        ReflectionTestUtils.setField(service, "pollMaxPages", 2);
+        TrackingOutboxEvent first = event("outbox-ready-1");
+        TrackingOutboxEvent second = event("outbox-ready-2");
+        TrackingOutboxEvent third = event("outbox-ready-3");
+        when(outboxRepository.findByStatusInAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
+                anyCollection(),
+                any(Instant.class),
+                any(Pageable.class)))
+                .thenReturn(List.of(first, second))
+                .thenReturn(List.of(third));
+        whenClaimSucceeds(first.getId());
+        whenClaimSucceeds(second.getId());
+        whenClaimSucceeds(third.getId());
+        whenScopedReloadFinds(first);
+        whenScopedReloadFinds(second);
+        whenScopedReloadFinds(third);
+
+        service.publishReadyEvents();
+
+        verify(outboxRepository, times(2)).findByStatusInAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
+                anyCollection(),
+                any(Instant.class),
+                argThat(pageable -> pageable.getPageNumber() == 0 && pageable.getPageSize() == 2));
+        verify(eventPublisher, times(3)).publishIngestedEventOrThrow(any(TrackingDto.RawEventPayload.class));
+        verifyClaimAttempted(first.getId());
+        verifyClaimAttempted(second.getId());
+        verifyClaimAttempted(third.getId());
     }
 
     @Test

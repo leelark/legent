@@ -55,7 +55,6 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -528,15 +527,19 @@ class SendExecutionServiceTest {
         stubBatchExecution(batch, campaign, subscribers);
         when(contentServiceClient.renderTemplate(eq("tenant-1"), eq("workspace-1"), eq("content-1"), any()))
                 .thenReturn(new ContentServiceClient.RenderedContent("Rendered", "<p>Hello</p>", "Hello"));
+        CountDownLatch publishEntered = new CountDownLatch(1);
         when(eventPublisher.publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any()))
-                .thenReturn(handoff);
+                .thenAnswer(invocation -> {
+                    publishEntered.countDown();
+                    return handoff;
+                });
 
         ExecutorService executor = Executors.newSingleThreadExecutor();
         CompletableFuture<Void> execution = CompletableFuture.runAsync(
                 () -> executeBatchWithWorkspaceContext(batch.getPayload()), executor);
 
         try {
-            verify(eventPublisher, timeout(1000)).publish(eq(AppConstants.TOPIC_EMAIL_SEND_REQUESTED), any());
+            assertTrue(publishEntered.await(5, TimeUnit.SECONDS), "publish was not invoked");
             assertFalse(execution.isDone());
             assertEquals(SendBatch.BatchStatus.PROCESSING, batch.getStatus());
 

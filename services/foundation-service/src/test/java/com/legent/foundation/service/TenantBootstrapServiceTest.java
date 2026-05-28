@@ -13,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -66,6 +69,40 @@ class TenantBootstrapServiceTest {
 
         assertThatThrownBy(() -> service.requestBootstrap(TENANT_ID, "Acme", "acme", false))
                 .isSameAs(failure);
+
+        ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
+        verify(eventPublisher).publish(eq(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED), envelopeCaptor.capture());
+        assertThat(envelopeCaptor.getValue().getPayload())
+                .containsEntry("tenantId", TENANT_ID)
+                .containsEntry("organizationName", "Acme")
+                .containsEntry("organizationSlug", "acme")
+                .containsEntry("force", false);
+    }
+
+    @Test
+    void requestBootstrapPublishesRequestedEventAfterTransactionCommitWhenTransactionActive() {
+        when(bootstrapStatusRepository.findById(TENANT_ID)).thenReturn(Optional.empty());
+        when(bootstrapStatusRepository.save(any(TenantBootstrapStatus.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(eventPublisher.publish(
+                eq(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED),
+                org.mockito.ArgumentMatchers.<EventEnvelope<Map<String, Object>>>any()))
+                .thenReturn(CompletableFuture.completedFuture(null));
+
+        TransactionSynchronizationManager.initSynchronization();
+        try {
+            service.requestBootstrap(TENANT_ID, "Acme", "acme", false);
+
+            verify(eventPublisher, never()).publish(
+                    eq(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED),
+                    org.mockito.ArgumentMatchers.<EventEnvelope<Map<String, Object>>>any());
+            List<TransactionSynchronization> synchronizations = TransactionSynchronizationManager.getSynchronizations();
+            assertThat(synchronizations).hasSize(1);
+
+            synchronizations.forEach(TransactionSynchronization::afterCommit);
+        } finally {
+            TransactionSynchronizationManager.clearSynchronization();
+        }
 
         ArgumentCaptor<EventEnvelope<Map<String, Object>>> envelopeCaptor = envelopeCaptor();
         verify(eventPublisher).publish(eq(AppConstants.TOPIC_TENANT_BOOTSTRAP_REQUESTED), envelopeCaptor.capture());

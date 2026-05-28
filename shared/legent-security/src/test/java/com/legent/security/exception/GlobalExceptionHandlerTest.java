@@ -3,7 +3,9 @@ package com.legent.security.exception;
 import com.legent.common.dto.ApiResponse;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -20,5 +22,16 @@ class GlobalExceptionHandlerTest {
         assertThat(body).isNotNull();
         assertThat(body.getError()).isNotNull();
         assertThat(body.getError().getErrorCode()).isEqualTo("UNAUTHORIZED");
+    }
+
+    @Test
+    void missingStaticOrApiResourceReturnsNotFound() {
+        var response = handler.handleMissingRoute(new NoResourceFoundException(HttpMethod.GET, "/api/v1/public"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        ApiResponse<Void> body = response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.getError()).isNotNull();
+        assertThat(body.getError().getErrorCode()).isEqualTo("NOT_FOUND");
     }
 }

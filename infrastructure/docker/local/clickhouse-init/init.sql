@@ -35,7 +35,7 @@ CREATE TABLE IF NOT EXISTS legent_analytics.raw_events (
 PARTITION BY event_month
 ORDER BY (tenant_id, workspace_id, campaign_id, workflow_id, step_id, experiment_id, variant_id, event_type, timestamp, id)
 TTL toDateTime(timestamp) + INTERVAL 1 YEAR  -- Auto-delete data older than 1 year
-SETTINGS index_granularity = 8192;
+SETTINGS allow_nullable_key = 1, index_granularity = 8192;
 
 -- Repair stale local volumes created before workspace, experiment, and journey lineage existed.
 ALTER TABLE legent_analytics.raw_events ADD COLUMN IF NOT EXISTS workspace_id String AFTER tenant_id;

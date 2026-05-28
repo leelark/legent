@@ -1,4 +1,4 @@
-{
+﻿{
     "version":  1,
     "lastRebuilt":  "2026-05-20",
     "freshBaselineDate":  "2026-05-20",
@@ -22,8 +22,8 @@
     "inProgressWork":  [
 
                        ],
-    "lastActivity":  "2026-05-24T15:00:21.9634539Z",
-    "nextAction":  "No unblocked READY local work remains; wait for external evidence, credentials, production access, human decisions, or new audit findings.",
+    "lastActivity":  "2026-05-26T15:07:11.6038298Z",
+    "nextAction":  "No unblocked local READY work remains; remaining blockers require target evidence, provider/load proof, credentials, or human decisions.",
     "activeAgents":  [
 
                      ],
@@ -862,68 +862,72 @@
                             "discoveredAt":  "2026-05-23T13:50:00.149Z",
                             "lastUpdated":  "2026-05-23T13:50:00.149Z",
                             "parentId":  "live-high-volume-proof"
-                        },
-                        {
-                            "id":  "qa-ci-live-compose-health-evidence",
-                            "title":  "Collect local runtime Compose health evidence transcript",
-                            "status":  "BLOCKED",
-                            "priorityScore":  36,
-                            "scoring":  {
-                                            "productionReadinessImpact":  3,
-                                            "securityRisk":  2,
-                                            "userImpact":  2,
-                                            "performanceImpact":  2,
-                                            "technicalDebtImpact":  3
-                                        },
-                            "owner":  "DEVOPS_ENGINEER",
-                            "partnerAgents":  [
-                                                  "QA_ENGINEER",
-                                                  "SRE_MONITORING_ENGINEER"
-                                              ],
-                            "scope":  "Run and record local Docker Compose health evidence outside parser self-tests to improve runtime confidence.",
-                            "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
-                            "sourceFiles":  [
-                                                ".github/workflows/ci-security.yml",
-                                                ".codex/workflows/validation-gates.md",
-                                                "scripts/ops/validate-compose-health.ps1"
-                                            ],
-                            "acceptanceCriteria":  [
-                                                       "Scope is refined before implementation.",
-                                                       "Validation gates are run or explicitly blocked.",
-                                                       "No release/parity claims are made without evidence."
-                                                   ],
-                            "validationProfile":  "audit",
-                            "validationCommands":  [
-                                                       "docker compose --env-file .env.example config --quiet",
-                                                       "docker compose up -d --build",
-                                                       "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1"
-                                                   ],
-                            "dependencies":  [
-
-                                             ],
-                            "blockers":  [
-
-                                         ],
-                            "memoryTargets":  [
-                                                  "technical-debt.md",
-                                                  "enhancement-log.md",
-                                                  "unresolved-risks.md"
-                                              ],
-                            "nextAction":  "Start Docker Desktop locally, then rerun docker compose up and validate-compose-health.",
-                            "discoveredAt":  "2026-05-23T13:50:00.149Z",
-                            "lastUpdated":  "2026-05-24T13:12:27.9882127Z",
-                            "startedAt":  "2026-05-24T13:11:39.1746783Z",
-                            "completedAt":  "2026-05-24T13:12:27.9882127Z",
-                            "outcome":  "Compose config parsing passed, but live Compose health evidence is blocked because Docker Desktop daemon is unavailable in this session.",
-                            "validationRun":  [
-                                                  "docker compose --env-file .env.example config --quiet (PASS),docker version --format {{json .}} (FAIL: Docker server unavailable),Start-Service -Name com.docker.service; docker version --format {{json .}} (FAIL: service cannot be started from this session)"
-                                              ],
-                            "residualRisks":  [
-                                                  "No live container build/startup or health transcript was collected."
-                                              ]
                         }
                     ],
     "doneWork":  [
+                     {
+                         "id":  "qa-ci-live-compose-health-evidence",
+                         "title":  "Collect local runtime Compose health evidence transcript",
+                         "status":  "DONE",
+                         "priorityScore":  36,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  2,
+                                         "userImpact":  2,
+                                         "performanceImpact":  2,
+                                         "technicalDebtImpact":  3
+                                     },
+                         "owner":  "DEVOPS_ENGINEER",
+                         "partnerAgents":  [
+                                               "QA_ENGINEER",
+                                               "SRE_MONITORING_ENGINEER"
+                                           ],
+                         "scope":  "Run and record local Docker Compose health evidence outside parser self-tests to improve runtime confidence.",
+                         "nonGoals":  "Do not claim production readiness, Salesforce parity, AI parity, inbox placement, or 10 lakh / 10h throughput without evidence.",
+                         "sourceFiles":  [
+                                             ".github/workflows/ci-security.yml",
+                                             ".codex/workflows/validation-gates.md",
+                                             "scripts/ops/validate-compose-health.ps1"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Docker Compose config, image build/startup, and health validation run locally.",
+                                                    "Local runtime evidence records any required non-secret validation overrides.",
+                                                    "No release/parity claims are made without target evidence."
+                                                ],
+                         "validationProfile":  "audit",
+                         "validationCommands":  [
+                                                    "docker compose --env-file .env.example config --quiet",
+                                                    "docker compose --env-file .env.example up -d --build",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1 -ComposeEnvFile .env.example",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "technical-debt.md",
+                                               "enhancement-log.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "Keep strict production release blocked until target evidence exists.",
+                         "discoveredAt":  "2026-05-23T13:50:00.149Z",
+                         "lastUpdated":  "2026-05-26T07:00:00.0000000Z",
+                         "startedAt":  "2026-05-24T13:11:39.1746783Z",
+                         "completedAt":  "2026-05-26T07:00:00.0000000Z",
+                         "outcome":  "Docker Desktop was available on 2026-05-26. Local Docker image build/startup completed, Compose health validation passed for 23 services, and the full local-only release gate passed after using ephemeral non-secret shell overrides for placeholder local validation values.",
+                         "validationRun":  [
+                                               "docker compose --env-file .env.example config --quiet (PASS)",
+                                               "docker compose --env-file .env.example up -d --build (PASS after ephemeral local overrides for LEGENT_INTERNAL_API_TOKEN, LEGENT_DELIVERY_CREDENTIAL_KEY, and LEGENT_DELIVERY_ENCRYPTION_SALT)",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1 -ComposeEnvFile .env.example (PASS for 23 services)",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly (PASS)"
+                                           ],
+                         "residualRisks":  [
+                                               "This is local runtime evidence only. Strict production promotion still requires reviewed target egress, image provenance, GA, provider capacity, load, monitoring, restore, and credentialed target-smoke evidence."
+                                           ]
+                     },
                      {
                          "id":  "salesforce-parity-research-refresh",
                          "title":  "Refresh Salesforce and competitor parity matrix",
@@ -14995,7 +14999,232 @@
                                                "Historical reports remain preserved and may contain old counts by design.",
                                                "All remaining queue items are blocked by external evidence, credentials, production access, or human decisions."
                                            ]
+                     },
+                     {
+                         "id":  "frontend-unit-coverage-hardening-20260526",
+                         "title":  "Add focused frontend unit coverage for security and context helpers",
+                         "status":  "DONE",
+                         "priorityScore":  42,
+                         "scoring":  {
+                                         "productionReadinessImpact":  3,
+                                         "securityRisk":  4,
+                                         "userImpact":  2,
+                                         "performanceImpact":  0,
+                                         "technicalDebtImpact":  5
+                                     },
+                         "owner":  "FRONTEND_OWNER",
+                         "partnerAgents":  [
+                                               "QA_ENGINEER",
+                                               "SECURITY_ENGINEER"
+                                           ],
+                         "scope":  "Add focused Vitest coverage around sanitizer, auth metadata storage, UI mode, and context bootstrap helpers without changing runtime behavior.",
+                         "nonGoals":  "Do not change auth token storage, backend context APIs, workspace routing, or production release posture.",
+                         "sourceFiles":  [
+                                             "frontend/src/lib/sanitize-html.ts",
+                                             "frontend/src/lib/context-bootstrap.ts",
+                                             "frontend/src/lib/auth.ts",
+                                             "frontend/src/lib/ui-mode-contract.ts",
+                                             "frontend/tests/unit"
+                                         ],
+                         "acceptanceCriteria":  [
+                                                    "Unit tests cover sanitizer deny cases and safe HTML preservation.",
+                                                    "Unit tests cover metadata-only auth storage and UI mode persistence without token storage.",
+                                                    "Unit tests cover context bootstrap selection/fail-closed behavior where feasible without runtime changes.",
+                                                    "Frontend coverage, lint, and build pass."
+                                                ],
+                         "validationProfile":  "frontend-focused",
+                         "validationCommands":  [
+                                                    "cd frontend; npm run test:coverage",
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run build:ci"
+                                                ],
+                         "dependencies":  [
+
+                                          ],
+                         "blockers":  [
+
+                                      ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "nextAction":  "No unblocked local READY work remains after closeout; remaining blockers require target evidence, provider/load proof, credentials, or human decisions.",
+                         "discoveredAt":  "2026-05-26T09:25:10.0000000Z",
+                         "lastUpdated":  "2026-05-26T10:10:26.0333229Z",
+                         "startedAt":  "2026-05-26T09:25:10.0000000Z",
+                         "completedAt":  "2026-05-26T10:10:26.0333229Z",
+                         "outcome":  "Focused Vitest coverage now covers sanitizer deny/preserve behavior, metadata-only auth storage, UI mode persistence, and context bootstrap selection/fail-closed behavior; frontend coverage/lint/build, backend tests, Docker Compose build/health, and the local-only release gate pass after serializing release-gate backend Maven tests.",
+                         "validationRun":  [
+                                               "cd frontend; npm run test:coverage (PASS; coverage statements 14.55%, branches 27.08%, functions 5.14%, lines 18.26%)",
+                                               "cd frontend; npm run lint (PASS)",
+                                               "cd frontend; npm run build:ci (PASS)",
+                                               ".\\mvnw.cmd test (PASS before Compose runtime)",
+                                               "docker compose --env-file .env.example up -d --build (PASS with ephemeral local placeholder overrides)",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1 -ComposeEnvFile .env.example (PASS, 23 services)",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly (PASS after release-gate backend phase uses Maven -T1)"
+                                           ],
+                         "residualRisks":  [
+                                               "Frontend coverage is improved but still low; continue focused expansion before raising gates materially.",
+                                               "Local-only release evidence does not prove production readiness; strict target evidence, provider/load proof, CI/security transcript, and target login credentials remain required.",
+                                               "Initial local release-gate run under full Compose plus repo-default parallel Maven failed process-level without Surefire failures; release gate now serializes backend Maven tests to reduce local resource contention."
+                                           ]
+                     },
+                     {
+                         "id":  "local-security-build-hygiene-20260526",
+                         "title":  "Harden local internal-route identity and build hygiene findings",
+                         "status":  "DONE",
+                         "priorityScore":  60,
+                         "owner":  "SECURITY_ENGINEER",
+                         "partnerAgents":  [
+                                               "BACKEND_SERVICE_OWNERS",
+                                               "DEVOPS_ENGINEER",
+                                               "FRONTEND_OWNER",
+                                               "QA_ENGINEER"
+                                           ],
+                         "scope":  "Harden audience/content internal routes with signed caller/action headers, align callers, tighten Docker context hygiene, and stabilize local release evidence validation timeout.",
+                         "sourceFiles":  [
+                                             "shared/legent-common/src/main/java/com/legent/common/security/InternalServiceIdentity.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/ImportController.java",
+                                             "services/audience-service/src/main/java/com/legent/audience/controller/DataExtensionController.java",
+                                             "services/content-service/src/main/java/com/legent/content/controller/ContentController.java",
+                                             "services/content-service/src/main/java/com/legent/content/controller/SendGovernancePolicyController.java",
+                                             "services/campaign-service/src/main/java/com/legent/campaign/client/ContentServiceClient.java",
+                                             "services/delivery-service/src/main/java/com/legent/delivery/client/ContentServiceClient.java",
+                                             "services/automation-service/src/main/java/com/legent/automation/client/AudienceDataExtensionClient.java",
+                                             "frontend/.dockerignore",
+                                             "scripts/ops/test-release-evidence-validators.ps1"
+                                         ],
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                                               ".\\mvnw.cmd -T1 -pl shared/legent-common,services/audience-service,services/content-service,services/campaign-service,services/delivery-service,services/automation-service -am test",
+                                               "cd frontend; npm run lint",
+                                               "cd frontend; npm run test:unit",
+                                               "cd frontend; npm run build:ci",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                               "docker compose --env-file .env.example up -d --build",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1 -ComposeEnvFile .env.example",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly",
+                                               "HTTP health smoke for frontend, gateway, and all Spring services",
+                                               "git diff --check for touched files"
+                                           ],
+                         "completedAt":  "2026-05-26T15:07:11.6038298Z",
+                         "lastUpdated":  "2026-05-26T15:07:11.6038298Z",
+                         "outcome":  "Known locally actionable internal content/audience routes now require signed service identity with route-scoped actions and caller allowlists; caller clients attach matching headers; local Docker/runtime validation passes.",
+                         "residualRisks":  [
+                                               "Target platform identity, mTLS, NetworkPolicy, provider/load proof, credentialed target login smoke, and strict release evidence remain blocked externally."
+                                           ],
+                         "nextAction":  "Keep production readiness blocked pending target evidence and continue only if new local READY work appears.",
+                         "validationProfile":  "overall",
+                         "acceptanceCriteria":  [
+                                                    "Locally actionable issue is fixed without weakening safety controls.",
+                                                    "Relevant tests and validation gates pass.",
+                                                    "Durable memory, audit, and checkpoint state are updated."
+                                                ],
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\validate-codex-system.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File .codex\\utilities\\monitor-autonomous-org.ps1",
+                                                    ".\\mvnw.cmd -T1 -pl shared/legent-common,services/audience-service,services/content-service,services/campaign-service,services/delivery-service,services/automation-service -am test",
+                                                    "cd frontend; npm run lint",
+                                                    "cd frontend; npm run test:unit",
+                                                    "cd frontend; npm run build:ci",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-route-map.ps1",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\test-release-evidence-validators.ps1",
+                                                    "docker compose --env-file .env.example up -d --build",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-compose-health.ps1 -ComposeEnvFile .env.example",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\release-gate.ps1 -LocalOnly",
+                                                    "HTTP health smoke for frontend, gateway, and all Spring services",
+                                                    "git diff --check for touched files"
+                                                ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "blockers":  [
+
+                                      ],
+                         "dependencies":  [
+
+                                          ],
+                         "discoveredAt":  "2026-05-26T15:07:11.6038298Z",
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  5,
+                                         "userImpact":  3,
+                                         "performanceImpact":  3,
+                                         "technicalDebtImpact":  5
+                                     }
+                     },
+                     {
+                         "id":  "local-compose-transient-starter-20260526",
+                         "title":  "Add repeatable local Compose starter for placeholder recovery",
+                         "status":  "DONE",
+                         "priorityScore":  52,
+                         "owner":  "DEVOPS_ENGINEER",
+                         "partnerAgents":  [
+                                               "QA_ENGINEER",
+                                               "DOCUMENTATION_ENGINEER"
+                                           ],
+                         "scope":  "Add a PowerShell helper and README guidance so local Compose can start from .env.example with process-scoped runtime overrides and existing health validation.",
+                         "sourceFiles":  [
+                                             "scripts/ops/start-local-compose.ps1",
+                                             "README.md"
+                                         ],
+                         "validationRun":  [
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\start-local-compose.ps1 -SelfTest",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\start-local-compose.ps1 -EnvFile .env.example -NoBuild -WaitSeconds 300 -PollSeconds 10",
+                                               "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                               "HTTP health smoke for frontend, gateway, and all Spring services",
+                                               "git diff --check for touched files"
+                                           ],
+                         "completedAt":  "2026-05-26T15:07:11.6038298Z",
+                         "lastUpdated":  "2026-05-26T15:07:11.6038298Z",
+                         "outcome":  "Local starter generates process-only runtime overrides, starts Compose, and validates 23-service health without writing repository environment files.",
+                         "residualRisks":  [
+                                               "Real deployment environments still require managed configuration and strict target evidence; helper is local-only."
+                                           ],
+                         "nextAction":  "Use the helper for throwaway local startup; use validated managed configuration for target environments.",
+                         "validationProfile":  "overall",
+                         "acceptanceCriteria":  [
+                                                    "Locally actionable issue is fixed without weakening safety controls.",
+                                                    "Relevant tests and validation gates pass.",
+                                                    "Durable memory, audit, and checkpoint state are updated."
+                                                ],
+                         "validationCommands":  [
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\start-local-compose.ps1 -SelfTest",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\start-local-compose.ps1 -EnvFile .env.example -NoBuild -WaitSeconds 300 -PollSeconds 10",
+                                                    "powershell -ExecutionPolicy Bypass -File scripts\\ops\\validate-repo-artifact-hygiene.ps1",
+                                                    "HTTP health smoke for frontend, gateway, and all Spring services",
+                                                    "git diff --check for touched files"
+                                                ],
+                         "memoryTargets":  [
+                                               "active-work-items.md",
+                                               "successful-fixes.md",
+                                               "root-cause-history.md",
+                                               "release-history.md",
+                                               "unresolved-risks.md"
+                                           ],
+                         "blockers":  [
+
+                                      ],
+                         "dependencies":  [
+
+                                          ],
+                         "discoveredAt":  "2026-05-26T15:07:11.6038298Z",
+                         "scoring":  {
+                                         "productionReadinessImpact":  4,
+                                         "securityRisk":  2,
+                                         "userImpact":  3,
+                                         "performanceImpact":  5,
+                                         "technicalDebtImpact":  5
+                                     }
                      }
                  ],
-    "lastUpdated":  "2026-05-24"
+    "lastUpdated":  "2026-05-26"
 }

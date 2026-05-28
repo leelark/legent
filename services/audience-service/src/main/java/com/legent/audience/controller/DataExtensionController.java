@@ -5,6 +5,7 @@ import com.legent.audience.service.DataExtensionQueryActivityService;
 import com.legent.audience.service.DataExtensionService;
 import com.legent.common.constant.AppConstants;
 import com.legent.common.security.InternalApiTokenValidator;
+import com.legent.common.security.InternalServiceIdentity;
 import com.legent.common.dto.ApiResponse;
 import com.legent.common.dto.PagedResponse;
 import jakarta.annotation.PostConstruct;
@@ -22,6 +23,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/v1/data-extensions")
 @RequiredArgsConstructor
 public class DataExtensionController {
+
+    private static final java.util.Set<String> ALLOWED_QUERY_ACTIVITY_SERVICES = java.util.Set.of("automation-service");
 
     private final DataExtensionService deService;
     private final DataExtensionQueryActivityService queryActivityService;
@@ -145,9 +148,23 @@ public class DataExtensionController {
     @PreAuthorize("permitAll()")
     public ApiResponse<DataExtensionDto.SqlQueryActivityResponse> runSqlQueryActivity(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SERVICE, required = false) String internalService,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE_TIMESTAMP, required = false) String signatureTimestamp,
+            @RequestHeader(name = InternalServiceIdentity.HEADER_SIGNATURE, required = false) String signature,
+            @RequestHeader(name = AppConstants.HEADER_TENANT_ID) String tenantId,
+            @RequestHeader(name = AppConstants.HEADER_WORKSPACE_ID) String workspaceId,
             @Valid @RequestBody DataExtensionDto.SqlQueryActivityRequest request) {
-        if (!InternalApiTokenValidator.matches(internalApiToken, token)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal token");
+        if (!InternalServiceIdentity.matches(
+                internalApiToken,
+                token,
+                internalService,
+                ALLOWED_QUERY_ACTIVITY_SERVICES,
+                tenantId,
+                workspaceId,
+                InternalServiceIdentity.ACTION_DATA_EXTENSION_QUERY_ACTIVITY,
+                signatureTimestamp,
+                signature)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Invalid internal service identity");
         }
         return ApiResponse.ok(queryActivityService.execute(request));
     }

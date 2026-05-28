@@ -14,6 +14,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,12 @@ public class TrackingOutboxService {
 
     @Value("${legent.tracking.outbox.publish-after-commit:false}")
     private boolean publishAfterCommit;
+
+    @Value("${legent.tracking.outbox.poll-batch-size:100}")
+    private int pollBatchSize;
+
+    @Value("${legent.tracking.outbox.poll-max-pages:1}")
+    private int pollMaxPages;
 
     @PostConstruct
     void registerBacklogMetrics() {
@@ -83,10 +90,21 @@ public class TrackingOutboxService {
 
     @Scheduled(fixedDelayString = "${legent.tracking.outbox.poll-ms:10000}")
     public void publishReadyEvents() {
-        List<TrackingOutboxEvent> ready = outboxRepository.findTop100ByStatusInAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
-                List.of(TrackingOutboxEvent.STATUS_PENDING, TrackingOutboxEvent.STATUS_PUBLISHING),
-                Instant.now());
-        ready.forEach(event -> publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId()));
+        int batchSize = bounded(pollBatchSize, 1, 1000);
+        int maxPages = bounded(pollMaxPages, 1, 20);
+        for (int page = 0; page < maxPages; page++) {
+            List<TrackingOutboxEvent> ready = outboxRepository.findByStatusInAndNextAttemptAtLessThanEqualOrderByCreatedAtAsc(
+                    readyStatuses(),
+                    Instant.now(),
+                    PageRequest.of(0, batchSize));
+            if (ready.isEmpty()) {
+                return;
+            }
+            ready.forEach(event -> publishPending(event.getId(), event.getTenantId(), event.getWorkspaceId()));
+            if (ready.size() < batchSize) {
+                return;
+            }
+        }
     }
 
     public void publishPending(String outboxId, String tenantId, String workspaceId) {
@@ -166,6 +184,10 @@ public class TrackingOutboxService {
 
     private List<String> readyStatuses() {
         return List.of(TrackingOutboxEvent.STATUS_PENDING, TrackingOutboxEvent.STATUS_PUBLISHING);
+    }
+
+    private int bounded(int value, int min, int max) {
+        return Math.min(max, Math.max(min, value));
     }
 
     private String trimError(Exception ex) {

@@ -1,8 +1,8 @@
-{
+﻿{
     "id":  "frontend-automation-activity-capability-drift",
     "createdAt":  "2026-05-24T14:28:31.0619789Z",
     "objective":  "Align Automation Studio activity capabilities with live backend contracts",
-    "status":  "IN_PROGRESS",
+    "status":  "DONE",
     "owner":  "FRONTEND_OWNER",
     "filesInScope":  [
                          "frontend/src/app/(workspace)/automation/page.tsx",
@@ -27,5 +27,5 @@
     "blockers":  [
 
                  ],
-    "nextAction":  "Implement frontend capability/state alignment and targeted Playwright coverage."
+    "nextAction":  "Closed from 2026-05-24 audit DONE event; no action remains."
 }

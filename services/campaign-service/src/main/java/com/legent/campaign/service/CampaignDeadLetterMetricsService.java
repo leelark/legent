@@ -10,6 +10,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +22,7 @@ public class CampaignDeadLetterMetricsService {
     private final CampaignDeadLetterRepository deadLetterRepository;
     private final Clock clock;
 
+    @Autowired
     public CampaignDeadLetterMetricsService(MeterRegistry meterRegistry,
                                             CampaignDeadLetterRepository deadLetterRepository) {
         this(meterRegistry, deadLetterRepository, Clock.systemUTC());

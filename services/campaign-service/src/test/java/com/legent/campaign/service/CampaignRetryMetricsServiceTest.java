@@ -14,6 +14,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,7 +40,9 @@ class CampaignRetryMetricsServiceTest {
         when(batchRepository.findOldestUpdatedAtByStatusBefore(
                 SendBatch.BatchStatus.PROCESSING, staleBefore)).thenReturn(Optional.of(now.minusSeconds(1800)));
 
-        new CampaignRetryMetricsService(registry, batchRepository, clock, leaseTimeout);
+        CampaignRetryMetricsService service =
+                new CampaignRetryMetricsService(registry, batchRepository, clock, leaseTimeout);
+        assertNotNull(service);
 
         assertEquals(9.0, registry.get("legent.retry.ready.depth")
                 .tag("queue", "campaign_partial_batches")
