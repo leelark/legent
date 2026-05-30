@@ -50,6 +50,23 @@ function Get-LocationBody([string]$Config, [string]$Prefix) {
     return $null
 }
 
+function Test-NginxUpstreamTarget([string]$Config, [string]$UpstreamName) {
+    $upstreamPattern = "upstream\s+$([regex]::Escape($UpstreamName))\s*\{"
+    $dynamicVariable = '$' + $UpstreamName + "_url"
+    $dynamicTargetPattern = "set\s+$([regex]::Escape($dynamicVariable))\s+http://[^;]+;"
+    return ($Config -match $upstreamPattern -or $Config -match $dynamicTargetPattern)
+}
+
+function Test-NginxProxyPassTarget([string]$LocationBody, [string]$UpstreamName) {
+    if (-not $LocationBody) {
+        return $false
+    }
+    $staticProxyPattern = "proxy_pass\s+http://$([regex]::Escape($UpstreamName))\s*;"
+    $dynamicVariable = '$' + $UpstreamName + "_url"
+    $dynamicProxyPattern = "proxy_pass\s+$([regex]::Escape($dynamicVariable))\s*;"
+    return ($LocationBody -match $staticProxyPattern -or $LocationBody -match $dynamicProxyPattern)
+}
+
 function Get-YamlDocumentByMetadataName([string]$Yaml, [string]$Name) {
     $escapedName = [regex]::Escape($Name)
     $documents = [regex]::Split($Yaml, "(?m)^---\s*$")
@@ -343,13 +360,11 @@ foreach ($route in $routes) {
         $errors.Add("Nginx location missing for $($route.prefix)")
     }
 
-    $upstreamPattern = "upstream\s+$([regex]::Escape($route.nginxUpstream))\s*\{"
-    if ($nginx -notmatch $upstreamPattern) {
-        $errors.Add("Nginx upstream missing for $($route.nginxUpstream)")
+    if (-not (Test-NginxUpstreamTarget $nginx $route.nginxUpstream)) {
+        $errors.Add("Nginx upstream or dynamic target missing for $($route.nginxUpstream)")
     }
 
-    $proxyPattern = "proxy_pass\s+http://$([regex]::Escape($route.nginxUpstream))\s*;"
-    if ($locationBody -and $locationBody -notmatch $proxyPattern) {
+    if ($locationBody -and -not (Test-NginxProxyPassTarget $locationBody $route.nginxUpstream)) {
         $errors.Add("Nginx proxy_pass missing for $($route.prefix) -> $($route.nginxUpstream)")
     }
 }

@@ -6,6 +6,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -59,7 +60,7 @@ public class AnalyticsService {
             """.formatted(canonicalRawEventsSource("""
                     tenant_id = ? AND workspace_id = ?
                       AND "timestamp" >= ? AND "timestamp" <= ?
-                    """)), tenantId, workspaceId, timeWindow.startAt(), timeWindow.endAt());
+                    """)), tenantId, workspaceId, timestampParam(timeWindow.startAt()), timestampParam(timeWindow.endAt()));
         } catch (DataAccessException e) {
             log.error("Failed to query event counts for tenant {} workspace {}", tenantId, workspaceId, e);
             return new ArrayList<>();
@@ -100,7 +101,8 @@ public class AnalyticsService {
             """.formatted(canonicalRawEventsSource("""
                     tenant_id = ? AND workspace_id = ? AND event_type = ?
                       AND "timestamp" >= ? AND "timestamp" <= ?
-                    """)), tenantId, workspaceId, normalizedEventType, timeWindow.startAt(), timeWindow.endAt(), bucketLimit);
+                    """)), tenantId, workspaceId, normalizedEventType,
+                    timestampParam(timeWindow.startAt()), timestampParam(timeWindow.endAt()), bucketLimit);
         } catch (DataAccessException e) {
             log.error("Failed to query event timeline for tenant {} workspace {} and eventType {}",
                     tenantId, workspaceId, eventType, e);
@@ -205,7 +207,11 @@ public class AnalyticsService {
             log.warn("Invalid rollup window for tenant {} workspace {}", tenantId, workspaceId);
             return new ArrayList<>();
         }
-        List<Object> params = new ArrayList<>(List.of(tenantId, workspaceId, timeWindow.startAt(), timeWindow.endAt()));
+        List<Object> params = new ArrayList<>(List.of(
+                tenantId,
+                workspaceId,
+                timestampParam(timeWindow.startAt()),
+                timestampParam(timeWindow.endAt())));
         StringBuilder sourceWhere = new StringBuilder("""
                 tenant_id = ? AND workspace_id = ?
                   AND "timestamp" >= ? AND "timestamp" <= ?
@@ -270,11 +276,11 @@ public class AnalyticsService {
         }
         if (startAt != null) {
             sql.append(" AND \"timestamp\" >= ?");
-            params.add(startAt);
+            params.add(timestampParam(startAt));
         }
         if (endAt != null) {
             sql.append(" AND \"timestamp\" <= ?");
-            params.add(endAt);
+            params.add(timestampParam(endAt));
         }
         sql.append(" ORDER BY \"timestamp\" DESC LIMIT ?");
         params.add(cappedLimit);
@@ -438,6 +444,10 @@ public class AnalyticsService {
             effectiveStartAt = effectiveEndAt.minus(maxWindow);
         }
         return new TimeWindow(effectiveStartAt, effectiveEndAt);
+    }
+
+    private Timestamp timestampParam(Instant value) {
+        return Timestamp.from(value);
     }
 
     private record TimeWindow(Instant startAt, Instant endAt) {

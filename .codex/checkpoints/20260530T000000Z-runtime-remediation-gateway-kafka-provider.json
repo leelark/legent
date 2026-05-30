@@ -1,0 +1,42 @@
+{
+  "id": "runtime-remediation-gateway-kafka-provider-20260530",
+  "createdAt": "2026-05-30T00:00:00Z",
+  "owner": "principal-architect-runtime-remediation",
+  "status": "IN_PROGRESS",
+  "objective": "Remediate critical runtime failures covering gateway 502s, Kafka envelope/ack handling, topic drift, suppression service auth, and local SMTP provider bootstrap.",
+  "filesInScope": [
+    "config/nginx/nginx.conf",
+    "config/gateway/route-map.json",
+    "scripts/ops/validate-route-map.ps1",
+    "scripts/ops/test-route-map-validator.ps1",
+    "docker-compose.yml",
+    "shared/legent-kafka/src/main/java/com/legent/kafka/config/**",
+    "services/foundation-service/src/main/java/com/legent/foundation/event/TenantProvisioningConsumer.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/event/**",
+    "services/audience-service/src/main/java/com/legent/audience/event/DeliveryEventConsumer.java",
+    "services/delivery-service/src/main/java/com/legent/delivery/service/ProviderSelectionStrategy.java",
+    "shared/legent-common/src/main/java/com/legent/common/config/RuntimeConfigurationGuard.java",
+    "focused tests and durable memory updates"
+  ],
+  "agents": [
+    "PRINCIPAL_ARCHITECT",
+    "DEVOPS_ENGINEER",
+    "QA_ENGINEER"
+  ],
+  "evidenceBeforeEdit": [
+    "docker compose ps showed no running local stack, so remediation starts from source and compose inspection before runtime validation.",
+    "Nginx routing used named upstreams with service names; route validator required the same static upstream pattern.",
+    "Kafka consumers deserialize outer values as EventEnvelope but affected consumers did not use manual acknowledgments.",
+    "docker-compose kafka-setup used create-if-missing only and could not repair partition drift for existing topics.",
+    "delivery-service local compose did not enable explicit default MailHog provider creation for new tenants."
+  ],
+  "validationPlan": [
+    "Run focused Maven tests for Kafka config, topic config, affected consumers, provider selection, and runtime guard.",
+    "Run route-map validator fixture tests and repository route-map validation.",
+    "Run docker compose config and env validation.",
+    "Start the local dockerized stack, validate gateway API routes, Kafka consumer startup, topic partition alignment, container recreation, and browser flow."
+  ],
+  "rollbackNotes": "Revert only files changed by this remediation if validation exposes an unfixable regression; do not revert unrelated dirty files.",
+  "blockers": [],
+  "nextAction": "Run Codex validation, route validation, Compose startup, browser traversal, and targeted fixes until local workflows are clean or blocked by missing credentials/evidence."
+}

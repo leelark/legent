@@ -1,0 +1,128 @@
+[
+  {
+    "section": "Email",
+    "requestedPath": "/app/email",
+    "url": "http://localhost:3000/app/email",
+    "title": "Legent: Email Studio",
+    "routeStart": "2026-05-30T12:42:56.406Z",
+    "domState": {
+      "headings": [],
+      "alerts": [
+        "- alert"
+      ],
+      "buttons": [],
+      "signals": [],
+      "excerpt": "- main\n- alert"
+    },
+    "browserLogs": [],
+    "screenshotPath": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.codex\\reports\\local-e2e-20260530\\screenshots\\email-snapshot-1780144977419.png"
+  },
+  {
+    "section": "Audience",
+    "requestedPath": "/app/audience",
+    "url": "http://localhost:3000/app/audience",
+    "title": "Legent: Email Studio",
+    "routeStart": "2026-05-30T12:42:57.431Z",
+    "domState": {
+      "headings": [],
+      "alerts": [
+        "- alert"
+      ],
+      "buttons": [],
+      "signals": [],
+      "excerpt": "- main\n- alert"
+    },
+    "browserLogs": [],
+    "screenshotPath": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.codex\\reports\\local-e2e-20260530\\screenshots\\audience-snapshot-1780144978832.png"
+  },
+  {
+    "section": "Campaigns",
+    "requestedPath": "/app/campaigns",
+    "url": "http://localhost:3000/app/campaigns",
+    "title": "Legent: Email Studio",
+    "routeStart": "2026-05-30T12:42:58.844Z",
+    "domState": {
+      "headings": [],
+      "alerts": [
+        "- alert"
+      ],
+      "buttons": [],
+      "signals": [],
+      "excerpt": "- main\n- alert"
+    },
+    "browserLogs": [],
+    "screenshotPath": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.codex\\reports\\local-e2e-20260530\\screenshots\\campaigns-snapshot-1780144980255.png"
+  },
+  {
+    "section": "Automation",
+    "requestedPath": "/app/automation",
+    "url": "http://localhost:3000/app/automation",
+    "title": "Legent: Email Studio",
+    "routeStart": "2026-05-30T12:43:00.267Z",
+    "domState": {
+      "headings": [],
+      "alerts": [
+        "- alert"
+      ],
+      "buttons": [],
+      "signals": [],
+      "excerpt": "- main\n- alert"
+    },
+    "browserLogs": [],
+    "screenshotPath": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.codex\\reports\\local-e2e-20260530\\screenshots\\automation-snapshot-1780144981494.png"
+  },
+  {
+    "section": "Tracking",
+    "requestedPath": "/app/tracking",
+    "url": "http://localhost:3000/app/tracking",
+    "title": "Legent: Email Studio",
+    "routeStart": "2026-05-30T12:43:01.509Z",
+    "domState": {
+      "headings": [],
+      "alerts": [
+        "- alert"
+      ],
+      "buttons": [],
+      "signals": [],
+      "excerpt": "- main\n- alert"
+    },
+    "browserLogs": [],
+    "screenshotPath": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.codex\\reports\\local-e2e-20260530\\screenshots\\tracking-snapshot-1780144982920.png"
+  },
+  {
+    "section": "Deliverability",
+    "requestedPath": "/app/deliverability",
+    "url": "http://localhost:3000/app/deliverability",
+    "title": "Legent: Email Studio",
+    "routeStart": "2026-05-30T12:43:02.944Z",
+    "domState": {
+      "headings": [],
+      "alerts": [
+        "- alert"
+      ],
+      "buttons": [],
+      "signals": [],
+      "excerpt": "- main\n- alert"
+    },
+    "browserLogs": [],
+    "screenshotPath": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.codex\\reports\\local-e2e-20260530\\screenshots\\deliverability-snapshot-1780144984387.png"
+  },
+  {
+    "section": "Admin",
+    "requestedPath": "/app/admin",
+    "url": "http://localhost:3000/app/admin",
+    "title": "Legent: Email Studio",
+    "routeStart": "2026-05-30T12:43:04.409Z",
+    "domState": {
+      "headings": [],
+      "alerts": [
+        "- alert"
+      ],
+      "buttons": [],
+      "signals": [],
+      "excerpt": "- main\n- alert"
+    },
+    "browserLogs": [],
+    "screenshotPath": "C:\\Users\\leelark.saxena\\Desktop\\Legent - v1.0.2\\.codex\\reports\\local-e2e-20260530\\screenshots\\admin-snapshot-1780144985723.png"
+  }
+]

@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -37,7 +38,7 @@ class AnalyticsServiceTest {
                 "count", 10L
         ));
         when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"),
-                any(Instant.class), any(Instant.class)))
+                any(Timestamp.class), any(Timestamp.class)))
                 .thenReturn(expected);
 
         List<Map<String, Object>> result = service.getEventCounts("tenant-1", "workspace-1");
@@ -51,8 +52,8 @@ class AnalyticsServiceTest {
                         && sql.contains("GROUP BY event_type")),
                 eq("tenant-1"),
                 eq("workspace-1"),
-                any(Instant.class),
-                any(Instant.class));
+                any(Timestamp.class),
+                any(Timestamp.class));
     }
 
     @Test
@@ -60,18 +61,18 @@ class AnalyticsServiceTest {
         Instant requestedStartAt = Instant.parse("2026-01-01T00:00:00Z");
         Instant endAt = Instant.parse("2026-03-15T00:00:00Z");
         when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"),
-                any(Instant.class), eq(endAt)))
+                any(Timestamp.class), eq(Timestamp.from(endAt))))
                 .thenReturn(List.of());
 
         service.getEventCounts("tenant-1", "workspace-1", requestedStartAt, endAt);
 
-        ArgumentCaptor<Instant> startCaptor = ArgumentCaptor.forClass(Instant.class);
+        ArgumentCaptor<Timestamp> startCaptor = ArgumentCaptor.forClass(Timestamp.class);
         verify(jdbcTemplate).queryForList(anyString(),
                 eq("tenant-1"),
                 eq("workspace-1"),
                 startCaptor.capture(),
-                eq(endAt));
-        assertThat(Duration.between(startCaptor.getValue(), endAt))
+                eq(Timestamp.from(endAt)));
+        assertThat(Duration.between(startCaptor.getValue().toInstant(), endAt))
                 .isEqualTo(AnalyticsService.MAX_EVENT_COUNT_WINDOW);
     }
 
@@ -91,7 +92,7 @@ class AnalyticsServiceTest {
                 "count", 2L
         ));
         when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"), eq("OPEN"),
-                any(Instant.class), any(Instant.class), eq(AnalyticsService.DEFAULT_TIMELINE_BUCKET_LIMIT)))
+                any(Timestamp.class), any(Timestamp.class), eq(AnalyticsService.DEFAULT_TIMELINE_BUCKET_LIMIT)))
                 .thenReturn(expected);
 
         List<Map<String, Object>> result = service.getEventTimeline("tenant-1", "workspace-1", "open");
@@ -106,8 +107,8 @@ class AnalyticsServiceTest {
                 eq("tenant-1"),
                 eq("workspace-1"),
                 eq("OPEN"),
-                any(Instant.class),
-                any(Instant.class),
+                any(Timestamp.class),
+                any(Timestamp.class),
                 eq(AnalyticsService.DEFAULT_TIMELINE_BUCKET_LIMIT));
     }
 
@@ -127,7 +128,7 @@ class AnalyticsServiceTest {
                 "opens", 3L
         ));
         when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"),
-                any(Instant.class), any(Instant.class), eq(AnalyticsService.DEFAULT_HOUR_ROLLUP_BUCKET_LIMIT)))
+                any(Timestamp.class), any(Timestamp.class), eq(AnalyticsService.DEFAULT_HOUR_ROLLUP_BUCKET_LIMIT)))
                 .thenReturn(expected);
 
         List<Map<String, Object>> result = service.getRollups("tenant-1", "workspace-1", null, "hour");
@@ -140,8 +141,8 @@ class AnalyticsServiceTest {
                         && sql.contains("LIMIT ?")),
                 eq("tenant-1"),
                 eq("workspace-1"),
-                any(Instant.class),
-                any(Instant.class),
+                any(Timestamp.class),
+                any(Timestamp.class),
                 eq(AnalyticsService.DEFAULT_HOUR_ROLLUP_BUCKET_LIMIT));
     }
 
@@ -154,7 +155,8 @@ class AnalyticsServiceTest {
                 "conversions", 1L
         ));
         when(jdbcTemplate.queryForList(anyString(), eq("tenant-1"), eq("workspace-1"),
-                eq(startAt), eq(endAt), eq("campaign-1"), eq(AnalyticsService.MAX_DAY_ROLLUP_BUCKET_LIMIT)))
+                eq(Timestamp.from(startAt)), eq(Timestamp.from(endAt)), eq("campaign-1"),
+                eq(AnalyticsService.MAX_DAY_ROLLUP_BUCKET_LIMIT)))
                 .thenReturn(expected);
 
         List<Map<String, Object>> result = service.getRollups(
@@ -175,10 +177,52 @@ class AnalyticsServiceTest {
                         && sql.contains("LIMIT ?")),
                 eq("tenant-1"),
                 eq("workspace-1"),
-                eq(startAt),
-                eq(endAt),
+                eq(Timestamp.from(startAt)),
+                eq(Timestamp.from(endAt)),
                 eq("campaign-1"),
                 eq(AnalyticsService.MAX_DAY_ROLLUP_BUCKET_LIMIT));
+    }
+
+    @Test
+    void exportEvents_bindsExplicitWindowAsJdbcTimestamps() {
+        Instant startAt = Instant.parse("2026-05-01T00:00:00Z");
+        Instant endAt = Instant.parse("2026-05-02T00:00:00Z");
+        List<Map<String, Object>> expected = List.of(Map.of(
+                "id", "evt-1",
+                "event_type", "OPEN"
+        ));
+        when(jdbcTemplate.queryForList(anyString(),
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("campaign-1"),
+                eq("OPEN"),
+                eq(Timestamp.from(startAt)),
+                eq(Timestamp.from(endAt)),
+                eq(100)))
+                .thenReturn(expected);
+
+        List<Map<String, Object>> result = service.exportEvents(
+                "tenant-1",
+                "workspace-1",
+                "campaign-1",
+                List.of("open"),
+                startAt,
+                endAt,
+                100);
+
+        assertThat(result).isEqualTo(expected);
+        verify(jdbcTemplate).queryForList(argThat(sql -> sql.contains("campaign_id = ?")
+                        && sql.contains("event_type IN (?)")
+                        && sql.contains("\"timestamp\" >= ?")
+                        && sql.contains("\"timestamp\" <= ?")
+                        && sql.contains("LIMIT ?")),
+                eq("tenant-1"),
+                eq("workspace-1"),
+                eq("campaign-1"),
+                eq("OPEN"),
+                eq(Timestamp.from(startAt)),
+                eq(Timestamp.from(endAt)),
+                eq(100));
     }
 
     @Test

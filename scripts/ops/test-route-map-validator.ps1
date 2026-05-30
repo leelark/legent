@@ -514,6 +514,29 @@ $script:TempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("legent-route-ma
 New-Item -ItemType Directory -Force -Path $script:TempRoot | Out-Null
 try {
     Assert-RouteMapPasses "baseline-route-map-fixture"
+    Assert-RouteMapPasses "dynamic-dns-route-map-fixture" {
+        param($Fixture)
+        $Fixture.Nginx = Replace-TextBlock $Fixture.Nginx @'
+    upstream foundation_service {
+        server foundation-service:8080;
+    }
+
+    upstream tracking_service {
+        server tracking-service:8080;
+    }
+
+'@ @'
+    set $foundation_service_url http://foundation-service:8080;
+    set $tracking_service_url http://tracking-service:8080;
+
+'@
+        $Fixture.Nginx = Replace-TextBlock $Fixture.Nginx `
+            'proxy_pass http://foundation_service;' `
+            'proxy_pass $foundation_service_url;'
+        $Fixture.Nginx = Replace-TextBlock $Fixture.Nginx `
+            'proxy_pass http://tracking_service;' `
+            'proxy_pass $tracking_service_url;'
+    }
     foreach ($case in $selectedCases) {
         Assert-RouteMapFails $case.Name $case.Mutate $case.ExpectedMessage
     }
